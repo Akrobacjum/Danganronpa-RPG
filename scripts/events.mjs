@@ -32,7 +32,7 @@ import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentSeat
     incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
-import { trialProgress, VOTE_OPEN_FLAG, votesIn, pendingVoters } from "./vote.mjs";
+import { trialProgress, votesIn, pendingVoters } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
@@ -284,25 +284,57 @@ export function safewordCard(clock) {
 }
 
 /**
- * IS THERE A VOTE OPEN, asked without inventing anywhere new to keep it.
+ * IS THERE A VOTE OPEN: the world's trial record says (vote.mjs `trialProgress().vote.open`).
  *
- * `ballots` lives on the GM's client and nowhere else, so a player's browser
- * cannot answer this at all - which is the gap `pendingVoters` exists for: a
- * player who dismissed their ballot by accident had nothing on screen telling
- * them the table was waiting. Two facts that are already shared answer it:
- * the flagged announcement `openVote` posts (the log is the record), and
- * `voteClosed` in `trialProgress`, which is a world setting and is what
- * `closeVote` writes. Both are chapter-stamped, because the log outlives the
- * trial and a record from another chapter describes another vote.
+ * The ballots are on the GMs' side and nowhere else, so a player's browser
+ * cannot count them - which is the gap `pendingVoters` exists for: a player
+ * who dismissed their ballot by accident had nothing on screen telling them
+ * the table was waiting. Whether a vote is open is a world setting since
+ * 1.2.71 (E10 C1; audit S06-17), written on the primary GM as it opens and
+ * counts, so every browser reads the same answer and a reload changes none of
+ * it. Until then this read the flagged announcement `openVote` posted, and a
+ * chat message carrying that flag is one any player can post: every panel
+ * then said the vote was open (the census's F6). The record is
+ * chapter-stamped and reads blank for another chapter; the clock's chapter is
+ * compared as well, because the panel describes the clock's trial.
  */
 function voteIsOpen(clock) {
     try {
-        if (trialProgress().voteClosed) return false;
-        return (game.messages ?? []).some(m =>
-            m.getFlag(MODULE_ID, VOTE_OPEN_FLAG)
-            && m.getFlag(MODULE_ID, "voteChapter") === clock.chapter);
+        const progress = trialProgress();
+        return Boolean(progress.vote?.open) && progress.chapter === clock.chapter;
     } catch {
         return false;
+    }
+}
+
+/**
+ * THE VERDICT IS IN (E10 C5, S06-06). Until 1.2.71 the trial card went back to
+ * "Everyone has the floor" the moment the verdict was given, and stayed there to
+ * the end of the phase: the one thing the whole class had just learnt was the
+ * one thing the panel did not say. It says it from the moment the verdict's
+ * public card is posted (`done` holds "card") - no earlier, so the panel cannot
+ * tell the table a sentence the chat has not shown yet - and it says what that
+ * card says and nothing more: who was executed and whether the class got it
+ * right. The record it reads (`trialProgress().verdict`) is the world's, and it
+ * never holds a Blackened the verdict did not reveal (vote.mjs `applyVerdict`).
+ */
+function afterVerdictCard(clock) {
+    try {
+        const progress = trialProgress();
+        const verdict = progress.chapter === clock.chapter ? progress.verdict : null;
+        if (!Array.isArray(verdict?.done) || !verdict.done.includes("card")) return null;
+        const executed = (verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        return {
+            kind: "trial",
+            title: game.i18n.localize("DRPG.Events.afterVerdict"),
+            sub: game.i18n.localize(verdict.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong"),
+            // `cardElement` writes text, not markup, so the names go in as they are.
+            meta: executed.length
+                ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
+                : game.i18n.localize("DRPG.Vote.nobodyExecuted")
+        };
+    } catch {
+        return null;
     }
 }
 
@@ -337,22 +369,34 @@ export function trialCard(clock) {
             };
         }
 
+        const after = afterVerdictCard(clock);
+        if (after) return after;
+
         const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
-        let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
-        let versus = null;
+        /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
+           Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
+           and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
+           looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
+           (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
+           Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
+           row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
+        let speaker = null;
+        let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
+            ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
         if (floor?.mode === FLOOR_MODES.objection) {
             speaker = floorHolder(floor)?.name ?? unknown;
+            meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
         } else if (floor?.mode === FLOOR_MODES.rebuttal) {
             speaker = floorTarget(floor)?.name ?? unknown;
-            versus = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+            meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
         }
         return {
             kind: "trial",
             title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
             sub: speaker,
-            meta: versus ?? game.i18n.localize("DRPG.Events.trialFloorOpen"),
+            meta,
             // The debate's countdown, only while a floor is open: a trial in session
             // with nobody holding the floor has no clock running (see `paintTrialClock`).
             clock: Boolean(floor)

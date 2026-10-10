@@ -86,4 +86,40 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("p3: switching back is a no-op until reload (the setting says reload)", back.lang === "en" && back.applied === false, JSON.stringify(back));
     const others = await p1.eval(`return game.settings.get("${MOD}", "language");`);
     check("p1: another browser keeps its own choice", others === "pl", others);
+
+    // ---- 6. the handbooks name the Class Trial's buttons by the labels the module draws -----
+    // E10 C17 (10.10.2026): the handbooks' section on the trial (gm 15, player 12) was rewritten for E10's
+    // vote, verdict and Level Up window, and the words it puts in bold are the buttons and titles a reader
+    // looks for on screen. Each label is read from lang/ in both languages, cut at its first placeholder
+    // ("Send another ballot ({n})" reads "Send another ballot"), and looked for after a "**" in the
+    // handbook of the same language. R321 reads what the sentences say against the code; this reads the
+    // names. 56 labels; at the commit before C17, 34 of them were missing.
+    const LABELS = {
+        gm: ["Floor.startTrial", "Floor.openDebate", "Floor.closeDebate", "Floor.newTrialTitle", "Floor.incidentKeep", "Murder.endMurder",
+            "Vote.openTitle", "Vote.send", "Vote.remind", "Vote.sendAgain", "Vote.tally", "Vote.nobodyExecuted", "Vote.gotItRight",
+            "Vote.gotItWrong", "Vote.verdictCardTitle", "Vote.finishVerdict", "Advance.queueTitle", "Advance.pickPlayer", "Advance.pickMe",
+            "Advance.queueGive", "Advance.allPlayers", "Advance.takeBack", "Mastermind.verdictTitle", "Floor.endTrial"],
+        player: ["Vote.castConfirmed", "Vote.verdictCardTitle", "Trial.present", "Trial.objectionShort"]
+    };
+    const named = await gm.eval(`
+        const U = foundry.utils, LABELS = ${JSON.stringify(LABELS)};
+        const out = { read: 0, missing: [] };
+        for (const lang of ["en", "pl"]) {
+            const strings = U.expandObject(await (await fetch("modules/${MOD}/lang/" + lang + ".json")).json());
+            for (const [book, keys] of Object.entries(LABELS)) {
+                const res = await fetch("modules/${MOD}/docs/handbooks/" + book + "-handbook." + lang + ".md");
+                const text = res.ok ? await res.text() : "";
+                if (!text) { out.missing.push(book + "-handbook." + lang + ".md did not load"); continue; }
+                for (const key of keys) {
+                    const label = U.getProperty(strings, "DRPG." + key);
+                    if (typeof label !== "string") { out.missing.push(lang + " has no DRPG." + key); continue; }
+                    const words = label.split("{")[0].replace(/[\\s(:]+$/, "");
+                    out.read++;
+                    if (!words || !text.includes("**" + words)) out.missing.push(book + "." + lang + " " + key + ": " + words);
+                }
+            }
+        }
+        return out;`, { timeout: 30000 });
+    check("gm: the handbooks name the Class Trial's buttons by the labels the module draws, in English and in Polish",
+        named.read === 56 && named.missing.length === 0, JSON.stringify(named));
 }

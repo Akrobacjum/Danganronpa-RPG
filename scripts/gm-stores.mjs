@@ -55,7 +55,9 @@ export function uuidInThisWorld(uuid) {
 /**
  * THE TRUTH BULLET ANSWER KEY (E04 C2; audit S05-01). Keyed by item uuid, one row
  * per bullet: realType, remnantId, sceneId, sourceAction, tiedToCrime, faint,
- * gmNote, analyzedText, analysedFrom, analysedChapter. The old rows are claimed
+ * gmNote, analyzedText, analysedFrom, analysedChapter, and since E09 fix r1-G3
+ * chapter - the find's, which the Key fee reads once the trace is gone
+ * (truth-bullets.mjs `createTruthBullet`). The old rows are claimed
  * per world by uuid, live and tombstoned, at their own `updated` (or weak, with
  * none); a row of another world stays in the old key.
  */
@@ -226,13 +228,14 @@ export const doorCopy = defineGmCopy({
 /**
  * HOW THE INCIDENT HAPPENED (E05 C8; audit S04-08): whether it is a trap, whether the
  * killer and the victim are one person, whether a reversal left the Key Remnant plan
- * to be written again, when it opened and how it ended. Until 1.2.64 these sat in the
+ * to be written again, when it opened - and since E09 fix r1-G3 in which chapter, the
+ * one its close keeps the case's Key count under - and how it ended. Until 1.2.64 these sat in the
  * world half of `murderState`, which every browser holds: through the whole of Stage 6
  * a console read `selfInflicted: true` - the answer to the Class Trial - and a trap's
  * builder read `indirect` at the moment it went off, which `castOwners` withholds the
  * cast to keep from them. They are the cast's now, and reach only its participants.
  */
-export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
+export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy", "chapter"]);
 
 /**
  * THE FIGHT (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09): the round and
@@ -594,10 +597,12 @@ export const observeStore = defineGmStore({
 });
 
 /**
- * THE LEVEL UPS ON OFFER (E04 C8; audit S03-11). A row per character, `{ kind, at }`,
- * synced between the GMs; the primary writes it (level-up.mjs `recordOffer`) - an offer
- * or a withdrawal, which is a stamped drop now, where the old store deleted the key and
- * a GM holding it wrote it back. The old offers are claimed on the primary's browser
+ * THE LEVEL UPS ON OFFER (E04 C8; audit S03-11). A row per character, synced between the
+ * GMs; the primary writes it (level-up.mjs `recordOffer`, `dropOffer`) - an offer or a
+ * withdrawal, the last one a stamped drop, where the old store deleted the key and a GM
+ * holding it wrote it back. Since E10 C6 (1.2.71; audit S03-17) the row is a list,
+ * `{ offers: [{ id, kind, extra, deferred, at }] }`, and a row of one `{ kind, at }` - every
+ * row until then - is read as a list of one (level-up.mjs `offerList`). The old offers are claimed on the primary's browser
  * only (the design's row 17): the old key had no tombstones, so a union of every GM's
  * browser would bring back offers taken away; at their `at`, for a character here and a
  * kind that exists. An entry with no `at` is an owner's cached copy, never the store.
@@ -635,6 +640,39 @@ export const deferredOfferStore = defineGmStore({
     name: "deferredOffers", key: SETTINGS.gmDeferredOffers,
     kind: "ledger", resetGroup: "advancement", backup: true, sync: true,
     exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE BALLOTS OF THE VOTE (E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3). A row per
+ * voter, keyed by the user Foundry says sent the ballot: `{ chapter, round, actorId, choice: [id],
+ * at }` - the names on it, the student it was cast with, and the chapter and round of the vote in
+ * the world's trial record (vote.mjs `trialProgress`). Until 1.2.71 the ballots were a Map in the
+ * collecting GM's memory, and a reload of that browser lost them: the GM who came back counted
+ * none (scenario 63's D and E at 1e9871c). Written by the primary alone (`recordBallot`, the run
+ * of the bridge's `vote.cast` since E10 C2), synced between the GMs and never sent to a player -
+ * how anybody voted stays on the GMs' side, as the guide keeps it. A count reads only the rows of
+ * the world's chapter and round (`roundBallots`); the next open drops the rest, and the reset's
+ * "trialProgress" group cuts every row (D12). Not backed up: a ballot means nothing once its vote
+ * is counted.
+ */
+export const ballotStore = defineGmStore({
+    name: "ballots", key: SETTINGS.gmBallots,
+    kind: "ledger", resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
+ * THE BLACKENED A VERDICT WAS GIVEN WITH (E10 fix r1-G1, 1.2.71; the round-1 security review's F3).
+ * A record, `{ at, blackenedIds }`: the verdict record's `at` (vote.mjs `trialProgress().verdict`)
+ * and the Blackened its GM named in the verdict's window. A Finish of a verdict that stopped read
+ * them from the register alone, which names nobody when the GM named them by hand: a wrong verdict
+ * stopped before its Level Up or its rule kept nobody's Level Up and asked no rule. Written by
+ * `applyVerdict`, read by `finishVerdict` when its `at` is the stopped verdict's. A GM store and
+ * never the world's record, which every console reads and which C5 keeps free of a Blackened. Cut
+ * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
+ */
+export const verdictStore = defineGmStore({
+    name: "verdict", key: SETTINGS.gmVerdict,
+    kind: "record", fields: ["at", "blackenedIds"], resetGroup: "trialProgress", backup: false, sync: true
 });
 
 /**
@@ -732,7 +770,8 @@ export function offersCombine(held, offered, { cut = 0 } = {}) {
 
 /**
  * AN OWNER'S OFFERS (E04 C8): the Level Ups standing on this user's own characters,
- * `{ actorId: { kind } }`, as the primary GM sent them - a stamp per character (the row's,
+ * `{ actorId: { offers: [{ id, kind, extra }] } }` since E10 C6 (`{ actorId: { kind } }`
+ * before, read as a list of one), as the primary GM sent them - a stamp per character (the row's,
  * a withdrawal's tombstone included), and taken whole only when it is at least as new
  * for every character and newer for one (gm-store.mjs `newerStamps`). An answer from a
  * primary whose browser holds no offer carries stamp 0 and changes nothing: the lit
@@ -852,7 +891,9 @@ export const rerollJournalStore = defineGmStore({
  * A CLEAN-UP'S RECEIPT (E08+E28 C3, 03.10.2026; audit S05-44). A row per character, what their
  * last clean-up attempt did, so a Reroll can take it back (cleanup.mjs `undoLastCleanup`):
  * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
- * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack`. Until
+ * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack` - and, for a
+ * reshape put to the GMs, its `proposal` (written before the card goes) and `ruled` (who ruled,
+ * on which GM's browser, which way; E09 C10, cleanup.mjs `claimRuling`). Until
  * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
  * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
  * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by
@@ -957,9 +998,14 @@ export const sheetWriteStore = defineGmStore({
  * investigation.mjs's `keepOnlyKeyPlanChapter`, which `season-setup.mjs`'s `wipeSeason` calls
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
- * no season stamped on it, so any chapter left standing would otherwise read as planned
- * before this season ever opened the planner (`chargeForUnfoundKeys`). No old key: the first
- * rows come out of the world by `liftKeyPlan`.
+ * no season stamped on it, so any chapter left standing would otherwise have read as planned
+ * before this season ever opened the planner (`chargeForUnfoundKeys` read the slots' chapters
+ * until E09 C7, the case rows since). No old key: the first
+ * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
+ * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
+ * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the
+ * chapter the case opened in, and dropped by a reset that keeps the plan, since E09 fix
+ * r1-G3.
  */
 export const keyPlanStore = defineGmStore({
     name: "keyPlan", key: SETTINGS.gmKeyPlan,
@@ -1259,7 +1305,7 @@ export const CASE_FORMAT = "drpg-case";
 export const CASE_VERSION = 1;
 const { DialogV2 } = foundry.applications.api;
 
-/** `{ since, lastBackupAt, lastBackupBy }`: when this world's case was first recorded, and its last backup. */
+/** `{ since, lastBackupAt, lastBackupBy, upgradedAt, tiesSettledAt, tiesSettledBefore }`: when this world's case was first recorded, its last backup, two load marks and the tie settle's cut. */
 export function caseMark() {
     try { return getSetting(SETTINGS.caseMark) ?? {}; } catch { return {}; }
 }
@@ -1314,6 +1360,74 @@ async function markUpgrade() {
 async function markCaseSince() {
     if (!isPrimaryGm() || caseMark().since) return;
     if (caseHasRows(gmStoreHandles())) await markCase({ since: Date.now() });
+}
+
+/** When this browser registered its case health (ready), on the stores' clock: the world's first `settleTieStates` reads only a tie stamped before it. */
+let tiesLoadedAt = null;
+
+/**
+ * A TRACE'S "NOT TIED" FROM BEFORE THE THIRD STATE, READ AS UNDECIDED (E09 C4, 08.10.2026; audit
+ * S05-37, the owner's D14). Until C4 the ledger wrote every tie through `Boolean()`, so a stored
+ * `false` was as often "nobody said" as a GM's "not tied" - and a victim's death tied both
+ * anyway. From C4 a death leaves `false` alone
+ * (remnants.mjs `tieChapterTraces`), which would turn every old undecided trace into a red
+ * herring nobody planted; this turns them back into `null`, once per world, on the primary,
+ * after its stores hold the other GMs' copies (and, since fix r2-G4, the rows that arrive after
+ * that at every GM's load, below), and writes `caseMark.tiesSettledAt` so a "not
+ * tied" a GM chooses after it is never touched (tier 2 "the tie settle step runs once"). The
+ * mark is written whether or not a row moved - a timestamp, and nothing about the case; a
+ * browser whose traces' store never hydrated settles nothing and marks nothing, and the next
+ * load tries again. A normal stamp, not a weak one: a weak write gives way to a GM's (R172), and
+ * the old `false` every other GM still holds was a GM's write.
+ *
+ * ONLY A `false` FROM BEFORE THIS LOAD. The step runs once the stores have hydrated, after the
+ * load's other marks, and a "not tied" written in between is a GM's of today: scenario 10 set one
+ * in its first second and read it back `null` (08.10.2026, the step having run after the write).
+ * So the tie's own stamp is asked (`stampOf`, per field in the ledger) against this load's
+ * moment (`tiesLoadedAt`, taken at ready since fix r2-G4, below); `before` is the suite's.
+ *
+ * AND A ROW THAT ARRIVES AFTER IT (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's
+ * item 3). A row only an absent GM held - a trace placed while the primary was away - merged in
+ * after the step had marked the case, and kept its old "not tied" for good: scenario 61's D6, a
+ * second GM back with such a row in its browser, read `false` on both GMs at the parent. So the
+ * first settle writes its cut beside the mark (`tiesSettledBefore`), and every GM's load after
+ * it - the primary's or not, once its stores hold the others' rows - reads the rows against that
+ * cut again: the arrived row was stamped before it and goes undecided; a "not tied" written since
+ * is stamped after it and stays, whoever holds it. A mark written before this fix has no cut, and
+ * nothing is read again in that world. The cut is the stores' clock (`gmStoreStamp`, the server's,
+ * as the rows' stamps are) when this browser registered its case health at ready, not the
+ * machine's when the module was imported: a machine five minutes fast moves `Date.now` alone
+ * (scenario 61's A7), and its cut, read again at every load now, would take back five minutes of
+ * GMs' "not tied" for good - read in the code; no check loads a fast primary into a world whose
+ * case is not marked.
+ *
+ * THE SUITE'S RUN READS ITS OWN ROWS (E09 fix r1-G2, 08.10.2026; the round-1 security review's F3).
+ * The tier-2 test took the mark out and ran the step over the whole ledger, so a GM who ran the
+ * suite at a table had every "not tied" of the world made undecided, silently, and a death in that
+ * chapter then tied them. `keys` limits the walk to the rows named; only the suite passes it.
+ *
+ * The mark is a store stamp (`gmStoreStamp`, the server's clock as the rows' stamps are), since
+ * fix r1-G2: cleanup.mjs `receiptTie` holds a receipt's stamp against it.
+ *
+ * @param {{before?: number, keys?: string[]|null}} [options]  `before` is the first settle's cut
+ *   (this load's, or the suite's); a world settled before reads its own
+ * @returns {Promise<number>} how many rows moved
+ */
+export async function settleTieStates({ before = tiesLoadedAt, keys = null } = {}) {
+    if (!remnantStore.isHydrated()) return 0;
+    const mark = caseMark();
+    const cut = mark.tiesSettledAt ? mark.tiesSettledBefore : isPrimaryGm() ? before : null;
+    if (!Number.isFinite(cut)) return 0;
+    const only = keys ? new Set(keys) : null;
+    const undecided = {};
+    for (const [key, row] of Object.entries(remnantStore.entries())) {
+        if (only && !only.has(key)) continue;
+        if (row?.tiedToCrime === false && remnantStore.stampOf(key, "tiedToCrime") < cut) undecided[key] = { tiedToCrime: null };
+    }
+    const moved = Object.keys(undecided).length;
+    if (moved) await remnantStore.patchMany(undecided, { ifLive: true });
+    if (!mark.tiesSettledAt) await markCase({ tiesSettledAt: gmStoreStamp(), tiesSettledBefore: cut });
+    return moved;
 }
 
 /** Whether the stores whose rows mirror world documents - the bullets', the traces' - hold any. Pure over the handles. */
@@ -1973,8 +2087,9 @@ export async function openRestoreDialog(text = null) {
 
 /** Registered at ready (module.mjs): the check runs once this client's stores hold the other GMs' copies. */
 export function registerCaseHealth() {
+    tiesLoadedAt = gmStoreStamp();
     onGmStoresHydrated(() => {
-        const marked = markUpgrade().then(() => markCaseSince());
+        const marked = markUpgrade().then(() => markCaseSince()).then(() => settleTieStates());
         // The marks are the load's writes; the check's window waits for a GM, and the suite does not wait for it.
         marking = marked.catch(() => {});
         marked.then(() => runHealthCheck()).catch(err => error("The case health check could not run", err));

@@ -34,8 +34,10 @@ import { getClock } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
 } from "./settings.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
-import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
+import {
+    TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
+} from "./truth-bullets.mjs";
+import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
@@ -286,15 +288,41 @@ export async function incidentVictimDied(actor, chapter) {
 
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
-    // Investigation Dashboard with "Tied to crime" already checked. Gated on
-    // `sideOf` so an execution after the trial, the mastermind's end or a
-    // GM's story ruling ties nothing. Checked BEFORE `offerStageSix` below,
-    // which can close the incident and take the answer with it.
+    // Investigation Dashboard as "Tied" where nobody had said otherwise. Gated
+    // on the incident's victim so an execution after the trial, the
+    // mastermind's end or a GM's story ruling ties nothing. Checked BEFORE
+    // `offerStageSix` below, which can close the incident and take the answer
+    // with it.
+    //
+    // THE VICTIM, NOT THE VICTIM'S SIDE, AND THE LEDGER ONLY (E09 C4, 08.10.2026; audit
+    // S05-37). The gate was `sideOf(actor) === "victim"`, and a student who takes their
+    // own life holds both seats, where `sideOf` answers "killer": a suicide tied nothing
+    // (tier 2 "a suicide ties the chapter's traces"). And the tie went on to every copy
+    // already identified, which climbed to the top of its holder's pack at the death -
+    // before anybody had found the body (tier 2 "a death reaches the copies' tie only at
+    // the body's discovery", scenario 10's two "the death's tie" checks).
+    //
+    // WHEN THIS DEATH IS THE TABLE'S, WITH THE FIGHT'S (E09 fix r1-G1, 08.10.2026; the
+    // round-1 reviews' cor F3, sec F8). C4 left the sending to the body's discovery, for
+    // the whole chapter: a death made known any other way - the Students list, a kill made
+    // public at once - never reached the copies, and a discovery sent a second death's
+    // kept ties with its own. A death the GMs keep ties with its victim's id and takes
+    // over what the fight held back (a weapon's tie, remnants.mjs `tieWaitNow`), and its
+    // publication sends both (`publishDeath`); a death already public sends them now
+    // (tier 2 "a death the GMs make known from the Students list sends its ties to the
+    // copies", "a death made known at once sends its ties and the fight's to the copies").
     try {
-        const { sideOf } = await import("./murder.mjs");
-        if (sideOf(actor) === "victim") {
+        if (await isIncidentVictim(actor)) {
             const { tieChapterTraces } = await import("./remnants.mjs");
-            await tieChapterTraces(chapter);
+            const { murderState } = await import("./murder.mjs");
+            const fight = fightKey(murderState());
+            if (isDeceased(actor)) {
+                await tieChapterTraces(chapter);
+                await publishTiesFor(fight);
+            } else {
+                await tieChapterTraces(chapter, { waitFor: actor.id });
+                await handTiesOn(fight, actor.id);
+            }
         }
     } catch (err) {
         error("Could not mark the chapter's traces as tied to the murder", err);
@@ -333,7 +361,9 @@ async function isIncidentVictim(actor) {
  * end, the dashboard's button). Measured with tier 2's "a death and a sweep take the Truth Bullets the GMs hold, ..."
  * (e29run/r2h22red, 06.10.2026): until this fix a bullet whose category a write took off where the mark does not see it
  * was left on the sheet by both; with either reading the documents again (e29run/r2h22m, m3, m4) it is left again.
- * The reveal (`allBullets`, each player's own bullets) and the chapter-end panel's count (a display) read the documents.
+ * The reveal takes its set from the documents (`allBullets`, each player's own bullets) and decides each one on the
+ * bullet as the GMs hold it (`revealPlan`, E09 C8); the two counts a GM is shown before a sweep read what the sweep
+ * reads (`sweepPlan`, E09 C1).
  */
 async function bulletsHeldBy(actor) {
     const { itemsAsHeld } = await import("./sheet-audit.mjs");
@@ -438,13 +468,19 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * the kill kept them, the flag is written with the kill's own record (its chapter, day and
  * time of day, not the finding's) and the "dead" status with it, the row is dropped - its
  * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
- * Idempotent: a death already public answers its record, a body nobody killed null. Run
- * by the body's discovery (`runDiscovery`) and by a GM's hand - the Players window's
- * "dead" (gm-panel.mjs) - and by nothing else: no trial and no chapter's end publishes a
- * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
+ * Idempotent: its head reads the GMs' row (`deathStore`), so a death already public answers
+ * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
+ * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-panel.mjs
+ * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
+ * that executes a student whose death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4:
+ * the GM named them in the verdict's window, which told that GM whose death it is). Nothing
+ * else: no trial and no chapter's end publishes a death on its own (the owner's Q3, 26.09.2026;
+ * callers read with `git grep` on 10.10.2026, E10 fix r2-G3). Last, each loot of the body before this
  * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
  * `payOwedLoot`; E05 fix r2-F0b), and each identified copy of the body's loot trace found
- * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4).
+ * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4);
+ * and the ties to the crime that waited for this death (remnants.mjs `publishTiesFor`; E09 fix
+ * r1-G1), whichever road made it known - the discovery, or a GM's hand here.
  */
 export async function publishDeath(actor) {
     if (!game.user.isGM || !actor) return null;
@@ -463,6 +499,9 @@ export async function publishDeath(actor) {
     const paid = owed.length ? await payOwedLoot(actor, owed) : 0;
     const { publishLootSource } = await import("./truth-bullets.mjs");
     await publishLootSource(lootTraceStore.get(actor.id));
+    // And the ties to the crime that waited for this death, the fight's among them, to the
+    // copies (remnants.mjs `publishTiesFor`; E09 fix r1-G1).
+    await publishTiesFor(actor.id);
     log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
     return record;
 }
@@ -543,6 +582,16 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (row) {
         await deathStore.drop(actor.id);
         await tellDeathKnowers(actor, row.known, { dropped: true });
+        // The ties that waited for this death (E09 fix r1-G1): back to the fight still running
+        // over this student, sent otherwise - nothing will make the death known now.
+        try {
+            const { murderState } = await import("./murder.mjs");
+            const state = murderState();
+            if (state?.active && state.victimId === actor.id) await handTiesOn(actor.id, fightKey(state));
+            else await publishTiesFor(actor.id);
+        } catch (err) {
+            error(`Could not settle the ties that waited for ${actor.name}'s death`, err);
+        }
     }
     if (!row || isDeceased(actor)) {
         try {
@@ -779,6 +828,11 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
     const found = await publishFoundBodies(room, victim, where);
+
+    /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
+       round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
+       ties a second death, still kept, had made (tier 2 "a body's discovery sends only the ties
+       its own death made"). Each body published above sends its own (`publishDeath`). */
 
     const promoted = await promoteFaintPrep();
 
@@ -1078,42 +1132,75 @@ export async function openBodyDiscoveryDialog() {
  * CHAPTER END AND THE NEXT SESSION
  * ========================================================================== */
 
-/** Every Truth Bullet in the world, with the actor holding it. */
-function allBullets() {
+/** Every Truth Bullet in the world, with the actor holding it; `actors`: only theirs. */
+function allBullets(actors = null) {
     const out = [];
-    for (const actor of game.actors) {
+    for (const actor of actors ?? game.actors) {
         if (actor.type !== "character") continue;
         for (const item of bulletsOf(actor)) out.push({ actor, item });
     }
     return out;
 }
 
-/**
- * The chapter is over: every Truth Bullet gives up what it really was.
- *
- * Reads the answer key and writes it onto the items, so the reveal survives on
- * the players' sheets rather than being a message they have to remember.
+/*
+ * WHAT THE CHAPTER'S REVEAL WOULD WRITE, AND THE NUMBER THE END OF CHAPTER PANEL SHOWS FOR IT (E09 C8, S05-18; the
+ * owner's Q1, answer (c), 08.10.2026, since E09 fix r1-G5). Until C8 the reveal wrote the kind, `analyzed` and Faint on
+ * every bullet not already showing its kind as analysed, and the sweep after it keeps Faint and Final
+ * (`sparedBySweep`): so a Faint bullet the chapter carried over came out analysed, and `isAnalysable` refuses an
+ * analysed bullet - the guide's second life of a Faint trace ("można je przeanalizować ponownie") never came; a Final
+ * carried over the same way was spent; and a Key or a Final revealed showed its kind without its reading, which only
+ * Analyze wrote. Measured with tier 2's "a Faint the sweep keeps stays analysable", "the chapter's reveal leaves a
+ * Final unread and analysable" (C8's name for the test fix r1-G5 rewrote) and "a revealed Key carries its reading" on
+ * the code before C8 (scratchpad/c8run/red.log, 08.10.2026): the Faint and the Final analysed and not analysable, the
+ * Key's reading "". Now the reveal leaves a Faint as it is, to be analysed in the next chapter; shows a Final its kind
+ * and not its reading (`kindOnly`), so it too stays to be analysed; and gives every other bullet the whole of what an
+ * Analyze gives (truth-bullets.mjs `publishReading`). C8 spared a Final like a Faint (Q1 (a), the default taken while
+ * the question was open); the owner answered (c). A Final is born showing its kind unless the GM handed it over as
+ * Neutral (gm-items.mjs), so that withheld Final is the one this shows: tier 2 "the chapter's reveal shows a Final's
+ * type without its reading and leaves it analysable", red on C8's code (08.10.2026) with the withheld Final still
+ * Neutral. Each decision reads the bullet as the GMs hold it (`bulletAsHeld`; `sparedBySweep` reads Faint so), every
+ * one in this one synchronous pass before the first write. The set is every character's bullets on this browser
+ * (`allBullets`), by design: a bullet whose answer key names no kind is passed over, so an item a player made, which
+ * has no answer key, is never revealed (read in the code). Answers `reveal` (the item, its answer key and the held
+ * copy, for `publishReading`) and `typeless`, the bullets still unanalysed whose answer key names no kind, which the
+ * panel warns of.
  */
-export async function revealAllBulletTypes() {
+export function revealPlan({ actors = null } = {}) {
+    if (!game.user.isGM) return { reveal: [], typeless: 0 };
+    const reveal = [];
+    let typeless = 0;
+    for (const { item } of allBullets(actors)) {
+        const held = bulletAsHeld(item), secret = secretOf(item.uuid);
+        if (!secret.realType) {
+            if (!held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) typeless++;
+            continue;
+        }
+        if (secret.realType === "final") {
+            if (held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) !== "final") reveal.push({ item, secret, held, kindOnly: true });
+            continue;
+        }
+        if (sparedBySweep(item)) continue;
+        if (held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) === secret.realType
+            && held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) continue;
+        reveal.push({ item, secret, held });
+    }
+    return { reveal, typeless };
+}
+
+/**
+ * The chapter is over: every Truth Bullet the sweep would take gives up what it really was (`revealPlan`).
+ *
+ * Reads the answer key and writes it onto the items, so the reveal survives on the players' sheets rather than being a
+ * message they have to remember. `actors`: the students to reveal, every one where unsaid - the suite's, which must not
+ * reveal a table's world. Answers how many it wrote.
+ */
+export async function revealAllBulletTypes({ actors = null } = {}) {
     if (!game.user.isGM) return 0;
 
     let revealed = 0;
-    for (const { item } of allBullets()) {
-        const realType = secretOf(item.uuid).realType;
-        if (!realType) continue;
-        if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) === realType
-            && item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) continue;
-
+    for (const { item, secret, held, kindOnly = false } of revealPlan({ actors }).reveal) {
         try {
-            await item.update({
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
-                /* Faint goes public with the type, because this is the same moment
-                   Analyze is - the bullet gives up what it really was. Without this
-                   line the chapter's reveal would leave every doubtful trace looking
-                   solid on the sheets it has just been written onto. */
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item)
-            });
+            await publishReading(item, secret, { held, kindOnly });
             revealed++;
         } catch (err) {
             error(`Could not reveal the type of "${item.name}"`, err);
@@ -1122,6 +1209,49 @@ export async function revealAllBulletTypes() {
 
     log(`Revealed the real type of ${revealed} Truth Bullet(s).`);
     return revealed;
+}
+
+/**
+ * Whether the sweep leaves this bullet: a Faint one, or a Final Truth (the two reasons are on `sweepTruthBullets`
+ * below). Faint as the GMs hold it - the answer key's, and where a row holds none (a bullet made before 1.2.47 that
+ * the migration has not moved) this browser's copy of the GMs' flag (`bulletAsHeld`), not the document's, which a
+ * player's write waiting for its put-back can hold. GM-side: both halves are a GM's to read.
+ */
+export function sparedBySweep(item) {
+    return faintOf(bulletAsHeld(item)) || secretOf(item.uuid).realType === "final";
+}
+
+/*
+ * WHAT A SWEEP WOULD TAKE, AND WHAT IT WOULD LEAVE (E09 C1, S05-21). Three places chose the bullets a sweep takes, each
+ * its own way: the sweep (the bullets the GMs hold, `bulletsHeldBy`, kept by `faintOf`), the Investigation Dashboard's
+ * confirm (investigation.mjs `confirmSweepBullets`: the documents, kept by the Faint flag on the item - false on every
+ * Faint bullet nobody has analysed, which is where Faint is published) and the chapter-end panel (the documents, kept by
+ * `faintOf`). So for a student holding an unanalysed Faint, a Neutral and a Final the confirm said 2 and the sweep took
+ * 1. All three read this now: the bullets as the GMs hold them, one wait per student, and then every decision in one
+ * synchronous pass (`sparedBySweep`), so nothing a write lands between two decisions changes one of them and not the
+ * other. Answers the items, `remove` and `keep`; the sweep deletes `remove`, and both counts are `remove.length`. The
+ * wait is `itemsAsHeld`'s (sheet-audit.mjs): a judgement of a write queued on a student first, which a GM's click and a
+ * chapter's end start and nothing it waits for does. Measured with tier 2's "the confirm count is the sweep's count"
+ * and "a forged faint flag in the window spares nothing" before this change (e09run/scratch/c1/mt, 08.10.2026): the
+ * confirm counted 2 of the three above and the sweep took 1; and of three Neutral bullets a player's write had left a
+ * Faint flag or a lost category on, the confirm counted none, the panel 1, and the sweep took 2, sparing the one whose
+ * answer key holds no Faint (`faintOf` read the document's flag there).
+ */
+export async function sweepPlan({ actors = null } = {}) {
+    if (!game.user.isGM) return { remove: [], keep: [] };
+    const held = [];
+    for (const actor of actors ?? game.actors) {
+        if (actor.type !== "character") continue;
+        held.push([actor, (await bulletsHeldBy(actor)).map(item => item.id)]);
+    }
+    const remove = [], keep = [];
+    for (const [actor, ids] of held) {
+        for (const id of ids) {
+            const item = actor.items.get(id);
+            if (item) (sparedBySweep(item) ? keep : remove).push(item);
+        }
+    }
+    return { remove, keep };
 }
 
 /**
@@ -1147,37 +1277,23 @@ export async function sweepTruthBullets({ actors = null } = {}) {
     if (!game.user.isGM) return { removed: 0, kept: 0 };
 
     let removed = 0;
-    let kept = 0;
 
+    /* `faintOf`, NOT THE ITEM'S FLAG (`sparedBySweep`). Since 1.2.47 Faint is published onto
+       a player's item only once they have analysed the bullet, so the flag reads false for
+       every doubtful trace nobody has spent a Head roll on - and this sweep would have taken
+       exactly the evidence Faint exists to carry across. The ledger is the truth and this runs
+       GM-side, where the ledger is readable. And guide, p. 32: a Final Truth Bullet is
+       "wyłączony ze sweepu" - it points at the Mastermind across the whole season, not one
+       chapter's case, so the same reveal-and-clear cadence that resets everything else must
+       leave it alone. Which bullets is `sweepPlan`'s, the same answer both counts show. */
     // `actors`: the students to sweep, every one where unsaid - the suite's, which must not sweep a table's world.
+    const { remove, keep } = await sweepPlan({ actors });
+    const kept = keep.length;
     for (const actor of actors ?? game.actors) {
         if (actor.type !== "character") continue;
 
-        const doomed = [];
-        // As the GMs hold them (`bulletsHeldBy`, fix r2-H22).
-        for (const item of await bulletsHeldBy(actor)) {
-            /* `faintOf`, NOT THE ITEM'S FLAG. Since 1.2.47 Faint is published onto
-               a player's item only once they have analysed the bullet, so the flag
-               reads false for every doubtful trace nobody has spent a Head roll on -
-               and this sweep would have taken exactly the evidence Faint exists to
-               carry across. The ledger is the truth and this runs GM-side, where the
-               ledger is readable; `faintOf` falls back to the item for a world made
-               before the change. */
-            if (faintOf(item)) {
-                kept++;
-                continue;
-            }
-            // Guide, p. 32: a Final Truth Bullet is "wyłączony ze sweepu" - it
-            // points at the Mastermind across the whole season, not one chapter's
-            // case, so the same reveal-and-clear cadence that resets everything
-            // else must leave it alone.
-            if (secretOf(item.uuid).realType === "final") {
-                kept++;
-                continue;
-            }
-            doomed.push(item);
-        }
-        await keepBulletDeletions(actor, item => faintOf(item) || secretOf(item.uuid).realType === "final");
+        const doomed = remove.filter(item => item.parent?.id === actor.id);
+        await keepBulletDeletions(actor, sparedBySweep);
 
         if (!doomed.length) continue;
 
@@ -1248,21 +1364,26 @@ export async function openChapterEndDialog() {
         return null;
     }
 
-    const bullets = allBullets();
+    /* AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18): the register takes its
+       killers when it is closed. Since E09 fix r2-G4 the row goes under the chapter the incident
+       opened in, so a late close no longer lands on the next chapter's verdict - but this window ends
+       the chapter, and its trial will not read the register again. trial-floor-ui.mjs
+       `incidentClosedFirst` offers the close, or going on with it open; Cancel ends nothing. */
+    const { incidentClosedFirst } = await import("./trial-floor-ui.mjs");
+    if (!(await incidentClosedFirst())) return null;
+
     // The SAME test the reveal itself applies, or the preview promises work the
-    // action will not do.
+    // action will not do - `revealPlan`, since E09 C8 the reveal's own answer.
     //
     // It used to count every unanalysed bullet, while `revealAllBulletTypes`
     // skips any bullet with no real type in the answer key. So a table with two
     // unanalysed bullets that nobody had ever assigned a type to was offered
     // "reveal 2" and got back "Revealed 0" - and no way to tell whether the
-    // tool had worked.
-    const unanalysed = bullets.filter(({ item }) =>
-        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed));
-    const hidden = unanalysed.filter(({ item }) => secretOf(item.uuid).realType).length;
-    // ...and the difference is worth saying out loud rather than swallowing: a
-    // bullet nobody assigned a type to is a loose end, not a rounding error.
-    const typeless = unanalysed.length - hidden;
+    // tool had worked. And the difference is worth saying out loud rather than
+    // swallowing: a bullet nobody assigned a type to is a loose end, not a
+    // rounding error (`typeless`).
+    const { reveal: revealable, typeless } = revealPlan();
+    const hidden = revealable.length;
 
     const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
     const finalTruthPlaced = finalTruthPlacedThisChapter();
@@ -1272,18 +1393,13 @@ export async function openChapterEndDialog() {
        above already gives: a checkbox that promises work the action will not do is worse
        than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
        keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
-       own planted clues and nothing older. The bullets counted are the documents'; the
-       sweep chooses off the ones the GMs hold since E29 fix r2-H22 (`bulletsHeldBy`), and
-       the two part only where a document's category is not the one the GMs hold, by
-       reading: one a player's write moved whose put-back has not landed, and an item a
-       player's write made that no GM has decided on, read without its category
-       (sheet-audit.mjs `ITEM_UNHELD`) and so left by the sweep for a GM to decide. */
+       own planted clues and nothing older. The sweep's count is the sweep's own answer
+       (`sweepPlan`, E09 C1), not the same rule over the documents: the documents and the
+       bullets the GMs hold part where a player's write waits for its put-back - a category
+       taken off, a Faint flag written - and an item a player's write made that no GM has
+       decided on, which the sweep leaves for a GM (sheet-audit.mjs `ITEM_UNHELD`). */
     const endingChapter = getClock().chapter;
-    const sweepable = bullets.filter(({ item }) =>
-        // the same reader the sweep itself uses, or the count would promise work
-        // the action will not do - which is the whole point of the note above
-        !faintOf(item)
-        && secretOf(item.uuid).realType !== "final").length;
+    const sweepable = (await sweepPlan()).remove.length;
     /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
        floor: a trial in session with nobody holding the floor has no floor record at
        all, and it is still a trial - see the note on the HUD's four states. */
@@ -1310,6 +1426,7 @@ export async function openChapterEndDialog() {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="reveal" checked />
                 ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
             ${typeless ? `<p class="notes drpg-warning">${
                 plural("DRPG.Chapter.typeless", { n: typeless })}</p>` : ""}
             <hr />
@@ -1429,13 +1546,14 @@ export async function applyChapterEnd(choices = {}) {
     }
 
     /* THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
-       Reveal first (above) - it reads the bullets the sweep is about to take. Then the
-       sweep, then the Remnants, and only then the clock, because everything here is scoped
-       to the chapter that is ENDING and the moment the clock moves, "this chapter" means
-       the next one. Measured on 10.09: crossing a chapter with none of this wired left the
-       map holding the previous case's five clues and the players holding its Truth Bullets,
-       while the plan that described them was silently discarded - the module dropped the
-       GM's knowledge and kept everybody else's. */
+       Reveal first (above) - it publishes the bullets the sweep is about to take, shows a Final
+       its kind, and leaves a Faint (`revealPlan`, E09 C8 and fix r1-G5). Then the sweep, then
+       the Remnants, and only then the clock, because everything here is scoped to the chapter that is
+       ENDING and the moment the clock moves, "this chapter" means the next one. Measured
+       on 10.09: crossing a chapter with none of this wired left the map holding the
+       previous case's five clues and the players holding its Truth Bullets, while the plan
+       that described them was silently discarded - the module dropped the GM's knowledge
+       and kept everybody else's. */
     if (result.sweep) {
         const { removed } = await sweepTruthBullets();
         done.push(plural("DRPG.Chapter.doneSweep", { n: removed }));

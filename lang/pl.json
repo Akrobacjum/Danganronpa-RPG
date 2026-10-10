@@ -525,7 +525,7 @@
       "dcObserveKey": "Key Remnant: {rows}.",
       "dcObserveFaint": "Nikły ślad: {rows}.",
       "dcObserveDaily": "Coś bez śladu za sobą: {rows}.",
-      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; codzienność: {daily}; Key i Final: {key}.",
+      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; Key i Final: {key}.",
       "dcHint": "Wskazówka: {a}+ na subtelną, {b}+ na bezpośrednią.",
       "dcStash": "Znalezienie skrytki: {n}+.",
       "dcProject": "Praca: {a}+ za +1 postępu, {b}+ za +2{relief}.",
@@ -682,8 +682,10 @@
       "identified": "{name} to {type}.",
       "failedTitle": "Donikąd",
       "failed": "Nie umiesz tego rozgryźć. {name} zostaje przy tobie, wciąż Neutral, i nie spróbujesz ponownie aż do następnego rozdziału.",
+      "failedShown": "Nie umiesz tego rozgryźć. {name} zostaje przy tobie bez zmian i nie spróbujesz ponownie aż do następnego rozdziału.",
       "critTitle": "Krytyczne Analyze",
       "critPrompt": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
+      "critNothingMore": "Nic więcej do dodania",
       "analyseBulletHint": {
         "one": "Ustal, czym naprawdę jest twój jedyny niezidentyfikowany Truth Bullet.",
         "few": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
@@ -884,31 +886,61 @@
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Floor": {
-      "nobody": "Nie ma nikogo żywego, z kim dałoby się otworzyć debatę.",
+      "nobodyForTrial": "Nie ma nikogo żywego, z kim dałoby się przeprowadzić Class Trial.",
+      "trialBegins": "Class Trial się zaczyna",
+      "debateOpenedTitle": "Nonstop Debate!",
+      "debateClosedTitle": "Debata jest zamknięta",
+      "trialOver": "Class Trial się skończył",
       "seconds": "Długość debaty (sekundy)",
       "startTrial": "Zacznij Class Trial",
+      "newTrialTitle": "Otwórz nowy Class Trial",
+      "newTrialConfirm": "Ten rozdział ma już werdykt. Otworzyć nowy Class Trial? Drugi werdykt to kolejna egzekucja i kolejna runda Level Upów.",
+      "newTrialRefused": "Ten rozdział ma już werdykt, więc Class Trial nie został otwarty ponownie. Drugi Class Trial otwiera Zacznij Class Trial, które najpierw pyta.",
+      "eclipseFirst": "Trwa Eclipse, więc nic nie zostało otwarte. Najpierw zakończ Eclipse.",
+      "nowMovedOn": "Debata przesunęła się już dalej, zanim twoje Zakończ ten tryb teraz dotarło do głównego GM-a, więc niczego nie zmieniło. Naciśnij je ponownie, jeśli ten tryb wciąż ma się zakończyć.",
+      "incidentTitle": "Incydent jest wciąż otwarty",
+      "incidentOpen": "Incydent morderstwa jest wciąż otwarty. Jego Blackened trafiają do rejestru dopiero przy zamknięciu, a głosowanie i werdykt czytają rejestr. Zamknąć go teraz czy kontynuować przy otwartym?",
+      "incidentKeep": "Kontynuuj przy otwartym",
+      "registerEmpty": "Rejestr Blackened jest pusty, a w tym rozdziale zginął uczeń. Czy incydent został zamknięty? Zabójca trafia do rejestru, gdy jego incydent się zamyka.",
+      "registerCount": {
+        "one": "{n} Blackened w rejestrze tego rozdziału.",
+        "few": "{n} Blackened w rejestrze tego rozdziału.",
+        "many": "{n} Blackened w rejestrze tego rozdziału.",
+        "other": "{n} Blackened w rejestrze tego rozdziału."
+      },
       "startTrialIntro": "Class Trial otwiera się dyskusją: mówią wszyscy, a dowody trafiają na stół bez przejmowania głosu. Nonstop Debate otwierasz w jego trakcie.",
       "startTrialStepPhase": "Kampania przechodzi do Class Trial.",
       "startTrialStepAnnounce": "Class Trial zostaje ogłoszony na czacie, a muzyka podąża za nim.",
       "trialOpened": "Class Trial trwa. Omówcie sprawę; debata otworzy się, gdy GM tak zdecyduje.",
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
+      "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+      "trialEnded": "Class Trial się skończył; rozdział jeszcze nie.",
+      "lead": {
+        "start": "Żaden Class Trial nie trwa. Zacznij Class Trial: faza się zmienia, stół dostaje ogłoszenie, a Class Trial otwiera się dyskusją.",
+        "openDebate": "Class Trial jest w fazie dyskusji. Otwórz debatę, gdy pokój jest gotów się spierać; gdy spór się wyczerpie, wyślij karty z okna Głosowanie.",
+        "closeDebate": "Debata jest otwarta. Zamknij ją, gdy spór się wyczerpie, a potem wyślij karty z okna Głosowanie.",
+        "now": "Sprzeciw albo replika ma głos. Kończy się sam; Zakończ ten tryb teraz ucina go wcześniej.",
+        "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
+        "verdict": "Głosy policzone. Ogłoś werdykt, potem zakończ rozdział.",
+        "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt, potem zakończ rozdział.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
+        "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
+        "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału."
+      },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przedstawienie dowodu robi to samo.",
       "manageTrial": "Class Trial",
-      "manageRunning": "Class Trial trwa. Otwórz debatę, gdy pokój jest gotów się spierać, i przejdź kolejno przez sekcje poniżej: głosowanie, werdykt, potem koniec rozdziału.",
-      "manageNotRunning": "Żaden Class Trial nie trwa. Rozpoczęcie ustawia fazę i ogłasza go stołowi - Class Trial otwiera się dyskusją, a debatę otwierasz w jego trakcie.",
       "mode": {
         "debate": "Nonstop Debate",
         "objection": "OBJECTION",
         "rebuttal": "Rebuttal"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
-      "holdingDiscussion": "Otwarta dyskusja - {seconds} s budżetu. Każdy może mówić.",
+      "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; Truth Bullet przedstawiony teraz to Objection.",
       "holdingObjection": "{who} ma głos, objection wobec: {target} - {seconds} s. Nikt inny nie mówi; rebuttal następuje automatycznie.",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
       "modeNote": "To kończy się samo. Przyciskami poniżej skróć to, dodaj pół minuty albo wróć od razu do otwartej debaty.",
       "extend": "+30 sekund",
-      "noDebate": "Żaden Class Trial nie trwa, więc nie ma debaty do prowadzenia.",
       "sectionTrial": "Class Trial",
       "sectionDebate": "Debata",
       "sectionVote": "Głosowanie, werdykt, rozdział",
@@ -922,8 +954,6 @@
       "trialClosed": "Class Trial dobiegł końca. Wraca Daily Life.",
       "startTrialStepDiscussion": "Class Trial otwiera się dyskusją. Debatę otwierasz, kiedy chcesz.",
       "gateVote": "Werdykt otwiera się po policzeniu głosów.",
-      "gateVerdict": "Głosy policzone. Ogłoś werdykt, potem zakończ rozdział.",
-      "gateDone": "Werdykt zapadł. Rozdział może się skończyć.",
       "startTrialNote": "Zegar rusza od nowa: licznik czasu kampanii startuje z Class Trial i ponownie, gdy się kończy.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
       "trialBudget": {
@@ -932,7 +962,7 @@
         "many": "{n} uczniów ma na Class Trial akcje tej pory dnia.",
         "other": "{n} uczniów ma na Class Trial akcje tej pory dnia."
       },
-      "holdingDiscussionOver": "Otwarta dyskusja - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
+      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -965,7 +995,10 @@
       "voteSub": "Wskaż blackened.",
       "voteMeta": "Trial czeka na głosy.",
       "voteMetaGm": "{back} z {total} głosów wróciło",
-      "trialFloorOpen": "Wszyscy mają głos"
+      "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
+      "trialDiscussionMeta": "Omówcie to - GM otworzy debatę",
+      "trialObjectionFloor": "{who} ma głos",
+      "afterVerdict": "Werdykt zapadł"
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -1032,19 +1065,33 @@
     },
     "Vote": {
       "openTitle": "Głosowanie",
-      "openIntro": "Wyślij każdemu graczowi kartę do głosowania, potem policz głosy. Obie połowy to ten przycisk.",
-      "privacyNote": "Karty nigdy nie trafiają do danych świata. Idą do GM-ów, są liczone w pamięci i nie są przechowywane. Wyniki są publikowane; głosy nie.",
+      "openIntro": "Wyślij karty, poczekaj, aż wrócą, potem zamknij i policz.",
+      "privacyNote": "Przeglądarki GM-ów przechowują, kto na kogo głosował, aż do otwarcia następnego głosowania, a przeglądarka żadnego gracza tego nie dostaje. Stół widzi sumy, nie karty.",
+      "sendFirst": "Najpierw wyślij karty: Zamknij i policz czeka, aż głosowanie będzie otwarte.",
+      "nobodyConnected": "Nikt nie jest połączony z uczniem, który może głosować - nie ma komu dać karty.",
+      "recipients": {
+        "one": "Karta trafi do: {who}.",
+        "few": "{n} karty trafią do: {who}.",
+        "many": "{n} kart trafi do: {who}.",
+        "other": "{n} kart trafi do: {who}."
+      },
       "send": "Wyślij karty",
       "tally": "Zamknij i policz",
       "sendAgain": "Zacznij głosowanie od nowa",
       "resendWarning": {
-        "one": "Jedna karta już wróciła. Start od nowa ją wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "few": "{n} karty już wróciły. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij."
+        "one": "Jedna karta już wróciła. Start od nowa ją wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "few": "{n} karty już wróciły. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie."
       },
+      "resendUnseen": "Ta przeglądarka nie ma kopii kart tego głosowania od GM-ów, więc nie wie, ile już wróciło - liczy je główny GM. Start od nowa wyrzuca te, które wróciły, i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
       "banner": "GŁOSOWANIE OTWARTE",
-      "opened": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened.",
+      "opened": {
+        "one": "Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "few": "Rozesłano {n} karty. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "many": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "other": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened."
+      },
       "noVoters": "Żaden gracz z postacią nie jest połączony, by głosować.",
       "notOpen": "Żadne głosowanie nie jest otwarte.",
       "nobodyVoted": "Żadna karta nie wróciła.",
@@ -1054,6 +1101,8 @@
       "who": "Twój głos",
       "cast": "Oddaj głos",
       "castConfirmed": "Twój głos oddany.",
+      "alreadyIn": "Twój głos jest już oddany.",
+      "notReceived": "Żaden GM nie ma jeszcze twojego głosu. Ta przeglądarka go zachowa i wyśle, gdy połączy się GM.",
       "dismissed": "Karta zamknięta bez głosu. Nic ci nie policzono - poproś GM-a, by wysłał ją ponownie.",
       "notRunning": "Żadne głosowanie nie jest teraz otwarte.",
       "stillOut": "Jeszcze nie głosowało: {n} - {who}",
@@ -1066,10 +1115,12 @@
         "other": "{n} graczy ma świeżą kartę."
       },
       "monokuma": "Monokuma",
-      "majorityLine": "Skazanie wymaga {n} z {issued} głosów - więcej niż połowy sali.",
       "resultBanner": "GŁOSY POLICZONE",
-      "accused": "{name} - {n} z {total} głosów.",
       "tied": "Remis. O ile stół tego nie rozstrzygnie, liczy się jak błędny głos.",
+      "noMajority": "Brak większości - skazanie wymaga {majority} z {total} głosów. O ile stół tego nie rozstrzygnie, liczy się jak błędny głos.",
+      "accusesLine": "Klasa oskarża: {names} ({n} z {total} - większość).",
+      "accusesLineMany": "Klasa oskarża: {names} - każde nazwisko na co najmniej {n} z {total} kart, większość.",
+      "barLine": "Wróciło kart: {returned} z {issued} - do skazania potrzeba {majority}.",
       "verdictTitle": "Werdykt",
       "verdictIntro": "Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
       "executed": "Kto zostaje stracony",
@@ -1080,17 +1131,23 @@
       "correctSummary": "Uczniowie wskazali Blackened.",
       "wrongSummary": "Uczniowie wskazali niewłaściwą osobę.",
       "wasExecuted": "Egzekucja: {name}.",
-      "levelUp": {
-        "one": "{n} ocalały dostaje {kind} Level Up.",
-        "few": "{n} ocalałych dostaje {kind} Level Up.",
-        "many": "{n} ocalałych dostaje {kind} Level Up.",
-        "other": "{n} ocalałych dostaje {kind} Level Up."
+      "levelUpGranted": {
+        "one": "{n} ocalały dostał tu swój Level Up: {kind}.",
+        "few": "{n} ocalałych dostało tu swój Level Up: {kind}.",
+        "many": "{n} ocalałych dostało tu swój Level Up: {kind}.",
+        "other": "{n} ocalałych dostało tu swój Level Up: {kind}."
+      },
+      "levelUpWaiting": {
+        "one": "Level Up {n} ocalałego czeka, aż wybierze go gracz: {kind}.",
+        "few": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}.",
+        "many": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}.",
+        "other": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}."
       },
       "blackenedRewarded": {
-        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} Level Up czeka na następny Level Up klasy.",
-        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
-        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
-        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy."
+        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} czeka na następny Level Up klasy.",
+        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy.",
+        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy.",
+        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy."
       },
       "despairFilled": "Despair napełniony do maksimum: {who}.",
       "newRule": "Blackened wprowadza jedną nową zasadę własnego wyboru, za zgodą Monokumy.",
@@ -1098,6 +1155,7 @@
       "blackenedRuleTitle": "Nowa zasada Blackened",
       "blackenedRuleIntro": "Blackened wyszedł z tego Class Trial i dostaje jedną nową zasadę własnego wyboru, za zgodą Monokumy. Wpisz, o co poprosił.",
       "blackenedRuleNote": "Ogłaszana wszystkim jako jedna z zasad Monokumy. Nic na karcie nie mówi, kto o nią prosił, i trafia na każdy arkusz razem z pozostałymi.",
+      "blackenedRuleUnfound": "Nie żyje, a nikt nie znalazł ciała: {names}. Stół nie wie o tej śmierci, więc dla werdyktu ta osoba wyszła z tego Class Trial: o jej zasadę pytamy tutaj, a jej Level Up czeka na klasę, tak jak Level Up żywego Blackened.",
       "whoNth": "Nazwisko {n}",
       "twoBlackened": "Ten rozdział wydał {n} Blackened. Wskaż wszystkich - pół odpowiedzi to nie odpowiedź.",
       "silent": {
@@ -1114,11 +1172,34 @@
       },
       "executedIfWrong": "Stracony zamiast, jeśli stół się pomylił",
       "verdictNoteKnown": "Trafienie straca Blackened powyżej - nikogo nie musisz wskazywać. Pomyłka straca tego, kogo oskarżył stół, a każdy Blackened odchodzi z Reinforced Level Up. Remis liczy się jak pomyłka.",
-      "accusedMany": "Wskazani przez stół: {names}.",
       "verdictIntroKnown": "Tylko ty wiesz, czy trafili. Moduł pamięta, kto zabił - musisz tylko powiedzieć, czy stół go znalazł.",
-      "counted": "Głosy policzone.",
       "tiedVerdictNote": "Głosowanie zakończyło się remisem. Remis to nie odpowiedź, więc o ile coś innego nie rozstrzygnęło tego przy stole, liczy się jak pomyłka.",
-      "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej."
+      "nobodyExecuted": "Nikt nie zostaje stracony",
+      "nobodyNamed": "Nikt niewskazany",
+      "namedByTable": "Wskazani przez stół: {names}, {n} z {total}.",
+      "accusedDead": "Już nie żyje: {names}. Nikt nie zostaje stracony, chyba że wybierzesz żywego ucznia.",
+      "unfoundDead": "Nie żyje, a nikt nie znalazł ciała: {names}. Stracenie tej osoby czyni tę śmierć egzekucją, a stół dowiaduje się o niej wraz z werdyktem.",
+      "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.",
+      "storeNotReady": "Ta przeglądarka nie ma jeszcze kopii kart do głosowania od GM-ów.",
+      "movedOn": "Głosowanie poszło dalej - to okno było nieaktualne.",
+      "openNoBallots": "Głosowanie jest otwarte, runda {n}, ale ta przeglądarka nie ma żadnej z jego kart - zaczekaj na głównego GM-a albo zacznij głosowanie od nowa.",
+      "verdictCardTitle": "WERDYKT",
+      "verdictRight": "Klasa trafiła.",
+      "verdictWrong": "Klasa się pomyliła.",
+      "executedNote": "Wyrok wykonano na tobie, {name}. Twoja postać nie żyje.",
+      "verdictStopped": "Werdykt zatrzymał się na: {steps}. Przycisk Dokończ werdykt wykona resztę.",
+      "finishVerdict": "Dokończ werdykt",
+      "finishOtherGm": "Werdykt dokańcza tylko {name} - GM, który go wydał, dopóki jest połączony, a inaczej główny GM - żeby każdy jego krok wykonał się raz. Poproś o to GM-a {name}.",
+      "verdictSteps": {
+        "sentence": "kto zostaje stracony",
+        "executions": "egzekucje",
+        "card": "karta werdyktu",
+        "levelUps": "Level Up ocalałych",
+        "offers": "Level Up Blackened",
+        "despair": "pule Despair",
+        "rule": "zasada Blackened",
+        "overflow": "Despair overflow"
+      }
     },
     "Music": {
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
@@ -1163,7 +1244,7 @@
     "Cleanup": {
       "title": "Sprzątanie",
       "action": "Usuń ślad",
-      "intro": "Wytarcie śladu kosztuje akcję i {n} Sanity.",
+      "intro": "Wytarcie śladu kosztuje {n} Sanity.",
       "which": "Który ślad?",
       "confirm": "Szoruj",
       "withTool": "{item} (Tier {tier}) w ręku - przewaga i tyle samo mniej na progu.",
@@ -1218,18 +1299,19 @@
         "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
+      "refundUnheld": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt MG nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
       "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
       "trailNote": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",
       "trailFailed": "Nie zostało nic użytecznego.",
       "bodyMoved": "Ciało przeniesiono do: {room}.",
       "bodyStayed": "Ciało ani drgnie.",
-      "bodyStuck": "Nie ma gdzie go zanieść.",
+      "bodyStuck": "Ciała nie udało się ruszyć. Leży tam, gdzie upadło, i nie został żaden ślad wleczenia.",
       "noBody": "Nie ma tu ciała do przeniesienia.",
       "bodyNote": "Ciało ({name}) wywleczono stąd w stronę: {room}.",
       "seenCleaning": "{actor} coś robi w: {room}, i słabo to ukrywa.",
       "moveTitle": "Przenieś ciało",
-      "moveIntro": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje akcję i {n} Sanity.",
+      "moveIntro": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.",
       "moveAlwaysTrace": "To zawsze zostawia Evident ślad, cokolwiek powiedzą kości. Zwłok nie da się wywlec po cichu. Sypialni nie ma na liście: ciało za czyimiś zamkniętymi drzwiami samo wskazuje podejrzanego.",
       "moveWhere": "Zanieś do",
       "moveConfirm": "Zanieś tam",
@@ -1242,8 +1324,8 @@
       "reshapeNamePlaceholder": "Rozlana farba",
       "reshapeText": "I wygląda jak",
       "reshapeTextPlaceholder": "Puszka przewróciła się po południu. Nikt tego porządnie nie posprzątał.",
-      "reshapeNeedsBoth": "Napisz i nazwę, i opis - puste kłamstwo to nie kłamstwo, a to kosztuje turę.",
-      "reshapeNothingSaid": "Nic na nim nie napisano, więc czyta się dokładnie tak jak przedtem.",
+      "reshapeNeedsBoth": "Napisz i nazwę, i opis - puste kłamstwo to nie kłamstwo. Okno otwiera się znowu z tym, co już wpisano.",
+      "reshapeNothingSaid": "Przeróbka wymaga i nazwy, i opisu, a ta nie miała obu, więc ślad czyta się dokładnie tak jak przedtem.",
       "reshapeUnnamed": "coś innego",
       "reshaped": "{from} czyta się teraz jako „{name}” - {band} {kind}. Kto to znajdzie, znajdzie twoją historię, nie to, co tu było.",
       "transformActionNote": "Cokolwiek napiszesz, ślad staje się Tamper Remnant - przyzna, że ktoś przy nim majstrował, i skłamie o całej reszcie. Krytyk dodatkowo wycisza go o jeden stopień i oddaje Sanity.",
@@ -1263,19 +1345,27 @@
       },
       "keptSanity": "Cena próby nie wraca: przykrywka już została opowiedziana.",
       "reshapeRulingTitle": "Ślad, który ma czytać się inaczej",
-      "reshapeRulingWas": "{was} stanie się {now}.",
+      "reshapeRulingWas": "{was} - po zmianie będzie to: {now}.",
       "reshapeRulingQuieter": "Rzut był na tyle dobry, że ślad będzie też o jeden stopień trudniejszy do zauważenia.",
+      "reshapeRulingBand": "Widoczność: {band}.",
       "reshapeRulingTies": "Ta osoba to zabójca, więc zgoda oznaczy też ślad jako powiązany z morderstwem.",
+      "reshapeRulingCopies": {
+        "one": "Zgoda nie zmienia {n} Truth Bulleta skopiowanego już z tego śladu: czyta się tak, jak go znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "few": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "many": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "other": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa."
+      },
       "reshapeApprove": "Niech tak się czyta",
       "reshapeDecline": "Zostaje, jak jest",
       "reshapeWaiting": "Ślad przerobiony na „{name}”. Dopóki GM nie zdecyduje inaczej, czyta się tak jak przedtem.",
       "reshapeDeclined": "{name} decyduje, że ślad mówi dalej to, co mówił. Tura i Sanity pozostają wydane.",
       "reshapeDeclinedGm": "Odrzucono. {name} dostaje informację, że ślad się nie zmienił.",
       "reshapeRulingGone": "Tego śladu już nie ma, więc nie ma czego przemianować.",
-      "reshapeUnsent": "Propozycji przerobienia śladu nie udało się dostarczyć do wątku. Na śladzie nic nie zapisano - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz.",
+      "reshapeUnsent": "Propozycji przerobienia śladu nie udało się dostarczyć do wątku. Na śladzie nie zapisano nic z tej historii - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz. Przy zacieraniu ślad i tak zniknął, bo kupił to krytyczny sukces.",
       "reshapeUnsentPlayer": "Robota zrobiona, ale twoja historia nie dotarła do GM-a. Opowiedz ją na głos; na śladzie nic nie zapisano.",
-      "reshapeVoided": "Cofnięte przez Reroll, zanim {name} rozstrzygnął.",
-      "reshapeTakenBack": "Reroll cofnął tę próbę, więc ta karta już o niczym nie rozstrzyga.",
+      "reshapeVoided": "Cofnięte przez Reroll albo zastąpione późniejszą próbą, zanim {name} rozstrzygnął.",
+      "reshapeTakenBack": "Reroll albo późniejsza próba zajęła miejsce tej, więc ta karta już o niczym nie rozstrzyga.",
+      "alreadyRuled": "To przerobienie śladu zostało już rozstrzygnięte (przez: {name}).",
       "reshapeDeclinedErased": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera ślad - zniknął."
     },
     "Reserve": {
@@ -1522,10 +1612,16 @@
       "noneMatch": "Żaden ślad nie pasuje do tego filtra.",
       "plannerIntro": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
       "notePlaceholder": "Co ten trop im mówi",
+      "analysisPlaceholder": "Co dodaje laboratorium",
       "difficulty": "Trudność",
       "onMap": "Który Remnant",
       "notPlaced": "Jeszcze nie postawiony",
+      "keyStatus": "Stan",
+      "place": "Postaw",
+      "placeTitle": "Postaw ten Key Remnant",
+      "placedMeanwhile": "Inny GM postawił Key Remnant tego wiersza, gdy okno było otwarte, więc nic więcej nie postawiono.",
       "tokenGone": "Jego Remnant zniknął z mapy",
+      "keyRetyped": "Jego Remnant nie jest już Key Remnantem",
       "notFound": "Nikt go nie znalazł",
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",
@@ -1537,15 +1633,9 @@
       "keysHeld": "Key",
       "unidentified": "Nieprzeanalizowane",
       "breakdown": "Naprawdę",
-      "pickRoom": "- utwórz w -",
+      "breakdownTooltip": "Czym naprawdę są Truth Bullets każdego ucznia, rodzaj po rodzaju, według klucza GM-ów - nie to, co pokazano ich posiadaczom.",
       "createHere": "Utwórz na mapie",
-      "createNote": "Wybierz pokój w dowolnym wierszu, który nie jest jeszcze na mapie. Zapisz stawia tam ten Key Remnant: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju. Wiersze wskazujące już na token są zostawiane w spokoju.",
-      "plannerCreated": {
-        "one": "Plan zapisany; {n} Key Remnant postawiony na mapie.",
-        "few": "Plan zapisany; {n} Key Remnants postawione na mapie.",
-        "many": "Plan zapisany; {n} Key Remnants postawionych na mapie.",
-        "other": "Plan zapisany; {n} Key Remnants postawionych na mapie."
-      },
+      "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
       "tabTraces": "Ślady",
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Nazwa",
@@ -1561,6 +1651,14 @@
         "many": "Zaktualizowano {n} śladów.",
         "other": "Zaktualizowano {n} śladów."
       },
+      "traceImage": "Obraz",
+      "savedOver": {
+        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Okno pokazuje, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
+      },
+      "savedOverItem": "{field} - {row}: „{value}”",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia ślad na mapie i może go podpiąć pod jeden z pięciu zaplanowanych tropów.",
       "whichSlot": "Który zaplanowany trop to jest?",
@@ -1575,10 +1673,15 @@
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
       "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze. Te same trzy pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
-      "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+      "leftoverKeys": {
+        "one": "Na mapie wciąż jest {n} Key Remnant z wcześniejszego rozdziału. Plan tego rozdziału go nie widzi; usuń go na końcu rozdziału albo podepnij tutaj.",
+        "few": "Na mapie wciąż są {n} Key Remnanty z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+        "many": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+        "other": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj."
+      },
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}; plan rozdziału {was} nie jest już bieżący, więc nic nie policzono za nieznalezione Key Remnants. Policz to z konsoli Class Trial, zanim zakończysz rozdział.",
+      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
         "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu czterech znalezionych: {names}.",
@@ -1596,6 +1699,11 @@
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić śladu. Najpierw narysuj regiony - Ustawienia pokoi wyjaśniają, jak.",
       "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od tego, gdzie go postawisz, a nie od skali powyżej: {list}. Zwykły dowód na tym samym stopniu widoczności jest trudniejszy o trzy do sześciu. Skala mówi, ile trop zdradza.",
       "newTraceUnfindable": "Nic nie znajdzie śladu tego rodzaju przy tej trudności - Observe nie ma dla niego progu."
+    },
+    "Live": {
+      "movedUnder": "Zmienione gdzie indziej na: {value}",
+      "ticked": "zaznaczone",
+      "unticked": "niezaznaczone"
     },
     "Vault": {
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
@@ -1754,7 +1862,8 @@
       "promoteSkip": "Żaden z nich",
       "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
-      "optReveal": "Ujawnij, czym naprawdę jest każdy Truth Bullet ({n} wciąż niezidentyfikowanych)",
+      "optReveal": "Ujawnij, czym naprawdę są Truth Bullets, razem z ich odczytami ({n} do ujawnienia)",
+      "revealKeeps": "Truth Bullets Faint nie są ujawniane, z tym wyjątkiem, że każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu: oba zostają u graczy, wciąż do przeanalizowania, także w następnym rozdziale.",
       "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
       "endConfirm": "Zrób to",
       "doneReveal": {
@@ -1835,6 +1944,9 @@
       "objectionRefusedWhisper": "Twoje Objection nie przejęło głosu: {why} Nic ci nie zabrano, a karta jest oznaczona jako odrzucona.",
       "objectionNotYours": "To Objection wysłał ktoś, kto nie jest właścicielem postaci {name}, więc nikt nie przejął głosu.",
       "objectionNoItem": "To Objection nie wskazywało żadnego dowodu, więc nikt nie przejął głosu.",
+      "deadCannotPresent": "{name} nie żyje, a zmarli nie przedstawiają dowodów i nie wnoszą Objection.",
+      "presented": "{name} trafia na stół.",
+      "objectionSent": "Wysłano Objection z dowodem {name}. Czy przejmie głos, rozstrzyga strona GM-a.",
       "actionsLocked": "Class Trial trwa. Dostępne są tylko Analyze i Objection - oraz twoje Hope Calls.",
       "moveLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
       "callsLocked": "Class Trial trwa. Despair Calls czekają na jego koniec.",
@@ -1886,7 +1998,8 @@
       "requestSkipped": "Nic nie nazwano - liczy się jako zwykłe rozejrzenie.",
       "sent": "GM ocenia, co się znalazło.",
       "failedTitle": "Nic nie znajdujesz",
-      "failed": "Nic nie przykuwa twojej uwagi. Tracisz {stress} Sanity.",
+      "failed": "Nic nie przykuwa twojej uwagi.",
+      "failedStress": "Tracisz {stress} Sanity.",
       "projectFoundTitle": "Coś tu nie jest tym, na co wygląda",
       "projectFound": "Pod powierzchnią tego pokoju ktoś coś buduje: {name}. Już o tym wiesz i widzisz, jak daleko zaszło.",
       "critIdentified": "Masz to - i wiesz, jakiego rodzaju to ślad.",
@@ -1898,6 +2011,12 @@
       "pickNote": "Najpierw ślady powiązane ze zbrodnią, potem od najłatwiejszego do najtrudniejszego. Rzut już padł, a ty nie widzisz liczby - wybierz to, co naprawdę pasuje do prośby.",
       "pickConfirm": "Ten",
       "pickRefuse": "Nic nie pasuje - odmów",
+      "cardTitle": "Observe - skupione spojrzenie",
+      "cardHint": "Gracz powiedział, czego szuka, i już rzucił; liczby nie ma na tej karcie. Wybierz ślad pokazuje ślady tam, gdzie stoi postać, tylko na twoim ekranie, a wybrany sprawdza przeglądarka głównego GM-a, zanim trafi do gracza.",
+      "cardPick": "Wybierz ślad",
+      "pickNothing": "Nie został żaden ślad, który można pokazać postaci {name} tam, gdzie stoi. Odmów Observe na jego karcie.",
+      "pickNotThere": "Tego śladu nie można już pokazać postaci {name} tam, gdzie pytano - wybierz jeszcze raz albo odmów.",
+      "pickGone": "Nikt już nie czeka na to Observe: gracz przestał czekać albo inny GM odpowiedział pierwszy.",
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Observe - co widać?",
       "describeIntro": "{actor} coś znajduje w: {room}. Nazwij to tak, jak nazwałaby to ta osoba, i powiedz, co widzi.",
@@ -1997,16 +2116,20 @@
       "foundTitle": "Skopiowano ślad, a nikt nie powiedział, czym jest",
       "reinforcedShort": "Reinforced",
       "faintColumn": "Faint",
+      "faintKept": "Faint Remnant jest zawsze Faint, więc jego pole Faint zostało zaznaczone z powrotem. Żeby je odznaczyć, nadaj śladowi inny rodzaj.",
       "crimeColumn": "Powiązany ze zbrodnią",
+      "tieOpen": "-",
+      "tieTied": "Powiązany",
+      "tieUntied": "Niepowiązany",
       "reinforcedColumn": "Reinforced",
       "cardFacts": "Ślad",
       "cardPlayerHalf": "Co czyta gracz",
       "cardAction": "Akcja",
       "deathTied": {
-        "one": "Ofiara nie żyje: {n} ślad z tego rozdziału jest teraz oznaczony jako powiązany z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "few": "Ofiara nie żyje: {n} ślady z tego rozdziału są teraz oznaczone jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "many": "Ofiara nie żyje: {n} śladów z tego rozdziału jest teraz oznaczonych jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "other": "Ofiara nie żyje: {n} śladów z tego rozdziału jest teraz oznaczonych jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation."
+        "one": "Ofiara nie żyje: {n} ślad z tego rozdziału, o którym nikt nie zdecydował, jest teraz oznaczony jako powiązany z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "few": "Ofiara nie żyje: {n} ślady z tego rozdziału, o których nikt nie zdecydował, są teraz oznaczone jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "many": "Ofiara nie żyje: {n} śladów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "other": "Ofiara nie żyje: {n} śladów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione."
       },
       "noToken": "{actor} nie ma tokenu na żadnej scenie, więc nie dało się zostawić śladu. Powiedz GM-owi.",
       "noTokenGm": "{actor} - akcja „{action}” bez tokenu gdziekolwiek, więc nie postawiono Remnantu. Postaw go ręcznie, jeśli to ważne.",
@@ -2034,6 +2157,7 @@
       "cardWhat": "Ślad",
       "cardWhere": "Pokój",
       "cardWhen": "Zostawiony",
+      "dayShort": "Dz. {n}",
       "cardWho": "Przez",
       "cardSubject": "Dotyczy",
       "cardPlayer": "Coś tu nie pasuje. Co to znaczy, nie widać na pierwszy rzut oka - użyj Observe w tym pokoju, by to ustalić.",
@@ -2047,7 +2171,6 @@
         "heading": "Remnants",
         "scene": "Scena",
         "when": "Kiedy",
-        "stamp": "Rozdz. {chapter} · Dz. {day}",
         "faintTag": "(Faint)",
         "hidden": "ukryty",
         "revealed": "ujawniony",
@@ -2549,7 +2672,9 @@
         "daggerheart": "Zmiana w Daggerheart",
         "remnant.tieForItem": "Powiązanie śladu ze zbrodnią",
         "observe.target": "Wybór celu Observe",
+        "observe.pick": "Wybór GM-a dla skupionego Observe",
         "cleanup.traces": "Ślady w zasięgu",
+        "cleanup.ruling": "Rozstrzygnięcie GM-a o przerobionym śladzie",
         "call.approve": "Zgoda na Hope Call",
         "call.yes": "Zgoda GM-a na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
@@ -2560,11 +2685,16 @@
         "roll.draw": "Rzut do wykonania przez GM-a",
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
+        "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
-        "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"
+        "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
+        "floor.now": "Następny krok debaty od razu, wykonywany przez głównego GM-a",
+        "vote.run": "Krok głosowania, wykonywany przez głównego GM-a",
+        "vote.cast": "Oddanie głosu",
+        "vote.ask": "Twoja karta do głosowania"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -2624,6 +2754,9 @@
         "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
         "callNotApproved": "Klient GM-a nie ma zgody GM-a na ten Call. Poproś o nią jeszcze raz.",
         "itemNotDecided": "Żaden GM nie zdecydował jeszcze o tym przedmiocie, który gracz dodał do karty: do tego czasu nie zmienia właściciela.",
+        "notEligible": "Nie masz głosu w tym głosowaniu.",
+        "sameTwice": "Twoja karta do głosowania wskazuje kogoś dwa razy.",
+        "wrongCount": "Twoja karta do głosowania nie wskazuje tylu osób, ilu wymaga głosowanie.",
         "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
@@ -2641,6 +2774,7 @@
       "reply": "Odpowiedz",
       "sendRuling": "Wyślij decyzję",
       "nothingThere": "Nic tam nie było.",
+      "nothingMore": "Nic więcej do dodania.",
       "createItem": "Utwórz przedmiot",
       "createItemStays": "„Utwórz przedmiot” zostawia tę kartę otwartą, więc pozostałe odpowiedzi są nadal dostępne.",
       "giveItem": "Daj istniejący przedmiot",
@@ -2874,11 +3008,15 @@
         "reinforcedHint": "Cięższy krok, za rozdział, który na niego zasłużył."
       },
       "choice": "Wybór {n}",
+      "whichImprovement": "Które ulepszenie?",
+      "forWhom": "Postać: {name}. {reason}",
       "whichTrait": "Która statystyka?",
       "whichExperience": "Które doświadczenie?",
       "newExperienceName": "Nowe doświadczenie",
       "newExperiencePlaceholder": "słowo albo zdanie o tym, kim są",
       "noExperiences": "Ta postać nie ma jeszcze doświadczeń, więc nie ma czego podnosić.",
+      "noExperienceToRaise": "Nie ma doświadczenia do podniesienia: wybierz inne ulepszenie. Nic nie zostało wykorzystane - Level Up wciąż czeka.",
+      "notOnSheet": "Wybór wskazuje statystykę albo doświadczenie, których {name} nie ma, więc nic nie zapisano.",
       "experienceNeedsName": "Nowe doświadczenie potrzebuje nazwy. Ten wybór pominięto.",
       "nothingToApply": "Nic nie wybrano, więc nic się nie zmieniło.",
       "unknownKind": "Nieznany typ Level Up: {kind}.",
@@ -2897,7 +3035,32 @@
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
       "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć sprawę z kopii (panel GM-a).",
       "offerTooltip": "{kind} - naciśnij, by wybrać, co bierzesz.",
-      "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie."
+      "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
+      "takeBack": "Cofnij ofertę: {kind}",
+      "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
+      "takeBackBusy": "Level Up postaci {name} jest właśnie zapisywany, więc jego oferty nie można cofnąć. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
+      "takeBackTaking": "Inne cofnięcie oferty postaci {name} jest właśnie zapisywane, więc tego nie można teraz zrobić. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
+      "offerStillStands": "Level Up postaci {name} jest zapisany, ale oferty, którą wykorzystał, nie udało się wycofać i wciąż stoi: cofnij ją w menu Level Up na arkuszu.",
+      "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
+      "standing": {
+        "one": "{n} oferta Level Up",
+        "few": "{n} oferty Level Up",
+        "many": "{n} ofert Level Up",
+        "other": "{n} oferty Level Up"
+      },
+      "queueTitle": "Level Upy klasy",
+      "queueIntro": "Przy każdym uczniu wybierz, kto wybiera Level Up. Gracz wybiera na swoim arkuszu, gdzie zapala mu się przycisk; twoje okna otworzą się tutaj jedno po drugim. Okno, które zamkniesz, trafia zamiast tego do gracza, a zamknięcie tego okna oddaje graczom każdy wiersz, którego postacią ktoś gra.",
+      "queuePicks": {
+        "one": "{n} wybór",
+        "few": "{n} wybory",
+        "many": "{n} wyborów",
+        "other": "{n} wyboru"
+      },
+      "pickMe": "Wybieram ja",
+      "pickPlayer": "Wybiera gracz",
+      "allPlayers": "Wszyscy: wybierają gracze",
+      "queueGive": "Przyznaj",
+      "notYetGiven": "Level Up postaci {name} nie jest jeszcze przyznany: nikt nią nie gra. Przyznaj go przyciskiem Level Up na jej arkuszu."
     },
     "Loot": {
       "take": "Weź",
@@ -2958,20 +3121,20 @@
       "prompt": "Co robisz z dowodami?",
       "cover": "Zatrzyj ślady",
       "coverHint": {
-        "one": "Wymaż {n} ślad, który po tobie został w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "few": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "many": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "other": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć."
+        "one": "Wymaż {n} ślad, o którym wiesz w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
+        "few": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+        "many": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+        "other": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć."
       },
-      "nothingOfYours": "Nic tu po tobie nie zostało.",
-      "onlyReinforced": "Wszystko, co tu po tobie zostało, siedzi za głęboko, by to usunąć.",
+      "nothingOfYours": "Nie znasz tu żadnego śladu.",
+      "onlyReinforced": "Każdy ślad, który tu znasz, siedzi za głęboko, by go usunąć.",
       "frame": "Mylny trop",
-      "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej, a ślad podkłada tak czy inaczej.",
+      "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej. Chybienie z Hope i tak podkłada ślad Faint i Hidden; chybienie z Despair nie zostawia nic.",
       "whichTrace": "Który ślad",
       "yourCopy": "{name} (twoja kopia)",
       "coverAction": "Zatrzyj ślady",
       "trailAction": "Mylny trop",
-      "notFound": "Nie ma takiego śladu.",
+      "notFound": "Tego śladu jeszcze nie znasz.",
       "watched": {
         "one": "{n} inna osoba jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
         "few": "{n} inne osoby są w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
@@ -3849,11 +4012,11 @@
         },
         "faint": {
           "label": "Faint Truth Bullet",
-          "hint": "Wątpliwy związek ze sprawą. Zostaje, gdy GM czyści dowody stołu, i można go analizować ponownie."
+          "hint": "Wątpliwy związek ze sprawą. Znacznik Faint zachowuje go, gdy dowody rozdziału są sprzątane, i można go analizować ponownie."
         },
         "prep": {
           "label": "Prep Truth Bullet",
-          "hint": "Zostawiony przez zabójcę podczas przygotowań."
+          "hint": "Zostawiony, gdy ktoś zbierał narzędzia albo coś przygotowywał."
         },
         "incident": {
           "label": "Incident Truth Bullet",
@@ -3861,7 +4024,7 @@
         },
         "resolution": {
           "label": "Tamper Truth Bullet",
-          "hint": "Zostawiony przez błędy zabójcy przy sprzątaniu miejsca zbrodni."
+          "hint": "Zostawiony przez kogoś, kto sprzątał - zbyt czysta plama, rzecz odłożona odrobinę nie tak."
         },
         "autopsy": {
           "label": "Autopsy Truth Bullet",
@@ -3949,8 +4112,8 @@
         },
         "tamper": {
           "label": "Tamper",
-          "hint": "Wymaż ślad, który po tobie został, albo podłóż taki, który wskazuje na kogoś innego.",
-          "description": "Pracujesz nad własnym śladem, aż zniknie, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem."
+          "hint": "Wymaż albo przekształć ślad, o którym wiesz, że tu jest - albo podłóż taki, który wskazuje na kogoś innego.",
+          "description": "Pracujesz nad śladem, o którym wiesz, że tu jest, aż zniknie albo zacznie wyglądać na coś innego, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem."
         },
         "directMurder": {
           "label": "Direct Murder",
@@ -4834,7 +4997,9 @@
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
-        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę"
+        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
+        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
+        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
       },
       "row": {
         "traces": {

@@ -47,6 +47,18 @@ const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
+/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
+const ACTION_KEYS_CHARGE = "keys.charge";
+/** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
+const ACTION_VOTE_RUN = "vote.run";
+/** player -> primary GM: a ballot (E10 C2; vote.mjs `sendBallot`, `recordBallot`). */
+const ACTION_VOTE_CAST = "vote.cast";
+/** player -> primary GM: this player's own ballot, while a vote is open (E10 C2; vote.mjs `askForBallot`, `ballotFor`). */
+const ACTION_VOTE_ASK = "vote.ask";
+/** GM -> primary GM: the GM's Now on the trial's floor (E10 fix r2-G6; trial-floor.mjs `advanceFloorNow`). */
+const ACTION_FLOOR_NOW = "floor.now";
+/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
+const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
@@ -55,6 +67,8 @@ const ACTION_HOPE_CALL = "call.approve";
 const ACTION_CALL_YES = "call.yes";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
+/** GM -> primary GM: a GM's pick or refusal on an Observe card (E09 C12; observe.mjs `pickFromCard`, `askObservePick`). */
+const ACTION_OBSERVE_PICK = "observe.pick";
 const ACTION_CLEANUP_TRACES = "cleanup.traces";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
@@ -265,9 +279,11 @@ async function handleObserveTarget(payload, sender, ctx) {
         declaration: payload.declaration,
         request: payload.request,
         // The key is minted for this account and no other (E03; audit S05-03).
-        userId: sender.isGM ? null : sender.id
+        userId: sender.isGM ? null : sender.id,
+        // A focused gaze is put on every GM's card and answered later (E09 C12).
+        asked: ctx
     });
-    return { reply: result };
+    return result?.later || result?.refused ? result : { reply: result };
 }
 
     // Stage 6's picker. Which traces a killer's own client may act on is
@@ -338,16 +354,23 @@ async function handleAnalyzeResolve(payload, sender, ctx) {
  * Nothing here trusts the claim except the picks themselves, which are the one
  * thing the offer was made to let them choose.
  *
- * The offer is cleared by `applyAdvancement`, so a second packet finds nothing
- * standing and is refused by the same test that admitted the first.
+ * The offer it names is cleared by `applyAdvancement`, so a second packet naming
+ * it is refused by the same test that admitted the first.
+ *
+ * WHICH OFFER (E10 C6, 1.2.71; audit S03-17). A character holds a list of offers now, and
+ * the packet names the one it spends (`offerId`): it has to stand in this character's list
+ * as this GM holds it, and the picks are the ones THAT offer buys - its kind's and its extra
+ * (level-up.mjs `offerPicks`). One taken back, or spent, names nothing and is refused.
  */
 async function handleAdvancement(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor) return { refused: "no such character" };
 
-    const { pendingAdvance, applyAdvancement } = await import("./level-up.mjs");
-    const offer = pendingAdvance(actor);
-    if (!offer) {
+    const { standingOffers, offerPicks, applyAdvancement, advancing } = await import("./level-up.mjs");
+    const { numberHeld } = await import("./sheet-audit.mjs");
+    const standing = standingOffers(actor);
+    const offer = standing.find(held => held.id === payload.offerId) ?? null;
+    if (!standing.length) {
         /* THE GMs ARE TOLD WHEN THE REFUSAL MAY BE THIS BROWSER'S (E04 C8; E31 row 5):
            the offers store has not heard from the other GMs yet, or holds nothing at
            all - a primary that came with an empty browser, which is the case the
@@ -362,8 +385,9 @@ async function handleAdvancement(payload, sender, ctx) {
         }
         return { refused: "no Level Up is on offer for that character" };
     }
+    if (!offer) return { refused: "no Level Up is on offer under that name for that character" };
 
-    const wanted = LEVEL_UP[offer.kind]?.picks ?? 0;
+    const wanted = offerPicks(offer);
     const picks = Array.isArray(payload.picks) ? payload.picks : [];
     if (picks.length !== wanted) {
         return { refused: `that offer buys ${wanted} pick(s), the packet carried ${picks.length}` };
@@ -379,36 +403,84 @@ async function handleAdvancement(payload, sender, ctx) {
         return { refused: "a new experience has no name" };
     }
 
+    /* A PICK THE SHEET CANNOT TAKE IS REFUSED, NOT SKIPPED (E10 C8, 1.2.71; audit S03-22). A statistic
+       that is not one of TRAITS, and an experience to raise that the character does not have - none
+       named, as a form with no experience to list sends it, or one not on the sheet as the GMs hold
+       it (`numberHeld` at the experiences' root: the primary's mark, the sheet elsewhere) - went to
+       `applyAdvancement`, which skipped the first kind and wrote a value under the second: the
+       offer was spent either way, a pick of a Reinforced's three lost or written on an experience
+       with no name. Refused here, before the latch, and told; the offer stands. An experience the
+       GMs hold is an entry with a value to add to: a console's write of a new experience's value,
+       put back, leaves the entry in the mark empty ({}; read on 10.10.2026 under tier 2's "a Level
+       Up raises no experience a player's console made"), and a check of the entry alone let it be
+       raised from 0. `applyAdvancement` checks the experiences again in its own job, where a write
+       heard meanwhile has been judged. */
+    const statistics = new Set(Object.values(TRAITS).map(trait => trait.dh));
+    if (picks.some(p => p.option === "trait" && !statistics.has(p.trait))) {
+        return { refused: "a pick raises a statistic that is not one" };
+    }
+    const experiences = numberHeld(actor, "system.experiences") ?? {};
+    const held = id => typeof id === "string" && Object.hasOwn(experiences, id) && typeof experiences[id]?.value === "number";
+    if (picks.some(p => p.option === "experienceUp" && !held(p.experience))) {
+        return { refused: "a pick raises an experience the character does not have" };
+    }
+
     /* ONE AT A TIME PER CHARACTER. The offer is only withdrawn once
        `applyAdvancement` has written the rises and awaited the store, three round
        trips later; two packets inside that window - two stacked pickers, a double
        press on a slow server - both found the offer standing and both applied. The
        lines above are synchronous, so nothing interleaves between reading the offer
-       and taking the latch. */
+       and taking the latch. The latch is level-up.mjs's since E10 fix r1-G2: a take-back
+       of the offer reads it and is refused while it is held, and since r2-G4 holds it
+       across its own drop, so a Level Up that arrives while that drop waits is refused here. */
     if (advancing.has(actor.id)) {
         return { refused: "a Level Up for that character is already being written" };
     }
     advancing.add(actor.id);
     try {
-        await applyAdvancement(actor, picks, offer.kind);
+        await applyAdvancement(actor, picks, offer.kind, { offerId: offer.id });
     } finally {
         advancing.delete(actor.id);
     }
 }
 
-/** Characters whose Level Up is being written right now (see handleAdvancement). */
-const advancing = new Set();
 /** Characters whose refused Level Up the GMs were told this browser may not hold (see handleAdvancement). */
 const offerMissingTold = new Set();
 
-/** A GM asks the primary to record or withdraw an offer (N-2). Only a GM - the declaration's first guard. */
+/**
+ * A GM asks the primary to give an offer or take one back (N-2; E10 C6). Only a GM - the
+ * declaration's first guard. `add` appends one of `kind` and answers its id - with `extra`
+ * picks and how many of them waited for the class (`deferred`) when the verdict's window
+ * gives it (E10 C7), bounded to whole numbers by `recordOffer`; `take` names an offer standing
+ * on that character as the primary holds it (`offerId`), else it is refused.
+ */
 async function handleAdvancementOffer(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor || actor.type !== "character") return { refused: "no such character" };
+    const { recordOffer, dropOffer, standingOffers, advancing, takingBack } = await import("./level-up.mjs");
+    if (payload.op === "take") {
+        if (!standingOffers(actor).some(offer => offer.id === payload.offerId)) {
+            return { refused: "no Level Up is on offer under that name for that character" };
+        }
+        // Not while the Level Up it would spend is being written, and that Level Up not while the drop
+        // waits for the offers store (level-up.mjs `takeBackOffer`; E10 fix r1-G2, r2-G4). `takingBack` lets the
+        // primary's own menu tell a second take-back from a Level Up (r2-G6); this road's refusal is told as busy.
+        if (advancing.has(actor.id)) return { refused: "a Level Up for that character is already being written" };
+        advancing.add(actor.id);
+        takingBack.add(actor.id);
+        try {
+            await dropOffer(actor.id, payload.offerId);
+        } finally {
+            advancing.delete(actor.id);
+            takingBack.delete(actor.id);
+        }
+        return { reply: { taken: payload.offerId } };
+    }
+    if (payload.op !== "add") return { refused: "an offer is given or taken back, nothing else" };
     const kind = payload.kind;
-    if (kind !== null && !LEVEL_UP[kind]?.picks) return { refused: `no such Level Up: ${kind}` };
-    const { recordOffer } = await import("./level-up.mjs");
-    await recordOffer(actor.id, kind);
+    if (!LEVEL_UP[kind]?.picks) return { refused: `no such Level Up: ${kind}` };
+    const added = await recordOffer(actor.id, { kind, extra: payload.extra, deferred: payload.deferred });
+    return { reply: added ? { id: added.id } : null };
 }
 
 /**
@@ -438,9 +510,19 @@ export async function sendOffersTo(userId) {
     }, { recipients: [userId] });
 }
 
-/** A GM other than the primary: have the primary record or withdraw an offer. */
-export function requestOfferRecord(actorId, kind) {
-    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, kind });
+/**
+ * Any GM: have the primary give an offer - a kind, or `{ kind, extra, deferred }` (E10 C7) -
+ * or, `offer` null, take back the one `offerId` names (E10 C6). Done on the primary itself,
+ * asked of it from any other GM.
+ */
+export function requestOfferRecord(actorId, offer, offerId = null) {
+    const asked = typeof offer === "string" ? { kind: offer } : offer ?? null;
+    const op = asked?.kind ? "add" : "take";
+    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, op, kind: asked?.kind ?? null, extra: asked?.extra ?? 0,
+        deferred: asked?.deferred ?? 0, offerId }, {
+        onPrimary: true,
+        local: () => import("./level-up.mjs").then(m => op === "add" ? m.recordOffer(actorId, asked) : m.dropOffer(actorId, offerId))
+    });
 }
 
 /** An owner's browser: take the set the primary sent. Outside the primary gate. */
@@ -734,7 +816,10 @@ async function handleCleanup(payload, sender, ctx, prepared) {
             // Which step the client paid. Bounded on arrival against
             // PRICE_CHAINS, like `transform` and `change` (T-1).
             price: payload.price ?? null,
-            grant: payload.grant
+            grant: payload.grant,
+            // Who sent it, as below: a give-back the GMs' audit cannot check is not
+            // made on a player's word (cleanup.mjs `paidBack`, fix r2-G8).
+            by: sender.id
         });
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
@@ -916,7 +1001,7 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
-        if (await worksOwnMurder(payload.data?.projectId, actor, data.action)) data.tiedToCrime = true;
+        if (await worksOwnMurder(payload, actor, data.action, sender)) data.tiedToCrime = true;
     }
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
@@ -947,15 +1032,34 @@ async function handleRemnant(payload, sender, ctx) {
  * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
  * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
  * the project it names is an indirect murder, and the sender's character is its killer or the one
- * who proposed it. A Sabotage's trace is not judged: until E08+E28 C16 nothing the GMs kept recorded a
- * failed one's target, and the roll's row that does now is not read here.
+ * who proposed it.
+ *
+ * AND A SABOTAGE OF IT (E09 C5, 08.10.2026; audit S10-17). The roller's browser ties the trace of a
+ * Sabotage of an indirect murder (action-rolls.mjs `dropSabotageTrace`) and the rebuild dropped that
+ * too, so the killer's Sabotage of their own trap left an untied trace (read in the code at C5's parent:
+ * this answered false for every action but a Work; the tier-2 tests' red is in C5's message). The
+ * project is not the packet's: it is the target `handleSabotage` noted on the GMs' row of the roll the
+ * trace names (`noteFactOfRoll`; parked there while the row is not kept yet - `factsOfRoll`), and that
+ * row must be the sender's Sabotage roll of the trace's own character. The tie then asks the same as
+ * a Work's: an indirect murder whose killer or proposer is that character (projects.mjs
+ * `buildsOwnMurder`, which a GM's own drop asks too since E09 fix r1-G4). A bystander's Sabotage of
+ * somebody else's trap leaves an untied trace, as the plan decided (E09 plan, C5). A Sabotage of a
+ * project already frozen freezes nothing and notes its target all the same since fix r1-G4
+ * (`handleSabotage`; the round-1 security review's F7): until then its trace was left undecided where
+ * the same Sabotage of a trap not frozen yet was tied (tier 2 "a Sabotage of the saboteur's own trap
+ * already frozen leaves a tied trace").
  */
-async function worksOwnMurder(projectId, actor, action) {
-    if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
-    const { isIndirectMurder, secretsOf } = await import("./projects.mjs");
-    if (!isIndirectMurder(projectId)) return false;
-    const { killerId, by } = secretsOf(projectId);
-    return killerId === actor.id || by === actor.id;
+async function worksOwnMurder(payload, actor, action, sender) {
+    if (!actor) return false;
+    let projectId = null;
+    if (action === "project") projectId = payload.data?.projectId;
+    else if (action === "sabotage") {
+        const { factsOfRoll } = await import("./action-rolls.mjs");
+        projectId = (await factsOfRoll(payload.rollId, { by: sender.id, actorId: actor.id, actions: ["sabotage"] }))?.targetProjectId;
+    }
+    if (typeof projectId !== "string" || !projectId) return false;
+    const { buildsOwnMurder } = await import("./projects.mjs");
+    return buildsOwnMurder(projectId, actor.id);
 }
 
 /*
@@ -1111,9 +1215,16 @@ async function handleSabotage(payload, sender, ctx) {
        row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
        ended after this one in 5 of 5 of the review's runs at f941051 (2 of 3 of its 97 at d20fadb),
        and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
-       writes none. */
-    if ((result || !difficulty) && payload.rollId) {
-        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actions: ["sabotage"] },
+       writes none. Since E09 C5 the fact names the packet's character too: the trace that follows reads
+       its target off this fact to decide its tie, and asks it of the trace's character (`worksOwnMurder`);
+       `owns` and the roll's record (`rolled.actor`) have held `actorId` to the sender's and the roll's.
+       And whatever the freeze did (E09 fix r1-G4, 08.10.2026; the round-1 security review's F7): a
+       Sabotage of a project frozen since its picker was drawn freezes nothing, and noted nothing, so
+       its trace was left undecided where the C5 rule ties the saboteur's own. The target is the one
+       the roll was drawn for (`rolled.named`) and the sender can see (`canSeeProject`); the repair is
+       noted only when one was made, so a Reroll of it takes back nothing (reroll.mjs `settleSabotage`). */
+    if (payload.rollId) {
+        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actorId: payload.actorId ?? null, actions: ["sabotage"] },
             { targetProjectId: payload.targetId, repairId: result?.repair?.id ?? null });
     }
     if (!difficulty) return { reply: null };
@@ -1344,6 +1455,57 @@ async function handleAuditDecide(payload, sender) {
     return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
 }
 
+/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */
+async function handleKeysCharge() {
+    const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+    return { reply: await chargeForUnfoundKeys() };
+}
+
+/** The run of `vote.run` (E10 C1): the primary's own step of the vote (vote.mjs `runVoteOp`), its reply or status. */
+async function handleVoteRun(payload) {
+    const { runVoteOp } = await import("./vote.mjs");
+    return { reply: await runVoteOp(payload.op, { picks: payload.picks }) };
+}
+
+/** The run of `vote.cast` (E10 C2): the primary's own judgement and record of the sender's ballot (vote.mjs `recordBallot`). */
+async function handleBallot(payload, sender) {
+    const { recordBallot } = await import("./vote.mjs");
+    const out = await recordBallot(sender, payload.round, payload.choice);
+    if (out.refused) return { refused: out.refused };
+    return { reply: out.reply };
+}
+
+/** The run of `vote.ask` (E10 C2): the sender's own ballot, as the primary holds the vote (vote.mjs `ballotFor`), or null. */
+async function handleBallotAsk(payload, sender) {
+    const { ballotFor } = await import("./vote.mjs");
+    return { reply: await ballotFor(sender) };
+}
+
+/**
+ * The run of `floor.now` (E10 fix r2-G6): the primary's own Now, under its heartbeat's latch (trial-floor.mjs
+ * `advanceFloorOnPrimary`), on the floor the pressing GM saw (r2-G7). A floor that moved on is refused here, so that
+ * GM is told; `advanceFloorOnPrimary` holds the same comparison in the same synchronous step for the local road.
+ */
+async function handleFloorNow(payload) {
+    const { advanceFloorOnPrimary, floorAsSeen } = await import("./trial-floor.mjs");
+    const seen = { mode: payload.mode, startedAt: payload.startedAt };
+    if (!floorAsSeen(seen)) return { refused: "the trial's floor has moved on since that Now was pressed" };
+    return { reply: await advanceFloorOnPrimary(seen) };
+}
+
+/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
+async function handleReshapeRuling(payload, sender) {
+    const { ruleReshape } = await import("./cleanup.mjs");
+    return { reply: await ruleReshape({ actorId: payload.actorId, tokenId: payload.tokenId, attempt: payload.attempt,
+        verdict: payload.verdict }, sender.id) };
+}
+
+/** The run of `observe.pick` (E09 C12): a GM's pick or refusal on an Observe card, held to the ask this primary keeps (`observePickOnPrimary`). */
+async function handleObservePick(payload, sender) {
+    return { reply: await observePickOnPrimary({ rid: payload.rid, actorId: payload.actorId, tokenId: payload.tokenId,
+        refuse: payload.refuse }, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -1430,10 +1592,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, picks: as.raw }),
+        sanitize: pick({ actorId: as.id, picks: as.raw, offerId: as.id }),
         run: handleAdvancement,
         answer: "ack",
-        claims: { picks: "checked in the run against the offer standing on this side: as many as its kind buys, each a Level Up option, a new experience named" }
+        claims: { picks: "checked in the run against the offer `offerId` names: as many as it buys, each a Level Up option, a new experience named",
+            offerId: "must name an offer standing in that character's list as this GM holds it, else refused and told (handleAdvancement)" }
     },
     [ACTION_ADVANCEMENT_OFFER]: {
         label: "DRPG.Bridge.what.advancement.offer",
@@ -1441,9 +1604,10 @@ export const BRIDGE_ACTIONS = table({
         // stays because every declaration that acts on `actorId` answers the same
         // two questions, and a rule with an exception is two rules.
         guards: [gmOnly("only a GM hands out a Level Up"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, kind: as.maybeText }),
+        sanitize: pick({ actorId: as.id, op: as.oneOf("add", "take"), kind: as.maybeText, extra: as.num, deferred: as.num, offerId: as.id }),
         run: handleAdvancementOffer,
-        answer: "reply"
+        answer: "reply",
+        claims: { offerId: "a `take` must name an offer standing on that character as the primary holds it (handleAdvancementOffer), else refused and told" }
     },
     [ACTION_ADVANCEMENT_ASK]: {
         label: "DRPG.Bridge.what.advancement.ask",
@@ -1576,7 +1740,7 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             tokenId: "resolveCleanup (cleanup.mjs) finds the trace in the cleaner's room and judges it, or refuses",
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
-            price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1)",
+            price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
@@ -1949,6 +2113,138 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         claims: { rowId: "decideWrite (sheet-audit.mjs) decides only a row the GMs flagged and nobody has decided, once, on the primary" }
     },
+    /*
+     * THE KEY FEE, CHARGED ON THE PRIMARY GM (E09 fix r1-G3, 08.10.2026; the round-1 goal
+     * review's G3a). A Class Trial opens on whichever GM moved the phase (clock.mjs
+     * `reconcilePhase`); the fee counts the Key copies by the GMs' marks, which are the
+     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).
+     * Carries nothing: the charge reads the clock, the trial's stamp and the case on this side.
+     */
+    [ACTION_KEYS_CHARGE]: {
+        label: "DRPG.Bridge.what.keys.charge",
+        guards: [gmOnly("only a GM opens a Class Trial, and the Key fee is charged as one opens")],
+        sanitize: pick({}),
+        run: handleKeysCharge,
+        answer: "reply"
+    },
+    /*
+     * THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17). The ballots are recorded
+     * on the primary (vote.mjs `recordBallot`, into the GMs' store), so the steps that read or
+     * reset them are taken there too: another GM's Send the ballots, Start the vote over,
+     * Remind and Close and count ask it here (vote.mjs `askVote`, `onPrimary`). A GM's request
+     * only: no player opens or counts a vote. `op` is one of the five steps or nothing; `picks`
+     * is a number the primary bounds by the students enrolled (`picksFor`). The primary judges
+     * the step against the trial's record and answers a status for one the record has moved past.
+     */
+    [ACTION_VOTE_RUN]: {
+        label: "DRPG.Bridge.what.vote.run",
+        guards: [gmOnly("only a GM runs the vote")],
+        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind"), picks: as.num }),
+        run: handleVoteRun,
+        answer: "reply"
+    },
+    /*
+     * A BALLOT, ON THE BRIDGE (E10 C2, 1.2.71; audit S06-12, S06-17). Until C2 a player's answer
+     * was a raw packet to every GM (`vote.ballot`), which the primary recorded on a candidate
+     * filter alone, and the player was told "Your vote is in." as it left - with no GM connected,
+     * of a ballot nobody would count. A request now, a player's alone (a GM casts no ballot),
+     * judged by the primary against the vote the world holds (vote.mjs `recordBallot`,
+     * `ballotRefusal`) and answered with the round it was recorded in, or refused with the reason
+     * the player is told. No voter travels: the primary finds the voter from the sender, as it
+     * did. `patient` and `resend`, though nobody decides: a primary that reloads while a ballot is
+     * on its way is asked again, with the same id, when its world has loaded, and the player is
+     * not told meanwhile that nothing reached it. Asked quietly (`requestBallotCast`): the vote
+     * says what came of a ballot in its own words (vote.mjs `sendBallot`).
+     */
+    [ACTION_VOTE_CAST]: {
+        label: "DRPG.Bridge.what.vote.cast",
+        guards: [knownSender, playersOnly("a GM casts no ballot")],
+        sanitize: pick({ round: as.num, choice: as.raw }),
+        run: handleBallot,
+        answer: "reply", patient: true, resend: true,
+        claims: {
+            round: "held by recordBallot (vote.mjs ballotRefusal) to the round of the vote open in the world; any other is refused as moved on",
+            choice: "held by recordBallot (vote.mjs ballotRefusal) to the vote's picks, none twice, each on the list the primary computes for the voter it finds from the sender"
+        }
+    },
+    /*
+     * A LATE JOINER'S BALLOT (E10 C2, 1.2.71). A player who loaded while a vote was open - who
+     * joined after the ballots went out, or reloaded with a window open - was handed nothing
+     * until a GM pressed Remind. Their browser asks now, at load and when a primary GM's world
+     * has loaded (vote.mjs `askForBallot`), and the primary answers about the sender alone
+     * (`ballotFor`): the ballot, that it is in, or null. A background question, so quiet, as
+     * `advancement.ask` is: a refusal is the GM's log alone, and the next primary's arrival asks
+     * again. Not patient: an answer is not a ruling, and a primary that has not acknowledged it
+     * within the clock for a "got it" is asked again when its world has loaded.
+     */
+    [ACTION_VOTE_ASK]: {
+        label: "DRPG.Bridge.what.vote.ask",
+        guards: [knownSender, playersOnly("a GM asks for nothing here")],
+        sanitize: pick({}),
+        run: handleBallotAsk,
+        answer: "reply", quiet: true,
+        why: "answers only about the sender's own ballot, found from the id Foundry gives"
+    },
+    /*
+     * THE GM'S NOW, RUN ON THE PRIMARY GM (E10 fix r2-G6, 1.2.71). The heartbeat writes the floor's
+     * transitions on the primary under one latch (trial-floor.mjs `advancing`), and another GM's Now
+     * wrote the same move on its own browser beside it. A GM's request only: a press while the
+     * primary's own write is on its way does nothing. It names the floor the pressing GM saw (E10 fix
+     * r2-G7), and the primary moves that floor or nothing: a press that reaches it after the move it
+     * was pressed for had landed ended the rebuttal that move opened.
+     */
+    [ACTION_FLOOR_NOW]: {
+        label: "DRPG.Bridge.what.floor.now",
+        guards: [gmOnly("only a GM moves the trial's floor on")],
+        sanitize: pick({ mode: as.oneOf("objection", "rebuttal"), startedAt: as.num }),
+        run: handleFloorNow,
+        answer: "reply",
+        claims: {
+            mode: "held by handleFloorNow and advanceFloorOnPrimary (trial-floor.mjs floorAsSeen) to the floor the primary holds now; any other is refused as moved on and moves nothing",
+            startedAt: "held by handleFloorNow and advanceFloorOnPrimary (trial-floor.mjs floorAsSeen) to the start of the floor the primary holds now; any other is refused as moved on and moves nothing"
+        }
+    },
+    /*
+     * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
+     * each GM's ruling used to run on its own browser against its own copy of the synced
+     * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
+     * reads the proposal off the attempt's row and marks the row ruled in one step
+     * (cleanup.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
+     * A GM's alone: the card's buttons are drawn for GMs.
+     */
+    [ACTION_RESHAPE_RULING]: {
+        label: "DRPG.Bridge.what.cleanup.ruling",
+        guards: [gmOnly("only a GM rules on a reshaped trace")],
+        sanitize: pick({ actorId: as.id, tokenId: as.id, attempt: as.text, verdict: as.text }),
+        run: handleReshapeRuling,
+        answer: "reply",
+        claims: {
+            actorId: "the row of that character's last clean-up in the GMs' store, and nothing is done without one (cleanup.mjs claimRuling)",
+            tokenId: "compared to the row's trace by claimRuling; a trace that differs is refused",
+            attempt: "compared to the row's attempt by claimRuling; an attempt a Reroll or a later attempt replaced is refused",
+            verdict: "\"approve\" or \"decline\" (cleanup.mjs ruleReshape); anything else rules on nothing"
+        }
+    },
+    /*
+     * AN OBSERVE'S FOCUSED GAZE, PICKED ON THE PRIMARY GM (E09 C12, 08.10.2026; audit S05-27).
+     * The card is every GM's, and the pick is checked where the ask is kept: the primary holds
+     * who asked, for which character and in which room (`observeAsks`), reads the list of
+     * traces again, and writes the Observe's row only for a trace on it. A GM's alone: the
+     * card's buttons are drawn for GMs.
+     */
+    [ACTION_OBSERVE_PICK]: {
+        label: "DRPG.Bridge.what.observe.pick",
+        guards: [gmOnly("only a GM picks what an Observe is aimed at")],
+        sanitize: pick({ rid: as.id, actorId: as.id, tokenId: as.id, refuse: as.bool }),
+        run: handleObservePick,
+        answer: "reply",
+        claims: {
+            rid: "the ask this primary keeps under that request (observePickOnPrimary); one it does not keep - answered, given up, never asked - is refused and told",
+            actorId: "compared to the character of the ask kept under rid; another character's is refused and told",
+            tokenId: "read again on the primary: one of observeCandidates for that character in the room it asked in (observe.mjs pickObserveTarget), else nothing is written and the GM is told",
+            refuse: "the GM's Refuse: the asker is told the Observe was refused, and nothing is written"
+        }
+    },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, guardCardSpeaker, guardCardReaders],
@@ -2150,6 +2446,24 @@ export function requestNoteSave(text, { quiet = false } = {}) {
 }
 
 /**
+ * A player's ballot, to the primary GM (E10 C2; vote.mjs `sendBallot`): the round of the window it was
+ * given in and the names checked there. Its value is `{ round }`, the round it was recorded in. Quiet:
+ * the vote says what came of it in its own words - that it is in, why it was not, or that it is kept.
+ */
+export function requestBallotCast(round, choice) {
+    return ask(ACTION_VOTE_CAST, { round, choice }, { quiet: true });
+}
+
+/**
+ * This player's own ballot, asked of the primary GM (E10 C2; vote.mjs `askBallot`). Its value is the
+ * ballot, `{ round, picks, candidates }`; `{ cast: true, round }` when the primary holds this player's
+ * ballot of the round; or null.
+ */
+export function requestBallot() {
+    return ask(ACTION_VOTE_ASK, {});
+}
+
+/**
  * The trace that handed over this object is evidence now.
  *
  * Asked by the killer's own client at the moment they swing, answered on the
@@ -2301,6 +2615,103 @@ async function askTraitByCard(payload, ctx) {
 }
 
 /**
+ * The Observes this primary put on a card, by request (E09 C12): who asked, for which
+ * character, in which room, with what words and when - what a GM's pick is held to
+ * (`observePickOnPrimary`), read from the ask as it arrived and never from the card. The
+ * oldest go first. Kept in memory: a primary that reloads keeps none, so a pick on a card it
+ * put up before is refused and told, and the player's browser asks again (`resend`).
+ */
+const observeAsks = new Map();
+const OBSERVE_ASKS_KEPT = 100;
+
+/**
+ * A player's focused gaze, put to every GM as a card in the player's thread (E09 C12; shaped
+ * as `askDynamicByCard`). The card names the character, the room and the player's own words,
+ * and no trace: the candidates and their difficulties are drawn only in the picker of the GM
+ * who presses "Pick a trace" (observe.mjs `pickFromCard`).
+ */
+export async function askObserveByCard({ actor, room, request = "", userId = null }, ctx) {
+    if (!ctx?.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    askedByCard.add(ctx.requestId);
+    observeAsks.set(ctx.requestId, { asker: ctx.asker, userId, actorId: actor.id, room, request, at: Date.now() });
+    while (observeAsks.size > OBSERVE_ASKS_KEPT) observeAsks.delete(observeAsks.keys().next().value);
+    const data = { rid: ctx.requestId, by: actor.id, desc: request };
+    const posted = await callGm(actor, {
+        title: game.i18n.localize("DRPG.Observe.cardTitle"),
+        request,
+        room,
+        gmBody: game.i18n.localize("DRPG.Observe.cardHint"),
+        actions: [
+            { action: "pickObserveTrace", label: game.i18n.localize("DRPG.Observe.cardPick"), data },
+            { action: "refuseObserveTrace", label: game.i18n.localize("DRPG.Observe.pickRefuse"), data }
+        ]
+    });
+    if (posted !== false) return { later: true };
+    observeAsks.delete(ctx.requestId);
+    return { refused: "the ruling card could not be posted" };
+}
+
+/**
+ * A GM's pick (`tokenId`) or Refuse (`refuse`) on an Observe card, on the primary (E09 C12).
+ * Held to the ask kept under `rid`: none kept, another character's, or one past the asker's
+ * clock (`TIMING.rulingMs` from its arrival here, a little later than the asker's own) is
+ * "gone". The ask is marked as being answered before anything waits, so of two GMs' picks at
+ * once the second is "gone" too. A pick the primary does not find among the traces the
+ * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
+ * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
+ * The asker is answered here, once: `{ ok: true, key }`, or `{ ok: false, reason: "refused" }`
+ * as a GM's closed picker always answered.
+ */
+async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
+    const asked = observeAsks.get(rid ?? "");
+    const who = game.users.get(by ?? "")?.name ?? by;
+    if (!asked || asked.answering || asked.actorId !== actorId || Date.now() - asked.at > TIMING.rulingMs) {
+        warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
+        if (asked && !asked.answering && asked.actorId === actorId) observeAsks.delete(rid);
+        return { value: "gone", told: "DRPG.Observe.pickGone" };
+    }
+    asked.answering = true;
+    const answer = value => game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId: rid, userId: asked.asker, value
+    }, { recipients: [asked.asker] });
+    try {
+        if (refuse) {
+            observeAsks.delete(rid);
+            answer({ ok: false, reason: "refused" });
+            return { value: "refused", told: null };
+        }
+        const { pickObserveTarget } = await import("./observe.mjs");
+        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.userId, request: asked.request });
+        if (!picked.ok) {
+            warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
+            return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
+        }
+        observeAsks.delete(rid);
+        answer({ ok: true, key: picked.key });
+        return { value: "picked", told: null };
+    } finally {
+        asked.answering = false;
+    }
+}
+
+/**
+ * A GM's pick or Refuse on an Observe card, sent to the primary GM (E09 C12; `observe.pick`).
+ * The notice the primary answered with is shown here, to the GM who pressed. What the primary
+ * answered ("picked", "refused", "gone", "notThere"), or null when it could not be asked.
+ */
+export async function askObservePick({ rid, actorId, tokenId = null, refuse = false } = {}) {
+    const asked = { rid, actorId, tokenId, refuse: Boolean(refuse) };
+    const res = await ask(ACTION_OBSERVE_PICK, asked, {
+        onPrimary: true,
+        local: () => observePickOnPrimary(asked, game.user.id)
+    });
+    if (!res.ok) return null;
+    const told = res.value?.told ?? null;
+    if (told) ui.notifications.warn(game.i18n.format(told, { name: game.actors.get(actorId ?? "")?.name ?? "?" }));
+    return res.value?.value ?? null;
+}
+
+/**
  * A GM's answer to a statistic card, sent to the player who asked alone: the
  * request's `bridge.done`, the trait, or `false` for Refuse.
  */
@@ -2330,6 +2741,26 @@ export async function answerHopeCall(requestId, asker, verdict) {
         action: ACTION_DONE, requestId, userId: asker, value: false
     }, { recipients: [asker] });
     return true;
+}
+
+/**
+ * A GM's Approve or Decline on a reshape card (`verdict` "approve" or "decline"), ruled on the
+ * primary GM (E09 C10; `cleanup.ruling`). The notices the ruling raised there are shown here, to
+ * the GM who pressed. Answers what the ruling answered - true, false for a card whose attempt is
+ * no longer the GMs', null for nothing ruled - or null when the primary could not be asked.
+ */
+export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
+    const asked = { actorId: by, tokenId: trace, attempt, verdict };
+    const res = await ask(ACTION_RESHAPE_RULING, asked, {
+        onPrimary: true,
+        local: () => import("./cleanup.mjs").then(m => m.ruleReshape(asked, game.user.id))
+    });
+    if (!res.ok) return null;
+    for (const [level, key, data] of res.value?.told ?? []) {
+        if (!["info", "warn"].includes(level)) continue;
+        ui.notifications[level](data ? game.i18n.format(key, data) : game.i18n.localize(key));
+    }
+    return res.value?.value ?? null;
 }
 
 /**
@@ -2502,14 +2933,18 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
  *
  * `applyAdvancement` writes through `trustedWrite`, which bypasses the resource
  * guard on purpose - so it is GM-only, and it has to stay that way. The player
- * picks; the GM's client checks the offer again and writes.
+ * picks; the GM's client checks the offer again and writes. `offerId` names the
+ * offer the picks spend (E10 C6); a caller that names none spends the oldest this
+ * browser holds on that character (level-up.mjs `pendingAdvance`).
  */
-export function requestAdvancement({ actorId, picks, kind }) {
-    return ask(ACTION_ADVANCEMENT, { actorId, picks, kind }, {
-        local: () => import("./level-up.mjs").then(m => {
+export async function requestAdvancement({ actorId, picks, kind, offerId = null }) {
+    const L = await import("./level-up.mjs");
+    const spent = offerId ?? L.pendingAdvance(game.actors.get(actorId))?.id ?? null;
+    return ask(ACTION_ADVANCEMENT, { actorId, picks, kind, offerId: spent }, {
+        local: () => {
             const actor = game.actors.get(actorId);
-            return actor ? m.applyAdvancement(actor, picks, kind) : null;
-        })
+            return actor ? L.applyAdvancement(actor, picks, kind, { offerId: spent }) : null;
+        }
     });
 }
 

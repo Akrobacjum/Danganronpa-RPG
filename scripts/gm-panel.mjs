@@ -1452,11 +1452,34 @@ export async function openClockDialog() {
      */
     const before = getClock();
 
+    /* THE PHASE SELECT IS A DOOR INTO A TRIAL TOO (E10 C11, 1.2.71; audit S06-33; D17). Moving it to
+       Class Trial in a chapter whose trial has a verdict blanks that verdict (`reconcilePhase`), so it
+       asks as Start the Class Trial does, Cancel the default; Cancel keeps the phase and applies the
+       rest of the window. The clock is read again here, not through `before`: R69 keeps the phase out of
+       that comparison.
+       THE CHAPTER IT MOVES TO, AND NOT IN AN ECLIPSE (E10 fix r2-G5, 1.2.71; round 2's cor m3 and goal
+       S06-18). This asked only when the chapter stayed, but the write blanks the record of the chapter it
+       lands on, so moving back to a chapter whose trial has a verdict and into its trial blanked that
+       verdict unasked: the question reads the record of `result.chapter`. And `setClock` refuses a trial
+       opened in an Eclipse, which would drop the whole window; here only the phase is kept and the GM
+       told, as Cancel keeps it. Measured in tier 2 "Edit campaign moving back to a chapter with a verdict
+       asks first" and "no road opens the trial in an Eclipse", both red at c494855. */
+    let phase = result.phase;
+    if (phase === "classTrial" && getClock().phase !== "classTrial") {
+        if (isEclipse()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+            phase = getClock().phase;
+        } else {
+            const { confirmNewTrial } = await import("./trial-floor-ui.mjs");
+            if (!(await confirmNewTrial(result.chapter))) phase = getClock().phase;
+        }
+    }
+
     await setClock({
         campaignName: result.campaignName,
         chapter: result.chapter,
         day: result.day,
-        phase: result.phase,
+        phase,
         session: result.session,
         timeOfDay: result.timeOfDay
     });

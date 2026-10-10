@@ -210,7 +210,14 @@ const bus = {
         return new Promise((resolve, reject) => {
             const id = `${WHO}-${++reqSeq}`;
             pending.set(id, { resolve, reject });
-            send({ t: "op", id, op });
+            // A scenario may hold one of this client's writes on its way to the server (E10 fix r2-G8, 10.10.2026):
+            // `__holdOp(op)` answers a promise to hold it until that settles, or nothing to send it now. Scenario 30
+            // holds a GM's put-back until the player's ask it is to follow has been heard - the order its checks test,
+            // which until then only arrived first most of the time (e10run/scratch/h19-diagnosis.md). Unset, it is one
+            // optional call that answers undefined and the op leaves as before (read in the code, not timed).
+            const held = globalThis.__holdOp?.(op);
+            if (held) void Promise.resolve(held).finally(() => send({ t: "op", id, op }));
+            else send({ t: "op", id, op });
         });
     },
     setSetting(key, value) {

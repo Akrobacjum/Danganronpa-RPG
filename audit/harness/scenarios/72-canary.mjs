@@ -154,8 +154,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        project's and Confusion. Until the lights the cast is Chie and p3, and p1 and p2 are read;
        from the lights Botan and p2 are cast beside them, and Botan meets Chie face to face (D6),
        so p1 alone is read, through the discovery, when the body is the table's and the killer is
-       not. The verdict is not read: a wrong verdict reveals the blackened by design (en.json
-       `outcomeEscaped`). Each hit a later E06 commit closes is a known-leaks.json entry. */
+       not, and through the verdict, whose one public card names the executed and never the
+       Blackened a wrong verdict spares (E10 C5; until then the verdict was not read). The Final
+       Trial's verdict, which reveals the Mastermind on a wrong guess by design (en.json
+       `outcomeEscaped`), is not played here. Each hit a later E06 commit closes is a known-leaks.json entry. */
     const TITLES = await gm.eval(`const C = await import("${repoUrl}/scripts/config.mjs"); const L = k => game.i18n.localize(k);
         return [...Object.values(C.CRISIS_ACTIONS), ...Object.values(C.MURDER_OPENING), ...Object.values(C.CLEANUP.actions ?? {})].map(d => d?.label)
             .concat([L("DRPG.Cleanup.action"), L("DRPG.Cleanup.transformAction"), L("DRPG.Tamper.coverAction"), L("DRPG.Roll.crisis"),
@@ -671,5 +673,5 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const row = S.deferredOfferStore?.get("${IDS.chie}"); return row ? { kind: row.kind, count: row.count } : null;`);
     check("gm: Chie's Reinforced Level Up waits in the GMs' store for the class (E05 C11)",
         waiting?.kind === "reinforced" && waiting?.count === 1, JSON.stringify(waiting));
-    await scanned("verdict");
+    await scanned("verdict", { ...KILLER_CHAT, who: ["p1"] });
 }

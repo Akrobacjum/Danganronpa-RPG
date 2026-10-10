@@ -29,7 +29,8 @@
  *      a second world on the same server - its hello is refused there as another
  *      world's, it claims the same old rows (a duplicated world), its clear drops
  *      world B's rows only, and back in world A the same browser reads its traces
- *      intact without a GM having to send them.
+ *      intact without a GM having to send them; and a row only an absent GM held, back
+ *      after the world's ties were settled, is read against the settle's cut (E09 fix r2-G4).
  *   E  the Mastermind's door (S06-19): the pick reaches its player's copy with the
  *      record's stamps, and what each player is sent is read off the packets; a
  *      second GM whose browser holds no pick is asked and does not answer (the
@@ -166,9 +167,17 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        hydrated and written what they write then: since E29 C3 the primary fills the marks of a sheet as its
        stores hydrate (sheet-audit.mjs), and the seed GM's had not yet when this ran (measured 05.10.2026,
        e29run/scratch/c3/a5probe.mjs: hydrated false, no marks, the copy without the key; A5 then saw a state
-       exchanged for them). */
-    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const end = Date.now() + 10000;
+       exchanged for them). And once its load's own writes are done (gm-stores.mjs `whenGmStoresLoaded`, the
+       suite's wait): since E09 C4 the primary's load reads this world's 1.2.62 "not tied" as undecided
+       (`settleTieStates`, D1 below) and writes it to the traces' store after the stores hydrate. Waited for
+       hydration and idle only, the copy could be taken before the load's marks were done (E09 fix r1-G2,
+       08.10.2026, e09run/scratch/r1g2/p61a: `tiesSettledAt` still unset at the copy), and A5 saw the primary
+       send the copy a `gms.state` in every whole run of 61 since C4 (e09run/k1-ci/61.log, scratch/r1g3s61-par
+       and -fix). */
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 10000;
         while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        if (E.gmStoresHydrated()) await S.whenGmStoresLoaded();
         await E.gmStoresIdle(); return E.gmStoresHydrated();`);
     await connect("gm2", { storage: { ...(await storageOf("gm")), [PROBE_KEY]: probe } });
     await settle(400);
@@ -374,7 +383,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             const t = game.scenes.get(sceneId)?.tokens?.get(tokenId); const d = t ? R.remnantData(t) : null;
             return d ? [d.type, d.note ?? "", d.tiedToCrime] : null; });`;
     const seedKey = `${IDS.annex}.${IDS.trace}`;
-    const seedRow = ["prep", "", false];
+    /* The seed's row is a 1.2.62 world's (lib/seed.mjs), whose `false` was written through `Boolean()`: the
+       primary's load reads it as undecided once (gm-stores.mjs `settleTieStates`, E09 C4; the owner's D14),
+       so the trace survives undecided. `false` until C4 (E09 fix r1-G2, 08.10.2026: e09run/scratch/r1g2/p61a
+       read the seed's tie stamped 14 ms before the mark, null). */
+    const seedRow = ["prep", "", null];
     const expectD = [seedRow, ["incident", "E04 trace 1", true], ["prep", "E04 trace 2", false]];
     const idsD = [seedKey, ...placedD.map(id => `${IDS.scene}.${id}`)];
     await connect("gm2");
@@ -432,6 +445,45 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("D5: the same browser back in world A reads its traces intact, and no GM had to send it a section",
         J(tracesOnA) === J(expectD.slice(0, 2)) && !statesForA.length, J({ tracesOnA, statesForA: statesForA.slice(0, 4) }));
     await disconnect("gma");
+    await disconnect("gm2");
+    await settle(300);
+
+    /* D6 (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's item 3): a trace row only an
+       absent GM held, merged in after the primary's load had read the world's old "not tied" as
+       undecided and marked the case (gm-stores.mjs `settleTieStates`). gm2's browser as it left in
+       D5, and two rows written into it that no other GM holds: a "not tied" stamped an hour before
+       the mark (an old one, from before the third state) and one stamped now, after it (a GM's of
+       today). gm2 back, and waited for until its load's own writes are done (as A5 waits). Read:
+       both rows' tie on both GMs. Then the two rows dropped and gm2 gone again, as D5 left it. */
+    const plantedD6 = [`${IDS.scene}.R2G4OLDNOTTIED00`, `${IDS.scene}.R2G4TODAYNOTTIED`];
+    const atD6 = await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { now: E.gmStoreStamp(), mark: S.caseMark() };`);
+    const leftD5 = await storageOf("gm2");
+    const remnantsD6 = JSON.parse(leftD5?.[KEY] ?? "null");
+    const sectionD6 = remnantsD6?.worlds?.[worldA] ?? null;
+    const oldD6 = atD6.mark?.tiesSettledAt - 60 * 60 * 1000;
+    if (sectionD6) {
+        const row = note => ({ type: "prep", visibility: "evident", note, tiedToCrime: false });
+        Object.assign(sectionD6.e ??= {}, { [plantedD6[0]]: row("E09 r2-G4 an absent GM's old not tied"),
+            [plantedD6[1]]: row("E09 r2-G4 an absent GM's not tied of today") });
+        Object.assign(sectionD6.t ??= {}, { [plantedD6[0]]: oldD6, [plantedD6[1]]: atD6.now });
+    }
+    await connect("gm2", { storage: { ...leftD5, [KEY]: JSON.stringify(remnantsD6) } });
+    await gm2.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 10000;
+        while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        if (E.gmStoresHydrated()) await S.whenGmStoresLoaded();
+        await E.gmStoresIdle(); return E.gmStoresHydrated();`);
+    await settle(800);
+    const tiesD6 = client => client.eval(`${REM}
+        return ${J(plantedD6)}.map(key => { const row = remnantStore.get(key); return row ? row.tiedToCrime : "absent"; });`);
+    const lateOnGm = await tiesD6(gm), lateOnGm2 = await tiesD6(gm2);
+    check("D6: a trace row only an absent GM held, back after the world's ties were settled, is read against the settle's cut on both GMs: its old not tied undecided, a not tied written since kept",
+        Boolean(sectionD6) && Number.isFinite(oldD6) && oldD6 > (sectionD6.cleared ?? 0)
+        && J(lateOnGm) === J([null, false]) && J(lateOnGm2) === J([null, false]),
+        J({ lateOnGm, lateOnGm2, oldD6, now: atD6.now, cleared: sectionD6?.cleared ?? null, mark: atD6.mark }));
+    await gm.eval(`${REM} await remnantStore.dropMany(${J(plantedD6)}); await E.gmStoresIdle(); return true;`);
+    await settle(300);
     await disconnect("gm2");
     await settle(300);
 
@@ -1383,7 +1435,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared(), offers: S.offerStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length,
             tokens: game.scenes.contents.reduce((n, scene) => n + scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length, 0),
-            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null,
+            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null,
             keyPlanRows: Object.keys(S.keyPlanStore.entries()) };`, { timeout: 60000 });
     const firstReset = await resetOnce(["remnants", "mastermind"]);
     /* `1:0` is this run's own planted row; P4 above left `1:2`-`1:4` behind too (every Save of
@@ -1442,7 +1494,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         return { primary: U.isPrimaryGm(), hydration: E.gmStoreHydration().state,
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length, pick: S.mastermindStore.record().actorId ?? null,
-            offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null, offerAt: S.offerStore.newest("${IDS.aiko}") };`);
+            offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null, offerAt: S.offerStore.newest("${IDS.aiko}") };`);
     check("J3: alone after both resets, its traces are cut at the second reset's stamp and its pick at the first's, by the clock alone, and its Level Up is kept",
         heldGm2.traces >= 2 && heldGm2.pick === IDS.aiko && onGm2J3.primary && onGm2J3.hydration === "alone"
         && onGm2J3.watermarks.remnants === secondReset.cuts.remnants && onGm2J3.watermarks.mastermind === cutJ2.mastermind
@@ -1471,7 +1523,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(800);
     const afterSpend = await litOn(p1), onGm2Spent = await litOn(gm2);
     check("H2a: the primary alone answers the owner's ask with the offer at its stamp, and spends it: the Level Up is written and the button goes out",
-        answeredOnJoin.some(d => d.from === GM2 && d.offers?.[IDS.aiko]?.kind === "standard" && d.stamps?.[IDS.aiko] === offeredAt)
+        answeredOnJoin.some(d => d.from === GM2 && d.offers?.[IDS.aiko]?.offers?.[0]?.kind === "standard" && d.stamps?.[IDS.aiko] === offeredAt)
         && litH2.offer === "standard" && spent.ok && afterSpend.offer === null && afterSpend.stamp > offeredAt
         && onGm2Spent.advances === litH2.advances + 1, J({ answeredOnJoin, litH2, spent, afterSpend, onGm2Spent }));
 
@@ -1548,7 +1600,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const result = await R.resetSeason();
         await E.gmStoresIdle();
         const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock();
-        return { cleared: result?.cleared ?? null, cut: clock.resetCuts?.advancement ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`,
+        return { cleared: result?.cleared ?? null, cut: clock.resetCuts?.advancement ?? null, offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null };`,
         { timeout: 60000 });
     await settle(800);
     const afterJ4 = await p1.eval(`${LV} const a = game.actors.get("${IDS.aiko}");

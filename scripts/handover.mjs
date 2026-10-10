@@ -291,6 +291,10 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // The copy documents the original discovery, not the moment of copying.
         room: data.room,
         stamp: { chapter: data.chapter, day: data.day, timeOfDay: data.timeOfDay },
+        // The find's chapter for the Key fee from the giver's ANSWER KEY (E09 fix r1-G3): the
+        // stamp above is the giver's item flag, which the giver writes. A copy made before that
+        // fix names none, and neither does this one.
+        foundIn: secret.chapter ?? null,
         // From the SECRET, not the item: `createTruthBullet` publishes these
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.
@@ -591,7 +595,12 @@ async function markBodyDisturbed(body, itemName) {
         action: "loot",
         subject: body.name,
         // About the body, so it survives the chapter-end sweep.
-        tiedToCrime: true
+        tiedToCrime: true,
+        // And so the tie waits for the body's death while the GMs keep it (remnants.mjs
+        // `tieWaitNow`): after the incident's close nothing held it back, and a copy of the
+        // trace made before the discovery came out tied (E09 fix r2-G4, the round-2
+        // correctness review's N1).
+        deathOf: body
     }).catch(() => null);
 
     if (!token) return null;
@@ -701,9 +710,9 @@ async function mintLootBullet(taker, body, loot) {
          * copy of it, this one included: the neutral word and no words, for a trace no
          * GM has described. Measured on e47a5d5: the first loot's bullet read "Trace" on
          * the GM (tier 2) and on p1 (72-canary), and said nothing of what was taken or off
-         * whom; only a later loot's kept its words. Revealed here first, the record goes
-         * onto the copies there were before, and this one says what the loot says, as
-         * every later one does - once the death is the table's (`lootBody`). The owners'
+         * whom; only a later loot's kept its words. Revealed here first, this one says what
+         * the loot says, as every later one does - once the death is the table's (`lootBody`);
+         * since E09 fix r2-G1 a reveal writes on no copy at all. The owners'
          * copy of the trace comes a moment after the reveal and redraws their map when it
          * arrives (visibility.mjs, on `drpgBulletRefsChanged`); the drawing needs a canvas,
          * which the harness has not, so that order is read in the code, not seen.

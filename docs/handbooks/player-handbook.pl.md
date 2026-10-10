@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.70, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.71, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -291,7 +291,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 ### Tamper - Shadow, 1 akcja
 
-Dwie rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
+Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
 
 **Zatrzyj ślady.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
 
@@ -307,11 +307,13 @@ Każdy o 3 niżej, dopóki nie znaleziono ciała. Narzędzie do sprzątania w r�
 | Wynik | Co się dzieje |
 |---|---|
 | Czysty sukces | usuwa ślad |
-| Krytyk | usuwa go i dodatkowo oddaje to, co kosztowała próba |
+| Krytyk | usuwa go i dodatkowo oddaje to, co kosztowała próba. Potem dostajesz propozycję, by zamiast tego zostawić ślad na miejscu, czytający się jako coś innego - przeróbkę (niżej), której pasmo wybierasz; jeśli GM nie dopuści twojej wersji, ślad i tak znika |
 | Sukces z Despair | usuwa go, ale zostawia własny Tamper Remnant |
 | Porażka | zostawia ślad i dokłada obok Tamper Remnant (Subtle przy Hope, Evident przy Despair) |
 
 Reinforced ślady nie schodzą nigdy.
+
+**Przerób ślad.** Zostaw jeden z tych samych śladów na miejscu i spraw, by czytał się jako coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (do 60 i 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, staje się Tamper Remnantem - przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu ślad czyta się tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że ślad jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie ślad później, czyta twoje.
 
 **Mylny trop.** Zostaw Prep Remnant wskazujący na kogoś innego. Wymaga **15**. Porażka z Hope i tak go podkłada, jako Hidden, Faint ślad, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
 
@@ -453,7 +455,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 | Prep Remnant | Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi. |
 | Incident Remnant | Zostawiony podczas konfrontacji albo śmierci ofiary. |
 | Tamper Remnant | Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. |
-| Faint Remnant | Wątpliwy związek ze sprawą. Czyszczony przez GMa, chyba że powiązany z morderstwem. |
+| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić ślad Prep - ten, który zostawia Search za narzędziem, sabotaż albo mylny trop. Ślad z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
 | Autopsy Remnant | Stan ciała. Wydawany na początku Investigation, bez rzutu. |
 | Final Truth Remnant | Jeden na rozdział. Wskazuje Masterminda. Nieusuwalny. |
 
@@ -484,9 +486,9 @@ Przy rzucie nigdy nie widzisz trudności, ale kształt drabiny nie jest tajemnic
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
-| Coś z Daily Life | 8 / 12 / 18 / 21 | 8 / 12 / 18 / 21 |
+| Coś z Daily Life | 8 / 12 / 18 / 21 | - |
 
-Kolumny to Obvious / Evident / Subtle / Hidden. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
+Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez śladu za sobą, a orzeka o tym GM. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
 
 ---
 
@@ -632,7 +634,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 - Czego nie znajdziesz, tego nie będziesz mieć w Class Trialu.
 
 > [!WARNING]
-> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy.
+> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
 
 ---
 
@@ -640,9 +642,9 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
 
-Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz.
+Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 
-Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przedstawienie Truth Bulleta staje się **OBJECTION**, wycenionym jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - a gdy zatrzymuje cię tylko cena, dostajesz przycisk *Przedstaw zamiast tego*, za darmo:
+Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przedstawienie Truth Bulleta staje się **OBJECTION** (przycisk Przedstaw na twoim arkuszu zmienia się w Objection, dopóki debata jest otwarta), wycenionym jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - a gdy zatrzymuje cię tylko cena, dostajesz przycisk *Przedstaw zamiast tego*, za darmo:
 
 | Tryb | Kto mówi | Jak długo |
 |---|---|---|
@@ -650,14 +652,14 @@ Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zeg
 | OBJECTION | tylko wnoszący | 60 sekund |
 | Rebuttal | wnoszący i osoba, którą wskazał | 120 sekund, potem głos się zamyka i Class Trial wraca do otwartej dyskusji |
 
-Wskazujesz, komu zaprzeczasz. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie.
+Wskazujesz, komu zaprzeczasz. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie. Gdy wyślesz Objection, dowiadujesz się, że poszło; o tym, czy przejmuje głos, rozstrzyga strona GMa. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
 ### Głosowanie
 
-Każdy żyjący gracz dostaje **kartę do głosowania**. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu; publikowane są tylko sumy.
+Każdy żyjący gracz dostaje **kartę do głosowania** - jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do przeglądarek GMów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał; *Żaden GM nie ma jeszcze twojego głosu* znaczy, że twoja przeglądarka go trzyma i wyśle, gdy połączy się GM. Zamknij kartę bez głosu, a nic nie zostanie za ciebie policzone - poproś GMa, żeby wysłał ją ponownie.
 
 > [!IMPORTANT]
-> Skazanie wymaga **więcej niż połowy** wydanych kart. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
+> Skazanie wymaga **więcej niż połowy** wydanych kart - dla każdego nazwiska, gdy głosowanie pyta o więcej niż jedno. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
 
 | Wynik | Co się dzieje |
 |---|---|
@@ -666,7 +668,11 @@ Każdy żyjący gracz dostaje **kartę do głosowania**. Głosujesz na tego, kto
 
 Rozdział może wydać dwóch Blackened (zdrada zostawia dwa ciała); głosowanie musi wskazać <ins>wszystkich</ins>.
 
+Potem wszyscy widzą jedną kartę, **WERDYKT**: kto został stracony albo że nikt, i czy klasa trafiła - nigdy nie wymienia Blackened, którego klasa nie wskazała. Jeśli to twoja postać, dowiadujesz się o tym także prywatnie.
+
 ### Level Up
+
+GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a przycisk Level Up na twoim arkuszu się zapala: naciśnij go i wybierz. Możesz mieć ich więcej niż jeden, a każdy czeka, aż go wykorzystasz albo GM go cofnie. Wybór, którego twój arkusz nie przyjmie - doświadczenie, którego twoja postać nie ma - jest odrzucany, dowiadujesz się o tym, a Level Up zostaje twój.
 
 | Opcja |
 |---|

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.70, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.71, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -291,7 +291,7 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 ### Tamper - Shadow, 1 action
 
-Two things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
+Three things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
 
 **Cover your tracks.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
 
@@ -307,11 +307,13 @@ Each is 3 lower while no body has been found. A Cleaning Tool in hand gives adva
 | Result | What happens |
 |---|---|
 | Clean success | the trace is removed |
-| Critical | removed, and it also gives back what the attempt cost |
+| Critical | removed, and it also gives back what the attempt cost. You are then offered to leave the trace where it is, reading as something else, instead - a reshape (below) whose band you choose; if the GM keeps your story off it, the trace is gone all the same |
 | Success with Despair | removed, but it leaves a Tamper Remnant of its own |
 | Failure | the trace stays, and a Tamper Remnant is added beside it (Subtle on Hope, Evident on Despair) |
 
 Reinforced traces never come off.
+
+**Reshape a trace.** Leave one of the same traces where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant - it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the trace reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the trace afterwards reads yours.
 
 **Misleading trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
 
@@ -453,7 +455,7 @@ A trace appears on your map <ins>only once you hold a Truth Bullet copied from i
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Cleared by the GM unless tied to the murder. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a misleading trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 
@@ -484,9 +486,9 @@ You are never shown a difficulty at the roll, but the shape of the ladder is not
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
-| Something from Daily Life | 8 / 12 / 18 / 21 | 8 / 12 / 18 / 21 |
+| Something from Daily Life | 8 / 12 / 18 / 21 | - |
 
-Columns are Obvious / Evident / Subtle / Hidden. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
+Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no trace is of that kind. It is the ladder your Observe briefing shows for something with no trace behind it, which the GM rules on. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
 
 ---
 
@@ -632,7 +634,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 - What you fail to find, you will not have at the trial.
 
 > [!WARNING]
-> Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma.
+> Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma - below the case's own count when it has fewer than four, so a case of three found whole owes nothing. Only what a living student holds counts as found.
 
 ---
 
@@ -640,9 +642,9 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card.
+The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 
-When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION**, priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
+When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION** (the Present button on your sheet turns into Objection while the debate is open), priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
 
 | Mode | Who may speak | How long |
 |---|---|---|
@@ -650,14 +652,14 @@ When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate
 | OBJECTION | the objector alone | 60 seconds |
 | Rebuttal | the objector and the person they named | 120 seconds, then the floor closes and the trial is back to open discussion |
 
-You name who you are contradicting. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software.
+You name who you are contradicting. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software. When you send an Objection you are told it went; the GM's side decides whether it takes the floor. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
 
 ### The vote
 
-Each living player receives a **ballot**. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote; only the totals are published.
+Each living player receives a **ballot** - one per person, however many students you play; a student only a GM plays gets none. If you connect while a vote is open, your ballot comes as your browser loads. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote: it goes to the GMs' browsers alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means your browser keeps it and sends it when a GM connects. Close the ballot without voting and nothing is counted for you - ask the GM to send it again.
 
 > [!IMPORTANT]
-> A conviction needs **more than half** of the ballots issued. **A tie counts as a wrong vote** unless the table settles it.
+> A conviction needs **more than half** of the ballots issued - for each name, when the vote asks for more than one. **A tie counts as a wrong vote** unless the table settles it.
 
 | Outcome | What happens |
 |---|---|
@@ -666,7 +668,11 @@ Each living player receives a **ballot**. Vote for whoever you believe is the **
 
 A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name <ins>all of them</ins>.
 
+Everyone then sees one card, **THE VERDICT**: who was executed, or that nobody was, and whether the class got it right - it never names a Blackened the class missed. If it is your character, you are also told privately.
+
 ### Level Up
+
+The GM decides who picks each Level Up. If it is you, you are told and the Level Up button on your sheet lights up: press it and choose. You can hold more than one, and each waits until you spend it or the GM takes it back. A pick your sheet cannot take - an experience your character does not have - is refused, you are told, and the Level Up stays yours.
 
 | Option |
 |---|

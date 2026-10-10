@@ -12,9 +12,9 @@
  *   a new experience at +2
  */
 
-import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
+import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
-import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
+import { log, error, isPrimaryGm, ownerIdsOf, plural } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 
@@ -53,6 +53,14 @@ export async function openAdvancementFor(actor) {
     // for that module.
     const { chooseVariant } = await import("./action-rolls.mjs");
 
+    /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
+       and this menu had no way back from one: an offer made by mistake stood until it was
+       spent. Each standing offer is a third choice here, oldest first. */
+    const standing = standingOffers(actor).map(offer => ({
+        value: `take:${offer.id}`, icon: "fa-rotate-left",
+        label: game.i18n.format("DRPG.Advance.takeBack", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) })
+    }));
+
     const picked = await chooseVariant({
         actor,
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
@@ -65,11 +73,18 @@ export async function openAdvancementFor(actor) {
               hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
             { value: "reinforced", icon: "fa-shield-halved",
               label: game.i18n.localize("DRPG.Advance.kind.reinforced"),
-              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") }
+              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") },
+            ...standing
         ]
     });
 
     if (!picked) return null;
+    if (picked.value.startsWith("take:")) return takeBackOffer(actor, picked.value.slice("take:".length));
+    // Nobody would see an offer (`offerAdvancement`): said, and the GM picks.
+    if (!ownerIdsOf(actor).length) {
+        ui.notifications.info(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
+        return openAdvancement(actor, picked.value);
+    }
 
     /*
      * WHO PICKS (N-2, Dawid 20.09).
@@ -141,16 +156,99 @@ function readOffers() {
     }
 }
 
-/** Primary GM: write or withdraw one offer, then send each owner their set. */
-export async function recordOffer(actorId, kind) {
-    if (!isPrimaryGm()) return null;
-    // An offer is a row, a withdrawal a stamped drop: a GM that still holds it cannot write it back.
-    if (kind && LEVEL_UP[kind]?.picks) await offerStore.patch(actorId, { kind, at: Date.now() }, { whole: true });
-    else await offerStore.drop(actorId);
+/*
+ * A LIST PER CHARACTER (E10 C6, 1.2.71; audit S03-17). The row was one offer, `{ kind, at }`,
+ * written whole: a second offer took the first one's place, so a player with two unspent
+ * Standards kept one, and a GM's own Level Up of the character spent the offer standing on it
+ * without a word (`applyAdvancement` withdrew whatever stood). A row is `{ offers: [{ id, kind,
+ * extra, deferred, at }] }` now, oldest first: a new offer is appended, an apply or a take-back
+ * removes the one it names, and the last one going is the stamped drop it always was. `extra`
+ * is picks on top of the kind's own and `deferred` how many of the offer's picks are the
+ * Blackened's Reinforced that waited for the class (E05 C11; E10 C7 writes both, and gives the
+ * waited row back to the GMs' store when the offer is taken back), so an offer buys
+ * `offerPicks` picks. A row a 1.2.70
+ * browser wrote, `{ kind, at }`, is read as a list of one under the id `legacy` - no migration
+ * step: the first write after it is a list, and nulls the two old fields so a GM that still
+ * holds them cannot merge them back (a ledger merges field by field). An owner's copy holds the
+ * list of their own characters, `{ offers: [{ id, kind, extra }] }`, or the old `{ kind }`.
+ */
+const LEGACY_OFFER = "legacy";
+
+const wholeCount = value => Math.max(0, Math.trunc(Number(value) || 0));
+
+/** The offers a row of the store, or of an owner's copy, stands for - oldest first; [] for anything else. */
+export function offerList(row) {
+    if (!row || typeof row !== "object") return [];
+    if (Array.isArray(row.offers)) {
+        return row.offers.filter(offer => typeof offer?.id === "string" && offer.id && LEVEL_UP[offer.kind]?.picks)
+            .map(offer => ({ id: offer.id, kind: offer.kind, extra: wholeCount(offer.extra), deferred: wholeCount(offer.deferred),
+                at: Number(offer.at) || 0 }));
+    }
+    return LEVEL_UP[row.kind]?.picks ? [{ id: LEGACY_OFFER, kind: row.kind, extra: 0, deferred: 0, at: Number(row.at) || 0 }] : [];
+}
+
+/** How many picks an offer buys: its kind's and its extra. */
+export function offerPicks(offer) {
+    return (LEVEL_UP[offer?.kind]?.picks ?? 0) + wholeCount(offer?.extra);
+}
+
+/** The offers standing on this character as THIS browser holds them: every GM's store, an owner's copy, nothing elsewhere. */
+export function standingOffers(actor) {
+    return actor ? offerList(readOffers()[actor.id]) : [];
+}
+
+/** The fields a list is written with: the list, and the old row's two fields nulled where they stand. */
+function listFields(row, offers) {
+    return { offers, ...(row && Object.hasOwn(row, "kind") ? { kind: null, at: null } : {}) };
+}
+
+/** Primary GM: each owner of the character is sent their set again. */
+async function tellOwners(actorId) {
     const actor = game.actors.get(actorId);
     const { sendOffersTo } = await import("./gm-bridge.mjs");
     for (const userId of actor ? ownerIdsOf(actor) : []) sendOffersTo(userId);
-    return readOffers()[actorId] ?? null;
+}
+
+/**
+ * Primary GM: append one offer to the character's list - `offer` is `{ kind, extra, deferred }`
+ * or a kind - and answer it; or, for null, take back every offer standing on it. The read and
+ * the write are one synchronous step after the store has heard from the other GMs, so two
+ * offers in a row both stand.
+ */
+export async function recordOffer(actorId, offer) {
+    if (!isPrimaryGm()) return null;
+    const asked = typeof offer === "string" ? { kind: offer } : offer;
+    let added = null;
+    if (!asked) {
+        await offerStore.drop(actorId);
+    } else {
+        if (!LEVEL_UP[asked.kind]?.picks) return null;
+        await offerStore.whenHydrated();
+        const row = offerStore.get(actorId);
+        added = { id: foundry.utils.randomID(), kind: asked.kind, extra: wholeCount(asked.extra), deferred: wholeCount(asked.deferred),
+            at: Date.now() };
+        await offerStore.patch(actorId, listFields(row, [...offerList(row), added]));
+    }
+    await tellOwners(actorId);
+    return added;
+}
+
+/**
+ * Primary GM: take one offer off the character's list - spent or taken back. An offer is a
+ * row, a withdrawal a stamped drop: a GM that still holds it cannot write it back. Answers
+ * whether it stood.
+ */
+export async function dropOffer(actorId, offerId) {
+    if (!isPrimaryGm()) return false;
+    await offerStore.whenHydrated();
+    const row = offerStore.get(actorId);
+    const standing = offerList(row);
+    const left = standing.filter(offer => offer.id !== offerId);
+    if (left.length === standing.length) return false;
+    if (left.length) await offerStore.patch(actorId, listFields(row, left));
+    else await offerStore.drop(actorId);
+    await tellOwners(actorId);
+    return true;
 }
 
 /**
@@ -169,8 +267,9 @@ export function offersFor(userId) {
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = offerStore.newest(actor.id);
-        const offer = held[actor.id];
-        if (LEVEL_UP[offer?.kind]?.picks) offers[actor.id] = { kind: offer.kind };
+        // What the owner's picker needs and nothing more: not when, nor which one waited for the class.
+        const list = offerList(held[actor.id]).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        if (list.length) offers[actor.id] = { offers: list };
     }
     return { offers, stamps };
 }
@@ -199,11 +298,11 @@ export async function retellOffers() {
 export async function receiveOffers(offers, stamps) {
     const before = readOffers();
     const mine = {};
-    for (const [actorId, offer] of Object.entries(offers ?? {})) {
+    for (const [actorId, row] of Object.entries(offers ?? {})) {
         // Bounded here as well: only a character this user owns, only a real kind.
-        if (game.actors.get(actorId)?.isOwner && LEVEL_UP[offer?.kind]?.picks) {
-            mine[actorId] = { kind: offer.kind };
-        }
+        if (!game.actors.get(actorId)?.isOwner) continue;
+        const list = offerList(row).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        if (list.length) mine[actorId] = { offers: list };
     }
     if (!await offerCopy.receive(mine, stamps)) return false;
     for (const id of new Set([...Object.keys(before), ...Object.keys(readOffers())])) {
@@ -230,12 +329,90 @@ export function redrawOwnSheets() {
     return n;
 }
 
-/** Any GM: an offer is spent or taken back. The primary writes it; others ask it to. */
-async function withdrawOffer(actorId) {
-    if (isPrimaryGm()) return recordOffer(actorId, null);
+/** Any GM: one offer is spent or taken back. The primary writes it; others ask it to. */
+async function withdrawOffer(actorId, offerId) {
+    if (isPrimaryGm()) return dropOffer(actorId, offerId);
     const { requestOfferRecord } = await import("./gm-bridge.mjs");
-    const res = await requestOfferRecord(actorId, null);
-    return res.ok ? { pending: true } : null;
+    const res = await requestOfferRecord(actorId, null, offerId);
+    return res.ok;
+}
+
+/**
+ * Characters whose Level Up is being written on this browser - the primary GM's, which judges a
+ * player's picks (gm-bridge.mjs `handleAdvancement` takes and lets go of the latch) and every
+ * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it
+ * and hold it from their check to their drop).
+ */
+export const advancing = new Set();
+
+/*
+ * Characters whose offer is being taken back on this browser, while `advancing` holds them too (E10 fix
+ * r2-G6, 1.2.71): a second take-back of one character in that time was refused with the words of a Level Up
+ * being written, which names what is not happening. Its own words now (`DRPG.Advance.takeBackTaking`);
+ * measured in tier 2 "a second take-back of one character while the first is written is told as a take-back".
+ */
+export const takingBack = new Set();
+
+/**
+ * A GM takes one offer back (E10 C6; audit S03-17): the third choice of the sheet's Level Up
+ * menu, one per standing offer. Its owner's button goes out with the set the primary sends.
+ * An offer carrying a Reinforced that waited for the class (`deferred`, E10 C7) gives it back
+ * to the GMs' store, waiting for the next batch as it was before the offer: taking the offer
+ * back takes back the class's Standard, not what the Blackened earned. Answers whether it was
+ * taken.
+ *
+ * NOT WHILE ITS LEVEL UP IS BEING WRITTEN (E10 fix r1-G2, 1.2.71; the round-1 security review's
+ * F1). A player's Level Up reads its offer, waits in the student's queue (`meansWrite`), writes,
+ * and only then spends the offer. A take-back in that wait found the offer standing and took it:
+ * the GM was told "taken back", the Level Up landed on the sheet anyway, and the Blackened's
+ * waiting Reinforced went back to the GMs' store to be given a second time. Measured on the
+ * harness at 1a9a07e (tier 2, "a take-back of an offer whose Level Up is being written is
+ * refused on both roads"): with the apply held in the queue, this road answered true and put the
+ * Reinforced back, and the Level Up was written as well. Refused now while that character's
+ * latch is held, and the GM told; on another GM the primary refuses the bridge's `take` the same
+ * way and the bridge tells it.
+ *
+ * AND THE TAKE HOLDS THE LATCH UNTIL ITS DROP (E10 fix r2-G4; the round-2 security review's
+ * S2-1). Round 1 let a take hold none, reading its drop as written in the same synchronous step
+ * as its check. It is not while the primary's offers store waits for the other GMs' copies after
+ * a load (up to `TIMING.gmStoreSyncMs`): `dropOffer` awaits `whenHydrated` first, and a player's
+ * Level Up that arrived in that wait found the offer and no latch, and was written. Measured on
+ * the harness at 7ff93ec (tier 2, "a take-back that waits for the offers store holds a player's
+ * Level Up off on both roads", the store's wait stood in for): on both roads the take answered
+ * taken and the Level Up was written as well (+4, one step of advances), and on this one the
+ * Reinforced went back to the GMs' store. Now this road and the bridge's `take` hold the
+ * character's latch from their check to their drop, so that Level Up is refused as busy.
+ */
+export async function takeBackOffer(actor, offerId) {
+    if (!game.user.isGM || !actor) return false;
+    const offer = standingOffers(actor).find(standing => standing.id === offerId);
+    if (!offer) return false;
+    if (takingBack.has(actor.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackTaking", { name: actor.name }));
+        return false;
+    }
+    if (advancing.has(actor.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackBusy", { name: actor.name }));
+        return false;
+    }
+    advancing.add(actor.id);
+    takingBack.add(actor.id);
+    try {
+        if (!await withdrawOffer(actor.id, offerId)) return false;
+    } finally {
+        advancing.delete(actor.id);
+        takingBack.delete(actor.id);
+    }
+    if (offer.deferred) {
+        const kind = TRIAL.wrong.blackenedLevelUp;
+        await deferAdvancement(actor, kind, null, { count: Math.max(1, Math.round(offer.deferred / (LEVEL_UP[kind]?.picks || 1))) });
+    }
+    ui.notifications.info(game.i18n.format("DRPG.Advance.takenBack", {
+        name: actor.name, kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
+    }));
+    actor.sheet?.render(false);
+    log(`${actor.name}'s ${offer.kind} Level Up on offer was taken back.`);
+    return true;
 }
 
 /**
@@ -250,8 +427,13 @@ async function withdrawOffer(actorId) {
  * WHISPERED, NOT ANNOUNCED. Which advancement somebody earned is between them and
  * the GM until they spend it; a public card would also tell the table who voted
  * correctly, which is the one thing a trial keeps quiet.
+ *
+ * FROM THE VERDICT'S WINDOW (E10 C7) an offer carries `extra` picks and how many of them
+ * waited for the class (`deferred`) - the surviving Blackened's Reinforced rides on their
+ * Standard as one offer - and is told on a veiled card (`veiled`: speaking as nobody, as
+ * `tellPlayer`'s is) with no word to the GM for each (`quiet`: the verdict's line counts them).
  */
-export async function offerAdvancement(actor, kind = "standard") {
+export async function offerAdvancement(actor, kind = "standard", { extra = 0, deferred = 0, veiled = false, quiet = false } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -264,16 +446,24 @@ export async function offerAdvancement(actor, kind = "standard") {
         ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
         return null;
     }
+    /* NOBODY TO HAND IT TO (E10 C6; audit S03-17). An offer lights a button on its owner's
+       sheet, and a character no player owns has nobody to see it: it was recorded and the GM
+       told "sent" all the same. Refused and said; the sheet's menu opens the GM's own picker. */
+    if (!ownerIdsOf(actor).length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
+        return null;
+    }
 
-    const offer = { kind, by: game.user.id, at: Date.now() };
+    const asked = { kind, extra: wholeCount(extra), deferred: wholeCount(deferred) };
+    const offer = { ...asked, by: game.user.id, at: Date.now() };
     try {
         if (isPrimaryGm()) {
-            await recordOffer(actor.id, kind);
+            await recordOffer(actor.id, asked);
         } else {
             // Awaited since E31: "offer sent" is said, and the owner told, only
             // once the primary has the offer - a refusal has been said already.
             const { requestOfferRecord } = await import("./gm-bridge.mjs");
-            const res = await requestOfferRecord(actor.id, kind);
+            const res = await requestOfferRecord(actor.id, asked);
             if (!res.ok) return null;
         }
     } catch (err) {
@@ -285,27 +475,28 @@ export async function offerAdvancement(actor, kind = "standard") {
     const { whisperToOwner } = await import("./utils.mjs");
     const line = game.i18n.format("DRPG.Advance.offered", {
         kind: game.i18n.localize(`DRPG.Advance.kind.${kind}`),
-        n: LEVEL_UP[kind].picks
+        n: offerPicks(asked)
     });
+    const waited = asked.deferred ? `<p>${game.i18n.localize("DRPG.Advance.reason.withClass")}</p>` : "";
     await whisperToOwner(actor, `<p><strong>${
-        game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p><p>${line}</p>`);
+        game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p><p>${line}</p>${waited}`, veiled ? { veiled: true } : {});
 
     // The sheet is what lights up, and it is open in front of them right now as
     // often as not.
     actor.sheet?.render(false);
     log(`${actor.name} was offered a ${kind} Level Up; the choice is theirs.`);
-    ui.notifications.info(game.i18n.format("DRPG.Advance.offerSent", { name: actor.name }));
+    if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Advance.offerSent", { name: actor.name }));
     return offer;
 }
 
 /**
- * The offer standing on this character, if any (N-2) - as THIS browser holds it:
- * every offer on the primary GM, a character's own on its owner's, nothing
- * anywhere else.
+ * The offer standing on this character that a press spends next, if any (N-2) - the
+ * oldest of its list (E10 C6), with the picks it buys - as THIS browser holds it: every
+ * offer on a GM's, a character's own on its owner's, nothing anywhere else.
  */
 export function pendingAdvance(actor) {
-    const offer = readOffers()[actor?.id] ?? null;
-    return offer && LEVEL_UP[offer.kind]?.picks ? offer : null;
+    const [offer] = standingOffers(actor);
+    return offer ? { ...offer, picks: offerPicks(offer) } : null;
 }
 
 
@@ -358,15 +549,25 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
         ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
         return null;
     }
-    const picks = own + (asPlayer ? 0 : Math.max(0, Math.trunc(Number(extraPicks) || 0)));
+    // A player's count is the offer's (`offerPicks`: the kind's and its extra), never an argument.
+    const picks = own + (asPlayer ? offer.extra : Math.max(0, Math.trunc(Number(extraPicks) || 0)));
     const why = asPlayer || !Array.isArray(reasons) || !reasons.length ? [`DRPG.Advance.reason.${kind}`] : reasons;
 
     const experiences = listExperiences(actor);
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
-        classes: ["drpg-advance"],
-        content: buildContent(picks, experiences, why),
+        /* A MODULE PANEL, AS EVERY OTHER WINDOW OF THE MODULE (E10 C9, 1.2.71; audit S01-16, S03-19). It carried
+           `drpg-advance` alone, and the module's rules read `drpg-panel`: stacking.mjs `KEEP_ON_TOP` (the sheet
+           buried the picker when a player clicked it to compare statistics), chrome.mjs `dressChrome` (the selects'
+           arrow) and a11y.mjs (focus into a new window) all match it and nothing else, and the audit saw the
+           buttons and the title bar come out unlike the module's. `drpg-advance` stays beside it: the widths, the
+           pick rows and the notes are stated on it. Tier 2 "the Level Up window is a module panel" reads the
+           classes; what a browser then shows (the order of the windows, the arrow, the focus) is not something
+           the harness draws - LIVE check at a table, not measured here. */
+        classes: ["drpg-panel", "drpg-advance"],
+        // The GM's window says for whom it is; a player's own picker is their own character's.
+        content: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
         buttons: [
             {
                 action: "apply",
@@ -385,12 +586,25 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
 
     if (!result || result === "cancel") return null;
 
+    /* AN EXPERIENCE TO RAISE THAT IS NOT THERE is refused HERE, on the screen of the person who
+       picked it (E10 C8, 1.2.71; audit S03-22), a GM's as well as a player's. The window warned that
+       there was nothing to raise and applied all the same: the pick went with no experience, the
+       apply skipped it, and the rest were written - a Reinforced's three picks became two, and a
+       player's offer was spent on them. `buildContent` no longer lets the option be chosen with no
+       experience; this is for a form that sends it anyway. Nothing is written or sent: a player's
+       offer and its lit button stand, as for a new experience with no name below. */
+    if (result.some(p => p?.option === "experienceUp" && !p.experience)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Advance.noExperienceToRaise"));
+        return null;
+    }
+
     /*
      * A PLAYER'S PICKS GO TO THE GM, WHO CHECKS THEM AGAINST THE OFFER. The picks
      * are a claim: the count, the options and the character are all checked again
      * on the GM's client before anything is written - see `requestAdvancement` and
      * its handler in gm-bridge.mjs. The offer is cleared by the apply, so pressing
-     * twice cannot buy two.
+     * twice cannot buy two - and since E10 C6 the packet names WHICH offer it spends,
+     * and the GM checks that one.
      */
     if (asPlayer) {
         /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
@@ -403,7 +617,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             return null;
         }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
-        const res = await requestAdvancement({ actorId: actor.id, picks: result, kind });
+        const res = await requestAdvancement({ actorId: actor.id, picks: result, kind, offerId: offer.id });
         return res.ok ? { pending: true } : null;
     }
     return applyAdvancement(actor, result, kind, { reasons: why });
@@ -413,29 +627,44 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
  * FORM
  * ========================================================================== */
 
-function buildContent(picks, experiences, reasons) {
+/**
+ * The window's markup (E10 C9, 1.2.71; audit S03-19).
+ *
+ * @param {string|null} forName  the character's name when a GM is picking: the GM's window then says
+ *                               "For {name}: {reason}" once and the intro does not repeat the reason; null
+ *                               for a player's own picker, which keeps the reason in its intro
+ */
+function buildContent(picks, experiences, reasons, forName = null) {
+    const why = reasons.map(key => game.i18n.localize(key)).join(" ");
     const intro = game.i18n.format(
         picks === 1 ? "DRPG.Advance.introOne" : "DRPG.Advance.introMany",
-        { picks, reason: reasons.map(key => game.i18n.localize(key)).join(" ") }
-    );
+        { picks, reason: forName === null ? why : "" }
+    ).trim();
+    const forLine = forName === null ? ""
+        : `<p class="drpg-advance-for">${game.i18n.format("DRPG.Advance.forWhom", { name: foundry.utils.escapeHTML(forName), reason: why })}</p>`;
 
+    /* "CHOICE 1" OVER A WINDOW OF ONE CHOICE numbered nothing (S03-19): a Standard Level Up is one pick
+       (config.mjs `LEVEL_UP`), the Reinforced three. The legend is for telling several apart; a lone select
+       is named by its own label instead. */
     const rows = Array.from({ length: picks }, (_, i) => `
         <fieldset class="drpg-advance-pick" data-index="${i}">
-            <legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>
-            <select name="pick.${i}.option" data-pick="${i}">
+            ${picks > 1 ? `<legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>` : ""}
+            <select name="pick.${i}.option" data-pick="${i}" aria-label="${game.i18n.localize("DRPG.Advance.whichImprovement")}">
                 ${Object.entries(LEVEL_UP_OPTIONS)
-                    .map(([key, opt]) => `<option value="${key}">${opt.label}</option>`)
+                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${opt.label}</option>`)
                     .join("")}
             </select>
             <div class="drpg-advance-detail" data-detail="${i}"></div>
         </fieldset>
     `).join("");
 
+    /* A new character with no experiences is the ordinary case, not a fault: a dim note, not Foundry's amber
+       warning (S03-19). The option itself is drawn disabled above (E10 C8). */
     const warning = experiences.length
         ? ""
-        : `<p class="notification warning">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
+        : `<p class="drpg-advance-note">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
 
-    return `<form><p>${intro}</p>${warning}${rows}</form>`;
+    return `<form>${forLine}<p>${intro}</p>${warning}${rows}</form>`;
 }
 
 /** Swap the detail control whenever a pick's option changes. */
@@ -472,7 +701,7 @@ function buildDetail(option, index, actor, experiences) {
 
         case "experienceUp": {
             if (!experiences.length) {
-                return `<p class="notification warning">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
+                return `<p class="drpg-advance-note">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
             }
             const options = experiences
                 .map(e => `<option value="${e.id}">${foundry.utils.escapeHTML(e.name || "-")} (+${e.value ?? 0})</option>`)
@@ -523,8 +752,9 @@ function readForm(dialog, picks) {
  *
  * @param {object} [options]
  * @param {string[]} [options.reasons]  the translation keys the card gives as the reason
+ * @param {string} [options.offerId]    the offer this spends (a player's picks); none for a GM's own
  */
-export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null } = {}) {
+export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null, offerId = null } = {}) {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
     // `game.drpg`, and it writes through `trustedWrite` - which bypasses the
     // resource guard by design - so without it a player could raise their own
@@ -547,6 +777,17 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     const traitDeltas = {};
     const experienceDeltas = {};
     const newExperiences = {};
+    /* A PICK THIS SHEET CANNOT TAKE STOPS THE WHOLE LEVEL UP (E10 C8, 1.2.71; audit S03-22). A
+       statistic that is not one, or an experience to raise that is not named, was skipped and the
+       rest written - one write, one step of `advances`, a pick gone without a word; and an
+       experience the sheet did not have took a value of its own. A GM's console and any picker reach
+       this as well as the bridge, whose handler refuses the same picks first and tells the player. */
+    const statistics = new Set(Object.values(TRAITS).map(trait => trait.dh));
+    if (picks.some(pick => (pick?.option === "trait" && !statistics.has(pick.trait))
+        || (pick?.option === "experienceUp" && typeof pick.experience !== "string"))) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+        return null;
+    }
 
     for (const pick of picks) {
         switch (pick.option) {
@@ -562,7 +803,6 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
 
             case "trait": {
                 const key = pick.trait;
-                if (!key) break;
                 traitDeltas[key] = (traitDeltas[key] ?? 0) + 1;
                 const label = Object.values(TRAITS).find(t => t.dh === key)?.label ?? key;
                 summary.push(`+1 ${label}`);
@@ -571,7 +811,6 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
 
             case "experienceUp": {
                 const id = pick.experience;
-                if (!id) break;
                 experienceDeltas[id] = (experienceDeltas[id] ?? 0) + 1;
                 const name = actor.system.experiences?.[id]?.name ?? id;
                 summary.push(`+1 ${name}`);
@@ -605,6 +844,7 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         return null;
     }
 
+    let taken;
     try {
         // The one road, named `levelUp`. Until E29 C2 this said the road kept the
         // resource guard from stripping the trait rise and leaving a half-applied
@@ -633,8 +873,16 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // now rises from the sheet's value as the GMs hold it (`numberHeld`).
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
-        const taken = await meansWrite(actor, async () => {
+        //
+        // THE EXPERIENCE RAISED IS ONE THE GMS HOLD (E10 C8, 1.2.71; audit S03-22), read in the same job as the
+        // numbers: one a player's console wrote on the sheet that the audit had not put back yet took this GM's
+        // write as its value, and stood from then on in the GMs' mark - an experience nobody named. Held means an
+        // entry with a value: such a write, put back, leaves its entry in the mark empty ({}; read on 10.10.2026).
+        // Nothing is written then, and the caller is told by the answer, null.
+        taken = await meansWrite(actor, async () => {
             const from = path => numberHeld(actor, path) ?? 0;
+            const held = numberHeld(actor, "system.experiences") ?? {};
+            if (Object.keys(experienceDeltas).some(id => !(Object.hasOwn(held, id) && typeof held[id]?.value === "number"))) return null;
             if (hpUp) update["system.resources.hitPoints.max"] = from("system.resources.hitPoints.max") + hpUp;
             if (stressUp) update["system.resources.stress.max"] = from("system.resources.stress.max") + stressUp;
             for (const [key, delta] of Object.entries(traitDeltas)) {
@@ -648,20 +896,42 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             await trustedWrite(actor, update, { reason: "levelUp" });
             return taken;
         });
-        /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
-           three call sites - the GM's own picker, a player's picks arriving over the
-           socket, and the API - because this is the one place that writes an
-           advancement. Through the primary GM, which holds the offers. */
-        await withdrawOffer(actor.id);
-
-        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
-        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
-        return summary;
     } catch (err) {
         error("Could not apply the advancement", err);
         ui.notifications.error(game.i18n.localize("DRPG.Advance.failed"));
         return null;
     }
+    if (taken === null) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+        return null;
+    }
+    /* WRITTEN IS WRITTEN (E10 fix r1-G1, 1.2.71; the round-1 correctness review's F4). The offer's
+       withdrawal, the log and the player's card sat in the try of the write, whose catch answers
+       null: a throw in any of them after the write read as a Level Up that failed - the GM told
+       "could not be saved", and a GM's row of the class's window, answered null, offered the same
+       student a second Level Up. The try ends at the write now; what follows has its own, and the
+       answer is the summary of what was written.
+
+       AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
+       (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
+       Level Up of a student spent the player's standing one without a word; a GM's
+       picker names none now, and a player's picks name theirs (`handleAdvancement`).
+       Through the primary GM, which holds the offers. One that cannot be withdrawn still stands,
+       and the GM is told to take it back. One already gone is logged (E10 fix r1-G2): a take-back is
+       refused while this write is under way (`takeBackOffer`), so it would be news. */
+    if (offerId) await withdrawOffer(actor.id, offerId).then(stood => {
+        if (!stood) log(`The offer ${offerId} ${actor.name}'s Level Up spent no longer stood.`);
+    }).catch(err => {
+        error(`Could not withdraw the offer ${actor.name}'s Level Up spent`, err);
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.offerStillStands", { name: actor.name }));
+    });
+    try {
+        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
+        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
+    } catch (err) {
+        error(`Could not tell ${actor.name}'s player of the Level Up written`, err);
+    }
+    return summary;
 }
 
 /** Private note to the player and the GMs. Advancement is not public knowledge. */
@@ -756,14 +1026,15 @@ export function advancementPlan(survivorIds, rows = {}, kind = "standard") {
 
 /**
  * A wrong verdict: the surviving Blackened's Level Up is written down for the class's next
- * one, and its owner is told on a veiled card. Nothing is written on the actor. Answers
- * the row, or null.
+ * one, and its owner is told on a veiled card. Nothing is written on the actor. `count` is
+ * how many wrong verdicts it stands for - more than one only when an offer that carried
+ * several is taken back (`takeBackOffer`, E10 C7). Answers the row, or null.
  */
-export async function deferAdvancement(actor, kind = "reinforced", chapter = null) {
+export async function deferAdvancement(actor, kind = "reinforced", chapter = null, { count: times = 1 } = {}) {
     if (!game.user.isGM || !actor || !LEVEL_UP[kind]?.picks) return null;
     await deferredOfferStore.whenHydrated();
     const held = deferredOfferStore.get(actor.id);
-    const count = (held?.kind === kind ? Math.max(1, Math.trunc(Number(held.count) || 1)) : 0) + 1;
+    const count = (held?.kind === kind ? Math.max(1, Math.trunc(Number(held.count) || 1)) : 0) + Math.max(1, wholeCount(times));
     const row = { kind, chapter, at: Date.now(), count };
     await deferredOfferStore.patch(actor.id, row, { whole: true });
 
@@ -774,29 +1045,116 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
     return row;
 }
 
-/**
- * A verdict's Level Ups, on the GM's client: one picker per entry of `advancementPlan`,
- * in turn, and a deferred row dropped once the picker that carried it has written. At a
- * correct verdict `kind` is the class's Standard; at the Final Trial's it is null.
- * Answers `{ opened, applied, lapsed }`.
+/*
+ * ONE WINDOW FOR THE CLASS (E10 C7, 1.2.71; D4; audit S06-25, S03-32). The batch opened one
+ * picker per survivor in turn on the GM's screen - a verdict with eight survivors was eight
+ * windows while the players waited - and a picker the GM closed spent nothing and said nothing,
+ * though the verdict's line had already told the GMs that every survivor took one. Now one
+ * window asks, row by row, who picks: the player (an offer that lights their sheet,
+ * `offerAdvancement`) or the GM (the picker, in turn, after the window). A row opens on the
+ * player when a connected player owns the student, on "I pick" otherwise, and a student nobody
+ * plays has "I pick" only; "All: the players pick" hands every row a player owns to its player.
+ * Closing the window is the players picking where there is one, and so is closing a picker;
+ * what is left - a student nobody plays whose picker was closed, or the window - is "not yet
+ * given", said to the GM and named in the verdict's line, and the sheet's Level Up gives it.
+ *
+ * THE BLACKENED'S WAITING REINFORCED IS THE SAME ROW (D4, option 1). With the GM picking it is
+ * one picker of 1 + 3, as since E05 C11; with the player, one offer of the Standard whose
+ * `extra` is the waited picks - one offer, one write, one step of `advances` when it is spent.
+ * That a row carries it is said in the window, which is the GM's, and on the veiled card to its
+ * owner; the copy of the offer the owner's browser is sent has no `deferred` (`offersFor`). Its row
+ * in the GMs' store goes as soon as the offer stands, not when it is spent: a second correct
+ * verdict before the player picks would otherwise hand the waited picks out again. Taking the
+ * offer back puts the row back (`takeBackOffer`).
+ *
+ * Answers `{ opened, applied, offered, notGiven, lapsed }`: the rows, how many the GM picked
+ * and wrote, how many wait for their players, the names not yet given, the rows that lapsed.
+ *
+ * `given` are the students a verdict's batch gave one already before it stopped, and `onGiven`
+ * is told each row given here, written or offered, once its waiting row is gone (vote.mjs
+ * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
+ * not drawn, and their waiting rows do not lapse.
  */
-export async function runAdvancementBatch(actors, kind = "standard") {
+export async function runAdvancementBatch(actors, kind = "standard", { given = [], onGiven = null } = {}) {
     if (!game.user.isGM) return null;
     await deferredOfferStore.whenHydrated();
     const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
-    const { entries, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const handled = new Set(given);
+    const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const entries = planned.filter(entry => !handled.has(entry.actorId));
     if (drop.length) await deferredOfferStore.dropMany(drop);
-    let applied = 0;
-    for (const entry of entries) {
+    const done = { opened: entries.length, applied: 0, offered: 0, notGiven: [], lapsed: drop.length };
+    if (!entries.length) return done;
+    const rows = entries.map(entry => {
         const actor = byId.get(entry.actorId);
+        const owners = ownerIdsOf(actor);
+        return { entry, actor, playable: owners.length > 0, here: owners.some(id => game.users.get(id)?.active) };
+    });
+    const who = await askWhoPicks(rows);
+    for (const { entry, actor, playable, here } of rows) {
         try {
-            const done = await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons });
-            if (!done) continue;
-            applied++;
-            if (entry.deferred) await deferredOfferStore.drop(actor.id);
+            const choice = !who ? (playable ? "player" : null) : who[actor.id] ?? (playable && here ? "player" : "gm");
+            if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
+                done.applied++;
+                if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
+                continue;
+            }
+            // The waited picks: all of them at the Final Trial (no kind of the batch's own), the extra otherwise.
+            const waited = entry.deferred ? (LEVEL_UP[kind]?.picks ? entry.extraPicks : entry.picks) : 0;
+            if (playable && await offerAdvancement(actor, entry.kind,
+                { extra: entry.extraPicks, deferred: waited, veiled: true, quiet: true })) {
+                done.offered++;
+                if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
+                continue;
+            }
+            done.notGiven.push(actor.name);
+            ui.notifications.warn(game.i18n.format("DRPG.Advance.notYetGiven", { name: actor.name }));
         } catch (err) {
             error(`Could not open the advancement for ${actor.name}`, err);
         }
     }
-    return { opened: entries.length, applied, lapsed: drop.length };
+    return done;
+}
+
+/**
+ * The class's one Level Up window (E10 C7): a row per entry, who picks it. Answers each row's
+ * choice by actor id - "player" or "gm" - or null when the window is closed. A row with nobody
+ * to hand it to reads "gm" whatever the form says.
+ *
+ * "HAND THEM OUT" FIRST (E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b)). C7 marked
+ * it the default - the window's answer is what its rows say - but listed "All: the players pick"
+ * first, and Enter in a DialogV2 presses the first submit button in DOM order whatever carries
+ * `default` (vote.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
+ * Enter handed every row to its player. Measured on the harness at 1a9a07e (tier 2, "Enter in
+ * the class's Level Up window gives what its rows say"): every row "I pick", the form submitted
+ * by its first button, the answer was "player" for each. The key itself in Foundry's window is
+ * not measured here (the verdict window's is LIVE-E10-02).
+ */
+async function askWhoPicks(rows) {
+    const L = key => game.i18n.localize(key);
+    const esc = foundry.utils.escapeHTML;
+    const radio = (actor, value, label, checked) =>
+        `<label><input type="radio" name="who-${actor.id}" value="${value}"${checked ? " checked" : ""}> ${L(label)}</label>`;
+    const items = rows.map(({ entry, actor, playable, here }) => `<li class="drpg-advance-queue-row" data-actor-id="${actor.id}">
+            <strong>${esc(actor.name)}</strong> <span>${plural("DRPG.Advance.queuePicks", { n: entry.picks })}</span>
+            ${entry.deferred ? `<small>${L("DRPG.Advance.reason.withClass")}</small>` : ""}
+            <span class="drpg-advance-queue-who">${playable ? radio(actor, "player", "DRPG.Advance.pickPlayer", here) : ""}${
+                radio(actor, "gm", "DRPG.Advance.pickMe", !(playable && here))}</span>
+        </li>`).join("");
+    const read = (dialog, everyPlayer) => Object.fromEntries(rows.map(({ actor, playable, here }) => {
+        const checked = everyPlayer ? "player" : dialog?.element?.querySelector?.(`input[name="who-${actor.id}"]:checked`)?.value;
+        return [actor.id, playable && (checked ?? (here ? "player" : "gm")) === "player" ? "player" : "gm"];
+    }));
+    return DialogV2.wait({
+        window: { title: L("DRPG.Advance.queueTitle") },
+        classes: ["drpg-panel", "drpg-advance-queue"],
+        content: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
+        buttons: [
+            { action: "give", label: L("DRPG.Advance.queueGive"), default: true, callback: (event, button, dialog) => read(dialog, false) },
+            { action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }
+        ],
+        rejectClose: false
+    });
 }

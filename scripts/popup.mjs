@@ -312,6 +312,13 @@ function markParked(host) {
  */
 const MAX_EVIDENCE = 2;
 
+/** An objection's card not yet touched, and the stage holding one - see `showPopup`. */
+const RAISED = "is-raised";
+
+function raiseIfObjecting(stage) {
+    stage.classList.toggle(RAISED, Boolean(stage.querySelector(`.drpg-popup.${RAISED}`)));
+}
+
 /**
  * Show a floating card on THIS client, until its reader closes it (22.09). Several
  * can stack if things happen close together; past what the stack shows, the older
@@ -400,6 +407,22 @@ export function showPopup(bodyHtml, {
     if (host.id === EVIDENCE_ID) host.append(card);
     else host.prepend(card);
 
+    /* AN OBJECTION COMES TO THE FRONT UNTIL IT IS TOUCHED (E10 C16, 1.2.71; the owner's amend
+       of 04.10). The stage sits under the windows on purpose - evidence stands for minutes and
+       what is opened over it must stay reachable - and so an OBJECTION! landed behind the sheet
+       or the ballot a player had open, which is the one card that interrupts. It raises the
+       stage (`is-raised`, the stylesheet's `#drpg-evidence.is-raised`) until the first
+       pointerdown on it, and then it sinks under the windows like any evidence. Per card: the
+       stage stays raised while any objection on it is untouched. */
+    if (host.id === EVIDENCE_ID && kind === "objection") {
+        card.classList.add(RAISED);
+        card.addEventListener("pointerdown", () => {
+            card.classList.remove(RAISED);
+            raiseIfObjecting(host);
+        }, { once: true });
+        raiseIfObjecting(host);
+    }
+
     let dismissed = false;
     const dismiss = () => {
         if (dismissed) return;
@@ -430,6 +453,7 @@ export function showPopup(bodyHtml, {
             gone = true;
             card.remove();
             unparkInto(home);
+            if (home?.id === EVIDENCE_ID) raiseIfObjecting(home);
             /* The stage is a box in the middle of the screen. Empty, it has
                nothing to draw and nothing to say, so it goes rather than
                sitting there as an invisible `role="status"` region. The corner

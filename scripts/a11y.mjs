@@ -37,12 +37,19 @@ const SURFACES = [
     "#drpg-sound-launcher", "#drpg-book-launcher", ".drpg-panel", ".drpg-messenger",
     /*
      * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
-     * DID NOT KNOW IT (audit 15.09). The Level Up window is the one dialog of
-     * the module's hundred-odd that does not also carry `.drpg-panel` - see
-     * `classes` in level-up.mjs - so the sweep walked past it and
-     * `focusIntoWindow` never moved focus into it either. utils.mjs's window
-     * group and two width rules in danganronpa.css have listed it beside
-     * `.drpg-panel` all along; this is the file that fell out of step.
+     * DID NOT KNOW IT (audit 15.09). The Level Up window was the one dialog of
+     * the module's hundred-odd that did not also carry `.drpg-panel`, so the
+     * sweep walked past it. utils.mjs's window group and two width rules in
+     * danganronpa.css have listed it beside `.drpg-panel` all along; this is
+     * the file that fell out of step.
+     *
+     * SINCE E10 C9 (1.2.71, audit S01-16) THE PICKER CARRIES BOTH, so the sweep
+     * finds it by `.drpg-panel` already and this entry only keeps a window
+     * built with `drpg-advance` alone from being missed again. What the second
+     * class also brings is the line further down, which reads `.drpg-panel`
+     * and nothing else: `focusIntoWindow` now runs on the picker's first
+     * render. Read in the code, not measured: the move waits for a frame and
+     * a layout, and this suite does not draw either.
      */
     ".drpg-advance"
 ];

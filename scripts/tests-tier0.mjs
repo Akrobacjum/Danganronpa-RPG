@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -369,7 +369,6 @@ const REGRESSIONS = [
          */
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
-            "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part; a player's ask for the deaths is answered by the primary GM alone, about Foundry's sender, and a copy of them or a finder's notice is taken only from a GM, addressed to this user",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
@@ -382,6 +381,8 @@ const REGRESSIONS = [
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
             "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor"
+            // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
+            // the one packet its listener still takes, a GM's ballot, names no id.
         };
 
         const tableFiles = new Set(tables.map(t => t.file));
@@ -1869,8 +1870,9 @@ const REGRESSIONS = [
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
-        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function stripDraft" });
-        ok(plan.length > 200, "saveKeyPlan is gone or has moved past stripDraft");
+        // Cut at `keyRowShows` since E09 C16, which took `stripDraft` out with Save's placing.
+        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function keyRowShows" });
+        ok(plan.length > 200, "saveKeyPlan is gone or has moved past keyRowShows");
         ok(/repointed/.test(plan) && /stored\.name/.test(plan),
             "a Key plan row is pushed onto its trace whether or not anybody edited it");
     }],
@@ -2020,15 +2022,45 @@ const REGRESSIONS = [
          * such a trace is a real Key clue - but the count that bills Despair read the
          * plan's rows only, so a table that found one off the plan was billed as though
          * it had never reached the trial.
+         *
+         * E09 C7 (08.10.2026; S05-16, S05-36) took the charge off the planner altogether:
+         * `keyFeeOf` counts every Key Remnant of the chapter a living student holds a copy
+         * of, off the items the GMs hold, against the case's own count where that is under
+         * four, and the charge's "too late" reads the closed cases - so a Save of the planner
+         * decides nothing (tier 2's "the Key fee is the same with Save and without"). The
+         * planner's own table still scores its rows (`keyPlanStatus`, a display).
+         *
+         * E09 fix r1-G3 (08.10.2026; the round-1 reviews' F2 and the goal review's S05-16): a
+         * copy whose trace is gone is dated by the chapter its answer key names, not by the
+         * item's stamp, which its holder writes and no audit judges (tier 2, "a Key copy whose
+         * trace is gone counts in the chapter its answer key names ..."), which a handover's copy
+         * takes from the giver's answer key (handover.mjs `shareBullet`), not from the giver's
+         * item; and the planner's finders are the living for the GMs, as the fee's are (tier 2,
+         * "a dead student's find is not found on the Key tab"). Red before the fix: the fee read
+         * the item's flag, `shareBullet` named no `foundIn`, and `findersByRemnant` walked
+         * `studentActors`.
          */
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
-        const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function chargeForUnfoundKeys" });
-        ok(status.length > 400, "keyPlanStatus is gone or has moved past the charge");
+        const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function keyFeeOf" });
+        ok(status.length > 400, "keyPlanStatus is gone or has moved past the fee");
         ok(/offPlan/.test(status) && /foundAny/.test(status),
             "keyPlanStatus counts the plan's rows only again");
-        const charge = bodyOf(inv, "export async function chargeForUnfoundKeys");
-        ok(/unfoundBar - status\.foundAny/.test(charge),
-            "the charge reads the plan's own rows instead of every Key Remnant found");
+        const fee = bodyOf(inv, "export async function keyFeeOf", { until: "export async function chargeForUnfoundKeys" });
+        ok(/judgedFor\(/.test(fee) && /itemsHeldNow\(/.test(fee) && !/\b(?:bulletsOf|keyPlan|keyPlanStatus|chapterRows|findersByRemnant)\(/.test(fee),
+            "the fee counts off the documents or the planner's rows again instead of the items the GMs hold");
+        ok(/Math\.min\(KEY_REMNANTS\.unfoundBar/.test(fee) && /caseKeyCount\(/.test(fee),
+            "the fee's bar is four again whatever the case's own count");
+        ok(!/TRUTH_BULLET_FLAGS\.chapter|\.getFlag\(/.test(fee) && /secret\.chapter\b/.test(fee),
+            "the fee dates a copy whose trace is gone by the item's own stamp again, which its holder writes, not by its answer key");
+        const finders = topLevelFunction(inv, "findersByRemnant") ?? "";
+        ok(/\blivingStudentsForGm\(/.test(finders) && !/\bstudentActors\(/.test(finders),
+            "the planner's finders walk every student again, the dead for the GMs among them, while the fee counts the living");
+        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "shareBullet") ?? "";
+        ok(/\bfoundIn:\s*secret\.chapter\b/.test(share),
+            "a handover's copy is dated by the giver's item, which the giver writes, and not by the giver's answer key");
+        const charge = topLevelFunction(inv, "chargeForUnfoundKeys") ?? "";
+        ok(/keyFeeOf\(/.test(charge) && !/\b(?:keyPlanStatus|plannedChapters|chapterRows|keyPlan)\(/.test(charge),
+            "the charge reads the planner again, so a Save of it decides what is billed");
     }],
 
     ["R38 - the Loaded Die rides the roll it was bought for", async () => {
@@ -2462,10 +2494,11 @@ const REGRESSIONS = [
          * must not leak. What is read here is the two roads that model did not
          * have when T-2 met it.
          */
-        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
-        const identify = bodyOf(analyze, "async function identify(");
-        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(identify),
-            "identify no longer asks the trace when a bullet's secret holds no reading");
+        // In truth-bullets.mjs `publishReading` since E09 C8: the write Analyze and the chapter's reveal share.
+        const tb = stripComments(sources.get("truth-bullets.mjs") ?? "");
+        const publish = bodyOf(tb, "export async function publishReading(");
+        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(publish),
+            "publishing a reading no longer asks the trace when a bullet's secret holds no reading");
 
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
@@ -2858,28 +2891,35 @@ const REGRESSIONS = [
             "the console's tick outlives the window");
         ok(tick.includes("trialFloor()"), "the tick runs while no floor is open");
 
-        ok(/hooks: \["drpgBallotsChanged"\]/.test(manage), "the console stopped watching for a ballot");
+        // A list since E10 C5 (09.10.2026): the console also wakes on `userConnected`, the one thing
+        // that changes when the GM giving a verdict leaves (vote.mjs `verdictStopped`).
+        ok(/hooks: \[[^\]]*"drpgBallotsChanged"/.test(manage), "the console stopped watching for a ballot");
         ok(!/watch: \{[^}]*settings:/.test(manage),
             "the console's watch was narrowed to a list of settings, so the floor and the trial "
             + "record no longer wake it");
 
         const view = bodyOf(ui2, "function trialConsoleHtml(", { until: "function trialSignature(" });
-        ok(view.includes("DRPG.Floor.holdingDiscussionOver") && view.includes("Math.max(left, 0)"),
+        ok(view.includes("DRPG.Floor.holdingDebateOver") && view.includes("Math.max(left, 0)"),
             "an overrun mode prints a clock running backwards again");
 
         // `drpgBallotsChanged` is 1.2.47's name for this event, fired where a
         // ballot is cast, a vote opens and voters are reminded; F8 adds the close.
+        // Since E10 C1 (1.2.71) a ballot is a row of the GMs' store and the count is
+        // the primary's `closeRound`, which writes the vote closed before it counts;
+        // since E10 C2 a ballot is recorded by the bridge's run (`recordBallot`).
         const vote = stripComments(sources.get("vote.mjs") ?? "");
         const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
         ok(vote.split(EMIT).length - 1 >= 4,
             "one of the four vote events stopped being reported");
-        const cast = bodyOf(vote, "function onBallotCast", { until: "function refuseBallot" });
-        ok(cast.indexOf("ballots.set(") < cast.indexOf(EMIT),
+        const cast = fnSource(vote, "recordBallot");
+        ok(cast.length > 200 && cast.includes(EMIT), "recordBallot is gone, or no longer reports a ballot");
+        ok(cast.includes("ballotStore.patch(") && cast.indexOf("ballotStore.patch(") < cast.indexOf(EMIT),
             "the ballot is reported before it is in the tally, so a listener redraws the stale list");
-        const close = bodyOf(vote, "export async function closeVote");
-        ok(close.indexOf("ballots = null") > 0 && close.indexOf("ballots = null") < close.indexOf(EMIT),
-            "the vote is reported closed before the tally is cleared");
-        ok(close.indexOf(EMIT) < close.indexOf("DRPG.Vote.nobodyVoted"),
+        const close = fnSource(vote, "closeRound");
+        ok(close.length > 200 && close.includes(EMIT), "closeRound is gone, or no longer reports the closing");
+        ok(close.indexOf("open: false") > 0 && close.indexOf("open: false") < close.indexOf(EMIT),
+            "the vote is reported closed before the record says it is");
+        ok(close.indexOf(EMIT) < close.indexOf("nobodyVoted"),
             "the closing is reported after the road that returns early, so a vote nobody answered "
             + "leaves the console printing its voters");
 
@@ -3728,8 +3768,9 @@ const REGRESSIONS = [
         const offer = bodyOf(level, "export async function offerAdvancement", { until: "export function pendingAdvance" });
         ok(offer.length > 200, "offerAdvancement has moved or gone");
         ok(/if \(!game\.user\.isGM\)/.test(offer), "anybody can offer themselves a Level Up");
-        // Recorded by the primary GM, in its own store - see R98 for why not a flag.
-        ok(/recordOffer\(actor\.id, kind\)|requestOfferRecord\(actor\.id, kind\)/.test(offer),
+        // Recorded by the primary GM, in its own store - see R98 for why not a flag. Since E10 C7
+        // what is recorded is the kind with the verdict window's extra picks (`asked`).
+        ok(/recordOffer\(actor\.id, asked\)/.test(offer) && /requestOfferRecord\(actor\.id, asked\)/.test(offer),
             "the offer is not recorded anywhere, so nothing can read it back");
         ok(/whisperToOwner\(/.test(offer) && !/announce\(/.test(offer),
             "the offer is announced to the table - which advancement somebody earned "
@@ -3741,13 +3782,15 @@ const REGRESSIONS = [
         ok(/if \(asPlayer\) kind = offer\.kind;/.test(picker),
             "a player's own argument decides which kind they are picking, which is the "
             + "forgery this offer exists to prevent");
-        ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind \}\)/.test(picker),
-            "a player's picks are applied on their own client");
+        // Since E10 C6 the packet names the offer it spends.
+        ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind, offerId: offer\.id \}\)/.test(picker),
+            "a player's picks are applied on their own client, or name no offer");
 
         const applied = bodyOf(level, "export async function applyAdvancement");
         ok(/if \(!game\.user\.isGM\)/.test(applied), "the apply is no longer the GM's alone");
-        ok(/await withdrawOffer\(actor\.id\)/.test(applied),
-            "the offer is not spent by being taken, so it can be taken twice");
+        // The one the picks named, and only that one (E10 C6; audit S03-17).
+        ok(/if \(offerId\) await withdrawOffer\(actor\.id, offerId\)/.test(applied),
+            "the offer is not spent by being taken, so it can be taken twice - or a GM's own Level Up spends the player's");
 
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleShareBulletOrGiveItem(" });
@@ -3760,18 +3803,19 @@ const REGRESSIONS = [
             "the handover's run is not in BRIDGE_ACTIONS, so the GM never hears the picks");
         ok((apply?.guards ?? []).some(guard => guard.factory === "owns" && guard.covers?.includes("actorId")),
             "the packet's character is taken on trust");
-        ok(/pendingAdvance\(actor\)/.test(handler),
-            "the GM applies a Level Up nobody offered");
-        ok(/applyAdvancement\(actor, picks, offer\.kind\)/.test(handler),
-            "the kind comes off the packet rather than off the offer");
-        ok(/picks\.length !== wanted/.test(handler),
+        ok(/standingOffers\(actor\)/.test(handler) && /held\.id === payload\.offerId/.test(handler),
+            "the GM applies a Level Up nobody offered, or one the packet does not name");
+        ok(/applyAdvancement\(actor, picks, offer\.kind, \{ offerId: offer\.id \}\)/.test(handler),
+            "the kind comes off the packet rather than off the offer, or the apply spends another offer");
+        ok(/const wanted = offerPicks\(offer\);/.test(handler) && /picks\.length !== wanted/.test(handler),
             "three picks can be claimed for a standard Level Up");
         ok(/LEVEL_UP_OPTIONS\[p\?\.option\]/.test(handler),
             "a pick may name something that is not an option");
 
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
-        ok(/if \(!game\.user\.isGM && !offer\) return;/.test(button),
+        // E10 C6: a player with nothing on offer has the standing button taken off as well.
+        ok(/if \(!game\.user\.isGM && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
     }],
@@ -4224,12 +4268,16 @@ const REGRESSIONS = [
             + "new kind will be missing from the one window that can place any of them");
         ok(/name="tied"/.test(body) && /name="reinforced"/.test(body),
             "the window does not ask for the two flags");
-        ok(/tiedToCrime: result\.tied/.test(body) && /reinforced: result\.reinforced/.test(body),
+        // The tie is a three-way select since E09 C4 ("-", Tied, Not tied), read back through `tieTaken`.
+        ok(/tiedToCrime: tieTaken\(result\.tied\)/.test(body) && /reinforced: result\.reinforced/.test(body),
             "the flags are asked for and then not carried, so every hand-placed trace "
             + "is an ordinary one whatever the GM ticked");
         ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
             "the kind comes back off a form and is written without being checked");
-        ok(/observeDc\(v, key\) !== null/.test(body) && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
+        // The list's rule has its own name since E09 C13, which the Traces tab's kind reads too (S05-20).
+        const findable = bodyOf(inv, "function findableKind(", { until: "\n}" });
+        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable)
+            && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
             "a kind Observe has no number for can be placed, and then nobody can ever find it");
         ok(/placeRemnant\(/.test(body),
             "the trace is built by hand instead of through the one writer that owns "
@@ -4369,8 +4417,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
         ok(/name="keyanalysis:\$\{i\}"/.test(inv), "the Key planner has no box for a clue's reading");
-        ok(/analysis: q\(`keyanalysis:\$\{i\}`\)/.test(inv), "the planner draws the box and never reads it back");
-        ok(/patch\.analyzedText = row\.analysis/.test(inv),
+        // E09 C3: the form hands on a changed field by name, and a placed row's push reads `words`.
+        ok(/\["analysis", `keyanalysis:\$\{i\}`\]/.test(inv), "the planner draws the box and never reads it back");
+        ok(/patch\.analyzedText = words\.analysis/.test(inv),
             "a reading typed on a placed Key row never reaches the trace");
         ok(/analyzedText: row\.analysis/.test(inv), "a planned Key Remnant is placed without its reading");
         ok(/analysis: row\.analysis \?\? ""/.test(inv), "the stored plan drops the reading on every save");
@@ -4659,12 +4708,16 @@ const REGRESSIONS = [
         ok(game.settings.settings.get(`${MODULE_ID}.mineOffers`)?.scope === "client",
             "an owner's copy of the offers is not client-scoped, so it reaches every browser");
 
+        // Since E10 C6 `pendingAdvance` is the oldest of `standingOffers`, which reads the store.
         const pending = bodyOf(level, "export function pendingAdvance(", { until: "\n}" });
-        ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
+        const standing = bodyOf(level, "export function standingOffers(", { until: "\n}" });
+        ok(/standingOffers\(actor\)/.test(pending) && /readOffers\(\)/.test(standing) && !/getFlag/.test(pending + standing),
             "pendingAdvance reads something other than this browser's store");
-        const record = bodyOf(level, "export async function recordOffer(", { until: "export function offersFor(" });
+        const record = bodyOf(level, "export async function recordOffer(", { until: "export async function dropOffer(" });
         ok(/if \(!isPrimaryGm\(\)\) return null;/.test(record),
             "a client other than the primary GM writes the authority");
+        ok(/if \(!isPrimaryGm\(\)\) return false;/.test(bodyOf(level, "export async function dropOffer(", { until: "export function offersFor(" })),
+            "a client other than the primary GM takes an offer off the authority");
 
         const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleAdvancementOffer(" });
         ok(/advancing\.has\(actor\.id\)/.test(handler) && /finally \{\s*advancing\.delete/.test(handler),
@@ -4951,6 +5004,9 @@ const REGRESSIONS = [
         ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
             "moving the body does not ask where the body is before it is paid for");
         ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
+        // E09 fix r2-G10: and only what the attempt's own writes moved, never a write that landed while it ran.
+        ok(/const moved = typeof receipt\.stressMoved === "number" \? receipt\.stressMoved\b/.test(cleanup),
+            "a clean-up's undo takes back the track's move while it ran, not the attempt's own writes");
     }],
 
     ["R146 - the stylesheet's resource lock follows the setting", async () => {
@@ -5506,6 +5562,8 @@ const REGRESSIONS = [
             stealFromPerson: "refused", stealFromVault: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
             cubAbilityRefusal: "returns",
+            // E10 C2: a ballot, judged on the primary (vote.mjs), whose run passes its `{ refused }` on.
+            recordBallot: "refused", ballotRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5674,9 +5732,8 @@ const REGRESSIONS = [
             ["truth-bullets.mjs", "migrateFaintIntoSecrets", ["ifLive", "weak"], true],
             ["truth-bullets.mjs", "migrateTruthBullets", ["weak", "fillOnly"], true],
             ["truth-bullets.mjs", "propagateRemnantPublic", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateCrimeTie", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateCrimeTieMany", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateRealType", ["ifLive"], false],
+            // The tie's two and the kind's, one since E09 C2 (Faint joined them there).
+            ["truth-bullets.mjs", "propagateVerdicts", ["ifLive"], false],
             ["analyze.mjs", "resolveAnalyze", ["ifLive"], false],
             // The traces (C4): what amends a row a GM holds, and the migration's weak fill.
             ["remnants.mjs", "markRemnantEdited", ["ifLive"], false],
@@ -5690,6 +5747,13 @@ const REGRESSIONS = [
             // The moved path's promotion, at the world's upgrade mark (E04's fix round): it amends the moved row.
             ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
+            // A tie's wait for a death nobody has found, cleared at its publication and handed on
+            // to a death the GMs keep (E09 fix r1-G1): both amend rows.
+            ["remnants.mjs", "publishTiesFor", ["ifLive"], false],
+            ["remnants.mjs", "handTiesOn", ["ifLive"], false],
+            // The traces' old "not tied" read as undecided, once per world (E09 C4): it amends rows,
+            // and runs from the stores' hydration and asks `isHydrated` itself.
+            ["gm-stores.mjs", "settleTieStates", ["ifLive"], false],
             // The cast's lift out of world data (C6; its row came with C9).
             ["incident-store.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
@@ -5903,7 +5967,8 @@ const REGRESSIONS = [
         equal(sorted(W.WORLD_SECRET_RULES.settings.murderState?.only ?? []), sorted(listed),
             "the world-secrets rule for murderState and murder.mjs's PUBLIC_INCIDENT are not the same list");
         const method = S.INCIDENT_METHOD.filter(key => !S.CAST_FIELDS.includes(key) || listed.includes(key));
-        ok(S.INCIDENT_METHOD.length === 5 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
+        // Six since E09 fix r1-G3: the chapter it opened in, under which its close keeps the case's Key count.
+        ok(S.INCIDENT_METHOD.length === 6 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
 
         const split = M.splitIncident({ ...Object.fromEntries(listed.map(key => [key, 1])), ...Object.fromEntries(S.CAST_FIELDS.map(key => [key, 2])), R191planted: 3 });
         equal(JSON.stringify([sorted(Object.keys(split.world)), sorted(Object.keys(split.cast)), split.neither]),
@@ -7043,6 +7108,8 @@ const REGRESSIONS = [
             ["season-setup.mjs", "wipeSeason", "resetSeason"],
             ["states.mjs", "syncOnce", "syncStates"],
             ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["truth-bullets.mjs", "publishReading", "identify"],
+            ["truth-bullets.mjs", "publishReading", "revealAllBulletTypes"],
             ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
             ["utils.mjs", "replaceFlag", "writeNote"],
             ["utils.mjs", "replaceFlag", "settleNoteFlags"],
@@ -7103,6 +7170,787 @@ const REGRESSIONS = [
         log(`R220: the census read ${census.sites.length} document write(s) (${census.aside} delete(s) and create(s) aside): ${gated} gated, `
             + `${NOT_A_STUDENT.length} row(s) not a student's, ${GM_ROADS.length} GM road row(s); ${unjudged.length} problem(s)`);
         ok(!unjudged.length, `${unjudged.length} write(s) or row(s) the census cannot judge: ${unjudged.slice(0, 12).join("; ")}`);
+    }],
+
+    ["R304 - an investigation road has a census row, and every row judges a road", async () => {
+        /*
+         * E09 C0, 08.10.2026; the plan's METHOD change 1 (census-1c). E09 moves what a GM decides
+         * about a Remnant, a Truth Bullet or a key off what a player's browser can write, and this
+         * test keeps the list of those places closed: a new one fails until it has a row and a
+         * verdict, a row whose place is gone fails until it is struck. Four kinds, read live:
+         * PACKET - every field of a BRIDGE_ACTIONS declaration whose action is an investigation
+         * road (ROADS), read off the `fields` its picked sanitizer lists; ITEM - every top-level
+         * function, class or binding outside the suite that reads a Truth Bullet item (through the
+         * held-bullet readers, or raw: the item's flag, `bulletsOf`, `copiedRemnants` and kin) and
+         * names one of the ledger's fields (FIELDS); CARD - every investigation key of
+         * messenger-app.mjs's CARD_ACTIONS (a button on a chat card a click runs); STORE - the six
+         * places the fields live, each found by its name in its file. A verdict says what judges
+         * the place today; one that names "C<n>" names the E09 commit that changes it, and that
+         * commit rewrites the row with the code. It reads names and text, not data flow: a reader
+         * reached through a helper this list does not name is not seen. Measured 08.10.2026 at
+         * 7bbcdb8: the ITEM and CARD keys of this reader and of the parse-only census
+         * (an acorn reading of the same tree, kept with the E09 plan outside the repository) were
+         * the same 26 - 22 ITEM,
+         * 4 CARD - and the census's 47 PACKET and 6 STORE rows are the rest of the 79 below (read
+         * live in the headless harness the same day: 47, 22, 4 and 6, none without a row). Its 13
+         * PLANNED rows (places E09's commits will add) are left to the commits that add them. E09 C1 struck
+         * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
+         * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
+         * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
+         * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
+         * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
+         * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
+         * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
+         * `openChapterEndDialog` (both read through chapter.mjs `revealPlan` now, which decides) and
+         * added `revealPlan` and `publishReading`, the write `identify` and the reveal share:
+         * 77 rows, 20 ITEM (read live 08.10.2026, none without a row). E09 fix r1-G4 moved
+         * `publishLootSource`, `propagateRemnantPublic` and `propagateVerdicts` onto truth-bullets.mjs
+         * `copiesInKey`, which hands each the held copy, so HELD names it: without it the three rows
+         * read as rows without a place (the parse-only census at the fix, 08.10.2026: "3 stale
+         * verdict(s)"); with it, 77 rows, 20 ITEM again. E09 C10 added the four fields of
+         * `cleanup.ruling`, a GM's ruling on a reshape asked of the primary, where their planned rows
+         * said: 81 rows, 51 PACKET (read live 08.10.2026, none without a row). E09 C12 added the
+         * four fields of `observe.pick`, a GM's pick or Refuse on an Observe card asked of the
+         * primary, and its two card actions, `pickObserveTrace` and `refuseObserveTrace`, where the
+         * planned rows said (with `refuse`, which the plan did not name): 87 rows, 55 PACKET, 6 CARD
+         * (read live 08.10.2026, none without a row and no row without a place). The
+         * reader is run first on a fixture with a judged reader, a reader whose field is only in a
+         * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
+         */
+        const INVESTIGATION_CENSUS = [
+            ["PACKET gm-bridge.mjs#observe.target#actorId", "judged: knownSender + owns(actorId); since C12 a focused gaze is put on every GM's card (askObserveByCard) and picked through the GM-only observe.pick, the asker judged here"],
+            ["PACKET gm-bridge.mjs#observe.target#declaration", "judged: chooseObserveTarget compares it to DECLARATIONS, an unknown one answered with a reason"],
+            ["PACKET gm-bridge.mjs#observe.target#request", "judged: read only as the asker's word for 'focus', shown on the card and in the picker; the candidates are read on the primary (observeCandidates), never taken from it"],
+            ["PACKET gm-bridge.mjs#observe.pick#rid", "judged (C12): gmOnly, run on the primary (askObservePick, onPrimary); the ask the primary keeps under it (observeAsks) must still be waiting and not being answered, else refused and told the GM"],
+            ["PACKET gm-bridge.mjs#observe.pick#actorId", "judged (C12): gmOnly; must be the character of the ask kept under rid, else refused and told the GM"],
+            ["PACKET gm-bridge.mjs#observe.pick#tokenId", "judged (C12): read again on the primary - one of observeCandidates for that character in the room it asked in (pickObserveTarget), else nothing is written and the GM is told"],
+            ["PACKET gm-bridge.mjs#observe.pick#refuse", "judged (C12): gmOnly; a GM's Refuse of the ask kept under rid, told to the asker as a refusal, nothing written"],
+            ["PACKET gm-bridge.mjs#cleanup.traces#actorId", "judged: knownSender + owns(actorId); lists the traces of the cleaner's own room; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#cleanup.traces#mine", "judged: a filter over the cleaner's own room's list; widens nothing"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#actorId", "judged: gmOnly (a GM sender) and ruled on the primary (askReshapeRuling, onPrimary); claimRuling rules only on the row of that character's last clean-up, and refuses and tells without one"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#tokenId", "judged: claimRuling - must be the trace the attempt row names, else refused and told"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#attempt", "judged: claimRuling - must be the row's attempt, else refused and told; `ruled` marked in the same synchronous step, so a second ruling is refused and told"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#verdict", "judged: approve or decline only (ruleReshape); anything else rules on nothing"],
+            ["PACKET gm-bridge.mjs#observe.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
+            ["PACKET gm-bridge.mjs#observe.resolve#key", "judged: must be the asker's pending row (F7, gmObservePending on the primary); since C12 a focused gaze's row is written only by the primary, from a GM's pick it read again (pickObserveTarget)"],
+            ["PACKET gm-bridge.mjs#observe.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#observe.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#observe.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#observe.resolve#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#itemId", "judged: resolveAnalyze looks it up on that one character and decides on bulletAsHeld (E29); identify's write is truth-bullets.mjs publishReading since C8, given the held copy"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#handover.bullet#fromId", "judged: knownSender + owns(fromId) (E29 handover)"],
+            ["PACKET gm-bridge.mjs#handover.bullet#toId", "judged: handover's verify - a living recipient in the giver's room"],
+            ["PACKET gm-bridge.mjs#handover.bullet#itemId", "judged: handover's verify - an item of the giver's; the copy is written from bulletAsHeld (shareBullet)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#actorId", "judged: knownSender + owns(actorId); the !viaAction && !isCleaner branch (cleanup.mjs resolveCleanup, resolveStageSix: blockedOnGm) whispers blocked.* to the owner and gives the price back (C11)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#tokenId", "judged: resolveCleanup finds the trace in the cleaner's room or refuses; C9 keeps the reshape off held copies, C10 keys the proposal's attempt row by it"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#key", "judged: resolveCleanup's road table; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#targetId", "judged: resolveStageSix (who may be framed, where the body lies); a body that did not move leaves no trace (applyMoveBody, C11)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#withHope", "out of scope: the asker's own Hope within its bounds (D2 layer two, E28/E29)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#viaAction", "judged: the !viaAction branch requires isCleaner on the GM, and its refusal is told (blockedOnGm, C11)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#grant", "judged: the grant is looked up in the incident, the packet's extras never read (gm-bridge.mjs 647, 1193)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#price", "judged: bounded against PRICE_CHAINS (T-1); a GM's refusal gives back the step validPrice(price) names (refundRefused, C11): the asker's own action or Sanity mark within its bounds (D2 layer two)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#transform", "judged: bounded against CLEANUP.transform; C10 stores the proposal on the attempt row (the card carries only the tag); without both a name and a text it is no rewrite, the critical erases (resolveEraseRoad, C11)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#change", "judged: bounded against CLEANUP.transform (Z5); without both a name and a text no reshape is put to the GMs (resolveTransformRoad, C11)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
+            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
+            ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code); since fix r1-G1 the copies learn it when the death is the table's, or at the fight's close (tieWaitNow)"],
+            ["PACKET gm-bridge.mjs#remnant.edit#sceneId", "judged: remnant.edit's guards (E08+E28 C8: the GM re-rates on its own client); E09 adds no read"],
+            ["PACKET gm-bridge.mjs#remnant.edit#tokenId", "judged: remnant.edit's guards; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#remnant.edit#patch", "judged: narrowed in the run - remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "judged: the sender must see the project; handleSabotage notes targetProjectId on the GMs' row, which C5 reads (never the packet)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "judged: handleSabotage's bounds (E28); E09 adds no read"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "judged: owns(actorId); C5 requires the row's actor to be the sender's character"],
+            ["PACKET gm-bridge.mjs#project.sabotage#rollId", "judged: the GMs' roll row (repairOf); C5 reads its noted targetProjectId"],
+            ["PACKET gm-bridge.mjs#project.sabotage#penalty", "judged: held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (E28)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#relief", "judged: held by repairOf to the tools the GM sees (E28)"],
+            ["PACKET gm-bridge.mjs#reroll.ask#actorId", "judged: knownSender + owns(actorId); the Reroll receipt (E28); C9's Undo is a GM's"],
+            ["ITEM analyze.mjs#resolveAnalyze", "judged: reads bulletAsHeld (E29); unchanged by E09"],
+            ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
+            ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
+            ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
+            ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
+            ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
+            ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
+            ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
+            ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
+            ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
+            ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
+            ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
+            ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
+            ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off the held copy; the copies the answer key lists since fix r1-G4 (copiesInKey: bulletAsHeld, the category the key's)"],
+            ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
+            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged (C2): hasReading off the held copy (copiesInKey since fix r1-G4: bulletAsHeld, the category the key's, every copy the answer key lists), and the name and img it falls back to (unreached: publicOf names every row); the answer key always"],
+            ["ITEM truth-bullets.mjs#propagateVerdicts", "judged (C2): the flags (faint, tiedToCrime, shownType) only where isIdentified(held) (bulletAsHeld; through copiesInKey since fix r1-G4, the category the key's, every copy the answer key lists), every copy decided in one synchronous pass (H3, H17); the answer key always; C13 sends the kind and Faint together through it"],
+            ["ITEM truth-bullets.mjs#migrateTruthBullets", "out of scope: a one-time shape migration on a GM, writes the legacy fields back to their new names and decides no verdict"],
+            ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
+            ["CARD messenger-app.mjs#approveReshape", "refused and told (C10): the card carries only the attempt; the proposal is read off the attempt row on the primary (askReshapeRuling), `ruled` marked before any await after the store's hydration, a second ruling refused and told; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
+            ["CARD messenger-app.mjs#declineReshape", "refused and told (C10): as approveReshape; the erase on the erase road is the row's `erases`"],
+            ["CARD messenger-app.mjs#pickObserveTrace", "judged (C12): the clicking GM's picker from its own copy of the ledger, the pick sent as observe.pick; the primary reads the list again"],
+            ["CARD messenger-app.mjs#refuseObserveTrace", "judged (C12): a GM's Refuse sent as observe.pick on the primary, told to the asker"],
+            ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
+            ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
+            ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
+            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount; under the chapter the case opened in, and dropped by a reset that keeps the plan, since fix r1-G3"],
+            ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
+            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
+            ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); since C12 a focused gaze's row is written there only from a pick the primary read again"],
+            ["STORE remnants.mjs#TOKEN_KEEPS", "not a source: the token keeps no ledger field (1b a)"]
+        ];
+        const ROADS = /remnant\.|observe\.|cleanup\.|analyze\.|murder\.cleanup|project\.sabotage|handover\.bullet|tieForItem|reroll\.ask/;
+        const FIELDS = new RegExp(`\\b(?:${["tiedToCrime", "faint", "realType", "shownType", "analyzed", "analyzedText", "playerText", "sourceAction"].join("|")})\\b`);
+        const HELD = /\b(?:bulletAsHeld|bulletsHeldBy|itemsHeldNow|itemsAsHeld|judgedFor|copiesInKey)\s*\(/;
+        const RAW = /\b(?:truthBulletData|bulletsOf|allBullets|copiedRemnants|findersByRemnant)\s*\(|\.items\b[^;\n]{0,80}\btruthBullet\b|getFlag\(\s*MODULE_ID\s*,\s*["']truthBullet/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const CARD = /Reshape|observe|Remnant|Observe|keyRemnant/;
+        const STORES = [["gm-stores.mjs", "remnantStore"], ["gm-stores.mjs", "keyPlanStore"], ["gm-stores.mjs", "cleanupAttemptStore"],
+            ["vote.mjs", "trialProgress"], ["settings.mjs", "observePending"], ["remnants.mjs", "TOKEN_KEEPS"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                // A road whose sanitizer lists no fields cannot be read here, so it is a key no row can hold.
+                for (const field of fields.length ? fields : ["?"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            for (const [file, raw] of files) {
+                const code = blankComments(raw);
+                const tops = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? null }));
+                tops.forEach((top, i) => {
+                    if (!top.name) return;
+                    const text = code.slice(top.at, tops[i + 1]?.at ?? code.length);
+                    if ((HELD.test(text) || RAW.test(text)) && FIELDS.test(text)) found.push(`ITEM ${file}#${top.name}`);
+                    if (file !== "messenger-app.mjs" || top.name !== "CARD_ACTIONS") return;
+                    for (const m of text.matchAll(/^\s+([\w$]+)\s*:\s*[\w$]+\s*,?\s*$/gm)) if (CARD.test(m[1])) found.push(`CARD messenger-app.mjs#${m[1]}`);
+                });
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+
+        const planted = censusOf({
+            "observe.planted": { sanitize: { fields: { actorId: "id" } } },
+            "vote.planted": { sanitize: { fields: { choice: "id" } } }
+        }, [
+            ["planted.mjs", "export function judged(item) {\n    return bulletAsHeld(item).analyzed;\n}\n"
+                + "function unread(actor) {\n    // its analyzed flag is read elsewhere\n    return bulletsOf(actor).length;\n}\n"
+                + "const forged = actor => bulletsOf(actor).filter(b => b.tiedToCrime);\n"],
+            ["messenger-app.mjs", "const CARD_ACTIONS = {\n    approveReshape: ruleApproveReshape,\n    reply: ruleReply\n};\n"],
+            ["gm-stores.mjs", "export const remnantStore = gmStore(\"gmRemnants\");\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#observe.planted#actorId", "ITEM planted.mjs#judged",
+            "ITEM planted.mjs#forged", "CARD messenger-app.mjs#approveReshape", "STORE gm-stores.mjs#remnantStore"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#observe.planted#actorId", ""], ["ITEM planted.mjs#judged", ""],
+            ["ITEM planted.mjs#gone", ""], ["CARD messenger-app.mjs#approveReshape", ""], ["STORE gm-stores.mjs#remnantStore", ""]])),
+            JSON.stringify({ unclassified: ["ITEM planted.mjs#forged"], stale: ["ITEM planted.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(["PACKET", "ITEM", "CARD", "STORE"].every(kind => count(kind) > 0),
+            `the census read ${["PACKET", "ITEM", "CARD", "STORE"].map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, INVESTIGATION_CENSUS);
+        log(`R304: the census read ${found.length} place(s) (${["PACKET", "ITEM", "CARD", "STORE"].map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${INVESTIGATION_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "an investigation road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E09 commit that will) and strike the gone one");
+    }],
+
+    ["R311 - a trial road has a census row, and every row judges a road", async () => {
+        /*
+         * E10 C0, 09.10.2026; the plan's METHOD change 1 (census-1c), R304's twin for the Class
+         * Trial. E10 moves the vote, the verdict and the Level Up off what a player's browser can
+         * write, and this test keeps the list of the places that read it closed: a new one fails
+         * until it has a row and a verdict, a row whose place is gone fails until it is struck.
+         * Five kinds, read live: PACKET - every field of a BRIDGE_ACTIONS declaration whose action
+         * is `vote.*` or `advancement.*`, read off the `fields` its picked sanitizer lists ("-" for
+         * a declaration that lists none: the packet itself is the claim); SOCKET - every raw socket
+         * handler the trial's files register (`game.socket.on(event, handler)`, or a dispatch's
+         * `return handler(payload`), gm-bridge.mjs's own only where the handler is a Level Up's,
+         * one row per `payload.<field>` it reads; CHAT - every top-level declaration of those
+         * files that reads a chat message's module flags or its speaker's actor (any user can
+         * create a message with any flags); SHEET - every one that reads a student's death,
+         * advances, traits, experiences or resources, held or off the document, or is one of the
+         * named few (NAMED) whatever it reads; STORE - the five places the trial's fields live,
+         * each found by its name in its file. The files are the trial's seven and the named
+         * declarations of six others (FILES, NAMED). A verdict says what judges the place today;
+         * one that names "C<n>" names the E10 commit that changes it, and that commit rewrites the
+         * row with the code. It reads names and text, not data flow: a reader in another file, or
+         * reached through a helper this list does not name, is not seen. Measured 09.10.2026 at
+         * 1e9871c: the SOCKET, CHAT, SHEET and STORE keys of this reader (run in Node on the tree's
+         * files) and of the parse-only census (an espree reading of the same tree, kept with the
+         * E10 plan outside the repository) were the same 31 - 6 SOCKET, 5 CHAT, 15 SHEET,
+         * 5 STORE - and the census's 5 PACKET rows are the rest of the 36 below. Its 10 PLANNED
+         * rows (places E10's commits will add: `vote.run`, `vote.cast`, `vote.ask`, the offer's
+         * `op` and `offerId`, `ballotStore`, the objector's death in `seizeFloor`) are left to the
+         * commits that add them. The reader is run first on a fixture with a socket handler, a
+         * judged reader, a reader whose field is only in a comment, a chat reader without a row, a
+         * declaration of a named file that is not named, a store and a stale row.
+         * E10 C1 (1.2.71) added `vote.run`'s two PACKET rows and `ballotStore`'s STORE row, and
+         * struck `voteIsOpen` (the panel reads the world's record, no chat flag) and the Map
+         * `ballots`. The reader still looks for `ballots` in vote.mjs: a module Map of that name
+         * coming back is a place without a row. Measured on the harness on 09.10.2026 with C1
+         * in the tree: 37 places against 37 rows - 7 PACKET, 6 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
+         * E10 C2 (1.2.71) added `vote.cast`'s two PACKET rows, `vote.ask`'s one and the `round` the
+         * ballot's packet carries now, struck `onBallotCast` (the raw `vote.ballot`) and the
+         * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
+         * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
+         * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
+         * E10 C4 (1.2.71) rewrote `openVerdictDialog`'s verdict: the dead are read as the GMs hold them,
+         * and only a living student can be picked; no place added or struck.
+         * E10 C5 (1.2.71) struck `applyVerdict`'s SHEET row - it reads no death now - and added the two
+         * places the verdict reads them in, `verdictHeld` and `executeSentenced`. Measured on the harness
+         * on 09.10.2026 with C5 in the tree: 40 places against 40 rows - 10 PACKET, 5 SOCKET, 4 CHAT,
+         * 16 SHEET, 5 STORE.
+         * E10 C6 (1.2.71) added the offer's `op` and `offerId` and the spend's `offerId`, three PACKET
+         * rows, and rewrote the verdicts of the spend's picks and of `offerStore`, whose row is a list
+         * per character now. Measured with the census on the working tree on 09.10.2026: 43 places
+         * against 43 rows - 13 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET, 5 STORE.
+         * E10 C7 (1.2.71) added the offer's `extra` and `deferred`, two PACKET rows: the verdict's one
+         * window gives the surviving Blackened's waiting Reinforced as the extra picks of their
+         * Standard's offer, from whichever GM applies the verdict. Measured with the census on the
+         * working tree on 10.10.2026: 45 places against 45 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET,
+         * 5 STORE.
+         * E10 C8 (1.2.71) rewrote the verdicts of the spend's picks, `applyAdvancement`, `handleAdvancement` and
+         * `stampStartingSheet`: a pick the sheet cannot take is refused and told, the experiences and the starting
+         * spread read as the GMs hold them; no place added or struck.
+         * E10 C16 (1.2.71) added three SHEET places, each a death the Present road reads now:
+         * `seizeFloor`'s, as the GMs hold it, and the presenter's own browser's in `presentBullet` and
+         * the sheet's `addPresentButton`; it rewrote the verdicts of `registerTrial`, `seizeFloor`'s
+         * card, `presentDialog` and `trialQueue`. Measured on the harness on 10.10.2026 with C16 in
+         * the tree: 49 places against 49 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 20 SHEET, 5 STORE.
+         * E10 fix r1-G1 (1.2.71) added two places: `verdictStore`, the Blackened a verdict was given with, kept
+         * for its Finish (STORE), and `verdictCardPosted`, the Finish's reading of the card already posted (CHAT).
+         * The table held 47 rows on its own line; merged beside C16 it holds 51 - 15 PACKET, 5 SOCKET,
+         * 5 CHAT, 20 SHEET, 6 STORE (counted in the source on 10.10.2026).
+         * E10 fix r1-G4 (1.2.71) rewrote the verdicts of `openVerdictDialog` and `executeSentenced`: a death nobody
+         * has found is not dead to the verdict, and executing that student makes it the table's; no place added or struck.
+         * E10 fix r1-G5 (1.2.71) named in `readTrial`'s verdict the line that keeps its death the GMs' own: its only
+         * caller, `manageClassTrial`, warns a player and returns before it imports or reads anything (read in the
+         * code, 10.10.2026: one call site, `read` in that function); no place added or struck.
+         * E10 fix r2-G3 (1.2.71) rewrote the verdicts of `verdictHeld` (a wrong verdict's Blackened are dead as the
+         * table knows it) and `executeSentenced` (an execution is public); no place added or struck.
+         */
+        const TRIAL_CENSUS = [
+            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (C8): `handleAdvancement` checks the offer `offerId` names (C6), the count it buys (`offerPicks`), each option, `experienceNew`'s name, a statistic among TRAITS and an `experienceUp` id on the sheet as the GMs hold it (`numberHeld`), all before its latch, else refused and told (`badRequest`, `missing`) [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (C6): `handleAdvancement` finds it in the character's list as this GM holds it (`standingOffers`), else refused and told (`notOffered`); the picks are that offer's [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 added `op` and `offerId` beside it [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#op", "judged (C6): gmOnly; `as.oneOf(\"add\", \"take\")`, anything else refused by `handleAdvancementOffer` [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#kind", "judged: gmOnly - only a GM hands out a Level Up; the kind is the GM's choice [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#extra", "judged (C7): gmOnly - only a GM hands out a Level Up; `as.num`, and `recordOffer` keeps a whole number of picks [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#deferred", "judged (C7): gmOnly; `as.num`, a whole number by `recordOffer`; read only by `takeBackOffer`, which gives that many picks back to the GMs' store [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#offerId", "judged (C6): gmOnly; a take names an offer standing in that character's list as the primary holds it, else refused [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.ask#-", "judged: knownSender + playersOnly; quiet; the answer is addressed to the asker (`replyForMe`) [F7]"],
+            ["PACKET gm-bridge.mjs#vote.run#op", "judged: gmOnly (C1) - only a GM opens, counts, restarts or reminds; a step not one of the five reads null and the primary runs nothing (`runVoteOp`), which answers `movedOn` or `notOpen` for a step the world's record has moved past [F3/F6]"],
+            ["PACKET gm-bridge.mjs#vote.run#picks", "judged: gmOnly (C1); a number the primary bounds to one name and the students enrolled (`picksFor`), the register's count when it is not a positive integer [F3]"],
+            ["PACKET gm-bridge.mjs#vote.cast#round", "judged (C2): knownSender + playersOnly; the primary holds it to the round of the vote open in the world (`recordBallot`, `ballotRefusal`) - a window of an earlier round is refused `movedOn`, told in the vote's words (`sendBallot`) [F1/F5]"],
+            ["PACKET gm-bridge.mjs#vote.cast#choice", "judged (C2): knownSender + playersOnly; the voter is found from the sender (`voterActorFor`: `eligibleVoters` after `studentsJudged`, on `flagsHeldNow`), and the names are held to the vote's picks, none twice, each on that voter's list (`ballotRefusal`: notEligible, sameTwice, wrongCount, missing), refused and told; one row per sender in `ballotStore`, written in the vote's turn. The raw `vote.ballot` is gone (R313) [F1]"],
+            ["PACKET gm-bridge.mjs#vote.ask#-", "judged (C2): knownSender + playersOnly; quiet; answers about the sender alone (`ballotFor`) - the ballot, that it is in, or null - and a sender the vote had not handed one is added to `issued` [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#candidates", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:214-215). C2 keeps it - the ballot handed out at the open, a remind and a resend - and adds `vote.ask`'s reply for a player who loads while the vote is open; whatever a window listed, the primary judges the answer (`recordBallot`) [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#round", "out of scope: a GM -> player packet (vote.mjs:214-215); C2 adds it - the round goes back with the answer, and the primary refuses an answer of a round the world has moved past (`ballotRefusal`, movedOn) [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
+            ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
+            ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
+            ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
+            ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
+            ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
+            ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
+            ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
+            ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
+            ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
+            ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
+            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3) [1b.2]"],
+            ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
+            ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
+            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
+            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); an Objection is judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
+            ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
+            ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
+            ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
+            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
+            ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
+            ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`"],
+            ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
+            ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
+            ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
+            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (`season` + 1 and `finalTrial: false`; `seasonStartedAt` and `resetCuts` stay the cut's, `resetCutPatch`)"],
+            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
+            ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
+            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
+            ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
+            ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since C16 a sheet's Present reads `trialQueue.active` on render (`addPresentButton`) and on change (`repaintPresentButtons`, from `SYNC.trial`)"]
+        ];
+        const ROADS = /^(?:vote|advancement)\./;
+        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
+        const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
+            "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
+            "season-setup.mjs": ["wipeSeason"], "clock.mjs": ["reconcilePhase"] };
+        // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
+        const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
+        const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
+            /system\.experiences\b|\bexperiences?(?:New|Up)\b/, /system\.resources\b|\bresourceMax\(|hitPoints|stress\.max/];
+        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
+        const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const STORES = [["vote.mjs", "ballots"], ["vote.mjs", "trialProgress"], ["gm-stores.mjs", "ballotStore"], ["gm-stores.mjs", "offerStore"],
+            ["gm-stores.mjs", "deferredOfferStore"], ["gm-stores.mjs", "verdictStore"], ["settings.mjs", "trialQueue"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                for (const field of fields.length ? fields : ["-"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            const tops = [];
+            for (const file of [...FILES, ...Object.keys(NAMED)]) {
+                if (!files.has(file)) continue;
+                const code = blankComments(files.get(file));
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                at.forEach((top, i) => {
+                    if (!top.name) return;
+                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
+                });
+            }
+            const handlers = new Set();
+            for (const top of tops) {
+                for (const m of top.text.matchAll(/game\.socket\.on\(\s*[\w.]+\s*,\s*([A-Za-z_]\w*)\s*\)/g)) handlers.add(`${top.file}#${m[1]}`);
+                for (const m of top.text.matchAll(/return\s+([A-Za-z_]\w*)\(\s*payload/g)) handlers.add(`${top.file}#${m[1]}`);
+            }
+            for (const handler of handlers) {
+                const [file, name] = handler.split("#");
+                // The bridge's own sockets are E28's (R1b and the bridge's tables); its Level Up ones are the trial's.
+                if (file === "gm-bridge.mjs" && !/Advancement/.test(name)) continue;
+                const top = tops.find(t => t.file === file && t.name === name);
+                // A handler this reader cannot find is a key no row can hold.
+                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
+            }
+            for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
+            for (const top of tops) {
+                if (top.file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name)) continue;
+                // A table or a constant reads no sheet.
+                if (top.binding && !/=>|function/.test(top.text)) continue;
+                if (!SHEET.some(re => re.test(top.text))) continue;
+                if (HELD.test(top.text) || RAW.test(top.text) || NAMED[top.file]?.includes(top.name)) found.push(`SHEET ${top.file}#${top.name}`);
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["PACKET", "SOCKET", "CHAT", "SHEET", "STORE"];
+
+        const planted = censusOf({
+            "vote.planted": { sanitize: { fields: { choice: "id" } } },
+            "observe.planted": { sanitize: { fields: { actorId: "id" } } }
+        }, [
+            ["vote.mjs", "function registerPlanted() {\n    game.socket.on(EVENT, (payload, senderId) => {\n        if (payload?.action === \"x\") return onPlanted(payload, senderId);\n    });\n}\n"
+                + "function onPlanted(payload) {\n    return payload.choice;\n}\n"
+                + "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
+                + "function unread(actor) {\n    // its deceased flag is read elsewhere\n    return actor.name;\n}\n"
+                + "const forged = msg => msg.getFlag(MODULE_ID, \"voteOpen\");\n"
+                + "let ballots = null;\n"],
+            ["chapter.mjs", "export function notNamed(actor) {\n    return isDeceased(actor);\n}\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#vote.planted#choice", "SOCKET vote.mjs#onPlanted#choice",
+            "CHAT vote.mjs#forged", "SHEET vote.mjs#judged", "STORE vote.mjs#ballots"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#vote.planted#choice", ""], ["SOCKET vote.mjs#onPlanted#choice", ""],
+            ["SHEET vote.mjs#judged", ""], ["SHEET vote.mjs#gone", ""], ["STORE vote.mjs#ballots", ""]])),
+            JSON.stringify({ unclassified: ["CHAT vote.mjs#forged"], stale: ["SHEET vote.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(KINDS.every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, TRIAL_CENSUS);
+        log(`R311: the census read ${found.length} place(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a trial road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E10 commit that will) and strike the gone one");
+    }],
+
+    ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
+        /*
+         * E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3. Until 1.2.71 the ballots were a
+         * Map in the collecting GM's memory (vote.mjs `ballots`): a reload of that browser counted
+         * none, and any GM's console opened and counted against its own memory. Now a ballot is a
+         * row of a GM store - synced between the GMs, kept in a client setting so it is on no
+         * player's browser, cut by the trial's reset and never backed up - and every step of the
+         * vote runs on the primary GM: a console asks through `vote.run` (`askVote`, `onPrimary`),
+         * which only a GM may send, and `runVoteOp` does nothing on a GM that is not the primary.
+         * Read here: the store's declaration and its setting, the bridge's row (its first guard,
+         * its packet, the five steps passed and a sixth not) and the two places that keep the step
+         * on the primary. Red at 1f26a0c: there is no `ballotStore`.
+         */
+        const { ballotStore } = await import("./gm-stores.mjs");
+        ok(ballotStore?.spec, "gm-stores.mjs declares no `ballotStore` - the ballots are kept where this cannot read them");
+        const { name, kind, resetGroup, backup, sync } = ballotStore.spec;
+        equal(JSON.stringify({ name, kind, resetGroup, backup, sync }),
+            JSON.stringify({ name: "ballots", kind: "ledger", resetGroup: "trialProgress", backup: false, sync: true }),
+            "the ballots' store is not a synced ledger, unbacked, that the trial's reset cuts");
+        ok(game.settings.settings.get(`${MODULE_ID}.${ballotStore.spec.key}`)?.scope === "client",
+            "the ballots' store is not a client setting, so its rows can reach a player's browser");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { VOTE_OPS } = await import("./vote.mjs");
+        const run = BRIDGE_ACTIONS["vote.run"];
+        ok(run, "the bridge has no `vote.run` - a GM who is not the primary has no way to the ballots");
+        ok(run.guards?.[0]?.factory === "gmOnly", "a player can run a step of the vote through the bridge");
+        equal(JSON.stringify(run.sanitize?.fields ?? null), JSON.stringify({ op: "oneOf", picks: "num" }),
+            "vote.run's packet is not a step from a list and a number");
+        must(VOTE_OPS?.length === 5, `vote.mjs lists ${VOTE_OPS?.length ?? "no"} step(s) of the vote, not five`);
+        ok(VOTE_OPS.every(op => run.sanitize({ op }).op === op), "a step of the vote the primary runs is not passed by vote.run's packet");
+        equal(run.sanitize({ op: "count" }).op, null, "vote.run passes a step that is not one of the five");
+        equal(run.answer, "reply", "vote.run does not hand back the primary's reply");
+
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const ask = fnSource(vote, "askVote"), step = fnSource(vote, "runVoteOp");
+        ok(ask.length > 100 && step.length > 100, "askVote or runVoteOp is gone - the reads below would measure nothing");
+        ok(/bridgeRequest\("vote\.run"/.test(ask) && /\bonPrimary: true\b/.test(ask),
+            "a GM's console runs a step of the vote somewhere other than the primary");
+        ok(/!isPrimaryGm\(\)/.test(step) && step.indexOf("isPrimaryGm()") < step.indexOf("voteStep("),
+            "runVoteOp takes a step of the vote on a GM that is not the primary, against its own copy of the ballots");
+    }],
+
+    ["R313 - the ballot reaches the GMs only through the bridge", async () => {
+        /*
+         * E10 C2, 1.2.71; audit S06-12, S06-17; the plan's V2. Until C2 a player's answer to a ballot
+         * was a raw packet to every GM (`vote.ballot`), which the primary recorded on a candidate
+         * filter alone - a ballot naming one student twice counted twice, a window of an earlier
+         * round counted in this one - and the player was told the vote was in as the packet left,
+         * with a GM connected or none. It is the bridge's `vote.cast` now, a player's alone, judged
+         * on the primary (vote.mjs `recordBallot`), and a player who loads while a vote is open asks
+         * for their own ballot (`vote.ask`). Read here: the two rows (the first two guards, the
+         * packet, how each is answered); that the module's listener in vote.mjs takes one packet,
+         * the GM's ballot, and the source names no other; that a player's browser asks for its
+         * ballot at load and when a primary's world has loaded; and that "Your vote is in." is said
+         * after the primary's answer. What the primary refuses is tier 2's to drive. Red at
+         * E10 C1's tree (A1, 09.10.2026): the bridge has no `vote.cast`.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
+        ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
+        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+            decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
+        equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
+            "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
+        equal(JSON.stringify(shape(asked)), JSON.stringify([true, "playersOnly", {}, "reply", false, false, true]),
+            "vote.ask is not a known player's alone, an empty packet answered by the primary, quietly");
+
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const register = fnSource(vote, "registerVote"), send = fnSource(vote, "sendBallot");
+        ok(register.length > 100 && send.length > 100, "registerVote or sendBallot is gone - the reads below would measure nothing");
+        equal(JSON.stringify([...register.matchAll(/payload\??\.action\s*===\s*([\w$."]+)/g)].map(m => m[1])), JSON.stringify(["ACTION_OPEN"]),
+            "vote.mjs's socket listener takes a packet other than the GM's ballot - a ballot can reach a GM around the bridge");
+        ok(/const ACTION_OPEN = "vote\.open";/.test(vote) && !/vote\.ballot|ACTION_BALLOT/.test(vote),
+            "vote.mjs still names the raw ballot packet, or its GM's ballot is another packet");
+        ok(/\baskForBallot\(\)/.test(register) && /Hooks\.on\("drpgPrimaryReady",[^)]*askForBallot\(/.test(register),
+            "a player's browser does not ask for its ballot at load and when a primary GM's world has loaded");
+        const answered = send.indexOf("requestBallotCast("), confirmed = send.indexOf("DRPG.Vote.castConfirmed");
+        ok(answered > 0 && confirmed > answered && /requestBallotCast\((?:(?!DRPG\.Vote\.castConfirmed)[\s\S])*\bres\.ok\b/.test(send),
+            "a player is told the vote is in before the primary has answered that it is");
+    }],
+
+    ["R315 - Enter in the verdict window presses Cancel, its executed select opens on nobody, and a right verdict executes the Blackened", async () => {
+        /*
+         * E10 C4, 1.2.71; audit S06-04; the guard of the stage's doneWhen "Werdyktu nie da się
+         * wykonać na przypadkowej osobie" (a verdict cannot be carried out on somebody by chance).
+         * Until C4 the window's footer put a verdict first - Enter in a DialogV2 presses the first
+         * submit button in DOM order - its executed select opened on the first student, and a right
+         * verdict without a register executed that select's student. Read in vote.mjs: the footer's
+         * actions in order and which carry `default`; that the executed select's first option is
+         * "Nobody is executed" with the value ""; that `read` returns a right verdict before it reads
+         * the executed select. Tier 2 drives the window ("the verdict window opens on the accused",
+         * "Enter in the verdict window executes nobody", "a right verdict without the register
+         * executes the Blackened the GM names"). Red at E10 C3's tree (A1, 09.10.2026): six actions
+         * (the tie's footer and the other), the right verdict first.
+         */
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const win = fnSource(vote, "openVerdictDialog"), read = fnSource(vote, "read");
+        ok(win.length > 500 && read.length > 100, "openVerdictDialog or read is gone - the reads below would measure nothing");
+        const footer = bodyOf(win, "buttons:", { until: "rejectClose" });
+        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])), JSON.stringify(["cancel", "correct", "wrong"]),
+            "the verdict window's footer is not Cancel, then the two verdicts - Enter presses its first button");
+        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"[^{}]*\bdefault:\s*true/g)].map(m => m[1])), JSON.stringify(["cancel"]),
+            "a button other than Cancel is the verdict window's default");
+        ok(/<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(win),
+            "the executed select's first option is not \"Nobody is executed\" with no value - it opens on a student");
+        const rightReturns = read.search(/if \(correct\) return \{ correct, executedIds: blackenedIdList\b/), selectRead = read.search(/\bf\.executed\b/);
+        ok(rightReturns > 0 && selectRead > rightReturns,
+            "a right verdict is not answered with the Blackened before `read` reads the executed select");
+    }],
+
+    ["R316 - a verdict writes its lock once, executes on the GMs' held reading, and its public card reads no Blackened", async () => {
+        /*
+         * E10 C5, 1.2.71; audit S06-39, S06-06; ledger G2. Until C5 `applyVerdict` wrote
+         * `verdictApplied: true` first and again after its last consequence - a consequence that
+         * threw left the lock standing and the rest undone, with nothing to say how far it had got -
+         * executed on the document's `isDeadForGm`, and gave the table no card. Read in vote.mjs: the
+         * lock is written once in the file; `executeSentenced` awaits the audit (`judgedFor`), reads
+         * the student held (`flagsHeldNow`) and only then calls `killCharacter`, and reads no
+         * document's death; `postVerdictCard`, the one public card, reads no Blackened. Tier 2 drives
+         * the card and a verdict that stops halfway ("a wrong verdict's card names the executed and
+         * never the Blackened", "a verdict that stops halfway is finished by Finish the verdict"), and
+         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice.
+         */
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
+        equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
+            "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
+        const execute = fnSource(vote, "executeSentenced"), card = fnSource(vote, "postVerdictCard");
+        ok(execute.length > 200 && card.length > 200, "executeSentenced or postVerdictCard is cut short - the reads below would measure nothing");
+        const judged = execute.indexOf("judgedFor("), held = execute.indexOf("flagsHeldNow("), kill = execute.indexOf("killCharacter(");
+        ok(judged > 0 && held > judged && kill > held,
+            "an execution does not await the audit and read the student as the GMs hold them before `killCharacter`");
+        ok(!/\b(?:isDeceased|isDeadForGm)\(\s*actor\s*\)/.test(execute), "an execution reads the document's death, which a player's forged flag can be");
+        ok(!/blackened/i.test(card), "the verdict's public card reads a Blackened - a wrong verdict would name the student the class failed to");
+    }],
+
+    ["R317 - a verdict's Level Ups are one window with the players' choice, and its line is said after it", async () => {
+        /*
+         * E10 C7, 1.2.71; audit S06-25, S03-32, S06-32; ledger D3 (the stage's doneWhen: "the Level
+         * Ups open in one window with 'the player picks'"). `runAdvancementBatch` opened one picker per
+         * survivor in turn, a picker the GM closed gave nothing and said nothing, and `verdictLevelUps`
+         * wrote "N survivors take a standard Level Up" before any window opened. Read in level-up.mjs
+         * and vote.mjs: the batch asks the class's one window (`askWhoPicks`, its classes
+         * `drpg-advance-queue`, a "The player picks" choice and "All: the players pick") before it opens
+         * any picker, hands a row to its player through `offerAdvancement`, says what is not yet given;
+         * the verdict's line is built from what the batch answers, after it, with no raw kind. Tier 2
+         * drives it ("a correct verdict opens one Level Up window; the players pick records one offer
+         * each, the Blackened's 1+3 as one", "a Level Up picker the GM closes becomes an offer, and the
+         * verdict says what was given after the fact"), and 63 I on gm2.
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), vote = stripComments(sources.get("vote.mjs") ?? "");
+        const batch = fnSource(level, "runAdvancementBatch"), ask = fnSource(level, "askWhoPicks"), line = fnSource(vote, "verdictLevelUps");
+        ok(batch.length > 400 && ask.length > 400 && line.length > 200,
+            "runAdvancementBatch, askWhoPicks or verdictLevelUps is cut short - the reads below would measure nothing");
+        ok(/"drpg-advance-queue"/.test(ask) && /DRPG\.Advance\.pickPlayer/.test(ask) && /DRPG\.Advance\.allPlayers/.test(ask),
+            "the class's Level Up window is not one window that offers the player's choice row by row and for everybody");
+        const asked = batch.indexOf("askWhoPicks("), picker = batch.indexOf("openAdvancement(");
+        ok(asked > 0 && picker > asked, "the batch opens a picker before it asks the class's one window who picks");
+        ok(/offerAdvancement\(/.test(batch) && /DRPG\.Advance\.notYetGiven/.test(batch),
+            "a row the GM does not pick is not handed to its player, or what is left is not said");
+        const prompted = line.indexOf("promptAdvancements("), granted = line.indexOf("DRPG.Vote.levelUpGranted");
+        ok(prompted > 0 && granted > prompted && /DRPG\.Vote\.levelUpWaiting/.test(line),
+            "the verdict's Level Up line is said before the batch ran, or does not say what waits for the players (S06-25)");
+        ok(!/kind:\s*TRIAL\./.test(line), "the verdict's Level Up line carries the config's raw kind (S06-32)");
+    }],
+
+    ["R318 - a Level Up reads the sheet the GMs hold, writes it once, and refuses a pick the sheet cannot take", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-23, S03-22; ledger G3 (the plan's "a Level Up reads the held sheet", a kept guard
+         * of E29 r2-H24/H25) and the plan's 1b.2 rows of `applyAdvancement`, `handleAdvancement` and
+         * `stampStartingSheet`. Read in the source: level-up.mjs `applyAdvancement` writes in one job of the student's
+         * queue (`meansWrite`) from the sheet's values as the GMs hold them (`numberHeld`), reads no prepared maximum
+         * (`resourceMax(`, `actor.system.resources`/`traits`), and refuses a statistic that is not one and an experience
+         * the GMs do not hold rather than skipping the pick; gm-bridge.mjs `handleAdvancement` refuses the same two
+         * before its latch and the apply, the experiences read held; `openAdvancement` refuses an experience to raise
+         * with none named before anything is sent or applied, and `buildContent` draws the option disabled where there
+         * is none; character.mjs `stampStartingSheet` reads the spread held, not off `actor.system`. Tier 2 drives them
+         * ("a Level Up pick the sheet cannot take is refused and told, and the offer stands", "a Level Up raises no
+         * experience a player's console made that the GMs' audit has not put back", "an experience to raise with none
+         * named is refused before the Level Up is written, and the picker cannot choose it", "a season's starting sheet
+         * is stamped as the GMs hold it, not from an effect's bonus or a console's write"), and 63 I5 from p1's browser.
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const character = stripComments(sources.get("character.mjs") ?? "");
+        const apply = fnSource(level, "applyAdvancement"), picker = fnSource(level, "openAdvancement"), content = fnSource(level, "buildContent");
+        const handler = fnSource(bridge, "handleAdvancement"), stamp = fnSource(character, "stampStartingSheet");
+        ok(apply.length > 1000 && picker.length > 1000 && content.length > 300 && handler.length > 1000 && stamp.length > 200,
+            "applyAdvancement, openAdvancement, buildContent, handleAdvancement or stampStartingSheet is cut short - the reads below would measure nothing");
+        ok(/\bmeansWrite\(actor,/.test(apply) && /\bnumberHeld\(actor, path\)/.test(apply) && (apply.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "a Level Up no longer writes once, in the student's queue, from the numbers the GMs hold (E29 r2-H24/H25)");
+        ok(!/\bresourceMax\(|\bactor\.system\??\.(?:resources|traits)\b/.test(apply),
+            "a Level Up reads a maximum or a statistic as Daggerheart prepares it, an effect's bonus included (S03-23)");
+        ok(/statistics\.has\(pick\.trait\)/.test(apply) && /Object\.hasOwn\(held, id\) && typeof held\[id\]\?\.value === "number"/.test(apply) && !/if \(!(?:key|id)\) break;/.test(apply),
+            "a Level Up skips a pick the sheet cannot take and writes the rest (S03-22)");
+        const refusedTrait = handler.search(/statistics\.has\(p\.trait\)/), refusedExperience = handler.search(/Object\.hasOwn\(experiences, id\) && typeof experiences\[id\]\?\.value === "number"/);
+        const latch = handler.search(/advancing\.add\(actor\.id\)/);
+        ok(refusedTrait > 0 && refusedExperience > 0 && /numberHeld\(actor, "system\.experiences"\)/.test(handler) && latch > refusedTrait && latch > refusedExperience,
+            "the GM applies a player's pick of a statistic that is not one, or of an experience the GMs do not hold, and spends the offer (S03-22)");
+        const refusedEmpty = picker.search(/p\?\.option === "experienceUp" && !p\.experience/);
+        ok(refusedEmpty > 0 && refusedEmpty < picker.search(/requestAdvancement\(/) && refusedEmpty < picker.search(/return applyAdvancement\(/)
+            && /DRPG\.Advance\.noExperienceToRaise/.test(picker),
+            "an experience to raise with none named is sent or applied, untold (S03-22)");
+        ok(/key === "experienceUp" && !experiences\.length \? " disabled"/.test(content), "the picker offers an experience to raise where there is none (S03-22)");
+        ok(/\bmeansWrite\(actor,/.test(stamp) && /\bnumberHeld\(actor, `system\.traits\.\$\{trait\.dh\}\.value`\)/.test(stamp)
+            && /numberHeld\(actor, "system\.experiences"\)/.test(stamp) && !/\bactor\.system\b/.test(stamp),
+            "the season's starting sheet is stamped off the prepared sheet, not as the GMs hold it (S03-23; 1b.2)");
+    }],
+
+    ["R319 - the trial's clock and the time of day's stamps count the server's time, and a transition is written once", async () => {
+        /*
+         * E10 C13, 1.2.71; audit S06-37, S06-38. Read in the source: every stamp the floor writes (`startFloor`,
+         * `openObjection`, `openRebuttal`, `returnToDebate`, `extendFloor`) and the count from it (`secondsLeft`, which
+         * the console, the Event card and the transition read) are the server's clock (utils.mjs `serverNow`), and so are
+         * the time of day's (`setClock`'s stamp, Start and End the trial, the season's reset, the pause's stamp and its
+         * settling, the HUD's elapsed line); `advanceIfDue` writes one transition at a time, its flag cleared in a
+         * `finally`; the floor's registration asks for the transition when the tab's visibility changes. Scenario 63 J1
+         * drives the clock on a player a minute off; tier 2 "two ticks during one write open one rebuttal" and "the
+         * primary GM's tab coming back moves an expired objection on at once" drive the other two.
+         */
+        const sources = new Map(await otherSources());
+        const floor = stripComments(sources.get("trial-floor.mjs") ?? ""), clock = stripComments(sources.get("clock.mjs") ?? "");
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
+        const now = topLevelFunction(utils, "serverNow") ?? "";
+        ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
+        const floorFns = ["startFloor", "openObjection", "openRebuttal", "returnToDebate", "extendFloor", "secondsLeft"];
+        const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "wipeSeason"]];
+        const cut = [...floorFns.map(name => [name, fnSource(floor, name)]), ...timeFns.map(([src, name]) => [name, fnSource(src, name)])];
+        ok(cut.every(([, body]) => body.length > 150), `a function this reads is cut short: ${cut.filter(([, b]) => b.length <= 150).map(([n]) => n).join(", ")}`);
+        const local = cut.filter(([, body]) => /\bDate\.now\(/.test(body)).map(([name]) => name);
+        const server = cut.filter(([, body]) => /\bserverNow\(\)/.test(body)).map(([name]) => name);
+        equal(JSON.stringify(local), JSON.stringify([]), "a stamp or a count of the trial's clock or the time of day is this machine's clock again (S06-37)");
+        equal(JSON.stringify(server), JSON.stringify(cut.map(([name]) => name)), "a stamp or a count of the trial's clock or the time of day reads no server time (S06-37)");
+        const advance = fnSource(floor, "advanceIfDue");
+        const guard = advance.search(/if \(advancing\) return;/), raised = advance.search(/advancing = true;/);
+        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/openRebuttal\(\)/)
+            && /finally \{\s*advancing = false;/.test(advance),
+            "the heartbeat writes a transition while the last one is on its way, or a write that threw stops it for good (S06-38)");
+        ok(/addEventListener\("visibilitychange",[^]*?advanceIfDue\(\)/.test(fnSource(floor, "registerTrialFloor")),
+            "the primary GM's tab coming back waits for its throttled heartbeat to move an expired mode on (S06-38)");
+    }],
+
+    ["R320 - the trial's words: the console names the mode, its state lines are body text, its cards are headed as events, and the Event card names the floor", async () => {
+        /*
+         * E10 C15, 1.2.71; audit S06-10, S06-24, S06-29, S06-31, S06-32 (its rest: one word for the reminder).
+         * Read in the source, the stylesheet and the two language files: the console's debate line is
+         * `holdingDebate`/`holdingDebateOver` for a debate and `inDiscussion` only without one, and the one `notes`
+         * paragraph the console builds is the mode's explanation; the four chat cards of the trial (the trial begins,
+         * the debate opens, the debate closes, the trial is over) are `trialEventCard`s - the vote's banner, a title
+         * key of their own, no h3 - and the Start window's list of steps carries the class the stylesheet sets in
+         * Bone at the body's size; the stylesheet gives the console's h4 the body's size; `trialCard` names no
+         * "Everyone" and carries the three new metas; the words are what the audit asked for, in both languages, and
+         * the restart warning names the button that is there ("Send another ballot"). Tier 2 drives the console, the
+         * card and the four chat cards: "the console says Nonstop Debate while a debate runs", "the Event panel's trial
+         * card names who has the floor and tells a player what to do", "the trial's four chat cards are headed as events,
+         * in the vote's banner". The rendered size and colour are not measured: the harness draws no CSS.
+         */
+        const sources = new Map(await otherSources());
+        const ui = stripComments(sources.get("trial-floor-ui.mjs") ?? ""), events = stripComments(sources.get("events.mjs") ?? "");
+        const view = fnSource(ui, "trialConsoleHtml");
+        ok(view.length > 500, "trialConsoleHtml is cut short or gone");
+        ok(view.includes("DRPG.Floor.holdingDebate\"") && view.includes("DRPG.Floor.holdingDebateOver\"") && !view.includes("holdingDiscussion"),
+            "a running debate is not named as a debate in the console (S06-10)");
+        const noted = [...view.matchAll(/class="notes"[^]{0,140}/g)].map(m => m[0]);
+        ok(noted.length === 1 && noted[0].includes("DRPG.Floor.modeNote"),
+            `the console sets a state line as a footnote again (S06-29): ${noted.join(" | ")}`);
+        ok(/!floor\s*\?\s*`<p>\$\{game\.i18n\.localize\("DRPG\.Floor\.inDiscussion"\)/.test(view),
+            "the discussion's line is not the plain line of a trial with no debate (S06-10)");
+        const cards = [["startClassTrial", "trialBegins"], ["openDebate", "debateOpenedTitle"], ["closeDebate", "debateClosedTitle"], ["closeTrial", "trialOver"]];
+        for (const [name, key] of cards) {
+            const body = fnSource(ui, name);
+            ok(body.length > 150, `${name} is cut short or gone`);
+            ok(body.includes(`trialEventCard("DRPG.Floor.${key}"`) && !/<h3>|drpg-card/.test(body),
+                `${name} does not announce with the ${key} title in the vote's banner (S06-31)`);
+        }
+        ok(/class="drpg-evidence-card"[^]*class="drpg-objection-banner"/.test(fnSource(ui, "trialEventCard")),
+            "the trial's cards are not the vote's markup (drpg-evidence-card and its banner)");
+        ok(fnSource(ui, "startClassTrial").includes("drpg-briefing-facts drpg-trial-facts"), "the Start window's steps lost their own class (S06-29)");
+        const trialCard = fnSource(events, "trialCard");
+        ok(trialCard.length > 400 && !/trialEveryone|trialFloorOpen/.test(trialCard)
+            && ["trialDebateMeta", "trialDiscussionMeta", "trialObjectionFloor"].every(k => trialCard.includes(`DRPG.Events.${k}"`)),
+            "the Event card says Everyone again, or lacks an instruction or the Objection's floor (S06-24)");
+
+        const css = await moduleStyles();
+        ok(/\.drpg-trial-console h4 \{[^}]*font-size:\s*var\(--drpg-text-md\)/.test(css), "the console's headings are not at the body's size (S06-29)");
+        ok(/\.drpg-briefing-facts\.drpg-trial-facts \{[^}]*font-size:\s*var\(--drpg-text-md\);[^}]*color:\s*var\(--drpg-bone\)/.test(css)
+            && /\.drpg-briefing-facts\.drpg-trial-facts \+ \.notes \{[^}]*font-size:\s*var\(--drpg-text-sm\);[^}]*color:\s*var\(--drpg-dim\)/.test(css),
+            "the Start window's steps are not in Bone at the body's size with the note after them in text-sm Dim (S06-29)");
+        ok(/\.drpg-trial-console p:not\(\.notes\):not\(\.drpg-warning\) \{[^}]*color:\s*var\(--drpg-bone\)/.test(css), "the console's state lines are not set in Bone (S06-29)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG);
+        const floor = lang.en.Floor, ev = lang.en.Events;
+        equal(JSON.stringify([floor.trialBegins, floor.debateOpenedTitle, floor.debateClosedTitle, floor.trialOver]),
+            JSON.stringify(["The Class Trial begins", "Nonstop Debate!", "The debate is closed", "The trial is over"]), "the cards' titles are not the audit's (S06-31)");
+        ok(/^Nonstop Debate - /.test(floor.holdingDebate) && /^Nonstop Debate - /.test(floor.holdingDebateOver)
+            && !/discussion/i.test(floor.holdingDebate + floor.holdingDebateOver), "the console's debate lines are not the debate's (S06-10)");
+        equal(JSON.stringify([ev.trialDebateMeta, ev.trialDiscussionMeta, ev.trialObjectionFloor]),
+            JSON.stringify(["Present a Truth Bullet from your Inventory", "Talk it through - the GM opens the debate", "{who} has the floor"]),
+            "the Event card's metas are not the audit's (S06-24)");
+        for (const code of ["en", "pl"]) {
+            const l = lang[code];
+            equal(JSON.stringify(["holdingDiscussion", "holdingDiscussionOver", "nobody"].filter(k => k in l.Floor).concat("trialFloorOpen" in l.Events ? ["trialFloorOpen"] : [])),
+                JSON.stringify([]), `${code}: a retired trial key is still in the file`);
+            ok(["nobodyForTrial", "trialBegins", "debateOpenedTitle", "debateClosedTitle", "trialOver", "holdingDebate", "holdingDebateOver"].every(k => typeof l.Floor[k] === "string"),
+                `${code}: a trial key of C15's is missing`);
+            const button = l.Vote.remind.split(" (")[0], warning = Object.values(l.Vote.resendWarning);
+            ok(warning.length >= 2 && warning.every(text => text.includes(button)), `${code}: the restart warning does not name the button ("${button}") (S06-32)`);
+            /* Every Vote string that tells the GM to use a button names one the vote's window draws (E10 fix r2-G4; the
+               round-2 goal verifier's S06-32: G3's `resendUnseen` said "use Remind" / "użyj Przypomnij" after C15 had
+               renamed the button). The verb is each file's own ("use", "użyj"); at least the restart's three are read. */
+            const flat = (o, at = "") => Object.entries(o).flatMap(([k, v]) => (typeof v === "object" ? flat(v, `${at}${k}.`) : [[`${at}${k}`, v]]));
+            const buttons = [l.Vote.send, l.Vote.tally, l.Vote.sendAgain, button];
+            const named = flat(l.Vote).flatMap(([key, text]) => [...text.matchAll(code === "en" ? /\buse (.+?)(?: instead)?\./g : /\bużyj (.+?)\./g)]
+                .map(m => [key, m[1]]));
+            const strays = named.filter(([, name]) => !buttons.includes(name));
+            ok(named.length >= 3 && named.some(([key]) => key === "resendUnseen") && !strays.length,
+                `${code}: a Vote string names a button the window does not draw (S06-32): ${JSON.stringify(strays)} of ${named.length}`);
+        }
+        ok(!Object.values(lang.en.Vote.resendWarning).some(text => text.includes("Remind")), "the English restart warning still says Remind");
+    }],
+    ["R340 - every road to the verdict window in a Final Trial opens the Final Trial's", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; round 2's cor m2. C10 routed the console's verdict button to the Final Trial's
+         * window (R321 reads that line), and `openVerdictDialog` - also `game.drpg.verdictDialog` - still opened the
+         * ordinary verdict in a Final Trial. Read in vote.mjs: the function answers with `openFinalVerdictDialog`
+         * when `inFinalTrial()`, and does so before it reads the trial's record or draws a window. Tier 2 drives
+         * the API: "the verdict's API in a Final Trial opens the Final Trial's window".
+         */
+        const sources = new Map(await otherSources());
+        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
+        const body = fnSource(vote, "openVerdictDialog");
+        const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
+        const record = body.search(/trialProgress\(\)/), drawn = body.search(/DialogV2\.wait\(/);
+        equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
+            "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
+            + "(read: the route there, the record read after it, the window drawn after it)");
+        /* E10 fix r2-G6: `applyVerdict`, also `game.drpg.applyVerdict`, takes the same road before its lock is read or
+           written. Tier 2 drives it: "the verdict's own API in a Final Trial opens the Final Trial's window". */
+        const apply = fnSource(vote, "applyVerdict");
+        const applyRoute = apply.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
+        const lock = apply.search(/verdictRunning \|\| trialProgress\(\)\.verdictApplied/), written = apply.search(/setTrialProgress\(/);
+        equal(JSON.stringify([applyRoute >= 0, lock > applyRoute, written > applyRoute]), JSON.stringify([true, true, true]),
+            "applyVerdict does not send a Final Trial to the Final Trial's window before it reads or writes the verdict's lock "
+            + "(read: the route there, the lock read after it, the record written after it)");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
@@ -7233,6 +8081,423 @@ const REGRESSIONS = [
             JSON.stringify([["monocub.mjs x1"], ["call-world.mjs x1"], [], [], [true, true, false, false]]),
             "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
             + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
+    }],
+
+    ["R305 - a trace's tie keeps its three states through every writer and reader of the ledger", async () => {
+        /*
+         * E09 C4, 08.10.2026; audit S05-37, S05-25, the owner's D14. The tie is `true` (tied to the
+         * crime), `false` (a GM's "not tied", a red herring) or `null` (nobody has said). Five places
+         * in remnants.mjs - the place, the read, the two flag writers, the retune - and the cleanup's
+         * receipt and recreation each ran it through `Boolean()`, so "nobody has said" was stored and
+         * read as "not tied", and a victim's death could not tell a red herring from the laundry; it
+         * tied both. The behaviour is tier 2's ("a victim's death ties the chapter's undecided traces
+         * and never one a GM marked not tied"); this holds the shape that cost it: no `Boolean()` on
+         * the tie in any of the seven, each source found. All seven flattened it at 8003b86 (A1, 08.10.2026).
+         * E09 fix r1-G1 adds the two copy makers, observe.mjs `createFind` and gm-items.mjs
+         * `bulletFromRemnant` (the round-1 goal review's G2a): both gave a new copy the ledger's tie
+         * through `Boolean()` at f88133d, a death's kept tie included; they read `tieForCopy` now.
+         * E09 fix r1-G2 adds the legacy migration, remnants.mjs `moveIntoLedger` (the round-1 reviews'
+         * cor F4 = sec F9): its new row ran a token's tie through `Boolean(f("tiedToCrime"))`, a shape
+         * the reader did not know, and its live row's fill took the token's raw `false`; both read
+         * `oldTokenTie` now, and the reader knows the call shape.
+         */
+        const sources = new Map(await otherSources());
+        const READS = [
+            ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
+            ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
+            ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
+            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
+        ];
+        const FLAT = /\bBoolean\(\s*(?:[\w.?]*tiedToCrime|\w+\(\s*["']tiedToCrime["']\s*\))\s*\)/;
+        // A token's flag passed on as it stands: the old `false` is a GM's "not tied" in the ledger.
+        const RAW = /tiedToCrime:\s*f\(\s*["']tiedToCrime["']\s*\)/;
+        const empty = [], flat = [];
+        for (const [file, fn] of READS) {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
+            if (body.length < 40) empty.push(`${file} ${fn}`);
+            if (FLAT.test(body) || RAW.test(body)) flat.push(`${file} ${fn}`);
+        }
+        ok(FLAT.test("tiedToCrime: Boolean(entry.tiedToCrime),") && !FLAT.test("tiedToCrime: tieState(entry.tiedToCrime),")
+            && FLAT.test('tiedToCrime: Boolean(f("tiedToCrime")),') && RAW.test('tiedToCrime: f("tiedToCrime"),')
+            && !RAW.test('tiedToCrime: oldTokenTie(f("tiedToCrime")),'),
+            "the reader does not tell the flattened or raw tie from the kept one");
+        equal(JSON.stringify([empty, flat]), JSON.stringify([[], []]),
+            "a writer or reader of the tie was not found, flattens it to two states with Boolean() or passes an old token's flag on raw (not found; flattens)");
+    }],
+
+    ["R306 - a reshape's ruling is claimed before anything waits: claimRuling marks `ruled` with no await, and the store's hydration is the only wait before either ruling claims", async () => {
+        /*
+         * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
+         * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
+         * marked the proposal ruled. cleanup.mjs `claimRuling` reads the row and marks it in one
+         * synchronous step, and every GM's ruling is run on the primary (gm-bridge.mjs
+         * `askReshapeRuling`), so of two rulings there exactly one finds it unmarked. Tier 2 measures
+         * the race ("two rulings of one reshape at once run once, and the second is told it was
+         * ruled"); this holds the shape it rests on, which a later edit could undo without that test
+         * noticing - an await added before the claim in a road the test does not take: `claimRuling`
+         * is a plain function with no await that reads `.ruled` and patches `ruled:`, and in
+         * `applyReshapeRuling` and `declineReshapeRuling` the one await before `claimRuling(` is
+         * `cleanupAttemptStore.whenHydrated()`. Read off the source, comments stripped.
+         */
+        const sources = new Map(await otherSources());
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const claim = fnSource(cleanup, "claimRuling");
+        const waits = text => [...text.matchAll(/\bawait\s+([\w$.]+)/g)].map(m => m[1]);
+        const beforeClaim = name => {
+            const body = fnSource(cleanup, name);
+            return waits(bodyOf(body, "claimRuling(", { back: body.length }));
+        };
+        ok(JSON.stringify(waits("await a.b(); x = await c(); await  d.e.f;")) === JSON.stringify(["a.b", "c", "d.e.f"]),
+            "the reader does not find the awaits of a line it is shown");
+        equal(JSON.stringify([/^function\s+claimRuling\s*\(/.test(claim), /\bawait\b/.test(claim), /\.ruled\b/.test(claim),
+            /\bpatch\([^;]*\bruled:/.test(claim), beforeClaim("applyReshapeRuling"), beforeClaim("declineReshapeRuling")]),
+        JSON.stringify([true, false, true, true, ["cleanupAttemptStore.whenHydrated"], ["cleanupAttemptStore.whenHydrated"]]),
+        "a reshape's ruling can wait before it claims the proposal (claimRuling a plain function, an await in it, its read of "
+            + "`ruled`, its mark; the awaits before the claim in applyReshapeRuling and in declineReshapeRuling)");
+    }],
+
+    ["R308 - a trace's context line is drawn in the palette's dim ink, not at an opacity", async () => {
+        /*
+         * E09 C15, 08.10.2026; audit S05-30. The caption under a dashboard row (`.drpg-trace-context`)
+         * was the cell's own ink at opacity 0.75, which nothing lifts - `body.drpg-high-contrast` raises
+         * `--drpg-dim`, not an opacity - and the audit read it as below legible. Read off every stylesheet
+         * the manifest loads, comments stripped: each rule that names the class, whether one sets an
+         * opacity, and whether one takes `--drpg-dim`. No browser draws the line in the harness, so what
+         * it looks like is not measured here (the comment over the rule has the computed contrasts).
+         */
+        const css = await moduleStyles();
+        const bodies = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(m => /\.drpg-trace-context\b/.test(m[1])).map(m => m[2]);
+        equal(JSON.stringify([bodies.length > 0, bodies.some(b => /\bopacity\s*:/.test(b)),
+            bodies.some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b))]),
+        JSON.stringify([true, false, true]),
+        "the trace's context line (a rule naming .drpg-trace-context; one setting an opacity; one in var(--drpg-dim))");
+    }],
+
+    ["R309 - the dashboard's tables keep their counts narrow, their hints dim, their Key boxes one line, and the body's button apart", async () => {
+        /*
+         * E09 C16, 08.10.2026; audit S05-28, S05-29, S12-52. What the stylesheet has to say for the
+         * dashboard to read at a glance, read off every stylesheet the manifest loads (comments
+         * stripped): the count cells (`.drpg-num`) given a width and centred; the window's hints in
+         * `--drpg-dim`; the filters' labels to the left and the count no longer pushed to the far
+         * edge (`margin-left: auto`); the Key tab's description boxes one line until focused; a rule
+         * for `.drpg-state-change` in each theme, with the dashboard's "A body is discovered" carrying
+         * the class (investigation.mjs); and a trace's context line at Stained Glass's floor, where
+         * `.notes` sets it in VT323 at Legacy's 11 px (S12-52). No browser lays the window out in the
+         * harness, so how it looks is the live check LIVE-E09-04, not this.
+         */
+        const css = await moduleStyles();
+        const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
+        const bodies = re => rules.filter(([selector]) => re.test(selector)).map(([, body]) => body);
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        equal(JSON.stringify([
+            bodies(/\.drpg-num\b/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
+            bodies(/drpg-window-case .*::placeholder$/).some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b)),
+            bodies(/^\.drpg-trace-filters label$/).some(b => /align-items\s*:\s*flex-start/.test(b)),
+            bodies(/^\.drpg-trace-filters \.notes$/).some(b => /margin-left\s*:\s*auto/.test(b)),
+            bodies(/^\.drpg-key-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
+                && bodies(/^\.drpg-key-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
+            bodies(/drpg-theme-stained-glass[^,]*\.drpg-state-change/).length > 0
+                && bodies(/^\.application\.dialog[^,]*\.drpg-state-change/).length > 0,
+            /action:\s*"bodyFound"[^}]*class:\s*"drpg-state-change"/.test(inv),
+            bodies(/drpg-theme-stained-glass \.drpg-trace-context$/).some(b => /font-size\s*:\s*var\(--drpg-sg-floor\)/.test(b))
+        ]), JSON.stringify([true, true, true, false, true, true, true, true]),
+        "the dashboard's stylesheet (counts sized and centred; hints in var(--drpg-dim); filter labels left; the count pushed to the far edge; Key boxes one line until focused; a state-change rule in each theme; the body button's class; the context line at the glass's floor)");
+    }],
+
+    ["R310 - the handbooks' Key fee, difficulty ladders, reshape and Tamper's three things are the code's, in English and in Polish", async () => {
+        /*
+         * E09 C17, 08.10.2026; audit S05-32, S02-10 (decision D14). The two handbooks state numbers the
+         * code owns, and nothing failed when the two parted: the player's Tamper said "Two things behind the
+         * tile" for as long as its menu offered three (cover, reshape, frame - Reshape had no paragraph), the
+         * Analyze ladders kept a Daily Life row after E09 C14 took that column out of ANALYZE_DC (no roll was
+         * ever scored on it), and the Key fee's bar read "four" with no word of the case's own count, which
+         * E09 C7 made the bar where it is fewer. Each line read here is first asserted to exist, so a
+         * rewritten handbook fails here instead of passing on nothing; the numbers are compared with
+         * KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC and CLEANUP.transformAction, and the count of Tamper's
+         * things with the options action-rolls.mjs `chooseTamper` offers before its Stage 6 row. The words
+         * a handbook gives the bar are a table below with four alone: another bar has no words here and
+         * fails until somebody writes them. Scenario 62's L2 reads the menus' labels against the same files.
+         * THE DAILY LIFE OBSERVE COLUMN (E09 fix r2-G7, 09.10.2026; review round 2's open item 12). Both
+         * handbooks printed OBSERVE_DC's Daily Life ladder beside the scored ones. No roll is scored on it -
+         * `observeDc` is asked a Remnant's kind, no kind (REMNANT_TYPES, OBSERVE_TYPE_ALIAS) is "dailyLife",
+         * and its one reader is Observe's briefing (action-rolls.mjs `thresholdFacts`, `dcObserveDaily`) -
+         * so each handbook now says what the ladder is for, and this reads that sentence and the two facts
+         * it rests on. A kind that is "dailyLife" fails here until the sentence is rewritten.
+         */
+        const VIS = ["obvious", "evident", "subtle", "hidden"];
+        const ladder = (table, col) => VIS.map(v => table[v]?.[col] ?? "?").join(" / ");
+        const one = (table, v, cols) => {
+            const [first, ...rest] = cols.map(c => table[v]?.[c]);
+            return rest.every(n => n === first) ? String(first) : "mixed";
+        };
+        const WORDS = {
+            en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
+                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
+                daily: { player: /No roll is scored on the Daily Life row either: no trace is of that kind\. It is the ladder your Observe briefing/,
+                    gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
+            pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
+                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
+                daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/,
+                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
+        };
+        const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
+        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
+        const things = [...menu.matchAll(/\bvalue:\s*"\w+"/g)].length;
+        ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
+        const { unfoundBar: bar, unfoundDespair: despair } = KEY_REMNANTS;
+        const { dcRelief, limits } = CLEANUP.transformAction;
+        const dailyRead = [!("dailyLife" in REMNANT_TYPES) && !Object.values(OBSERVE_TYPE_ALIAS).includes("dailyLife"),
+            /"DRPG\.Action\.dcObserveDaily", \{ rows: ladderRows\(col\("dailyLife"\)\) \}/.test(fnSource(rolls, "thresholdFacts"))];
+        for (const lang of ["en", "pl"]) {
+            const W = WORDS[lang], lines = {};
+            for (const book of ["player", "gm"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+            }
+            const lineOf = (book, re) => {
+                const line = lines[book].find(l => re.test(l));
+                ok(line !== undefined, `${book}-handbook.${lang}.md has no line matching ${re}`);
+                return line ?? "";
+            };
+            const rowsAfter = (book, re) => {
+                const at = lines[book].findIndex(l => re.test(l));
+                ok(at >= 0, `${book}-handbook.${lang}.md has no table headed ${re}`);
+                return lines[book].filter((_, n) => at >= 0 && n > at + 1 && n <= at + 5)
+                    .map(l => l.split("|").map(c => c.trim()).filter(Boolean));
+            };
+            const cells = (book, re) => lineOf(book, re).split("|").map(c => c.trim()).filter(Boolean);
+            // Tamper: the number word, and one bold paragraph per thing, up to the next heading.
+            const tile = lineOf("player", W.tile);
+            const tamperAt = lines.player.findIndex(l => W.tile.test(l));
+            const paragraphs = lines.player.filter((l, n) => n > tamperAt && /^\*\*[^*]+\.\*\* /.test(l)
+                && !lines.player.some((h, k) => k > tamperAt && k < n && /^#/.test(h)));
+            const reshape = lineOf("player", W.reshape);
+            const fee = lineOf("player", /^> .*\*\*\d+ Despair\*\*/);
+            const gmFee = lineOf("gm", /\(`unfoundBar`, `unfoundDespair`/);
+            const number = (line, re) => Number(line.match(re)?.[1] ?? NaN);
+            const measured = {
+                tamper: [tile.split(" ")[0], paragraphs.length],
+                reshape: [reshape.includes(W.relief(dcRelief)), reshape.includes(`${limits.name} `), reshape.includes(`${limits.text} `)],
+                fee: [number(fee, /\*\*(\d+) Despair\*\*/), ...(W.bar[bar] ?? ["no words for this bar"]).map(w => fee.includes(w))],
+                gmFee: [number(gmFee, new RegExp(`\\*\\*(\\d+) ${W.found}\\*\\*`)), number(gmFee, /\*\*(\d+) Despair/),
+                    number(gmFee, /\*\*\+(\d+)\*\*/), /\b(fewer|mniej)\b/.test(gmFee)],
+                ladder: [/Key Remnant, Final Truth \|/, /^\| Prep, Incident, Tamper \|/, /^\| Faint \|/, /Daily Life \| \d/]
+                    .map(re => cells("player", re).slice(1)),
+                gmObserve: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Key \| Faint \|/),
+                gmAnalyze: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Faint \|/).map(row => row.slice(1)),
+                daily: [lineOf("player", W.daily.player) !== "", lineOf("gm", W.daily.gm) !== "", ...dailyRead]
+            };
+            const daily = VIS.some(v => "dailyLife" in (ANALYZE_DC[v] ?? {}));
+            const expected = {
+                tamper: [W.three[things] ?? `no word for ${things}`, things],
+                reshape: [true, true, true],
+                fee: [despair, true, true],
+                gmFee: [bar, despair, bar * despair, true],
+                ladder: [[ladder(OBSERVE_DC, "key"), ladder(ANALYZE_DC, "key")], [ladder(OBSERVE_DC, "prep"), ladder(ANALYZE_DC, "prep")],
+                    [ladder(OBSERVE_DC, "faint"), ladder(ANALYZE_DC, "faint")], [ladder(OBSERVE_DC, "dailyLife"), daily ? ladder(ANALYZE_DC, "dailyLife") : "-"]],
+                gmObserve: VIS.map((v, i) => [measured.gmObserve[i]?.[0] ?? v,
+                    ...["dailyLife", "key", "faint"].map(c => String(OBSERVE_DC[v][c])), one(OBSERVE_DC, v, ["prep", "incident", "resolution"])]),
+                gmAnalyze: VIS.map(v => [daily ? String(ANALYZE_DC[v].dailyLife) : "-", String(ANALYZE_DC[v].faint),
+                    one(ANALYZE_DC, v, ["prep", "incident", "resolution"])]),
+                daily: [true, true, true, true]
+            };
+            equal(JSON.stringify(measured), JSON.stringify(expected), `the ${lang} handbooks state numbers the code does not have`);
+        }
+    }],
+
+    ["R321 - the handbooks' Class Trial says what the vote, the verdict, the Level Ups and a reset do, in English and in Polish", async () => {
+        /*
+         * E10 C17, 10.10.2026; audit S06-55 and the handbook halves of E10 C1-C16. E10 moved the vote's
+         * state into the world and its ballots into the GMs' store, made a ballot one per person, handed a
+         * late joiner one that raises the bar, opened the verdict window on Cancel and on "Nobody is
+         * executed", put one card in front of every player, gathered the class's Level Ups into one window,
+         * and made a reset count the season on - and the handbooks said "tallied in memory" and "one per
+         * character" for as long as the code said otherwise. Each claim here is a pair: what the code does,
+         * read from its function (`eligibleVoters`, `ballotFor`, `majorityOf`, `openVerdictDialog`,
+         * `postVerdictCard`, `askWhoPicks` and `runAdvancementBatch`, `wipeSeason`, `confirmNewTrial`, the
+         * console's verdict action, `seizeFloor`), and the sentences that say it, one per handbook that
+         * says it. A code fact that changes fails here with its sentences, which then have to be rewritten
+         * with it; a sentence rewritten without the code fails here too. Each book is asserted to have
+         * loaded and each function to have been cut (`fnSource` fails on a renamed one), so nothing passes
+         * on an empty read. Scenario 50's section 6 reads the buttons these sentences name against the
+         * labels in lang/.
+         * E10 fix r1-G5 (10.10.2026; round 1's owed list for the side line's G1, G2 and G4) added six
+         * claims to the GM's books: Finish on the primary alone (`finishVerdict`), no second Level Up and
+         * no second card (`verdictCard`, `verdictLevelUps`, the batch's `given`), the one write a GM
+         * leaving can fall between (the batch's `onGiven` after the row's Level Up - read in the code, and
+         * the sentence says so), a take-back refused while the Level Up is written (`takeBackOffer`),
+         * Enter giving what the rows say (`askWhoPicks`), and a body nobody has found made the execution
+         * (`executeSentenced`). At the books before it the twelve sentences were missing.
+         * E10 fix r2-G2 (10.10.2026; round 2's cor M1) moved Finish from the primary alone to the verdict's
+         * runner (`verdictRunner`: its own GM while connected, otherwise the primary), which the console's
+         * lead reads too (`trialNextStep`); the claim and both sentences say so now.
+         * E10 fix r2-G6 (10.10.2026; what the round-2 lines owed the books) added six claims to the GM's books:
+         * no door opens a trial in an Eclipse (`setClock`, Edit campaign), Edit campaign asks about the chapter it
+         * moves to, Now runs on the primary (`advanceFloorNow`), the moment a runner changes (`verdictRunner` - read
+         * in the code, and the sentence says so), a take-back's latch and its own words (`takeBackOffer`), and both
+         * verdict APIs opening the Final Trial's window (`openVerdictDialog`, `applyVerdict`). At the books before
+         * it the twelve sentences were missing.
+         * E10 fix r2-G7 (10.10.2026; the read of round 2's fixes, F1 and F2): Now carries the floor its GM saw and
+         * a press that finds it moved on moves nothing and says so (`advanceFloorNow`, `advanceFloorOnPrimary`;
+         * scenario 63 X2), and a second take-back's own words are said where they hold - the primary's and the
+         * asking GM's browsers - and "busy" on any other GM's (the bridge's refusal; tier 2 "a second take-back of
+         * one character while the first is written is told as a take-back" reads that code). At c51d2bd the four
+         * sentences said less, and the second said its words held on every browser.
+         */
+        const sources = new Map(await otherSources());
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const vote = code("vote.mjs"), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
+        const panel = code("gm-panel.mjs"), floorCode = code("trial-floor.mjs");
+        const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
+        const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
+        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "wipeSeason");
+        const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
+        const facts = {
+            onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
+                .every(re => re.test(fnSource(vote, "eligibleVoters"))),
+            inWorld: /setTrialProgress\(\{ vote:/.test(fnSource(vote, "ballotFor")),
+            lateBallot: /issued: \[\.\.\.issued, sender\.id\]/.test(fnSource(vote, "ballotFor")),
+            majority: /return Math\.floor\(issued \/ 2\) \+ 1;/.test(fnSource(vote, "majorityOf")),
+            nobodyFirst: /executedOptions = `<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(verdict),
+            cancelFirst: cancelFirst.test(verdict),
+            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(card) && !/blackened/i.test(card),
+            oneWindow: [...batch.matchAll(/\baskWhoPicks\(/g)].length === 1
+                && /"DRPG\.Advance\.queueTitle"/.test(fnSource(levelUp, "askWhoPicks")),
+            closeWindow: /!who \? \(playable \? "player" : null\)/.test(batch),
+            secondTrial: cancelFirst.test(fnSource(floorUi, "confirmNewTrial")),
+            finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
+            season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
+            deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
+            finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
+                .test(fnSource(vote, "finishVerdict"))
+                && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
+                && /if \(progress\.verdictApplied && runner && runner !== game\.user\.id\) return stopped \? "finishElsewhere" : "verdictElsewhere";/
+                    .test(fnSource(floorUi, "trialNextStep")),
+            noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
+                && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
+                && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
+            givenGap: /done\.applied\+\+;\s*if \(entry\.deferred\) await deferredOfferStore\.drop\(actor\.id\);\s*await onGiven\?\.\(actor\);/.test(batch),
+            takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
+                .test(fnSource(levelUp, "takeBackOffer")),
+            enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
+            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced")),
+            eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
+                .test(fnSource(code("clock.mjs"), "setClock"))
+                && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
+            editAsksChapter: /if \(!\(await confirmNewTrial\(result\.chapter\)\)\) phase = getClock\(\)\.phase;/.test(panel),
+            nowOnPrimary: /bridgeRequest\("floor\.now", seen, \{ settle: "reply", onPrimary: true, quiet: true, local: \(\) => advanceFloorOnPrimary\(seen\) \}\)/
+                .test(fnSource(floorCode, "advanceFloorNow"))
+                && /if \(!floorAsSeen\(seen, floor\)\) return null;/.test(fnSource(floorCode, "advanceFloorOnPrimary"))
+                && /if \(res\.reason === "movedOn"\) ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.nowMovedOn"\)\);/
+                    .test(fnSource(floorCode, "advanceFloorNow")),
+            runnerGap: /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner")),
+            takeLatch: /advancing\.add\(actor\.id\);\s*takingBack\.add\(actor\.id\);\s*try \{\s*if \(!await withdrawOffer/.test(fnSource(levelUp, "takeBackOffer"))
+                && /if \(takingBack\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackTaking"/.test(fnSource(levelUp, "takeBackOffer")),
+            finalApi: finalRoute.test(fnSource(vote, "openVerdictDialog")) && finalRoute.test(fnSource(vote, "applyVerdict"))
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    onePerPerson: [/one per person: a player with two students gets one ballot, and a student only a GM plays gets none \(the dead do not cast ballots, `deadCastBallots: false`\)/],
+                    inWorld: [/is in the world, so a GM's reload keeps it/],
+                    lateBallot: [/A player who connects while the vote is open is handed a ballot as their browser loads, and it counts among the ballots issued, so it raises the bar/],
+                    majority: [/\*\*more than half of the ballots issued\*\* \(floor of half plus one\)/],
+                    nobodyFirst: [/on its first option, \*\*Nobody is executed\*\*/],
+                    cancelFirst: [/Its buttons are Cancel, \*\*They got it right\*\* and \*\*They got it wrong\*\*, in that order whatever the count said: Cancel is the default, so Enter closes the window and executes nobody\./],
+                    verdictCard: [/every player then sees one card, \*\*THE VERDICT\*\*/, /the executed student's player is also told privately/],
+                    oneWindow: [/The survivors' Level Ups come in one window on your client, \*\*The class's Level Ups\*\*/],
+                    closeWindow: [/closing the window does the same, except that a student nobody plays is then given nothing/],
+                    secondTrial: [/\(\*\*Open a new trial\*\*\) before opening a second trial, Cancel first and the default/],
+                    finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the Mastermind window's or the trial console's \*\*Final Trial verdict\*\* \|/],
+                    season: [/the season counted one on and the Final Trial flag down/],
+                    deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
+                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
+                    noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
+                    givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
+                    takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
+                    enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
+                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/],
+                    eclipseDoors: [/no other door opens a trial in the dark: Edit campaign keeps the phase, applies the rest of its window and says so, and `game\.drpg\.setPhase` and `game\.drpg\.setClock` refuse the whole move/],
+                    editAsksChapter: [/Edit campaign asks the same question when it moves the phase to Class Trial, about the chapter the window moves to/],
+                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so\./],
+                    runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
+                    takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words on the primary GM's browser and on the browser of the GM who asked for the first \(that one read in the code\), and as busy on any other GM's\./],
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
+                },
+                player: {
+                    onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
+                    lateBallot: [/If you connect while a vote is open, your ballot comes as your browser loads/],
+                    majority: [/\*\*more than half\*\* of the ballots issued - for each name/],
+                    verdictCard: [/Everyone then sees one card, \*\*THE VERDICT\*\*/, /If it is your character, you are also told privately/],
+                    deadObjector: [/A dead student neither presents evidence nor objects\./]
+                },
+                stale: [/tallied in memory/, /one per character/]
+            },
+            pl: {
+                gm: {
+                    onePerPerson: [/jedną na osobę: gracz z dwoma uczniami dostaje jedną kartę, a uczeń, którego gra tylko GM, nie dostaje żadnej \(zmarli nie głosują, `deadCastBallots: false`\)/],
+                    inWorld: [/jest w świecie, więc przeładowanie GMa go zachowuje/],
+                    lateBallot: [/Gracz, który połączy się w trakcie głosowania, dostaje kartę, gdy wczytuje się jego przeglądarka, i ta karta liczy się do rozesłanych, więc podnosi poprzeczkę/],
+                    majority: [/\*\*więcej niż połowy rozesłanych kart\*\* \(połowa zaokrąglona w dół plus jeden\)/],
+                    nobodyFirst: [/na swojej pierwszej opcji, \*\*Nikt nie zostaje stracony\*\*/],
+                    cancelFirst: [/Przyciski to Anuluj, \*\*Trafili\*\* i \*\*Pomylili się\*\*, w tej kolejności bez względu na wynik: domyślny jest Anuluj, więc Enter zamyka okno i nikt nie ginie\./],
+                    verdictCard: [/każdy gracz widzi potem jedną kartę, \*\*WERDYKT\*\*/, /gracz straconego ucznia dowiaduje się o tym także prywatnie/],
+                    oneWindow: [/Level Upy ocalałych przychodzą w jednym oknie na twoim kliencie, \*\*Level Upy klasy\*\*/],
+                    closeWindow: [/zamknięcie okna robi to samo, tyle że uczeń, którego nikt nie gra, nie dostaje wtedy nic/],
+                    secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
+                    finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem \*\*Werdykt Final Trial\*\* w oknie Masterminda albo w konsoli Class Trial \|/],
+                    season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
+                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
+                    finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
+                    noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
+                    givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
+                    takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
+                    enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
+                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/],
+                    eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
+                    editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
+                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym\./],
+                    runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
+                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
+                },
+                player: {
+                    onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
+                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka/],
+                    majority: [/\*\*więcej niż połowy\*\* wydanych kart - dla każdego nazwiska/],
+                    verdictCard: [/Potem wszyscy widzą jedną kartę, \*\*WERDYKT\*\*/, /Jeśli to twoja postać, dowiadujesz się o tym także prywatnie/],
+                    deadObjector: [/Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection\./]
+                },
+                stale: [/liczone w pamięci/, /po jednym na postać/]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks' Class Trial says what the code does not do (each claim: [the code, ...its sentences])`);
+        }
     }]
 ];
 

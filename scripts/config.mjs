@@ -901,12 +901,21 @@ export const TRUTH_BULLET_TYPES = {
         // no such moment. What Faint still means is the same two things it
         // always meant: the connection is doubtful, and it is exempt when a GM
         // does clear the table's evidence by hand.
-        hint: "Doubtful connection to the case. Kept when the GM clears the table's evidence, "
-            + "and can be analysed again."
+        /* D14 (E09 C14, 08.10.2026; audit S02-10): "Faint" names a kind with its own
+           difficulty column and a mark a Prep trace can carry as well (the Faint Prep a
+           Search, a Sabotage or a misleading trail leaves). The name stays, the owner's
+           answer; the sentence says what the mark does, which is the same on both: the
+           chapter's sweep keeps the bullet (chapter.mjs `sparedBySweep` reads `faintOf`;
+           scenario 62's E checks), and it can be analysed again. */
+        hint: "Doubtful connection to the case. Its Faint mark keeps it when the chapter's evidence "
+            + "is cleared, and it can be analysed again."
     },
     prep: {
         label: "Prep Truth Bullet",
-        hint: "Left by the killer during preparation."
+        /* Not "by the killer" (E09 C14, 08.10.2026; audit S13-15): a Search for a tool, a
+           Sabotage and a misleading trail leave this kind for anybody, and the card that
+           identifies one is read at the trial as evidence against whoever held it. */
+        hint: "Left while somebody was gathering tools or preparing something."
     },
     incident: {
         label: "Incident Truth Bullet",
@@ -914,7 +923,8 @@ export const TRUTH_BULLET_TYPES = {
     },
     resolution: {
         label: "Tamper Truth Bullet",
-        hint: "Left by the killer's mistakes while cleaning up the crime scene."
+        // Anybody's Tamper leaves one, not the killer's alone (E09 C14; S13-15, as `prep` above).
+        hint: "Left by somebody tidying up - the too-clean patch, the thing put back slightly wrong."
     },
     autopsy: {
         label: "Autopsy Truth Bullet",
@@ -1084,6 +1094,13 @@ export const CRITICAL = {
  * obvious once in your hand, and a prepared one is easy to pick up and hard to
  * read. Deriving one table from the other flattened both.
  *
+ * NO DAILY LIFE COLUMN (E09 C14, 08.10.2026; audit S02-10, decision D14). The
+ * guide's Daily Life row above was a column here that `analyzeDc` never read: a
+ * bullet's kind is one of TRUTH_BULLET_TYPES and none of them is "dailyLife", so
+ * the only reader was Analyze's briefing, which printed a ladder no roll was ever
+ * scored against. OBSERVE_DC keeps its column, as the issue's verdict and D14
+ * have it; Observe's briefing prints it (`dcObserveDaily`).
+ *
  * `incident` and `resolution` are priced like `prep`, which is the same
  * decision - with the same reasoning - that `OBSERVE_DC` already made and
  * states above: the guide leaves both columns blank in BOTH tables, and
@@ -1107,10 +1124,10 @@ export const CRITICAL = {
  * deleting it.
  */
 export const ANALYZE_DC = {
-    obvious: { dailyLife: 8,  key: 6,  faint: 8,  prep: 12, incident: 12, resolution: 12 },
-    evident: { dailyLife: 12, key: 9,  faint: 12, prep: 15, incident: 15, resolution: 15 },
-    subtle:  { dailyLife: 18, key: 12, faint: 15, prep: 18, incident: 18, resolution: 18 },
-    hidden:  { dailyLife: 21, key: 15, faint: 18, prep: 21, incident: 21, resolution: 21 }
+    obvious: { key: 6,  faint: 8,  prep: 12, incident: 12, resolution: 12 },
+    evident: { key: 9,  faint: 12, prep: 15, incident: 15, resolution: 15 },
+    subtle:  { key: 12, faint: 15, prep: 18, incident: 18, resolution: 18 },
+    hidden:  { key: 15, faint: 18, prep: 21, incident: 21, resolution: 21 }
 };
 
 /*
@@ -1184,6 +1201,12 @@ export const KEY_REMNANTS = {
      *
      * `found` is the bar, not `placed`: a clue nobody found did its job as
      * badly as one that was never put out.
+     *
+     * FOUR, OR THE CASE'S OWN COUNT WHERE THAT IS FEWER (E09 C7, decision D14,
+     * option 1). `unfoundBar` is the guide's four; a case whose opening gave
+     * three Key Remnants (`MURDER_OPENING`, a critical) is charged below three,
+     * so a table that found all three owes nothing. The rule is
+     * investigation.mjs `keyFeeOf`, which also says what counts as found.
      *
      * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
      * Monokuma" with two GMs in mind, which reads either way at four. It is
@@ -1562,13 +1585,16 @@ export const ACTIONS = {
         icon: "fa-broom",
         traits: ["shadow"],
         cost: 1,
-        hint: "Wipe out a trace you left, or plant one pointing at somebody else.",
+        // A trace you KNOW is here (E09 C14, 08.10.2026; audit S13-18): since 31.08 the cover
+        // list is the traces the player has found (`cleanableTracesForPlayer`), not the ones
+        // they left, and its critical can reshape one instead of wiping it.
+        hint: "Wipe out, or reshape, a trace you know is here - or plant one pointing at somebody else.",
         // No thresholds here on purpose: the erase branch reads its number off
         // how visible the trace is (`CLEANUP.dc`) and the frame-up reads a flat
         // 18 off `CLEANUP.actions.misleadingTrail`. One number written here as
         // well would be a second copy of a rule this table does not own.
-        description: "You go over a trace you left until it is gone, or you leave one that "
-            + "points at somebody else. Being watched while you do it is its own problem."
+        description: "You go over a trace you know is here until it is gone or reads as something else, "
+            + "or you leave one that points at somebody else. Being watched while you do it is its own problem."
     },
     directMurder: {
         kind: "universal",

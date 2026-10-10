@@ -158,7 +158,8 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided", "relay", "sheetPutBack", "failed",
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided",
+    "notEligible", "sameTwice", "wrongCount", "relay", "sheetPutBack", "failed",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -190,7 +191,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
+    ["badRequest", /^a pick raises a statistic that is not one$/],
+    ["missing", /^a pick raises an experience the character does not have$/],
     ["badRequest", /^no such Level Up: /],
+    ["badRequest", /^an offer is given or taken back, nothing else$/],
     ["badRequest", /^".*" does not grant ".*"$/],
     ["badRequest", /^".*" is not a visibility$/],
     ["badRequest", /^not an action for that side$/],
@@ -338,7 +342,16 @@ export const REASON_PATTERNS = Object.freeze([
     ["callNotApproved", /^no GM's yes stands for that Call$/],
     // E29 fix r2-H21: an item a player's browser made that no GM has decided on yet changes no hands (sheet-audit.mjs
     // `creationRefusal`, asked by the copy roads of handover.mjs and vault.mjs).
-    ["itemNotDecided", /^no GM has decided yet on an item a player made on a sheet: ".*"$/]
+    ["itemNotDecided", /^no GM has decided yet on an item a player made on a sheet: ".*"$/],
+    // E10 C2: a ballot, judged by the primary GM (gm-bridge.mjs `vote.cast`, vote.mjs `ballotRefusal`).
+    ["badRequest", /^a GM casts no ballot$/],
+    ["movedOn", /^the vote has moved on since that ballot was handed out$/],
+    // E10 fix r2-G7: a GM's Now on a floor the primary no longer holds (gm-bridge.mjs `floor.now`, trial-floor.mjs `floorAsSeen`).
+    ["movedOn", /^the trial's floor has moved on since that Now was pressed$/],
+    ["notEligible", /^the sender holds no ballot in this vote$/],
+    ["sameTwice", /^the ballot names somebody twice$/],
+    ["wrongCount", /^the ballot names \d+, the vote asks for \d+$/],
+    ["missing", /^the ballot names somebody who is not on it$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

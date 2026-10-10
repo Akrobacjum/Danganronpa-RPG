@@ -1429,10 +1429,9 @@ const INVARIANTS = [
 
         const build = () => `<div class="drpg-t-keys">
             <label><input type="checkbox" name="keyOverride"> more</label>
-            <select name="room:4" class="drpg-key-limited" disabled>
-                <option value="">-</option><option value="Kitchen">Kitchen</option></select>
-            <select name="vis:4" class="drpg-key-limited" disabled>
-                <option value="evident">evident</option></select>
+            <button type="button" name="place:4" class="drpg-key-place drpg-key-limited" disabled>Place</button>
+            <select name="token:4"><option value="">-</option></select>
+            <button type="button" name="place:5" class="drpg-key-place drpg-key-limited" disabled>Place</button>
         </div>`;
         const host = document.createElement("div");
         host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
@@ -5140,7 +5139,8 @@ const INVARIANTS = [
             ["overflow.mjs", "addOverflow", "await overflowStore.whenHydrated();", "state()"],
             ["overflow.mjs", "checkOverflow", "await overflowStore.whenHydrated();", "state()"],
             ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
-            ["vote.mjs", "openVote", "await whenTrialReadable();", "trialBlackenedIds("],
+            // E10 C1: the vote opens on the primary GM, in `runVoteOp` (`openVote` asks it).
+            ["vote.mjs", "runVoteOp", "await whenTrialReadable();", "trialBlackenedIds("],
             ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
         ];
         const early = WAITS.filter(([file, name, wait, read]) => {
@@ -5299,15 +5299,16 @@ const INVARIANTS = [
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");
-        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206 };
+        // `chapter` since E09 fix r1-G3: the one the incident opened in, the clock's unless the caller names it.
+        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206, chapter: 7 };
         const fresh = M.freshIncidentState(args);
         const sorted = list => [...list].sort();
         const due = sorted([...Object.keys(M.PUBLIC_INCIDENT), ...S.CAST_FIELDS.filter(f => f !== "betrayal")]);
         equal(JSON.stringify(sorted(Object.keys(fresh))), JSON.stringify(due),
             "a new incident's values do not name exactly the world half's and the cast's fields but the betrayal offer");
-        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt]),
-            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206]),
-            "a new incident does not open at the opening roll with its killer's turn, its kind and the time it was handed");
+        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt, fresh.chapter]),
+            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206, 7]),
+            "a new incident does not open at the opening roll with its killer's turn, its kind and the time and the chapter it was handed");
         const again = M.freshIncidentState(args);
         const same = JSON.stringify(again) === JSON.stringify(fresh);
         fresh.spent.push("strike");
@@ -5648,6 +5649,12 @@ const INVARIANTS = [
          * that must carry the option are read in their source, and the card's click in its own.
          * Red before the fix: the assistant GM ran `local` and sent nothing, and neither request
          * named `onPrimary`.
+         *
+         * E09 fix r1-G3 (08.10.2026; the round-1 goal review's G3a): the Key fee. A trial opens
+         * on whichever GM moved the phase (clock.mjs `reconcilePhase`), and the fee counts by the
+         * GMs' marks, which are the primary's: the opening asks the charge of the primary
+         * (investigation.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,
+         * and the phase change charged on its own GM (scenario 62's phase P drives it on gm2).
          */
         const { createWaiter } = await import("./bridge-guards.mjs");
         const run = async who => {
@@ -5670,6 +5677,10 @@ const INVARIANTS = [
         const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
             .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
+        const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
+        const opening = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
+        ok(/\bonPrimary:\s*true\b/.test(feeAsk) && /\baskToChargeForUnfoundKeys\(/.test(opening) && !/\bchargeForUnfoundKeys\(/.test(opening),
+            "a trial's opening charges the Key fee on the GM who moved the phase, not on the primary (investigation.mjs askToChargeForUnfoundKeys, clock.mjs reconcilePhase)");
         const click = fnSource(stripComments(sources.get("roll-draw.mjs") ?? ""), "onRenderUnwitnessed");
         ok(/\baskToDecide\(/.test(click) && !/\bdecideUnwitnessed\(/.test(click), "the GMs' card's buttons decide on the GM who clicked, not through askToDecide");
     }],
@@ -5825,6 +5836,126 @@ const INVARIANTS = [
             JSON.stringify([30000, true, true,
                 [{ ok: false, reason: "noGm" }, 0, ["roll.draw noGm"]], [[[30000], null], { ok: false, reason: "noAnswer" }, 1, ["roll.draw noAnswer"]]]),
             "a drawn roll's wait is not the draw's own 30 s, is not asked with it, plays an unanswered draw, or a gone or silent GM does not end it once as noGm or noAnswer at that clock (each: the clock, asked with it, returns before playBack; gone: answer, sent, said; silent: the clock still running after the got-it and the answer before it fires, the answer, sent, said)");
+    }],
+
+    ["R307 - the Tamper, Analyze and Observe words say what the rules do, in English and in Polish", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S13-15, S13-18, S05-31, S05-33, S05-35, S02-10, decision D14. Words the
+         * rules had moved away from: Analyze's briefing printed a Daily Life ladder `analyzeDc` never scores
+         * against; Polish Tamper spoke of a trace "left by you" when it reaches any trace you know of; the
+         * Polish Cleanup prompts charged an action the rule no longer takes and the Polish frame hint said a
+         * trace is planted "either way" when a miss with Despair plants none; the Prep and Resolution kinds
+         * named the killer as their author; a missed Observe named a Sanity mark it had not made; a missed
+         * Analyze of a Key called it Neutral; a reshape read "a Obvious" and claimed one band quieter whatever
+         * band it set. Read from both lang files and config.mjs, every reading a text that must be there or a
+         * phrase that must not, each named; then `reshapeCardParts` (pure) for a reshape one band quieter,
+         * two, the same and louder; and, read in the source, the New trace dialog's room field and the leftover
+         * Keys' sentence counted with `plural`; and (E09 fix r2-G7, review round 2's N4) the chapter-end line
+         * on a Faint Final, against `revealPlan`'s order read in the source. Not this test: R1 (twins and plural forms), the four tier-2 tests of
+         * E09 C14, which play the cards, and scenario 62 L, which reads a missed Final on a player.
+         */
+        const wrong = [];
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const said = (lang, key) => typeof flats[lang][key] === "string" ? flats[lang][key] : null;
+        const both = (key, test, why) => {
+            for (const lang of ["en", "pl"]) {
+                const words = said(lang, key);
+                if (words === null || !test(words)) wrong.push(`${lang} ${key}: ${why}`);
+            }
+        };
+        both("DRPG.Action.dcAnalyze", w => w.includes("{key}") && !w.includes("{daily}"), "still prints the Daily Life ladder");
+        for (const [band, row] of Object.entries(ANALYZE_DC)) if ("dailyLife" in row) wrong.push(`ANALYZE_DC.${band} has a dailyLife column`);
+        const sources = new Map(await otherSources());
+        const config = stripComments(sources.get("config.mjs") ?? ""), investigation = stripComments(sources.get("investigation.mjs") ?? "");
+        must(config.length > 1000 && investigation.length > 1000, "config.mjs or investigation.mjs did not load");
+        for (const phrase of ["Left by the killer", "a trace you left"]) if (config.includes(phrase)) wrong.push(`config.mjs says "${phrase}"`);
+        for (const kind of ["prep", "resolution"]) {
+            const words = said("pl", `DRPG.Config.TRUTH_BULLET_TYPES.${kind}.hint`);
+            if (words === null || /zabójc/i.test(words)) wrong.push(`pl ${kind}.hint names the killer, or is missing`);
+        }
+        const tamper = Object.keys(flats.pl).filter(k => k.startsWith("DRPG.Tamper.") || k.startsWith("DRPG.Config.ACTIONS.tamper."));
+        must(tamper.length > 10, `pl.json has ${tamper.length} Tamper keys`);
+        for (const key of tamper) if (/po tobie|Nie ma takiego śladu|własnym śladem/.test(flats.pl[key])) wrong.push(`pl ${key}: a trace left by you`);
+        for (const key of ["DRPG.Cleanup.intro", "DRPG.Cleanup.moveIntro"]) both(key, w => !/\baction|akcj/i.test(w), "charges an action");
+        both("DRPG.Tamper.frameHint", w => w.includes("Despair") && !w.includes("tak czy inaczej"), "does not say a miss with Despair plants nothing");
+        both("DRPG.Cleanup.reshapeRulingWas", w => /: \{now\}\.$/.test(w), "does not read the new trace after a colon");
+        if (/\ba \{(now|band)\}/.test(`${said("en", "DRPG.Cleanup.reshapeRulingWas")} ${said("en", "DRPG.Cleanup.reshaped")}`)) wrong.push("en reshape: an article before a label");
+        const forms = { en: ["one", "other"], pl: ["one", "few", "many", "other"] };
+        for (const lang of ["en", "pl"]) for (const form of forms[lang]) {
+            const words = said(lang, `DRPG.Investigation.leftoverKeys.${form}`);
+            if (words === null || words.includes("(s)")) wrong.push(`${lang} leftoverKeys.${form}: missing or "(s)"`);
+        }
+        both("DRPG.Observe.failed", w => !w.includes("{stress}"), "names Sanity on every miss");
+        both("DRPG.Observe.failedStress", w => w.includes("{stress}"), "does not name the mark");
+        both("DRPG.Analyze.failedShown", w => w.includes("{name}") && !/Neutral/i.test(w), "calls a Key or a Final Neutral");
+        both("DRPG.Analyze.critNothingMore", w => w.length > 0, "missing");
+        // Two words the source chooses, read there: the New trace dialog's room field and the leftover Keys' count.
+        if (!/<label>\$\{game\.i18n\.localize\("DRPG\.Investigation\.room"\)\}\s*<select name="room">/.test(fnSource(investigation, "openNewTrace")))
+            wrong.push("investigation.mjs openNewTrace: the room field is not labelled Room");
+        if (!/plural\("DRPG\.Investigation\.leftoverKeys", \{ n: old \}\)/.test(investigation)) wrong.push("investigation.mjs: leftoverKeys is not counted with plural()");
+        both("DRPG.Bridge.nothingMore", w => w.length > 0, "missing");
+        // E09 fix r2-G7 (review round 2's N4): `revealPlan` decides a Final before it asks whether the sweep spares a
+        // Faint, so a Faint Final shows its kind (read in the source), and the chapter-end screen's line says so.
+        const plan = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "revealPlan");
+        const finalAt = plan.indexOf('realType === "final"'), faintAt = plan.indexOf("sparedBySweep(");
+        if (!(finalAt >= 0 && faintAt > finalAt)) wrong.push("chapter.mjs revealPlan: a Final is not decided before the Faint");
+        for (const [lang, phrase] of [["en", "every Final, Faint or not, shows its kind"], ["pl", "każdy Final, Faint czy nie, pokazuje swój rodzaj"]]) {
+            if (!said(lang, "DRPG.Chapter.revealKeeps")?.includes(phrase)) wrong.push(`${lang} DRPG.Chapter.revealKeeps: a Faint Final is said not to be revealed`);
+        }
+        equal(JSON.stringify(wrong), JSON.stringify([]),
+            "a Tamper, Analyze, Observe or Cleanup text says what the rules do not (each: the language, the key or the table, what it says)");
+
+        const { reshapeCardParts } = await import("./cleanup.mjs");
+        const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+        const quieter = game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter");
+        const data = { visibility: "evident", visibilityLabel: REMNANT_VISIBILITY_LABELS.evident, typeLabel: "Incident Remnant" };
+        const lines = ["subtle", "hidden", "evident", "obvious"].map(softer => {
+            const { body } = reshapeCardParts(data, { name: "R307", softer });
+            const band = foundry.utils.escapeHTML(game.i18n.format("DRPG.Cleanup.reshapeRulingBand", { band: REMNANT_VISIBILITY_LABELS[softer] }));
+            return [body.includes(quieter), body.includes(band)];
+        });
+        equal(JSON.stringify(lines), JSON.stringify([[true, false], [false, true], [false, true], [false, true]]),
+            "a reshape's card says one band quieter when it is not, or does not name the band it set (each: the quieter "
+            + "sentence, the band named; an Evident trace made Subtle, Hidden, Evident, Obvious)");
+    }],
+
+    ["R314 - the count asks the majority of every name it accuses, and fewer names than asked for is no majority", async () => {
+        /*
+         * E10 C3, 09.10.2026; audit S06-12 (its count half), S06-10; the ledger's guard for the count. Until 1.2.71
+         * the majority was asked of the top name alone: on a two-Blackened vote a second name with 2 of 6 ballots
+         * was accused beside a first name's 4, and one name for two Blackened passed as the whole answer.
+         * `countBallots` (vote.mjs) is the count alone, read on five sets of ballots: one name exactly at the bar
+         * (3 of 4); three names level above the bar on a two-name vote (a tie, with a majority); the second name
+         * below the bar (A 4, B 2, C and D 1, of 6); one name for two; nobody. Each reading is the counts, then
+         * [noMajority, tied, accusedIds, majority]. The same harm on the GMs' store and the card is the tier-2
+         * test "a second name short of the majority is accused of nothing ...".
+         */
+        const { countBallots } = await import("./vote.mjs");
+        const read = (lists, wanted, issued) => {
+            const count = countBallots(lists.map(choice => ({ choice })), { wanted, issued });
+            return [count.counts.map(({ id, n }) => `${id}${n}`).join(" "),
+                count.noMajority, count.tied, count.accusedIds, count.majority];
+        };
+        const readings = [
+            read([["A"], ["A"], ["A"], ["B"]], 1, 4),
+            read([["A", "B"], ["A", "B"], ["A", "C"], ["A", "C"], ["B", "C"], ["B", "C"]], 2, 6),
+            read([["A", "B"], ["A", "B"], ["A", "C"], ["A", "D"]], 2, 6),
+            read([["A"], ["A"], ["A"]], 2, 3),
+            read([], 1, 3)
+        ];
+        equal(JSON.stringify(readings), JSON.stringify([
+            ["A3 B1", false, false, ["A"], 3],
+            ["A4 B4 C4", false, true, [], 4],
+            ["A4 B2 C1 D1", true, true, [], 4],
+            ["A3", true, true, [], 2],
+            ["", true, true, [], 2]
+        ]), "the count convicts a name short of the majority, calls a tie among names that carried the room a missing "
+            + "majority, takes one name for two, or accuses somebody with nobody's ballot (each: the counts, "
+            + "noMajority, tied, the accused, the majority)");
     }]
 ];
 
@@ -5865,7 +5996,9 @@ const LITERAL_KEYS = [
     // Daggerheart's level-up selections (E29 fix r1-G2) and its scars (fix r2-H25).
     ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope", "actions", "hitPoints", "stress", "grant",
         "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall", "levelData", "scars"]
-        .map(kind => `DRPG.Audit.field.${kind}`)
+        .map(kind => `DRPG.Audit.field.${kind}`),
+    // cleanup.mjs names a Stage 6 roll's band on the GMs' copy `DRPG.Action.duality.<band>` (E09 C14): the three bands.
+    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`)
 ];
 
 export { INVARIANTS };

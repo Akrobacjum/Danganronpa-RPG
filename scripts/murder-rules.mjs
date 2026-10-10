@@ -77,7 +77,7 @@ import { youOrThem } from "./secret.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
 import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
-import { dropRemnant, traceFeedback } from "./remnants.mjs";
+import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants.mjs";
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
@@ -319,11 +319,12 @@ export function atNight() {
  * outlives its incident (D18) and is kept, not decided, when the next one opens. The one
  * list of a new incident's values - `openMurder` writes it whole, and R206 holds it to the
  * two lists, so the next field an incident gains is added here or fails there (C9, C10,
- * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`,
- * the clock's reading unless the caller names one.
+ * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`
+ * and `chapter`, the clock's readings unless the caller names them (`chapter` since E09
+ * fix r1-G3: the close keeps the case's Key count under it, `closeIncident`).
  */
 export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openingTrait = null,
-    openedAt = Date.now() } = {}) {
+    openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
     // `const fresh`, read by R191's census of the fields an incident's writes name.
     const fresh = {
         active: true,
@@ -359,6 +360,7 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         recent: [],
         thirdActed: null,
         openedAt,
+        chapter,
         keyRemnantsStale: null,
         endedBy: null
     };
@@ -2810,7 +2812,7 @@ async function clearAdvantage(side, key) {
 
 async function spendStress(actor, done) {
     // The same write the clean-up makes (cleanup.mjs `markResolutionStress`);
-    // `false` means the track was full, and the blood branch below pays instead.
+    // `0` (no marks added) means the track was full, and the blood branch below pays instead.
     // What it marked is read off the sheet before and after it (S04-05), not assumed.
     const { markResolutionStress } = await import("./cleanup.mjs");
     const before = reserveOf(actor, "stress").left;
@@ -3239,6 +3241,21 @@ async function closeIncident(state, { reason, followUp }) {
         }
     }
 
+    /* WHAT THE FIGHT TIED AND NO DEATH TOOK OVER (E09 fix r1-G1, 08.10.2026; the round-1 reviews'
+       cor F1). A weapon swung in the fight ties its traces in the ledger and the copies wait
+       (remnants.mjs `tieWaitNow`); a death the GMs keep takes the wait over (chapter.mjs
+       `incidentVictimDied`) and one made public sends it. What is still on the fight here - a
+       victim who lived, or one revived - goes to the copies at the close (tier 2 "a fight's tie
+       with no death reaches the copies at the fight's close"); 1.2.70 sent it sooner, at the
+       swing. The self-inflicted death above is kept, as any victim's is, and `killCharacter`
+       awaits `incidentVictimDied`, so its share is taken over before this line - read in the
+       code, not measured: no test reads a copy across the close of a self-inflicted incident. */
+    try {
+        await publishTiesFor(fightKey(state));
+    } catch (err) {
+        error("Could not send the fight's ties to the copied bullets", err);
+    }
+
     // Before the state is wiped - it is the only place the killer's identity
     // exists once this function returns.
     try {
@@ -3261,6 +3278,27 @@ async function closeIncident(state, { reason, followUp }) {
             } catch (err) {
                 error("Could not destroy the tools the incident used", err);
             }
+        }
+    }
+
+    /* THE CASE'S KEY COUNT, BEFORE THE WIPE TAKES IT (E09 C6, 08.10.2026; audit S05-17). The
+       opening roll's count of Key Remnants lived in the state alone: the checklist below said
+       "3 Key Remnants still to place", and the planner, opened after the close, had no limit
+       and let the GM plan five. Kept in the Key Remnant plan's store (investigation.mjs
+       `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body (`leftABody`) - a
+       failed opening or a fight crowded out has no case to plan. Under the chapter the
+       incident opened in since E09 fix r1-G3 (the round-1 goal review's G3b): under the
+       clock's until then, so a case closed once the clock had moved on was the next chapter's
+       case, its planner's limit and its trial's bar (tier 2, "a case closed after the clock
+       left its chapter ..."). An incident opened before that fix names no chapter: the
+       clock's, as before. A dynamic import, because investigation.mjs reaches this file
+       through its static imports. */
+    if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
+        try {
+            const { recordCaseKeys } = await import("./investigation.mjs");
+            await recordCaseKeys(state.chapter ?? getClock()?.chapter, state.keyRemnants);
+        } catch (err) {
+            error("Could not keep the case's Key Remnant count", err);
         }
     }
 

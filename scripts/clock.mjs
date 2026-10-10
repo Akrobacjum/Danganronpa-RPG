@@ -22,7 +22,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, error, plural } from "./utils.mjs";
+import { announce, log, warn, error, plural, serverNow } from "./utils.mjs";
 
 /**
  * Current clock, always with every field present. Defined in settings.mjs -
@@ -46,11 +46,33 @@ export function campaignName(clock = getClock()) {
     return clock.campaignName?.trim() || game.world?.title || "";
 }
 
-/** Set the phase: dailyLife | investigation | classTrial. */
-export async function setPhase(key) {
+/**
+ * Set the phase: dailyLife | investigation | classTrial.
+ *
+ * INTO A TRIAL AFTER A VERDICT ONLY WHEN THE CALLER ASKED (E10 C11, 1.2.71; audit S06-33; D17).
+ * Entering the trial blanks the chapter's trial record (`reconcilePhase`), its `verdictApplied`
+ * included, so a second trial in a chapter with a verdict is a second execution waiting to happen.
+ * This is `game.drpg.setPhase` and the road `startFloor` takes - calls from a macro or from another
+ * function, not a GM at a button - so without `confirmNewTrial` it refuses with a warning and writes
+ * nothing; the asking is trial-floor-ui.mjs `confirmNewTrial`, behind Start the Class Trial and Edit
+ * campaign. `setClock` itself stays the bare writer every door uses, and is not asked (a GM's own
+ * `game.drpg.setClock({ phase })` still opens a trial unasked: E10 C11's note names that road) - but it
+ * refuses a trial opened in an Eclipse, for every door (E10 fix r2-G5).
+ *
+ * @param {string} key
+ * @param {{confirmNewTrial?: boolean}} [options]  true: the GM was asked and said yes.
+ */
+export async function setPhase(key, { confirmNewTrial = false } = {}) {
     if (!PHASES[key]) {
         ui.notifications.error(game.i18n.format("DRPG.Clock.unknownPhase", { key }));
         return null;
+    }
+    if (key === "classTrial" && getClock().phase !== "classTrial" && !confirmNewTrial) {
+        const { trialProgress } = await import("./vote.mjs");
+        if (trialProgress().verdictApplied) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Floor.newTrialRefused"));
+            return null;
+        }
     }
     return setClock({ phase: key });
 }
@@ -97,9 +119,33 @@ export async function setClock(patch = {}) {
     // reset on one of those three routes would quietly lie on the other two.
     // `patch` wins if a caller sets the stamp itself - that is how a correction
     // can move the clock without pretending the pause never happened.
-    if (patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay
+    //
+    // AND WHEN THE PHASE CROSSES THE TRIAL'S EDGE (E10 C12, 1.2.71; audit S06-36). Start the
+    // Class Trial and End the trial stamped it themselves; the other roads in and out - the
+    // trial ended from Edit campaign, a debate opened outside a trial (`startFloor` ->
+    // `setPhase`), `game.drpg.setPhase` - did not, and the HUD went on counting the time of
+    // day from before the trial, in red. Only a move into or out of the Class Trial: a body
+    // found turns Daily Life into the Investigation in the middle of a time of day, and the
+    // day's summary (day-summary.mjs) is bounded by this stamp. Measured in tier 2 "the trial's
+    // exits say what happened". The stamp is the server's clock (utils.mjs `serverNow`, E10 C13), as
+    // is every reader's count from it: the HUD's elapsed line on a player's machine counts from a GM's.
+    const trialEdge = patch.phase !== undefined && patch.phase !== before.phase
+        && (patch.phase === "classTrial" || before.phase === "classTrial");
+    if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
         && patch.timeOfDayStartedAt === undefined) {
-        next.timeOfDayStartedAt = Date.now();
+        next.timeOfDayStartedAt = serverNow();
+    }
+    /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
+       Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
+       trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
+       Objection refused in the dark. Every one of them writes through here, so the check is here once:
+       the whole write is refused, nothing written, and the GM told. Read on the clock as it would be
+       after the write, so a write that ends the Eclipse may open the trial, and tier 2's restore of a
+       clock from before an Eclipse is not refused. Measured in tier 2 "no road opens the trial in an
+       Eclipse" (red at c494855 on every road it drives). */
+    if (trialEdge && next.phase === "classTrial" && next.eclipse === true) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+        return null;
     }
     // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
     // flag set again later by hand must not inherit the last Eclipse's name.
@@ -481,7 +527,7 @@ export function refreshSheets() {
  * So the reconciliation lives where the phase is actually written, and the two
  * doors keep only what is theirs: the confirmation, and the card the table
  * reads. Every step here is idempotent - `endFloor` writes an empty queue,
- * `resetTrialProgress` writes the same four fields, `chargeForUnfoundKeys`
+ * `resetTrialProgress` writes the same fields each time, `chargeForUnfoundKeys`
  * stamps `keysCharged` and refuses to run twice in one chapter - so a door that
  * comes through here is not doing its own work a second time.
  */
@@ -526,9 +572,11 @@ async function reconcilePhase(from, to) {
                record and the "already charged" stamp lives in it, so charging first
                would have the stamp wiped a line later and the next trial opened in
                this chapter would pay Monokuma twice. It whispers the GMs whatever it
-               charged - see `chargeForUnfoundKeys`. */
-            const { chargeForUnfoundKeys } = await import("./investigation.mjs");
-            await chargeForUnfoundKeys();
+               charged - see `chargeForUnfoundKeys` - and is made on the primary GM
+               whichever GM moved the phase (E09 fix r1-G3, `askToChargeForUnfoundKeys`):
+               the GMs' marks it counts by are the primary's. */
+            const { askToChargeForUnfoundKeys } = await import("./investigation.mjs");
+            await askToChargeForUnfoundKeys();
         } catch (err) {
             error("Could not charge for the Key Remnants nobody found", err);
         }

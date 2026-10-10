@@ -1577,14 +1577,14 @@ async function liftIntoCast(fields, what) {
  * you know about this" and the same one `remnantData` gives. Nothing on a
  * player's screen reads it.
  */
-export function blackenedIds() {
+export function blackenedIds(chapter = getClock()?.chapter ?? null) {
     if (!game.user.isGM) return [];
     /* THIS CHAPTER'S AND THIS SEASON'S ROWS (E04; audit S04-25). The register was
        emptied at the chapter's end, and a GM's copy that missed the emptying came
        back with the next sync and put last chapter's killers on this chapter's
        verdict. A row keeps its chapter and season now and is read against the
-       clock instead; nothing has to be emptied. */
-    const chapter = getClock()?.chapter ?? null;
+       clock instead; nothing has to be emptied. A caller may name the chapter
+       (`recordBlackened`, E09 fix r2-G4). */
     const epoch = seasonEpoch();
     return Object.entries(blackenedStore.entries())
         .filter(([, row]) => row?.chapter === chapter && (row.epoch ?? 0) === epoch)
@@ -1639,7 +1639,8 @@ export function countsAtTrial(row, untold) {
  * both stores' hydration): read before, a vote opened moments after a load counted from this
  * browser's rows alone - a killer another GM recorded was missing from the ballot's count,
  * and a death another GM still kept secret was not yet there to hold its killer back.
- * `openVote` and `openVerdictDialog` wait on this before they count. (Since E05 fix r2-G3
+ * The vote's steps (vote.mjs `runVoteOp`, on the primary GM since E10 C1) and `openVerdictDialog`
+ * wait on this before they count. (Since E05 fix r2-G3
  * the killer is held back by the victim's flag, not by the row - `untoldDeath` - so only the
  * register's wait still counts there; the deaths' wait stays for the verdict, which asks
  * who is dead to the GMs - `isDeadForGm` - before it executes or rewards anybody.)
@@ -1687,14 +1688,26 @@ export function trialBlackenedActors() {
  * victim on their feet, and made their attacker a Blackened for a death nobody died (the
  * grid's DM04, DM09 and TP04, red at 0642f1a); a victim who died from the Students list
  * while the GM declined Stage 6 closes from the fight, and is a body all the same.
+ *
+ * UNDER THE CHAPTER THE INCIDENT OPENED IN (E09 fix r2-G4, 08.10.2026; the round-2
+ * correctness review's item 2), as the case's Key count is since fix r1-G3
+ * (murder-rules.mjs `closeIncident`). Under the clock's until then: a clock moved on while
+ * the case ran made its killer the next chapter's Blackened - that trial asked for them, the
+ * case's own did not (tier 2 "a case closed after the clock left its chapter keeps its
+ * Blackened under its own chapter", red at the parent). And the rows added to were the
+ * clock's chapter's, so a close after the clock moved wrote over the killer's row of the
+ * case's chapter, an earlier victim with it: the same test with only the row's chapter put
+ * right read one victim of two (08.10.2026). An incident opened before r1-G3 names no
+ * chapter: the clock's, as before.
  */
 export async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
     if (!leftABody(state)) return;
 
-    const held = Object.fromEntries(blackenedIds().map(id => [id, blackenedStore.get(id)]));
+    const chapter = state.chapter ?? getClock()?.chapter ?? null;
+    const held = Object.fromEntries(blackenedIds(chapter).map(id => [id, blackenedStore.get(id)]));
     const rows = blackenedWrites(held, killerIds(state), state.victimId,
-        { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: Date.now() });
+        { chapter, epoch: seasonEpoch(), at: Date.now() });
     const written = Object.keys(rows);
     if (!written.length) return;
     await blackenedStore.patchMany(rows);

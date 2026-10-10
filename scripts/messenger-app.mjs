@@ -589,10 +589,20 @@ export function wireCallActions(body, message = null) {
         return;
     }
 
+    /*
+     * EVERY BUTTON OF THE CARD IS HELD WHILE ONE CLICK RUNS (E09 C10, 08.10.2026). Only
+     * the button pressed used to be, so Approve and then Decline on one card, pressed
+     * before the first had answered, were both asked. The rulings themselves refuse a
+     * second one now (cleanup.mjs `claimRuling`); this keeps the second click from
+     * being asked at all.
+     */
+    let busy = false;
+    const hold = held => { for (const each of buttons) each.disabled = held; };
     for (const button of buttons) {
         button.addEventListener("click", async event => {
             event.preventDefault();
             event.stopPropagation();
+            if (busy) return;
 
             // Disabled for the duration of the click and NOT one moment longer.
             // It used to be disabled on the way in and re-enabled only in the
@@ -601,18 +611,21 @@ export function wireCallActions(body, message = null) {
             // no way back except closing the whole window and opening it again
             // (Dawid, 26.08). Backing out of a ruling is not an error and must
             // not be punished like one.
-            button.disabled = true;
+            busy = true;
+            hold(true);
             try {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
-                    return; // The card redraws itself; this button is gone.
+                    return; // The card redraws itself; these buttons are gone.
                 }
             } catch (err) {
                 error("Could not act on the ruling card", err);
+            } finally {
+                busy = false;
             }
-            button.disabled = false;
+            hold(false);
         });
     }
 }
@@ -841,21 +854,15 @@ async function ruleDeclineProject(action, data) {
 /*
  * N-3, 21.09: a reshaped trace is a proposal, like a project.
  *
- * The words are on the card so the ruling survives a reload; the trace is
- * read fresh inside `applyReshapeRuling`, because the thing being ruled on
- * is the trace as it stands now, not as it stood when the dice landed.
+ * The card carries which attempt it was raised for; the words are on that
+ * attempt's row in the GMs' store, which survives a reload (E09 C10), and the
+ * trace is read fresh inside `applyReshapeRuling`, because the thing being
+ * ruled on is the trace as it stands now, not as it stood when the dice landed.
+ * Ruled on the primary GM, whichever GM pressed (`askReshapeRuling`).
  */
 async function ruleApproveReshape(action, data) {
-    const { applyReshapeRuling } = await import("./cleanup.mjs");
-    const applied = await applyReshapeRuling({
-        actorId: data.by,
-        tokenId: data.trace,
-        name: data.rname ?? "",
-        text: data.rtext ?? "",
-        softer: data.softer || null,
-        tie: Boolean(data.tie),
-        attempt: data.attempt ?? ""
-    });
+    const { askReshapeRuling } = await import("./gm-bridge.mjs");
+    const applied = await askReshapeRuling("approve", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     /* `false` is a ruling that went through - a Reroll had taken the attempt back,
        and the card says so - where `null` leaves the card open to be answered. The
        same split `ruleApproveMurder` draws. */
@@ -866,15 +873,32 @@ async function ruleApproveReshape(action, data) {
 async function ruleDeclineReshape(action, data) {
     // No refund, and the comment on `proposeReshape` says why: the Sanity
     // and the turn bought the attempt, and the attempt happened.
-    const { declineReshapeRuling } = await import("./cleanup.mjs");
-    const told = await declineReshapeRuling({
-        actorId: data.by,
-        tokenId: data.trace || null,
-        erase: Boolean(data.erase),
-        attempt: data.attempt ?? ""
-    });
+    const { askReshapeRuling } = await import("./gm-bridge.mjs");
+    const told = await askReshapeRuling("decline", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     if (told === false) return settled("DRPG.Cleanup.reshapeVoided");
     return told ? settled("DRPG.Bridge.settledDeclined") : null;
+}
+
+/*
+ * AN OBSERVE'S FOCUSED GAZE (E09 C12; audit S05-27). "Pick a trace" opens the picker on this
+ * GM's browser and sends the pick to the primary GM, which checks it against the traces the
+ * character could be shown now and answers the player (observe.mjs `pickFromCard`, gm-bridge.mjs
+ * `askObservePick`). A pick the primary did not take leaves the card open, unless nobody is
+ * waiting on it any more - then the card says so. The card carries the ask's request id, the
+ * character and the player's own words, and no trace.
+ */
+async function rulePickObserveTrace(action, data) {
+    const { pickFromCard } = await import("./observe.mjs");
+    const picked = await pickFromCard({ rid: data.rid, by: data.by, request: data.desc ?? "" });
+    if (picked === "gone") return settled("DRPG.Observe.pickGone");
+    return picked === "picked" ? settled("DRPG.Bridge.settledAnswered") : null;
+}
+
+async function ruleRefuseObserveTrace(action, data) {
+    const { askObservePick } = await import("./gm-bridge.mjs");
+    const refused = await askObservePick({ rid: data.rid, actorId: data.by, refuse: true });
+    if (refused === "gone") return settled("DRPG.Observe.pickGone");
+    return refused === "refused" ? settled("DRPG.Bridge.settledDeclined") : null;
 }
 
 // ---------------------------------------------------------------- generic
@@ -996,8 +1020,9 @@ async function ruleObserveMiss(action, data) {
  *                                     anything was paid, never for how much:
  *                                     "0" is a free action, and the hint card
  *                                     that answers an Analyze which has already
- *                                     resolved (COMM-07, analyze.mjs) writes
- *                                     exactly that. A forged "0" only costs the
+ *                                     resolved (COMM-07, analyze.mjs) wrote
+ *                                     exactly that until E09 C14, which gave it
+ *                                     `paid: "none"`. A forged "0" only costs the
  *                                     person who forged it.
  *
  * Returns the receipt `refundPrice` takes, or null for nothing to give back.
@@ -1025,16 +1050,38 @@ async function ruleDecline(action, data) {
     if (!actor) return null;
 
     const receipt = refundOnCard(data);
-    if (receipt) {
-        const { refundPrice } = await import("./price.mjs");
-        await refundPrice(actor, receipt);
-    } else {
-        // Said out loud because the silence used to be a refund.
-        debug("A refused ruling had nothing to refund: the card says nothing was paid.");
-    }
-
     const { postToThread } = await import("./messenger.mjs");
     const owner = ownerOf(actor);
+    if (!receipt) {
+        // Said out loud because the silence used to be a refund.
+        debug("A refused ruling had nothing to refund: the card says nothing was paid.");
+        /* NOTHING CAME BACK, SO NOTHING IS SAID TO HAVE (E09 C14, 08.10.2026; audit S05-35). A
+           card with nothing paid - a free Search's question, a free hint, and the Analyze
+           critical's hint card (analyze.mjs) - told the player the GM "turned the attempt down"
+           and that their action was back, while nothing was given back; on the critical it read
+           as a refused hint the critical had earned. It is the GM's ruling and is said as one,
+           the way `ruleObserveMiss` says its own, and the card settles as answered.
+           IN THE PRESSED BUTTON'S WORDS (E09 fix r2-G7, 09.10.2026; review round 2's open item 9).
+           C14 answered every such card "Nothing more to add.", and a free Search's "something
+           specific" card and a hint asked of the GM (`declineAction`) carry the button "Nothing
+           was there": the GM pressed one sentence and the thread read another. Measured with
+           tier 2's "a free card's Nothing was there and a critical's Nothing more to add each
+           answer in their own words" on the code before this: the Search's line read "Nothing
+           more to add.". The card names its button's sentence in `words` ("there" or "more");
+           a card that names none was posted before 1.2.71, when both cards' button read "Nothing
+           was there" (read in the code at 1.2.70). The card is the player's (see `declineAction`), so `words` picks between
+           these two sentences and nothing else. */
+        const words = data.words === "more" ? "DRPG.Bridge.nothingMore" : "DRPG.Bridge.nothingThere";
+        if (owner) {
+            await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
+                foundry.utils.escapeHTML(game.i18n.localize(words))}</p>`);
+        }
+        return settled("DRPG.Bridge.settledAnswered");
+    }
+    const { refundPrice } = await import("./price.mjs");
+    await refundPrice(actor, receipt);
+
     const note = `<p><em>${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
     if (owner) await postToThread(owner.id, note);
@@ -1118,6 +1165,8 @@ const CARD_ACTIONS = {
     declineProject: ruleDeclineProject,
     approveReshape: ruleApproveReshape,
     declineReshape: ruleDeclineReshape,
+    pickObserveTrace: rulePickObserveTrace,
+    refuseObserveTrace: ruleRefuseObserveTrace,
     reply: ruleReply,
     observeMiss: ruleObserveMiss,
     decline: ruleDecline,

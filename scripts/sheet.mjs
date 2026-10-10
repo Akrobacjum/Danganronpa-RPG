@@ -20,7 +20,7 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
-import { pendingAdvance as pendingAdvanceFor } from "./level-up.mjs";
+import { standingOffers } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -1539,15 +1539,33 @@ function injectAdvanceButton(app, element) {
     // The owner's alone. Another player opening this sheet used to see the lit badge
     // and read the kind off its tooltip - after a wrong verdict, the Blackened's
     // Reinforced Level Up, on the one character who has it (review of stage D).
-    const offer = (game.user.isGM || !app.document.isOwner) ? null : pendingAdvanceFor(app.document);
-    if (!game.user.isGM && !offer) return;
+    //
+    // AND THE GM'S (E10 C6, 1.2.71; audit S03-17). A GM was handed no offer here, so the
+    // GM's button never lit and nothing said one stood: it lights from the GMs' store now,
+    // and says how many stand; its menu takes one back (level-up.mjs `openAdvancementFor`).
+    const offers = !app.document.isOwner ? [] : standingOffers(app.document);
+    const [offer] = offers;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
+    const standing = nameRow?.querySelector("[data-drpg-advance]");
+    // A player with nothing on offer has no button: a header drawn again after the offer
+    // was spent or taken back used to keep the lit one, whose press said "GM only" (S03-17).
+    if (!game.user.isGM && !offer) {
+        standing?.remove();
+        return;
+    }
     if (!nameRow) return;
-    const standing = nameRow.querySelector("[data-drpg-advance]");
+
+    const count = offers.length > 1 ? plural("DRPG.Advance.standing", { n: offers.length }) : "";
+    const tip = game.user.isGM
+        ? (offer ? plural("DRPG.Advance.standing", { n: offers.length }) : game.i18n.localize("DRPG.Advance.buttonTooltip"))
+        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) }), count]
+            .filter(Boolean).join(" ");
     if (standing) {
         // A sheet re-rendered after the offer was taken must not keep the glow.
         standing.classList.toggle("is-offered", Boolean(offer));
+        standing.dataset.tooltip = tip;
+        standing.setAttribute("aria-label", tip);
         return;
     }
 
@@ -1556,11 +1574,6 @@ function injectAdvanceButton(app, element) {
     button.className = "drpg-advance-button";
     if (offer) button.classList.add("is-offered");
     button.dataset.drpgAdvance = "";
-    const tip = offer
-        ? game.i18n.format("DRPG.Advance.offerTooltip", {
-            kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
-        })
-        : game.i18n.localize("DRPG.Advance.buttonTooltip");
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-angles-up" inert></i>`;
@@ -3099,9 +3112,13 @@ function buildBulletRow(li, item, app) {
 /**
  * "Put this in front of everyone."
  *
- * Only during a Class Trial. It reaches the whole table at once, and outside
- * the trial the cast is spread across rooms that are meant to stay separate -
- * the same-room Share button covers those phases instead.
+ * Only during a Class Trial, and only for the living. It reaches the whole
+ * table at once, and outside the trial the cast is spread across rooms that are
+ * meant to stay separate - the same-room Share button covers those phases
+ * instead. A dead student's row has no button (E10 C16, 1.2.71; audit S06-35):
+ * a character killed with their bullets kept still drew one and put evidence on
+ * every screen. `presentDialog` refuses them as well, and `seizeFloor` refuses
+ * their Objection on the primary GM.
  *
  * ONE BUTTON, TWO ACTS, and which one it is depends on whether a debate is
  * open - see `presentDialog`. The window behind it decides for real; this
@@ -3110,26 +3127,12 @@ function buildBulletRow(li, item, app) {
  * this file is on the render path and the shape is one boolean.
  */
 function addPresentButton(li, item, app) {
-    if (!inClassTrial()) return;
-
-    // A floor open at all means evidence takes it.
-    let objecting = false;
-    try {
-        objecting = Boolean(game.settings.get(MODULE_ID, "trialQueue")?.active);
-    } catch {
-        // Present is the quieter of the two and the safer thing to promise.
-    }
-
-    const tip = game.i18n.localize(objecting
-        ? "DRPG.Trial.objectionTooltip" : "DRPG.Trial.presentTooltip");
+    if (!inClassTrial() || isDeceased(app.document)) return;
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-row-button drpg-row-present${objecting ? " is-objection" : ""}`;
     button.dataset.drpgRowAction = "present";
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid ${objecting ? "fa-hand" : "fa-gavel"}" inert></i>`;
+    paintPresentButton(button, presentObjects());
 
     button.addEventListener("click", async () => {
         const { presentDialog } = await import("./trial.mjs");
@@ -3137,6 +3140,49 @@ function addPresentButton(li, item, app) {
     });
 
     li.append(button);
+}
+
+/** Whether a Present pressed now is an Objection: a floor open at all means evidence takes it. */
+function presentObjects() {
+    try {
+        return Boolean(game.settings.get(MODULE_ID, SETTINGS.trialQueue)?.active);
+    } catch {
+        // Present is the quieter of the two and the safer thing to promise.
+        return false;
+    }
+}
+
+/** The row's one button drawn as the act it is now: its class, its tooltip and its icon. */
+function paintPresentButton(button, objecting) {
+    const tip = game.i18n.localize(objecting
+        ? "DRPG.Trial.objectionTooltip" : "DRPG.Trial.presentTooltip");
+    button.className = `drpg-row-button drpg-row-present${objecting ? " is-objection" : ""}`;
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
+    button.innerHTML = `<i class="fa-solid ${objecting ? "fa-hand" : "fa-gavel"}" inert></i>`;
+}
+
+/**
+ * THE ROW FOLLOWS THE FLOOR (E10 C16, 1.2.71; audit S03-27, S06-43). The button
+ * was drawn at render and never again, and nothing re-renders a sheet when the
+ * GM opens or closes a debate (sync.mjs `SYNC.trial` redrew the floor bar and
+ * the HUD), so an open sheet went on offering a free Present while the window
+ * behind it made an Objection, and after the debate the red Objection that
+ * costs an action. Repainted in place from the trial's sync, every open sheet
+ * at once and only the buttons whose act changed: the audit offered a render
+ * of every sheet or this, and `SYNC.trial` also runs for every write of the
+ * trial's progress, which changes nothing on a row. Returns how many it
+ * repainted.
+ */
+export function repaintPresentButtons(root = document) {
+    const objecting = presentObjects();
+    let painted = 0;
+    for (const button of root.querySelectorAll(".drpg-row-present")) {
+        if (button.classList.contains("is-objection") === objecting) continue;
+        paintPresentButton(button, objecting);
+        painted++;
+    }
+    return painted;
 }
 
 /**

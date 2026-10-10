@@ -52,7 +52,9 @@
  * by), kept a Reroll's window. A fall stands and is credit. A gain stands as far as
  * the write's reason covers it: a refund (`refund`, `reroll`, `concealment`) takes
  * credit, oldest first, and never more - a GM's refund too, which stands whatever the credit
- * holds (E29 fix r1-G4); a Rest takes its stamp, its room, its action and its picks; an item
+ * holds (E29 fix r1-G4), so the one a GM's client gives back on a packet's word - a refused
+ * clean-up's price - is held to the credit before it is written (`creditRefund`, E09 fix
+ * r2-G3); a Rest takes its stamp, its room, its action and its picks; an item
  * used takes the item and its consumption by the same user - its count fallen below, or the
  * item broken where whole in, the GMs' copy (G4); a Call's grant takes that Call's price. What nothing covers in Hope is put back as a
  * delta - the GMs' value moves by what was covered, so a forged Hope spent at once
@@ -756,6 +758,19 @@ export function itemsHeldNow(actor) {
     });
 }
 
+/*
+ * A STUDENT'S ITEM AS THE MARK HELD IT BEFORE THE WRITE BEING HEARD (E09 fix r2-G10, 09.10.2026): the mark's whole copy
+ * of one module item, or null where this browser keeps no mark of the student (as `itemsHeldNow`) or none of the item.
+ * Read in the synchronous part of an item's update hook, this is the item before that write: the audit's judgement of
+ * the write, which moves the copy, is queued at its own hook and runs in a later job (`inOrder`). A write queued before
+ * it and not judged yet is not in it either. For truth-bullets.mjs `onBulletWrite`, whose write reached a bullet's
+ * description and its words at once.
+ */
+export function itemMarkedBefore(actor, id) {
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    return mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.items?.[id]) ?? null : null;
+}
+
 /** One of a student's items as the GMs hold it (`itemsAsHeld`), or null where it is no longer on the student. */
 export async function itemAsHeld(actor, id) {
     return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;
@@ -774,9 +789,20 @@ export async function itemAsHeld(actor, id) {
  */
 export async function flagsAsHeld(actor) {
     await judgedFor(actor?.id);
-    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
-    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
-    const flags = mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.flags ?? {}) : null;
+    return flagsHeldNow(actor);
+}
+
+/*
+ * `flagsAsHeld` without its wait (E10 C2, 1.2.71), as `actorHeldNow` is `actorAsHeld`'s: for a GM's decision about
+ * several students at once, which waits once for all of them (`judgedFor(...ids)`) and then reads each in one
+ * synchronous pass - so no write is judged between two of the reads. The road: who is handed a ballot and whose
+ * ballot counts (vote.mjs `eligibleVoters`, behind `studentsJudged` at the open, a player's ask and a cast). The mark is
+ * `heldMark`'s, whose rules are the ones `flagsAsHeld` read inline until C2 - the primary's, of a student, not a
+ * Monokuma's - and its flags are taken in one step here, as they were there as the wait ended.
+ */
+export function flagsHeldNow(actor) {
+    const mark = heldMark(actor);
+    const flags = mark ? clone(mark.flags ?? {}) : null;
     return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
         getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
 }
@@ -923,7 +949,8 @@ export function numberHeld(actor, path) {
  * is the caller's, and the queue goes on.
  * Since fix r2-H23 a Reroll's rewind writes in such a job too: the Hope a use gave taken back and the marks put back
  * to the end of the track the GMs hold (murder-rules.mjs `undoLastCrisis`), and a clean-up's Sanity (cleanup.mjs
- * `undoLastCleanup`).
+ * `undoLastCleanup`); since E09 fix r2-G3 a refused clean-up's price given back as far as the credit holds it
+ * (`creditRefund`), the one job that moves the mark itself.
  */
 export function gmMeansWrite(actor, write) {
     if (actor?.documentName !== "Actor" || actor.type !== "character") return (async () => write(meansHeld(actor)))();
@@ -980,6 +1007,40 @@ export function meansWrite(actor, write) {
     }
     const own = Object.fromEntries(Object.entries(LEDGER).map(([key, { path }]) => [key, Number(foundry.utils.getProperty(actor ?? {}, path)) || 0]));
     return (async () => write(own, key => actor?.system?.resources?.[key]?.max))();
+}
+
+/*
+ * A PRICE GIVEN BACK NO FURTHER THAN THE GMS SAW IT PAID (E09 fix r2-G3, 08.10.2026; review round 2 sec S2-1). A GM's
+ * refund stands whatever the credit holds (`gmLedger`), so a GM's client that gives back the step a packet says its
+ * player's browser paid - a refused clean-up's step of Tamper's price (cleanup.mjs `refundRefused`) - gave it back
+ * whether anything was paid or not: measured at 97e0eef by tier 2 ("a clean-up the GM refuses gives back no price the
+ * GMs did not see paid"), a student with nothing in the credit had a refused clean-up give back the action and the
+ * Sanity step its packets named. This gives back at most `n` of the means `key` (a key of LEDGER), no more than the
+ * credit the GMs hold of it - what a payment they saw left, a player's write judged or a GM's - and takes that credit,
+ * so one payment comes back once. All of it in one job (`gmMeansWrite`): the credit read and taken, the write, and the
+ * mark moved by both before the queue goes on. Not left to the write's own judgement, which takes a GM's refund from
+ * the credit too: that judgement is queued at the write's hook, behind any job queued meanwhile, so the next refusal's
+ * job read the credit and the value before it moved them - measured on this fix (08.10.2026,
+ * e09run/scratch/r2g3-m7probe.log) by tier 2's "Stage 6's own refusals give the killer back the step they paid and no
+ * more", two Sanity steps paid and three trails refused at once: with the mark left to that judgement, 2 marks where 1
+ * was owed, and three refund lines for the one step that came back. The judgement now finds the mark holding what the
+ * job wrote, and moves nothing and takes nothing. Answers what came back, in the means' own units (0 for nothing), or
+ * null where this browser holds no mark of the student (`heldMark`: not the primary, its stores not hydrated, a
+ * Monokuma) - what stands for it there is the caller's to say.
+ */
+export function creditRefund(actor, key, n) {
+    if (!LEDGER[key] || !heldMark(actor)) return Promise.resolve(null);
+    return gmMeansWrite(actor, async held => {
+        const mark = heldMark(actor);
+        if (!mark) return null;
+        const credit = creditOf(mark), taken = takeCredit(credit, key, n);
+        if (!taken) return 0;
+        const value = bounded(actor, mark, key, held[key] - LEDGER[key].cost * taken);
+        if (value !== held[key]) await trustedWrite(actor, { [LEDGER[key].path]: value }, { reason: "refund" });
+        const now = heldMark(actor) ?? mark;
+        await markWritten(actor, withLedger(clone(now), { ...ledgerOf(now, actor), [key]: value }, credit));
+        return (held[key] - value) * LEDGER[key].cost;
+    });
 }
 
 /** A path a write names, without v14's `-=` and `==` on its parts: the path it writes. */

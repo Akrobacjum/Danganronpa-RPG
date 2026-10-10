@@ -40,11 +40,19 @@
  * timestamp is written once and every client can work out the rest for itself.
  * The one thing that must NOT be worked out independently is the mode
  * TRANSITION - see `advanceIfDue`.
+ *
+ * "Every client can work out the rest" held only while every machine's clock
+ * agreed: the stamp was the writing GM's `Date.now()` and each reader counted
+ * from its own, so a player whose clock ran a minute fast saw the debate a
+ * minute shorter (E10 C13, 1.2.71; audit S06-37). Both ends read the server's
+ * clock now (utils.mjs `serverNow`); scenario 63 J1 reads a player a minute off
+ * within one second of the GM.
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, error } from "./utils.mjs";
+import { isPrimaryGm, error, serverNow } from "./utils.mjs";
+import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -108,7 +116,7 @@ export function modeSeconds(floor = trialFloor()) {
 /** Seconds left in the current mode. Negative once it has overrun. */
 export function secondsLeft(floor = trialFloor()) {
     if (!floor?.startedAt) return 0;
-    const spent = (Date.now() - floor.startedAt) / 1000;
+    const spent = (serverNow() - floor.startedAt) / 1000;
     return Math.round(modeSeconds(floor) - spent);
 }
 
@@ -153,7 +161,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * from the first second. All the GM chooses is how long they expect it to run,
  * and even that is a budget rather than a limit.
  */
-export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
+export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false } = {}) {
     if (!game.user.isGM) return null;
 
     // THE PHASE FOLLOWS THE FLOOR, and it is set here rather than at the call
@@ -179,8 +187,13 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
              *
              * Inside the `if`, so the second and third debate of the same trial
              * move nothing and refill nothing.
+             *
+             * A REFUSAL IS NOT THAT COSMETIC PROBLEM (E10 C11). In a chapter with a verdict
+             * `setPhase` refuses a trial nobody confirmed and answers null; a floor opened then
+             * would be a debate in Daily Life beside a verdict, so the floor stays shut too.
+             * `confirmNewTrial` is passed on from a caller that asked (`openDebate`).
              */
-            await setPhase("classTrial");
+            if (await setPhase("classTrial", { confirmNewTrial }) === null) return null;
         }
     } catch (err) {
         // A phase that did not move is a cosmetic problem; a floor that did
@@ -194,7 +207,7 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
         holderId: null,
         targetId: null,
         seconds,
-        startedAt: Date.now(),
+        startedAt: serverNow(),
         // Left over from the queue. Cleared rather than ignored, so a world
         // that has been through this update does not keep a stale rota in its
         // settings for somebody to find later and wonder about.
@@ -335,7 +348,7 @@ export async function openObjection(objectorId, targetId) {
         mode: FLOOR_MODES.objection,
         holderId: objectorId,
         targetId,
-        startedAt: Date.now()
+        startedAt: serverNow()
     });
 
     /*
@@ -390,7 +403,7 @@ export async function openRebuttal() {
     const floor = trialFloor();
     if (!floor) return null;
 
-    return writeFloor({ mode: FLOOR_MODES.rebuttal, startedAt: Date.now() });
+    return writeFloor({ mode: FLOOR_MODES.rebuttal, startedAt: serverNow() });
 }
 
 /** Back to everybody talking at once. The GM's budget starts again. */
@@ -404,7 +417,7 @@ export async function returnToDebate({ seconds = null } = {}) {
         holderId: null,
         targetId: null,
         seconds: seconds ?? floor.seconds ?? TRIAL.speakSeconds,
-        startedAt: Date.now()
+        startedAt: serverNow()
     });
 }
 
@@ -439,7 +452,7 @@ export async function extendFloor(extraSeconds = 30) {
      * it away.
      */
     const want = Math.max(secondsLeft(floor), 0) + extraSeconds;
-    return writeFloor({ startedAt: Date.now() - (modeSeconds(floor) - want) * 1000 });
+    return writeFloor({ startedAt: serverNow() - (modeSeconds(floor) - want) * 1000 });
 }
 
 /**
@@ -473,10 +486,66 @@ export async function endFloor() {
  * nothing here to bring forward and this says so by doing nothing.
  */
 export async function advanceFloorNow() {
+    /* ON THE PRIMARY GM (E10 fix r2-G6, 1.2.71; r2-G5's open road). The latch below is one browser's, and
+       the GM's Now wrote its transition on whichever GM pressed it: Now on a GM that is not the primary,
+       while the primary's heartbeat wrote the same move, wrote it a second time and restarted the
+       rebuttal's two minutes. It is asked of the primary now (`floor.now`, as `vote.run` is), which runs
+       it under the latch its heartbeat takes; on the primary it runs here. Measured in scenario 63 X at 616d1e2,
+       gm3 pressing Now: while gm2's heartbeat wrote the rebuttal, and with gm2's heartbeat passing zero while it
+       was on its way, the rebuttal was written twice, once on each GM; alone, once, on gm3. */
+    /* THE FLOOR IT SAW (E10 fix r2-G7, 1.2.71; the read of round 2's fixes, F1). The primary's latch covers a
+       write on its way and nothing after it: another GM's Now that reached the primary after the move it was
+       pressed for had landed there read the floor that move wrote and moved it on again, so the rebuttal that had
+       just opened was ended. Measured in scenario 63 X2 at c51d2bd, gm3's packet held 3 s: gm2 wrote the
+       objection, the rebuttal and an empty floor, whether its heartbeat or its own Now made the first move. The
+       press carries the floor this GM read, and the primary moves that floor or nothing (`floorAsSeen`); this GM
+       is told when it had moved on. An open debate has no next mode, so it is asked nothing. */
     if (!game.user.isGM) return null;
     const floor = trialFloor();
-    if (!floor) return null;
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
+    const seen = { mode: floor.mode, startedAt: floor.startedAt };
+    const res = await bridgeRequest("floor.now", seen, { settle: "reply", onPrimary: true, quiet: true, local: () => advanceFloorOnPrimary(seen) });
+    if (res.ok) return res.value ?? null;
+    // Its own words for a floor that moved on; the bridge's for the rest, which the request would have said itself.
+    if (res.reason === "movedOn") ui.notifications.warn(game.i18n.localize("DRPG.Floor.nowMovedOn"));
+    else sayNotDone("floor.now", res.reason);
+    return null;
+}
 
+/**
+ * Whether the trial's floor is still the one a GM's Now was pressed on, `seen` = its mode and its start
+ * (E10 fix r2-G7): a floor moved on, ended or given thirty seconds since is another floor.
+ */
+export function floorAsSeen(seen, floor = trialFloor()) {
+    return Boolean(floor) && floor.mode === seen?.mode && floor.startedAt === seen?.startedAt;
+}
+
+/**
+ * The GM's Now on the primary GM, for itself or asked by another GM (gm-bridge.mjs `floor.now`): the floor
+ * written, or null - null too when the floor is no longer the one the GM saw (`seen`, `floorAsSeen`).
+ */
+export async function advanceFloorOnPrimary(seen) {
+    /* UNDER THE TICK'S LATCH (E10 fix r2-G5, 1.2.71; round 2's cor m4, goal S06-38's residual). The GM's
+       Now wrote its transition outside `advancing`, so Now pressed while the heartbeat's write was on its
+       way read the floor still expired and wrote the rebuttal again, and a tick during Now's own write did
+       the same: each write restarts the rebuttal's two minutes. A press while a write is on its way does
+       nothing - that write is the move Now asks for. Measured in tier 2 "the GM's Now during the
+       heartbeat's write opens one rebuttal" (red at c494855). The latch is this browser's, which is why
+       another GM's Now is asked of this one (above). */
+    if (!game.user.isGM || advancing) return null;
+    const floor = trialFloor();
+    if (!floorAsSeen(seen, floor)) return null;
+
+    advancing = true;
+    try {
+        return await advanceFrom(floor);
+    } finally {
+        advancing = false;
+    }
+}
+
+/** `advanceFloorOnPrimary`'s write, held under `advancing`. */
+async function advanceFrom(floor) {
     if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
     /*
      * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
@@ -497,6 +566,8 @@ export async function advanceFloorNow() {
     return null;
 }
 
+let advancing = false;
+
 /**
  * Objection runs out into rebuttal; rebuttal runs out into the trial's own
  * discussion - which is NO FLOOR at all, not a debate.
@@ -511,12 +582,26 @@ export async function advanceFloorNow() {
  * Discussion deliberately does NOT expire. Running past the GM's budget turns
  * the clock red and nothing else: ending an argument is a judgement call, and
  * the module has no business making it.
+ *
+ * ONE CLIENT WAS NOT ENOUGH: ONE WRITE AT A TIME (E10 C13, 1.2.71; audit S06-38).
+ * The heartbeat ticks every second whether or not the last tick's write has
+ * landed, and until it lands the floor still reads the expired mode - so a write
+ * slower than a second was written again by the next tick, each one restarting
+ * the rebuttal's two minutes (tier 2 "two ticks during one write open one
+ * rebuttal": three writes before this, with every write held for 2.5 s). `advancing`
+ * is set before the write and cleared in `finally`, so a write that throws does
+ * not stop the clock for good. Still the primary's alone: a transition waits for
+ * the primary, and no other client writes one (the plan's amend of 05.10.2026).
+ * The GM's Now takes the same latch (`advanceFloorOnPrimary`, E10 fix r2-G5), on the primary (r2-G6).
  */
+
 async function advanceIfDue() {
+    if (advancing) return;
     const floor = trialFloor();
     if (!floor || !isPrimaryGm()) return;
     if (secondsLeft(floor) > 0) return;
 
+    advancing = true;
     try {
         if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
         // Same rule when the clock runs it out as when the GM brings it
@@ -524,6 +609,8 @@ async function advanceIfDue() {
         else if (floor.mode === FLOOR_MODES.rebuttal) await endFloor();
     } catch (err) {
         error("Could not advance the trial floor to its next mode", err);
+    } finally {
+        advancing = false;
     }
 }
 
@@ -549,6 +636,19 @@ async function advanceIfDue() {
 export function registerTrialFloor() {
     Hooks.once("ready", renderTrialFloor);
     Hooks.on("canvasReady", renderTrialFloor);
+    /*
+     * A BACKGROUND TAB IS A SLOW CLOCK (E10 C13, 1.2.71; audit S06-38). A browser throttles
+     * the timers of a tab nobody is looking at, so the primary GM's heartbeat can leave an
+     * objection forty seconds past zero (`extendFloor` says how that was seen); on the tab's
+     * return the transition is asked for at once rather than at the next tick. Either way the
+     * document's visibility changes: `advanceIfDue` asks only whether the mode is due and
+     * whether this is the primary, so the event when the tab is hidden costs one reading.
+     * Measured in tier 2 "the primary GM's tab coming back moves an expired objection on at
+     * once", with the heartbeat held; how long a real browser holds it is LIVE-E10-05.
+     */
+    document.addEventListener("visibilitychange", () => {
+        advanceIfDue().catch(err => error("Could not advance the trial floor on the tab's return", err));
+    });
 }
 
 /** Start or stop the heartbeat to match the floor. Safe to call repeatedly. */

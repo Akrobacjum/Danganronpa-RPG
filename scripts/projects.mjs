@@ -53,6 +53,21 @@ export function isIndirectMurder(countdownId) {
     return Boolean(metaFor(countdownId).indirectMurder);
 }
 
+/**
+ * Is this project an indirect murder that this character is building - its killer or the one who
+ * proposed it? The question a Work's or a Sabotage's trace is tied to the crime by (E32+E07 fix
+ * r2-G3, E09 C5): asked by the bridge of a player's trace (gm-bridge.mjs `worksOwnMurder`) and,
+ * since E09 fix r1-G4 (08.10.2026; the round-1 goal check's G2b), by the drop itself on a GM's own
+ * client (action-rolls.mjs `hideProjectTraces`, `dropSabotageTrace`), which tied a bystander's
+ * trace of anybody's trap. False on a player's browser, which holds no secrets (`secretsOf`): its
+ * packet's tie is never read (gm-bridge.mjs `handleRemnant`).
+ */
+export function buildsOwnMurder(countdownId, actorId) {
+    if (!actorId || !isIndirectMurder(countdownId)) return false;
+    const { killerId, by } = secretsOf(countdownId);
+    return killerId === actorId || by === actorId;
+}
+
 /** Where this project's token stands, if it has one: `{ sceneId, tokenId }`. */
 export function tokenRefOf(countdownId) {
     const meta = metaFor(countdownId);

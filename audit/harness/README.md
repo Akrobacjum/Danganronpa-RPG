@@ -61,16 +61,20 @@ run until a v14 sandbox exists (audit/gate/README.md).
 ## Numbers
 
 A scenario's number is how a comment, a commit and an audit find it a year
-later, so a number is never reused or reassigned, and a retired row stays. A new
-scenario takes the next free number in its decade - 0x the harness and the
-suite, 1x the session and the murder, 2x dice, 3x security, 4x the flows through
-a day, 5x language, 6x GM stores and migrations, 7x behaviour and secrets, 8x
-several clients and budgets, 9x measurements - and the stage that writes a
-planned file flips its row to `exists` in the same commit. A row, its file and
-the file's `layers` export must agree: `node tools/check.mjs registry` fails
-otherwise, and on a planned row whose stage has shipped. Status is `exists`,
-`planned`, `probe` (a tool in `probes/`, never a gate) or `retired`; Stage is the
-release or stage the status belongs to.
+later, so a number is never reused or reassigned once its scenario exists, and a
+retired row stays. A planned row's number may move until its file is written:
+E09 C0 gave 62 to the investigation and moved the planned migration drill to 63,
+when the drill had no file, no run, and its number stood nowhere but this table
+(the round-1 review's git grep at f88133d). A new scenario takes the next free
+number in its decade - 0x the harness and the suite, 1x the session and the
+murder, 2x dice, 3x security, 4x the flows through a day, 5x language, 6x GM
+stores and migrations, 7x behaviour and secrets, 8x several clients and budgets,
+9x measurements - and the stage that writes a planned file flips its row to
+`exists` in the same commit. A row, its file and the file's `layers` export must
+agree: `node tools/check.mjs registry` fails otherwise, and on a planned row
+whose stage has shipped. Status is `exists`, `planned`, `probe` (a tool in
+`probes/`, never a gate) or `retired`; Stage is the release or stage the status
+belongs to.
 
 <!-- scenarios:start -->
 | No. | File | Layers | Status | Stage | What it asks |
@@ -83,7 +87,7 @@ release or stage the status belongs to.
 | 05 | probes/05-playsound.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
 | 06 | probes/06-runtests-music.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
 | 07 | probes/07-apimap.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
-| 10 | scenarios/10-murder.mjs | ci | exists | <=1.2.50 | the crime pipeline on three live clients |
+| 10 | scenarios/10-murder.mjs | ci | exists | <=1.2.50 | the crime pipeline on three live clients; the death's and the weapon's tie reaching an identified copy at the body's discovery (E09 C4, fix r1-G1) |
 | 11 | scenarios/11-killer-secrecy.mjs | ci | exists | <=1.2.50 | a bystander cannot read the killer or the accomplice |
 | 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
 | 13 | scenarios/13-murder-signals.mjs | ci | exists | <=1.2.50 | what a killing shows four screens; a bystander sees nothing |
@@ -97,14 +101,16 @@ release or stage the status belongs to.
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
-| 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out |
+| 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out; a Sabotage of one's own trap leaves a tied trace, of another's an untied one (A14, E09 C5) |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
 | 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
 | 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |
 | 61 | scenarios/61-gmstore-case.mjs | ci | exists | E04 | the GM store with a second GM: a late empty browser, backup and restore, tombstones, the reset's cuts |
-| 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
+| 62 | scenarios/62-investigation.mjs | ci | exists | E09 | the investigation with a second GM: three traces (A), a focused Observe any GM picks from a card (O), an Analyze read on the player (N), a reshape ruled once on the primary that leaves the copies already held (T), the GMs' verdicts reaching the copies (V), the dashboard's Save under a reshape (D), the Key fee with and without a planner Save and on the primary (K, P), the chapter end's sweep and reveal (E), and the words: a missed Analyze of a Final and the handbooks' labels (L) |
+| 63 | scenarios/63-class-trial.mjs | ci | exists | E10 | the Class Trial with a second GM and a late player: Start on every player (A), the ballots (B), a player who joins after them (C), the GM's reload in the vote (D), the count (E), the verdict's window (F), a wrong verdict while a forged death waits for the audit (G), a second trial in the chapter (H), a correct verdict's Level Ups and a pick through the bridge (I) - each check today's reading, naming the E10 commit that changes it |
+| 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |

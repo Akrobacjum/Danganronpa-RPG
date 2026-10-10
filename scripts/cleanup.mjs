@@ -61,28 +61,28 @@
 import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
-import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
+import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore, cleanupAttemptStore } from "./gm-stores.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
 import {
-    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
+    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
 import { locateActor } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
 // is this module's only record of "they know this trace is there".
-import { copiedRemnants, bulletsOf, secretOf } from "./truth-bullets.mjs";
+import { copiedRemnants, bulletsOf, secretOf, heldCopiesOf } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
-    dialogContent, log, error, cardHead, isPrimaryGm } from "./utils.mjs";
+    dialogContent, log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -676,79 +676,119 @@ export async function attemptCleanup(actor, tokenId, {
  * this is the killer's decision about the story they are telling, and the GM's
  * client has no way to guess it. The dice are still on screen when it opens.
  *
- * ERASE IS THE FIRST BUTTON, so it is what Enter presses (see the DialogV2
- * footer finding in E3) and what a player who does not want a second decision
- * gets by pressing on. It is also usually the stronger play - nothing at all
- * beats a decoy - so the default is not merely the safe answer, it is the
- * ordinary one.
+ * ERASE IS NO LONGER WHAT ENTER PRESSES (E09 C11, 08.10.2026; audit S05-50).
+ * It was the first button and the default, on the argument that a player who
+ * did not want a second decision got the ordinary answer by pressing on - and
+ * Enter in the name field, pressed by a player moving on to the description,
+ * erased the trace they were halfway through rewriting. Enter in a field moves
+ * to the next one now (`enterMovesOn`), "Leave something else" is the first
+ * button, so what a browser's own submission presses can never be the erase,
+ * and the player who wants no second decision closes the window, which has
+ * always meant the same erase.
+ *
+ * AN UNFINISHED FORM ASKS AGAIN. One field filled and "Leave something else"
+ * pressed used to warn and answer null - which is the erase, so the trace went
+ * while the toast asked for the second field. The window opens again holding
+ * what was typed; Erase and closing are the ways out.
  *
  * THE SAME RESHAPE AS THE TAMPER ROAD, ASKED LATER (Dawid, 29.08). It used to
  * offer a type menu, and it stopped for the reason argued in
  * `CLEANUP.transformAction`: the lie a killer tells is a sentence. What this
  * road keeps that the other does not is the BAND - a critical earned the right
  * to say how loudly the fake reads, which is a real choice and the reward for
- * rolling that well.
+ * rolling that well. Exported for the suite.
  *
  * @returns {Promise<object|null>} `{ name, text, visibility }`, or null for "erase it".
  */
-async function askTransform(actor) {
+export async function askTransform(actor) {
     const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
     const rules = CLEANUP.transform ?? {};
     const bands = rules.visibilities ?? [];
     const limits = CLEANUP.transformAction?.limits ?? {};
     if (!bands.length) return null;
 
-    const options = bands
-        .map(key => `<option value="${key}">${
-            foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
-        .join("");
+    let typed = { name: "", text: "", visibility: bands[0] };
+    for (;;) {
+        const options = bands
+            .map(key => `<option value="${key}"${key === typed.visibility ? " selected" : ""}>${
+                foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
+            .join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
-                <input type="text" name="name" maxlength="${limits.name ?? 60}"
+        const picked = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
+            classes: ["drpg-panel", "drpg-narrow"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
+                ${reshapeFields(limits, typed)}
+                <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
+                    <select name="visibility">${options}</select></label>
+                <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
+            </form>`),
+            buttons: [
+                {
+                    action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"), default: true,
+                    callback: (e, b, d) => ({
+                        name: d.element.querySelector("[name=name]").value,
+                        text: d.element.querySelector("[name=text]").value,
+                        visibility: d.element.querySelector("[name=visibility]").value
+                    })
+                },
+                {
+                    action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"),
+                    callback: () => null
+                }
+            ],
+            render: (event, dialog) => enterMovesOn(dialog),
+            rejectClose: false
+        });
+
+        // "erase" comes back as null, and so does closing the window - which is the
+        // same answer and should be: backing out of a bonus question must not cost
+        // the critical that earned it.
+        if (!picked || picked === "erase") return null;
+
+        const name = plainText(picked.name, limits.name ?? 60);
+        const text = plainText(picked.text, limits.text ?? 400);
+        if (name && text) return { name, text, visibility: picked.visibility };
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
+        typed = { name: picked.name ?? "", text: picked.text ?? "", visibility: picked.visibility ?? bands[0] };
+    }
+}
+
+/** The two fields of a reshape, holding what was typed when the window opens again. */
+function reshapeFields(limits, typed = {}) {
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+    return `<label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
+                <input type="text" name="name" maxlength="${limits.name ?? 60}" value="${esc(typed.name)}" autofocus
                     placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
                 <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
-            <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
-                <select name="visibility">${options}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"), default: true,
-                callback: () => null
-            },
-            {
-                action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
-                callback: (e, b, d) => ({
-                    name: d.element.querySelector("[name=name]").value,
-                    text: d.element.querySelector("[name=text]").value,
-                    visibility: d.element.querySelector("[name=visibility]").value
-                })
-            }
-        ],
-        rejectClose: false
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}">${esc(typed.text)}</textarea></label>`;
+}
+
+/**
+ * Enter in a reshape's one-line fields moves to the next field, and never answers the window.
+ *
+ * WHY THESE TWO WINDOWS DO IT THEMSELVES (E09 C11, 08.10.2026; audit S05-50). DialogV2 puts the content and the
+ * footer in one form and its footer buttons are submits, so Enter in the name field is the browser's implicit
+ * submission, which presses the first submit in tree order (read in the code and in `guardTextFields`'s note, not
+ * measured here: jsdom does not submit a form on a synthetic key). In the critical's window that was Erase, and in
+ * the Tamper's it sent the description empty. `guardTextFields` (utils.mjs) has no rule for "move on": its
+ * `data-drpg-enter` presses a button, which is the very thing this must not do. The description is a textarea, where
+ * Enter is a new line; the band's select moves on to the footer, whose focused button Enter then presses as a
+ * button, on purpose.
+ */
+function enterMovesOn(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+    root.addEventListener("keydown", event => {
+        if (event.key !== "Enter" || event.isComposing) return;
+        const field = event.target;
+        if (!field?.matches?.("input, select")) return;
+        event.preventDefault();
+        const order = [...root.querySelectorAll("input, textarea, select, footer button")].filter(el => !el.disabled);
+        order[order.indexOf(field) + 1]?.focus();
     });
-
-    // "erase" comes back as null, and so does closing the window - which is the
-    // same answer and should be: backing out of a bonus question must not cost
-    // the critical that earned it.
-    if (!picked || picked === "erase") return null;
-
-    // An unfillable bonus is not an erase - they pressed "leave something else"
-    // - so say why nothing happened rather than quietly wiping the trace.
-    const name = plainText(picked.name, limits.name ?? 60);
-    const text = plainText(picked.text, limits.text ?? 400);
-    if (!name || !text) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
-        return null;
-    }
-    return { name, text, visibility: picked.visibility };
 }
 
 /**
@@ -804,6 +844,16 @@ export function plainText(value, max) {
  *
  * The undo snapshot carries both, or a Reroll would put the type back and leave
  * the killer's sentence standing on a roll that no longer produced it.
+ *
+ * THE TRACE, NOT THE COPIES ALREADY HELD (E09 C9, 08.10.2026; audit S05-24). The words
+ * went on through `propagateRemnantPublic` to every Truth Bullet copied from the trace,
+ * so an approved reshape renamed and reworded what other players had found and read -
+ * measured in scenario 62's phase T at the code before C9 (08.10.2026): p1's copy, found
+ * and analysed before p2's reshape, read the reshaped name and words, and so did p2's own.
+ * A copy is what its finder found; the reshape is what the next finder finds. The ledger
+ * takes the story, the copies keep theirs (`propagate: false`), and the card the GMs
+ * approve says how many that is (`reshapeCardParts`). Tier 2 "a reshape leaves the copies
+ * already held".
  */
 async function reshapeTrace(token, data, {
     name = "", text = "", softer = null, tie = false, receipt = null, done = []
@@ -844,8 +894,10 @@ async function reshapeTrace(token, data, {
             id: token.id,
             sceneId: token.parent?.id ?? null,
             // The tie with the type (E08+E28 C3; audit S05-44): a killer's reshape ties an
-            // untied trace (above), and a Reroll that took the reshape back left it tied.
-            from: { type: data.type, visibility: data.visibility, tiedToCrime: Boolean(data.tiedToCrime) },
+            // untied trace (above), and a Reroll that took the reshape back left it tied. As one
+            // of its three states since E09 C4 (remnants.mjs `tieState`): undecided goes back
+            // undecided, where `Boolean()` put it back as a GM's "not tied".
+            from: { type: data.type, visibility: data.visibility, tiedToCrime: tieState(data.tiedToCrime) },
             publicFrom: remnantData(token)?.public ?? null
         };
     }
@@ -857,7 +909,7 @@ async function reshapeTrace(token, data, {
     const story = {};
     if (name) story.name = name;
     if (text) story.playerText = text;
-    if (Object.keys(story).length) await setRemnantPublic(token, story);
+    if (Object.keys(story).length) await setRemnantPublic(token, story, { propagate: false });
 
     done.push(game.i18n.format("DRPG.Cleanup.reshaped", {
         from: `${data.visibilityLabel} ${data.typeLabel}`,
@@ -885,22 +937,37 @@ async function reshapeTrace(token, data, {
  * and a line about them in the third person meant for the GM. They are `gmBody` now,
  * which the card on a player's screen leaves out (COMM-06) - and since E06 C7b is not
  * sent to that player's browser at all. Since E06 C8 the card is veiled (`callGm`'s
- * `veiled`): its document names neither the thread nor the player (S05-15). Pure, for
- * the suite.
+ * `veiled`): its document names neither the thread nor the player (S05-15). Since E09 C9
+ * the GMs' part also counts the Truth Bullets already copied from the trace (`copies`,
+ * truth-bullets.mjs `heldCopiesOf`), which an approval leaves as they were found: how many
+ * others hold a copy is the answer key's, not the player's. Pure, for the suite.
+ *
+ * THE BAND AS IT IS (E09 C14, 08.10.2026; audit S05-33). `softer` is the band the reshape
+ * writes. On the Tamper road it is always one band quieter (`resolveTransformRoad`); on the
+ * erase road's critical it is the band the player picked (`resolveEraseRoad`), which may be
+ * the same band, a louder one or three quieter - and the card said "one band harder to spot"
+ * for all of them. The sentence is said only of exactly one band quieter; any other band is
+ * named ("Band: Hidden").
  */
-export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false } = {}) {
+export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false, copies = 0 } = {}) {
     const esc = foundry.utils.escapeHTML;
     const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
     const was = `${data.visibilityLabel} ${data.typeLabel}`;
     const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
         ?? data.visibilityLabel} ${REMNANT_TYPES[becomes]?.label ?? becomes}`;
+    const oneQuieter = Boolean(softer) && REMNANT_VISIBILITY.indexOf(data.visibility) >= 0
+        && REMNANT_VISIBILITY.indexOf(softer) === REMNANT_VISIBILITY.indexOf(data.visibility) + 1;
+    const band = !softer ? ""
+        : oneQuieter ? game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter")
+            : game.i18n.format("DRPG.Cleanup.reshapeRulingBand", { band: REMNANT_VISIBILITY_LABELS[softer] ?? softer });
     const body = [
         `<strong>${esc(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))}</strong>`,
         text ? `<br><em>${esc(text)}</em>` : "",
-        softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : ""
+        band ? `<br>${esc(band)}` : ""
     ].join("");
     const gmBody = `<p>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}${
-        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}</p>`;
+        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}${
+        copies > 0 ? `<br>${esc(plural("DRPG.Cleanup.reshapeRulingCopies", { n: copies }))}` : ""}</p>`;
     return { body, gmBody };
 }
 
@@ -929,9 +996,24 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
  * Remnant. Those are the rules answering; this is a player writing prose.
  */
 async function proposeReshape(actor, token, data, {
-    name = "", text = "", softer = null, tie = false, done = [], erases = false, attempt = ""
+    name = "", text = "", softer = null, tie = false, done = [], erases = false, receipt
 } = {}) {
-    const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie });
+    const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie, copies: heldCopiesOf(token.id) });
+
+    /*
+     * THE PROPOSAL IS KEPT BY THE GMS, ON THE ATTEMPT'S ROW, BEFORE THE CARD EXISTS (E09 C10,
+     * 08.10.2026). Until this commit the words, the quieter band, the tie and the erase rode on
+     * the card's buttons as `data-*`, and the ruling took them off the click: whoever could press
+     * Approve chose what Approve wrote, the row knew nothing of a proposal, and a card a GM could
+     * press already existed while the row of its attempt was not yet written - the receipt was kept
+     * only when the attempt ended, after the card. Now the row holds the proposal from before the
+     * card goes, and the buttons carry the attempt alone; the ruling reads what it writes off the
+     * row (`claimRuling`). The row is the attempt's own receipt, so a later attempt by the same
+     * character replaces it, and a card from the earlier one is refused as a Reroll's is.
+     */
+    receipt.proposal = { name, text, softer: softer ?? null, tie: Boolean(tie), erases: Boolean(erases) };
+    await keepAttempt(receipt);
+    const attempt = receipt.attempt;
 
     const { callGm } = await import("./gm-bridge.mjs");
     const sent = await callGm(actor, {
@@ -947,30 +1029,16 @@ async function proposeReshape(actor, token, data, {
                 label: game.i18n.localize("DRPG.Cleanup.reshapeApprove"),
                 // Lowercase keys only: `data-*` arrives through `dataset`, which
                 // lowercases everything, so `tokenId` would read back undefined.
-                data: {
-                    by: actor.id,
-                    scene: token.parent?.id ?? "",
-                    trace: token.id,
-                    rname: name,
-                    rtext: text,
-                    softer: softer ?? "",
-                    tie: tie ? "1" : "",
-                    attempt
-                }
+                // What the approval writes is the row's, not the button's (above).
+                data: { by: actor.id, scene: token.parent?.id ?? "", trace: token.id, attempt }
             },
             {
                 action: "declineReshape",
                 label: game.i18n.localize("DRPG.Cleanup.reshapeDecline"),
-                /* The trace and `erase` travel too: on the erase road the dice bought an
-                   ERASE and the rewrite was the upgrade the player chose on top of it,
-                   so a GM who refuses the story still owes them the erase. */
-                data: {
-                    by: actor.id,
-                    scene: token.parent?.id ?? "",
-                    trace: token.id,
-                    erase: erases ? "1" : "",
-                    attempt
-                }
+                /* The trace travels too: on the erase road the dice bought an ERASE and the
+                   rewrite was the upgrade the player chose on top of it, so a GM who refuses
+                   the story still owes them the erase - which the row's `erases` says. */
+                data: { by: actor.id, scene: token.parent?.id ?? "", trace: token.id, attempt }
             }
         ]
     });
@@ -994,6 +1062,44 @@ async function proposeReshape(actor, token, data, {
     return true;
 }
 
+/** Where a ruling's notices go when nobody asked for them back: this browser's own. */
+function tellHere(level, key, data = null) {
+    ui.notifications[level](data ? game.i18n.format(key, data) : game.i18n.localize(key));
+}
+
+/**
+ * ONE RULING PER PROPOSAL, AND IT IS TAKEN BEFORE ANYTHING WAITS (E09 C10, 08.10.2026).
+ *
+ * Measured at the parent (08.10.2026): Approve and Decline on one card at once both
+ * answered true (tier 2, "two rulings of one reshape at once run once"), and in
+ * scenario 62 the GM's Approve on its own open copy of the card, pressed after gm2's,
+ * ran again and told the player a second time (T9: 3 messages, then 4). Nothing
+ * marked a proposal as ruled; each ruling read the row, awaited, and wrote. Here the
+ * row is read and marked `ruled` in one synchronous step, so of two rulings on one
+ * browser exactly one finds it unmarked; `askReshapeRuling` (gm-bridge.mjs) sends
+ * every GM's ruling to the primary, which makes that one browser.
+ *
+ * The proposal is the row's (`proposeReshape`), and a row that does not hold one for
+ * this trace under this attempt is refused: a Reroll's replay, a later attempt by the
+ * same character, a chapter's reset. No row is no longer "proves nothing": the row is
+ * where the words are, so without it there is nothing to rule on.
+ */
+function claimRuling(actorId, tokenId, attempt, by, verdict) {
+    const row = cleanupAttemptStore.get(actorId ?? "") ?? null;
+    const tag = String(attempt ?? "").slice(0, 32);
+    if (!row?.proposal || !tokenId || row.tokenId !== tokenId || !tag || row.attempt !== tag) {
+        log(`Reshape ruling refused: the GMs hold no proposal of attempt ${tag || "(none)"} on ${tokenId}.`);
+        return { refused: "DRPG.Cleanup.reshapeTakenBack", value: false };
+    }
+    if (row.ruled) {
+        const name = game.users.get(row.ruled.by)?.name ?? String(row.ruled.by ?? "");
+        log(`Reshape ruling refused: attempt ${tag} was ruled already (${row.ruled.verdict}).`);
+        return { refused: "DRPG.Cleanup.alreadyRuled", data: { name }, value: null };
+    }
+    const marking = cleanupAttemptStore.patch(actorId, { ruled: { by, on: game.user.id, verdict } }, { ifLive: true });
+    return { proposal: { ...row.proposal }, marking };
+}
+
 /**
  * The GM pressed Approve. NOW the words land.
  *
@@ -1002,19 +1108,31 @@ async function proposeReshape(actor, token, data, {
  * chapter sweep, another killer's clean-up or the GM's own hand may have taken
  * it - in which case there is nothing to relabel and both sides are told.
  *
- * BOUNDED AGAIN ON ARRIVAL. These values come off `dataset`, and the module's
- * habit is that a field is bounded by the code that uses it rather than by the
- * code that was supposed to produce it. It costs two lines.
+ * THE WORDS ARE THE ROW'S (E09 C10), and still bounded again on arrival: the
+ * module's habit is that a field is bounded by the code that uses it rather than
+ * by the code that was supposed to produce it. It costs two lines.
+ *
+ * `tell` is where the notices go: this browser's, or back to the GM who asked the
+ * primary to rule (`ruleReshape`); `by` is the GM who pressed.
  */
-export async function applyReshapeRuling({
-    actorId, tokenId, name = "", text = "", softer = null, tie = false, attempt = ""
-} = {}) {
+export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}, { tell = tellHere, by = game.user.id } = {}) {
     if (!game.user.isGM) return null;
+    await cleanupAttemptStore.whenHydrated();
     const actor = game.actors.get(actorId) ?? null;
     const token = findRemnantToken(tokenId);
     const data = token ? remnantData(token) : null;
+    /*
+     * A CARD FROM AN ATTEMPT A REROLL TOOK BACK RULES ON NOTHING (review of
+     * stage D). The card carries the attempt it was raised for; a Reroll replays
+     * the attempt under a new id, which the row then holds - measured the way the
+     * review wrote it: a lost Reroll, then Approve on the older card, used to put
+     * the lie on the trace anyway. `claimRuling`, with no wait before it: only a
+     * trace that stands and is not reinforced is claimed, and the two refusals
+     * below leave the proposal to be ruled on again.
+     */
+    const claim = data && !data.reinforced ? claimRuling(actorId, tokenId, attempt, by, "approve") : null;
     if (!data) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeRulingGone"));
+        tell("warn", "DRPG.Cleanup.reshapeRulingGone");
         if (actor) await whisperToOwner(actor, `<p>${
             game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return null;
@@ -1028,29 +1146,16 @@ export async function applyReshapeRuling({
      * for.
      */
     if (data.reinforced) {
-        ui.notifications.warn(game.i18n.format("DRPG.Cleanup.reinforced", {
-            what: `${data.visibilityLabel} ${data.typeLabel}`
-        }));
+        tell("warn", "DRPG.Cleanup.reinforced", { what: `${data.visibilityLabel} ${data.typeLabel}` });
         return null;
     }
-
-    /*
-     * A CARD FROM AN ATTEMPT A REROLL TOOK BACK RULES ON NOTHING (review of
-     * stage D). The card carries the attempt it was raised for; a Reroll replays
-     * the attempt under a new id. So a receipt for this same trace under another
-     * id is positive evidence the dice this card describes no longer exist, and
-     * the card is refused rather than written - measured the way the review wrote
-     * it: a lost Reroll, then Approve on the older card, used to put the lie on
-     * the trace anyway. No receipt at all (a reload, another GM's browser, the
-     * console road) proves nothing, and the card is honoured as it always was.
-     */
-    const tag = String(attempt ?? "").slice(0, 32);
-    const standing = await attemptOf(actorId);
-    if (tag && standing?.tokenId === tokenId && standing.attempt !== tag) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
-        return false;
+    if (claim.refused) {
+        tell("warn", claim.refused, claim.data);
+        return claim.value;
     }
+    await claim.marking;
 
+    const { name = "", text = "", softer = null, tie = false } = claim.proposal;
     const limits = CLEANUP.transformAction?.limits ?? {};
     const safeName = plainText(name, limits.name ?? 60);
     const safeText = plainText(text, limits.text ?? 400);
@@ -1065,13 +1170,13 @@ export async function applyReshapeRuling({
      * row the roll opened (E08+E28 C3: a GM store now, where it was a Map whose
      * object this wrote through) - and only onto a row still standing.
      */
-    const receipt = standing?.tokenId === tokenId ? {} : null;
+    const receipt = {};
     await reshapeTrace(token, data, {
         name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
         receipt,
         done
     });
-    if (receipt?.transformed) {
+    if (receipt.transformed) {
         await cleanupAttemptStore.patch(actorId, { transformed: receipt.transformed }, { ifLive: true });
     }
 
@@ -1091,19 +1196,20 @@ export async function applyReshapeRuling({
  * Nothing to refund, for the reason written at the top of this block: the price
  * bought the attempt, and the attempt happened.
  */
-export async function declineReshapeRuling({ actorId, tokenId = null, erase = false, attempt = "" } = {}) {
+export async function declineReshapeRuling({ actorId, tokenId = null, attempt = "" } = {}, { tell = tellHere, by = game.user.id } = {}) {
     if (!game.user.isGM) return null;
+    await cleanupAttemptStore.whenHydrated();
     const actor = game.actors.get(actorId);
     if (!actor) return null;
 
-    // The same guard as the approval, and it matters MORE here: the erase below
+    // The same claim as the approval, and it matters MORE here: the erase below
     // would otherwise remove a trace a Reroll's replay had left standing.
-    const tag = String(attempt ?? "").slice(0, 32);
-    const standing = await attemptOf(actorId);
-    if (tag && tokenId && standing?.tokenId === tokenId && standing.attempt !== tag) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
-        return false;
+    const claim = claimRuling(actorId, tokenId, attempt, by, "decline");
+    if (claim.refused) {
+        tell("warn", claim.refused, claim.data);
+        return claim.value;
     }
+    await claim.marking;
 
     /*
      * THE ERASE THE CRITICAL BOUGHT (review of stage D). On the erase road the
@@ -1115,16 +1221,15 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
      * like every erase, with the receipt filled in first so a Reroll can put it
      * back. Read fresh, as the approval reads it: a trace swept or reinforced in
      * the meantime is left alone. No refund, and no price call - the critical's
-     * hand-back already ran when the dice landed.
+     * hand-back already ran when the dice landed. Whether it erases is the row's
+     * `erases` since E09 C10, not the button's.
      */
     let said = "DRPG.Cleanup.reshapeDeclined";
-    if (erase && tokenId) {
+    if (claim.proposal.erases) {
         const token = findRemnantToken(tokenId);
         const data = token ? remnantData(token) : null;
         if (data && !data.reinforced) {
-            if (standing?.tokenId === tokenId) {
-                await cleanupAttemptStore.patch(actorId, { erased: recreationDataFor(token) }, { ifLive: true });
-            }
+            await cleanupAttemptStore.patch(actorId, { erased: recreationDataFor(token) }, { ifLive: true });
             await removeRemnant(token);
             said = "DRPG.Cleanup.reshapeDeclinedErased";
         }
@@ -1133,10 +1238,25 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle")
     })}<p><em>${foundry.utils.escapeHTML(game.i18n.format(
-        said, { name: game.user.name }))}</em></p>`);
-    ui.notifications.info(game.i18n.format("DRPG.Cleanup.reshapeDeclinedGm",
-        { name: actor.name }));
+        said, { name: game.users.get(by)?.name ?? game.user.name }))}</em></p>`);
+    tell("info", "DRPG.Cleanup.reshapeDeclinedGm", { name: actor.name });
     return true;
+}
+
+/**
+ * A ruling on a reshape card, on the primary GM's browser (E09 C10; `cleanup.ruling`
+ * in gm-bridge.mjs). Answers what the ruling answered and the notices it raised, as
+ * `[level, key, data]`, for the GM who pressed to be shown on their own screen. `by`
+ * is that GM's id.
+ */
+export async function ruleReshape({ actorId, tokenId, attempt, verdict } = {}, by = game.user.id) {
+    const told = [];
+    const tell = (level, key, data = null) => { told.push([level, key, data]); };
+    const asked = { actorId, tokenId, attempt };
+    const value = verdict === "approve" ? await applyReshapeRuling(asked, { tell, by })
+        : verdict === "decline" ? await declineReshapeRuling(asked, { tell, by })
+            : null;
+    return { value, told };
 }
 
 /**
@@ -1153,52 +1273,54 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
  * `CLEANUP.transformAction` - and there is no "just make it quieter" option,
  * because that was the other half of a choice the menu created.
  *
- * BOTH ARE REQUIRED, and an empty form cancels rather than submitting. A
- * reshape with nothing written in it is not a quiet reshape, it is a player who
- * pressed the wrong button: the action would charge Sanity and a turn to leave
- * the trace saying exactly what it said before. Cancelling here costs nothing,
- * which is the reason this is asked before the action is charged at all.
+ * BOTH ARE REQUIRED. A reshape with nothing written in it is not a quiet
+ * reshape, it is a player who pressed the wrong button: the action would charge
+ * Sanity and a turn to leave the trace saying exactly what it said before.
+ * Cancelling here costs nothing, which is the reason this is asked before the
+ * action is charged at all - and an unfinished form asks again rather than
+ * cancelling (E09 C11, 08.10.2026; audit S05-50): Enter in the name field
+ * pressed "Reshape it" with the description empty, and the warning that
+ * followed threw away the name that had been typed. Enter moves on now
+ * (`enterMovesOn`), and the window opens again holding what was written; the
+ * GM's side holds the same rule (`resolveTransformRoad`).
  *
  * @returns {Promise<{name: string, text: string}|null>} null when they backed out.
  */
 export async function askTransformChange(actor) {
     const limits = CLEANUP.transformAction?.limits ?? {};
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
-                <input type="text" name="name" maxlength="${limits.name ?? 60}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
-                <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
-            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
-                callback: (e, b, d) => ({
-                    name: d.element.querySelector("[name=name]").value,
-                    text: d.element.querySelector("[name=text]").value
-                })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
+    let typed = { name: "", text: "" };
+    for (;;) {
+        const picked = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
+            classes: ["drpg-panel", "drpg-narrow"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
+                ${reshapeFields(limits, typed)}
+                <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
+            </form>`),
+            buttons: [
+                {
+                    action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
+                    callback: (e, b, d) => ({
+                        name: d.element.querySelector("[name=name]").value,
+                        text: d.element.querySelector("[name=text]").value
+                    })
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            render: (event, dialog) => enterMovesOn(dialog),
+            rejectClose: false
+        });
 
-    if (!picked || picked === "cancel") return null;
+        if (!picked || picked === "cancel") return null;
 
-    const name = plainText(picked.name, limits.name ?? 60);
-    const text = plainText(picked.text, limits.text ?? 400);
-    if (!name || !text) {
+        const name = plainText(picked.name, limits.name ?? 60);
+        const text = plainText(picked.text, limits.text ?? 400);
+        if (name && text) return { name, text };
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
-        return null;
+        typed = { name: picked.name ?? "", text: picked.text ?? "" };
     }
-    return { name, text };
 }
 
 /* ==========================================================================
@@ -1206,11 +1328,14 @@ export async function askTransformChange(actor) {
  * ========================================================================== */
 
 /**
- * The refusals, checked after the trace has been found and before the Sanity
- * is spent. Answers the result object to hand back, or null when the attempt
- * may go ahead.
+ * The refusals, checked after the trace has been found and before the GM's side
+ * charges anything. Answers the result object to hand back, or null when the
+ * attempt may go ahead. `price` is the step the player's browser says it paid
+ * (T-1), and `grant` whether a Burst paid it: a refusal gives back what of it the
+ * GMs saw paid and says so (`refundRefused`). `by` is who sent the packet, null for a
+ * GM's own attempt (`paidBack`).
  */
-async function cleanupRefusal(actor, token, data, viaAction) {
+async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false, by = null) {
     /*
      * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
@@ -1243,17 +1368,19 @@ async function cleanupRefusal(actor, token, data, viaAction) {
     const watchedItHappen = data.type === "incident" && incidentParticipant(actor);
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
-        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>${
+            await refundRefused(actor, price, grant, by)}`);
         return { removed: false, notFound: true };
     }
 
     // Reinforced traces refuse to be removed at all - remnants.mjs has said so
-    // since the flag was introduced. Checked here as well as there so the Sanity
-    // is not taken for an attempt that was never possible.
+    // since the flag was introduced. Checked here as well as there so the attempt
+    // is refused before the GM's side charges anything or the trace is touched;
+    // what the player's browser paid before the dice comes back with the refusal.
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
             what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
-        })}</p>`);
+        })}</p>${await refundRefused(actor, price, grant, by)}`);
         return { removed: false, reinforced: true };
     }
     return null;
@@ -1323,7 +1450,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      * and left signs of the disturbing (D8).
      */
 async function resolveTransformRoad(actor, token, data, verdict, {
-    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null
+    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null
 }) {
     const { band, success, dc } = verdict;
     const byTheKiller = isCleaner(actor);
@@ -1338,11 +1465,17 @@ async function resolveTransformRoad(actor, token, data, verdict, {
     const name = plainText(change?.name, limits.name ?? 60);
     const text = plainText(change?.text, limits.text ?? 400);
 
-    // A packet with nothing written in it cannot be honoured: there is no
-    // longer a second thing a reshape could mean. The roll is still spent,
+    // A packet without both a name and a description cannot be honoured: there
+    // is no longer a second thing a reshape could mean. The roll is still spent,
     // which is the same answer any action gets when its declaration is
     // unusable, and it is reported rather than silently succeeding.
-    if (!name && !text) {
+    // BOTH, NOT EITHER (E09 C11, 08.10.2026; audit S05-50). The windows have
+    // asked for both since they were written (`askTransformChange`) and this
+    // side took one: a packet with a name alone put a card carrying half a lie
+    // to the GMs that no window of the module could have sent. One rule now,
+    // the windows' - and the erase road's critical keeps it too
+    // (`resolveEraseRoad`).
+    if (!name || !text) {
         done.push(game.i18n.localize("DRPG.Cleanup.reshapeNothingSaid"));
     } else {
         // The critical's second half: one band quieter. A plain success
@@ -1357,25 +1490,21 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         try {
             // N-3: the GM rules on the lie. See the block above `proposeReshape`.
             await proposeReshape(actor, token, data, {
-                name, text, softer, tie: byTheKiller, done, attempt: receipt.attempt
+                name, text, softer, tie: byTheKiller, done, receipt
             });
         } catch (err) {
             error("Could not put a transform's reshape to the GM", err);
         }
     }
 
-    // The critical hands back the step that paid, not "a Sanity mark" (T-1).
+    // The critical hands back the step that paid, not "a Sanity mark" (T-1), as far as the GMs saw it paid (`handBack`).
     const back = CLEANUP.transformAction?.refundStress?.[band];
     if (back) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, back, receipt);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: back }));
+        const line = backLine(await handBack(actor, paidStep, back, { receipt, grant, by }));
+        if (line) done.push(line);
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
-    // What this attempt left the Sanity track at, so a Reroll takes back what it
-    // moved and not everything since (E03; audit S05-40).
-    receipt.stressAfter = resourceValue(actor, "stress");
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1395,41 +1524,20 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
      * decided here rather than asked for - so the only thing left to validate
      * from the packet is the band, and it is still checked against the table
      * rather than trusted. The words are capped by `plainText` inside
-     * `reshapeTrace`'s callers, and a packet with none is not a reshape.
+     * `reshapeTrace`'s callers, and a packet without both a name and a
+     * description is not a reshape (E09 C11, the windows' rule, as on the
+     * Tamper road in `resolveTransformRoad`): the critical erases instead.
      */
     const rules = CLEANUP.transform ?? {};
     const rewriteName = plainText(transform?.name, CLEANUP.transformAction?.limits?.name ?? 60);
     const rewriteText = plainText(transform?.text, CLEANUP.transformAction?.limits?.text ?? 400);
     const rewrite = isCritical && outcome.mayTransform && transform
-        && (rewriteName || rewriteText)
+        && rewriteName && rewriteText
         && rules.visibilities?.includes(transform.visibility)
         ? transform
         : null;
 
-    if (rewrite) {
-        try {
-            /*
-             * THE SAME RULING, BY THE SAME ARGUMENT (N-3).
-             *
-             * This is the erase road's critical reward rather than the Tamper
-             * action, but what lands on the trace is identical: a name and a
-             * sentence a player wrote, on the GM's own evidence. Gating one and
-             * not the other would leave a road where the words apply themselves,
-             * and a rule with a door next to it is not a rule.
-             */
-            await proposeReshape(actor, token, data, {
-                name: rewriteName,
-                text: rewriteText,
-                softer: rewrite.visibility,
-                tie: isCleaner(actor),
-                done,
-                erases: true,
-                attempt: receipt.attempt
-            });
-        } catch (err) {
-            error("Could not put a critical clean-up's reshape to the GM", err);
-        }
-    } else if (outcome.removes && !transforming) {
+    const erase = async () => {
         try {
             receipt.erased = recreationDataFor(token);
             // Through `removeRemnant` rather than `token.delete()`: it owns the
@@ -1442,10 +1550,48 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
         } catch (err) {
             error("Could not remove the Remnant a clean-up erased", err);
         }
+    };
+
+    let put = null;
+    if (rewrite) {
+        /*
+         * THE SAME RULING, BY THE SAME ARGUMENT (N-3).
+         *
+         * This is the erase road's critical reward rather than the Tamper
+         * action, but what lands on the trace is identical: a name and a
+         * sentence a player wrote, on the GM's own evidence. Gating one and
+         * not the other would leave a road where the words apply themselves,
+         * and a rule with a door next to it is not a rule.
+         *
+         * A PROPOSAL NOBODY CAN RULE ON STILL ERASES (E09 C10, 08.10.2026). The
+         * rewrite is the upgrade chosen on top of an erase the dice bought, and
+         * only the Decline button carried that erase - so a card that did not go
+         * (`proposeReshape` answers false) or a throw on the way to it left the
+         * trace standing with no button that would ever take it, while the GMs
+         * were told to "relabel it by hand if you allow it". Anything but a card
+         * that went erases here as a plain critical does, and the attempt reports
+         * an erase and no reshape.
+         */
+        try {
+            put = await proposeReshape(actor, token, data, {
+                name: rewriteName,
+                text: rewriteText,
+                softer: rewrite.visibility,
+                tie: isCleaner(actor),
+                done,
+                erases: true,
+                receipt
+            });
+        } catch (err) {
+            error("Could not put a critical clean-up's reshape to the GM", err);
+        }
+        if (put !== true && outcome.removes && !transforming) await erase();
+    } else if (outcome.removes && !transforming) {
+        await erase();
     } else {
         done.push(game.i18n.localize("DRPG.Cleanup.stillThere"));
     }
-    return { rewrite, rewriteName };
+    return { rewrite: put === true ? rewrite : null, rewriteName };
 }
 
     /*
@@ -1542,14 +1688,16 @@ export async function resolveCleanup({
     // string, and only a step the table knows is honoured.
     price = null, grant = false,
     // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
-    // r1-G2): action-rolls.mjs `rollOfFact`.
+    // r1-G2): action-rolls.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
+    // attempt, and a give-back the GMs' audit cannot check is not made on a player's word (`paidBack`).
     rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
 
     const actor = game.actors.get(actorId);
     if (!actor) return null;
-    if (!viaAction && !isCleaner(actor)) return null;
+    // Said and paid back (`blockedOnGm`); a GM's Reroll of an attempt that stands is refused as before.
+    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant, by);
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -1580,7 +1728,7 @@ export async function resolveCleanup({
         // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
         const free = replayFree || await consumeFreeCleanup(actor);
         if (!validPrice(price) && !free) await spendStress(actor);
-        if (free) await waivePrice(actor, validPrice(price));
+        if (free) await waivePrice(actor, validPrice(price), by);
         // An attempt that kept no receipt, as the refusal below (E08+E28 C3; audit S05-44).
         await forgetAttempt(actorId);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
@@ -1594,7 +1742,7 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by);
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -1624,6 +1772,8 @@ export async function resolveCleanup({
         actorId,
         tokenId,
         stressBefore: resourceValue(actor, "stress"),
+        // The marks this attempt's own writes moved, so a Reroll takes back those and no one else's (`undoLastCleanup`).
+        stressMoved: 0,
         erased: null,
         leftBehind: null,
         // G-20: what the trace was before it was relabelled. A Reroll putting
@@ -1641,8 +1791,8 @@ export async function resolveCleanup({
     const paidStep = validPrice(price);
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
-    if (!paidStep && !free) await spendStress(actor);
-    if (free) await waivePrice(actor, paidStep);
+    if (!paidStep && !free) receipt.stressMoved += await spendStress(actor);
+    if (free) receipt.stressMoved -= await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
     // amount read off the table rather than off the packet - and nothing for
     // the free attempt, which says so instead.
@@ -1653,7 +1803,7 @@ export async function resolveCleanup({
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
-            { change, isCritical, total, viaAction, receipt, done, paidStep, charged });
+            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by });
         await keepAttemptFact(rolls, roll, actorId, receipt);
         return road;
     }
@@ -1667,16 +1817,14 @@ export async function resolveCleanup({
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
     // Handed back on both roads now, because both roads paid - and as the step
-    // that paid, which is an action as often as a mark since T-1 (`handBack`).
+    // that paid, which is an action as often as a mark since T-1, as far as the
+    // GMs saw it paid, and said only where something came back (`handBack`).
     if (outcome.refundStress) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, outcome.refundStress, receipt);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
+        const line = backLine(await handBack(actor, paidStep, outcome.refundStress, { receipt, grant, by }));
+        if (line) done.push(line);
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
-    // What this attempt left the Sanity track at - see the transform road above.
-    receipt.stressAfter = resourceValue(actor, "stress");
     await keepAttempt(receipt);
     await keepAttemptFact(rolls, roll, actorId, receipt);
 
@@ -2142,13 +2290,15 @@ export async function resolveStageSix({
     viaAction = false,
     // Which step of the chain the client says it paid, and whether a Burst paid
     // it. Bounded here, like every other field that crossed a socket (T-1).
-    price = null, grant = false
+    price = null, grant = false,
+    // Who sent it, as `resolveCleanup` is told: null for a GM's own (fix r2-G8, `paidBack`).
+    by = null
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
     if (!actor || !def) return null;
-    if (!viaAction && !isCleaner(actor)) return null;
+    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant, by);
 
     /*
      * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
@@ -2157,6 +2307,13 @@ export async function resolveStageSix({
      * afternoon. Carrying a body is not: there has to be a body, `applyMoveBody`
      * reads it off `murderState()`, and a Tamper packet naming "moveBody" would
      * otherwise reach a function that assumes an incident it is not in.
+     *
+     * IT KEEPS THE PRICE, where the two refusals below give it back (E09 fix
+     * r2-G3, 08.10.2026; review round 2 sec S2-3). No sheet sends this packet:
+     * the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix`
+     * with `viaAction`), and Move the body is Stage 6's own panel's, which never
+     * claims the tile's door - so one that arrives was written by hand, and what
+     * it paid on the way, if anything, is not an honest killer's.
      */
     if (viaAction && key === "moveBody") {
         error(`Refused a Tamper by ${actor.name}: a body is not an ordinary action.`);
@@ -2170,12 +2327,27 @@ export async function resolveStageSix({
      * packet from the console could plant a trail pointing at the killer
      * themselves, the victim or a Monokuma - the three `framingCandidates`
      * leaves out - or carry the body off from a room the killer was not in.
-     * Asked here before anything is paid.
+     *
+     * ASKED BEFORE THE GM'S SIDE PAYS ANYTHING, NOT BEFORE THE KILLER HAS (E09
+     * fix r2-G3, 08.10.2026; review round 2 sec S2-3). This said "before
+     * anything is paid", true of this side only since T-1: the killer's browser
+     * pays its step before the dice (`chargeTamper`), and both refusals kept it,
+     * so a target or a body that moved while the dice were in the air cost an
+     * honest killer the step - measured at 97e0eef by tier 2 ("Stage 6's own
+     * refusals give the killer back the step they paid and no more"), Sanity
+     * 2 and 3 marks where 1 was owed after each. Given back now as the other
+     * refusals give it, as far as the GMs saw it paid (`refundRefused`), and
+     * said in a whisper of the refusal's own, in the words the bridge tells it
+     * with.
      */
     if (key === "misleadingTrail" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {
+        await refundStageSix(actor, "cannotFrame", price, grant, by);
         return { refused: "that student cannot be framed" };
     }
-    if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
+    if (key === "moveBody" && !bodyIsHere(actor)) {
+        await refundStageSix(actor, "notThere", price, grant, by);
+        return { refused: "the body is not in the killer's room" };
+    }
     // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
     const { actorAsHeld } = await import("./sheet-audit.mjs");
     const held = await actorAsHeld(actor);
@@ -2200,7 +2372,7 @@ export async function resolveStageSix({
     const paidStep = validPrice(price);
     const free = await consumeFreeCleanup(actor);
     if (!paidStep && !free) await spendStress(actor);
-    if (free) await waivePrice(actor, paidStep);
+    if (free) await waivePrice(actor, paidStep, by);
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
@@ -2209,9 +2381,8 @@ export async function resolveStageSix({
 
     const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, refund);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: refund }));
+        const line = backLine(await handBack(actor, paidStep, refund, { grant, by }));
+        if (line) done.push(line);
     }
 
     // Three shapes for one idea lived here: this card led with an `<h3>`, the
@@ -2221,7 +2392,11 @@ export async function resolveStageSix({
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
     })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
-    await whisperToGms(`${cardHead({ action: def.label, total, result: band })}<p>${
+    /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
+       the numbers by hand (E09 C14, 08.10.2026; audit S05-33): it reads as the player's does,
+       "≥ 18", with the band beside it, named as the roll names it. */
+    await whisperToGms(`${cardHead({ action: def.label, total, result: `${success ? "≥" : "<"} ${threshold} · ${
+        game.i18n.localize(`DRPG.Action.duality.${band}`)}` })}<p>${
         foundry.utils.escapeHTML(actor.name)} vs ${threshold}</p>`);
 
     log(`Stage 6 ${key}: ${actor.name} rolled ${total} vs ${threshold} - ${band}.`);
@@ -2248,7 +2423,14 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         type: def.remnantType ?? "prep",
         visibility,
         faint: success ? false : Boolean(def.failureFaint),
-        tiedToCrime: true,
+        /* THE KILLER'S TRAIL IS THE CRIME'S; ANYBODY ELSE'S IS NOBODY'S YET (E09 C4, 08.10.2026;
+           audit S05-25). This was `true` for everybody, and a Tamper's frame is anybody's: an
+           innocent's trail on a plain day was filed as evidence of a murder, ranked first in the
+           dashboard and Observe, and spared by the chapter's sweep (tier 2 "an innocent's
+           misleading trail is not tied to the crime"). The killer in
+           Stage 6 ties it, as `leaveTamperTrace` does; anybody else leaves it undecided, so
+           `placeRemnant`'s incident rule decides it and a GM can answer it. */
+        tiedToCrime: isCleaner(actor) ? true : null,
         action: "resolution",
         pointsAt: framed?.id ?? null,
         subject: framed?.name ?? "",
@@ -2259,14 +2441,16 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         // The ledger already stores `sourceActor`/`sourceName`, but the note is
         // the line the Remnant list prints under the action - so it says both
         // ends of the lie: who left it, and who it accuses.
+        // The band as the table names it, "Evident" and not "evident" (E09 C14, 08.10.2026; audit
+        // S05-33): both lines printed the ledger's key.
         note: game.i18n.format("DRPG.Cleanup.trailNote", {
-            name: framed?.name ?? "?", visibility, by: actor.name
+            name: framed?.name ?? "?", visibility: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility, by: actor.name
         })
     });
 
     done.push(game.i18n.format("DRPG.Cleanup.trailPlanted", {
         // A character's name is its owner's to write (S05-05, S04-10).
-        name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility
+        name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility
     }));
 }
 
@@ -2325,17 +2509,28 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
     const region = Array.from(here.scene?.regions ?? []).find(r => r.name === room);
     const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id) ?? null;
 
+    /*
+     * A BODY THAT DID NOT MOVE LEAVES NO DRAG MARKS (E09 C11, 08.10.2026; audit S05-47). A teleport that threw, or a
+     * room or a body token this scene does not hold, said "There is nowhere to take it" - `bodyNowhere`'s words for a
+     * different thing - and went on to drop the evident trace "dragged from here towards" the room, so the GMs held a
+     * trail of a move that never happened, beside a body still lying where it fell. It stops here now, as the other
+     * two answers above do; `bodyStuck` says the body would not move, and the critical's hand-back stands, as it does
+     * for those two.
+     */
+    let moved = false;
     if (region && tokenDoc) {
         try {
             await region.teleportTokens([tokenDoc], { placement: "random", snap: true, pan: false });
-            done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
+            moved = true;
         } catch (err) {
             error("Could not move the body", err);
-            done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
         }
-    } else {
-        done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
     }
+    if (!moved) {
+        done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
+        return;
+    }
+    done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
 
     const visibility = def.remnant?.[band] ?? "evident";
     await dropRemnant(actor, {
@@ -2366,9 +2561,13 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
  * an attempt that ends without one (`forgetAttempt`).
  * ========================================================================== */
 
-/** Every field of a receipt, each written, so a row holds one attempt's and nothing of the one before it. */
-const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter",
-    "erased", "leftBehind", "transformed", "handedBack"];
+/**
+ * Every field of a receipt, each written, so a row holds one attempt's and nothing of the one before it.
+ * `proposal` is a reshape's words as the card put them (`proposeReshape`); `ruled` is never on a
+ * receipt - the ruling writes it (`claimRuling`) - and is listed so a new attempt clears it.
+ */
+const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter", "stressMoved",
+    "erased", "leftBehind", "transformed", "handedBack", "proposal", "ruled"];
 
 /**
  * What a character's last clean-up attempt did, as the GMs' store holds it; null for none.
@@ -2379,10 +2578,17 @@ export async function attemptOf(actorId) {
     return cleanupAttemptStore.get(actorId ?? "") ?? null;
 }
 
-/** The receipt of an attempt that ended, over whatever the row held. */
+/**
+ * The receipt of an attempt, over whatever the row held. A reshape keeps it twice - once before its
+ * card goes (`proposeReshape`), once when the attempt ends - and a ruling may land between the two
+ * (E09 C10, 08.10.2026): its `ruled`, its `transformed`, a decline's `erased`. So the second write
+ * of the SAME attempt leaves what the receipt does not hold as the row has it, and only a new
+ * attempt nulls every field.
+ */
 function keepAttempt(receipt) {
+    const again = cleanupAttemptStore.get(receipt.actorId)?.attempt === receipt.attempt;
     return cleanupAttemptStore.patch(receipt.actorId,
-        Object.fromEntries(RECEIPT_FIELDS.map(f => [f, receipt[f] ?? null])));
+        Object.fromEntries(RECEIPT_FIELDS.map(f => [f, receipt[f] ?? (again ? undefined : null)])));
 }
 
 /** No receipt: the last attempt is not this character's to take back any more. */
@@ -2433,7 +2639,8 @@ function recreationDataFor(token) {
         visibility: d.visibility,
         faint: Boolean(d.faint),
         reinforced: Boolean(d.reinforced),
-        tiedToCrime: Boolean(d.tiedToCrime),
+        // Three states (E09 C4): put back as it stood, undecided included (`placeRemnant`'s `keepId`).
+        tiedToCrime: tieState(d.tiedToCrime),
         note: d.note ?? "",
         action: d.action ?? "manual",
         subject: d.subject ?? "",
@@ -2450,6 +2657,26 @@ function recreationDataFor(token) {
         // What a player was to be shown, re-applied after re-placing.
         public: d.public ?? null
     };
+}
+
+/*
+ * A RECEIPT'S "NOT TIED" FROM BEFORE THE THIRD STATE (E09 fix r1-G2, 08.10.2026; the round-1
+ * correctness review's F5). A receipt holds the trace's tie as it stood (`erased`, the reshape's
+ * `transformed.from`) - through `Boolean()` until E09 C4, so a receipt kept from before the upgrade
+ * says "not tied" for a trace nobody had decided, and gm-stores.mjs `settleTieStates` reads the
+ * ledger's rows only: its undo wrote the old `false` back as a GM's "not tied" after the step, and
+ * a death then left the trace alone. A `false` in a receipt field stamped before the step's mark
+ * (`caseMark().tiesSettledAt`, a store stamp), or in a world whose step has not run, goes back
+ * undecided; one stamped since is a GM's of today and goes back as it was (tier 2 "a clean-up
+ * receipt's not tied from before the upgrade goes back undecided"). A receipt written in the
+ * seconds between a load and its step reads as old - read in the code, not measured at a table.
+ * Anything but `false` goes back as the receipt holds it: a receipt from before E08+E28 C3 has no
+ * tie in `from`, and `retuneRemnant` leaves the tie alone for an `undefined`.
+ */
+function receiptTie(actorId, field, tie) {
+    if (tie !== false) return tie;
+    const settledAt = caseMark().tiesSettledAt;
+    return Number.isFinite(settledAt) && cleanupAttemptStore.stampOf(actorId, field) >= settledAt ? false : null;
 }
 
 /**
@@ -2493,9 +2720,12 @@ async function undoLastCleanup(actor, tokenId) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
             const { public: pub, ...data } = receipt.erased;
+            data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
-            if (back && pub) await setRemnantPublic(back, pub);
+            // The words it had, onto the ledger alone: the copies already held kept theirs
+            // through the erase, and through a reshape before it (E09 C9, `reshapeTrace`).
+            if (back && pub) await setRemnantPublic(back, pub, { propagate: false });
             // Marked as put back: a later Reroll does not lift or retune it, found
             // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
@@ -2520,8 +2750,9 @@ async function undoLastCleanup(actor, tokenId) {
         try {
             const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
+            const from = receipt.transformed.from;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
-                receipt.transformed.from);
+                { ...from, tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
 
             // `publicFrom` is null when nothing had ever been written for a
             // finder, and that is a real state rather than a missing one: the
@@ -2531,10 +2762,14 @@ async function undoLastCleanup(actor, tokenId) {
                 ? game.scenes.get(receipt.transformed.sceneId) : canvas?.scene;
             const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
             if (tokenDoc) {
+                // The ledger alone (E09 C9): the reshape left the copies already held as they
+                // were found, so there is nothing on them to take back. A copy found between the
+                // reshape and this Reroll keeps the words its finder read (tier 2 "the Undo
+                // restores the trace and leaves the copies").
                 await setRemnantPublic(tokenDoc, {
                     name: back?.name ?? game.i18n.localize("DRPG.Remnant.tokenName"),
                     playerText: back?.playerText ?? ""
-                });
+                }, { propagate: false });
             }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up rewrote", err);
@@ -2567,18 +2802,47 @@ async function undoLastCleanup(actor, tokenId) {
                wait holds up nothing that holds it up, by reading: all a judgement
                waits for that it does not do itself is its own writer's consumption
                of an item or roll card, and this rewind writes as a GM;
-               `resolveCleanup` waits on the same queue after it (`actorAsHeld`). */
-            const moved = typeof receipt.stressAfter === "number"
-                ? receipt.stressAfter - receipt.stressBefore : null;
+               `resolveCleanup` waits on the same queue after it (`actorAsHeld`).
+               A RISE PUTS A PAYMENT BACK, AND IS NO GIVE-BACK (E09 fix r2-G8, 09.10.2026).
+               Where the attempt's critical or the free attempt's waiver gave its step
+               back, `moved` is below 0 and the rewind raises the marks. Written as a
+               give-back, that rise is a spend the audit banks nothing for (fix r2-H8,
+               sheet-audit.mjs `gmLedger`), so the payment stood again with nothing in
+               the credit for it, and the replay's give-back, held to the credit since
+               this fix (`paidBack`), found none: measured on this fix by tier 2's "a
+               Reroll of a critical clean-up neither mints nor loses the step its
+               give-back handed over" with the rise written so (e09run/r2g8m, m6), a
+               Sanity step paid, handed back by a critical and Rerolled into a critical
+               again left 2 marks where 1 was owed. A rise is written as the GM's own
+               charge now, which banks the credit again, as the action's take-back
+               below (`takeBackRefund`, a GM's spend) always has; a fall is still a
+               give-back, as fix r2-H6 made it.
+               THE ATTEMPT'S OWN WRITES, NOT THE TRACK'S MOVE (E09 fix r2-G10, 09.10.2026; r2-G8's
+               open road 3). `moved` was the track's move between `stressBefore` and the
+               attempt's end (`stressAfter`), so any write landing while the attempt
+               ran - a GM's, a relay's, another road's - was taken back as the
+               attempt's, and a fall there was raised again as the GM's charge above,
+               banking credit nobody paid: measured on this fix by tier 2's "a Reroll
+               of a clean-up takes back the attempt's own Sanity and not a write that
+               landed while it ran", a GM's clear of one mark while the attempt's
+               card was being posted was undone by the Reroll and left one step in the
+               credit after the replay's give-back. The receipt now counts what the
+               attempt's own writes moved (`stressMoved`: `spendStress`'s charge,
+               `waivePrice`'s and `handBack`'s give-backs, as each answers it), and
+               the rewind takes back that. A row kept before this fix has no
+               `stressMoved` and is read as before. */
+            const moved = typeof receipt.stressMoved === "number" ? receipt.stressMoved
+                : typeof receipt.stressAfter === "number" ? receipt.stressAfter - receipt.stressBefore : null;
             const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
             await gmMeansWrite(actor, async () => {
                 const ceiling = meansMaxHeld(actor, "stress") || Infinity;
+                const marks = resourceValue(actor, "stress");
                 const value = moved === null
                     ? receipt.stressBefore
-                    : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
+                    : Math.min(ceiling, Math.max(0, marks - moved));
                 await trustedWrite(actor, {
                     "system.resources.stress.value": value
-                }, { reason: "reroll", giveBack: true });
+                }, { reason: "reroll", giveBack: value < marks });
             });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);
@@ -2618,6 +2882,91 @@ function validPrice(price) {
 }
 
 /**
+ * Give back what a refused attempt paid on the player's browser, as far as the GMs saw it paid, and answer the line
+ * that says so ("" for none).
+ *
+ * A REFUSAL ON THE GM KEPT THE PRICE (E09 C11, 08.10.2026; audit S05-46). Since T-1 the price is paid on the player's
+ * browser before the dice (`chargeTamper`), so the GM's side has nothing of its own to hold back when it refuses: a
+ * trace the GM reinforced while the dice were in the air answered "it will not come off" and the action or the Sanity
+ * mark stayed spent, and the comment above the check said the Sanity was not taken.
+ *
+ * NOT ON THE PACKET'S WORD (E09 fix r2-G3, 08.10.2026; review round 2 sec S2-1). C11 gave back the step `validPrice`
+ * names - the table's amount, but the packet's step - and nothing on the GM ties a drawn clean-up roll to a payment:
+ * measured at 97e0eef by tier 2 ("a clean-up the GM refuses gives back no price the GMs did not see paid"), a student
+ * who paid nothing had the action and the Sanity step given back for two packets saying they were paid. The step now
+ * comes back only as far as the GMs' audit holds credit for it, and the credit is taken (`paidBack`, which since fix
+ * r2-G8 holds the rest of this note and is the road of a critical's give-back and the free attempt's waiver too).
+ * Quiet, because the line goes into the refusal's own whisper rather than a second card.
+ */
+async function refundRefused(actor, price, grant = false, by = null) {
+    const step = validPrice(price);
+    if (!step) return "";
+    const back = await paidBack(actor, step, { grant, by });
+    return back.amount ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(back) })}</p>` : "";
+}
+
+/*
+ * A STEP A PACKET SAYS WAS PAID, GIVEN BACK AS FAR AS THE GMS SAW IT PAID: a refusal's give-back (`refundRefused`), a
+ * critical's (`handBack`) and the free attempt's waiver (`waivePrice`), one road since E09 fix r2-G8 (09.10.2026).
+ * `step` is `{ pay, amount }`, `grant` whether a Burst paid it, `by` who sent the packet (null for a GM's own). Answers
+ * what came back as a price receipt, `amount` 0 for nothing.
+ *
+ * The step comes back as far as the GMs' audit holds credit for it - what the payment the GMs saw left - and the credit
+ * is taken, so one payment comes back once (sheet-audit.mjs `creditRefund`, fix r2-G3). A Burst claimed is asked of a
+ * Burst's credit and comes back as a Burst, as `refundAction` gives one back; its line says "action", as the price's
+ * lines do.
+ *
+ * WHERE THIS BROWSER HOLDS NO MARK OF THE STUDENT (`creditRefund`'s null: not the primary, the stores not hydrated, no
+ * mark, a Monokuma) nothing checks a claim. The step named came back there, a Burst as an action, whoever had sent it
+ * (C11's give-back, kept by fix r2-G3). It still does for a GM's own attempt - a GM is trusted with their own - and for
+ * an actor the audit keeps no student's mark of, a Monokuma or no character, whose document is the record
+ * (`meansHeld`). A player's packet on a student gets nothing there, and the GMs are told what it claimed, so a GM can
+ * hand it back by hand. A player's packet reaches that branch, by reading (fix r2-G8; not measured - the harness runs
+ * one GM, its stores hydrated before the suite): the primary judges a packet without waiting for its stores where the
+ * GM-side draw is not in force (bridge-guards.mjs `rollsFor` returns before `whenHydrated`, and nothing else in `judge`
+ * waits), and asks whether it is the primary as the packet arrives (gm-bridge.mjs `onSocket`), not when the give-back
+ * runs. Tier 2 reaches the branch by dropping the student's mark before each packet: measured at 8303625 by "a give-back
+ * the GMs cannot check against a payment is not made on a player's word and the GMs are told", a player who had paid
+ * neither had the Sanity step and the action two packets claimed given back, and the GMs were told nothing.
+ */
+async function paidBack(actor, step, { grant = false, by = null } = {}) {
+    const burst = step.pay === "action" && Boolean(grant);
+    const { creditRefund } = await import("./sheet-audit.mjs");
+    const back = await creditRefund(actor, step.pay === "stress" ? "stress" : burst ? "freeActionGrants" : "actions", burst ? 1 : step.amount);
+    if (back !== null) return { pay: step.pay, amount: burst && back > 0 ? step.amount : back, grant: burst };
+    const named = { pay: step.pay, amount: step.amount, grant: false };
+    if (by && !game.users.get(by)?.isGM && actor.type === "character" && !isMonokuma(actor)) {
+        log(`Gave ${actor.name} nothing back for a claimed ${step.pay}: this client holds no mark of them.`);
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Cleanup.refundUnheld", {
+            name: foundry.utils.escapeHTML(actor.name), what: priceLabel(named) })}</p>`);
+        return { ...named, amount: 0 };
+    }
+    return { ...named, amount: await refundPrice(actor, named, { quiet: true }) ? step.amount : 0 };
+}
+
+/** Before one of Stage 6's own refusals (`resolveStageSix`): what the killer paid given back as far as the GMs saw it, said with the bridge's reason (`why`) where any came back. */
+async function refundStageSix(actor, why, price, grant, by = null) {
+    const line = await refundRefused(actor, price, grant, by);
+    if (line) await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Bridge.why.${why}`)}</p>${line}`);
+}
+
+/**
+ * An attempt that reaches the GM after its Stage 6 has stopped being the asker's: said, and the price given back.
+ *
+ * A SILENT NULL UNTIL E09 C11 (08.10.2026; audit S05-46). A GM who closed the incident while the killer's dice were
+ * in the air left both resolvers answering null and telling nobody: the killer had paid on their own browser and
+ * heard nothing. The reason is `cleanupBlocker`'s, in the words the sheet uses before the dice (`refuseCleanup`).
+ * Not null, so the bridge does not add a refusal of its own to the whisper.
+ */
+async function blockedOnGm(actor, price, grant = false, by = null) {
+    const why = cleanupBlocker(actor) ?? "notYours";
+    log(`Refused a clean-up by ${actor.name} on the GM: ${why}.`);
+    await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Cleanup.blocked.${why}`)}</p>${
+        await refundRefused(actor, price, grant, by)}`);
+    return { removed: false, success: false, blocked: why };
+}
+
+/**
  * Give back what the attempt paid: the step, not "a Sanity mark".
  *
  * The critical's own line is "Morderca odzyskuje 1 stres", and until T-1 that was
@@ -2626,27 +2975,61 @@ function validPrice(price) {
  *
  * WRITTEN FOR A BAND TABLE, not for `critical`. Two of the three callers read
  * `refundStress?.[band]`, so a rebalance that hands something back on an ordinary
- * success arrives here unchanged.
+ * success arrives here unchanged. Read on fix r2-G8 (09.10.2026): each band the
+ * callers read that hands anything back hands back 1 - the erase road's critical
+ * outcome, `transformAction`'s and Stage 6's misleading trail's and body's
+ * (config.mjs `CLEANUP`) - and each of Tamper's two steps costs 1, so none hands
+ * back more than the step paid.
  *
- * A BURST COMES BACK AS AN ACTION, not as a Burst. This runs on the GM's client
- * on a claim it cannot verify, and a Burst pays for a whole call however much it
- * costs - so it is worth more than the action it replaced. The exposure is capped
- * at one action per critical, which is the cheaper of the two mistakes.
+ * ON THE PACKET'S WORD UNTIL E09 FIX r2-G8 (09.10.2026; r2-G3's open road 1). The
+ * step the packet claims (`paidStep`) came back - an action through `refundAction`,
+ * a mark through `restoreStress` - whether anything was paid or not: measured at
+ * 8303625 by tier 2's "a critical's give-back and the free attempt's waiver give
+ * back only what the GMs saw paid", a killer the GMs held at 2 marks and 2 actions,
+ * who had paid nothing, was left at 0 marks and 3 actions by the free attempt and
+ * two criticals, one saying it paid the Sanity step and one the action. It comes
+ * back now as a refusal's does (`paidBack`).
+ * WHERE THE PACKET CLAIMS NO STEP the Sanity is asked of the credit as the GM's own
+ * give-back: the mark `spendStress` charged - and for the free attempt, which was
+ * charged nothing and whose browser claims no step (`chargeTamper`), whatever the
+ * credit still holds of the student's Sanity within a Reroll's window (sheet-audit.mjs
+ * `CREDIT_KEPT_MS`: a mark a payment or any GM's write left), or nothing.
+ * Until this fix a mark came back there whatever had been paid. Read in the code, not
+ * measured; whether the free attempt's critical should hand anything back is a
+ * question of the rules this fix does not decide.
+ * A BURST COMES BACK AS A BURST since then, asked of a Burst's credit. It came back
+ * as an action while nothing checked the claim - a Burst pays for a whole call
+ * however much it costs, so an action was the cheaper mistake - and still does
+ * where the GMs hold no mark to ask and the attempt is a GM's own or no student's
+ * (`paidBack`).
  *
- * @returns {Promise<"action"|"stress">} what was handed back.
+ * @returns {Promise<{pay: string, amount: number, grant: boolean}>} what came back,
+ *   `amount` 0 for nothing.
  */
-async function handBack(actor, price, amount = 1, receipt = null) {
-    if (price === "action") {
-        const { refundAction } = await import("./actions.mjs");
-        await refundAction(actor, amount);
-        // Recorded so a Reroll can take it back: `stressBefore` rewinds Sanity
-        // and nothing else, so an action handed back once per replay would be
-        // minted out of nothing.
-        if (receipt) receipt.handedBack = { pay: "action", amount, grant: false };
-        return "action";
-    }
-    await restoreStress(actor, amount);
-    return "stress";
+async function handBack(actor, paidStep, amount = 1, { receipt = null, grant = false, by = null } = {}) {
+    const back = paidStep
+        ? await paidBack(actor, { pay: paidStep.pay, amount }, { grant, by })
+        : await paidBack(actor, { pay: "stress", amount });
+    // Recorded so a Reroll can take it back: `stressBefore` rewinds Sanity
+    // and nothing else, so an action handed back once per replay would be
+    // minted out of nothing. What came back, not what was asked: a Reroll
+    // of a critical that gave nothing back took an action nobody had been given.
+    if (receipt && back.pay === "action" && back.amount) receipt.handedBack = back;
+    if (receipt && back.pay === "stress") receipt.stressMoved -= back.amount;
+    return back;
+}
+
+/**
+ * The card's line for what a give-back handed over (`handBack`), or null where nothing came back - the line used to be
+ * said whatever came back. An action's line is a plural pair (`DRPG.Cleanup.actionBack`), read through `plural`; the
+ * three callers had handed the pair's key to `game.i18n.format` - at 8303625, by the test above, the action came back
+ * and no card said so in the harness, whose `format` answers such a key with the key's own name (client-entry.mjs);
+ * Foundry is not measured.
+ */
+function backLine(back) {
+    if (!back?.amount) return null;
+    return back.pay === "action" ? plural("DRPG.Cleanup.actionBack", { n: back.amount })
+        : game.i18n.format("DRPG.Cleanup.stressBack", { n: back.amount });
 }
 
 /**
@@ -2662,6 +3045,7 @@ async function handBack(actor, price, amount = 1, receipt = null) {
  * marks stands without a judge, so it names what it is, the action's price, which says
  * nothing of who is in the incident; from a GM no reason goes at all (resource-guard.mjs
  * `stampOf`).
+ * Answers the marks it added, 0 where the track was full: a clean-up's receipt counts them (E09 fix r2-G10).
  */
 export async function markResolutionStress(actor) {
     // Held to the marks and the maximum the GMs hold on a GM's client (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a
@@ -2670,19 +3054,20 @@ export async function markResolutionStress(actor) {
     const { meansWrite } = await import("./sheet-audit.mjs");
     return meansWrite(actor, async ({ stress: marks }, maxOf) => {
         const max = maxOf("stress") ?? 0;
-        if (marks >= max) return false;
-        await trustedWrite(actor, {
-            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-        }, { reason: "price" });
-        return true;
+        if (marks >= max) return 0;
+        const next = Math.min(max, marks + RESOLUTION_STRESS_COST);
+        await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "price" });
+        return next - marks;
     });
 }
 
+/** The clean-up's Sanity, charged on the GM; answers the marks it added (0 for none). */
 async function spendStress(actor) {
     try {
-        await markResolutionStress(actor);
+        return await markResolutionStress(actor);
     } catch (err) {
         error("Could not charge the Sanity for a clean-up", err);
+        return 0;
     }
 }
 
@@ -2706,17 +3091,24 @@ export async function consumeFreeCleanup(actor) {
 
 /**
  * The price the free attempt does not owe (E32+E07 C13). The GM's side charges it nothing -
- * a packet that claims no step skips `spendStress` - but a legitimate client has already paid
+ * a packet that claims no step skips `spendStress` - but a legitimate client had already paid
  * its mark before the dice (`chargeTamper`: the killer's own chain starts at the Sanity), and
- * it cannot know the mark is not owed, since the grant is the GMs'. So that mark is lifted
- * again. Only a Sanity step: an action is never the killer's price in their own Stage 6
- * (`tamperPriceSkip`), and handing an action back on a claim nobody can check is what
- * `handBack` already weighs for the critical. Lifted after `stressBefore` is read, so a
- * Reroll's rewind puts the mark back and the replay, told by its receipt that it was the
- * free one, lifts it again.
+ * could not know the mark was not owed while the grant was the GMs' alone. So that mark is
+ * lifted again. Since E32+E07 fix r2-G3 the killer's copy of the cast carries the grant and
+ * their browser claims no step for the free attempt (`chargeTamper`), so, by reading, an honest
+ * packet claims one only where that copy had not heard of the grant yet. Only a Sanity
+ * step: an action is never the killer's price in their own Stage 6 (`tamperPriceSkip`).
+ * Lifted after `stressBefore` is read, so a Reroll's rewind puts the mark back and the
+ * replay, told by its receipt that it was the free one, lifts it again.
+ * AS FAR AS THE GMS SAW IT PAID (E09 fix r2-G8, 09.10.2026; r2-G3's open road 2). The mark
+ * the packet claimed was lifted whether it had been paid or not: measured at 8303625 by
+ * tier 2's "a critical's give-back and the free attempt's waiver give back only what the
+ * GMs saw paid", the free attempt saying it paid a Sanity step nobody paid took the killer
+ * from 2 marks to 1. It comes back now as a refusal's step does (`paidBack`), and the
+ * rewind's rise banks the credit the replay's waiver takes (`undoLastCleanup`).
  */
-async function waivePrice(actor, paidStep) {
-    if (paidStep?.pay === "stress") await restoreStress(actor, paidStep.amount);
+async function waivePrice(actor, paidStep, by = null) {
+    return paidStep?.pay === "stress" ? (await paidBack(actor, paidStep, { by })).amount : 0;
 }
 
 /**

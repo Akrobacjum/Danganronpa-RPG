@@ -18,7 +18,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
@@ -233,7 +233,14 @@ export async function dropRemnant(actor, {
      * `handleRemnant`, E08+E28 fix r1-G1). Null for a trace no roll's replay owns (a discarded
      * item's, an indirect murder's covering, a GM's own). Travels beside the packet's data.
      */
-    rollId = null
+    rollId = null,
+    /*
+     * The body this trace's tie to the crime tells of - a loot's (handover.mjs
+     * `markBodyDisturbed`) - so the tie waits for that death while the GMs keep it
+     * (`tieWaitNow`, E09 fix r2-G4). GM-side, like `placeRemnant`'s `keepId`: never put in the
+     * data, so it never travels.
+     */
+    deathOf = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -271,7 +278,7 @@ export async function dropRemnant(actor, {
         chapter: clock.chapter,
         day: clock.day,
         timeOfDay: clock.timeOfDay
-    }, { rollId });
+    }, { rollId, deathOf });
 }
 
 /**
@@ -281,9 +288,10 @@ export async function dropRemnant(actor, {
  * `keepId` (GM-side only, never read off a packet): the trace is made under the
  * `_id` in `data` - a clean-up's Reroll putting back the trace it erased
  * (cleanup.mjs `undoLastCleanup`). `rollId` (a player's only): the roll this
- * trace is that roll's own, sent beside `data` (`dropRemnant`).
+ * trace is that roll's own, sent beside `data` (`dropRemnant`). `deathOf` (GM-side
+ * only, like `keepId`): the body the trace's tie tells of (`dropRemnant`, `tieWaitNow`).
  */
-export async function placeRemnant(data = {}, { keepId = false, rollId = null } = {}) {
+export async function placeRemnant(data = {}, { keepId = false, rollId = null, deathOf = null } = {}) {
     if (!game.user.isGM) {
         // Answered once placed (E31), and refused as failed when the GM's client
         // could not place it (E31 review), so "placed" means placed at every caller.
@@ -319,8 +327,13 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
      *
      * An explicit `false` still wins: the GM planting a red herring mid-incident
      * is making a decision, and this is a default rather than an override.
+     *
+     * Not for a trace put back under its id (`keepId`, E09 C4): that is a trace
+     * the world already had, its tie as it stood - undecided included, which
+     * since C4 travels as `null` rather than as a `false` - and not a new one
+     * left now.
      */
-    if (data.tiedToCrime === undefined || data.tiedToCrime === null) {
+    if (!keepId && (data.tiedToCrime === undefined || data.tiedToCrime === null)) {
         try {
             const { murderState } = await import("./murder.mjs");
             const state = murderState();
@@ -353,7 +366,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
         faint = false, reinforced = false, note = "", action = "manual",
-        subject = "", pointsAt = null, tiedToCrime = false,
+        subject = "", pointsAt = null, tiedToCrime = null,
         sourceActor = null, sourceName = "",
         room = null, chapter = null, day = null, timeOfDay = null,
         // The opaque identity of the object this trace handed over, when it
@@ -395,15 +408,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
      * is created hidden and unmarked now, like any trace nobody has found; the closing of
      * an incident does the same to the traces it leaves (`retireIncidentTraces`).
      */
-    let castSees = false;
-    if (type === "incident") {
-        try {
-            const { murderState } = await import("./murder.mjs");
-            castSees = Boolean(murderState());
-        } catch {
-            // No incident module, no incident: hidden, as the rest.
-        }
-    }
+    const castSees = await incidentCastSees(type);
 
     const actor = await ensureRemnantActor();
     if (!actor) return null;
@@ -510,7 +515,10 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
                 type, visibility, faint,
                 reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
                 note, action, subject, pointsAt,
-                tiedToCrime: Boolean(tiedToCrime),
+                tiedToCrime: tieState(tiedToCrime),
+                // A tie to a crime nobody has found yet waits to reach the copies
+                // (`tieWaitNow`, E09 fix r1-G1): a copy made in the meantime is undecided.
+                tieWaitsFor: tieState(tiedToCrime) === true ? await tieWaitNow(deathOf) : null,
                 // Which object this trace handed over, if it handed one over.
                 // Read by `tieTraceForItem` when that object turns out to have
                 // been the murder weapon.
@@ -551,6 +559,27 @@ function actionLabel(action) {
     return label === key ? action : label;
 }
 
+/**
+ * The action that left a trace, as every screen that shows a trace names it: the
+ * action's own name where it is a tile (`ACTIONS`), the Remnant table's for the ones
+ * that are not (a thrown-away item, a body looted, an incident, a clean-up, a trace the
+ * GM placed), and the bare key only for an action neither names.
+ *
+ * ONE READ, IN THE FILE THAT OWNS THE TRACE (E09 C15, 08.10.2026; audit S05-30). This
+ * lived in remnant-ring.mjs for the GM's card alone, and `traceContextLine` read
+ * `ACTIONS` and fell back to the key - so the line under every dashboard row printed
+ * "dynamic", "incident", "loot", "discard" and "resolution" as they are stored (none
+ * is a key of `ACTIONS`), the same mistake the "manual" note in it records, while the
+ * card beside it named them. The ledger's own `label` (`placeRemnant`) keeps
+ * `actionLabel` above: it is written into the row when the trace is placed, and of the
+ * nine actions the two tables name, they disagree on one, a project ("Project" there,
+ * `ACTIONS.project`'s "Projects" here; read in en.json and config.mjs, not changed).
+ */
+export function actionLabelOf(action) {
+    if (!action) return null;
+    return ACTIONS[action]?.label ?? actionLabel(action);
+}
+
 /* ==========================================================================
  * THE TRACE DIGEST
  * --------------------------------------------------------------------------
@@ -585,11 +614,7 @@ const tombstoning = new Map();
 
 /** The card one trace gets, whether it goes out alone or in the digest. */
 function traceCard(data, { heading = true } = {}) {
-    const when = [
-        data.chapter ? `Chapter ${data.chapter}` : null,
-        data.day ? `Day ${data.day}` : null,
-        data.timeOfDay
-    ].filter(Boolean).join(" · ");
+    const when = traceWhen(data);
 
     const title = `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}${
         data.faint ? " (Faint)" : ""}`;
@@ -1123,8 +1148,15 @@ export function publicOf(entry) {
  * object, one lab reading, however many people are carrying a copy - and that
  * is the same argument that put `playerText` here rather than on each bullet.
  * `propagateRemnantPublic` is where the two roads part.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.propagate=true]  `false` leaves the Truth Bullets already copied
+ *   from the trace as their finders found them: the ledger takes the patch, and the token is
+ *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
+ *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
+ *   `true` sends the copies the fields this write changed, and nothing else (E09 fix r2-G1).
  */
-export async function setRemnantPublic(tokenDoc, patch = {}) {
+export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
     const key = keyOf(tokenDoc);
     if (!key || !remnantStore.has(key)) return null;
@@ -1134,9 +1166,25 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
        named: two GMs - one renaming the trace, one rewriting its reading - both keep
        theirs. Writing the whole merged object stamped every field, so the second
        GM's write took the first one's back with it. */
+    const before = remnantPublic(tokenDoc) ?? {};
     await setRemnantSecret(tokenDoc, { public: patch }, { ifLive: true });
     const merged = remnantPublic(tokenDoc);
-    await propagatePublic(tokenDoc, merged);
+
+    /* AND THE COPIES TAKE WHAT THIS WRITE CHANGED, NOT THE RECORD (E09 fix r2-G1, 08.10.2026; the
+       owner's rule of the same day). Since C9 a reshape leaves the copies already held as they were
+       found, and every later write here sent them the whole merged record - the reshaped name and
+       words with it: a GM's rewrite of the reading, a dashboard Save of one field, the Remnant
+       card's rename, a critical find's new description each put the killer's story on an
+       investigator's bullet (tier 2 "a Save of a reshaped trace's reading sends the copies the
+       reading alone" and its three neighbours, scenario 62's V3; red on the code before it,
+       08.10.2026). A field the caller named and the ledger now holds differently is one the GM
+       changed; one named and left equal - the critical find's dialog sends all three back - is not,
+       and a field the stamps refused did not change. */
+    const changed = {};
+    for (const field of Object.keys(patch)) {
+        if ((merged?.[field] ?? "") !== (before[field] ?? "")) changed[field] = merged?.[field] ?? "";
+    }
+    await propagatePublic(tokenDoc, changed, { copies: propagate });
     return merged;
 }
 
@@ -1157,13 +1205,25 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
  * an earlier build left on the token is put back, here and once for the whole world
  * by the clause `neutralTraceNames` - but for a token that still carries its answer
  * key (`saysMore`).
+ *
+ * THE COPIES ALREADY HELD ARE THEIR FINDERS' (E09 C9, 08.10.2026; audit S05-24). A Truth
+ * Bullet is what its holder found, and a killer's reshape, once a GM approved it, renamed
+ * and reworded every copy already on a sheet: an investigator who had found and analysed a
+ * trace read the killer's name and words on their own bullet (scenario 62's T6 at the code
+ * before C9, 08.10.2026: p1's copy and the reshaper's own). `copies: false`
+ * (`setRemnantPublic`'s `propagate`) leaves them and keeps the token's half below; whoever
+ * finds the trace afterwards is given the new words (observe.mjs `createFind` reads the
+ * ledger). `changed` is what a GM's write changed (E09 fix r2-G1), and only that goes to the
+ * copies: a later write of another field leaves a reshaped trace's copies their own words.
  */
-async function propagatePublic(tokenDoc, pub) {
-    try {
-        const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-        await propagateRemnantPublic(tokenDoc.id, pub);
-    } catch (err) {
-        error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
+    if (copies && Object.keys(changed ?? {}).length) {
+        try {
+            const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
+            await propagateRemnantPublic(tokenDoc.id, changed);
+        } catch (err) {
+            error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+        }
     }
 
     if (!saysMore(tokenDoc)) return;
@@ -1248,8 +1308,15 @@ export async function revealRemnantToFinder(tokenDoc) {
     if (!tokenDoc.hidden) return tokenDoc;
 
     await tokenDoc.update({ hidden: false });
+    /* THE TOKEN KEPT NEUTRAL, AND THE COPIES LEFT (E09 fix r2-G1, 08.10.2026). A reveal changes
+       no word of the trace, and it sent every copy the whole record: a trace hidden again with
+       copies held - an erase's Reroll places it back hidden - put a reshape's words on the copies
+       found before it at its next find (tier 2 "a reshaped trace hidden again and found leaves
+       the copies held", red on the code before it, 08.10.2026). A copy made now is made from the
+       record (observe.mjs `createFind`, gm-items.mjs `bulletFromRemnant`) or is a holder's own
+       (handover.mjs). */
     const pub = remnantPublic(tokenDoc);
-    if (pub) await propagatePublic(tokenDoc, pub);
+    if (pub) await propagatePublic(tokenDoc, {}, { copies: false });
 
     /*
      * THE DIGEST'S ONE EXCEPTION (E7; Dawid, 03.09).
@@ -1298,6 +1365,89 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
 export async function revealRemnantToFinderById(sceneId, tokenId) {
     const tokenDoc = tokenById(sceneId, tokenId);
     return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
+}
+
+/**
+ * Whether the cast of the running incident is drawn a trace of this kind: one of the incident
+ * type while an incident runs (D11; E05 C14 for the "while"). `placeRemnant` creates a trace by
+ * it - un-hidden and marked `fromIncident`, or hidden and unmarked - and `followIncidentKind`
+ * puts a retyped one under it again.
+ */
+async function incidentCastSees(type) {
+    if (type !== "incident") return false;
+    try {
+        const { murderState } = await import("./murder.mjs");
+        return Boolean(murderState());
+    } catch {
+        // No incident module, no incident: hidden, as the rest.
+        return false;
+    }
+}
+
+/*
+ * A TRACE RETYPED TO OR FROM AN INCIDENT'S IS DRAWN AS ONE PLACED SO (E09 C13, 08.10.2026;
+ * audit S05-20). `placeRemnant` decides the token's `hidden` and its `fromIncident` mark from the
+ * type it is given, and nothing decided them again: a GM correcting a trace on the dashboard
+ * from Prep to Incident in the middle of a fight left it hidden from the cast that made it, and
+ * one corrected the other way stayed drawn for the cast as theirs (visibility.mjs
+ * `myIncidentTrace` reads the mark alone, not the ledger's type). Only on a trace nobody holds a
+ * copy of: a copied one was revealed by its first find (`revealRemnantToFinder`) and stays its
+ * finders', and its mark comes off at the incident's close (`retireIncidentTraces`) - read off the
+ * bullets' rows as that function reads it, and with those rows not yet heard from the other GMs,
+ * left alone. A GM's own write: `writeKind` runs it for `setRemnantFlags` (the dashboard and the
+ * console) and `retuneRemnant` (a reshape, its Reroll's undo, a GM's edit over the bridge).
+ */
+async function followIncidentKind(tokenDoc, type) {
+    if (!game.user.isGM || !bulletStore.isHydrated()) return false;
+    const { ownBulletRefs } = await import("./truth-bullets.mjs");
+    const key = keyOf(tokenDoc);
+    if (ownBulletRefs().some(({ ref }) => ref === key)) return false;
+    const castSees = await incidentCastSees(type);
+    const flag = REMNANT_FLAGS.fromIncident;
+    const marked = Boolean(tokenDoc.getFlag(MODULE_ID, flag));
+    const update = {};
+    if (tokenDoc.hidden !== !castSees) update.hidden = !castSees;
+    if (castSees && !marked) update[`flags.${MODULE_ID}.${flag}`] = true;
+    const deletion = !castSees && marked ? forcedDeletion() : null;
+    if (deletion) update[`flags.${MODULE_ID}.${flag}`] = deletion;
+    if (Object.keys(update).length) await tokenDoc.update(update);
+    if (!castSees && marked && !deletion) await tokenDoc.unsetFlag(MODULE_ID, flag);
+    return true;
+}
+
+/*
+ * A KIND, BY WHICHEVER ROAD IT IS WRITTEN, KEEPS ITS TWO RULES (E09 fix r2-G6, 08.10.2026; the
+ * round-2 reviews' cor N5 and sec S2-4). C13 put the Faint box and `followIncidentKind` in
+ * `setRemnantFlags` alone, and `retuneRemnant` writes the kind too - a reshape (cleanup.mjs
+ * `reshapeTrace`), its Reroll's undo (`undoLastCleanup`) and a GM's edit over the bridge
+ * (gm-bridge.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
+ * "faint" and "incident" among them). So a kind retuned to Faint Remnant was not Faint, and an
+ * uncopied Incident Remnant the killer reshaped stayed drawn for the cast as theirs (tier 2 "a
+ * trace retuned to Faint Remnant is Faint ..." and "an uncopied Incident Remnant reshaped and
+ * rerolled ...", both red at 55ed050). Both writers hand their patch here with the write itself,
+ * so the store write stays in each writer, where tier 0's table of store writers reads it.
+ *
+ * THE FAINT BOX (C13). A write that names the kind or the box, on a trace that is - or becomes -
+ * of the faint kind, writes the box ticked. Never the other way: a Prep keeps its box as the GM
+ * left it, Faint Prep being a trace of its own. A GM who unticked the box of a Faint Remnant was
+ * overridden in silence until this commit; the box comes back ticked with a word to that GM now.
+ *
+ * `box` is the Faint box as the caller was asked it (`null` for not asked); the patch is the
+ * ledger's, amended in place. Answers whether anything was written.
+ */
+async function writeKind(tokenDoc, patch, box, write) {
+    const before = remnantData(tokenDoc);
+    const faintKind = (patch.type ?? before?.type) === "faint";
+    if (faintKind && (box !== null || patch.type !== undefined)) patch.faint = true;
+    if (!Object.keys(patch).length) return false;
+    await write();
+    if (faintKind && box === false && before) ui.notifications.warn(game.i18n.localize("DRPG.Remnant.faintKept"));
+    // Only a row this GM holds was amended (`ifLive`), so only then is there a kind that moved.
+    if (before && patch.type !== undefined && patch.type !== before.type
+        && (patch.type === "incident" || before.type === "incident")) {
+        await followIncidentKind(tokenDoc, patch.type);
+    }
+    return true;
 }
 
 /**
@@ -1437,6 +1587,33 @@ export function registerRemnantLedger() {
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 }
 
+/**
+ * A TRACE'S TIE HAS THREE STATES (E09 C4, 08.10.2026; audit S05-37, the owner's D14): `true` tied
+ * to the crime, `false` a GM's "not tied" - a red herring, a decision - and `null`, nobody has
+ * said. The ledger's write and its read each ran the tie through `Boolean()`, so the third state
+ * came back as the second, and a victim's death (`tieChapterTraces`) tied a trace a GM had marked
+ * not tied because the two read alike (tier 2 "a victim's death ties the chapter's undecided
+ * traces and never one a GM marked not tied"). Every write and read of the tie in this file
+ * goes through this; tier 0 R305 holds the five that used `Boolean()`.
+ */
+export function tieState(value) {
+    return value === true || value === false ? value : null;
+}
+
+/**
+ * A TIE READ OFF A TOKEN FROM BEFORE THE LEDGER (E09 fix r1-G2, 08.10.2026; the round-1 reviews'
+ * cor F4 = sec F9). Those flags were written before the third state, through `Boolean()`, so their
+ * `false` is as often "nobody said" as a GM's "not tied" - and `moveIntoLedger` runs from the
+ * health check's "move", after gm-stores.mjs `settleTieStates` has marked the case, so the step
+ * never reads what it writes. Read as the step reads an old row's: `true` stays, anything else is
+ * undecided; no flag at all stays `undefined`, which a live row's fill skips (tier 2 "an old
+ * token's not tied reaches the ledger undecided whether moved in or filled in").
+ */
+function oldTokenTie(value) {
+    if (value === undefined) return undefined;
+    return value === true ? true : null;
+}
+
 export function remnantData(tokenDoc) {
     if (!tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
 
@@ -1462,7 +1639,8 @@ export function remnantData(tokenDoc) {
         visibilityLabel: REMNANT_VISIBILITY_LABELS[entry.visibility] ?? entry.visibility,
         faint: Boolean(entry.faint),
         reinforced: Boolean(entry.reinforced),
-        tiedToCrime: Boolean(entry.tiedToCrime),
+        tiedToCrime: tieState(entry.tiedToCrime),
+        tieWaitsFor: entry.tieWaitsFor ?? null,
         action: entry.action,
         subject: entry.subject,
         note: entry.note,
@@ -1517,22 +1695,44 @@ export function remnantData(tokenDoc) {
  */
 export function traceContextLine(data) {
     if (!data) return "";
-    const timeOfDay = data.timeOfDay
-        ? (TIME_OF_DAY_LABELS[data.timeOfDay] ?? data.timeOfDay) : null;
     return [
         data.sourceName || null,
         data.room || null,
-        data.chapter ? `Ch ${data.chapter}` : null,
-        data.day ? `D ${data.day}` : null,
-        timeOfDay,
+        traceWhen(data) || null,
         /* "manual" IS THE ABSENCE OF AN ACTION, NOT AN ACTION. It is `placeRemnant`'s own
            default for a trace nobody performed anything to leave - a GM-placed clue, a planned
            Key Remnant - and it is not a key in `ACTIONS` at all (the `manual` in config.mjs is
            a project trigger). So the fallback printed the raw word and every planned clue read
            "Main Hall - manual" in the dashboard. The ledger's own `label` builder three hundred
            lines up has skipped it since it was written; this line simply never learned. */
-        data.action && data.action !== "manual"
-            ? (ACTIONS[data.action]?.label ?? data.action) : null
+        data.action && data.action !== "manual" ? actionLabelOf(data.action) : null
+    ].filter(Boolean).join(" · ");
+}
+
+/**
+ * When a trace was left, as one line: the chapter, the day and the time of day, each
+ * in the reader's language, empty ones dropped (as `traceContextLine` drops them).
+ *
+ * ONE LINE FOR FOUR SCREENS (E09 C15, 08.10.2026; audit S05-30). The same three facts
+ * were written four ways: "Ch 1 · D 11 · Evening" under a dashboard row, "Chapter 1 ·
+ * Day 11 · evening" in the GMs' digest, "Ch 1 · D 11 · evening" on the GM's card of a
+ * trace, and its own key's "Ch 1 · D 11" over "evening" in `reportRemnants` - the
+ * chapter and the day typed in English in three, the time of day the stored key in
+ * three. The chapter
+ * takes the Truth Bullet badge's own key (sheet.mjs, trial.mjs), so a GM and a player
+ * read one trace's chapter alike. Measured by the tier-2 test "a trace's when and what
+ * read in the client's language on every screen that shows them" (the context line,
+ * the digest, the GM's card and the report, with pl.json's strings laid over).
+ *
+ * @param {object} data  A `remnantData()` record.
+ * @returns {string}  Plain text, unescaped - the caller escapes it.
+ */
+export function traceWhen(data) {
+    if (!data) return "";
+    return [
+        data.chapter ? game.i18n.format("DRPG.TruthBullet.chapterShort", { n: data.chapter }) : null,
+        data.day ? game.i18n.format("DRPG.Remnant.dayShort", { n: data.day }) : null,
+        data.timeOfDay ? (TIME_OF_DAY_LABELS[data.timeOfDay] ?? data.timeOfDay) : null
     ].filter(Boolean).join(" · ");
 }
 
@@ -1555,10 +1755,8 @@ export async function reportRemnants(scene = null) {
             <td>${foundry.utils.escapeHTML(r.visibilityLabel)} ${foundry.utils.escapeHTML(r.typeLabel)}${r.faint ? ` ${game.i18n.localize("DRPG.Remnant.report.faintTag")}` : ""}${r.reinforced ? " ★" : ""}</td>
             ${multi ? `<td>${foundry.utils.escapeHTML(s.name)}</td>` : ""}
             <td>${foundry.utils.escapeHTML(r.room ?? "-")}</td>
-            <td>${foundry.utils.escapeHTML(r.sourceName ?? "-")}<br><small>${foundry.utils.escapeHTML(r.action ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
-            <td>${game.i18n.format("DRPG.Remnant.report.stamp", {
-                chapter: r.chapter ?? "?", day: r.day ?? "?"
-            })}<br><small>${foundry.utils.escapeHTML(r.timeOfDay ?? "")}</small></td>
+            <td>${foundry.utils.escapeHTML(r.sourceName ?? "-")}<br><small>${foundry.utils.escapeHTML(actionLabelOf(r.action) ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
+            <td>${foundry.utils.escapeHTML(traceWhen(r) || "-")}</td>
             <td>${game.i18n.localize(r.hidden
                 ? "DRPG.Remnant.report.hidden" : "DRPG.Remnant.report.revealed")}</td>
         </tr>`)
@@ -1639,19 +1837,31 @@ export async function tieTraceForItem(identity) {
        before, and the copies' pass was `propagateCrimeTie(null, true)` - which
        returns at once on a null id, so a weapon's traces were tied and the bullets
        copied from them never learned it. `setRemnantFlagsMany` is the dashboard's
-       own write for many traces: one flush, and one pass over the copies. */
-    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
+       own write for many traces: one flush, and one pass over the copies.
+       NOT WHILE THE FIGHT RUNS (E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1 and sec
+       F1). The swing comes in the fight, and the pass sent the tie to every identified copy
+       there and then: the copy climbed to the top of its holder's pack while the fight ran,
+       and stayed there through a death nobody had found (tier 2 "a weapon swung in the fight
+       reaches the copies' tie only when the death is the table's"; scenario 10's "the
+       weapon's tie" checks). It waits now with the death's own ties (`tieWaitNow`). */
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { waitFor: await tieWaitNow() });
     if (tied) log(`The murder weapon was found at ${tied} trace(s); those are evidence now.`);
     return tied;
 }
 
+/*
+ * The tie is left alone when it is left OUT (`undefined`), and written as given otherwise - `null`
+ * included, which is the Investigation Dashboard's "-": a GM taking a verdict back (E09 C4). The
+ * other three keep `null` for "leave alone"; none of them has a third state.
+ */
 export async function setRemnantFlags(tokenDoc,
-    { faint = null, tiedToCrime = null, reinforced = null, type = null } = {}) {
+    { faint = null, tiedToCrime, reinforced = null, type = null } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
 
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
+    // A GM's verdict is sent now, so it takes the trace off any wait (`tieWaitNow`, E09 fix r1-G1).
+    if (tiedToCrime !== undefined) Object.assign(patch, { tiedToCrime: tieState(tiedToCrime), tieWaitsFor: null });
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);
     /* WHAT THE TRACE REALLY IS, CORRECTED BY HAND (Dawid, 16.09).
        A type is decided by whatever action left the trace, and the module gets
@@ -1662,37 +1872,37 @@ export async function setRemnantFlags(tokenDoc,
        ledger and has to reach the copies. Refused if it is not one of the eight:
        a typo here would be a trace with no label anywhere. */
     if (type !== null && REMNANT_TYPES[type]) patch.type = type;
-    if (!Object.keys(patch).length) return null;
+    /* A FAINT REMNANT IS FAINT (E09 C13, 08.10.2026; audit S05-20). The kind and the box were
+       two fields of one fact, and only "New trace" wrote them together: the dashboard's kind
+       "Faint Remnant" saved with the box unticked was a trace Clear Faint Remnants passed over
+       (it asks the box, `clearFaintRemnants` - read in the code), and whose copies' answer keys
+       took the kind without the box (tier 2 "a trace made Faint Remnant on the dashboard is Faint
+       on the trace and on its copies' answer keys", red at e55044f). `writeKind` ticks the box
+       and puts a trace retyped to or from Incident under `followIncidentKind`, for this writer
+       and `retuneRemnant` alike (E09 fix r2-G6), and `propagateVerdicts` below carries the kind
+       and the box to the copies together.
 
-    // Into the ledger, not onto the token. `tiedToCrime` in particular is the
-    // single most valuable bit in the game - it is the difference between a
-    // trace from the murder and a trace from somebody's laundry - and it used to
-    // be a flag every client could read. It amends a row and never starts one
-    // (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
-    // row of one field, which `remnantData` would read as the whole trace.
-    await setRemnantSecret(tokenDoc, patch, { ifLive: true });
+       Into the ledger, not onto the token. `tiedToCrime` in particular is the
+       single most valuable bit in the game - it is the difference between a
+       trace from the murder and a trace from somebody's laundry - and it used to
+       be a flag every client could read. It amends a row and never starts one
+       (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
+       row of one field, which `remnantData` would read as the whole trace. */
+    if (!await writeKind(tokenDoc, patch, faint, () => setRemnantSecret(tokenDoc, patch, { ifLive: true }))) return null;
 
     // A changed verdict follows the copies already in players' packs - the
-    // murder-first sort reads it off the bullets, and only identified ones
-    // learn it. See `propagateCrimeTie` for the two halves of that rule.
-    if (patch.tiedToCrime !== undefined) {
+    // murder-first sort reads the tie off the bullets, the chapter's sweep reads
+    // Faint off their answer keys, and a copy whose key disagrees with the trace
+    // pays out the old category the next time anybody analyses it. Only
+    // identified copies show it: see `propagateVerdicts` for the two halves of
+    // that rule. Faint joined the tie and the kind here in E09 C2 (S05-19): this
+    // sent the two, and a GM's Faint reached no copy at all.
+    if (patch.faint !== undefined || patch.tiedToCrime !== undefined || patch.type !== undefined) {
         try {
-            const { propagateCrimeTie } = await import("./truth-bullets.mjs");
-            await propagateCrimeTie(tokenDoc.id, patch.tiedToCrime);
+            const { propagateVerdicts } = await import("./truth-bullets.mjs");
+            await propagateVerdicts([tokenDoc.id], { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime, type: patch.type ?? null });
         } catch (err) {
-            error("Could not propagate the crime tie to the copied bullets", err);
-        }
-    }
-    /* The same road, for the same reason: a copy whose answer key disagrees with
-       the trace it came from pays out the old category the next time anybody
-       analyses it. `propagateRealType` decides which copies also change what the
-       player is SHOWN - only the ones already identified. */
-    if (patch.type !== undefined) {
-        try {
-            const { propagateRealType } = await import("./truth-bullets.mjs");
-            await propagateRealType(tokenDoc.id, patch.type);
-        } catch (err) {
-            error("Could not propagate the corrected type to the copied bullets", err);
+            error("Could not propagate the trace's verdicts to the copied bullets", err);
         }
     }
     return tokenDoc;
@@ -1710,27 +1920,40 @@ export async function setRemnantFlags(tokenDoc,
  * third. Like `setRemnantFlags`, it amends rows and never starts one (`ifLive`);
  * a token this GM holds no row for is not counted.
  *
+ * `waitFor` (a `tieWaitNow` key) writes a tie to the crime into the ledger and leaves the
+ * copies as they are until that key is published (`publishTiesFor`, E09 fix r1-G1): a weapon
+ * swung in the fight, a victim's death nobody has found. A tie written without one, or a
+ * "not tied" or a "-", takes the trace off any wait and is sent now.
+ *
  * @param {TokenDocument[]} tokens
- * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags
+ * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags  the tie as `setRemnantFlags` takes it
+ * @param {{waitFor?: string|null}} [options]
  * @returns {Promise<number>} how many traces were written.
  */
-export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = null } = {}) {
+export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime } = {}, { waitFor = null } = {}) {
     if (!game.user.isGM) return 0;
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
+    if (tiedToCrime !== undefined) {
+        patch.tiedToCrime = tieState(tiedToCrime);
+        patch.tieWaitsFor = patch.tiedToCrime === true ? waitFor || null : null;
+    }
     if (!Object.keys(patch).length) return 0;
     const live = (tokens ?? []).filter(token => remnantStore.has(keyOf(token)));
     if (!live.length) return 0;
     // The repaint follows from the store's own write (`registerRemnantLedger`).
     await remnantStore.patchMany(Object.fromEntries(live.map(token => [keyOf(token), patch])), { ifLive: true });
-    if (patch.tiedToCrime !== undefined) {
-        try {
-            const { propagateCrimeTieMany } = await import("./truth-bullets.mjs");
-            await propagateCrimeTieMany(live.map(token => token.id), patch.tiedToCrime);
-        } catch (err) {
-            error("Could not propagate the crime tie to the copied bullets", err);
-        }
+    // A tie that waits is the ledger's alone until its key is published.
+    const tie = patch.tieWaitsFor ? undefined : patch.tiedToCrime;
+    if (patch.faint === undefined && tie === undefined) return live.length;
+    // Faint as well as the tie since E09 C2 (S05-19): a body discovery's promoted
+    // Faint Prep left every copy's answer key Faint, so the sweep spared copies of a
+    // trace the GM had made evidence.
+    try {
+        const { propagateVerdicts } = await import("./truth-bullets.mjs");
+        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: tie });
+    } catch (err) {
+        error("Could not propagate the trace's verdicts to the copied bullets", err);
     }
     return live.length;
 }
@@ -1746,27 +1969,32 @@ export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = 
  * victim: an execution after the trial, a mastermind's end or a GM's story
  * ruling changes nothing.
  *
- * Only traces that are NOT yet tied move, so nothing is re-announced for the
- * incident's own drops (already tied at placement), and running twice - two
- * bodies in a betrayal chapter - only picks up what appeared in between.
- * `setRemnantFlagsMany` is the write, so the verdict propagates onto copied
- * bullets exactly as a hand-ticked box would - in one write for the chapter
- * rather than one per trace (E04).
+ * Only traces nobody has decided about move (E09 C4; audit S05-37, the owner's
+ * D14): a GM's "not tied" is a red herring planted on purpose and stays one, and
+ * the incident's own drops are tied already, so nothing is re-announced for them;
+ * running twice - two bodies in a betrayal chapter - picks up only what appeared
+ * in between. Until C4 the skip asked "tied?" of a tie the ledger had flattened to
+ * true/false, so a "not tied" was tied at the death like any other.
+ * `setRemnantFlagsMany` is the write, in one write for the chapter rather than one
+ * per trace (E04). A death the GMs keep passes its victim as `waitFor` (chapter.mjs
+ * `incidentVictimDied`): a copy a student holds learns the tie when that death is
+ * made known (`publishTiesFor`), or an identified copy climbing to the top of their
+ * pack would tell them of a death nobody had found.
  *
  * @returns {Promise<number>} how many traces were tied.
  */
-export async function tieChapterTraces(chapter) {
+export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
     if (!game.user.isGM || !chapter) return 0;
 
     const tokens = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
-            if (!data || data.tiedToCrime || data.chapter !== chapter) continue;
+            if (!data || data.tiedToCrime !== null || data.chapter !== chapter) continue;
             tokens.push(token);
         }
     }
-    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { waitFor });
 
     if (tied) {
         const { whisperToGms } = await import("./utils.mjs");
@@ -1774,6 +2002,107 @@ export async function tieChapterTraces(chapter) {
         log(`Victim death: ${tied} trace(s) from chapter ${chapter} marked as tied to the murder.`);
     }
     return tied;
+}
+
+/**
+ * A TIE TO A CRIME NOBODY HAS FOUND WAITS FOR THE DEATH (E09 fix r1-G1, 08.10.2026; the round-1
+ * reviews' cor F1, F3, sec F1, F8 and goal G2a). C4 kept a victim's death's ties in the ledger and
+ * had every body's discovery send the chapter's ties to the copies (`publishChapterTies`). Read on
+ * f88133d, four roads went round it: a weapon swung in the fight sent its tie to every identified
+ * copy at the swing (`tieTraceForItem`); a copy made between the death and the discovery took the
+ * ledger's tie whole (observe.mjs `createFind`, gm-items.mjs `bulletFromRemnant`), shown at once on
+ * a critical Observe; a death made known without a discovery - the Students list's, a public kill -
+ * sent nothing; and a discovery sent every tie of the chapter, a death still kept included. The
+ * tier-2 tests named at each road below hold them.
+ *
+ * So a tie to the crime written while the death it tells of is not the table's says in its ledger
+ * row what it waits for (`tieWaitsFor`): the running fight (`fightKey`) or a death the GMs keep
+ * (the victim's id). A copy made meanwhile is undecided (`tieForCopy`). A kept death takes the
+ * fight's waits over (chapter.mjs `incidentVictimDied`, `handTiesOn`) and its publication sends
+ * them (`publishDeath`, `publishTiesFor`); a death made public at once sends the fight's; the close
+ * sends what a fight left with no death (murder-rules.mjs `closeIncident`; 1.2.70 sent it sooner,
+ * at the swing), and a revival hands a kept death's back to the fight still running, or sends
+ * them. A GM's own verdict is sent at once and clears the wait (`setRemnantFlags`). A tie about a
+ * body - the loot's trace - waits for that body's death while the GMs keep it, fight or none
+ * (`tieWaitNow`'s `about`, E09 fix r2-G4).
+ */
+export function fightKey(state) {
+    return state?.active && state.openedAt ? `incident.${state.openedAt}` : null;
+}
+
+/**
+ * What a tie to the crime written now waits for: nothing once the death is the table's, or with no
+ * fight running. GM-side.
+ *
+ * A TIE ABOUT A BODY (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's N1, the owner's
+ * rule that a student learns of a death only at the body's discovery). `about` is the body a
+ * trace's tie tells of (handover.mjs `markBodyDisturbed`, the loot's trace): its tie waits for that
+ * death while the GMs keep it, and for nothing once the death is the table's, whether a fight runs
+ * or not. Asked of the fight alone, a loot after the incident's close found no fight - the close
+ * wipes the state and its victim's id with it (incident-store.mjs `restoreState`) - and a copy of
+ * the loot's trace made before the discovery came out tied to the crime (tier 2 "a loot after the
+ * close holds its trace's tie back until the death is the table's"). A death the GMs keep with no
+ * fight at all takes the same branch; that one is read in the code, not measured.
+ *
+ * @param {Actor|null} [about]  the body the tie tells of, if the caller knows it
+ */
+export async function tieWaitNow(about = null) {
+    if (about && isDeadForGm(about)) return isDeceased(about) ? null : about.id;
+    const { murderState } = await import("./murder.mjs");
+    const state = murderState();
+    if (!state?.active) return null;
+    const victim = game.actors.get(state.victimId) ?? null;
+    if (victim && isDeceased(victim)) return null;
+    return victim && isDeadForGm(victim) ? victim.id : fightKey(state);
+}
+
+/**
+ * The tie a new copy of a trace takes: undecided while the trace's tie waits. Read off the trace's
+ * row as it stands when the copy is made (`sceneId`, `tokenId`), and off `data` - what the caller
+ * read when its Observe was aimed or its window opened - only when the trace is gone: a death made
+ * known while an Observe's roll or a GM's window stood open has sent its ties already, and the copy
+ * made afterwards would have stayed undecided (tier 2 "a copy made between the death and the
+ * discovery ...", its last two copies). GM-side.
+ */
+export function tieForCopy(data, { sceneId = null, tokenId = null } = {}) {
+    const token = tokenId ? tokenById(sceneId, tokenId) : null;
+    const row = (token && remnantData(token)) ?? data;
+    return row?.tieWaitsFor ? null : tieState(row?.tiedToCrime);
+}
+
+/**
+ * Every tie that waits for `key`, sent to the copies - the answer key always, the item where the
+ * GMs hold it identified (`propagateVerdicts`) - with the wait cleared first, so a copy made in
+ * between takes the tie itself. GM-side.
+ *
+ * @returns {Promise<number>} how many copies' answer keys moved
+ */
+export async function publishTiesFor(key) {
+    if (!game.user.isGM || !key) return 0;
+    const waiting = Object.entries(readRemnantLedger()).filter(([, row]) => row?.tieWaitsFor === key);
+    if (!waiting.length) return 0;
+    const byTie = new Map();
+    for (const [rowKey, row] of waiting) {
+        const tie = tieState(row.tiedToCrime);
+        byTie.set(tie, [...(byTie.get(tie) ?? []), rowKey.split(".")[1]]);
+    }
+    await remnantStore.patchMany(Object.fromEntries(waiting.map(([rowKey]) => [rowKey, { tieWaitsFor: null }])), { ifLive: true });
+    let moved = 0;
+    try {
+        const { propagateVerdicts } = await import("./truth-bullets.mjs");
+        for (const [tie, ids] of byTie) moved += await propagateVerdicts(ids, { tiedToCrime: tie });
+    } catch (err) {
+        error("Could not send the ties that waited to the copied bullets", err);
+    }
+    return moved;
+}
+
+/** The ties that wait for `from` wait for `to` instead; no copy is touched. GM-side. */
+export async function handTiesOn(from, to) {
+    if (!game.user.isGM || !from || !to || from === to) return 0;
+    const rows = Object.entries(readRemnantLedger()).filter(([, row]) => row?.tieWaitsFor === from);
+    if (rows.length) await remnantStore.patchMany(Object.fromEntries(rows.map(([key]) => [key, { tieWaitsFor: to }])), { ifLive: true });
+    return rows.length;
 }
 
 /**
@@ -1844,7 +2173,7 @@ export async function confirmClearFaint() {
  * @returns {Promise<boolean|object|null>}
  */
 export async function retuneRemnant(sceneId, tokenId,
-    { visibility = null, type = null, remove = false, tiedToCrime = null, describes = null } = {}) {
+    { visibility = null, type = null, remove = false, tiedToCrime, describes = null } = {}) {
     if (!tokenId) return null;
 
     if (!game.user.isGM) {
@@ -1866,7 +2195,7 @@ export async function retuneRemnant(sceneId, tokenId,
         return true;
     }
 
-    if (!visibility && !type && tiedToCrime === null && !describes) return null;
+    if (!visibility && !type && tiedToCrime === undefined && !describes) return null;
 
     /*
      * THE LEDGER, AND NOTHING ELSE (audit A8, Dawid Q13).
@@ -1897,11 +2226,18 @@ export async function retuneRemnant(sceneId, tokenId,
      * in its original form, and the answer is that this door only opens from
      * inside.
      *
-     * `=== null` rather than falsy: the caller must be able to say "leave it
-     * alone", and the undo of an approved reshape says "untie" when the trace
-     * was untied before it (cleanup.mjs `undoLastCleanup`, E08+E28 C3).
+     * Left out (`undefined`) rather than falsy: the caller must be able to say
+     * "leave it alone", and the undo of an approved reshape says what the tie was
+     * before it (cleanup.mjs `undoLastCleanup`, E08+E28 C3) - since E09 C4 one of
+     * three states, so an undecided trace goes back undecided (`null`) rather than
+     * "not tied", which a death would then have had to leave alone.
      */
-    if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
+    if (tiedToCrime !== undefined) {
+        secret.tiedToCrime = tieState(tiedToCrime);
+        // A reshape's tie in the fight or over a kept death waits as the swing's does (E09 fix r1-G1):
+        // nothing is sent from here, but a copy made from the trace afterwards reads it.
+        secret.tieWaitsFor = secret.tiedToCrime === true ? await tieWaitNow() : null;
+    }
     /*
      * WHAT THE TRACE IS OF, when a Reroll changed it (review of ACT-11, 17.09).
      * A rerolled Search that found a different object kept the first object's
@@ -1916,7 +2252,8 @@ export async function retuneRemnant(sceneId, tokenId,
     }
     // It amends a trace and never starts one (`ifLive`, E04): a retune reaching a
     // GM who holds no row for the trace would otherwise write a row of one field.
-    await setRemnantSecret(token, secret, { ifLive: true });
+    // A kind it writes keeps C13's two rules, as the dashboard's does (`writeKind`, E09 fix r2-G6).
+    await writeKind(token, secret, null, () => setRemnantSecret(token, secret, { ifLive: true }));
     return true;
 }
 
@@ -1962,7 +2299,9 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
             const bMine = b.data.sourceActor === preferSource;
             if (aMine !== bMine) return aMine ? -1 : 1;
         }
-        if (a.data.tiedToCrime !== b.data.tiedToCrime) return a.data.tiedToCrime ? -1 : 1;
+        // Tied or not, by `=== true`: "not tied" and undecided rank alike (E09 C4's third state).
+        const aTied = a.data.tiedToCrime === true, bTied = b.data.tiedToCrime === true;
+        if (aTied !== bTied) return aTied ? -1 : 1;
         return a.dc - b.dc;
     });
 }
@@ -2315,7 +2654,7 @@ async function moveIntoLedger(token, live, typed) {
         const onToken = {
             type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
             note: f("note"), action: f("action"), subject: f("subject"), pointsAt: f("pointsAt"),
-            tiedToCrime: f("tiedToCrime"), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
+            tiedToCrime: oldTokenTie(f("tiedToCrime")), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
             room: f("room"), chapter: f("chapter"), day: f("day"), timeOfDay: f("timeOfDay"), label
         };
         const fields = Object.fromEntries(Object.entries(onToken)
@@ -2343,7 +2682,7 @@ async function moveIntoLedger(token, live, typed) {
         type: f("type"), visibility: f("visibility"),
         faint: Boolean(f("faint")), reinforced: Boolean(f("reinforced")),
         note: f("note"), action: f("action"), subject: f("subject"),
-        pointsAt: f("pointsAt"), tiedToCrime: Boolean(f("tiedToCrime")),
+        pointsAt: f("pointsAt"), tiedToCrime: oldTokenTie(f("tiedToCrime")) ?? null,
         sourceActor: f("sourceActor"), sourceName: f("sourceName"),
         room: f("room"), chapter: f("chapter"), day: f("day"),
         timeOfDay: f("timeOfDay"),

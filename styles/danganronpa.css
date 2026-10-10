@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.70";
+    --drpg-css-version: "1.2.71";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -2284,6 +2284,14 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
     background: rgba(var(--drpg-crimson-rgb), 0.12);
 }
 
+/* A field the person changed while the world changed it underneath them (live.mjs
+   `restore`, E09 C3): it keeps what they typed, its title says what is there now,
+   and a Save refuses it. Drawn inside the box so a table cell does not shift. */
+.drpg-moved-under {
+    outline: 2px solid var(--drpg-crimson);
+    outline-offset: -2px;
+}
+
 /* ==========================================================================
    MODULE DIALOGS
    --------------------------------------------------------------------------
@@ -2606,6 +2614,21 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 .drpg-briefing-facts li::marker {
     color: var(--drpg-line-strong);
+}
+
+/* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
+   it is the footnote: the audit (S06-29) found them the other way round, the steps smaller and darker than
+   the note. Only this list - the same class is metadata on the roll and murder briefings - so the steps
+   take the body's size and Bone, and the note after them text-sm in Dim (E10 C15, 1.2.71; the sizes are the
+   tokens' own, the rendering is not measured here: the harness draws no CSS). */
+.drpg-briefing-facts.drpg-trial-facts {
+    font-size: var(--drpg-text-md);
+    color: var(--drpg-bone);
+}
+
+.drpg-briefing-facts.drpg-trial-facts + .notes {
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
 }
 
 /* The lead - the sentence that says what this action IS. One step above the
@@ -2976,6 +2999,17 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* The Level Up window's two lines of its own (E10 C9, audit S03-19). Whom it is for and why is the GM's
+   first line, said once; "no experiences" is the ordinary case of a new character, so it is the module's
+   Dim - the token for "here if you want it" - and not Foundry's amber warning. */
+.drpg-advance .drpg-advance-for {
+    font-weight: 600;
+}
+
+.drpg-advance .drpg-advance-note {
+    color: var(--drpg-dim);
 }
 
 /* ==========================================================================
@@ -4420,6 +4454,70 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    the whole strip across the card with a hole under the name. */
 .drpg-evidence-card .drpg-tb-badges { margin-left: 0; }
 
+/* THE VOTE'S COUNT AS ROWS (E10 C3, 1.2.71; audit S06-32). It was a
+   `.drpg-vault-table`, the Vault's, whose cells fall apart in a narrow chat
+   tile. A row is the name, which takes what is left and wraps, the count, and
+   a bar of the ballots that went out - its fill the name's votes, its tick the
+   majority (vote.mjs `closeRound` writes both widths). No layout here to
+   measure it in: the harness has no widths (the plan's LIVE-E10-03). */
+.drpg-vote-count {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.drpg-vote-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.drpg-vote-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.drpg-vote-n {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.drpg-vote-bar {
+    position: relative;
+    flex: 0 0 40%;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(var(--drpg-crimson-rgb), 0.15);
+}
+
+.drpg-vote-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--drpg-crimson);
+}
+
+.drpg-vote-bar > i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: currentColor;
+}
+
+/* THE VERDICT WINDOW'S SELECTS UNDER THEIR LABELS (E10 C4, 1.2.71). The label
+   ran into its select on one line, so "Executed instead, if the table got it
+   wrong" pushed the list of names to whatever width was left. Stacked, each
+   select takes the window's width. Not measured: the harness has no layout
+   (the plan's LIVE-E10-03). */
+.drpg-verdict-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 /* On the stage the card is the middle of the screen and the name is what the
    table is arguing about, so it is sized like a heading rather than like a line
    of a receipt. In the corner and in the chat log it stays as it was. */
@@ -5744,6 +5842,15 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     /* The stage is a hole in the air: only the cards in it take clicks, so the
        map stays draggable in the gaps between them. */
     pointer-events: none;
+}
+/* AN OBJECTION OVER THE WINDOWS UNTIL IT IS TOUCHED (E10 C16, 1.2.71; the owner's
+   amend of 04.10). popup.mjs puts `is-raised` on the stage while an OBJECTION! on
+   it has not had a pointerdown, and takes it off after. One under the notice
+   stack, whose 99990 is the reading above that clears the window layer, so a
+   notice still lands over it. Whether it stands over every window at a real
+   table is LIVE-E10-03: the harness draws no stacking. */
+#drpg-evidence.is-raised {
+    z-index: 99989;
 }
 #drpg-evidence .drpg-popup {
     pointer-events: auto;
@@ -11638,12 +11745,24 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 
 /* One line of context under a row's main field - who left this trace, where,
    when, doing what. Reads as a caption, not as a second field: the row's
-   subject is the input above it. See `traceContextLine` in remnants.mjs. */
+   subject is the input above it. See `traceContextLine` in remnants.mjs.
+
+   IN THE PALETTE'S DIM INK, NOT AT THREE-QUARTER OPACITY (E09 C15, 08.10.2026;
+   audit S05-30, whose fix names the token). The audit read the caption, 11 px of
+   VT323 at opacity 0.75, as below legible; an opacity fades whatever ink the cell
+   happens to inherit and nothing lifts it, where the token is one colour the
+   palette chose, a re-hue moves, and `body.drpg-high-contrast` raises to #cfc9d6
+   for the 11 px `.notes` lines. NOT A CONTRAST GAIN in the default palette,
+   computed (WCAG, 08.10) over `--drpg-ink` #1d1a21: `--drpg-bone` at 0.75 reads
+   7.7:1, `--drpg-dim` 4.7:1 - so if these cells inherit bone the line is quieter
+   than before, not louder. Which ink a table cell inherits in the dashboard was
+   not measured: the harness draws no CSS, and a table at a real client is where
+   to look (`.dialog-form .notes` already takes the dim ink outside a table). */
 .drpg-trace-context {
     display: block;
     margin-top: 2px;
     font-size: var(--drpg-text-xs, 0.7rem);
-    opacity: 0.75;
+    color: var(--drpg-dim);
     overflow-wrap: anywhere;
 }
 
@@ -12244,6 +12363,14 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     margin: 10px 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
+    /* The audit read the section headings at about 8 px of capital height (S06-29); the body's size. */
+    font-size: var(--drpg-text-md);
+}
+
+/* The console's lines say the trial's STATE, in Bone; `notes` is left for the lines that explain
+   (E10 C15, 1.2.71). A warning keeps its own crimson ground and the ink that goes with it. */
+.drpg-trial-console p:not(.notes):not(.drpg-warning) {
+    color: var(--drpg-bone);
 }
 
 .drpg-trial-console h4:first-child {
@@ -15903,10 +16030,45 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
 .drpg-trace-filters label {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
     gap: 0.15rem;
 }
 .drpg-trace-filters select { min-width: 9rem; }
-.drpg-trace-filters .notes { margin-left: auto; align-self: center; }
+/* The count sits on the selects' line, after them (E09 C16, audit S05-29): pushed to the far
+   edge and centred between label and select, it read as a caption of nothing. */
+.drpg-trace-filters .notes { align-self: flex-end; padding-bottom: 0.3rem; }
+
+/* THE DASHBOARD'S TABLES, READ AT A GLANCE (E09 C16, 08.10.2026; audit S05-28, S05-29, S12-52).
+   What the audit saw at 1400 px: count columns 150-420 px wide with one digit each, hints in
+   the ink of a typed sentence and cut mid-word, the Key tab's descriptions three lines tall and
+   its headings broken in two. None of this is measured here - the harness draws no CSS - so
+   the widths below are the audit's proposal, not a reading (the live check LIVE-E09-04 is a
+   screenshot at 1400 px and narrow). `drpg-num` is set by `caseStudentRows` and its header. */
+.drpg-vault-table :is(th, td).drpg-num {
+    width: calc(90px * var(--drpg-legacy-scale, 1));
+    text-align: center;
+}
+/* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */
+.drpg-window-case :is(input, textarea)::placeholder {
+    color: var(--drpg-dim);
+    font-style: italic;
+    opacity: 1;
+}
+/* One line until the GM is in it: the Key tab's two description boxes take `rows="1"`, and
+   `.drpg-vault-table textarea`'s 5.5rem (Room setup's prose) comes back on focus. */
+.drpg-key-table thead th { white-space: nowrap; }
+.drpg-key-table textarea { min-height: 0; }
+.drpg-key-table textarea:focus { min-height: 5.5rem; }
+.drpg-key-status { min-width: 12rem; }
+.drpg-key-status > * + * { margin-top: 0.25rem; }
+.drpg-key-place { width: auto; }
+/* "A body is discovered" starts a case; the six beside it open a window or tidy one. Despair's
+   pink is the module's blood, and the border carries it, as the GM-route border carries red. */
+.application.dialog.drpg-window-case footer.form-footer button.drpg-state-change:not(.drpg-gm-route) {
+    border-color: var(--drpg-blood) !important;
+    color: var(--drpg-blood) !important;
+}
 
 /* A SWITCH THAT CANNOT CHANGE ANYTHING IS NOT SHOWN.
    The glass pulse, the ticker and the blur exist only under Stained Glass; the pixel face

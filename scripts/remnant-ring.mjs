@@ -22,9 +22,9 @@
  * this file.
  */
 
-import { MODULE_ID, TRUTH_BULLET_TYPES, ACTIONS, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
-import { REMNANT_FLAGS, remnantData, setRemnantPublic, markRemnantEdited, keyOf as remnantKeyOf }
-    from "./remnants.mjs";
+import { MODULE_ID, TRUTH_BULLET_TYPES, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
+import { REMNANT_FLAGS, remnantData, setRemnantPublic, markRemnantEdited, keyOf as remnantKeyOf,
+    traceWhen, actionLabelOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, isIdentified, hasReading } from "./truth-bullets.mjs";
 // The viewer's own bullets, indexed by the Remnant they came from and memoised
 // there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
@@ -188,18 +188,6 @@ function glyph(action) {
     return `<span class="drpg-remnant-glyph" data-drpg-act="${act}" aria-hidden="true"></span>`;
 }
 
-/** The action that left a trace, as a label - same read traceContextLine uses. */
-function actionLabelOf(action) {
-    if (!action) return null;
-    if (ACTIONS[action]?.label) return ACTIONS[action].label;
-    /* The actions a trace can record that are not tiles (a thrown-away item, a body looted,
-       a trace the GM placed) are named in the Remnant table, as `traceContextLine` reads
-       them; "loot" printed as the bare key on this card until 22.09. */
-    const key = `DRPG.Remnant.action.${action}`;
-    const label = game.i18n.localize(key);
-    return label === key ? action : label;
-}
-
 /**
  * The player-facing fields - the name, the Observe sentence and the lab
  * reading - editable from the card itself.
@@ -213,8 +201,9 @@ function actionLabelOf(action) {
  * NOT A SECOND WRITE PATH. Every field goes through `setRemnantPublic`, which is
  * the same function the dashboard's Traces tab and `observe.mjs`'s first find
  * already call - one record, so the two screens cannot disagree and nothing has
- * to be synchronised between them. `setRemnantPublic` also propagates: the
- * token's own name and every Truth Bullet copied from this trace move with it.
+ * to be synchronised between them. `setRemnantPublic` also propagates: every
+ * Truth Bullet copied from this trace takes the field changed here, and only
+ * that one (E09 fix r2-G1), while the token keeps its neutral name.
  *
  * SAVES ON BLUR, with a brief mark rather than a Save button. The window is 380
  * wide and has no footer to put one in, and there is nothing here worth a
@@ -249,9 +238,8 @@ function gmRemnantCard(tokenOrActor, esc) {
     if (!data) return null;
 
     const t = key => game.i18n.localize(key);
-    const when = [data.chapter ? `Ch ${data.chapter}` : null,
-                  data.day ? `D ${data.day}` : null,
-                  data.timeOfDay].filter(Boolean).join(" · ");
+    // The same line the dashboard, the digest and the report print (remnants.mjs `traceWhen`).
+    const when = traceWhen(data);
 
     // The same badge vocabulary the Truth Bullet rows on the sheet speak:
     // type in the type's colour, visibility beside it, then the three GM

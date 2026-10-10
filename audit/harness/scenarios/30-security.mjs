@@ -3661,40 +3661,63 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
         return fixed;`);
     // A write of `kind` heard from `by` holding each of `values`, by its place in the heard row (2 the Tool's name, 3 its
-    // roles, 4 its count, 5 the penalty's name, 6 its value): the second write's hook holding the first one's value.
-    const behindHeardHolding = (kind, by, values) => heard => heard.some(h => h[0] === kind && h[1] === by
-        && Object.entries(values).every(([at, value]) => JSON.stringify(h[at]) === JSON.stringify(value)));
+    // roles, 4 its count, 5 the penalty's name, 6 its value): the second write's hook holding the first one's value. It is
+    // source the GM runs on its heard rows, so that the hold below waits for exactly what the pair's `ordered` reads.
+    const behindHeardHolding = (kind, by, values) => `(heard => heard.some(h => h[0] === ${JSON.stringify(kind)} && h[1] === ${JSON.stringify(by)}
+        && Object.entries(${JSON.stringify(values)}).every(([at, value]) => JSON.stringify(h[at]) === JSON.stringify(value))))`;
     /*
-     * A PAIR THAT LANDED THE OTHER WAY ROUND IS THROWN AGAIN (E33 fix r2-G4, 07.10.2026; the orchestrator's pre-list,
-     * "30's H15 order"). The count's pair read `ok` true and `ordered` false three times, each under three harness
-     * lanes and never alone (e33run/c2b, scratch/c7/30.run1.log, c11/30.log). `heard` is read only after the GM holds
-     * `want` and the put-back's row (`behindAfter`), and the GM's hooks record each write as it lands, so a late read
-     * was not it: the GM heard the first write, its put-back, then the rename - which the server applies in the order
-     * it receives them (cluster.mjs, "op") - and the rename's hook held the count already put back. Forced that way in
-     * a scratch copy (the rename sent once p2 holds the put-back), the check read exactly that at the base and green
-     * here on the second attempt (e33run/scratch/r2g4-meas). Such a pair measured nothing - not a put-back that failed
-     * - so it is thrown again from the state `behindAsWas` restored, up to three times; a pair whose put-backs did not
-     * hold (`ok` false) is never thrown again, and the check still asks `ok` and `ordered` of the attempt it reports.
-     * The attempt each check read is noted ("SEC H15: the attempt ..."), so a run that needed one says so.
+     * A PUT-BACK HELD UNTIL WHAT ITS CHECK ORDERS BEFORE IT HAS BEEN HEARD (E10 fix r2-G8, 10.10.2026). H15, H17,
+     * H18 and H19 each read a put-back of a player's write against something of the player's that has to land before
+     * it - a second write, an ask - and count a case only when it did (`ordered`). Nothing orders the two: the player's packet and the
+     * GM's put-back are two clients' writes, and the server takes them as they arrive. H19's key case read `ordered`
+     * false once beside two other lanes (e10run/mergee10fix2/30.log, 208/209; 209/209 alone and at k3), and on a
+     * private copy of c51d2bd with p2's ask sent 3 s after its writes' acks scenario 30 read 207/209: H19 red in that
+     * run's exact shape and H17's plant red the same way, which nothing had touched (e10run/scratch/h19-diagnosis.md).
+     * With H15's second write and H17's, H18's and H19's asks each sent 3 s late, c51d2bd read 203/209: H15's roles
+     * and count, H17's hand and plant, H18 and H19's key, each `ordered` false and the rest as wanted (r2g8t/base.log).
+     * A retry, as H15 had, only makes a lost race rarer. So the GM's client holds the audit's put-back of `docIds` on
+     * `actorId` on its way to the server (client-entry.mjs `__holdOp`) until `until` reads true on the GM, up to 8 s -
+     * a slow GM, an order Foundry allows - and the same six read green with the same delays (r2g8t/mine.log). The check
+     * still asks `ordered`, and asks that a put-back was held and heard what it waited for (`heldInOrder`): a hold that
+     * caught nothing or ran out its 8 s turns the check red, its row naming the wait, instead of hoping again.
+     */
+    const holdPutBack = (actorId, docIds, until, waited) => gm.eval(`globalThis.__heldPutBacks = [];
+        globalThis.__holdOp = op => op.docId === "${actorId}" && op.options?.drpgWrite?.reason === "auditPutBack"
+            && ${JSON.stringify(docIds)}.some(id => id && JSON.stringify(op).includes(id)) ? (async () => {
+                const from = Date.now(), arrived = () => Boolean(${until});
+                while (!arrived() && Date.now() - from < 8000) await new Promise(r => setTimeout(r, 20));
+                globalThis.__heldPutBacks.push({ waited: ${JSON.stringify(waited)}, heard: arrived(), ms: Date.now() - from });
+            })() : null;
+        return true;`);
+    // What each put-back held since `holdPutBack` waited for, and the hold taken off.
+    const heldPutBacks = () => gm.eval(`const held = globalThis.__heldPutBacks ?? [];
+        delete globalThis.__holdOp; delete globalThis.__heldPutBacks; return held;`);
+    const heldInOrder = held => Array.isArray(held) && held.length > 0 && held.every(h => h.heard === true);
+    /*
+     * THE PAIR'S ORDER IS MADE, NOT THROWN AGAIN (E10 fix r2-G8, 10.10.2026; E33 fix r2-G4's retry until then). The
+     * count's pair read `ok` true and `ordered` false three times under three harness lanes (e33run/c2b,
+     * scratch/c7/30.run1.log, c11/30.log): the GM heard the first write, its put-back, then the rename, which the
+     * server applies as it receives them (cluster.mjs, "op"). E33 threw such a pair again up to three times - a race
+     * met by retrying, lost by three slow attempts in a row. Now the audit's put-back of the first write is held until
+     * the GM has heard the second write holding it (`holdPutBack` above, waiting for `ordered` itself), so each pair is
+     * thrown once, in the order it measures. A pair whose put-backs did not hold (`ok` false) is red as before.
      */
     const behindPair = async (want, field, first, again, ordered) => {
-        let out = null;
-        for (let attempt = 1; attempt <= 3 && !(out && (!out.ok || out.ordered)); attempt++) {
-            await gm.eval(`globalThis.__behindHeard.length = 0; return true;`);
-            const from = await gm.eval(`return Date.now();`);
-            await first();
-            const one = await behindAfter(from, want);
-            const heard = await gm.eval(`return globalThis.__behindHeard.splice(0);`);
-            const fromAgain = await gm.eval(`return Date.now();`);
-            await again();
-            const two = await behindAfter(fromAgain, want);
-            const restored = await behindAsWas();
-            const same = seen => JSON.stringify(seen) === JSON.stringify(want), rows = JSON.stringify([field]);
-            const ok = one.docs.length === 4 && one.docs.every(same) && JSON.stringify(one.rows) === rows && one.whispered && same(one.mark)
-                && two.docs.length === 4 && two.docs.every(same) && JSON.stringify(two.rows) === rows && two.whispered && same(two.mark);
-            out = { attempt, ok, ordered: ordered(heard), one, two, heard, restored };
-        }
-        return out;
+        await gm.eval(`globalThis.__behindHeard.length = 0; return true;`);
+        await holdPutBack(ids.botan, [behindWas.tool, behindWas.penalty], `${ordered}(globalThis.__behindHeard)`, "the second write holding the first");
+        const from = await gm.eval(`return Date.now();`);
+        await first();
+        const one = await behindAfter(from, want);
+        const held = await heldPutBacks();
+        const { heard, inOrder } = await gm.eval(`const heard = globalThis.__behindHeard.splice(0); return { heard, inOrder: ${ordered}(heard) };`);
+        const fromAgain = await gm.eval(`return Date.now();`);
+        await again();
+        const two = await behindAfter(fromAgain, want);
+        const restored = await behindAsWas();
+        const same = seen => JSON.stringify(seen) === JSON.stringify(want), rows = JSON.stringify([field]);
+        const ok = one.docs.length === 4 && one.docs.every(same) && JSON.stringify(one.rows) === rows && one.whispered && same(one.mark)
+            && two.docs.length === 4 && two.docs.every(same) && JSON.stringify(two.rows) === rows && two.whispered && same(two.mark);
+        return { ok, ordered: inOrder === true, held, one, two, heard, restored };
     };
     const behindTool = `game.actors.get("${ids.botan}").items.get("${behindWas.tool}")`;
     const behindPenalty = `game.actors.get("${ids.botan}").effects.get("${behindWas.penalty}")`;
@@ -3736,6 +3759,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     } finally {
         await gm.eval(`for (const [name, id] of globalThis.__behindHooks ?? []) Hooks.off(name, id);
             Hooks.off("updateItem", globalThis.__behindRename);
+            delete globalThis.__holdOp; delete globalThis.__heldPutBacks;
             const a = game.actors.get("${ids.botan}"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
             await A.sheetAuditIdle();
             if (a.effects.has("${behindWas.penalty}")) await a.deleteEmbeddedDocuments("ActiveEffect", ["${behindWas.penalty}"]);
@@ -3743,9 +3767,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             await A.sheetAuditIdle(); return true;`);
     }
     const behindReady = Boolean(behind && behindWas.tool && behindWas.penalty) && behindHeld.every(Boolean);
-    note("SEC H15: the attempt each pair's check reads (1 unless a pair landed the other way round)",
-        JSON.stringify(Object.fromEntries(Object.entries(behind ?? {}).map(([key, pair]) => [key, pair?.attempt ?? null]))));
-    const behindCheck = (name, key) => check(name, behindReady && behind[key].ok && behind[key].ordered,
+    const behindCheck = (name, key) => check(name, behindReady && behind[key].ok && behind[key].ordered && heldInOrder(behind[key].held),
         JSON.stringify({ behindBefore, behindHeld, [key]: behind?.[key] ?? null }), { flow: "sheet-audit" });
     behindCheck("SECURITY: a player's console giving their Tool what it serves as and at once renaming it has the roles put back and the mark holding the rename alone, and the same roles written again are put back too, the GMs told each time", "roles");
     behindCheck("SECURITY: a player's console raising their Tool's count and at once renaming it has the count put back and the mark holding the rename alone, and the same count written again is put back too, the GMs told each time", "count");
@@ -4097,10 +4119,13 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         if (copies.length) { await aiko.deleteEmbeddedDocuments("Item", copies); fixed.push("copies:" + copies.length); }
         if (k?.getFlag("${MOD}", "roles")?.length) { await k.update({ "flags.${MOD}.roles": foundry.data.operators.ForcedDeletion.create() }); fixed.push("roles"); }
         await A.sheetAuditIdle(); return fixed;`);
-    // One item case: p2's `writes` on the Tool `key` names and `ask`; then up to 8 s for Aiko's copy, the GM's audit idle,
-    // and the copy's roles, tier and broken read in Aiko's mark and on each client for `want`.
-    const h17Item = async (key, writes, ask, want) => {
+    // One item case: p2's `writes` on the Tool `key` names and `ask`, the bridge's `action`, with the put-back of the
+    // Tool's write held until the ask has been heard (`holdPutBack`; no `action` for a write that stands, which has no
+    // put-back to hold); then up to 8 s for Aiko's copy, the GM's audit idle, and the copy's roles, tier and broken read
+    // in Aiko's mark and on each client for `want`.
+    const h17Item = async (key, action, writes, ask, want) => {
         await gm.eval(`globalThis.__h17Heard.length = 0; return true;`);
+        if (action) await holdPutBack(ids.botan, [writes[0][0]], `globalThis.__h17Heard.some(h => h[0] === "asked" && h[1] === ${JSON.stringify(action)})`, "the ask");
         await h17Ask(writes, ask);
         const name = JSON.stringify(h17Names[key]);
         const mark = await gm.eval(`const aiko = game.actors.get("${ids.aiko}"), end = Date.now() + 8000;
@@ -4110,12 +4135,13 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             const id = aiko.items.find(i => i.name === ${name})?.id ?? null, c = id ? S.sheetMarkStore.get("${ids.aiko}")?.items?.[id] ?? null : null;
             const f = c?.flags?.["${MOD}"] ?? {};
             return c ? [Array.isArray(f.roles) ? f.roles : [], f.tier ?? null, Boolean(f.broken)] : null;`);
+        const held = action ? await heldPutBacks() : null;
         const docs = await h16Docs(`const i = game.actors.get("${ids.aiko}").items.find(i => i.name === ${name}), roles = i?.getFlag("${MOD}", "roles");
             return i ? [Array.isArray(roles) ? roles : [], i.getFlag("${MOD}", "tier") ?? null, Boolean(i.getFlag("${MOD}", "broken"))] : null;`, want);
         const heard = await gm.eval(`return globalThis.__h17Heard.splice(0);`);
         const restored = await h17AsWas();
         const same = seen => JSON.stringify(seen) === JSON.stringify(want);
-        return { ok: docs.length === 4 && docs.every(same) && same(mark), docs, mark, heard, restored };
+        return { ok: docs.length === 4 && docs.every(same) && same(mark), held, docs, mark, heard, restored };
     };
     // The bullet's case: p2's text and the Analyze on `rolled`, the text's put-back held until the Analyze's write; then up
     // to 12 s for the GMs to be told and the bullet analysed, the GM's audit idle, each client read, the GMs' copy, and
@@ -4166,19 +4192,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     let h17 = null;
     try {
         h17 = {
-            hand: await h17Item("hand", [[h17Was.hand, { [h17Flag("roles")]: crimeRole }]],
+            hand: await h17Item("hand", "handover.item", [[h17Was.hand, { [h17Flag("roles")]: crimeRole }]],
                 `requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${h17Was.hand}" })`, [[], 1, false]),
             plant: await (async () => {
                 // The hand's roll and the unseen one, both Botan's, drawn by the GM on a critical: the plant lands, unseen.
                 const handRolled = await drawnRoll(p2, ids.botan, "steal", "hand", { hope: 7, fear: 7 });
                 const unseenRolled = await drawnRoll(p2, ids.botan, "palm", "shadow", { hope: 7, fear: 7 });
                 await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
-                return { rolls: [handRolled, unseenRolled], ...await h17Item("plant", [[h17Was.plant, { [h17Flag("broken")]: false, [h17Flag("tier")]: 3 }]],
+                return { rolls: [handRolled, unseenRolled], ...await h17Item("plant", "action.plant", [[h17Was.plant, { [h17Flag("broken")]: false, [h17Flag("tier")]: 3 }]],
                     `requestPlant({ plannerId: "${ids.botan}", victimId: "${ids.aiko}", itemId: "${h17Was.plant}", total: ${Number(handRolled.total ?? 0)},
                         isCritical: true, unseenTotal: ${Number(unseenRolled.total ?? 0)}, unseenCritical: true,
                         rollId: ${JSON.stringify(handRolled.messageId)}, unseenRollId: ${JSON.stringify(unseenRolled.messageId)} })`, [[], 1, true]) };
             })(),
-            broke: await h17Item("broke", [[h17Was.broke, { [h17Flag("broken")]: true }]],
+            broke: await h17Item("broke", null, [[h17Was.broke, { [h17Flag("broken")]: true }]],
                 `requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${h17Was.broke}" })`, [[], 1, true]),
             analyze: await (async () => {
                 const rolled = await drawnRoll(p2, ids.botan, "analyze", "head", { hope: 7, fear: 7 });
@@ -4190,6 +4216,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), B = await import("${repoUrl}/scripts/truth-bullets.mjs");
             for (const [name, id] of globalThis.__h17Hooks ?? []) Hooks.off(name, id);
             if (globalThis.__h17Asked) game.socket.off("${SOCKET}", globalThis.__h17Asked);
+            delete globalThis.__holdOp; delete globalThis.__heldPutBacks;
             if (globalThis.__h17Release !== undefined) Hooks.off("updateItem", globalThis.__h17Release);
             clearTimeout(globalThis.__h17Late);
             const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}"), b = a.items.get("${h17Was.bullet}"), uuid = b?.uuid ?? null;
@@ -4213,14 +4240,18 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     }
     const h17Ready = Boolean(h17 && h17Was.hand && h17Was.plant && h17Was.broke && h17Was.blocker && h17Was.bullet && h17Was.held
         && h17Was.together && h17Was.free);
-    // p2's write of the case's Tool or bullet heard, then its ask, and no put-back of that write before the ask; the
-    // bullet's put-back held, and heard after the Analyze's write.
+    // p2's write of the case's Tool or bullet heard, then its ask, and no put-back of that write before the ask; a Tool's
+    // put-back held until the ask was heard (`heldInOrder`) - not the broken Tool's: breaking it is a write that stands,
+    // with no put-back to hold (asked a hold, that case read `held` [] and red on its first run, 10.10.2026), and p2's
+    // write and ask, one client's, arrive in the order sent - and the bullet's held by its own hold and heard after
+    // the Analyze's write.
     const h17Ordered = (key, action) => {
         const heard = h17?.[key]?.heard ?? [], asked = heard.findIndex(h => h[0] === "asked" && h[1] === action);
         const target = key === "analyze" ? "bullet" : key;
         const putBack = h => h[0] === target && (h[1] === "back" || (h[1] === "kept" && String(h[2]).split(",").includes(h17TextField)));
         const ordered = h16InOrder(heard, { 0: target, 1: "player" }, { 0: "asked", 1: action, 2: "p2" }) && !heard.slice(0, asked).some(putBack);
-        if (key !== "analyze") return ordered;
+        if (key === "broke") return ordered;
+        if (key !== "analyze") return ordered && heldInOrder(h17?.[key]?.held);
         const analysed = heard.findIndex(h => h[0] === "bullet" && h[1] === "kept" && String(h[2]).split(",").includes(h17Flag("analyzed")));
         return ordered && h17?.analyze?.held === true && analysed >= 0 && analysed < heard.findIndex(putBack);
     };
@@ -4293,6 +4324,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`);
     let h18 = null;
     try {
+        await holdPutBack(ids.aiko, [h18Was.full?.[0]], `globalThis.__h18Heard.some(h => h[0] === "asked")`, "the ask");
         await p1.eval(`const a = game.actors.get("${ids.aiko}"), o = { drpgAutomated: true };
             const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
             await Promise.all([a.items.get("${h18Was.blocker}").update({ "flags.${MOD}.roles": ${JSON.stringify(crimeRole)} }, o),
@@ -4302,15 +4334,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             while (!globalThis.__h18Heard.some(h => h[0] === "full" && h[1] === "back") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
             await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             await new Promise(r => setTimeout(r, 1500)); return true;`, { timeout: 15000 });
+        const held = await heldPutBacks();
         const want = [0, h18Was.limit];
         const docs = await h16Docs(`const a = game.actors.get("${ids.aiko}"), carried = i => i.name.startsWith("SEC H18 ") && i.getFlag("${MOD}", "location") !== "vault";
             return [a.items.filter(i => carried(i) && i.name === "${h18Names.loot}").length, a.items.filter(carried).length];`, want);
         const heard = await gm.eval(`return globalThis.__h18Heard.splice(0);`);
-        h18 = { ok: docs.length === 4 && docs.every(seen => JSON.stringify(seen) === JSON.stringify(want)), want, docs, heard };
+        h18 = { ok: docs.length === 4 && docs.every(seen => JSON.stringify(seen) === JSON.stringify(want)), held, want, docs, heard };
     } finally {
         await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), V = await import("${repoUrl}/scripts/vault.mjs");
             for (const [name, id] of globalThis.__h18Hooks ?? []) Hooks.off(name, id);
             if (globalThis.__h18Asked) game.socket.off("${SOCKET}", globalThis.__h18Asked);
+            delete globalThis.__holdOp; delete globalThis.__heldPutBacks;
             const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
             await A.sheetAuditIdle();
             for (const who of [a, aiko]) {
@@ -4331,7 +4365,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const ready = Boolean(h18 && h18Was.blocker && h18Was.full?.[0] && h18Was.loot && h18Was.room && h18Was.limit >= 2 && h18Was.together
             && h18Was.filled && h18Was.held);
         const ordered = h16InOrder(heard, { 0: "full", 1: "player" }, { 0: "asked", 1: "vault.steal", 2: "p1" })
-            && !heard.slice(0, asked).some(h => h[0] === "full" && h[1] === "back");
+            && !heard.slice(0, asked).some(h => h[0] === "full" && h[1] === "back") && heldInOrder(h18?.held);
         check("SECURITY: a player's console putting one of their Tools in a stash and at once asking to take a Tool out of another's stash has the copy in no hand the GMs hold full, on every client",
             ready && ordered && Boolean(h18?.ok), JSON.stringify({ ready, ordered, ...(h18 ?? {}), heard: heard.map(row => row.join(" / ").split(`flags.${MOD}.`).join("")) }), { flow: "give-take-stash" });
     }
@@ -4414,14 +4448,16 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             return [r.hope.value, r.hitPoints.value, k?.getFlag("${MOD}", "tier") ?? null, k?.system?.quantity ?? null];`, kitWant),
             rows: await h19Rows(ids.aiko, p1.userId, kitFrom), heard: await gm.eval(`return globalThis.__h19Heard.splice(0);`) };
         const keyFrom = await gm.eval(`return Date.now();`);
+        await holdPutBack(ids.botan, [h19Was.key], `globalThis.__h19Heard.some(h => h[0] === "asked")`, "the ask");
         await p2.eval(`const a = game.actors.get("${ids.botan}"), o = { drpgAutomated: true };
             const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
             await Promise.all([a.items.get("${h19Was.botanBlocker}").update({ "flags.${MOD}.roles": ${JSON.stringify(crimeRole)} }, o),
                 a.items.get("${h19Was.key}").update({ "flags.${MOD}.bedroomKey": ${JSON.stringify(h19Room)} }, o)]);
             void B.requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${h19Was.key}" }).catch(() => null); return true;`);
         await h19Settled(`game.actors.get("${ids.aiko}").items.some(i => i.name === "${h19Names.key}" || i.getFlag("${MOD}", "bedroomKey") === ${JSON.stringify(h19Room)})`);
+        const held = await heldPutBacks();
         const keyWant = [false, false, true];
-        const key = { want: keyWant, docs: await h16Docs(`const aiko = game.actors.get("${ids.aiko}"), keyed = i => i.getFlag("${MOD}", "bedroomKey") ?? null;
+        const key = { want: keyWant, held, docs: await h16Docs(`const aiko = game.actors.get("${ids.aiko}"), keyed = i => i.getFlag("${MOD}", "bedroomKey") ?? null;
             return [aiko.items.some(i => keyed(i) === ${JSON.stringify(h19Room)}),
                 ["${ids.botan}", "${ids.aiko}"].some(id => game.actors.get(id).items.some(i => i.name.startsWith("SEC H19 ") && keyed(i))),
                 aiko.items.some(i => i.name === "${h19Names.key}")];`, keyWant),
@@ -4431,6 +4467,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
             for (const [name, id] of globalThis.__h19Hooks ?? []) Hooks.off(name, id);
             if (globalThis.__h19Asked) game.socket.off("${SOCKET}", globalThis.__h19Asked);
+            delete globalThis.__holdOp; delete globalThis.__heldPutBacks;
             const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
             await A.sheetAuditIdle();
             for (const who of [a, aiko]) {
@@ -4463,7 +4500,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         check("SECURITY: a player's console raising their kit's tier and at once using it as that tier is used has the use judged by the tier the GMs hold - its Hope put back and its Health flagged on every client, the tier put back",
             ready && kitOrdered && same(h19?.kit) && has(h19?.kit?.rows, ["putBack", "system.resources.hope.value"], ["flagged", "system.resources.hitPoints.value"], ["putBack", "items.<kit>.tier"]),
             JSON.stringify({ ready, ordered: kitOrdered, ...brief(h19?.kit) }), { flow: "sheet-audit" });
-        const keyOrdered = ordered(h19?.key?.heard ?? [], { 0: "key", 1: "player", 2: `flags.${MOD}.bedroomKey` }, { 0: "asked", 1: "handover.item", 2: "p2" });
+        const keyOrdered = ordered(h19?.key?.heard ?? [], { 0: "key", 1: "player", 2: `flags.${MOD}.bedroomKey` }, { 0: "asked", 1: "handover.item", 2: "p2" })
+            && heldInOrder(h19?.key?.held);
         const keyRows = (h19?.key?.rows ?? []).filter(r => r[1].split(",").includes("items.<key>.bedroomKey"));
         check("SECURITY: a player's console writing a bedroom key on their Tool and at once asking to hand it over makes the receiver no key, on every client - the key put back and the GMs told",
             ready && keyOrdered && same(h19?.key) && JSON.stringify(keyRows) === JSON.stringify([["putBack", "items.<key>.bedroomKey", true]]),

@@ -37,7 +37,7 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
@@ -532,7 +532,8 @@ function thresholdFacts(actor, actionKey, def) {
         case "analyze": {
             const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, ANALYZE_DC[v]?.[key]]));
             f("DRPG.Action.dcAnalyze", {
-                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife")),
+                // No Daily Life ladder (E09 C14, D14): ANALYZE_DC has no such column - see its comment.
+                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")),
                 // A Key and a Final are rolled for since 21.09 - their own column.
                 key: ladderRows(col("key"))
             });
@@ -1289,6 +1290,26 @@ export async function noteFactOfRoll(messageId, { by, actorId = null, actions },
     }
     await rerollBookmarkStore.patch(rowActor, { facts: { ...(row.facts ?? {}), ...facts } });
     return true;
+}
+
+/**
+ * The facts the GMs hold for the roll `messageId` names, read the way `noteFactOfRoll` writes
+ * them (E09 C5, 08.10.2026): the row's, when that row is `by`'s roll of `actorId` for one of
+ * `actions`; while no row of that message is kept, the facts parked for it under the same sender,
+ * character and action, merged - a Sabotage's packet can come before its roll's `roll.bookmark`
+ * has kept the row (above), and so can the trace that follows it. Null when neither holds any:
+ * a row that is another's, another character's or another action's answers nothing. Read in one
+ * synchronous step after the store's hydration. A GM's only.
+ */
+export async function factsOfRoll(messageId, { by, actorId = null, actions }) {
+    if (!game.user?.isGM || typeof messageId !== "string" || !messageId || !by) return null;
+    await rerollBookmarkStore.whenHydrated();
+    const wanted = { by, actorId, actions };
+    const [rowActor, row] = Object.entries(rerollBookmarkStore.entries()).find(([, r]) => r?.messageId === messageId) ?? [];
+    if (row) return rowTakes(row, rowActor, wanted) ? { ...(row.facts ?? {}) } : null;
+    const parked = (factsAwaitingRow.get(messageId) ?? []).filter(w => w.by === by
+        && (!actorId || w.actorId === actorId) && w.actions.some(action => actions.includes(action)));
+    return parked.length ? Object.assign({}, ...parked.map(w => w.facts)) : null;
 }
 
 /*
@@ -3144,8 +3165,11 @@ async function hideProjectTraces(actor, project, progress, lines) {
         // (Dawid, 28.08). An indirect murder IS the murder, built in
         // instalments, so the traces of building it are the traces of
         // committing it. `null` for every other project, which leaves
-        // the incident rule free to answer.
-        tiedToCrime: project.indirectMurder ? true : null,
+        // the incident rule free to answer - and for a bystander's Work on
+        // somebody else's trap, which the bridge has left untied for a
+        // player's since fix r2-G3 and a GM's own client tied until E09 fix
+        // r1-G4 (`buildsOwnMurder`, the same question on both).
+        tiedToCrime: buildsOwnMurder(project.id, actor.id) ? true : null,
         // A player's packet is never taken at its word on the tie: the GM reads it off this
         // project (gm-bridge.mjs `handleRemnant`, fix r2-G3).
         projectId: project.id,
@@ -3591,8 +3615,10 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
     const visibility = success ? hit.remnant : def.failureRemnant;
     return dropRemnant(actor, {
         type: "prep",
-        // Sabotaging a murder project is working on the murder too.
-        tiedToCrime: project?.indirectMurder ? true : null,
+        // Sabotaging a murder project is working on the murder too - the saboteur's own: a
+        // bystander's Sabotage of somebody else's trap is untied (the E09 plan's C5), and on a GM's
+        // own client it was tied until E09 fix r1-G4 (`buildsOwnMurder`, as the bridge asks it).
+        tiedToCrime: project && buildsOwnMurder(project.id, actor.id) ? true : null,
         visibility,
         faint: true,
         action: "sabotage",
@@ -4434,7 +4460,10 @@ function declineAction(actor, receipt = null) {
             amount: String(receipt?.amount ?? 0),
             // A Burst comes back as a Burst, which is the one thing the far side
             // cannot work out for itself.
-            grant: String(Boolean(receipt?.grant))
+            grant: String(Boolean(receipt?.grant)),
+            // The words the far side answers a free card with - this button's own
+            // (`ruleDecline`, E09 fix r2-G7).
+            words: "there"
         }
     };
 }

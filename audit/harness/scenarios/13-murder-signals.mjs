@@ -636,22 +636,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        real Foundry does is LIVE-E29-01). A player's write names only a reason the GMs' audit reads
        off it (resource-guard.mjs `stampOf`): the Sanity `price`, the wear none. Red before the
        fix (C8's runtime, 05.10): `itemWear` with the tool's id on the wear, `concealment` on the
-       Sanity. Chie's Sanity is put back. */
-    const sanityWas = await gm.eval(`const a = game.actors.get("${ids.chie}"), was = a.system.resources.stress.value;
-        await a.update({ "system.resources.stress.value": 0 }); return was;`);
+       Sanity. Chie's Sanity is put back. `markResolutionStress` answers the marks it added since
+       E09 fix r2-G10 (a clean-up's receipt counts them), where it answered `true`: on the cleared
+       track that is the price, or the whole track where it holds less (E09 fix r2-G11). */
+    const track = await gm.eval(`const a = game.actors.get("${ids.chie}"), was = a.system.resources.stress.value;
+        const { RESOLUTION_STRESS_COST } = await import("${repoUrl}/scripts/config.mjs");
+        await a.update({ "system.resources.stress.value": 0 });
+        return { was, owed: Math.min(Number(a.system.resources.stress.max) || 0, RESOLUTION_STRESS_COST) };`);
     await settle(300);
     const marked = await p3.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
         return await C.markResolutionStress(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
     await settle(600);
     const killerSeen = await p2.eval(`for (const [name, id] of globalThis.__g7Hooks ?? []) Hooks.off(name, id);
         const seen = (globalThis.__g7Seen ?? []).filter(w => w.user === "${p3.userId}"); delete globalThis.__g7Seen; delete globalThis.__g7Hooks; return seen;`);
-    await gm.eval(`await game.actors.get("${ids.chie}").update({ "system.resources.stress.value": ${Number(sanityWas) || 0} }); return true;`);
+    await gm.eval(`await game.actors.get("${ids.chie}").update({ "system.resources.stress.value": ${Number(track?.was) || 0} }); return true;`);
     {
         const wear = killerSeen.filter(w => w.kind === "updateItem" && w.id === toolId), sanity = killerSeen.filter(w => w.kind === "updateActor");
         check("p2, a bystander: the killer's own browser's writes in the fight name only a reason the GMs' audit reads - a concealment's Sanity `price`, a tool's wear none",
-            marked === true && wear.length > 0 && wear.every(w => w.stamp === null)
+            track?.owed > 0 && marked === track.owed && wear.length > 0 && wear.every(w => w.stamp === null)
                 && sanity.length === 1 && JSON.stringify(sanity[0].stamp) === JSON.stringify({ reason: "price", ref: null }),
-            JSON.stringify({ marked, killerSeen }));
+            JSON.stringify({ marked, owed: track?.owed ?? null, killerSeen }));
     }
 
     /* A USE IN THE FIGHT, AND A BYSTANDER'S, EACH FROM ITS PLAYER'S OWN BROWSER (E06 fix r2-G2,

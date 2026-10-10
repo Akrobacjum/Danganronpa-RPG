@@ -25,7 +25,7 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING 
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, debug } from "./utils.mjs";
+import { isPrimaryGm, error, debug, serverNow } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // A leaf: settings.mjs imports config.mjs and nothing else. Its reader used to
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
@@ -266,12 +266,12 @@ async function settleElapsedPause(paused) {
 
         if (paused) {
             if (clock.pausedAt) return;              // already stamped
-            await setClock({ pausedAt: Date.now() });
+            await setClock({ pausedAt: serverNow() });
             return;
         }
 
         if (!clock.pausedAt) return;
-        const paused_ms = Math.max(0, Date.now() - clock.pausedAt);
+        const paused_ms = Math.max(0, serverNow() - clock.pausedAt);
         await setClock({
             timeOfDayStartedAt: clock.timeOfDayStartedAt + paused_ms,
             pausedAt: null
@@ -1494,7 +1494,7 @@ function paintElapsed(el) {
     // safeword is not time anybody used. While paused it freezes at the moment
     // the pause began; `settleElapsedPause` then pushes the start forward by the
     // length of the break, so it resumes where it stopped rather than jumping.
-    const now = game.paused && clock.pausedAt ? clock.pausedAt : Date.now();
+    const now = game.paused && clock.pausedAt ? clock.pausedAt : serverNow();
     const ms = Math.max(0, now - startedAt);
 
     el.classList.remove("empty");
