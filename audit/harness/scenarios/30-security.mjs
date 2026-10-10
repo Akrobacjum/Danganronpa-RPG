@@ -5021,6 +5021,72 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const heardUnreviewed = `return { updates: globalThis.__secUnreviewed.updates.length, adds: globalThis.__secUnreviewed.adds.length };`;
     try {
         for (const client of unreviewedClients) await client.eval(recordUnreviewed);
+
+        /*
+         * A PLAYER'S COUNTDOWNS FROM AN ACTION (E75 C5, 10.10.2026; census P09, P10, P12; the owner's
+         * Q1 (a)). 2.10.10 sends them as the second packet above: no `action`, an array of countdowns
+         * (2.10.11 countdownField.mjs:84-89, read in the code). The guard recognises that shape, asks
+         * who sent it and refuses it as D-b refuses 2.10.8's road (relay-guard.mjs `judgeCountdownAdd`):
+         * nothing is added, the console names the sender and the countdown, the GM's toast says which
+         * countdown, the player is told, and it is not an unreviewed name. Sent first in this block,
+         * so on C4's tree the GM's reading is the unreviewed name's ("Daggerheart sent "undefined"")
+         * and not a repeat the guard keeps quiet. With one GM in the harness its bucket counts one
+         * refusal, by the primary (census P10: another GM drops it, as every packet - not run). Then
+         * on the GM's client: the control hands the same packet to the copied relay, which reaches the
+         * `add` recorder; the guard's own listener passes it on from the full Gamemaster (census P12,
+         * `forwardsUnjudged`), and refuses it from p3 while the GM's client sees p3 disconnected
+         * (shadowed around the synchronous call, as C3's check below does), naming the shape.
+         */
+        const ACTION_COUNTDOWN = "SEC action countdown";
+        const fromAction = `{ data: { data: { countdowns: [{ name: "${ACTION_COUNTDOWN}", progress: { start: 3, current: 3 } }] } } }`;
+        const fromActionBefore = await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+            globalThis.__notifications.length = 0;
+            return { refused: game.drpg.relayGuard().refused.countdownsFromAction ?? 0, messages: game.messages.contents.map(m => m.id) };`);
+        await p1.eval(`globalThis.__refused.length = 0; game.socket.emit("${DH}", ${fromAction}); return true;`);
+        await settle(1500);
+        const fromActionOnGm = await gm.eval(`const name = game.users.get("${p1.userId}").name, U = await import("${repoUrl}/scripts/utils.mjs");
+            const S = await import("${repoUrl}/scripts/secret.mjs");
+            const failures = U.sessionFailures(), seen = new Set(${JSON.stringify(fromActionBefore.messages)});
+            return {
+                adds: globalThis.__secUnreviewed.adds.slice(),
+                logged: failures.filter(e => e.message.includes(\`Refused a Daggerheart "countdownsFromAction" from \${name}: new countdowns (${ACTION_COUNTDOWN})\`))
+                    .reduce((n, e) => n + (e.count ?? 1), 0),
+                unreviewed: failures.filter(e => e.message.includes('Daggerheart sent "')).map(e => e.message),
+                toasts: (globalThis.__notifications ?? []).filter(n => String(n.msg ?? "").includes(name)
+                    && String(n.msg ?? "").includes("new countdowns (${ACTION_COUNTDOWN})")).length,
+                // A whisper's words are a private card's (utils.mjs whisperToGms), read as the GM reads them.
+                whispers: game.messages.contents.filter(m => !seen.has(m.id) && String(S.contentOf(m)).includes("drpg-warning")).map(m => S.contentOf(m)),
+                refused: (game.drpg.relayGuard().refused.countdownsFromAction ?? 0) - ${fromActionBefore.refused} };`);
+        const fromActionHeard = await p1.eval(`return globalThis.__refused.filter(r => r.what === "daggerheart").length;`);
+        check("RELAY: a player's countdown from an action adds nothing on the GM, is logged by name, the player is told and the GM reads which countdown",
+            fromActionOnGm.adds.length === 0 && fromActionOnGm.logged === 1 && fromActionOnGm.unreviewed.length === 0
+            && fromActionOnGm.toasts === 1 && fromActionOnGm.whispers.length === 0 && fromActionOnGm.refused === 1 && fromActionHeard === 1,
+            JSON.stringify({ fromActionOnGm, fromActionHeard }));
+        const fromActionDirect = await gm.eval(`const R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs"), heard = globalThis.__secUnreviewed;
+            const U = await import("${repoUrl}/scripts/utils.mjs"), guard = game.socket.listeners("${DH}").find(fn => fn.__drpgRelayGuard);
+            const away = game.users.get("${p3.userId}"), shadowed = Object.getOwnPropertyDescriptor(away, "active");
+            const added = async run => {
+                heard.adds.length = 0;
+                await run();
+                // The default branch does not wait for the entry it runs (lib/dh-relay.mjs).
+                await new Promise(resolve => setTimeout(resolve, 300));
+                return heard.adds.slice();
+            };
+            const direct = await added(() => R.handleSocketEvent(${fromAction}));
+            const fromGm = await added(() => guard?.(${fromAction}, game.user.id));
+            const fromAway = await added(() => {
+                Object.defineProperty(away, "active", { value: false, configurable: true });
+                try { guard?.(${fromAction}, away.id); } finally { if (shadowed) Object.defineProperty(away, "active", shadowed); else delete away.active; }
+            });
+            heard.adds.length = 0;
+            return { guard: Boolean(guard), role: game.user.role, direct, fromGm, fromAway, active: away.active,
+                awayLogged: U.sessionFailures().filter(e => e.message.includes(\`Refused a Daggerheart "countdownsFromAction" from \${away.name}, who is not connected here\`)).length };`);
+        check("control: the same countdowns run through the copied relay itself on the GM reach the Countdowns setting's add",
+            JSON.stringify(fromActionDirect.direct) === JSON.stringify([ACTION_COUNTDOWN]), JSON.stringify(fromActionDirect));
+        check("RELAY: a full Gamemaster's countdowns from an action go on to Daggerheart, and a sender not connected is refused by the shape's name",
+            fromActionDirect.guard && fromActionDirect.role === 4 && JSON.stringify(fromActionDirect.fromGm) === JSON.stringify([ACTION_COUNTDOWN])
+            && fromActionDirect.fromAway.length === 0 && fromActionDirect.awayLogged === 1 && fromActionDirect.active === true,
+            JSON.stringify(fromActionDirect));
         await p1.eval(`for (const packet of ${unreviewed}) game.socket.emit("${DH}", packet); return true;`);
         await settle(1500);
         const ranOn = await Promise.all(unreviewedClients.map(client => client.eval(heardUnreviewed)));
@@ -5141,7 +5207,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
                 return out;
             };
             return { state: G.relayGuardStatus().state, listener: Boolean(listener), catches: failures() - failed, active: user.active,
-                disarmed: await reached(disarmed), renamed: await reached(renamed) };`;
+                refused: G.relayGuardStatus().refused, disarmed: await reached(disarmed), renamed: await reached(renamed) };`;
         const onPlayer = await p2.eval(disarmedBy("drpg-e75-disarm", `[...${unreviewed}, ${unreadable}]`, p1.userId));
         const onGm = await gm.eval(disarmedBy("drpg-e75-disarm", `[
             { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: "${botanUuid}", data: { name: "${UNREVIEWED}" } } },
@@ -5157,6 +5223,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && JSON.stringify(onGm.renamed) === JSON.stringify([[0, 0], [0, 1], [0, 1]]), JSON.stringify({ player: onPlayer.renamed, gm: onGm.renamed }));
         check("RELAY: a packet the backstop cannot judge is refused by its own catch, and disarmed as every refusal is",
             onPlayer.catches === 1 && JSON.stringify(onPlayer.disarmed?.[3]) === JSON.stringify([0, 0]), JSON.stringify(onPlayer));
+
+        /*
+         * The backstop on the GM's client judges the countdown shape as the guard does (E75 C5): a
+         * fourth copy of relay-guard.mjs stands it up as above and is handed the shape from p1, who is
+         * connected. It must count a refusal in the shape's own bucket (before C5 the backstop said
+         * "undefined" and counted nothing) and disarm the packet; the renamed-only copy still reaches
+         * the countdown entry.
+         */
+        const onGmCountdown = await gm.eval(disarmedBy("drpg-e75-countdown", `[${fromAction}]`, p1.userId));
+        check("RELAY: the backstop on the GM refuses a player's countdown from an action as the guard does, and disarms it",
+            onGmCountdown.state === "backstop" && onGmCountdown.listener && onGmCountdown.refused?.countdownsFromAction === 1
+            && JSON.stringify(onGmCountdown.disarmed) === JSON.stringify([[0, 0]]) && JSON.stringify(onGmCountdown.renamed) === JSON.stringify([[0, 1]]),
+            JSON.stringify(onGmCountdown));
     } finally {
         for (const client of unreviewedClients) {
             await client.eval(`delete game.actors.get("${ids.botan}").update;

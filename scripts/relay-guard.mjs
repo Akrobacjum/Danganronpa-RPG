@@ -111,6 +111,23 @@ const SUB = {
     save: "DhGMUpdateSaveMessage"
 };
 
+/**
+ * A player's countdowns from a Daggerheart action, as 2.10.10 sends them (E75 C5,
+ * 10.10.2026; census P09, P10, P12). Up to 2.10.9 the same feature came as a
+ * `DhGMUpdateCountdowns` carrying the whole setting with the new ids in it, which D-b
+ * refuses (`judgeCountdowns`). 2.10.10 sends `{ data: { data: { countdowns } } }` under a
+ * name its socket file does not declare (2.10.11 countdownField.mjs:84-89, socket.mjs:127,
+ * read in the code): no `action`, an inner `data` with no `action` of its own, and an array
+ * of countdowns. Recognised exactly that far (`isCountdownAdd`), on the GM's client it is
+ * asked who sent it as every packet is and refused as D-b refuses the old road, under this
+ * name and in its own bucket of `status.refused` (the owner's Q1 (a)); a player's client
+ * still runs nothing for it (`REVIEWED_NAMES`). Before C5 the GM refused it as a name
+ * nobody had reviewed, which said "undefined" to the GMs and nothing to the player: held by
+ * R345 and by 30-security part 8, "a player's countdown from an action adds nothing on the
+ * GM ...", both red on C4's tree.
+ */
+const COUNTDOWN_ADD = "countdownsFromAction";
+
 /** Daggerheart's `RefreshType` values (socket.mjs). */
 const REFRESH_TYPES = new Set([
     "DhCoundownRefresh", "DhTagTeamRollRefresh", "DhGroupRollRefresh",
@@ -325,7 +342,7 @@ function neutralise(payload, senderId) {
         disarm(payload);
         return;
     }
-    if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
+    if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
         if (isPrimaryGm()) shapeWarning(String(action));
         disarm(payload);
         return;
@@ -392,13 +409,13 @@ function onRelay(payload, senderId) {
             debug(`Daggerheart relay: "${plainWhat(String(action))}" is not a name the guard has reviewed; not run on this client.`);
             return;
         }
-        if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
+        if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
             // Said by the primary GM only, so one GM speaks for the table.
             if (isPrimaryGm()) shapeWarning(String(action));
             return;
         }
         if (!isPrimaryGm()) {
-            debug(`Daggerheart relay: "${payload?.data?.action ?? action}" left to the primary GM.`);
+            debug(`Daggerheart relay: "${relayName(payload)}" left to the primary GM.`);
             return;
         }
         const sender = senderOf(senderId);
@@ -436,8 +453,21 @@ const forwardTo = (sub, packet) => ({ verdict: "forward", sub, packet });
 const refuseAs = (sub, kind, why) => ({ verdict: "refuse", sub, kind, why });
 const dropAs = (sub, why) => ({ verdict: "drop", sub, why });
 
+/** 2.10.10's countdowns from a player's action (`COUNTDOWN_ADD`), and nothing that only looks like it. */
+function isCountdownAdd(payload) {
+    const data = payload?.data;
+    return payload?.action == null && Boolean(data) && typeof data === "object"
+        && !Object.hasOwn(data, "action") && Array.isArray(data.data?.countdowns);
+}
+
+/** What a packet asks for, for a console line: the countdown shape has no name of its own. */
+function relayName(payload) {
+    return isCountdownAdd(payload) ? COUNTDOWN_ADD : (payload?.data?.action ?? payload?.action);
+}
+
 export function judgeRelay(payload, sender, world = liveWorld()) {
     const data = payload?.data;
+    if (isCountdownAdd(payload)) return judgeCountdownAdd(data.data.countdowns);
     // Q1 (a), the owner, 03.10.2026: a party transfer from a player waits for a
     // stage that designs it, and the GM hears of it once a session (an unreviewed
     // case is said once per Daggerheart version).
@@ -713,6 +743,18 @@ function judgeCountdowns(data, sender, world) {
     if (deltas.length) return { verdict: "own", sub, ops: [{ kind: "countdowns", deltas }], noted: suspicious };
     if (suspicious.length) return refuseAs(sub, "forged", suspicious.join(", "));
     return dropAs(sub, "no change a player could make");
+}
+
+/**
+ * D-b on 2.10.10's road: the countdowns a player's action starts are named and refused,
+ * in the words `judgeCountdowns` refuses the old road's with. The packet names no actor,
+ * item or card, so nothing in it ties the countdowns to what the player owns; the GM can
+ * start them by hand. An empty list is what Daggerheart's handler would add nothing for.
+ */
+function judgeCountdownAdd(countdowns) {
+    const names = countdowns.map(countdown => String(countdown?.name ?? "?"));
+    if (!names.length) return dropAs(COUNTDOWN_ADD, "no countdowns");
+    return refuseAs(COUNTDOWN_ADD, "refused", `new countdowns (${names.join(", ")})`);
 }
 
 function differsBeyondProgress(now, next) {
@@ -1012,12 +1054,12 @@ function noSender(payload, senderId) {
     const named = senderId ? game.users?.get(senderId) : null;
     if (!named) return unknownSender(payload);
     status.refused.inactiveSender = (status.refused.inactiveSender ?? 0) + 1;
-    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from ${plainWhat(named.name)}, who is not connected here.`);
+    warn(`Refused a Daggerheart "${plainWhat(relayName(payload))}" from ${plainWhat(named.name)}, who is not connected here.`);
 }
 
 function unknownSender(payload) {
     status.refused.unknownSender = (status.refused.unknownSender ?? 0) + 1;
-    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from a sender Foundry did not name.`);
+    warn(`Refused a Daggerheart "${plainWhat(relayName(payload))}" from a sender Foundry did not name.`);
     if (unknownSaid) return;
     unknownSaid = true;
     const text = game.i18n.localize("DRPG.Relay.unknownSender");

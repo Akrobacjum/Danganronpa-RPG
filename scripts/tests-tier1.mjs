@@ -3088,6 +3088,55 @@ const INVARIANTS = [
             "ensureWrapped decides the state by something other than unreviewedOf");
     }],
 
+    ["R345 - a player's countdowns from a Daggerheart action are refused by name, as D-b refuses them on the old road", async () => {
+        /*
+         * E75 C5, 10.10.2026; census P09, the owner's Q1 (a). From 2.10.10 a player's client
+         * sends the countdowns an action starts as `{ data: { data: { countdowns } } }` - no
+         * `action`, an inner `data` with no `action`, an array (2.10.11 countdownField.mjs:84-89,
+         * read in the code). `judgeRelay` asked about it with a made-up player and a world it
+         * must not need: refused as `judgeCountdowns` refuses 2.10.8's road (kind "refused", the
+         * names in `why`), under a bucket of its own. Beside it, packets that only look like it -
+         * an inner `action` set or null, an outer `action`, countdowns that are no array - are
+         * not taken for it. On C4's tree the shape came back kind
+         * "shape" for the sub "?". Pure: nothing is sent.
+         */
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const world = { now: () => 1e12 };
+        const judged = payload => {
+            const { verdict, sub, kind, why } = judgeRelay(payload, player, world);
+            return { verdict, sub, kind: kind ?? null, why };
+        };
+        const countdowns = [{ name: "Doom", progress: { start: 4, current: 4 } }, { name: { toString: () => "Dread" } }, {}];
+        equal(JSON.stringify(judged({ data: { data: { countdowns } } })),
+            JSON.stringify({ verdict: "refuse", sub: "countdownsFromAction", kind: "refused", why: "new countdowns (Doom, Dread, ?)" }),
+            "the verdict on a player's countdowns from an action");
+        equal(JSON.stringify(judged({ action: null, data: { data: { countdowns: [] } } })),
+            JSON.stringify({ verdict: "drop", sub: "countdownsFromAction", kind: null, why: "no countdowns" }),
+            "the verdict on the same shape with no countdowns in it");
+
+        const near = {
+            "an inner action": { data: { action: "SuiteUnknown", data: { countdowns } } },
+            "an inner action that is null": { data: { action: null, data: { countdowns } } },
+            "an outer action": { action: "DhGMUpdate", data: { data: { countdowns } } },
+            "countdowns that are no array": { data: { data: { countdowns: { C1: { name: "Doom" } } } } }
+        };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(near).map(([what, payload]) => [what, judged(payload).sub]))),
+            JSON.stringify({ "an inner action": "SuiteUnknown", "an inner action that is null": "?", "an outer action": "?",
+                "countdowns that are no array": "?" }),
+            "what a packet that only looks like the shape is judged as");
+
+        /* AND BOTH PLACES THAT REFUSE AN UNKNOWN NAME ON THE GM (`neutralise` for the backstop,
+           `onRelay`) recognise the shape before they do, so it reaches `judgeRelay` (R153 keeps
+           the sender's question ahead of that) instead of the unreviewed whisper. */
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        for (const name of ["neutralise", "onRelay"]) {
+            const body = fnSource(guard, name);
+            const recognised = body.indexOf("isCountdownAdd(payload)"), refused = body.indexOf("shapeWarning(");
+            ok(recognised > 0 && refused > recognised, `${name} does not recognise the countdown shape before it refuses an unknown name`);
+        }
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
