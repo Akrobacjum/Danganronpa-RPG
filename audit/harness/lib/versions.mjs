@@ -71,7 +71,7 @@ function readJson(file) {
     try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
 }
 
-/** The Daggerheart tag lib/dh-relay.mjs names in its header ("tag 2.10.5"). */
+/** The Daggerheart tag lib/dh-relay.mjs names in its header ("tag 2.10.11"). */
 function relayCode() {
     const text = fs.readFileSync(path.join(HERE, "dh-relay.mjs"), "utf8");
     return /\btag (\d+\.\d+\.\d+)/.exec(text)?.[1] ?? null;

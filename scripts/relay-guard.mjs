@@ -13,9 +13,17 @@
  * puts the same question in front of that one.
  *
  * WHAT THIS DOES. At `init` it takes Daggerheart's listener off the channel
- * and puts one of its own in front of it. On a player's client, and for the
- * packets that only redraw something, the packet goes straight through -
- * Daggerheart's GM handlers do nothing on a player's client. On the primary
+ * and puts one of its own in front of it. The packets that only redraw
+ * something go straight through everywhere. On a player's client a packet
+ * goes through when its name is one of the eight the guard has reviewed
+ * (`REVIEWED_NAMES`) - Daggerheart's GM handlers do nothing there - and
+ * nowhere otherwise: from 2.10.10 Daggerheart's listener runs a name it has
+ * no case for by the packet's inner `data.action`, on whichever client
+ * receives it (read in 2.10.11's socket.mjs, 10.10.2026; E75 C2). The
+ * backstop (below) can refuse only an object in place: a payload that is not
+ * one goes on, on a player's client and on a GM's alike, and 2.10.11's listener
+ * fails on a string or null before it writes (measured on the copy, scenario 30
+ * part 8; fixes r1-G2 and r2-G2). On the primary
  * GM's client, a request from a player or an Assistant GM is judged against
  * the shapes Daggerheart itself sends for players (`judgeRelay`, the table
  * below), and then passed on narrowed to what was allowed, written by this
@@ -29,8 +37,9 @@
  * WHEN DAGGERHEART CHANGES. This leans on Daggerheart's own code, so it checks
  * that it is looking at what was reviewed (`fingerprintOf`), and on the primary
  * GM's client it refuses what it does not know:
- *   - a list of cases that grew, or a listener it cannot name: the unreviewed
- *     shapes are refused, and the GM is told once per Daggerheart version;
+ *   - a list of cases that grew, a `default:` branch whose text it has not
+ *     reviewed, or a listener it cannot name: the unreviewed shapes are
+ *     refused, and the GM is told once per Daggerheart version;
  *   - a packet name it does not know: refused, and the first few names are said
  *     in the GMs' chat (`SHAPES_WHISPERED`), the rest in the console;
  *   - a listener it cannot find, or a socket it cannot take one off: the
@@ -52,8 +61,9 @@
  * project, and any change between 0 and its start to a countdown the player
  * owns; a save total for a token they play; the group-roll and tag-team data of
  * a party one of their characters is in; a new order for a scene's
- * environments. None has a limit on how often. Whether the roll behind any of
- * those was honest is the second layer of the trust model (E28, E29).
+ * environments, each a plain identifier. None has a limit on how often. Whether
+ * the roll behind any of those was honest is the second layer of the trust model
+ * (E28, E29).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -64,17 +74,37 @@ import { senderOf, tellRefused } from "./bridge-guards.mjs";
 const GM_UPDATE = "DhGMUpdate";
 const GM_CREATE = "DhGMCreate";
 const TRANSFER = "DhTransferItem";
+/** What a refused packet is renamed to (`disarm`). */
+const REFUSED = "__drpgRefused";
 
 /** Packets that redraw something on every client and write nothing. */
 const UI_ONLY = new Set(["DhRefresh", "DhFearUpdate", "DowntimeTrigger", "DhTagTeamStart", "DhGroupRollStart"]);
 
 /**
+ * The names of the eight cases of `handleSocketEvent`, as each is sent, and the
+ * only packets a player's client hands on (E75 C2, 10.10.2026). Until 2.10.9 a
+ * name that is no case did nothing there; 2.10.10 added a `default:` branch that
+ * runs the entry of Daggerheart's own table named by the packet's `data.action`,
+ * with no GM check of its own (2.10.11 socket.mjs:36-37, read in the code). Held by
+ * 30-security part 8: "a packet with a name the guard has not reviewed runs
+ * nothing on a player's client", and the backstop's check beside it.
+ */
+const REVIEWED_NAMES = new Set([GM_UPDATE, GM_CREATE, TRANSFER, ...UI_ONLY]);
+
+/**
  * The cases of `handleSocketEvent` this file was written against (2.6.5 and
- * 2.10.5 agree; `TransferItem` is in 2.10.8's, read 04.10.2026, and not in 2.10.5's).
+ * 2.10.5 agree; `TransferItem` is in 2.10.8's, read 04.10.2026, and not in 2.10.5's),
+ * and the one `default:` branch it was (E75 C4, 10.10.2026): 2.10.10 added it and
+ * 2.10.11 has the same (socket.mjs:36-37, read in the code), written as
+ * `fingerprintOf` reads it. Its table's keys are a module-scope const that is not
+ * on `game.system.api`, so the text of the dispatch is what can be read; the names
+ * it may run are held instead by `REVIEWED_NAMES` on a player's client and by
+ * `judgeRelay` on the GM's. Whether Daggerheart's bundle keeps these names for the
+ * clause is not read here (build/ is not in its git; AUDIT 9.2 LIVE-E75-03).
  */
 export const REVIEWED_CASES = [
     "GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart",
-    "TransferItem"
+    "TransferItem", "default:EVENT_HANDLERS[data.action]?.(data.data);"
 ];
 
 const SUB = {
@@ -85,6 +115,23 @@ const SUB = {
     countdowns: "DhGMUpdateCountdowns",
     save: "DhGMUpdateSaveMessage"
 };
+
+/**
+ * A player's countdowns from a Daggerheart action, as 2.10.10 sends them (E75 C5,
+ * 10.10.2026; census P09, P10, P12). Up to 2.10.9 the same feature came as a
+ * `DhGMUpdateCountdowns` carrying the whole setting with the new ids in it, which D-b
+ * refuses (`judgeCountdowns`). 2.10.10 sends `{ data: { data: { countdowns } } }` under a
+ * name its socket file does not declare (2.10.11 countdownField.mjs:84-89, socket.mjs:127,
+ * read in the code): no `action`, an inner `data` with no `action` of its own, and an array
+ * of countdowns. Recognised exactly that far (`isCountdownAdd`), on the GM's client it is
+ * asked who sent it as every packet is and refused as D-b refuses the old road, under this
+ * name and in its own bucket of `status.refused` (the owner's Q1 (a)); a player's client
+ * still runs nothing for it (`REVIEWED_NAMES`). Before C5 the GM refused it as a name
+ * nobody had reviewed, which said "undefined" to the GMs and nothing to the player: held by
+ * R345 and by 30-security part 8, "a player's countdown from an action adds nothing on the
+ * GM ...", both red on C4's tree.
+ */
+const COUNTDOWN_ADD = "countdownsFromAction";
 
 /** Daggerheart's `RefreshType` values (socket.mjs). */
 const REFRESH_TYPES = new Set([
@@ -98,6 +145,15 @@ const REFRESH_TYPES = new Set([
 const LISTENER_NAME = new RegExp("^handleSocketEvent(?:\\$\\d+)?$");
 /** One `case socketEvent.X:` of that listener's switch. */
 const CASE_LINE = new RegExp("case\\s+socketEvent(?:\\$\\d+)?\\.(\\w+)", "g");
+/* One `default:` clause, every statement of it up to the switch's `}` (or the
+   first `}` inside it, which is no longer the reviewed text either), rather than
+   on into the rest of the function. Until E75 fix r1-G1 (10.10.2026) it stopped at
+   the first `;` as well, and a default that kept 2.10.11's statement and added a
+   second read "ok": four such changes to 2.10.11's listener text did, read through
+   this file's own functions (a `break;`, a hook call, a second table, the same
+   table by `action`; review round 1), and R344's fourth stand-in holds it. Not after
+   a `.` or a name, so `x.default : y` is no clause. */
+const DEFAULT_LINE = new RegExp("(?<![\\w$.])default\\s*:([^}]*)", "g");
 
 const OWNER = 3;
 /** A countdown the GM has not touched for this long is not a stale copy on its way. */
@@ -186,7 +242,7 @@ function ensureWrapped() {
         status.wrapped = originals.length;
         status.names = originals.map(fn => fn.name || "(anonymous)");
         status.fingerprint = fingerprintOf(originals);
-        status.unreviewed = status.fingerprint.filter(name => !REVIEWED_CASES.includes(name));
+        status.unreviewed = unreviewedOf(status.fingerprint);
         const unnamed = originals.some(fn => !LISTENER_NAME.test(fn.name ?? ""));
         status.state = unnamed ? "unnamed"
             : (!status.fingerprint.length || status.unreviewed.length) ? "changed" : "ok";
@@ -203,28 +259,49 @@ function ensureWrapped() {
 }
 
 /**
- * Which `socketEvent` cases a listener's own source handles. Daggerheart ships
- * as a rollup build without minification, so the switch is readable. A build
- * that cannot be read has no fingerprint, which counts as changed.
+ * Which `socketEvent` cases a listener's own source handles, and what its
+ * `default:` clauses do. Daggerheart ships as a rollup build without
+ * minification, so the switch is readable. A build that cannot be read has no
+ * fingerprint, which counts as changed.
+ *
+ * A clause is read as `default:` and its text with the whitespace taken out and
+ * rollup's `$n` suffixes dropped, so the same dispatch reads the same however the
+ * build lays it out. Until 2.10.9 the listener had no default (2.10.8's
+ * socket.mjs, read in the code) and adds no entry here; from 2.10.10 a name that
+ * is no case runs by the packet's `data.action`, so a different default reads
+ * "changed" as a new case does (E75 C4, 10.10.2026; held by R344 and by
+ * 30-security part 8's "the guard has reviewed every case of the copied relay").
+ * The clause is read whole, to the switch's `}` (`DEFAULT_LINE`), so a default that
+ * keeps the reviewed statement and adds another is "changed" too (E75 fix r1-G1).
  */
 export function fingerprintOf(fns) {
     const cases = new Set();
+    const defaults = new Set();
     for (const fn of fns) {
-        for (const match of String(fn).matchAll(CASE_LINE)) cases.add(match[1]);
+        const text = String(fn);
+        for (const match of text.matchAll(CASE_LINE)) cases.add(match[1]);
+        for (const match of text.matchAll(DEFAULT_LINE)) {
+            defaults.add(`default:${match[1].replace(/\s+/g, "").replace(/\$\d+/g, "")}`);
+        }
     }
-    return [...cases];
+    return [...cases, ...defaults];
+}
+
+/** The entries of a fingerprint nobody has reviewed: what makes the state "changed". */
+export function unreviewedOf(fingerprint) {
+    return fingerprint.filter(name => !REVIEWED_CASES.includes(name));
 }
 
 /**
  * THE LAST RESORT, and only when the listener could not be found or the socket
  * has no way to take it off. `prependAny` listeners run before every event
  * listener, synchronously, with the same packet object - so a refused packet is
- * disarmed IN PLACE, by renaming its action to one Daggerheart has no case for.
+ * disarmed IN PLACE (`disarm`).
  *
  * This is the one place in the module that mutates a shared socket payload,
  * which gm-bridge.mjs forbids everywhere else, and it is allowed here because
  * there is no other way left to stop the write. It is protection, not
- * fidelity: other listeners on the channel see the renamed or narrowed packet.
+ * fidelity: other listeners on the channel see the disarmed or narrowed packet.
  * What this file writes itself (Fear, countdown ticks) goes through the same
  * `enqueue` queue as the wrapper's.
  */
@@ -239,7 +316,7 @@ function installBackstop(channel) {
         try {
             neutralise(payload, senderId);
         } catch (err) {
-            if (payload && typeof payload === "object") payload.action = "__drpgRefused";
+            disarm(payload);
             error("The Daggerheart relay backstop failed; the packet was refused", err);
         }
     });
@@ -247,19 +324,55 @@ function installBackstop(channel) {
     status.state = "backstop";
 }
 
+/**
+ * How the backstop refuses a packet: its `action` and its `data` both become a
+ * name that is no case of Daggerheart's listener and no key of its table (the
+ * string is not in Daggerheart's source: git grep on 2.10.8 and 2.10.11,
+ * 10.10.2026). Until E75
+ * C3 only `action` was renamed. From 2.10.10 a name the listener has no case for
+ * runs the entry of its table that the packet's `data.action` names
+ * (2.10.11 socket.mjs:36-37, read in the code), so a `data` left as sent reached
+ * that entry unjudged, and a `data` with no `action` the entry filed under the
+ * key "undefined", the countdown handler: measured on the copy of that relay in
+ * 30-security part 8, whose control hands the renamed-only packets to it. Held by
+ * R343 and by 30's "a packet the backstop disarmed reaches no handler of the
+ * copied relay".
+ */
+export function disarm(payload) {
+    if (!payload || typeof payload !== "object") return;
+    payload.action = REFUSED;
+    payload.data = { action: REFUSED };
+}
+
 function neutralise(payload, senderId) {
-    const action = payload?.action;
-    if (!game.user?.isGM || UI_ONLY.has(action)) return;
-    if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
-        if (isPrimaryGm()) shapeWarning(String(action));
-        payload.action = "__drpgRefused";
+    // A payload that is not an object cannot be disarmed in place, on any client, so it goes on
+    // to Daggerheart's listener - 2.10.11's fails on a string or null before it writes (measured
+    // on the copy, scenario 30 part 8: on a player's client since E75 fix r1-G2, on the GM's since
+    // fix r2-G2). Until r2-G2 the GM's branch below took one for a name "undefined" and warned the
+    // GMs that this client did not run it, while it went on all the same (review sec T2, cor F4).
+    if (!payload || typeof payload !== "object") {
+        debug("Daggerheart relay backstop: a payload that is not an object goes on to Daggerheart's listener; the backstop cannot refuse it in place.");
         return;
     }
-    if (!isPrimaryGm()) { payload.action = "__drpgRefused"; return; }
+    const action = payload.action;
+    if (UI_ONLY.has(action)) return;
+    if (!game.user?.isGM) {
+        // A player's client refuses what the wrapper there would drop (`onRelay`).
+        if (REVIEWED_NAMES.has(action)) return;
+        debug(`Daggerheart relay backstop: "${plainWhat(textOf(action))}" is not a name the guard has reviewed; refused on this client.`);
+        disarm(payload);
+        return;
+    }
+    if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
+        if (isPrimaryGm()) shapeWarning(textOf(action));
+        disarm(payload);
+        return;
+    }
+    if (!isPrimaryGm()) { disarm(payload); return; }
     const sender = senderOf(senderId);
     if (!sender) {
         noSender(payload, senderId);
-        payload.action = "__drpgRefused";
+        disarm(payload);
         return;
     }
     if (forwardsUnjudged(sender)) return;
@@ -268,7 +381,7 @@ function neutralise(payload, senderId) {
         payload.data = verdict.packet.data;
         return;
     }
-    payload.action = "__drpgRefused";
+    disarm(payload);
     if (verdict.verdict === "own") enqueue(verdict, sender);
     if (verdict.verdict === "refuse") reportRefusal(verdict, sender);
 }
@@ -307,16 +420,23 @@ function forward(packet, senderId) {
 function onRelay(payload, senderId) {
     try {
         const action = payload?.action;
-        // A player's client, and a redraw anywhere: Daggerheart's GM handlers
-        // do nothing on a player's client, so there is nothing to judge.
-        if (UI_ONLY.has(action) || !game.user?.isGM) return forward(payload, senderId);
-        if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
+        // A redraw goes through anywhere: it writes nothing.
+        if (UI_ONLY.has(action)) return forward(payload, senderId);
+        if (!game.user?.isGM) {
+            // A player's client: Daggerheart's GM handlers do nothing here, so a
+            // reviewed name has nothing to judge, and any other name goes nowhere
+            // (`REVIEWED_NAMES`).
+            if (REVIEWED_NAMES.has(action)) return forward(payload, senderId);
+            debug(`Daggerheart relay: "${plainWhat(textOf(action))}" is not a name the guard has reviewed; not run on this client.`);
+            return;
+        }
+        if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
             // Said by the primary GM only, so one GM speaks for the table.
-            if (isPrimaryGm()) shapeWarning(String(action));
+            if (isPrimaryGm()) shapeWarning(textOf(action));
             return;
         }
         if (!isPrimaryGm()) {
-            debug(`Daggerheart relay: "${payload?.data?.action ?? action}" left to the primary GM.`);
+            debug(`Daggerheart relay: "${plainWhat(textOf(relayName(payload)))}" left to the primary GM.`);
             return;
         }
         const sender = senderOf(senderId);
@@ -354,8 +474,21 @@ const forwardTo = (sub, packet) => ({ verdict: "forward", sub, packet });
 const refuseAs = (sub, kind, why) => ({ verdict: "refuse", sub, kind, why });
 const dropAs = (sub, why) => ({ verdict: "drop", sub, why });
 
+/** 2.10.10's countdowns from a player's action (`COUNTDOWN_ADD`), and nothing that only looks like it. */
+function isCountdownAdd(payload) {
+    const data = payload?.data;
+    return payload?.action == null && Boolean(data) && typeof data === "object"
+        && !Object.hasOwn(data, "action") && Array.isArray(data.data?.countdowns);
+}
+
+/** What a packet asks for, for a console line: the countdown shape has no name of its own. */
+function relayName(payload) {
+    return isCountdownAdd(payload) ? COUNTDOWN_ADD : (payload?.data?.action ?? payload?.action);
+}
+
 export function judgeRelay(payload, sender, world = liveWorld()) {
     const data = payload?.data;
+    if (isCountdownAdd(payload)) return judgeCountdownAdd(data.data.countdowns);
     // Q1 (a), the owner, 03.10.2026: a party transfer from a player waits for a
     // stage that designs it, and the GM hears of it once a session (an unreviewed
     // case is said once per Daggerheart version).
@@ -363,7 +496,7 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
         return { ...refuseAs(TRANSFER, "refused", "an item transfer, which waits for the GM in this game"), once: true };
     }
     if (payload?.action === GM_CREATE) {
-        const type = String(data?.documentType ?? "?");
+        const type = textOf(data?.documentType ?? "?");
         // D-a: every region in this game is a room (movement.mjs reads rooms off
         // region names), so a player's Daggerheart area would move the map.
         if (type === "Region") return refuseAs("DhGMCreate", "refused", "a Daggerheart area (a Region) placed by a player");
@@ -377,8 +510,8 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
         case SUB.countdowns: return judgeCountdowns(data, sender, world);
         case SUB.save: return judgeSave(data, sender, world);
         case SUB.effect: return refuseAs(sub, "forged", "an effect applied by the GM's hand");
-        case SUB.setting: return refuseAs(sub, "forged", `the setting "${String(data?.uuid ?? "?")}"`);
-        default: return refuseAs(String(sub ?? "?"), "shape", `"${String(sub ?? "?")}", which this module has not reviewed`);
+        case SUB.setting: return refuseAs(sub, "forged", `the setting "${textOf(data?.uuid ?? "?")}"`);
+        default: return refuseAs(textOf(sub ?? "?"), "shape", `"${textOf(sub ?? "?")}", which this module has not reviewed`);
     }
 }
 
@@ -458,8 +591,8 @@ function actorRefusal(doc, flat, sender, world = {}) {
         if (!match) return `"${key}" on ${doc.name}`;
         const resource = doc.system?.resources?.[match[1]];
         if (!resource) return `"${match[1]}", which ${doc.name} does not have`;
-        const number = Number(value);
-        if (!Number.isFinite(number) || number < 0) return `${match[1]} on ${doc.name} set to ${value}`;
+        const number = numberOf(value);
+        if (!Number.isFinite(number) || number < 0) return `${match[1]} on ${doc.name} set to ${textOf(value)}`;
         const max = Number(resource.max);
         if (Number.isFinite(max) && number > max) return `${match[1]} on ${doc.name} set above its maximum`;
     }
@@ -477,13 +610,13 @@ function itemRefusal(doc, flat, sender, world = {}) {
         return `${doc.name}, an item the sender does not hold`;
     }
     for (const [key, value] of Object.entries(flat)) {
-        const number = Number(value);
+        const number = numberOf(value);
         if (key === "system.resource.value") {
-            if (!Number.isFinite(number) || number < 0) return `the charges of ${doc.name} set to ${value}`;
+            if (!Number.isFinite(number) || number < 0) return `the charges of ${doc.name} set to ${textOf(value)}`;
             continue;
         }
         if (key === "system.quantity") {
-            if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${value}`;
+            if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${textOf(value)}`;
             // E29 C4: a module item's count only falls here; what adds one is the GM's. E29 fix r2-H21: it falls
             // from the item as the GMs hold it too (sheet-audit.mjs `itemsHeldNow`), where a write of the sender's
             // own moved the document.
@@ -499,7 +632,18 @@ function itemRefusal(doc, flat, sender, world = {}) {
     return null;
 }
 
-/** The scene's environments, put in another order - the one thing the scene bar asks. */
+/**
+ * The scene's environments, put in another order - the one thing the scene bar asks.
+ * Both lists are read as plain identifiers, each entry a string, and compared as they
+ * are (E75 fix r2-G1, 10.10.2026; review cor F1, sec T3). Until then the entries were
+ * compared as text, and the text of an array is its entries' own, so the scene's own
+ * identifiers each inside an array, once or twice, read as a reordering: `judgeRelay`
+ * forwarded that list (measured in node and end to end on the harness by the review,
+ * 10.10.2026; R133, red on it before this fix) and the GM's client wrote it, a stored
+ * value of another type on the GM's own scene. What Daggerheart 2.10.11 does with such
+ * a list was read there, not run. A stored list that is not plain identifiers is
+ * refused as well: no order of it is one the scene bar asks for.
+ */
 function sceneRefusal(doc, flat) {
     const entries = Object.entries(flat);
     if (entries.length !== 1 || entries[0][0] !== "flags.daggerheart.sceneEnvironments") {
@@ -507,8 +651,9 @@ function sceneRefusal(doc, flat) {
     }
     const next = entries[0][1];
     const current = doc.flags?.daggerheart?.sceneEnvironments ?? [];
-    const same = Array.isArray(next) && Array.isArray(current) && next.length === current.length
-        && [...next].map(String).sort().join("\n") === [...current].map(String).sort().join("\n");
+    const plain = list => Array.isArray(list) && list.every(entry => typeof entry === "string");
+    const same = plain(next) && plain(current) && next.length === current.length
+        && [...next].sort().join("\n") === [...current].sort().join("\n");
     return same ? null : `the environments of ${doc.name}, which is not a reordering`;
 }
 
@@ -548,8 +693,8 @@ function partyRefusal(doc, flat, sender, world) {
  */
 function judgeFear(data, sender, world) {
     const sub = SUB.fear;
-    const asked = Number(data?.data);
-    if (!Number.isFinite(asked)) return refuseAs(sub, "forged", `Fear set to ${data?.data}`);
+    const asked = numberOf(data?.data);
+    if (!Number.isFinite(asked)) return refuseAs(sub, "forged", `Fear set to ${textOf(data?.data)}`);
     const fear = world.fear();
     const gap = Math.round(asked) - fear;
     const step = Math.max(-1, Math.min(1, gap));
@@ -587,11 +732,11 @@ function judgeCountdowns(data, sender, world) {
     for (const [id, next] of Object.entries(theirs.countdowns)) {
         const now = oursById[id];
         if (!now) {
-            created.push(String(next?.name ?? id));
+            created.push(textOf(next?.name ?? id));
             continue;
         }
-        const dCurrent = Number(next?.progress?.current) - Number(now.progress?.current);
-        const dStart = Number(next?.progress?.start) - Number(now.progress?.start);
+        const dCurrent = numberOf(next?.progress?.current) - Number(now.progress?.current);
+        const dStart = numberOf(next?.progress?.start) - Number(now.progress?.start);
         const moved = (Number.isFinite(dCurrent) && dCurrent !== 0) || (Number.isFinite(dStart) && dStart !== 0);
         if (differsBeyondProgress(now, next) && stale(id)) suspicious.push(`the settings of ${now.name ?? id}`);
         if (!moved) continue;
@@ -633,6 +778,18 @@ function judgeCountdowns(data, sender, world) {
     return dropAs(sub, "no change a player could make");
 }
 
+/**
+ * D-b on 2.10.10's road: the countdowns a player's action starts are named and refused,
+ * in the words `judgeCountdowns` refuses the old road's with. The packet names no actor,
+ * item or card, so nothing in it ties the countdowns to what the player owns; the GM can
+ * start them by hand. An empty list is what Daggerheart's handler would add nothing for.
+ */
+function judgeCountdownAdd(countdowns) {
+    const names = countdowns.map(countdown => textOf(countdown?.name ?? "?"));
+    if (!names.length) return dropAs(COUNTDOWN_ADD, "no countdowns");
+    return refuseAs(COUNTDOWN_ADD, "refused", `new countdowns (${names.join(", ")})`);
+}
+
 function differsBeyondProgress(now, next) {
     const strip = countdown => {
         const copy = foundry.utils.deepClone(countdown ?? {});
@@ -664,7 +821,7 @@ function judgeSave(data, sender, world) {
     }
     // A save whose dialog was closed: Daggerheart sends the packet anyway, with
     // no roll in it (`rollSave` returned nothing; chatMessage.mjs). Nothing to mark.
-    const total = Number(inner.result?.roll?.total);
+    const total = numberOf(inner.result?.roll?.total);
     if (inner.result?.roll?.total === undefined || inner.result?.roll?.total === null || !Number.isFinite(total)) {
         return dropAs(sub, "a save with no roll in it");
     }
@@ -674,7 +831,7 @@ function judgeSave(data, sender, world) {
             action: sub, uuid: null, refresh: validRefresh(data.refresh),
             data: {
                 action: typeof inner.action === "string" ? inner.action : null,
-                message: message.id, token: String(inner.token),
+                message: message.id, token: textOf(inner.token),
                 result: { roll: { total: Math.round(total), isCritical: Boolean(inner.result.roll.isCritical) } }
             }
         }
@@ -871,12 +1028,48 @@ const saidOnce = new Set();
 let unknownSaid = false;
 
 /**
+ * Text read off a packet, as a string and never a throw (E75 fix r1-G2, 10.10.2026; review
+ * sec S2). `String()` of an object whose conversion to text throws, a kind of object JSON and
+ * so a socket carries, throws "Cannot convert object to primitive value" (measured in node,
+ * 10.10.2026). Every reading of a packet here sits inside the try of `onRelay` or of the
+ * backstop, so such a name failed closed, but as "the guard failed": a player's countdowns
+ * from an action were not refused by name, counted or told to the sender (R345, red on that
+ * before this helper). So a string is taken as it is; anything else goes through `String`,
+ * then `Object.prototype.toString` ("[object Object]"), then "?". Every text this file reads
+ * off a packet goes through here, a template's included; `String(` is left for Foundry's own
+ * values and a listener's source (R345 reads the file for both).
+ */
+function textOf(value) {
+    if (typeof value === "string") return value;
+    try { return String(value); } catch { /* the next reading */ }
+    try { return Object.prototype.toString.call(value); } catch { return "?"; }
+}
+
+/**
+ * A number read off a packet, and never a throw (E75 fix r2-G2, 10.10.2026; review sec T1,
+ * cor F2). `Number()` of the same kind of object throws as `String()` does, and so does
+ * `Number()` of an array holding one. Until this helper the numbers read off a packet - Fear,
+ * a countdown's progress, a save's total, a resource, an item's charges and count - threw
+ * there, so on the GM such a request was logged as the guard's failure and was not refused by
+ * name, counted or told to the sender (R345, red on each before this helper; in the GM's
+ * backstop it reached the backstop's own catch, read in the code). Such a value now reads as
+ * NaN and is judged as any other value that is not a number: Fear, a resource and an item's
+ * charges and count refused by name, a countdown's progress and a save's total dropped (R345).
+ * The GM's own values (a resource's maximum, a countdown's stored progress) are read with
+ * `Number(` as before.
+ */
+function numberOf(value) {
+    if (typeof value === "number") return value;
+    try { return Number(value); } catch { return NaN; }
+}
+
+/**
  * Text read off a packet, made safe to show: no markup, and not a page long.
  * A toast's escaping is not something this file has measured on v14, so what
  * reaches one carries no angle brackets to begin with.
  */
 export function plainWhat(text) {
-    const flat = String(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+    const flat = textOf(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
     return flat.length > 160 ? `${flat.slice(0, 159)}…` : flat;
 }
 
@@ -930,12 +1123,12 @@ function noSender(payload, senderId) {
     const named = senderId ? game.users?.get(senderId) : null;
     if (!named) return unknownSender(payload);
     status.refused.inactiveSender = (status.refused.inactiveSender ?? 0) + 1;
-    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from ${plainWhat(named.name)}, who is not connected here.`);
+    warn(`Refused a Daggerheart "${plainWhat(relayName(payload))}" from ${plainWhat(named.name)}, who is not connected here.`);
 }
 
 function unknownSender(payload) {
     status.refused.unknownSender = (status.refused.unknownSender ?? 0) + 1;
-    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from a sender Foundry did not name.`);
+    warn(`Refused a Daggerheart "${plainWhat(relayName(payload))}" from a sender Foundry did not name.`);
     if (unknownSaid) return;
     unknownSaid = true;
     const text = game.i18n.localize("DRPG.Relay.unknownSender");

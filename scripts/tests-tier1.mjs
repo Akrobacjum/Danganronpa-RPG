@@ -2655,7 +2655,8 @@ const INVARIANTS = [
             user: { documentName: "User", name: "Suite player" },
             knife: owns({ documentName: "Item", name: "Knife", parent: { documentName: "Actor" } }),
             party: not({ documentName: "Actor", type: "party", name: "Party", system: { partyMembers: ["mine"] } }),
-            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } }
+            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } },
+            oddScene: { documentName: "Scene", name: "Odd floor", flags: { daggerheart: { sceneEnvironments: [["a"], ["b"]] } } }
         };
         const countdowns = { countdowns: {
             P1: { name: "Project", progress: { current: 2, start: 6, type: "custom", looping: "noLooping" } },
@@ -2692,6 +2693,11 @@ const INVARIANTS = [
             "an item's name": doc("knife", { name: "Spoon" }),
             "a module flag on an item": doc("knife", { "flags.danganronpa-rpg.playerText": "x" }),
             "a scene's environments replaced": doc("scene", { "flags.daggerheart.sceneEnvironments": ["a", "z"] }),
+            // E75 fix r2-G1 (review cor F1, sec T3): the scene's own environments, as entries that are
+            // not plain identifiers, were compared as text and forwarded as a reordering.
+            "a scene's environments as entries that are not plain identifiers": doc("scene", { "flags.daggerheart.sceneEnvironments": [["b"], ["a"]] }),
+            "a scene's environments as entries nested deeper": doc("scene", { flags: { daggerheart: { sceneEnvironments: [[["a"]], "b"] } } }),
+            "a scene whose stored environments are not plain identifiers": doc("oddScene", { "flags.daggerheart.sceneEnvironments": ["b", "a"] }),
             "a setting": judge("DhGMUpdate", { action: "DhGMUpdateSetting", uuid: "Automation", data: {} }),
             "an effect": judge("DhGMUpdate", { action: "DhGMUpdateEffect", uuid: "mine", data: {} }),
             "Countdowns as {}": judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: {} }),
@@ -2708,6 +2714,9 @@ const INVARIANTS = [
         };
         const let_through = Object.entries(refused).filter(([, v]) => v.verdict !== "refuse").map(([k, v]) => `${k} (${v.verdict})`);
         ok(!let_through.length, `the relay let these through: ${let_through.join("; ")}`);
+        for (const name of Object.keys(refused).filter(k => k.startsWith("a scene"))) {
+            ok(/which is not a reordering$/.test(refused[name].why ?? ""), `${name} is not refused as "not a reordering": ${refused[name].why}`);
+        }
         // What Daggerheart itself sends is REFUSED, never called forged (the E03 review:
         // a player's healing ability on a classmate was reported to the GM as a forgery).
         equal(refused["a Region"].kind, "refused", "a player's Region is called forged rather than kept to the GM");
@@ -2999,6 +3008,267 @@ const INVARIANTS = [
             ok(asks > 0 && judges > asks, `${name} does not ask forwardsUnjudged(sender) before judgeRelay`);
             ok(!/\bsender\.isGM\b/.test(body), `${name} decides on sender.isGM`);
         }
+    }],
+
+    ["R343 - a packet the relay's backstop refuses names nothing Daggerheart's listener dispatches on", async () => {
+        /*
+         * E75 C3, 10.10.2026; census B01-B05. The backstop (relay-guard.mjs `installBackstop`)
+         * refuses a packet in place, and Daggerheart's listener gets the same object after it.
+         * From 2.10.10 that listener runs a name it has no case for by the packet's
+         * `data.action` (2.10.11 socket.mjs:36-37), and its GMUpdate entry switches on
+         * `data.action` once more; its countdown entry is filed under `socketEvent.AddCountdown`,
+         * which that file does not declare, so a `data` with no `action` reaches it under the key
+         * "undefined" (read in the code, 10.10.2026). Before C3 a refusal renamed `action`
+         * alone. Each shape a player's packet comes in is handed to `disarm` here, and neither
+         * its `action` nor its `data.action` may then be a name of that listener's: a case, a
+         * table key or a GMUpdate entry's case. Pure: made-up packets, nothing sent.
+         */
+        const { disarm } = await import("./relay-guard.mjs");
+        equal(typeof disarm, "function", "relay-guard.mjs's way for the backstop to refuse a packet");
+        const dispatched = new Set(["DhGMUpdate", "DhGMCreate", "DhRefresh", "DhAddCountdowns", "DhFearUpdate", "DowntimeTrigger",
+            "DhTagTeamStart", "DhGroupRollStart", "DhTransferItem", "undefined", "DhGMUpdateDocument", "DhGMUpdateEffect",
+            "DhGMUpdateSetting", "DhGMUpdateFear", "DhGMUpdateCountdowns", "DhGMUpdateSaveMessage"]);
+        const shapes = {
+            GMUpdate: { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: "Actor.SUITEACTOR0000001", data: { name: "Suite" } } },
+            GMCreate: { action: "DhGMCreate", data: { documentType: "User", data: { name: "Suite user", role: 4 } } },
+            TransferItem: { action: "DhTransferItem", data: { item: "Item.SUITEITEM00000001", targetActor: "Actor.SUITEACTOR0000001", quantity: 1 } },
+            unknownName: { action: "SuiteUnknown", data: { action: "DhGMUpdate", data: { action: "DhGMUpdateFear", data: 0 } } },
+            noAction: { data: { data: { countdowns: [{ name: "Suite countdown" }] } } }
+        };
+        const named = Object.entries(shapes).flatMap(([shape, packet]) => {
+            disarm(packet);
+            return [packet.action, packet.data?.action].map(String).filter(name => dispatched.has(name)).map(name => `${shape}: ${name}`);
+        });
+        equal(JSON.stringify(named), "[]", "the names a refused packet still carries that Daggerheart's listener dispatches on");
+        // The backstop's catch hands it whatever arrived.
+        const thrown = [null, undefined, "DhGMUpdate", 7].map(odd => {
+            try { disarm(odd); return null; } catch (err) { return String(err?.message ?? err); }
+        });
+        equal(JSON.stringify(thrown), JSON.stringify([null, null, null, null]), "what disarm throws for a packet that is not an object");
+
+        /* AND EVERY REFUSAL OF THE BACKSTOP GOES THROUGH IT: `neutralise` and the backstop's own
+           catch (`installBackstop`, driven in 30-security part 8) rename no packet by hand, and each
+           of `neutralise`'s five refusals ends in `disarm` (E75 fix r1-G2; review cor F2: one
+           `disarm(payload)` anywhere satisfied this until then, and the branch on a GM that is not
+           the primary is one the one-GM harness cannot drive, so it is held here by reading). */
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        for (const name of ["neutralise", "installBackstop"]) {
+            const body = fnSource(guard, name);
+            ok(body.includes("disarm(payload)"), `${name} does not refuse through disarm`);
+            ok(!/\.action\s*=[^=]/.test(body), `${name} renames a packet itself`);
+        }
+        const neutralise = fnSource(guard, "neutralise");
+        const branches = {
+            "a name a player's client has not reviewed": /refused on this client\.`\);\s*disarm\(payload\);\s*return;/,
+            "a name the GM has not reviewed": /shapeWarning\([^;]*\);\s*disarm\(payload\);\s*return;/,
+            "a GM that is not the primary": /if \(!isPrimaryGm\(\)\) \{\s*disarm\(payload\);\s*return;\s*\}/,
+            "a sender this client cannot judge": /noSender\(payload, senderId\);\s*disarm\(payload\);\s*return;/,
+            "a verdict other than forward": /disarm\(payload\);\s*if \(verdict\.verdict === "own"\)/
+        };
+        equal(JSON.stringify(Object.keys(branches).filter(branch => !branches[branch].test(neutralise))), "[]",
+            "the backstop's refusals that do not end in disarm");
+        equal((neutralise.match(/disarm\(payload\)/g) ?? []).length, Object.keys(branches).length, "the times neutralise calls disarm");
+    }],
+
+    ["R344 - the relay guard reads a listener's default branch, and a default it has not reviewed is a change", async () => {
+        /*
+         * E75 C4, 10.10.2026; ledger K12. 2.10.10 gave Daggerheart's listener a `default:`
+         * branch that runs a name it has no case for by the packet's `data.action`
+         * (2.10.11 socket.mjs:36-37, read in the code); its `case` lines stayed as they were,
+         * so a guard that read only those called the listener "ok" and the GM was never
+         * told the relay had changed. Four stand-in listeners, as source text (`fingerprintOf`
+         * reads `String(fn)`, and a string is its own): 2.10.8's switch, which has no default;
+         * 2.10.11's, laid out as rollup may lay it out (`$1` suffixes, a line break); one
+         * whose default dispatches some other way; and 2.10.11's default with a second
+         * statement after the reviewed one (E75 fix r1-G1, 10.10.2026, review round 1 sec S1 /
+         * cor F1: the fingerprint read a clause only to its first `;`, and this one read "ok"
+         * on C6's tree). The first two must read reviewed and the last two not. Pure: nothing
+         * is wrapped or sent.
+         */
+        const { fingerprintOf, unreviewedOf, REVIEWED_CASES } = await import("./relay-guard.mjs");
+        const cases = ["GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart", "TransferItem"];
+        const switchOf = (event, tail) => `async function listener({ action = null, data = {} } = {}) { switch (action) { ${
+            cases.map(name => `case ${event}.${name}: break;`).join(" ")} ${tail} } }`;
+        const listeners = {
+            "2.10.8": switchOf("socketEvent", ""),
+            "2.10.11": switchOf("socketEvent$1", "default:\n            EVENT_HANDLERS$1[data.action]?.(data.data);\n    "),
+            other: switchOf("socketEvent", "default: EVENT_HANDLERS[data.type]?.(data);"),
+            after: switchOf("socketEvent", "default:\n            EVENT_HANDLERS[data.action]?.(data.data);\n            Hooks.callAll(data.action, data.data);\n    ")
+        };
+
+        /* THE STATE THE GM IS TOLD OF, first: `ensureWrapped` calls a listener "changed"
+           when `unreviewedOf` names anything. */
+        equal(JSON.stringify(Object.values(listeners).map(source => unreviewedOf(fingerprintOf([source])).length ? "changed" : "ok")),
+            JSON.stringify(["ok", "ok", "changed", "changed"]), "the state the guard gives each listener");
+
+        const reviewedDefault = "default:EVENT_HANDLERS[data.action]?.(data.data);";
+        const afterDefault = "default:EVENT_HANDLERS[data.action]?.(data.data);Hooks.callAll(data.action,data.data);";
+        const read = Object.fromEntries(Object.entries(listeners).map(([which, source]) => {
+            const fingerprint = fingerprintOf([source]);
+            return [which, { fingerprint, unreviewed: fingerprint.filter(name => !REVIEWED_CASES.includes(name)) }];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({
+            "2.10.8": { fingerprint: cases, unreviewed: [] },
+            "2.10.11": { fingerprint: [...cases, reviewedDefault], unreviewed: [] },
+            other: { fingerprint: [...cases, "default:EVENT_HANDLERS[data.type]?.(data);"], unreviewed: ["default:EVENT_HANDLERS[data.type]?.(data);"] },
+            after: { fingerprint: [...cases, afterDefault], unreviewed: [afterDefault] }
+        }), "what the guard reads off each listener, and which of it nobody reviewed");
+
+        /* WHAT THE GUARD ITSELF CALLS UNREVIEWED, by the function `ensureWrapped` uses. */
+        equal(JSON.stringify(Object.values(listeners).map(source => unreviewedOf(fingerprintOf([source])))),
+            JSON.stringify([[], [], ["default:EVENT_HANDLERS[data.type]?.(data);"], [afterDefault]]), "what the guard itself calls unreviewed on each listener");
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        const ensure = fnSource(guard, "ensureWrapped");
+        ok(ensure.includes("status.unreviewed = unreviewedOf(status.fingerprint)"),
+            "ensureWrapped decides the state by something other than unreviewedOf");
+        /* AND THE LINE THAT MAKES THAT READING THE STATE (E75 fix r2-G2; review goal round 2, open
+           site 2): the state above is recomputed here, so a change to `ensureWrapped`'s own line
+           read the same until this held it. */
+        ok(ensure.replace(/\s+/g, " ").includes(
+            'status.state = unnamed ? "unnamed" : (!status.fingerprint.length || status.unreviewed.length) ? "changed" : "ok";'),
+            "ensureWrapped calls a listener \"changed\" by something other than an empty fingerprint or an unreviewed entry");
+    }],
+
+    ["R345 - a player's countdowns from a Daggerheart action are refused by name, as D-b refuses them on the old road", async () => {
+        /*
+         * E75 C5, 10.10.2026; census P09, the owner's Q1 (a). From 2.10.10 a player's client
+         * sends the countdowns an action starts as `{ data: { data: { countdowns } } }` - no
+         * `action`, an inner `data` with no `action`, an array (2.10.11 countdownField.mjs:84-89,
+         * read in the code). `judgeRelay` asked about it with a made-up player and a world it
+         * must not need: refused as `judgeCountdowns` refuses 2.10.8's road (kind "refused", the
+         * names in `why`), under a bucket of its own. Beside it, packets that only look like it -
+         * an inner `action` set or null, an outer `action`, countdowns that are no array - are
+         * not taken for it. On C4's tree the shape came back kind
+         * "shape" for the sub "?". Pure: nothing is sent.
+         */
+        const { judgeRelay, plainWhat } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const world = { now: () => 1e12 };
+        const judged = (payload, on = world) => {
+            try {
+                const { verdict, sub, kind, why } = judgeRelay(payload, player, on);
+                return { verdict, sub, kind: kind ?? null, why };
+            } catch (err) {
+                return { threw: String(err?.message ?? err) };
+            }
+        };
+        const countdowns = [{ name: "Doom", progress: { start: 4, current: 4 } }, { name: { toString: () => "Dread" } }, {}];
+        equal(JSON.stringify(judged({ data: { data: { countdowns } } })),
+            JSON.stringify({ verdict: "refuse", sub: "countdownsFromAction", kind: "refused", why: "new countdowns (Doom, Dread, ?)" }),
+            "the verdict on a player's countdowns from an action");
+        equal(JSON.stringify(judged({ action: null, data: { data: { countdowns: [] } } })),
+            JSON.stringify({ verdict: "drop", sub: "countdownsFromAction", kind: null, why: "no countdowns" }),
+            "the verdict on the same shape with no countdowns in it");
+
+        /* A NAME `String()` CANNOT READ (E75 fix r1-G2; review sec S2): an object whose conversion to
+           text throws, which JSON carries. Until the fix `judgeRelay` threw on it, so the guard
+           logged a failure in place of this refusal and the sender was not told. It is refused by
+           name all the same, the name read as "[object Object]"; `plainWhat`, which the console
+           lines go through, reads such a value the same way. */
+        const unreadable = JSON.parse('{ "name": { "toString": "Doom", "valueOf": 0 } }');
+        equal(JSON.stringify(judged({ data: { data: { countdowns: [countdowns[0], unreadable] } } })),
+            JSON.stringify({ verdict: "refuse", sub: "countdownsFromAction", kind: "refused", why: "new countdowns (Doom, [object Object])" }),
+            "the verdict on a player's countdowns when one name cannot be read as text");
+        let shown;
+        try { shown = plainWhat(unreadable.name); } catch (err) { shown = `threw: ${err?.message ?? err}`; }
+        equal(shown, "[object Object]", "what plainWhat makes of a value String() cannot read");
+
+        /* A NUMBER `Number()` CANNOT READ (E75 fix r2-G2; review sec T1, cor F2): the same kind of
+           object, or an array holding one, where a judge reads a number. Until the fix `judgeRelay`
+           threw on each, so on the GM the guard logged its own failure in place of a verdict, and the
+           sender was not told. Each is judged now as a value that is no number: Fear, a resource and
+           an item's charges and count refused by name, a countdown's progress and a save's total
+           dropped. The world is made up, as R133's is. */
+        const unconvertible = JSON.parse('{ "toString": 0 }');
+        const mine = { documentName: "Actor", type: "character", id: "SUITEACTOR0000001", name: "Mine",
+            system: { resources: { hope: { value: 2, max: 6 } } }, testUserPermission: user => user?.id === player.id };
+        const knife = { documentName: "Item", type: "loot", name: "Knife", parent: { documentName: "Actor" }, _source: { flags: {} },
+            system: { quantity: 2, resource: { value: 1 } }, testUserPermission: user => user?.id === player.id };
+        const tick = { name: "Tick", progress: { current: 3, start: 6, type: "actionRoll", looping: "noLooping" } };
+        const numbers = { ...world, doc: uuid => (uuid === "mine" ? mine : uuid === "knife" ? knife : null),
+            countdowns: () => ({ countdowns: { T1: foundry.utils.deepClone(tick) } }), isProject: () => false, levelOf: () => 2,
+            automationOn: () => true, changedAt: () => 0, fear: () => 4, fearSteps: () => 1, fearChangedAt: () => 0,
+            message: id => (id === "M1" ? { id: "M1" } : null), tokenFor: () => ({ actor: mine }), gainRefusal: () => null, itemHeld: () => null };
+        const update = (action, data) => ({ action: "DhGMUpdate", data: { action, ...data } });
+        const asked = {
+            fear: update("DhGMUpdateFear", { data: 5 }),
+            countdown: update("DhGMUpdateCountdowns", { data: { countdowns: { T1: { ...tick, progress: { ...tick.progress, current: 2 } } } } }),
+            save: update("DhGMUpdateSaveMessage", { data: { message: "M1", token: "TOKMINE", result: { roll: { total: 12 } } } }),
+            resource: update("DhGMUpdateDocument", { uuid: "mine", data: { "system.resources.hope.value": 3 } }),
+            charges: update("DhGMUpdateDocument", { uuid: "knife", data: { "system.resource.value": 0 } }),
+            count: update("DhGMUpdateDocument", { uuid: "knife", data: { "system.quantity": 1 } })
+        };
+        const withValue = (packet, path, value) => {
+            const copy = foundry.utils.deepClone(packet);
+            path.slice(0, -1).reduce((at, key) => at[key], copy)[path.at(-1)] = value;
+            return copy;
+        };
+        const unread = {
+            fear: judged(withValue(asked.fear, ["data", "data"], unconvertible), numbers),
+            countdown: judged(withValue(asked.countdown, ["data", "data", "countdowns", "T1", "progress", "current"], unconvertible), numbers),
+            save: judged(withValue(asked.save, ["data", "data", "result", "roll", "total"], unconvertible), numbers),
+            resource: judged(withValue(asked.resource, ["data", "data", "system.resources.hope.value"], [unconvertible]), numbers),
+            charges: judged(withValue(asked.charges, ["data", "data", "system.resource.value"], [unconvertible]), numbers),
+            count: judged(withValue(asked.count, ["data", "data", "system.quantity"], [unconvertible]), numbers)
+        };
+        equal(JSON.stringify(unread), JSON.stringify({
+            fear: { verdict: "refuse", sub: "DhGMUpdateFear", kind: "forged", why: "Fear set to [object Object]" },
+            countdown: { verdict: "drop", sub: "DhGMUpdateCountdowns", kind: null, why: "no change a player could make" },
+            save: { verdict: "drop", sub: "DhGMUpdateSaveMessage", kind: null, why: "a save with no roll in it" },
+            resource: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "hope on Mine set to [object Array]" },
+            charges: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "the charges of Knife set to [object Array]" },
+            count: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "the quantity of Knife set to [object Array]" }
+        }), "the verdicts on a number Number() cannot read, where each judge reads one");
+        /* And whatever the spelling: every leaf of those packets, of the countdowns from an action and
+           of a new document, replaced in turn by such an object and by an array holding one, must come
+           back a verdict. The leaves are counted, so a list that reads nothing cannot pass. */
+        const packets = [...Object.values(asked), { data: { data: { countdowns: [{ name: "Doom", progress: { start: 4, current: 4 } }] } } },
+            { action: "DhGMCreate", data: { documentType: "Item", data: { name: "Suite item" } } }];
+        const leaves = (value, path = []) => (value && typeof value === "object"
+            ? Object.entries(value).flatMap(([key, inner]) => leaves(inner, [...path, key])) : [path]);
+        const swept = packets.flatMap(packet => leaves(packet).flatMap(path => [unconvertible, [unconvertible]].map(value => {
+            const { verdict, threw } = judged(withValue(packet, path, value), numbers);
+            return ["forward", "own", "refuse", "drop"].includes(verdict) ? null : `${path.join(".")}: ${threw ?? verdict}`;
+        })));
+        equal(swept.length, 2 * 33, "the packet values the sweep replaced");
+        equal(JSON.stringify(swept.filter(Boolean)), "[]", "the packet values of that kind on which judgeRelay throws or gives no verdict");
+
+        const near = {
+            "an inner action": { data: { action: "SuiteUnknown", data: { countdowns } } },
+            "an inner action that is null": { data: { action: null, data: { countdowns } } },
+            "an outer action": { action: "DhGMUpdate", data: { data: { countdowns } } },
+            "countdowns that are no array": { data: { data: { countdowns: { C1: { name: "Doom" } } } } }
+        };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(near).map(([what, payload]) => [what, judged(payload).sub]))),
+            JSON.stringify({ "an inner action": "SuiteUnknown", "an inner action that is null": "?", "an outer action": "?",
+                "countdowns that are no array": "?" }),
+            "what a packet that only looks like the shape is judged as");
+
+        /* AND BOTH PLACES THAT REFUSE AN UNKNOWN NAME ON THE GM (`neutralise` for the backstop,
+           `onRelay`) recognise the shape before they do, so it reaches `judgeRelay` (R153 keeps
+           the sender's question ahead of that) instead of the unreviewed whisper. */
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        for (const name of ["neutralise", "onRelay"]) {
+            const body = fnSource(guard, name);
+            const recognised = body.indexOf("isCountdownAdd(payload)"), refused = body.indexOf("shapeWarning(");
+            ok(recognised > 0 && refused > recognised, `${name} does not recognise the countdown shape before it refuses an unknown name`);
+        }
+        /* AND NO TEXT IS READ OFF A PACKET BUT THROUGH `textOf` (fix r1-G2): outside `textOf` the word
+           `String` is followed only by `(fn)`, a listener's source, or `(game.`, Foundry's own values. */
+        const strays = guard.replace(fnSource(guard, "textOf"), "").match(/\bString\b(?!\((?:fn\)|game\.))[^\n]{0,40}/g) ?? [];
+        equal(JSON.stringify(strays), "[]", "the places relay-guard.mjs reads text with String() and not textOf");
+        /* AND NO VALUE OFF A PACKET IS CONVERTED BUT THROUGH `textOf` OR `numberOf` (fix r2-G2; review
+           sec T1, cor F2-F3): in the functions that judge a packet, a name that holds a value read off
+           it - `value`, `data`, `inner`, `next`, `payload`, `theirs`, `sub` - is never the first thing
+           inside `Number(`, `String(` or a template's `${}`, and never either side of a `+`. That list
+           of names and those four forms are what this reads; a value under another name, `.join()`
+           and `.toString()` are not. The verdicts above hold what these forms do at a raw value. */
+        const judges = ["judgeRelay", "judgeDocument", "actorRefusal", "itemRefusal", "partyRefusal", "sceneRefusal", "judgeFear",
+            "judgeCountdowns", "judgeCountdownAdd", "judgeSave"];
+        const held = "(?:value|data|inner|next|payload|theirs|sub)\\b";
+        const raw = new RegExp(`(?:\\b(?:Number|String)\\(|\\$\\{|\\+(?![+=]))\\s*${held}[^\\n]{0,40}|\\b${held}[\\w?.[\\]]*\\s*\\+(?![+=])[^\\n]{0,40}`, "g");
+        const rawReads = judges.flatMap(name => (fnSource(guard, name).match(raw) ?? []).map(hit => `${name}: ${hit}`));
+        equal(JSON.stringify(rawReads), "[]", "the places a judge converts a value off a packet without textOf or numberOf");
     }],
 
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {

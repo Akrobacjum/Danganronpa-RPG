@@ -15,7 +15,7 @@
  *
  * THE ONE RULE. A stage has shipped when its row has a `version` and
  * module.json's version is at or past it. Compared number by number, because
- * 1.2.100 arrives with E45 and a string comparison puts it before 1.2.99.
+ * 1.2.100 arrives with E24 and a string comparison puts it before 1.2.99.
  * `version` and `shipped` are written by `ship` and by nothing else, from
  * module.json and the UTC date, in the commit that bumps the version.
  * `planned` (D20's numbering) is information only: a stage that slips keeps
