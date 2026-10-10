@@ -7601,6 +7601,215 @@ const REGRESSIONS = [
             "a trial road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E10 commit that will) and strike the gone one");
     }],
 
+    ["R346 - a season road has a census row, and every row judges a road", async () => {
+        /*
+         * E11 C0, 10.10.2026; R311's twin for the chapter, the body's discovery and the season
+         * reset. E11 moves the discovery, the hold, the project tokens and the reset's cast groups
+         * off what a player's browser can write, and this test keeps the list of the places that
+         * read it closed: a new one fails until it has a row and a verdict, a row whose place is
+         * gone fails until it is struck. Five kinds, read live as R311 reads them: PACKET - every
+         * field of a BRIDGE_ACTIONS declaration whose action is the Level Up's apply, a Call's
+         * arming, a token's send-back, a project row or a stash's search (ROADS); SOCKET - every
+         * raw socket handler the season's files register, and, new here, an arrow registered
+         * inline (sync.mjs `registerSync`, which C3's gather broadcast rides), whose declaration
+         * is then the handler; gm-bridge.mjs's own are E28's and are not rows; CHAT - a top-level
+         * declaration that reads a chat message's module flags or its speaker's actor; SHEET - one
+         * that reads a student's death or Monocub flag, experiences or the starting snapshot,
+         * resources, items (bedroom keys) or the Call/action flags, held or off the document, or
+         * is one of the named few (NAMED) whatever it reads; STORE - the seven places the fields
+         * live, each found by its name in its file. A verdict says what judges the place today; a
+         * row ending "(E11 C<n>)" names the commit that changes it, and that commit rewrites the
+         * row with the code. It reads names and text, not data flow: a reader in another file, or
+         * reached through a helper this list does not name, is not seen.
+         * Measured 10.10.2026 at 4aad1fd (1.2.72): the SOCKET, CHAT, SHEET and STORE keys of this
+         * reader (run in Node on the tree's files) and of the parse-only census kept with the E11
+         * plan outside the repository were the same 40 - 4 SOCKET, 1 CHAT, 28 SHEET, 7 STORE -
+         * and the census's 28 PACKET rows are the rest of the 68 below; on the harness the same
+         * day this test read 68 places against the 68 rows (28 PACKET). Its 5 PLANNED rows (places
+         * E11's commits will add: `bodiesFound`, `witnessesOf`, `bodiesToDiscover`, `RESET_STEPS`,
+         * `placeCast`) are left to the commits that add them. Eleven rows are R311's too (the
+         * three `advancement.apply` fields, `applyAdvancement`, `stampStartingSheet`,
+         * `handleAdvancement`, `livingStudents`, `killCharacter`, `wipeSeason` and the two offer
+         * stores): each table judges them for its own stage, and a commit that changes one
+         * rewrites both.
+         * The reader is run first on a fixture with a packet of each family and of none, an inline
+         * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
+         * without a row, a declaration of a named file that is not named, a store and a stale row.
+         */
+        const SEASON_CENSUS = [
+            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns (E28). C11 adds a GM-side write after the Level Up is written - the new experience's id into the GM flag `levelUpExperiences` - and no new claim. [1b.1 Level Up experiences] (E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (E10 C8): checked against the standing offer on the held sheet (`numberHeld`); an `experienceNew` is the only pick C11 records. (E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (E10 C6): must name a standing offer of that character, else refused and told; E11 reads nothing from it"],
+            ["PACKET gm-bridge.mjs#vault.findStash#actorId", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#total", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#isCritical", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#rollId", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#project.progress#countdownId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#actorId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#rollId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#relief", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#bonus", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.share#countdownId", "out of scope: judged on the primary (`guardShare*`: you share only what you can see). C7's `knowsProject` orphan branch (no countdown -> false) makes an orphan's id unshareable on the player's side too; the bridge's judgement is unchanged [1b.1 knowsProject] (E11 C7)"],
+            ["PACKET gm-bridge.mjs#project.share#targetUserId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#rollId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#penalty", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#targetId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#repairId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#position", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). C10 only unsets the flag on every student in the reset's `seals` step and reads nothing [1b.1 pendingCall, 1b.2] (E11 C10)"],
+            ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). C10 only unsets the flag on every student in the reset's `seals` step and reads nothing [1b.1 pendingCall, 1b.2] (E11 C10)"],
+            ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
+            ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:131) and touches no actor. C3's gather pan rides it: a `SYNC` kind carrying `{ room, tokenIds }`, each client pans to its own token (`canvas.animatePan`, skipped without a canvas) - the GM-sender check is the plan's `senderOf(senderId)?.isGM` (E11 C3)"],
+            ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); C3's `tokenIds` are read only to find this client's own token, and nothing is written (E11 C3)"],
+            ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
+            ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
+            ["SHEET chapter.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new. [1b.1 death record] (E11 C1)"],
+            ["SHEET chapter.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
+            ["SHEET chapter.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
+            ["SHEET chapter.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
+            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). C1's `announceBody` runs after `publishFoundBodies`, which calls it; its record keeps the row's chapter (Q3 reads it). Since E10 fix r1-G4 (1.2.71) it has a third caller, the verdict's `executeSentenced`, which publishes a death the GMs hold when it executes that student: its record is the kill's, so C1's `phase` is the kill's phase there, not `classTrial`. (E11 C1)"],
+            ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
+            ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
+            ["SHEET chapter.mjs#publishFoundBodies", "OPEN at base (R1, document `isDeadForGm`): the primary publishes the bodies of a room; C1 reads the bodies through `bodiesToDiscover` on the held flags (`actorHeldNow`/`flagsHeldNow`, one synchronous pass, H3) [1b.2] (E11 C1)"],
+            ["SHEET chapter.mjs#checkBodyFound", "OPEN at base (R1, document `isDeadForGm`, `getFlag(monocub)`, `deathRecordFor`): the primary's `updateToken` hook decides who is a body and who a witness; the dead are witnesses today (S06-14). C1: `witnessesOf` + `bodiesToDiscover` read every flag once through `flagsHeldNow` (E10 C2) in one synchronous step after nothing is awaited (H3, H17); the guard adds `classTrial` [1b.2] (E11 C1)"],
+            ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
+            ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
+            ["SHEET character.mjs#restoreStartingSheet", "OPEN at base (R1, document `getFlag(sheetAtStart)` and `actor.system`; E10 C8's OWED (3) names it): C11 reads `sheetAtStart` and `levelUpExperiences` through `flagsAsHeld` and the experiences through `actorHeldNow`, one read per actor before its one write, and deletes the marked ids (Q1 (a) for an unmarked sheet) [1b.2] (E11 C11)"],
+            ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
+            ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
+            ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). C10 hands the bedroom keys out again right after (`reconcileBedroomKeys({ silent: true })`) (E11 C10)"],
+            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of `isDeceased` and items to revive and wipe. C9 rewrites it as `RESET_STEPS` (the incident first), C10 adds the value writes (Health, Sanity 0; Hope to `STARTING.hope`) as constants with no read (1b.2: the reset's value supersedes a pending put-back). (E11 C9, C10)"],
+            ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). C3 adds the pan broadcast after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere (E11 C3)"],
+            ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
+            ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
+            ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
+            ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. C11 records a new experience's id in the GM flag `levelUpExperiences` (added to GM_FLAGS, so a player's write of it is put back) inside the same job. [1b.1, 1b.2] (E11 C11)"],
+            ["SHEET vault.mjs#keysHeldBy", "OPEN at base (R1 presence, document `actor.items`): `grantBedroomKey` asks it before granting; C10 reads `itemsHeldNow(actor)` on a GM so a key a player deleted and the audit is putting back is not granted twice [1b.2] (E11 C10)"],
+            ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above); C10 calls it from the reset by `reconcileBedroomKeys({ silent: true })` (`grantItem`, `gmRuling`), no new road (E11 C10)"],
+            ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). C1 changes only the discovery it calls (E11 C1)"],
+            ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
+            ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); C1 adds `phase` and `epoch` to what it returns and C12's `sameSeason` reads `epoch` (E11 C1)"],
+            ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`). C2 makes its freshness compare chapter, day and time of day; C3's Eclipse refuses while it is set (E11 C2)"],
+            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; C1 adds `phase`/`epoch` to a row, C2's panel line reads a pending row of this chapter and season (GM only) (E11 C1)"],
+            ["STORE gm-stores.mjs#blackenedStore", "not a source: a GM store; rows keep their chapter and season (E04; tier 2 \"a Blackened of another chapter or season does not count...\", tests-tier2.mjs:36739 at 4aad1fd) - Q3 (a) rests on it; C9's `conclude: false` writes no row (E11 C9)"],
+            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
+            ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
+            ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
+            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"]
+        ];
+        const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
+        const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
+        const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
+            "vault.mjs": ["keysHeldBy", "grantBedroomKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
+            "gm-panel.mjs": ["nextStep", "openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
+            "murder-rules.mjs": ["endMurder", "closeIncident", "registerMurder"], "visibility.mjs": ["applyToProjectToken", "applyToToken"],
+            "sync.mjs": ["registerSync"], "mastermind.mjs": ["finalTruthPlacedThisChapter"], "settings.mjs": ["bodyDiscoveryFresh", "deathRecordFor"] };
+        // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
+        const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
+        const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub)\b/,
+            /system\.experiences\b|\bsheetAtStart\b|\blevelUpExperiences\b/, /system\.resources\b|hitPoints|resources\.(?:hope|stress)\b/,
+            /\bkeysHeldBy\(|\bitemsHeldNow\(|\bactor\.items\b/, /FLAGS\.(?:pendingCall|lastAction)\b/];
+        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|itemsHeldNow|meansHeld|heldMark)\s*\(/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|livingStudentsForGm|deathRecordFor|keysHeldBy)\s*\(|\bactor\.system\b|\bactor\.items\b|\.system\.(?:experiences|resources)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|monocub|pendingCall|lastAction|sheetAtStart)/;
+        const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const STORES = [["settings.mjs", "bodyFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                for (const field of fields.length ? fields : ["-"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            const tops = [];
+            for (const file of [...FILES, ...Object.keys(NAMED)]) {
+                if (!files.has(file)) continue;
+                const code = blankComments(files.get(file));
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                at.forEach((top, i) => {
+                    if (!top.name) return;
+                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
+                });
+            }
+            const handlers = new Set();
+            for (const top of tops) {
+                if (!/game\.socket\.on\(/.test(top.text)) continue;
+                for (const m of top.text.matchAll(/game\.socket\.on\(\s*[\w.]+\s*,\s*([A-Za-z_]\w*)\s*\)/g)) handlers.add(`${top.file}#${m[1]}`);
+                for (const m of top.text.matchAll(/return\s+([A-Za-z_]\w*)\(\s*payload/g)) handlers.add(`${top.file}#${m[1]}`);
+                // An arrow registered inline (sync.mjs `registerSync`): the declaration that registers it is the handler.
+                if (/game\.socket\.on\(\s*[\w.]+\s*,\s*(?:async\s*)?\(/.test(top.text)) handlers.add(`${top.file}#${top.name}`);
+            }
+            for (const handler of handlers) {
+                const [file, name] = handler.split("#");
+                // The bridge's own sockets are E28's (R1b and the bridge's tables).
+                if (file === "gm-bridge.mjs") continue;
+                const top = tops.find(t => t.file === file && t.name === name);
+                // A handler this reader cannot find is a key no row can hold.
+                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
+            }
+            for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
+            for (const top of tops) {
+                if (top.file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name)) continue;
+                // A table or a constant reads no sheet.
+                if (top.binding && !/=>|function/.test(top.text)) continue;
+                if (!SHEET.some(re => re.test(top.text))) continue;
+                if (HELD.test(top.text) || RAW.test(top.text) || NAMED[top.file]?.includes(top.name)) found.push(`SHEET ${top.file}#${top.name}`);
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["PACKET", "SOCKET", "CHAT", "SHEET", "STORE"];
+
+        const planted = censusOf({
+            "project.planted": { sanitize: { fields: { countdownId: "id" } } },
+            "vote.planted": { sanitize: { fields: { choice: "id" } } }
+        }, [
+            ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"],
+            ["chapter.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
+                + "function unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"
+                + "const forged = msg => msg.getFlag(MODULE_ID, \"bodyFound\");\n"],
+            ["vault.mjs", "export function notNamed(actor) {\n    return keysHeldBy(actor);\n}\n"],
+            ["gm-stores.mjs", "export const offerStore = defineGmStore({});\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#project.planted#countdownId", "SOCKET sync.mjs#registerSync#room",
+            "CHAT chapter.mjs#forged", "SHEET chapter.mjs#judged", "STORE gm-stores.mjs#offerStore"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#project.planted#countdownId", ""], ["SOCKET sync.mjs#registerSync#room", ""],
+            ["SHEET chapter.mjs#judged", ""], ["SHEET chapter.mjs#gone", ""], ["STORE gm-stores.mjs#offerStore", ""]])),
+            JSON.stringify({ unclassified: ["CHAT chapter.mjs#forged"], stale: ["SHEET chapter.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(KINDS.every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, SEASON_CENSUS);
+        log(`R346: the census read ${found.length} place(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${SEASON_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a season road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E11 commit that will) and strike the gone one");
+    }],
+
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
         /*
          * E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3. Until 1.2.71 the ballots were a

@@ -63,9 +63,10 @@
     {"id": "E54", "planned": "1.2.115", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E55", "planned": "1.2.116", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E56", "planned": "1.2.117", "version": null, "shipped": null, "touches": null, "drills": []},
-    {"id": "E57", "planned": "1.2.118", "version": null, "shipped": null, "touches": null, "drills": []},
-    {"id": "E58", "planned": "1.2.119", "version": null, "shipped": null, "touches": null, "drills": []},
-    {"id": "E59", "planned": "1.2.120", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E76", "planned": "1.2.118", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E57", "planned": "1.2.119", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E58", "planned": "1.2.120", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E59", "planned": "1.2.121", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E26", "planned": "1.3.0", "version": null, "shipped": null, "touches": null, "drills": []}
   ]
 }

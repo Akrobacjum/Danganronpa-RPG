@@ -69,7 +69,7 @@ export const FLOWS = Object.freeze([
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
-        entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
+        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
     // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
@@ -232,7 +232,7 @@ export const FLOWS = Object.freeze([
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
     { id: "season-reset", what: "The season reset, from the GM panel",
-        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
+        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["61-gmstore-case", "65-season"], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
