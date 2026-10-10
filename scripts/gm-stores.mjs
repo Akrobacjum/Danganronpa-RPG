@@ -661,6 +661,21 @@ export const ballotStore = defineGmStore({
 });
 
 /**
+ * THE BLACKENED A VERDICT WAS GIVEN WITH (E10 fix r1-G1, 1.2.71; the round-1 security review's F3).
+ * A record, `{ at, blackenedIds }`: the verdict record's `at` (vote.mjs `trialProgress().verdict`)
+ * and the Blackened its GM named in the verdict's window. A Finish of a verdict that stopped read
+ * them from the register alone, which names nobody when the GM named them by hand: a wrong verdict
+ * stopped before its Level Up or its rule kept nobody's Level Up and asked no rule. Written by
+ * `applyVerdict`, read by `finishVerdict` when its `at` is the stopped verdict's. A GM store and
+ * never the world's record, which every console reads and which C5 keeps free of a Blackened. Cut
+ * by the reset's "trialProgress" group with the ballots; not backed up, as they are not.
+ */
+export const verdictStore = defineGmStore({
+    name: "verdict", key: SETTINGS.gmVerdict,
+    kind: "record", fields: ["at", "blackenedIds"], resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's

@@ -1142,6 +1142,7 @@
       "executedNote": "The verdict has been carried out on you, {name}. Your character is dead.",
       "verdictStopped": "The verdict stopped at: {steps}. Finish the verdict does the rest.",
       "finishVerdict": "Finish the verdict",
+      "finishPrimaryOnly": "Only the primary GM, {name}, can finish the verdict, so that each of its steps is done once. Ask {name}.",
       "verdictSteps": {
         "sentence": "who is executed",
         "executions": "the executions",
@@ -2877,6 +2878,7 @@
       "failed": "The Level Up could not be saved. See the console.",
       "takeBack": "Take back the offer: {kind}",
       "takenBack": "The offer to {name} is taken back: {kind}. The button on their sheet goes out.",
+      "offerStillStands": "The Level Up of {name} is written, but the offer it spent could not be withdrawn and still stands: take it back from the Level Up menu on the sheet.",
       "nobodyPlays": "Nobody plays {name} - pick for them instead.",
       "standing": {
         "one": "{n} Level Up on offer",
@@ -3697,7 +3699,8 @@
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
-        "ballots": "The ballots of the Class Trial's vote, kept by the GMs"
+        "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
+        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
       },
       "row": {
         "traces": {

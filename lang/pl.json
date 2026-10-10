@@ -1149,6 +1149,7 @@
       "executedNote": "Wyrok wykonano na tobie, {name}. Twoja postać nie żyje.",
       "verdictStopped": "Werdykt zatrzymał się na: {steps}. Przycisk Dokończ werdykt wykona resztę.",
       "finishVerdict": "Dokończ werdykt",
+      "finishPrimaryOnly": "Werdykt dokańcza tylko główny GM, {name}, żeby każdy jego krok wykonał się raz. Poproś o to GM-a {name}.",
       "verdictSteps": {
         "sentence": "kto zostaje stracony",
         "executions": "egzekucje",
@@ -2991,6 +2992,7 @@
       "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
       "takeBack": "Cofnij ofertę: {kind}",
       "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
+      "offerStillStands": "Level Up postaci {name} jest zapisany, ale oferty, którą wykorzystał, nie udało się wycofać i wciąż stoi: cofnij ją w menu Level Up na arkuszu.",
       "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
       "standing": {
         "one": "{n} oferta Level Up",
@@ -4948,7 +4950,8 @@
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
         "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
-        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów"
+        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
+        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
       },
       "row": {
         "traces": {

@@ -19270,6 +19270,311 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Finish after the GM left inside the class's Level Up window gives each survivor one Level Up", async () => {
+        /*
+         * E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39 (partial). A Finish after the verdict's
+         * GM left inside the class's Level Up window ran the whole batch again, and a survivor already given
+         * a Level Up was given a second. Played: a correct verdict whose window is answered "All: the players
+         * pick" - an offer for each student a player owns, the GM's picker, answered, for one nobody plays -
+         * and once more answered "I pick" on every row, so that the first row is a Level Up the GM wrote
+         * on one road and one offered on the other; each time, then, the world as a GM gone after the class's first row leaves it: the trial's record as it
+         * stood while that row's Level Up was the only one given (each write of the record is read with the
+         * Level Ups given at that moment), the later rows' offers and writes taken off, the verdict's GM a
+         * user who is not there. Finish, its windows answered the same way. Read: each survivor's Level Ups,
+         * offers and advances together - one each - and the verdict done. Red at efc8872 (fix r1-G1,
+         * 10.10.2026): the class's first student two Level Ups on both roads, the other three one each.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two students a player owns, one given a Level Up before the GM left and one after");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which finishes a verdict - this would measure nothing");
+        const living = livingStudents();
+        must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
+            "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
+        // The batch's rows go in the class's order (vote.mjs `verdictHeld`, level-up.mjs `advancementPlan`).
+        const order = studentActors().map(a => a.id);
+        living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+        const first = living[0];
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
+        const before = new Map(living.map(a => [a.id, advances(a)]));
+        const offersOf = a => L.offerList(S.offerStore.get(a.id));
+        const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const settings = game.settings, own = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
+        const records = [];
+        const unwrap = () => {
+            if (own) Object.defineProperty(settings, "set", own);
+            else delete settings.set;
+        };
+        const takeBack = async () => {
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+            for (const back of putBack.values()) await back();
+        };
+        const seen = {};
+        try {
+            for (const road of ["players", "gm"]) {
+                records.length = 0;
+                settings.set = function (namespace, key, value, ...rest) {
+                    if (namespace === MODULE_ID && key === SETTINGS.trialProgress && value?.verdict) {
+                        records.push({ verdict: foundry.utils.deepClone(value.verdict), given: living.filter(a => levelUps(a)).map(a => a.id) });
+                    }
+                    return set.call(this, namespace, key, value, ...rest);
+                };
+                await withVerdictOpen(async () => {
+                    await withAdvanceWindows(pick, () => V.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), road);
+                    await settle();
+                    unwrap();
+                    const at = V.trialProgress().verdict?.at;
+                    const left = records.filter(r => r.verdict.at === at && r.given.every(id => id === first.id)).pop();
+                    must(left && living.every(a => levelUps(a) === 1), `the verdict did not give every survivor one Level Up (${road}) - nothing to finish`);
+                    for (const a of living.filter(a => a !== first)) {
+                        if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+                        await putBack.get(a.id)();
+                    }
+                    await V.setTrialProgress({ verdict: { ...left.verdict, stage: "applying", by: "a GM who left", failed: [] } });
+                    await withAdvanceWindows(pick, () => V.finishVerdict(), road);
+                    await settle();
+                    seen[road] = [living.map(a => [a.name, levelUps(a)]), V.trialProgress().verdict?.stage ?? null];
+                });
+                unwrap();
+                await takeBack();
+            }
+            const want = [living.map(a => [a.name, 1]), "done"];
+            equal(stableJson(seen), stableJson({ players: want, gm: want }),
+                "a Finish after the GM left inside the class's window gave a survivor already given one a second Level Up, or did not give the rest theirs (per road the window was answered: Level Ups per survivor - offers and advances -, stage)");
+        } finally {
+            unwrap();
+            await takeBack();
+        }
+    }],
+
+    ["Finish the verdict runs on the primary GM alone and once for two presses", async () => {
+        /*
+         * E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39 (its doubt 2). Every GM is offered
+         * Finish once a verdict stopped, and the latch that holds a second press off was each browser's
+         * own: two GMs pressing within one round trip both ran the steps left. The harness has one GM, so
+         * a second is put in this browser's list of users for the length of one press - one whose id sorts
+         * first, the primary as `primaryGmId` reads that list - and taken out before anything else runs.
+         * A verdict stopped with its overflow alone left. Read: the press on this GM, which is not the
+         * primary then - its answer, the record's stage, the warning naming the primary - and then two
+         * presses at once on the primary: the verdict done, its summary whispered to the GMs once.
+         * Red at efc8872 (fix r1-G1, 10.10.2026): the GM that is not the primary finished it - answer [],
+         * stage "done", nobody told.
+         */
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const other = { id: "!E10G1otherGM", name: "E10 G1 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const warned = [], warn = ui.notifications.warn;
+        await withVerdictOpen(async () => {
+            await V.setTrialProgress({ verdictApplied: true, verdict: { stage: "applying", correct: true, executedIds: [], by: "a GM who left",
+                at: Date.now(), done: ["sentence", "executions", "card", "levelUps"], failed: [] } });
+            let answer = "unanswered";
+            game.users.set(other.id, other);
+            ui.notifications.warn = (message, ...rest) => {
+                warned.push(String(message));
+                return warn.call(ui.notifications, message, ...rest);
+            };
+            try {
+                answer = await V.finishVerdict();
+            } finally {
+                game.users.delete(other.id);
+                ui.notifications.warn = warn;
+            }
+            equal(stableJson([answer ?? null, V.trialProgress().verdict?.stage ?? null, warned.some(line => line.includes(other.name))]),
+                stableJson([null, "applying", true]),
+                "a GM who is not the primary finished the verdict, or was not told whom to ask (answer, stage, told)");
+            await Promise.all([V.finishVerdict(), V.finishVerdict()]);
+            await settle();
+            const said = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000)));
+            equal(stableJson([V.trialProgress().verdict?.stage ?? null, said.filter(words => String(words ?? "").includes(title)).length]),
+                stableJson(["done", 1]), "two presses of Finish on the primary did not finish the verdict once (stage, summaries)");
+        });
+    }],
+
+    ["a Finish of a wrong verdict gives the Blackened the GM named by hand their Level Up and their rule", async () => {
+        /*
+         * E10 fix r1-G1, 1.2.71; the round-1 security review's F3. A Finish read the Blackened from the
+         * register alone, which names nobody when the GM named them by hand in the verdict's window: a
+         * wrong verdict that stopped before its Blackened's Level Up and rule finished keeping nobody's
+         * and asking none. Played: a wrong verdict whose Blackened, named here, the register does not hold,
+         * and then the world as a GM gone after the card leaves it - the Blackened's waiting Level Up not
+         * yet written, the record's steps done the sentence, the executions and the card, its GM a user
+         * who is not there. Read after Finish: the Blackened's waiting Level Up (one), the rule's window
+         * (asked once), and the verdict done. Red at efc8872 (fix r1-G1, 10.10.2026): no waiting Level Up,
+         * no rule's window, the verdict done.
+         */
+        const [accused, killer] = cast(2);
+        const V = await import("./vote.mjs");
+        const { trialBlackenedIds } = await import("./murder.mjs");
+        const { reviveCharacter } = await import("./chapter.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which finishes a verdict - this would measure nothing");
+        must(!trialBlackenedIds().includes(killer.id), "the register names this Blackened - this would read the register, not the GM's naming");
+        must(!deferredOfferStore.has(killer.id), "a Level Up waits for this student already - this would read it");
+        const rule = game.i18n.localize("DRPG.Vote.blackenedRuleTitle");
+        try {
+            await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
+                await settle();
+                const given = V.trialProgress().verdict;
+                must(given?.stage === "done" && deferredOfferStore.get(killer.id)?.count === 1,
+                    "the verdict did not keep the Level Up of the Blackened it was given with - nothing to finish");
+                await deferredOfferStore.drop(killer.id);
+                await V.setTrialProgress({ verdict: { ...given, stage: "applying", by: "a GM who left", failed: [], done: ["sentence", "executions", "card"] } });
+                const asked = await withAdvanceWindows(() => null, () => V.finishVerdict());
+                await settle();
+                equal(stableJson([deferredOfferStore.get(killer.id)?.count ?? null, asked.filter(entry => entry.title === rule).length,
+                    V.trialProgress().verdict?.stage ?? null]), stableJson([1, 1, "done"]),
+                    "a Finish did not keep the Level Up of the Blackened the GM named, or did not ask their rule (waiting, rule windows, stage)");
+            });
+        } finally {
+            await reviveCharacter(accused, { quiet: true });
+            if (deferredOfferStore.has(killer.id)) await deferredOfferStore.drop(killer.id);
+        }
+    }],
+
+    ["a Finish posts no second verdict card and a player's message with the card's key holds none back", async () => {
+        /*
+         * E10 fix r1-G1, 1.2.71; the round-1 goal verifier's (c). The card's step was recorded done after
+         * the card was posted, and a GM gone between the two left a verdict whose Finish posted the card a
+         * second time. Played: a wrong verdict that executes nobody, and the world as a GM gone after its
+         * card and before the step's write leaves it; Finish. Then the other road: the card taken out of
+         * the chat, a message with the card's key posted under a player's name (the harness keeps the
+         * `author` a GM gives a message), and the same Finish, which posts the card: a player's message is
+         * no GM's card. Read: the verdict cards in the chat after each Finish - one, and one.
+         * Red at efc8872 (fix r1-G1, 10.10.2026): two cards after the first Finish.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a connected player, under whose name the other road's message is posted");
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which finishes a verdict - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const title = game.i18n.localize("DRPG.Vote.verdictCardTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const cards = async () => {
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const said = await Promise.all(fresh.map(m => wordsOf(m, 1000)));
+            return fresh.filter((m, i) => String(said[i] ?? "").includes(title));
+        };
+        await withVerdictOpen(async () => {
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: false, executedIds: [], blackenedIds: [] }));
+            await settle();
+            const given = V.trialProgress().verdict;
+            must(given?.stage === "done" && (await cards()).length === 1, "the verdict did not post its card - nothing to finish");
+            const stopped = { ...given, stage: "applying", by: "a GM who left", failed: [], done: ["sentence", "executions"] };
+            await V.setTrialProgress({ verdict: stopped });
+            await withAdvanceWindows(() => null, () => V.finishVerdict());
+            await settle();
+            const once = (await cards()).length;
+            for (const card of await cards()) await card.delete();
+            const forged = await ChatMessage.create({ author: player.id, content: "<p>E10 fix r1-G1</p>", flags: { [MODULE_ID]: { verdictAt: given.at } } });
+            must(forged?.author?.id === player.id, "the message was not posted under the player's name - the other road would measure nothing");
+            await V.setTrialProgress({ verdict: stopped });
+            await withAdvanceWindows(() => null, () => V.finishVerdict());
+            await settle();
+            equal(stableJson([once, (await cards()).length, V.trialProgress().verdict?.stage ?? null]), stableJson([1, 1, "done"]),
+                "a Finish posted the verdict's card a second time, or a player's message with its key held the card back (cards after the first Finish, after the second, stage)");
+        });
+    }],
+
+    ["a throw after a Level Up is written reads as written and gives no second Level Up", async () => {
+        /*
+         * E10 fix r1-G1, 1.2.71; the round-1 correctness review's F4. The offer's withdrawal, the log and
+         * the player's card sat in the try of the write, whose catch answered null and told the GM "could
+         * not be saved": a throw after the write read as a Level Up not given, and in the class's window
+         * the GM's row fell through to an offer - a second Level Up. Here the card's title throws (its
+         * translation), and on the second spend the offer's withdrawal. Read: on the verdict's road, the GM
+         * picking every row, each survivor's advances and offers; on a player's spend on the bridge, the
+         * advances, the offers left and what the GM was told - never "could not be saved", and the offer
+         * that could not be withdrawn named in a warning. Red at efc8872 (fix r1-G1, 10.10.2026): the verdict's
+         * rows read as failed, four times told, and three of the four students offered a second Level Up.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student a player owns, who spends an offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { applyVerdict } = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the offers - this would measure nothing");
+        const living = livingStudents();
+        must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
+            "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
+        const holder = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
+        const owner = ownerIdsOf(holder).find(id => game.users.get(id)?.active);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = living.map(a => sheetAsFound(a, [HP_MAX, ADVANCES]));
+        const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
+        const before = new Map(living.map(a => [a.id, advances(a)]));
+        const offersOf = a => L.offerList(S.offerStore.get(a.id));
+        const failed = game.i18n.localize("DRPG.Advance.failed");
+        const i18n = game.i18n, format = i18n.format, notes = ui.notifications, error = notes.error, warn = notes.warn, drop = S.offerStore.drop;
+        const told = [];
+        const spend = offer => G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10G1${foundry.utils.randomID(8)}`, actorId: holder.id,
+            picks: [{ option: "hp" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
+        i18n.format = function (key, ...rest) {
+            if (key === "DRPG.Advance.chatTitle") throw new Error("the Level Up's card is refused for this test");
+            return format.call(this, key, ...rest);
+        };
+        notes.error = (message, ...rest) => {
+            told.push(["error", String(message)]);
+            return error.call(notes, message, ...rest);
+        };
+        notes.warn = (message, ...rest) => {
+            told.push(["warn", String(message)]);
+            return warn.call(notes, message, ...rest);
+        };
+        try {
+            await withVerdictOpen(() => withAdvanceWindows(entry => Array.from({ length: entry.picks }, () => ({ option: "hp" })),
+                () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), "gm"));
+            await settle();
+            equal(stableJson([living.map(a => [a.name, advances(a) - before.get(a.id), offersOf(a).length]), told.filter(([, line]) => line === failed).length]),
+                stableJson([living.map(a => [a.name, 1, 0]), 0]),
+                "a Level Up the GM picked and wrote, whose card threw, was offered again or told as failed (per student: advances, offers; failures told)");
+
+            const was = advances(holder);
+            ok(await L.offerAdvancement(holder, "standard", { quiet: true }), "the offer to spend was not recorded");
+            told.length = 0;
+            await spend(offersOf(holder)[0]);
+            await settle();
+            const spent = [advances(holder) - was, offersOf(holder).length, told.filter(([, line]) => line === failed).length];
+            ok(await L.offerAdvancement(holder, "standard", { quiet: true }), "the second offer was not recorded");
+            S.offerStore.drop = async () => {
+                throw new Error("the offer's withdrawal is refused for this test");
+            };
+            try {
+                await spend(offersOf(holder)[0]);
+                await settle();
+            } finally {
+                S.offerStore.drop = drop;
+            }
+            const stands = game.i18n.format("DRPG.Advance.offerStillStands", { name: holder.name });
+            equal(stableJson([spent, advances(holder) - was, offersOf(holder).length, told.some(([kind, line]) => kind === "warn" && line === stands),
+                told.filter(([, line]) => line === failed).length]), stableJson([[1, 0, 0], 2, 1, true, 0]),
+                "a spend whose card threw left its offer or was told as failed, or one whose withdrawal threw was told as failed and not as an offer that still stands (first spend: advances, offers, failures; then advances, offers, warned, failures)");
+        } finally {
+            i18n.format = format;
+            notes.error = error;
+            notes.warn = warn;
+            S.offerStore.drop = drop;
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+            for (const back of putBack) await back();
+        }
+    }],
+
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
         // `openMurder` that happens WHILE an Eclipse is closing - a Direct

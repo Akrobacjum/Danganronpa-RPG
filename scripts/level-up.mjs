@@ -766,6 +766,7 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         return null;
     }
 
+    let taken;
     try {
         // The one road, named `levelUp`. Until E29 C2 this said the road kept the
         // resource guard from stripping the trait rise and leaving a half-applied
@@ -800,7 +801,7 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // write as its value, and stood from then on in the GMs' mark - an experience nobody named. Held means an
         // entry with a value: such a write, put back, leaves its entry in the mark empty ({}; read on 10.10.2026).
         // Nothing is written then, and the caller is told by the answer, null.
-        const taken = await meansWrite(actor, async () => {
+        taken = await meansWrite(actor, async () => {
             const from = path => numberHeld(actor, path) ?? 0;
             const held = numberHeld(actor, "system.experiences") ?? {};
             if (Object.keys(experienceDeltas).some(id => !(Object.hasOwn(held, id) && typeof held[id]?.value === "number"))) return null;
@@ -817,25 +818,39 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             await trustedWrite(actor, update, { reason: "levelUp" });
             return taken;
         });
-        if (taken === null) {
-            ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
-            return null;
-        }
-        /* AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
-           (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
-           Level Up of a student spent the player's standing one without a word; a GM's
-           picker names none now, and a player's picks name theirs (`handleAdvancement`).
-           Through the primary GM, which holds the offers. */
-        if (offerId) await withdrawOffer(actor.id, offerId);
-
-        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
-        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
-        return summary;
     } catch (err) {
         error("Could not apply the advancement", err);
         ui.notifications.error(game.i18n.localize("DRPG.Advance.failed"));
         return null;
     }
+    if (taken === null) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+        return null;
+    }
+    /* WRITTEN IS WRITTEN (E10 fix r1-G1, 1.2.71; the round-1 correctness review's F4). The offer's
+       withdrawal, the log and the player's card sat in the try of the write, whose catch answers
+       null: a throw in any of them after the write read as a Level Up that failed - the GM told
+       "could not be saved", and a GM's row of the class's window, answered null, offered the same
+       student a second Level Up. The try ends at the write now; what follows has its own, and the
+       answer is the summary of what was written.
+
+       AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
+       (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
+       Level Up of a student spent the player's standing one without a word; a GM's
+       picker names none now, and a player's picks name theirs (`handleAdvancement`).
+       Through the primary GM, which holds the offers. One that cannot be withdrawn still stands,
+       and the GM is told to take it back. */
+    if (offerId) await withdrawOffer(actor.id, offerId).catch(err => {
+        error(`Could not withdraw the offer ${actor.name}'s Level Up spent`, err);
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.offerStillStands", { name: actor.name }));
+    });
+    try {
+        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
+        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
+    } catch (err) {
+        error(`Could not tell ${actor.name}'s player of the Level Up written`, err);
+    }
+    return summary;
 }
 
 /** Private note to the player and the GMs. Advancement is not public knowledge. */
@@ -973,12 +988,19 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
  *
  * Answers `{ opened, applied, offered, notGiven, lapsed }`: the rows, how many the GM picked
  * and wrote, how many wait for their players, the names not yet given, the rows that lapsed.
+ *
+ * `given` are the students a verdict's batch gave one already before it stopped, and `onGiven`
+ * is told each row given here, written or offered, once its waiting row is gone (vote.mjs
+ * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
+ * not drawn, and their waiting rows do not lapse.
  */
-export async function runAdvancementBatch(actors, kind = "standard") {
+export async function runAdvancementBatch(actors, kind = "standard", { given = [], onGiven = null } = {}) {
     if (!game.user.isGM) return null;
     await deferredOfferStore.whenHydrated();
     const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
-    const { entries, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const handled = new Set(given);
+    const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const entries = planned.filter(entry => !handled.has(entry.actorId));
     if (drop.length) await deferredOfferStore.dropMany(drop);
     const done = { opened: entries.length, applied: 0, offered: 0, notGiven: [], lapsed: drop.length };
     if (!entries.length) return done;
@@ -994,6 +1016,7 @@ export async function runAdvancementBatch(actors, kind = "standard") {
             if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
                 done.applied++;
                 if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
                 continue;
             }
             // The waited picks: all of them at the Final Trial (no kind of the batch's own), the extra otherwise.
@@ -1002,6 +1025,7 @@ export async function runAdvancementBatch(actors, kind = "standard") {
                 { extra: entry.extraPicks, deferred: waited, veiled: true, quiet: true })) {
                 done.offered++;
                 if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
                 continue;
             }
             done.notGiven.push(actor.name);
