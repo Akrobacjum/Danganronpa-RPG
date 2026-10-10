@@ -2781,6 +2781,8 @@
       "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
       "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
+      "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",

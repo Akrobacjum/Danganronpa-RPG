@@ -43564,6 +43564,135 @@ const SCENARIOS = [
         }
     }],
 
+    ["the body card stays through the Investigation and not into the next day", async () => {
+        /*
+         * E11 C2, 1.2.73; audit S10-20 and S01-29; the ledger's G-b. The Event panel's body card as it
+         * is drawn (events.mjs `renderEvents`: the card's line and its pulse, read off the panel's
+         * signature). Two harms. The hold's pulse - and the music's silence, which asks the same
+         * question (`bodyDiscoveryFresh`) - read the time of day alone, so with the GM staying in
+         * Daily Life the body was "just found" again the next morning. And once the Investigation
+         * began the card fell back to the incident, which `endMurder` had already wiped, so it went:
+         * the players' "The investigation is open" and the GM's count of Key Remnants with it. A
+         * death kept by the GMs, found by the GM's own road in a room nobody stands in (the GM's
+         * windows closed at once), in Daily Life. Read: the card during the hold; the next day at
+         * the same hour, the hold still standing; in the Investigation; in Daily Life two days on.
+         */
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { renderEvents } = await import("./events.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const ROOM = "SUITE E11 C2 a room nobody stands in";
+        // [line, pulse] of the body card the panel draws now, or null when it draws none.
+        const drawn = () => {
+            renderEvents();
+            const signature = document.getElementById("drpg-events")?.dataset?.signature;
+            const card = signature ? JSON.parse(signature).find(c => c[0] === "body") : null;
+            return card ? [card[2], card[5]] : null;
+        };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            const day = getClock().day ?? 1;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene: canvas.scene });
+            await settle();
+            const hold = drawn();
+            must(bodyDiscovery()?.room === ROOM && hold, "the discovery left no hold, or the Event panel drew no card for it - this would measure nothing");
+            await setClock({ day: day + 1 });
+            const nextDay = [drawn(), bodyDiscovery()?.room ?? null];
+            await setClock({ phase: "investigation" });
+            const investigation = drawn();
+            await setClock({ phase: "dailyLife", day: day + 2 });
+            const after = drawn();
+            const line = game.i18n.format("DRPG.Events.bodySubRoom", { victim: victim.name, room: ROOM });
+            equal(stableJson([hold, nextDay, investigation, after]), stableJson([[line, true], [[line, false], ROOM], [line, false], null]),
+                "the body card pulsed again the next day at the hour it was found, left with the Investigation, or stayed after it "
+                + "(the card's [line, pulse] in the hold; the next day at that hour with the hold's room; in the Investigation; two days on in Daily Life)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+        }
+    }],
+
+    ["the GM's next line names a body nobody has found yet", async () => {
+        /*
+         * E11 C2, 1.2.73; audit S13-14. Once an incident closed, the one guide through a murder was
+         * the window that closes it: dismissed, the GM panel's next line went back to counting
+         * actions while the victim lay unannounced. Read off the panel as it is drawn
+         * (`openGmPanel`, its window answered at once and its content kept): the line and its
+         * button in Daily Life before a death, after a death the GMs keep, during the hold its
+         * discovery sets, and once the hold is answered - the body announced, no longer waiting.
+         * A GM panel already open is closed first: it would be raised, not drawn again.
+         */
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const ROOM = "SUITE E11 C2 a room nobody stands in";
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        let panel = null;
+        // [text, button's action] of the next line the panel draws now, or null when it draws none.
+        const line = async () => {
+            panel = null;
+            await openGmPanel();
+            const next = panel?.querySelector?.(".drpg-gmp-next");
+            return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null,
+                next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null;
+        };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content;
+                return null;
+            };
+            await setClock({ phase: "dailyLife" });
+            must(!bodyDiscovery() && !isEclipse() && !game.drpg?.murderState?.()?.active,
+                "a discovery, an Eclipse or an incident is open - the line would answer that first, and this would measure nothing");
+            const before = await line();
+            must(before, "the GM panel drew no next line - this would measure nothing");
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const room = roomOfActor(victim) ?? null;
+            const waiting = await line();
+            await discoverBody({ room: ROOM, victim, scene: canvas.scene });
+            await settle();
+            const held = await line();
+            await clearBodyDiscovery();
+            const announced = await line();
+            const text = room ? game.i18n.format("DRPG.Panel.nextBodyWaiting", { room }) : game.i18n.localize("DRPG.Panel.nextBodyWaitingNoRoom");
+            equal(stableJson([before?.[1] === "bodyDialog", waiting, held, announced?.[1] === "bodyDialog"]),
+                stableJson([false, [text, "bodyDialog"], [game.i18n.localize("DRPG.Panel.nextBodyFound"), "startInvestigation"], false]),
+                "the GM's next line did not name the body the GMs keep, or named it before the death or after its discovery "
+                + "(a body line before the death; the line after the death; during the hold; a body line once the hold was answered)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+        }
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

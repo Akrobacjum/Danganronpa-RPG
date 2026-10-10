@@ -965,8 +965,8 @@ export async function announceBody(row) {
     }
 }
 
-/** The ids of the bodies this chapter's discoveries announced, in the season `epoch`. */
-function announcedIn(chapter, epoch) {
+/** The ids of the bodies this chapter's discoveries announced, in the season `epoch` (a test on an id; the GM panel's next line reads it too). */
+export function announcedIn(chapter, epoch) {
     const ids = new Set(bodiesFoundIn(chapter, epoch).flatMap(row => row?.victimIds ?? []));
     return id => ids.has(id);
 }

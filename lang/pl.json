@@ -2887,6 +2887,8 @@
       "nextNoFloor": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
       "nextFloor": "Debata otwarta - {mode}.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
+      "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
+      "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextInvestigation": "Investigation. Sprawdź, co znaleziono, a co wciąż czeka.",
       "nextStillActing": {
         "one": "{n} uczeń ma jeszcze akcje do wydania.",

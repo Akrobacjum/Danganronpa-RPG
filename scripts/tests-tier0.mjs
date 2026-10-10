@@ -7640,6 +7640,8 @@ const REGRESSIONS = [
          * and `bodiesToDiscover` (SHEET) - and struck `checkBodyFound`'s row, which reads no flag
          * itself any more: on the harness on 10.10.2026 this test read 70 places (28 PACKET,
          * 4 SOCKET, 1 CHAT, 29 SHEET, 8 STORE) against the 70 rows.
+         * E11 C2 (1.2.73) added no place: the GM panel's next line reads the deaths through
+         * `bodiesToDiscover` (a helper this list names), and it rewrote the three rows that say so.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7689,7 +7691,7 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
             ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3) [1b.2]"],
             ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
-            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347) [1b.2]"],
+            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
             ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
             ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
             ["SHEET character.mjs#restoreStartingSheet", "OPEN at base (R1, document `getFlag(sheetAtStart)` and `actor.system`; E10 C8's OWED (3) names it): C11 reads `sheetAtStart` and `levelUpExperiences` through `flagsAsHeld` and the experiences through `actorHeldNow`, one read per actor before its one write, and deletes the marked ids (Q1 (a) for an unmarked sheet) [1b.2] (E11 C11)"],
@@ -7707,9 +7709,9 @@ const REGRESSIONS = [
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, and C12's `sameSeason` reads `epoch` (E11 C12)"],
-            ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`). C2 makes its freshness compare chapter, day and time of day; C3's Eclipse refuses while it is set (E11 C2)"],
+            ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`); since E11 C2 its freshness compares the chapter, the day and the time of day (`holdFreshAt`, R350). C3's Eclipse refuses while it is set (E11 C3)"],
             ["STORE settings.mjs#bodiesFound", "not a source: a world setting (`config: false`) only a GM writes (`recordBodyFound`), whose one caller is `announceBody` (R349); cut by the reset's `bodyFound` group (E11 C1)"],
-            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; since E11 C1 a row carries the death's `phase` and `epoch`. C2's panel line reads a pending row of this chapter and season (GM only) (E11 C2)"],
+            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; since E11 C1 a row carries the death's `phase` and `epoch`, and since E11 C2 the GM panel's next line reads a pending row of this chapter and season through `bodiesToDiscover` (a GM's browser only)"],
             ["STORE gm-stores.mjs#blackenedStore", "not a source: a GM store; rows keep their chapter and season (E04; tier 2 \"a Blackened of another chapter or season does not count...\", tests-tier2.mjs:36739 at 4aad1fd) - Q3 (a) rests on it; C9's `conclude: false` writes no row (E11 C9)"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
@@ -7922,6 +7924,28 @@ const REGRESSIONS = [
             JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], []]),
             "the stamp of a body found has a writer besides `announceBody`, or `announceBody` a caller besides `runDiscovery` "
             + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
+    }],
+
+    ["R350 - a hold is loud only in the hour, the day and the chapter its body was found in", async () => {
+        /*
+         * E11 C2, 1.2.73; audit S01-29; the ledger's G-b. settings.mjs `holdFreshAt`, which
+         * `bodyDiscoveryFresh` asks for the music's silence and the body card's pulse. It read the
+         * time of day alone, so a body found on a morning, with the GM staying in Daily Life (D5),
+         * was "just found" again on every later morning. Driven on fakes, nothing read or written:
+         * a hold of chapter 2, day 3, the morning, against the clock of its own hour, of the next
+         * day's morning, of the next chapter's day 3 morning and of its own day's noon; a hold
+         * written without a day against day 1 and day 2; and no hold.
+         */
+        const { holdFreshAt } = await import("./settings.mjs");
+        ok(typeof holdFreshAt === "function", "settings.mjs exports no `holdFreshAt` - the hold's freshness has no rule to test");
+        const hold = { room: "Gym", victimId: "victim", chapter: 2, day: 3, timeOfDay: "morning", at: 1 };
+        const at = (chapter, day, timeOfDay) => ({ chapter, day, timeOfDay, phase: "dailyLife" });
+        const noDay = { ...hold, day: undefined };
+        const read = [[hold, at(2, 3, "morning")], [hold, at(2, 4, "morning")], [hold, at(3, 3, "morning")], [hold, at(2, 3, "noon")],
+            [noDay, at(2, 1, "morning")], [noDay, at(2, 2, "morning")], [null, at(2, 3, "morning")]].map(([h, clock]) => holdFreshAt(h, clock));
+        equal(JSON.stringify(read), JSON.stringify([true, false, false, false, true, false, false]),
+            "a hold read as fresh outside the hour, day and chapter it was written in, or not in them (per clock: its own hour, the next day's, "
+            + "the next chapter's, its own noon; without a day on day 1 and day 2; no hold)");
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {

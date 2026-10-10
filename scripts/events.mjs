@@ -28,7 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentSeats,
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodiesFoundIn, incidentCast, incidentSeats,
     incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
@@ -421,47 +421,48 @@ export function trialCard(clock) {
  * "3 traces left" off the frame would know when to stop searching, which is
  * the one thing the investigation is supposed to cost them.
  */
-function bodyCard(clock) {
+export function bodyCard(clock) {
     /*
      * TWO STATES, ONE CARD (D5).
      *
      * `bodyDiscovery()` is the HOLDING state: the body is found, the GM has not
      * answered, and the clock is still in Daily Life. It carries the room and
-     * the victim itself, and that is not duplication - the incident state this
-     * card used to be read from is wiped by `endMurder` (`restoreState({})`,
-     * murder.mjs) BEFORE the GM ever presses anything, so in the ordinary flow
-     * `state.stage === "resolution"` was false and this card never appeared at
-     * all. The record is the only thing that still knows who and where.
+     * the victim itself, because the incident state is wiped by `endMurder`
+     * (`restoreState({})`, murder.mjs) before the GM ever presses anything.
      *
-     * Once the Investigation starts the record is cleared (see `setClock`) and
-     * the old reading takes over, so the frame still stands for the whole of
-     * Stage 7 when the GM has parked an incident at Stage 6.
+     * Once the Investigation starts the record is cleared (see `setClock`), and
+     * the card reads the chapter's last discovery stamp instead (`bodiesFoundIn`,
+     * E11 C1), which names the room and every body that discovery found and
+     * outlives the hold. Until 1.2.73 it fell back to `murderState`, which
+     * `endMurder` had already wiped, so the card - and the GM's count of Key
+     * Remnants on it - went the moment the Investigation began (E11 C2; audit
+     * S10-20; tier 2 "the body card stays through the Investigation and not into
+     * the next day"). The stamp is read only in the Investigation: in the trial
+     * and in the Daily Life after it the chapter's body is old news.
      */
     /* The record is written even when the phase moved first (see `discoverBody`), so "is the
        game being held?" is the record AND the clock: with Stage 7 already running nothing is
        waiting, and the card goes back to being the investigation's own frame. */
     const record = bodyDiscovery();
     const found = clock.phase === "investigation" ? null : record;
-    let victimId = found?.victimId ?? record?.victimId ?? null;
-    let room = found?.room ?? record?.room ?? null;
+    let victimIds = found ? [found.victimId].filter(Boolean) : [];
+    let room = found?.room ?? null;
 
     if (!found) {
         if (clock.phase !== "investigation") return null;
-        // The record still names the victim and the room that the wiped incident cannot, so it
-        // is only when there is no record at all that the old reading has to answer.
-        if (!victimId) {
-            if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-            const state = game.settings.get(MODULE_ID, "murderState") ?? {};
-            if (state.stage !== "resolution" || !state.victimId) return null;
-            victimId = state.victimId;
-        }
+        const stamp = bodiesFoundIn(clock.chapter).at(-1) ?? null;
+        if (!stamp) return null;
+        victimIds = stamp.victimIds ?? [];
+        room = stamp.room ?? null;
     }
 
-    const victim = victimId ? game.actors.get(victimId) : null;
-    if (!victim && !room) return null;
-    if (!room && victim) {
-        try { room = roomOfActor(victim)?.name ?? null; } catch { /* a victim outside every room */ }
+    const victims = victimIds.map(id => game.actors.get(id)).filter(Boolean);
+    if (!victims.length && !room) return null;
+    if (!room && victims.length) {
+        // A room's name: `roomOfToken` answers the name, not the region (65-season B1 compares it with the hold's `room`).
+        try { room = roomOfActor(victims[0]) ?? null; } catch { /* a victim outside every room */ }
     }
+    const names = victims.map(a => a.name).join(", ");
 
     // WHAT THE META SAYS DEPENDS ON WHO IS WAITING FOR WHAT. While the game is
     // held, the players are told the room has stopped and the GM is told what
@@ -494,9 +495,9 @@ function bodyCard(clock) {
         // it was written in, and a card that pulses all evening is wallpaper.
         due: Boolean(bodyDiscoveryFresh()),
         title: game.i18n.localize("DRPG.Events.bodyTitle"),
-        sub: room && victim
-            ? game.i18n.format("DRPG.Events.bodySubRoom", { victim: victim.name, room })
-            : (victim?.name ?? room),
+        sub: room && names
+            ? game.i18n.format("DRPG.Events.bodySubRoom", { victim: names, room })
+            : (names || room),
         meta
     };
 }

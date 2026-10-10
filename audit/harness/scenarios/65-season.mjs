@@ -15,8 +15,9 @@
  *   A  two scenes with rooms (the Annex gains one), a project on each, a duplicate of the
  *      first's token on the Annex and an orphan (a project token whose id has no countdown):
  *      four project tokens; whether p1 knows the orphan (C7).
- *   B  Chie kills Daichi, kept; Aiko and Botan walk in on the body: one discovery card and the
- *      hold. An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
+ *   B  Chie kills Daichi, kept, and the incident is closed: the GM panel's next line (C2); Aiko
+ *      and Botan walk in on the body: one discovery card, the hold and the line on it. An Eclipse
+ *      asked for during the hold (C3). Investigation, the Class Trial and a
  *      wrong verdict that executes Botan; a move inside the room after the verdict (already
  *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
  *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
@@ -39,9 +40,9 @@
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
  *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves (C8).
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
- * token (`applyToProjectToken` needs `token.object`), the gather's camera, the Eclipse
- * button's greying, and the GM panel's next line (`nextStep` is the panel's own, drawn on a
- * canvas this harness has not got; C2's tier-2 test reads it).
+ * token (`applyToProjectToken` needs `token.object`), the gather's camera and the Eclipse
+ * button's greying. The GM panel's next line is read off the panel's content as it is drawn
+ * (E11 C2, `NEXT` below), not off a window on screen.
  *
  * Its bound (the plan's M4, set from C0's first readings): its 17 checks took 20.2-21.6 s
  * in seven runs alone on 10.10.2026 (20.7 s for this file as committed, the rest drafts and
@@ -57,6 +58,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
     const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
     const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
+    /* The GM panel's next line as the panel draws it (E11 C2): `openGmPanel` with its window answered at
+       once and its content kept - [the line, its button's action], or null when it draws none. */
+    const NEXT = `const nextLine = async () => { const D = foundry.applications.api.DialogV2, wait = Object.getOwnPropertyDescriptor(D, "wait"); let panel = null;
+        D.wait = async config => { if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content; return null; };
+        try { await (await import("${repoUrl}/scripts/gm-panel.mjs")).openGmPanel(); } finally { if (wait) Object.defineProperty(D, "wait", wait); else delete D.wait; }
+        const next = panel?.querySelector?.(".drpg-gmp-next");
+        return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null, next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null; };`;
     const players = [p1, p2, p3].filter(Boolean);
     /* An incident is driven from the GM's client, as 10-murder drives it: the killer's player
        answering the opening roll it is sent would race the GM's own answer below. The
@@ -126,7 +134,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     await mute();
     const blow = await kill(IDS.chie, IDS.daichi);
     await unmute();
-    const found = await gm.eval(`${UNTIL} ${CARDS} const M = await import("${repoUrl}/scripts/movement.mjs");
+    const waiting = await gm.eval(`${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const open = Boolean(game.drpg.murderState()?.active);
+        await game.drpg.endMurder({ reason: "closed", followUp: false });
+        const room = M.roomOfActor(game.actors.get("${IDS.daichi}"));
+        return { open, closed: !game.drpg.murderState(), room, line: await nextLine(), text: game.i18n.format("DRPG.Panel.nextBodyWaiting", { room }) };`, { timeout: 60000 });
+    /* E11 C2 (audit S13-14): with the incident closed and nobody yet in the room, the line names the body the GMs
+       keep and offers the GM's own announcement. At a220f0f it counted the actions left. The incident is closed
+       here rather than after the discovery, as a GM closes it before anybody finds the body. */
+    check("B0: the incident closed with Daichi's death kept, the GM's next line says a body is waiting in his room and offers the announcement",
+        waiting.open === true && waiting.closed === true && Boolean(waiting.room) && J(waiting.line) === J([waiting.text, "bodyDialog"]),
+        J(waiting), { flow: "body-discovery" });
+    const found = await gm.eval(`${UNTIL} ${CARDS} ${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
         const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
         const room = M.roomOfActor(daichi), before = cards();
@@ -137,11 +156,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         await until(() => bodyDiscovery());
         await new Promise(r => setTimeout(r, 800));
         const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
-        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps };`, { timeout: 60000 });
-    // E11 C1: the discovery is stamped once, by the witnesses, naming the body they found.
-    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him",
+        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps,
+            line: await nextLine(), holdLine: game.i18n.localize("DRPG.Panel.nextBodyFound") };`, { timeout: 60000 });
+    // E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold.
+    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold",
         blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
-            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]),
+            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]) && J(found.line) === J([found.holdLine, "startInvestigation"]),
         J({ blow, found }), { flow: "body-discovery" });
     const eclipse = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
         const { isEclipse, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
@@ -156,7 +176,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     const trial = await gm.eval(`${CARDS} const { setPhase } = await import("${repoUrl}/scripts/clock.mjs");
         const { getClock, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
         const I = await import("${repoUrl}/scripts/incident-store.mjs");
-        await game.drpg.endMurder({ reason: "closed", followUp: false });
         await setPhase("investigation");
         const investigation = { phase: getClock().phase, hold: Boolean(bodyDiscovery()) };
         globalThis.__dialogAnswers.push("ok");

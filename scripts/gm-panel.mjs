@@ -14,7 +14,10 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
-import { bodyDiscovery } from "./settings.mjs";
+import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
+import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
+import { flagsHeldNow } from "./sheet-audit.mjs";
+import { roomOfActor } from "./movement.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { caseMark, caseWarning, healthLine } from "./gm-stores.mjs";
 
@@ -314,6 +317,11 @@ const EXTRA_ACTIONS = {
     startInvestigation: {
         key: "startInvestigation",
         run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
+    },
+    // The GM's own announcement, for the Next line's body nobody has found yet (E11 C2).
+    bodyDialog: {
+        key: "bodyDialog",
+        run: () => import("./chapter.mjs").then(m => m.openBodyDiscoveryDialog())
     },
     // The trial console, for the Next line once the Investigation is done.
     trial: {
@@ -1075,7 +1083,7 @@ async function toggleEclipse() {
  *
  * @returns {{text: string, action: string|null}}
  */
-function nextStep(clock) {
+export function nextStep(clock) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -1166,6 +1174,29 @@ function nextStep(clock) {
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
     }
 
+    /* A BODY NOBODY HAS FOUND YET (E11 C2, 1.2.73; audit S13-14). Once the incident closed, the
+       one guide through a murder was the window that closes it: dismissed, this line went back to
+       counting actions while the victim lay unannounced, and nothing told a new GM the case was
+       waiting on a discovery (tier 2 "the GM's next line names a body nobody has found yet";
+       65-season B0). The bodies are the watcher's own (`bodiesToDiscover`, with the deaths the GMs
+       hold and the flags as the GMs hold them, `flagsHeldNow`), so the line names exactly a body two students
+       walking in would discover: this chapter's and season's, not an execution, not announced by
+       a discovery of this chapter. Only here, in Daily Life with no hold and no Eclipse, because
+       those are when a walk-in can find it (`checkBodyFound`). The room is the body's token's on
+       the scene this GM is viewing; a body elsewhere gets the line without the room. */
+    const waiting = bodyWaiting(clock);
+    if (waiting) {
+        let room = null;
+        try { room = roomOfActor(waiting) ?? null; } catch { /* a body outside every room */ }
+        return {
+            // Escaped: a room's name is the scene author's, and the panel is drawn with `innerHTML`.
+            text: room
+                ? game.i18n.format("DRPG.Panel.nextBodyWaiting", { room: esc(room) })
+                : game.i18n.localize("DRPG.Panel.nextBodyWaitingNoRoom"),
+            action: "bodyDialog"
+        };
+    }
+
     // Daily Life. The one number that decides whether the time of day is over.
     // The boundary between two times of day IS the Eclipse (`startEclipse`
     // refills, `endEclipse` advances), so that is what the line suggests; the
@@ -1175,6 +1206,13 @@ function nextStep(clock) {
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
         : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
+}
+
+/** The first body a walk-in would discover now, as the watcher picks them (`bodiesToDiscover`), or null. GM-side. */
+function bodyWaiting(clock) {
+    const epoch = seasonEpoch();
+    const [id] = bodiesToDiscover({ actors: studentActors(), clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow });
+    return id ? game.actors.get(id) ?? null : null;
 }
 
 /** Current standing: where the clock is and what everyone has left. */

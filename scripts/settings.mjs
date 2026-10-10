@@ -499,7 +499,9 @@ export const SETTINGS = {
      * BE starting the investigation: `discoverBody` moved the phase, and Stage 7
      * began whether or not the table was ready for it. It is a holding state
      * now - the card stands, the music stops, Daily Life carries on - until the
-     * GM either starts the Investigation or moves the clock on.
+     * phase moves (the GM starts the Investigation). Moving the clock on ends
+     * only its noise: the music and the card's pulse belong to the hour, day and
+     * chapter it was found in (`bodyDiscoveryFresh`, E11 C2).
      *
      * World-scoped and public on purpose, like the assembly: the discovery is
      * announced in chat to everybody, so there is nothing in here that is not
@@ -2543,12 +2545,26 @@ export function bodyDiscovery() {
  * token watch re-announcing the same corpse (`maybeBodyFound`) and what ends the
  * killer's fresh-scene discount (`freshSceneBonus`), and neither of those is
  * undone by the hour turning. What the hour DOES end is the noise - the silence
- * and the pulsing card. Stamped with the time of day it was written in, which is
- * the same question `pendingGather` above it asks of its own stamp.
+ * and the pulsing card. Stamped with the chapter, the day and the time of day it
+ * was written in (`holdFreshAt`).
  */
 export function bodyDiscoveryFresh() {
     const record = bodyDiscovery();
-    return record && record.timeOfDay === getClock().timeOfDay ? record : null;
+    return record && holdFreshAt(record, getClock()) ? record : null;
+}
+
+/**
+ * The hour a hold is loud in: the one it was written in, of the same day and
+ * chapter (E11 C2, 1.2.73; audit S01-29; tier 0 R350). Until 1.2.73 this read
+ * the time of day alone, so a body found on a morning, with the GM staying in
+ * Daily Life (D5 lets them), silenced the music and pulsed the card again on
+ * every later morning, as if it had just been found (tier 2 "the body card stays
+ * through the Investigation and not into the next day"). A record without a
+ * `day` is day 1's, as `setBodyDiscovery` writes it. Pure.
+ */
+export function holdFreshAt(record, clock) {
+    return Boolean(record && clock) && record.chapter === clock.chapter
+        && (record.day ?? 1) === (clock.day ?? 1) && record.timeOfDay === clock.timeOfDay;
 }
 
 /** Record a discovery the GM has still to answer. GM-side. */
