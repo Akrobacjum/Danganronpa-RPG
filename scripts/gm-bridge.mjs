@@ -429,7 +429,8 @@ async function handleAdvancement(payload, sender, ctx) {
        press on a slow server - both found the offer standing and both applied. The
        lines above are synchronous, so nothing interleaves between reading the offer
        and taking the latch. The latch is level-up.mjs's since E10 fix r1-G2: a take-back
-       of the offer reads it and is refused while it is held. */
+       of the offer reads it and is refused while it is held, and since r2-G4 holds it
+       across its own drop, so a Level Up that arrives while that drop waits is refused here. */
     if (advancing.has(actor.id)) {
         return { refused: "a Level Up for that character is already being written" };
     }
@@ -459,9 +460,15 @@ async function handleAdvancementOffer(payload, sender, ctx) {
         if (!standingOffers(actor).some(offer => offer.id === payload.offerId)) {
             return { refused: "no Level Up is on offer under that name for that character" };
         }
-        // Not while the Level Up it would spend is being written (level-up.mjs `takeBackOffer`; E10 fix r1-G2).
+        // Not while the Level Up it would spend is being written, and that Level Up not while the drop
+        // waits for the offers store (level-up.mjs `takeBackOffer`; E10 fix r1-G2, r2-G4).
         if (advancing.has(actor.id)) return { refused: "a Level Up for that character is already being written" };
-        await dropOffer(actor.id, payload.offerId);
+        advancing.add(actor.id);
+        try {
+            await dropOffer(actor.id, payload.offerId);
+        } finally {
+            advancing.delete(actor.id);
+        }
         return { reply: { taken: payload.offerId } };
     }
     if (payload.op !== "add") return { refused: "an offer is given or taken back, nothing else" };

@@ -7911,6 +7911,16 @@ const REGRESSIONS = [
                 `${code}: a trial key of C15's is missing`);
             const button = l.Vote.remind.split(" (")[0], warning = Object.values(l.Vote.resendWarning);
             ok(warning.length >= 2 && warning.every(text => text.includes(button)), `${code}: the restart warning does not name the button ("${button}") (S06-32)`);
+            /* Every Vote string that tells the GM to use a button names one the vote's window draws (E10 fix r2-G4; the
+               round-2 goal verifier's S06-32: G3's `resendUnseen` said "use Remind" / "użyj Przypomnij" after C15 had
+               renamed the button). The verb is each file's own ("use", "użyj"); at least the restart's three are read. */
+            const flat = (o, at = "") => Object.entries(o).flatMap(([k, v]) => (typeof v === "object" ? flat(v, `${at}${k}.`) : [[`${at}${k}`, v]]));
+            const buttons = [l.Vote.send, l.Vote.tally, l.Vote.sendAgain, button];
+            const named = flat(l.Vote).flatMap(([key, text]) => [...text.matchAll(code === "en" ? /\buse (.+?)(?: instead)?\./g : /\bużyj (.+?)\./g)]
+                .map(m => [key, m[1]]));
+            const strays = named.filter(([, name]) => !buttons.includes(name));
+            ok(named.length >= 3 && named.some(([key]) => key === "resendUnseen") && !strays.length,
+                `${code}: a Vote string names a button the window does not draw (S06-32): ${JSON.stringify(strays)} of ${named.length}`);
         }
         ok(!Object.values(lang.en.Vote.resendWarning).some(text => text.includes("Remind")), "the English restart warning still says Remind");
     }],

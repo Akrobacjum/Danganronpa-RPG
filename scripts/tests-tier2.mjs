@@ -19672,6 +19672,89 @@ const SCENARIOS = [
             + "another GM's take told; the rise, advances, offers left, waiting row; the apply's refusals)");
     }],
 
+    ["a take-back that waits for the offers store holds a player's Level Up off on both roads", async () => {
+        /*
+         * E10 fix r2-G4, 1.2.71; the round-2 security review's S2-1. Right after the primary GM loads, with
+         * another GM connected, its offers store waits for that GM's copy (up to `TIMING.gmStoreSyncMs`), and a
+         * take-back's drop (`dropOffer`) waits with it, after its latch check. A player's Level Up that arrived
+         * in that wait found the offer standing and nothing latched: both happened - the GM told "taken back",
+         * the Level Up on the sheet, and on the primary's own road the Blackened's waiting Reinforced back in the
+         * GMs' store to be given again. The store's wait is stood in for (`offerStore.whenHydrated` answers a
+         * promise held here; the suite runs on one GM, whose store does not wait), as the suite stands in for
+         * other stores' waits. On each road - the primary's own menu (`takeBackOffer`), then another GM's
+         * packet (`advancement.offer` op "take") - an offer of 1 + 3 waited picks (the C7 shape) is given to a
+         * student a connected player owns, the take is started and left in the store's wait, the player's four
+         * picks are judged, and the wait let go. Read per road: the take's answer, the sheet while it waited,
+         * the rise and the advances after, the offers left, the waiting row, and the apply's refusals.
+         * Red at 7ff93ec (10.10.2026): on both roads the take answered taken, the Level Up was written while
+         * it waited (+4, one step of advances) and nothing refused it; on the primary's road the waiting
+         * Reinforced went back to the GMs' store as well.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who spends the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
+            `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
+        const offersOf = () => L.offerList(S.offerStore.get(student.id));
+        // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
+        const judged = async (fields, sender) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { requestId: `E10R2G4${foundry.utils.randomID(8)}`, actorId: student.id, ...fields }, sender,
+                { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason ?? null); } });
+            return told;
+        };
+        const real = S.offerStore.whenHydrated;
+        let release = () => {};
+        const road = async take => {
+            await judged({ action: "advancement.offer", op: "add", kind: "standard", extra: 3, deferred: 3 }, game.user.id);
+            const [offer] = offersOf();
+            const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
+            const gate = new Promise(resolve => { release = resolve; });
+            S.offerStore.whenHydrated = () => gate;
+            const taking = take(offer?.id ?? null);
+            // Each road reaches the store's wait through cached imports and synchronous checks; 200 ms is room to spare.
+            await wait(200);
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+                offerId: offer?.id ?? null }, player.id);
+            await wait(400);
+            const whileWaiting = [sheet(HP_MAX) - hp, sheet(ADVANCES) - advances];
+            S.offerStore.whenHydrated = real;
+            release();
+            const taken = await taking, applied = await applying;
+            await settle();
+            const out = [taken, whileWaiting, sheet(HP_MAX) - hp, sheet(ADVANCES) - advances, offersOf().length,
+                S.deferredOfferStore.has(student.id), applied];
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (S.deferredOfferStore.has(student.id)) await S.deferredOfferStore.drop(student.id);
+            await putBack();
+            return out;
+        };
+        const read = [];
+        try {
+            read.push(await road(id => L.takeBackOffer(student, id)));
+            read.push(await road(id => judged({ action: "advancement.offer", op: "take", offerId: id }, game.user.id)));
+        } finally {
+            S.offerStore.whenHydrated = real;
+            release();
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (S.deferredOfferStore.has(student.id)) await S.deferredOfferStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[true, [0, 0], 0, 0, 0, true, ["busy"]], [[], [0, 0], 0, 0, 0, false, ["busy"]]]),
+            "a take-back waiting for the offers store let a player's Level Up through, and both happened (per road, the primary's "
+            + "menu then another GM's take: the take's answer; the sheet while it waited; the rise, advances, offers left, waiting "
+            + "row; the apply's refusals)");
+    }],
+
     ["Enter in the class's Level Up window gives what its rows say", async () => {
         /*
          * E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b). The class's window (level-up.mjs
