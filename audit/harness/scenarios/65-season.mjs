@@ -36,10 +36,12 @@
  *   R  the reset, every group ticked, answered as 61 answers it: the project tokens the window
  *      counts and those left on every scene (C7: four, none), the offers (E04), the armed
  *      Calls (C10), the Final Trial and the season (E10 C10), the suicide's victim (alive
- *      already; C9 must keep it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
- *      key (C10), the stamps of the bodies found (C1: none left), and the errors.
- *   F  a reset whose chat deletion throws on the GM: whether the GM is told, and that every
- *      other group still ran (C9).
+ *      already, by the cut; C9 keeps it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
+ *      key (C10), the stamps of the bodies found (C1: none left), the incident's closes and
+ *      what is left of it, and the errors (C9: none, and no group failed).
+ *   F  a reset whose chat deletion throws on the GM: the error naming the two chat groups, the
+ *      groups the reset returns as failed, the GMs' report card, and that every other group
+ *      still ran (C9).
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
  *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves, and
  *      the manager's "Show on the map" (C8). Then a second GM (`gm2`, late, its id sorting
@@ -446,11 +448,17 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         const stampedBefore = seasons();
         // The window's own count of the project tokens (E11 C7, \`resetTally\`), read off the content it was opened with -
         // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
-        let counted = null;
+        let counted = null, closes = 0;
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
         globalThis.__dialogAnswers.push(config => { const c = config?.content;
             const line = /(\\d+) project tokens? on the maps/.exec(typeof c === "string" ? c : c?.textContent ?? "");
             counted = line ? Number(line[1]) : null; return { word, ticked: X.RESET_GROUPS.map(g => g.key) }; });
-        const result = await R.resetSeason();
+        // The report is a whisper: its words are this GM's to read through secret.mjs, the document holding a stub.
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const reported = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.title"))).length;
+        const reportsBefore = reported(), incidentBefore = game.drpg.murderState()?.active ?? false;
+        let result;
+        try { result = await R.resetSeason(); } finally { Hooks.off("drpgIncidentClosed", closed); }
         await gmStoresIdle();
         await new Promise(r => setTimeout(r, 800));
         const ids = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"], aiko = game.actors.get("${IDS.aiko}"), r = aiko.system.resources;
@@ -459,12 +467,17 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
             sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"), stamped: [stampedBefore, seasons()],
+            failed: result?.failed ?? null, incident: { before: incidentBefore, closes, after: game.drpg.murderState() ?? null },
+            reports: reported() - reportsBefore,
             errors: globalThis.__notifications.slice(told).filter(n => n.level === "error").map(n => n.msg) };`;
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
-    check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, and no error was told",
-        Array.isArray(reset.cleared) && reset.kept?.length === 0 && reset.offers === 0 && reset.finalTrial === false && reset.season === 2
-            && reset.stamped[0] > 0 && reset.stamped[1] === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
+    // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
+    check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
+        Array.isArray(reset.cleared) && reset.cleared.length === 29 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+            && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
+            && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
+            && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
     /* At 4aad1fd `clearAllProjects` cleared the countdowns and the meta and removed no token: all four stood after the
        reset. E11 C7: the projects step sweeps every project token first, and the window counts them before it asks. */
     check("R2: the reset window counts the four project tokens and the reset leaves none on any scene (E11 C7)",
@@ -473,8 +486,12 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
     check("R3: the reset leaves Botan's armed Call - today's reading; E11 C10 unsets it",
         reset.calls === 1, J(reset), { flow: "season-reset" });
     /* The plan predicted the victim dead at the base (deaths revived before the incident is ended). Measured at
-       4aad1fd (10.10.2026): alive - not dead for the GMs, no flag, no row in the death store. So this reading is
-       already the one C9 promises; it stays as the guard C9's reordering must keep green. */
+       4aad1fd (10.10.2026): alive - not dead for the GMs, no flag, no row in the death store. Why, measured by an
+       E11 C9 probe at 4fcc2b4 (10.10.2026): the reset's cut, written on the clock before any step, takes the cast;
+       as the clock's write landed the incident read active with no victim and not self-inflicted, so the close
+       that followed had nobody to kill, in whatever order the steps ran. So this reading cannot see the order: C9's
+       incident-first is held by R50 (RESET_STEPS, as data) and the close's `conclude: false` by tier 2 "a reset
+       abandons an incident: nobody killed, ...". It stays as the reading of the world C9 promises. */
     check("R4: the reset leaves the suicide's victim alive - no death for the GMs, no flag, no death row",
         reset.victim?.forGm === false && reset.victim?.flag === false && reset.victim?.row === false, J(reset), { flow: "season-reset" });
     /* The sheet half the plan gave C10 is already there: Aiko's 2, 2, 0 come back as 0, 0 and the starting
@@ -491,13 +508,18 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         ChatMessage.deleteDocuments = async () => { asked.n++; throw new Error("E11 C0 65: the chat cannot be deleted"); };
         await (await import("${repoUrl}/scripts/clock.mjs")).setClock({ finalTrial: true });
         try { ${RESET} return { ...read, asked }; } finally { ChatMessage.deleteDocuments = deleting; }`, { timeout: 120000 });
-    /* Today a step that throws is logged on the console and no error is told (measured 10.10.2026: with a module card
-       in the chat the stub was asked twice, once per chat group, and both fell out of `cleared`). C9: an error
-       notification names the module's chat. */
-    check("F1: with the chat's deletion throwing, every other group still runs and the GM is told nothing of the failure - today's reading; E11 C9 tells it",
-        failing.asked.n === 2 && Array.isArray(failing.cleared) && !failing.cleared.some(l => /chat/.test(l)) && failing.cleared.length === reset.cleared.length - 2
-            && failing.season === 3 && failing.finalTrial === false && failing.offers === 0 && failing.errors.length === 0,
-        J({ failing, reset: reset.cleared }), { flow: "season-reset" });
+    /* At 4fcc2b4 a step that threw was logged on the console and no error was told (measured 10.10.2026: with a module
+       card in the chat the stub was asked twice, once per chat group, both fell out of `cleared`, and the GM read
+       "The season has been reset"). E11 C9: one error notification names both chat groups by their labels, the result
+       returns them as failed, and the GMs get one card saying what failed, what went and what was kept; every other
+       group still ran, the second reset counted the season and turned the Final Trial off again. */
+    const chatLabels = await gm.eval(`return ["cards", "chatRest"].map(key => game.i18n.localize(\`DRPG.Season.group.\${key}\`));`);
+    check("F1: with the chat's deletion throwing, every other group still runs, the two chat groups are returned as failed and the GM is told by an error naming them and a report card (E11 C9)",
+        failing.asked.n === 2 && J(failing.failed) === J(["cards", "chatRest"]) && failing.cleared.length === reset.cleared.length - 2
+            && !failing.cleared.some(key => ["cards", "chatRest"].includes(key)) && failing.reports === 1
+            && failing.errors.length === 1 && chatLabels.every(label => failing.errors[0].includes(label))
+            && failing.season === 3 && failing.finalTrial === false && failing.offers === 0,
+        J({ failing, reset: reset.cleared, chatLabels }), { flow: "season-reset" });
 
     /* ------------------------------ G. a world already reset ------------------------------ */
     phase("G: a world already reset - an orphan, a duplicate and a token deleted by hand, and the canvas drawn again", { flow: "season-reset" });

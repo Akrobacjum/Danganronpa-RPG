@@ -3271,6 +3271,48 @@ const INVARIANTS = [
         equal(JSON.stringify(rawReads), "[]", "the places a judge converts a value off a packet without textOf or numberOf");
     }],
 
+    ["R353 - the reset window lists only the ticked groups", async () => {
+        /*
+         * E11 C9, 10.10.2026; audit S06-49. The "This goes" list above the ticks was twelve
+         * hand-written lines that went whatever was ticked - one of them five groups at once,
+         * half the groups on none - so a GM who unticked the incident still read "the incident"
+         * among what goes. `resetGoesHtml(plan, tally)` draws it from RESET_GROUPS: one row per
+         * group, `data-group` its key, a group the plan keeps struck through and
+         * `aria-disabled`, the projects row counting the project tokens on the maps. Pure:
+         * a plan and a made-up tally in, markup out; nothing in the world is read or written.
+         */
+        const S = await import("./season-setup.mjs");
+        ok(typeof S.resetGoesHtml === "function", "season-setup.mjs draws no \"This goes\" list from the ticks (resetGoesHtml)");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const { plural } = await import("./utils.mjs");
+        const keys = RESET_GROUPS.map(group => group.key);
+        const ticked = keys.filter(key => !["incident", "advancement", "chatRest"].includes(key));
+        const tally = { projects: 2, projectTokens: 4, remnants: 3, bullets: 1, dead: 1, items: 5, advances: 2,
+            preNotes: 1, sheetNotes: 2, cards: 7, chat: 9, despair: 1 };
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(ticked), tally);
+        const rows = [...host.querySelectorAll("li[data-group]")];
+        equal(JSON.stringify(rows.map(row => row.dataset.group)), JSON.stringify(keys),
+            "the list's rows are not RESET_GROUPS' keys, one each, in the window's order");
+        const struck = row => Boolean(row.querySelector("s")) && row.getAttribute("aria-disabled") === "true";
+        const kept = rows.filter(struck).map(row => row.dataset.group);
+        equal(JSON.stringify(kept), JSON.stringify(["incident", "advancement", "chatRest"]),
+            "the groups the plan keeps are not the rows struck through and aria-disabled");
+        ok(rows.filter(row => ticked.includes(row.dataset.group))
+            .every(row => !row.querySelector("s") && !row.hasAttribute("aria-disabled")),
+            "a ticked group's row is struck through or disabled");
+        const projects = host.querySelector('li[data-group="projects"]')?.textContent ?? "";
+        ok(projects.includes(plural("DRPG.Season.resetProjectTokens", { n: 4 })),
+            `the projects row does not count the project tokens on the maps: "${projects.trim()}"`);
+        const label = host.querySelector('li[data-group="incident"]')?.textContent ?? "";
+        ok(label.includes(game.i18n.localize("DRPG.Season.group.incident")), "a row does not carry its tick's label");
+        // Nothing ticked: every row struck. Everything ticked: none.
+        host.innerHTML = S.resetGoesHtml(planFrom([]), tally);
+        ok([...host.querySelectorAll("li[data-group]")].every(struck), "with nothing ticked a row still reads as going");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), tally);
+        equal(host.querySelectorAll("li[data-group] s, li[aria-disabled]").length, 0, "with everything ticked a row reads as kept");
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
@@ -6270,7 +6312,9 @@ const LITERAL_KEYS = [
     // cleanup.mjs names a Stage 6 roll's band on the GMs' copy `DRPG.Action.duality.<band>` (E09 C14): the three bands.
     ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`),
     // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
-    ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`)
+    ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
+    // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
+    ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`)
 ];
 
 export { INVARIANTS };

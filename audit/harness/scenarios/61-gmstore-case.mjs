@@ -1449,13 +1449,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(600);
     const cutJ2 = firstReset.cuts;
     check("J2a: the first reset names the GMs away, cuts the traces and the Mastermind at one stamp its steps come after, and keeps the Level Up",
-        J(firstReset.cleared) === J(["Remnants", "the Mastermind"]) && firstReset.offline
+        J(firstReset.cleared) === J(["mastermind", "remnants"]) && firstReset.offline
         && cutJ2.remnants > 0 && cutJ2.mastermind === cutJ2.remnants && !("advancement" in cutJ2) && firstReset.season === null
         && firstReset.watermarks.remnants > cutJ2.remnants && firstReset.watermarks.mastermind >= cutJ2.mastermind
         && firstReset.traces === 0 && firstReset.tokens === 0 && firstReset.pick === null && firstReset.offer === "standard", J(firstReset));
     // With no trace left the primary still clears the store, after the cut (the review's C-m5: it cleared only with a live row to see).
     check("J2b: the second cuts the traces again and clears them with none left, leaves the Mastermind's cut where the first put it, and keeps the Level Up",
-        J(secondReset.cleared) === J(["Remnants"]) && secondReset.cuts.remnants > cutJ2.remnants && secondReset.watermarks.remnants > secondReset.cuts.remnants
+        J(secondReset.cleared) === J(["remnants"]) && secondReset.cuts.remnants > cutJ2.remnants && secondReset.watermarks.remnants > secondReset.cuts.remnants
         && secondReset.cuts.mastermind === cutJ2.mastermind && !("advancement" in secondReset.cuts) && secondReset.offer === "standard", J(secondReset));
 
     /* J3: the seed GM leaves here for good (a late account can come back, it cannot), and

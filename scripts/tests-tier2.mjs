@@ -5329,6 +5329,112 @@ const SCENARIOS = [
         }
     }],
 
+    ["a reset abandons an incident: nobody killed, no register, no broken tool, no case keys, nothing posted", async () => {
+        /*
+         * E11 C9, 10.10.2026; audit S06-15, the plan's 3.1. The reset closes a running incident
+         * with `endMurder`, and a close concludes the crime: it kills a self-inflicted victim at
+         * Stage 6, writes the Blackened register, breaks the killer's swung tool, writes the
+         * case's Key Remnant count and whispers the close to the participants. A reset abandons
+         * an incident instead (`conclude: false`): none of that, the close itself kept (the hook,
+         * the state wiped). Two incidents at Stage 6, each closed as the reset closes it: a
+         * suicide, and a stab with a knife written down as swung and a Finishing blow. Then the
+         * control: the same suicide closed as the GM closes it, which kills, registers and posts
+         * - the positive control for each reading above it. Not read here:
+         * the ties a close sends to copied bullets (`publishTiesFor`; no copy in the fixture).
+         * At the reset itself the cut, written first, takes the cast before this close reads it
+         * (scenario 65 R4); this holds the close to the same answer without the cut.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { isBroken } = await import("./inventory.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player).filter(a => !S.blackenedStore.has(a.id));
+        must(victim, "no two living students with players and no register row");
+        must(!M.murderState(), "an incident is running");
+        const chapter = getClock()?.chapter ?? null;
+        const caseRow = () => S.keyPlanStore.get(`${chapter}:case`) ?? null;
+        const caseBefore = caseRow();
+        /* What a close posts is counted, not read: the close card is veiled and its words go to the
+           participants alone - the GM's browser holds a stub (measured 10.10.2026 by a probe: a suicide's
+           close posted three cards, the death, the tie and the close, and the GM held the words of the
+           first two only). An abandon posts nothing; the control's close posts its cards. */
+        const read = async close => {
+            let closes = 0;
+            const ids = [];
+            const made = Hooks.on("createChatMessage", msg => { ids.push(msg.id); });
+            const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+            try {
+                await close();
+                await settle();
+            } finally {
+                Hooks.off("createChatMessage", made);
+                Hooks.off("drpgIncidentClosed", closed);
+            }
+            return { cards: ids.length, closes, state: M.murderState() };
+        };
+        const suicideAtStageSix = async () => {
+            await M.openMurder({ killerId: killer.id, victimId: killer.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.murderState()?.selfInflicted === true,
+                `the fixture's suicide at Stage 6 did not come: ${stableJson(M.murderState())}`);
+        };
+        const abandon = () => M.endMurder({ reason: "seasonReset", followUp: false, conclude: false });
+        // Between the three, what a close may have written is put back, so each starts where the first did.
+        const putBack = async () => {
+            for (const actor of [killer, victim]) {
+                if (isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });
+            }
+            if (S.blackenedStore.has(killer.id)) await S.blackenedStore.drop(killer.id);
+        };
+        let knife = null, readings = null;
+        try {
+            await suicideAtStageSix();
+            const suicide = await read(abandon);
+            const suicideAfter = [isDeadForGm(killer), S.blackenedStore.has(killer.id)];
+            await putBack();
+
+            knife = await inHand(killer, "crimeTool", "SUITE E11 C9 a knife swung in an incident a reset abandons");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "weaponAttack");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: knife.id });
+            if (M.murderState()?.stage === "incident") {
+                await turnFor(M, killer, "finishingBlow");
+                await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            }
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.swungWeaponOf(killer)?.id === knife.id && !isBroken(knife),
+                `the fixture's stab at Stage 6, the knife written down as swung and whole, did not come: ${stableJson(M.murderState())}`);
+            const stab = await read(abandon);
+            const stabAfter = [isBroken(knife), S.blackenedStore.has(killer.id), stableJson(caseRow()) === stableJson(caseBefore)];
+            await putBack();
+
+            await suicideAtStageSix();
+            const control = await read(() => M.endMurder({ reason: "closed", followUp: false }));
+            const controlAfter = [isDeadForGm(killer), S.blackenedStore.has(killer.id)];
+            readings = { suicide: [suicide.closes, suicide.cards, suicide.state, ...suicideAfter],
+                stab: [stab.closes, stab.cards, stab.state, ...stabAfter],
+                control: [control.closes, control.cards > 0, ...controlAfter] };
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await putBack();
+            if (stableJson(caseRow()) !== stableJson(caseBefore)) {
+                if (caseBefore) await S.keyPlanStore.patch(`${chapter}:case`, caseBefore);
+                else await S.keyPlanStore.drop(`${chapter}:case`);
+            }
+            try { await knife?.delete(); } catch { /* already gone */ }
+        }
+        equal(stableJson(readings), stableJson({
+            suicide: [1, 0, null, false, false],
+            stab: [1, 0, null, false, false, true],
+            control: [1, true, true, true]
+        }), "an abandoned incident was concluded, or the control's close was not (suicide: closes, cards posted, state, "
+            + "victim dead, register row; stab: closes, cards posted, state, knife broken, register row, case keys as before; "
+            + "control: closes, cards posted, victim dead, register row)");
+    }],
+
     ["gloves put away before the discovery break at the discovery", async () => {
         /*
          * E32+E07 C12, 02.10.2026; audit S05-38, the owner's D13. The discovery broke the Cleaning
@@ -43572,7 +43678,7 @@ const SCENARIOS = [
         try {
             equal(stableJson([asked, result?.cleared ?? null, after.season, Number.isFinite(at) && after.seasonStartedAt === at,
                 stableJson(after.resetCuts), after.finalTrial, after.chapter, Object.keys(keyPlanStore.entries()).filter(key => key.endsWith(":case"))]),
-            stableJson([1, ["the clock"], (before.season ?? 1) + 1, true, stableJson({ ...(before.resetCuts ?? {}), clock: at }), false, 1, []]),
+            stableJson([1, ["clock"], (before.season ?? 1) + 1, true, stableJson({ ...(before.resetCuts ?? {}), clock: at }), false, 1, []]),
             "the reset did not count the season, lost the cut's stamp as the season's epoch or an earlier cut, left the Final Trial's flag up, "
             + "or kept a closed case's Key count (read: windows, cleared, season, epoch = the cut, the cuts, the flag, the chapter, case rows)");
         } finally {

@@ -3647,15 +3647,19 @@
         "many": "{n} kart napisanych przez ten moduł i każdy wątek komunikatora",
         "other": "{n} kart napisanych przez ten moduł i każdy wątek komunikatora"
       },
-      "resetNotes": {
-        "one": "{n} notatka: przed sesją i na arkuszach",
-        "few": "{n} notatki: przed sesją i na arkuszach",
-        "many": "{n} notatek: przed sesją i na arkuszach",
-        "other": "{n} notatek: przed sesją i na arkuszach"
+      "resetPreNotes": {
+        "one": "{n} notatka przed sesją napisana przez GM-a",
+        "few": "{n} notatki przed sesją napisane przez GM-ów",
+        "many": "{n} notatek przed sesją napisanych przez GM-ów",
+        "other": "{n} notatek przed sesją napisanych przez GM-ów"
+      },
+      "resetSheetNotes": {
+        "one": "{n} arkusz z zapisanymi notatkami",
+        "few": "{n} arkusze z zapisanymi notatkami",
+        "many": "{n} arkuszy z zapisanymi notatkami",
+        "other": "{n} arkuszy z zapisanymi notatkami"
       },
       "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
-      "resetDoors": "każde drzwi do stanu z otwarcia sezonu",
-      "resetState": "incydent, Mastermind, kolejka Class Trial, Search Tokens, każdy obowiązujący Despair Call, zasady killing game, zwołane zgromadzenie, a zegar z powrotem na rozdział 1, dzień 1, rano",
       "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
       "resetWord": "RESET",
@@ -3695,6 +3699,13 @@
         "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
+      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
+      "reportCard": {
+        "title": "Reset sezonu się nie dokończył",
+        "failed": "Niewyczyszczone: {groups}.",
+        "done": "Wyczyszczone: {groups}.",
+        "kept": "Zostawione, bo odznaczone: {groups}."
+      },
       "section": {
         "case": "Sprawa",
         "cast": "Obsada",
@@ -3705,7 +3716,7 @@
       "group": {
         "remnants": "Remnants na mapach i to, czym każdy z nich naprawdę był",
         "bullets": "Truth Bullets w pakietach obsady",
-        "incident": "Incydent, Blackened i każde morderstwo zgłoszone w ciemności",
+        "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
         "keyPlan": "Plan Key Remnants",

@@ -2527,19 +2527,57 @@ const REGRESSIONS = [
             .map(m => ({ key: m[1], section: m[2] }));
         ok(groups.length >= 20, `only ${groups.length} reset groups - the table lost rows`);
 
+        /*
+         * THE ORDER IS DATA (E11 C9, 10.10.2026; audit S06-15, S06-58). Until C9 the steps were
+         * read out of the wipe's source by two regexes, and the order was nobody's: `deaths`
+         * ran before `incident`, so the close that ran last could write about a crime into the
+         * season that had just been cleared. `RESET_STEPS` is the order now, read as the value
+         * it is - every group once, the incident first, the clock last, the Calls before the
+         * clock and the chat after every step that could post a card.
+         */
         const setup = stripComments(sources.get("season-setup.mjs") ?? "");
         const wipe = bodyOf(setup, "async function wipeSeason");
-        const named = new Set([
-            ...[...wipe.matchAll(/await step\("(\w+)"/g)].map(m => m[1]),
-            ...[...wipe.matchAll(/\["(\w+)", "[^"]+", SETTINGS\./g)].map(m => m[1])
-        ]);
-
+        const { RESET_STEPS } = await import("./season-setup.mjs");
+        ok(Array.isArray(RESET_STEPS), "season-setup.mjs does not export the reset's order as RESET_STEPS");
+        const steps = RESET_STEPS ?? [];
+        equal(new Set(steps).size, steps.length, "a group runs twice in RESET_STEPS");
         for (const { key } of groups) {
-            ok(named.has(key), `the reset has no step for the group "${key}", so its tick does nothing`);
+            ok(steps.includes(key), `the reset has no step for the group "${key}", so its tick does nothing`);
         }
-        for (const key of named) {
+        for (const key of steps) {
             ok(groups.some(group => group.key === key),
                 `the reset clears "${key}" and no group offers it, so it cannot be excepted`);
+        }
+        equal(steps[0], "incident", "the reset clears something before it abandons the incident, which could write about it");
+        equal(steps.at(-1), "clock", "the clock is not the reset's last step, so a later one runs on last season's clock");
+        const at = key => steps.indexOf(key);
+        for (const key of steps.filter(key => !["cards", "chatRest", "clock"].includes(key))) {
+            ok(at(key) < at("cards") && at(key) < at("chatRest"),
+                `the chat is cleared before "${key}", so a card that step posts outlives the reset`);
+        }
+
+        /*
+         * Each key's run is a member of `runs` in wipeSeason, and that half is still read from
+         * the source: the runs close over the plan and this browser's stores, so they are not
+         * a value a test can import without running a reset. A key with no run throws at its
+         * step and is reported as failed; this says so before a GM ever meets it.
+         */
+        const runs = bodyOf(wipe, "const runs = {", { until: "\n    };" });
+        const ran = new Set([...runs.matchAll(/^ {8}(\w+): /gm)].map(m => m[1]));
+        ok(ran.size >= 20, `only ${ran.size} runs read in wipeSeason - the source was not read`);
+        for (const key of steps) ok(ran.has(key), `the group "${key}" is in RESET_STEPS and wipeSeason has no run for it`);
+        for (const key of ran) ok(steps.includes(key), `wipeSeason has a run for "${key}" that no step asks for`);
+        ok(/for \(const key of RESET_STEPS\) await step\(key\)/.test(wipe),
+            "wipeSeason does not walk RESET_STEPS in order");
+        /* And the incident's run abandons it (S06-15): read in the source too, because no world can show it -
+           the cut, written first, takes the cast before the close reads it (65 R4's note), so a reset that
+           concluded the incident would kill and register nobody in any scenario. Tier 2 "a reset abandons an
+           incident: ..." holds what `conclude: false` does; this holds that the reset passes it. */
+        ok(/endMurder\(\{[^}]*\bconclude: false\b[^}]*\}\)/.test(bodyOf(runs, "incident:", { until: "seals:" })),
+            "the reset's incident step concludes the incident it should abandon (endMurder without conclude: false)");
+        // A step that fails is told (S06-49's report, the plan's 3.4): the line and the card.
+        for (const key of ["DRPG.Season.failed", "DRPG.Season.reportCard.title", "DRPG.Season.reportCard.failed"]) {
+            ok(game.i18n.has(key), `${key} is missing`);
         }
 
         // Every row says something in both languages the window speaks: its own
@@ -5953,7 +5991,8 @@ const REGRESSIONS = [
          * run one body, `liftIntoCast`) write the key; and every field a write in
          * murder-rules.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
-         * The season reset writes `{}` through its table (season-setup.mjs). The reader is
+         * The season reset writes `{}` (season-setup.mjs: through a table until E11 C9, from its
+         * `incident` run's second part since; an empty write has no field to split). The reader is
          * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
          * `active` and `stage`: the fight's twelve fields are the cast's (`INCIDENT_FIGHT`),
          * so a write naming one still lands on a side - the cast's - and this reads the same.
@@ -5980,7 +6019,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast", "season-setup.mjs wipeSeason"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {

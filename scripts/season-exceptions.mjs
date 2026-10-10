@@ -12,8 +12,9 @@
  *
  * ONE ROW PER STEP, and that is the invariant a test holds: a step nobody named
  * here would be ungated, and the GM's tick would silently not apply to it. The
- * order is the order the wipe runs in, so the window reads like what is about to
- * happen rather than like a settings page.
+ * order here is the window's, by section; the order the wipe runs in is
+ * season-setup.mjs `RESET_STEPS` since E11 C9 (the incident first), and R50 holds the
+ * two lists to the same keys.
  *
  * THE EXCEPTIONS ARE REMEMBERED, AND THEY COME BACK UNTICKED (Dawid, 18.09:
  * "Okno resetu ma pamietac wyjatki, ale pozwalac je odznaczyc. Domyslnie
@@ -28,9 +29,9 @@ import { SETTINGS } from "./settings.mjs";
 import { debug } from "./utils.mjs";
 
 /**
- * The five parts of a season, in the order the wipe clears them.
+ * The five parts of a season, in the order the window shows them.
  *
- * Sections are for the window only - a list of twenty-six ticks with no headings
+ * Sections are for the window only - a list of twenty-nine ticks with no headings
  * is a list nobody reads to the end.
  */
 export const RESET_SECTIONS = ["case", "cast", "board", "log", "world"];

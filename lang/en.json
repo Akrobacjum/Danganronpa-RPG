@@ -3483,13 +3483,15 @@
         "one": "{n} card this module wrote, and every messenger thread",
         "other": "{n} cards this module wrote, and every messenger thread"
       },
-      "resetNotes": {
-        "one": "{n} note: before the session, and on the sheets",
-        "other": "{n} notes: before the session, and on the sheets"
+      "resetPreNotes": {
+        "one": "{n} pre-session note a GM wrote",
+        "other": "{n} pre-session notes the GMs wrote"
+      },
+      "resetSheetNotes": {
+        "one": "{n} sheet with notes written on it",
+        "other": "{n} sheets with notes written on them"
       },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
-      "resetDoors": "every door back to how the season opened",
-      "resetState": "the incident, the Mastermind, the trial queue, the search tokens, every Despair Call still in force, and the clock back to Chapter 1, Day 1, Morning",
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
       "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
@@ -3506,6 +3508,13 @@
         "one": "The season has been reset, with 1 exception left as it was.",
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
+      "failed": "The reset did not finish: {groups}. Everything else went. Run the reset again with only those ticked.",
+      "reportCard": {
+        "title": "The season reset did not finish",
+        "failed": "Not cleared: {groups}.",
+        "done": "Cleared: {groups}.",
+        "kept": "Kept, as unticked: {groups}."
+      },
       "section": {
         "case": "The case",
         "cast": "The cast",
@@ -3516,7 +3525,7 @@
       "group": {
         "remnants": "Remnants on the maps, and what each one really was",
         "bullets": "Truth Bullets in the cast's packs",
-        "incident": "The incident, the Blackened and any murder declared in the dark",
+        "incident": "The incident, the Blackened, a betrayal still on offer and any murder declared in the dark",
         "trialFloor": "The trial floor",
         "trialProgress": "The trial's progress and its vote",
         "keyPlan": "The Key Remnant plan",
