@@ -2690,6 +2690,7 @@
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
+        "floor.now": "Następny krok debaty od razu, wykonywany przez głównego GM-a",
         "vote.run": "Krok głosowania, wykonywany przez głównego GM-a",
         "vote.cast": "Oddanie głosu",
         "vote.ask": "Twoja karta do głosowania"
@@ -3037,6 +3038,7 @@
       "takeBack": "Cofnij ofertę: {kind}",
       "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
       "takeBackBusy": "Level Up postaci {name} jest właśnie zapisywany, więc jego oferty nie można cofnąć. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
+      "takeBackTaking": "Inne cofnięcie oferty postaci {name} jest właśnie zapisywane, więc tego nie można teraz zrobić. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
       "offerStillStands": "Level Up postaci {name} jest zapisany, ale oferty, którą wykorzystał, nie udało się wycofać i wciąż stoi: cofnij ją w menu Level Up na arkuszu.",
       "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
       "standing": {

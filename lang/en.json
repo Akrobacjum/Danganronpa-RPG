@@ -2590,6 +2590,7 @@
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
+        "floor.now": "The floor's next step now, run on the primary GM",
         "vote.run": "A step of the vote, run on the primary GM",
         "vote.cast": "Cast your vote",
         "vote.ask": "Your ballot"
@@ -2919,6 +2920,7 @@
       "takeBack": "Take back the offer: {kind}",
       "takenBack": "The offer to {name} is taken back: {kind}. The button on their sheet goes out.",
       "takeBackBusy": "The Level Up of {name} is being written right now, so its offer cannot be taken back. Open the Level Up menu again in a moment: an offer that still stands can be taken back then.",
+      "takeBackTaking": "Another take-back of an offer of {name}'s is being written right now, so this one cannot be made. Open the Level Up menu again in a moment: an offer that still stands can be taken back then.",
       "offerStillStands": "The Level Up of {name} is written, but the offer it spent could not be withdrawn and still stands: take it back from the Level Up menu on the sheet.",
       "nobodyPlays": "Nobody plays {name} - pick for them instead.",
       "standing": {

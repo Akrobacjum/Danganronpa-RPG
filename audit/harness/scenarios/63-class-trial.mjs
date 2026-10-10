@@ -6,7 +6,7 @@
  * of a vote, the verdict's window, a second trial in a chapter, or the Level Ups a correct verdict
  * hands out. This one does, on the seed's GM and three players and three late accounts declared as
  * 61 declares them: `gm2`, a second GM, `p4`, a player given Daichi before it connects, and `gm3`, a
- * third GM (phase W).
+ * third GM (phases W and X).
  *
  * Every check below is a reading of the code at 1e9871c, written as what happens today; where an
  * E10 commit changes the answer the check's text names it ("C1 flips it"), and that commit
@@ -83,6 +83,9 @@
  *      primary, is connected when gm2 opens a vote and reads its copy of the ballots as not flagged; gm3
  *      loaded again while that vote is open, with no ballot in, reads "none" - it cannot tell where the
  *      ballots are (`ballotCopyStatus`, the round noted at load).
+ *   X  (run after W; fix r2-G6) gm3, a GM that is not the primary, presses Now while gm2's heartbeat writes the
+ *      rebuttal, again with a second left so that gm2's heartbeat passes zero while gm3's Now is on its way, and
+ *      once with half a minute left: the rebuttal is written once in each, on gm2 (`floor.now`).
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -124,6 +127,8 @@
  * E10 fix r2-G4 added V1 and V2 on the side line (from 7ff93ec's 51), gm3 joining twice: 53 checks in 32.0 s (one run,
  * beside a checkpoint's harness run in another lane, 10.10.2026). The merge of the two lines renamed them W1 and W2,
  * after the main line's V: 54 checks in 32.1 s (one run, the merge's fast set beside two other lanes, 10.10.2026).
+ * E10 fix r2-G6 added X1 on the main line (from 616d1e2's 54), gm3 joining a third time: 55 checks in 48.8 s (one run,
+ * its fast set beside two other lanes, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -823,6 +828,90 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("gm3 loaded again while that vote is open, with no ballot in, reads \"none\": it cannot tell where the ballots are (fix r2-G4)",
         loaded.open === true && loaded.primary === false && loaded.votesIn === 0 && loaded.copy === "none" && gm3Errors.length === 0,
         J({ loaded, gm3Errors }));
+    await disconnect("gm3");
+
+    /* ------------------------------ X. the GM's Now on a GM that is not the primary ------------------------------ */
+
+    /* E10 fix r2-G6 (1.2.71; r2-G5's open road), run after W. The primary's heartbeat writes the floor's transitions
+       under one latch (trial-floor.mjs `advancing`), which is one browser's: gm3, a GM that is not the primary,
+       pressing Now (`advanceFloorNow`) wrote the same move beside the heartbeat's, and each write restarts the
+       rebuttal's two minutes. Every write of a rebuttal is held for 2.5 s and counted on gm2 and on gm3, as tier 2
+       "the GM's Now during the heartbeat's write opens one rebuttal" holds them on one GM. Three orders: an objection
+       already run out, gm2's heartbeat writing and gm3's Now pressed inside it; then an objection with a second left,
+       gm3's Now pressed and gm2's heartbeat left to tick past zero inside it; and one with half a minute left, which
+       only Now moves on. Read per order: the rebuttal writes asked on gm2 and on gm3, and whether gm3 then reads the
+       rebuttal (within 10 s; the heartbeat alone would take 30). Red at 616d1e2 (10.10.2026): one write on each GM in
+       the first two orders - the rebuttal written twice - and in the third the one write on gm3. */
+    begin("X", "the GM's Now on a GM that is not the primary, while the primary writes the same move");
+    await connect("gm3");
+    await settle(1000);
+    const F = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const holdOn = c => c.eval(`${F} const settings = game.settings;
+        globalThis.__floorHold = { asked: 0, holding: 0, own: Object.hasOwn(settings, "set"), real: settings.set };
+        const real = settings.set;
+        settings.set = async function (namespace, key, value, ...rest) {
+            if (namespace === "${MOD}" && key === "trialQueue" && value?.mode === F.FLOOR_MODES.rebuttal) {
+                globalThis.__floorHold.asked++;
+                globalThis.__floorHold.holding++;
+                try {
+                    await new Promise(r => setTimeout(r, 2500));
+                    return await real.call(this, namespace, key, value, ...rest);
+                } finally {
+                    globalThis.__floorHold.holding--;
+                }
+            }
+            return real.call(this, namespace, key, value, ...rest);
+        };
+        return true;`);
+    const objection = back => gm2.eval(`${F} const [a, b] = game.actors.filter(x => x.type === "character");
+        await game.settings.set("${MOD}", "trialQueue", { active: true, mode: F.FLOOR_MODES.objection, holderId: a.id, targetId: b.id,
+            seconds: 180, startedAt: U.serverNow() - ${back} });
+        F.renderTrialFloor();
+        return F.trialFloor()?.mode ?? null;`);
+    const quiet = c => c.eval(`${until} return await until(() => globalThis.__floorHold.holding === 0, 15000);`, { timeout: 30000 });
+    const countOf = c => c.eval(`const n = globalThis.__floorHold.asked; globalThis.__floorHold.asked = 0; return n;`);
+    const floorOnGm3 = () => gm3.eval(`${until} ${F} return await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.rebuttal, 10000);`, { timeout: 30000 });
+    const nowOrders = {};
+    try {
+        await holdOn(gm2);
+        await holdOn(gm3);
+        // gm2's heartbeat writes first, gm3's Now pressed inside it.
+        const opened = await objection(90_000);
+        const started = await gm2.eval(`${until} return await until(() => globalThis.__floorHold.holding > 0, 8000);`, { timeout: 30000 });
+        await gm3.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+        await quiet(gm2);
+        await quiet(gm3);
+        nowOrders.tick = [opened, started, await countOf(gm2), await countOf(gm3), await floorOnGm3()];
+        await gm2.eval(`${F} await F.endFloor(); return true;`);
+        await settle(500);
+        // gm3's Now first, gm2's heartbeat ticking past zero inside it: the objection's minute has a second left.
+        const reopened = await objection(59_000);
+        await gm3.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+        await settle(1500);
+        await quiet(gm2);
+        await quiet(gm3);
+        nowOrders.now = [reopened, await countOf(gm2), await countOf(gm3), await floorOnGm3()];
+        await gm2.eval(`${F} await F.endFloor(); return true;`);
+        await settle(500);
+        // Half a minute left: only Now moves it on.
+        const early = await objection(30_000);
+        await gm3.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+        const movedEarly = await floorOnGm3();
+        await quiet(gm2);
+        await quiet(gm3);
+        nowOrders.early = [early, await countOf(gm2), await countOf(gm3), movedEarly];
+    } finally {
+        for (const c of [gm2, gm3]) {
+            await c.eval(`const h = globalThis.__floorHold; if (h) { if (h.own) game.settings.set = h.real; else delete game.settings.set; }
+                return true;`);
+        }
+        await gm2.eval(`${F} await F.endFloor(); return true;`);
+        await settle(500);
+    }
+    const gm3FloorErrors = await gm3.eval(`return globalThis.__errors.slice(0, 3).map(e => String(e?.message ?? e).slice(0, 200));`);
+    verdict("gm3's Now while gm2's heartbeat writes the rebuttal, gm2's heartbeat while gm3's Now writes it, and gm3's Now alone write it once, on gm2 (fix r2-G6)",
+        J(nowOrders) === J({ tick: ["objection", true, 1, 0, true], now: ["objection", 1, 0, true], early: ["objection", 1, 0, true] }) && gm3FloorErrors.length === 0,
+        J({ nowOrders, gm3FloorErrors }));
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

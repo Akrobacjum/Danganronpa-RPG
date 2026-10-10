@@ -1437,6 +1437,15 @@ export async function applyVerdict({
 } = {}) {
     if (!game.user.isGM) return null;
 
+    /* NOR BY THE API (E10 fix r2-G6, 1.2.71). r2-G5 sent `openVerdictDialog` to the Final Trial's window,
+       and `game.drpg.applyVerdict` - this function, which a macro calls with the verdict already decided -
+       still gave the ordinary verdict in a Final Trial: its lock written and the class's Level Up window
+       opened, with the Final Trial's flag left up (tier 2 "the verdict's own API in a Final Trial opens the
+       Final Trial's window", red at 616d1e2). It opens the Final Trial's window instead, Cancel the default, and the
+       arguments are not read: that verdict asks its own questions. R340 reads that this comes first. */
+    const { inFinalTrial, openFinalVerdictDialog } = await import("./mastermind.mjs");
+    if (inFinalTrial()) return openFinalVerdictDialog();
+
     // MARKED BEFORE ANYTHING IS ASKED (17.09, review of F2). The record used to be written
     // at the very end, after every Level Up window and the Blackened's rule had closed -
     // minutes in which the console, another GM or the API could start a second verdict.

@@ -84,8 +84,9 @@ export const FLOWS = Object.freeze([
     // `keys.charge` not once, because the GM who presses them there is the primary and runs them locally. The offer
     // over the bridge is 33's (an Assistant GM's), the charge 62 P's (gm2 opens the trial; 62 tags it through its
     // `begin` helper, so it is not listed here). No scenario sends `vote.run` from a second GM: partial until E40.
+    // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
-        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask"],
+        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",

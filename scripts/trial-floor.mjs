@@ -52,6 +52,7 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, error, serverNow } from "./utils.mjs";
+import { bridgeRequest } from "./bridge-guards.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -485,14 +486,27 @@ export async function endFloor() {
  * nothing here to bring forward and this says so by doing nothing.
  */
 export async function advanceFloorNow() {
+    /* ON THE PRIMARY GM (E10 fix r2-G6, 1.2.71; r2-G5's open road). The latch below is one browser's, and
+       the GM's Now wrote its transition on whichever GM pressed it: Now on a GM that is not the primary,
+       while the primary's heartbeat wrote the same move, wrote it a second time and restarted the
+       rebuttal's two minutes. It is asked of the primary now (`floor.now`, as `vote.run` is), which runs
+       it under the latch its heartbeat takes; on the primary it runs here. Measured in scenario 63 X at 616d1e2,
+       gm3 pressing Now: while gm2's heartbeat wrote the rebuttal, and with gm2's heartbeat passing zero while it
+       was on its way, the rebuttal was written twice, once on each GM; alone, once, on gm3. */
+    if (!game.user.isGM) return null;
+    const res = await bridgeRequest("floor.now", {}, { settle: "reply", onPrimary: true, local: () => advanceFloorOnPrimary() });
+    return res.ok ? (res.value ?? null) : null;
+}
+
+/** The GM's Now on the primary GM, for itself or asked by another GM (gm-bridge.mjs `floor.now`): the floor written, or null. */
+export async function advanceFloorOnPrimary() {
     /* UNDER THE TICK'S LATCH (E10 fix r2-G5, 1.2.71; round 2's cor m4, goal S06-38's residual). The GM's
        Now wrote its transition outside `advancing`, so Now pressed while the heartbeat's write was on its
        way read the floor still expired and wrote the rebuttal again, and a tick during Now's own write did
        the same: each write restarts the rebuttal's two minutes. A press while a write is on its way does
        nothing - that write is the move Now asks for. Measured in tier 2 "the GM's Now during the
-       heartbeat's write opens one rebuttal" (red at c494855). The latch is this browser's: Now pressed on
-       a GM who is not the primary while the primary's write is on its way is not held by it (read in the
-       code, not measured). */
+       heartbeat's write opens one rebuttal" (red at c494855). The latch is this browser's, which is why
+       another GM's Now is asked of this one (above). */
     if (!game.user.isGM || advancing) return null;
     const floor = trialFloor();
     if (!floor) return null;
@@ -505,7 +519,7 @@ export async function advanceFloorNow() {
     }
 }
 
-/** `advanceFloorNow`'s write, held under `advancing`. */
+/** `advanceFloorOnPrimary`'s write, held under `advancing`. */
 async function advanceFrom(floor) {
     if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
     /*
@@ -553,7 +567,7 @@ let advancing = false;
  * is set before the write and cleared in `finally`, so a write that throws does
  * not stop the clock for good. Still the primary's alone: a transition waits for
  * the primary, and no other client writes one (the plan's amend of 05.10.2026).
- * The GM's Now takes the same latch (`advanceFloorNow`, E10 fix r2-G5).
+ * The GM's Now takes the same latch (`advanceFloorOnPrimary`, E10 fix r2-G5), on the primary (r2-G6).
  */
 
 async function advanceIfDue() {

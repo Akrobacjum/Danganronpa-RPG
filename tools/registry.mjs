@@ -3,6 +3,7 @@
  * ---------------------------------------------------------------------------
  *     node tools/registry.mjs            check; one line per problem, exit 1 on any
  *     node tools/registry.mjs --write    regenerate CLAUDE.md's R-number block, then check
+ *     node tools/registry.mjs --write --stage E10   the same, a new number stamped with the stage named
  *     node tools/check.mjs registry      the same check, as one part of the repository's checks
  *
  * WHY. A scenario number and an R number are how a comment, a commit and an
@@ -107,9 +108,9 @@ export function readRBlock(claude) {
 }
 
 /* The version or stage a number first shipped in: the first v1.2.x tag at or after
-   1.2.50 whose suite carries it (1.2.50 is the squash, so "<=1.2.50"), else the first
-   stage in tools/stages.json that has not shipped - the one being worked on. */
-function sinceOf(repo, numbers) {
+   1.2.50 whose suite carries it (1.2.50 is the squash, so "<=1.2.50"), else `current`,
+   the stage being worked on (`workingStage`). */
+function sinceOf(repo, numbers, current) {
     const out = new Map();
     let tags = [];
     try {
@@ -130,31 +131,46 @@ function sinceOf(repo, numbers) {
             if (numbers.has(m[1]) && !out.has(m[1])) out.set(m[1], version === "1.2.50" ? "<=1.2.50" : version);
         }
     }
-    const doc = stagesLib.loadStages(repo), mod = stagesLib.moduleVersion(repo);
-    const current = doc.stages.find(s => !stagesLib.isShipped(s, mod))?.id ?? "?";
     for (const r of numbers) if (!out.has(r)) out.set(r, current);
     return out;
 }
 
-/** The block's text, generated from the tier files, keeping what is not generated. */
-export function renderRBlock(repo, existing) {
+/*
+ * THE STAGE BEING WORKED ON (E10 fix r2-G6, 10.10.2026). A new number's Since and a removed test's
+ * "(removed in ...)" named the first stage in tools/stages.json that has not shipped. E09 and E10 ship
+ * as one release (E10's `with`), so E09 stayed that stage through the whole of E10, and --write stamped
+ * every number E10 wrote (R311-R321, R340) E09; each was set to E10 by hand. stages.json cannot say which
+ * of a pair is being worked on, so `--stage <id>` names it - a stage it knows that has not shipped - and
+ * without it the first one is taken as before, and --write says which stages ship with it.
+ */
+export function workingStage(repo, asked = null) {
+    const doc = stagesLib.loadStages(repo), mod = stagesLib.moduleVersion(repo);
+    const open = doc.stages.filter(s => !stagesLib.isShipped(s, mod));
+    if (asked) {
+        if (!open.some(s => s.id === asked)) return { error: `--stage ${asked}: tools/stages.json has no stage of that name that has not shipped` };
+        return { id: asked, partners: [] };
+    }
+    const first = open[0]?.id ?? "?";
+    return { id: first, partners: open.filter(s => s.with === first).map(s => s.id) };
+}
+
+/** The block's text, generated from the tier files, keeping what is not generated; `stage` stamps what is new. */
+export function renderRBlock(repo, existing, stage = workingStage(repo).id) {
     const tests = tierTests(repo).filter(t => t.r && t.tier < 2);
     const rows = new Map();
     /* A reserved row is a placeholder: the test that takes its number is new. */
     const keptRow = r => { const row = existing?.rows.get(r); return row && !/^reserved: /.test(row.title) && row.since !== "-" ? row : null; };
     const fresh = new Set(tests.map(t => t.r).filter(r => !keptRow(r)));
-    const since = fresh.size ? sinceOf(repo, fresh) : new Map();
+    const since = fresh.size ? sinceOf(repo, fresh, stage) : new Map();
     for (const t of tests) {
         const kept = keptRow(t.r);
         rows.set(t.r, { r: t.r, tier: String(t.tier), since: kept?.since ?? since.get(t.r),
             title: t.r === "R151" ? `${t.title} (R21 until 1.2.61)` : t.title });
     }
     /* A test that went keeps its row, marked with the stage that removed it. */
-    const doc = stagesLib.loadStages(repo), mod = stagesLib.moduleVersion(repo);
-    const current = doc.stages.find(s => !stagesLib.isShipped(s, mod))?.id ?? "?";
     for (const [r, row] of existing?.rows ?? []) {
         if (rows.has(r) || /^reserved: /.test(row.title)) continue;
-        rows.set(r, { ...row, title: /\(removed in [^)]+\)$/.test(row.title) ? row.title : `${row.title} (removed in ${current})` });
+        rows.set(r, { ...row, title: /\(removed in [^)]+\)$/.test(row.title) ? row.title : `${row.title} (removed in ${stage})` });
     }
     for (const [n, owner] of Object.entries(RESERVED)) {
         if (![...rows.keys()].some(r => rKey(r) === Number(n) * 100)) rows.set(`R${n}`, { r: `R${n}`, tier: "-", since: "-", title: `reserved: ${owner}` });
@@ -491,9 +507,19 @@ export async function registryProblems(repo = REPO_DEFAULT) {
 async function main(argv) {
     const repo = REPO_DEFAULT;
     if (argv.includes("--write")) {
+        const at = argv.indexOf("--stage");
+        const stage = workingStage(repo, at >= 0 ? (argv[at + 1] ?? "") : null);
+        if (stage.error) {
+            console.log(`registry: ${stage.error}`);
+            return 1;
+        }
+        if (stage.partners.length) {
+            console.log(`registry: a new number is stamped ${stage.id}, the first stage that has not shipped; ${stage.partners.join(", ")} `
+                + `${stage.partners.length === 1 ? "ships" : "ship"} with it - name the stage being worked on with --stage`);
+        }
         const claude = read(repo, "CLAUDE.md");
         const existing = readRBlock(claude);
-        const text = renderRBlock(repo, existing);
+        const text = renderRBlock(repo, existing, stage.id);
         const next = existing
             ? claude.slice(0, existing.block.a) + text + claude.slice(existing.block.b)
             : `${claude.replace(/\n*$/, "")}\n\n## Registry: R numbers\n\nGenerated by \`node tools/registry.mjs --write\` from the tier files; see "Numbering new tests".\n\n${text}\n`;

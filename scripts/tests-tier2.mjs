@@ -19874,6 +19874,78 @@ const SCENARIOS = [
             + "row; the apply's refusals)");
     }],
 
+    ["a second take-back of one character while the first is written is told as a take-back", async () => {
+        /*
+         * E10 fix r2-G6, 1.2.71; r2-G4's open line. A take-back holds the character's latch from its check to its
+         * drop (r2-G4), and a second take-back of the same character in that time - a double press, or two offers
+         * taken one after the other while the store waits - was refused on the primary's own menu with the words of
+         * a Level Up being written, which names what is not happening. On each road of the first take - the
+         * primary's own menu (`takeBackOffer`), then another GM's packet (`advancement.offer` op "take") - two offers
+         * are given to one student, the first take is left in the offers store's wait (stood in for, as the test
+         * above stands in for it), and the second offer is taken on the primary's menu, then by another GM's packet.
+         * Read per road: the second take's answer, whether this GM was warned in the take's own words and in the
+         * Level Up's, the packet's refusals (told as "busy", whose sentence names neither), then - the wait let go -
+         * the first take's answer and the offers left. Red at 616d1e2 (10.10.2026): on both roads warned in the
+         * Level Up's words.
+         */
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const [student] = cast(1);
+        must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
+            `${student.name} holds an offer or a waiting Level Up already - this would read it, not the ones made here`);
+        const offersOf = () => L.offerList(S.offerStore.get(student.id));
+        const judged = async fields => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { requestId: `E10R2G6${foundry.utils.randomID(8)}`, actorId: student.id, ...fields }, game.user.id,
+                { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason ?? null); } });
+            return told;
+        };
+        const own = game.i18n.format("DRPG.Advance.takeBackTaking", { name: student.name });
+        const busy = game.i18n.format("DRPG.Advance.takeBackBusy", { name: student.name });
+        const notes = ui.notifications, warn = notes.warn;
+        const real = S.offerStore.whenHydrated;
+        let release = () => {};
+        const road = async takeFirst => {
+            for (let i = 0; i < 2; i++) await judged({ action: "advancement.offer", op: "add", kind: "standard" });
+            const [first, second] = offersOf();
+            must(first && second, "the two offers were not recorded - this would measure nothing");
+            const gate = new Promise(resolve => { release = resolve; });
+            S.offerStore.whenHydrated = () => gate;
+            const taking = takeFirst(first.id);
+            // Each road reaches the store's wait through cached imports and synchronous checks; 200 ms is room to spare.
+            await wait(200);
+            const warned = [];
+            notes.warn = (message, ...rest) => { warned.push(message); return warn.call(notes, message, ...rest); };
+            const again = await L.takeBackOffer(student, second.id);
+            const packet = await judged({ action: "advancement.offer", op: "take", offerId: second.id });
+            notes.warn = warn;
+            S.offerStore.whenHydrated = real;
+            release();
+            const taken = await taking;
+            await settle();
+            const out = [again, warned.includes(own), warned.includes(busy), packet, taken, offersOf().map(offer => offer.id === second.id)];
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            return out;
+        };
+        const read = [];
+        try {
+            read.push(await road(id => L.takeBackOffer(student, id)));
+            read.push(await road(id => judged({ action: "advancement.offer", op: "take", offerId: id })));
+        } finally {
+            notes.warn = warn;
+            S.offerStore.whenHydrated = real;
+            release();
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (S.deferredOfferStore.has(student.id)) await S.deferredOfferStore.drop(student.id);
+        }
+        equal(stableJson(read), stableJson([[false, true, false, ["busy"], true, [true]], [false, true, false, ["busy"], [], [true]]]),
+            "a second take-back while the first was written was taken, or told as a Level Up being written (per road of the first take, "
+            + "the primary's menu then another GM's packet: the second take's answer; warned in its own words, in the Level Up's; the "
+            + "packet's refusals; the first take's answer; the offers left)");
+    }],
+
     ["Enter in the class's Level Up window gives what its rows say", async () => {
         /*
          * E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b). The class's window (level-up.mjs
@@ -43210,6 +43282,49 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([["final"], true, false]),
             "in a Final Trial the verdict's API did not open the Final Trial's window, or it decided something "
             + "(read: the windows opened, the flag, verdictApplied)");
+    }],
+
+    ["the verdict's own API in a Final Trial opens the Final Trial's window", async () => {
+        /* E10 fix r2-G6, 10.10.2026; r2-G5's open road, the class of round 2's cor m2. `game.drpg.applyVerdict` is
+           the verdict already decided, as a macro hands it over - right, nobody executed - and in a Final Trial it gave
+           the ordinary verdict: the lock, the class's Level Ups and the card, none of which the guide gives a Final
+           Trial, with its flag left up. Set up as the test above, every window answered as Cancel answers it. Read: the
+           windows that opened (the Final Trial's, the ordinary verdict's, any other by its title), the flag, the
+           record's lock and whether the record is the Final Trial's. Red at 616d1e2 (10.10.2026): the class's Level
+           Up window opened and the lock was written, not as a Final Trial's. */
+        const [mastermind] = cast(1);
+        const M = await import("./mastermind.mjs");
+        const V = await import("./vote.mjs");
+        const { mastermindStore } = await import("./gm-stores.mjs");
+        const finalTitle = game.i18n.localize("DRPG.Mastermind.verdictTitle");
+        const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+        const flagBefore = M.inFinalTrial();
+        const opened = [];
+        D.wait = async cfg => {
+            const title = cfg?.window?.title ?? "";
+            opened.push(title === finalTitle ? "final" : title);
+            return null;
+        };
+        let reading = null;
+        try {
+            await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+            await M.setFinalTrial(true);
+            must(M.mastermindActor()?.id === mastermind.id && M.inFinalTrial(), "no Mastermind picked or no Final Trial announced - this would measure nothing");
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ voteClosed: true });
+                await game.drpg.applyVerdict({ correct: true, executedIds: [], blackenedIds: [] });
+                await settle();
+                const progress = V.trialProgress();
+                reading = [opened, M.inFinalTrial(), progress.verdictApplied, progress.verdict?.final ?? null];
+            });
+        } finally {
+            if (kept) Object.defineProperty(D, "wait", kept);
+            else delete D.wait;
+            await M.setFinalTrial(flagBefore);
+        }
+        equal(stableJson(reading), stableJson([["final"], true, false, null]),
+            "in a Final Trial the verdict's own API gave the ordinary verdict, or decided something without the Final Trial's window "
+            + "(read: the windows opened, the flag, verdictApplied, the record's final)");
     }],
 
     ["a reset counts the season and keeps the fog epoch", async () => {

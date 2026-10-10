@@ -345,6 +345,14 @@ async function withdrawOffer(actorId, offerId) {
  */
 export const advancing = new Set();
 
+/*
+ * Characters whose offer is being taken back on this browser, while `advancing` holds them too (E10 fix
+ * r2-G6, 1.2.71): a second take-back of one character in that time was refused with the words of a Level Up
+ * being written, which names what is not happening. Its own words now (`DRPG.Advance.takeBackTaking`);
+ * measured in tier 2 "a second take-back of one character while the first is written is told as a take-back".
+ */
+export const takingBack = new Set();
+
 /**
  * A GM takes one offer back (E10 C6; audit S03-17): the third choice of the sheet's Level Up
  * menu, one per standing offer. Its owner's button goes out with the set the primary sends.
@@ -379,15 +387,21 @@ export async function takeBackOffer(actor, offerId) {
     if (!game.user.isGM || !actor) return false;
     const offer = standingOffers(actor).find(standing => standing.id === offerId);
     if (!offer) return false;
+    if (takingBack.has(actor.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackTaking", { name: actor.name }));
+        return false;
+    }
     if (advancing.has(actor.id)) {
         ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackBusy", { name: actor.name }));
         return false;
     }
     advancing.add(actor.id);
+    takingBack.add(actor.id);
     try {
         if (!await withdrawOffer(actor.id, offerId)) return false;
     } finally {
         advancing.delete(actor.id);
+        takingBack.delete(actor.id);
     }
     if (offer.deferred) {
         const kind = TRIAL.wrong.blackenedLevelUp;

@@ -7943,6 +7943,14 @@ const REGRESSIONS = [
         equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
             "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
             + "(read: the route there, the record read after it, the window drawn after it)");
+        /* E10 fix r2-G6: `applyVerdict`, also `game.drpg.applyVerdict`, takes the same road before its lock is read or
+           written. Tier 2 drives it: "the verdict's own API in a Final Trial opens the Final Trial's window". */
+        const apply = fnSource(vote, "applyVerdict");
+        const applyRoute = apply.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
+        const lock = apply.search(/verdictRunning \|\| trialProgress\(\)\.verdictApplied/), written = apply.search(/setTrialProgress\(/);
+        equal(JSON.stringify([applyRoute >= 0, lock > applyRoute, written > applyRoute]), JSON.stringify([true, true, true]),
+            "applyVerdict does not send a Final Trial to the Final Trial's window before it reads or writes the verdict's lock "
+            + "(read: the route there, the lock read after it, the record written after it)");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
@@ -8325,6 +8333,12 @@ const REGRESSIONS = [
          * E10 fix r2-G2 (10.10.2026; round 2's cor M1) moved Finish from the primary alone to the verdict's
          * runner (`verdictRunner`: its own GM while connected, otherwise the primary), which the console's
          * lead reads too (`trialNextStep`); the claim and both sentences say so now.
+         * E10 fix r2-G6 (10.10.2026; what the round-2 lines owed the books) added six claims to the GM's books:
+         * no door opens a trial in an Eclipse (`setClock`, Edit campaign), Edit campaign asks about the chapter it
+         * moves to, Now runs on the primary (`advanceFloorNow`), the moment a runner changes (`verdictRunner` - read
+         * in the code, and the sentence says so), a take-back's latch and its own words (`takeBackOffer`), and both
+         * verdict APIs opening the Final Trial's window (`openVerdictDialog`, `applyVerdict`). At the books before
+         * it the twelve sentences were missing.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -8333,6 +8347,8 @@ const REGRESSIONS = [
             return text;
         };
         const vote = code("vote.mjs"), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
+        const panel = code("gm-panel.mjs"), floorCode = code("trial-floor.mjs");
+        const finalRoute = /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/;
         const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
         const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "wipeSeason");
         const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
@@ -8364,7 +8380,17 @@ const REGRESSIONS = [
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
-            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced"))
+            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced")),
+            eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
+                .test(fnSource(code("clock.mjs"), "setClock"))
+                && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
+            editAsksChapter: /if \(!\(await confirmNewTrial\(result\.chapter\)\)\) phase = getClock\(\)\.phase;/.test(panel),
+            nowOnPrimary: /bridgeRequest\("floor\.now", \{\}, \{ settle: "reply", onPrimary: true, local: \(\) => advanceFloorOnPrimary\(\) \}\)/
+                .test(fnSource(floorCode, "advanceFloorNow")),
+            runnerGap: /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner")),
+            takeLatch: /advancing\.add\(actor\.id\);\s*takingBack\.add\(actor\.id\);\s*try \{\s*if \(!await withdrawOffer/.test(fnSource(levelUp, "takeBackOffer"))
+                && /if \(takingBack\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackTaking"/.test(fnSource(levelUp, "takeBackOffer")),
+            finalApi: finalRoute.test(fnSource(vote, "openVerdictDialog")) && finalRoute.test(fnSource(vote, "applyVerdict"))
         };
         const SAYS = {
             en: {
@@ -8387,7 +8413,13 @@ const REGRESSIONS = [
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
                     enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
-                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/]
+                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/],
+                    eclipseDoors: [/no other door opens a trial in the dark: Edit campaign keeps the phase, applies the rest of its window and says so, and `game\.drpg\.setPhase` and `game\.drpg\.setClock` refuse the whole move/],
+                    editAsksChapter: [/Edit campaign asks the same question when it moves the phase to Class Trial, about the chapter the window moves to/],
+                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time/],
+                    runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
+                    takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words\./],
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
@@ -8418,7 +8450,13 @@ const REGRESSIONS = [
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
                     enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
-                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/]
+                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/],
+                    eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
+                    editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
+                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz/],
+                    runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
+                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami\./],
+                    finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],

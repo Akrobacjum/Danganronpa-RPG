@@ -55,6 +55,8 @@ const ACTION_VOTE_RUN = "vote.run";
 const ACTION_VOTE_CAST = "vote.cast";
 /** player -> primary GM: this player's own ballot, while a vote is open (E10 C2; vote.mjs `askForBallot`, `ballotFor`). */
 const ACTION_VOTE_ASK = "vote.ask";
+/** GM -> primary GM: the GM's Now on the trial's floor (E10 fix r2-G6; trial-floor.mjs `advanceFloorNow`). */
+const ACTION_FLOOR_NOW = "floor.now";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -455,19 +457,22 @@ const offerMissingTold = new Set();
 async function handleAdvancementOffer(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor || actor.type !== "character") return { refused: "no such character" };
-    const { recordOffer, dropOffer, standingOffers, advancing } = await import("./level-up.mjs");
+    const { recordOffer, dropOffer, standingOffers, advancing, takingBack } = await import("./level-up.mjs");
     if (payload.op === "take") {
         if (!standingOffers(actor).some(offer => offer.id === payload.offerId)) {
             return { refused: "no Level Up is on offer under that name for that character" };
         }
         // Not while the Level Up it would spend is being written, and that Level Up not while the drop
-        // waits for the offers store (level-up.mjs `takeBackOffer`; E10 fix r1-G2, r2-G4).
+        // waits for the offers store (level-up.mjs `takeBackOffer`; E10 fix r1-G2, r2-G4). `takingBack` lets the
+        // primary's own menu tell a second take-back from a Level Up (r2-G6); this road's refusal is told as busy.
         if (advancing.has(actor.id)) return { refused: "a Level Up for that character is already being written" };
         advancing.add(actor.id);
+        takingBack.add(actor.id);
         try {
             await dropOffer(actor.id, payload.offerId);
         } finally {
             advancing.delete(actor.id);
+            takingBack.delete(actor.id);
         }
         return { reply: { taken: payload.offerId } };
     }
@@ -1476,6 +1481,12 @@ async function handleBallotAsk(payload, sender) {
     return { reply: await ballotFor(sender) };
 }
 
+/** The run of `floor.now` (E10 fix r2-G6): the primary's own Now, under its heartbeat's latch (trial-floor.mjs `advanceFloorOnPrimary`). */
+async function handleFloorNow() {
+    const { advanceFloorOnPrimary } = await import("./trial-floor.mjs");
+    return { reply: await advanceFloorOnPrimary() };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2167,6 +2178,19 @@ export const BRIDGE_ACTIONS = table({
         run: handleBallotAsk,
         answer: "reply", quiet: true,
         why: "answers only about the sender's own ballot, found from the id Foundry gives"
+    },
+    /*
+     * THE GM'S NOW, RUN ON THE PRIMARY GM (E10 fix r2-G6, 1.2.71). The heartbeat writes the floor's
+     * transitions on the primary under one latch (trial-floor.mjs `advancing`), and another GM's Now
+     * wrote the same move on its own browser beside it. A GM's request only, with no field: the
+     * primary moves the floor as it reads it, and a press while its own write is on its way does nothing.
+     */
+    [ACTION_FLOOR_NOW]: {
+        label: "DRPG.Bridge.what.floor.now",
+        guards: [gmOnly("only a GM moves the trial's floor on")],
+        sanitize: pick({}),
+        run: handleFloorNow,
+        answer: "reply"
     },
     /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
