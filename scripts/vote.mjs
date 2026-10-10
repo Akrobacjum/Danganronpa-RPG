@@ -1549,18 +1549,26 @@ export async function postVerdictCard(record) {
  * A right verdict: everyone still alive advances - unchanged, and deliberately: a right answer levels
  * the table up. The Blackened have just been executed, so they are not in this list (`verdictHeld`),
  * which is what keeps that honest even when there were two of them. A Reinforced Level Up a wrong
- * verdict left waiting (E05 C11) is picked here, with its owner's Standard, in the same window - see
- * `runAdvancementBatch`. The windows not opening fails the step; a window the GM closes does not. A
- * Finish after a GM left in these windows opens them all again: which were picked is not recorded,
- * and the GM closes the windows of those who did.
+ * verdict left waiting (E05 C11) is picked here, with its owner's Standard, in the same row - see
+ * `runAdvancementBatch`. The window not opening fails the step; a window the GM closes does not. A
+ * Finish after a GM left in these windows opens the class's window again: which were picked or
+ * offered is not recorded, and the GM gives those rows nothing.
+ *
+ * SAID AFTER THE FACT (E10 C7; audit S06-25, S06-32). The line was written before the windows opened,
+ * "N survivors take a standard Level Up", the kind the config's raw word: a picker closed on the way
+ * left the GMs told of a Level Up nobody took. It counts what the batch did now - taken here, waiting
+ * for the players, and by name what is not yet given - with the kind's own words.
  */
 async function verdictLevelUps(context) {
     const { survivors } = await verdictReading(context);
-    context.lines.push(plural("DRPG.Vote.levelUp", {
-        n: survivors.length,
-        kind: TRIAL.correct.levelUp
-    }));
-    if (await promptAdvancements(survivors, TRIAL.correct.levelUp) === null) throw new Error("the Level Ups did not open");
+    const done = await promptAdvancements(survivors, TRIAL.correct.levelUp);
+    if (done === null) throw new Error("the Level Ups did not open");
+    const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
+    context.lines.push(plural("DRPG.Vote.levelUpGranted", { n: done.applied, kind }));
+    if (done.offered) context.lines.push(plural("DRPG.Vote.levelUpWaiting", { n: done.offered, kind }));
+    for (const name of done.notGiven) {
+        context.lines.push(game.i18n.format("DRPG.Advance.notYetGiven", { name: foundry.utils.escapeHTML(name) }));
+    }
 }
 
 /*
@@ -1583,7 +1591,7 @@ async function verdictOffers(context) {
     }
     context.lines.push(plural("DRPG.Vote.blackenedRewarded", {
         n: waiting,
-        kind: TRIAL.wrong.blackenedLevelUp
+        kind: game.i18n.localize(`DRPG.Advance.kind.${TRIAL.wrong.blackenedLevelUp}`)
     }));
 }
 
@@ -1677,13 +1685,11 @@ export async function finishVerdict() {
 }
 
 /**
- * Open the advancement dialog for each character who earned one.
- *
- * Opened on the GM's client rather than pushed at the players: a level-up is a
- * conversation about what the character became, and the module already puts the
- * same dialog behind a button on every sheet. A survivor holding a Reinforced
- * that waited for the class picks both in one window (level-up.mjs
- * `runAdvancementBatch`, E05 C11).
+ * The Level Ups of everybody who earned one, in one window on the GM's client
+ * (level-up.mjs `runAdvancementBatch`; E10 C7): row by row the GM hands each to
+ * its player, whose sheet's button lights up, or picks it here, one picker after
+ * another. A survivor holding a Reinforced that waited for the class takes both
+ * in one row (E05 C11). Answers the batch's counts, or null when it threw.
  */
 async function promptAdvancements(actors, kind) {
     try {

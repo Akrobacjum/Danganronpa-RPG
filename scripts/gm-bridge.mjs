@@ -424,8 +424,10 @@ const offerMissingTold = new Set();
 
 /**
  * A GM asks the primary to give an offer or take one back (N-2; E10 C6). Only a GM - the
- * declaration's first guard. `add` appends one of `kind` and answers its id; `take` names an
- * offer standing on that character as the primary holds it (`offerId`), else it is refused.
+ * declaration's first guard. `add` appends one of `kind` and answers its id - with `extra`
+ * picks and how many of them waited for the class (`deferred`) when the verdict's window
+ * gives it (E10 C7), bounded to whole numbers by `recordOffer`; `take` names an offer standing
+ * on that character as the primary holds it (`offerId`), else it is refused.
  */
 async function handleAdvancementOffer(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
@@ -441,7 +443,7 @@ async function handleAdvancementOffer(payload, sender, ctx) {
     if (payload.op !== "add") return { refused: "an offer is given or taken back, nothing else" };
     const kind = payload.kind;
     if (!LEVEL_UP[kind]?.picks) return { refused: `no such Level Up: ${kind}` };
-    const added = await recordOffer(actor.id, { kind });
+    const added = await recordOffer(actor.id, { kind, extra: payload.extra, deferred: payload.deferred });
     return { reply: added ? { id: added.id } : null };
 }
 
@@ -473,14 +475,17 @@ export async function sendOffersTo(userId) {
 }
 
 /**
- * Any GM: have the primary give an offer of `kind`, or - `kind` null - take back the one
- * `offerId` names (E10 C6). Done on the primary itself, asked of it from any other GM.
+ * Any GM: have the primary give an offer - a kind, or `{ kind, extra, deferred }` (E10 C7) -
+ * or, `offer` null, take back the one `offerId` names (E10 C6). Done on the primary itself,
+ * asked of it from any other GM.
  */
-export function requestOfferRecord(actorId, kind, offerId = null) {
-    const op = kind ? "add" : "take";
-    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, op, kind: kind ?? null, offerId }, {
+export function requestOfferRecord(actorId, offer, offerId = null) {
+    const asked = typeof offer === "string" ? { kind: offer } : offer ?? null;
+    const op = asked?.kind ? "add" : "take";
+    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, op, kind: asked?.kind ?? null, extra: asked?.extra ?? 0,
+        deferred: asked?.deferred ?? 0, offerId }, {
         onPrimary: true,
-        local: () => import("./level-up.mjs").then(m => op === "add" ? m.recordOffer(actorId, { kind }) : m.dropOffer(actorId, offerId))
+        local: () => import("./level-up.mjs").then(m => op === "add" ? m.recordOffer(actorId, asked) : m.dropOffer(actorId, offerId))
     });
 }
 
@@ -1551,7 +1556,7 @@ export const BRIDGE_ACTIONS = table({
         // stays because every declaration that acts on `actorId` answers the same
         // two questions, and a rule with an exception is two rules.
         guards: [gmOnly("only a GM hands out a Level Up"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, op: as.oneOf("add", "take"), kind: as.maybeText, offerId: as.id }),
+        sanitize: pick({ actorId: as.id, op: as.oneOf("add", "take"), kind: as.maybeText, extra: as.num, deferred: as.num, offerId: as.id }),
         run: handleAdvancementOffer,
         answer: "reply",
         claims: { offerId: "a `take` must name an offer standing on that character as the primary holds it (handleAdvancementOffer), else refused and told" }

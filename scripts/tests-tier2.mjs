@@ -2244,8 +2244,11 @@ async function standAlone(actor) {
  * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
  * windows are real windows on this client (01-runtests draws them), so a verdict awaited
  * unanswered would wait for somebody to press a button. Foundry's own `wait` is put back.
+ * Since E10 C7 a verdict's Level Ups open the class's one window first; `queue` answers it
+ * (`answerQueue`) - "gm", the default, picks every row here, so the pickers open as they did
+ * before C7.
  */
-async function withAdvanceWindows(answer, run) {
+async function withAdvanceWindows(answer, run, queue = "gm") {
     const D = foundry.applications.api.DialogV2;
     const own = Object.getOwnPropertyDescriptor(D, "wait");
     const asked = [];
@@ -2254,6 +2257,7 @@ async function withAdvanceWindows(answer, run) {
         const entry = { classes, title: cfg?.window?.title ?? "",
             picks: (String(cfg?.content ?? "").match(/name="pick\.\d+\.option"/g) ?? []).length };
         asked.push(entry);
+        if (classes.includes("drpg-advance-queue")) return answerQueue(cfg, queue, entry);
         return classes.includes("drpg-advance") ? answer(entry) : null;
     };
     try {
@@ -2263,6 +2267,27 @@ async function withAdvanceWindows(answer, run) {
         else delete D.wait;
     }
     return asked;
+}
+
+/**
+ * The class's one Level Up window (E10 C7, level-up.mjs `askWhoPicks`) answered as a GM would,
+ * through its own buttons on the window's markup: "players" presses "All: the players pick", "gm"
+ * checks "I pick" on every row and presses the default, null closes it. Its rows are recorded on
+ * `entry.rows` first: each one's actor id, the choices drawn, and the ones drawn checked. Those are
+ * read from the markup's `checked` attributes, not `:checked`: read through `:checked` under jsdom,
+ * a row drawn with both of its radios checked passed as the player's, and the mutant that draws
+ * "I pick" checked on every row (c7-m8) lived (A1, 10.10.2026).
+ */
+function answerQueue(cfg, how, entry) {
+    const element = document.createElement("div");
+    element.innerHTML = String(cfg?.content ?? "");
+    entry.rows = [...element.querySelectorAll("[data-actor-id]")].map(row => ({ id: row.dataset.actorId,
+        choices: [...row.querySelectorAll('input[type="radio"]')].map(input => input.value),
+        checked: [...row.querySelectorAll('input[type="radio"][checked]')].map(input => input.value) }));
+    if (!how) return null;
+    if (how === "gm") for (const input of element.querySelectorAll('input[type="radio"][value="gm"]')) input.checked = true;
+    const button = (cfg?.buttons ?? []).find(b => (how === "players" ? b.action === "allPlayers" : b.default));
+    return button?.callback?.(new Event("click"), button, { element }) ?? null;
 }
 
 /** The trial's record with the verdict not yet given, for `run`, and as it was afterwards. */
@@ -18080,6 +18105,11 @@ const SCENARIOS = [
                     return seen.read;
                 }
                 if ((cfg?.classes ?? []).includes("drpg-advance")) seen.levelUps.push(cfg?.window?.title ?? "");
+                // Since E10 C7 the class's Level Ups are one window, a row per student it offers one to.
+                if ((cfg?.classes ?? []).includes("drpg-advance-queue")) {
+                    seen.levelUps.push(...[...String(cfg?.content ?? "").matchAll(/data-actor-id="([^"]+)"/g)]
+                        .map(m => title(game.actors.get(m[1]) ?? { name: m[1] })));
+                }
                 return null;
             };
             try {
@@ -18962,6 +18992,135 @@ const SCENARIOS = [
             }
             await deferredOfferStore.dropMany([holder.id, dead.id].filter(id => deferredOfferStore.has(id)));
             await reviveCharacter(dead, { quiet: true });
+        }
+    }],
+
+    ["a correct verdict opens one Level Up window; the players pick records one offer each, the Blackened's 1+3 as one", async () => {
+        /*
+         * E10 C7, 1.2.71; audit S06-25, S03-32; D4; ledger V7, D3. A correct verdict opened one Level
+         * Up picker per survivor in turn on the GM's screen, and "the player picks" existed only on a
+         * sheet's menu: the GM filled in every survivor's while the players waited. A surviving
+         * Blackened's Reinforced waits for this verdict (E05 C11). The class's one window is answered
+         * "All: the players pick". Read: the windows (one for the class, a row per survivor, a picker
+         * only for a student nobody plays, closed here), each row's choices and the one it opens on -
+         * the player's where a connected player owns the student, "I pick" alone where nobody plays
+         * them - the writes on the students (none), the
+         * offers each student holds (the picks each buys) and the cards spoken by the Blackened; then
+         * their offer as the GMs hold it and as its owner is sent it, spent by the owner on the bridge
+         * (four picks, one write, one step of `advances`); then the other road, the offer's packet from
+         * a GM (`advancement.offer`), carrying the same extra picks, taken back from the GM's menu:
+         * the waiting Reinforced goes back to the GMs' store. Red at C6's tree (A1, 10.10.2026): no
+         * window, a picker for each of the 4 survivors.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a connected player, whose row opens on the player");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { applyVerdict } = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const living = livingStudents();
+        const here = a => ownerIdsOf(a).some(id => game.users.get(id)?.active);
+        const holder = living.find(here);
+        const owner = ownerIdsOf(holder).find(id => game.users.get(id)?.active);
+        must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
+            "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(holder, [HP_MAX, ADVANCES]);
+        const offersOf = a => L.offerList(S.offerStore.get(a.id));
+        const sheet = path => foundry.utils.getProperty(holder._source, path) ?? 0;
+        const ids = new Set(living.map(a => a.id));
+        let writes = 0;
+        const hook = Hooks.on("updateActor", a => { if (ids.has(a.id)) writes++; });
+        const from = new Set(game.messages.map(m => m.id));
+        try {
+            ok(await L.deferAdvancement(holder, "reinforced", getClock().chapter), "the holder's Reinforced was not kept for the class");
+            const asked = await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), "players"));
+            await settle();
+            const queues = asked.filter(e => e.classes.includes("drpg-advance-queue"));
+            equal(stableJson([queues.length, asked.filter(e => e.classes.includes("drpg-advance")).length, queues[0]?.rows?.length ?? 0, writes]),
+                stableJson([1, living.filter(a => !ownerIdsOf(a).length).length, living.length, 0]),
+                "a correct verdict did not open one window for the class with a row per survivor, opened a picker for a student a player owns, or wrote on a student (windows, pickers, rows, writes)");
+            const byId = (list, row) => list.map(row).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+            equal(stableJson(byId(queues[0]?.rows ?? [], r => [r.id, r.choices, r.checked])),
+                stableJson(byId(living, a => [a.id, ownerIdsOf(a).length ? ["player", "gm"] : ["gm"], [here(a) ? "player" : "gm"]])),
+                "a row does not open on the player where a connected player owns the student, or offers the player's choice for a student nobody plays");
+            equal(stableJson(byId(living, a => [a.id, offersOf(a).map(offer => L.offerPicks(offer))])),
+                stableJson(byId(living, a => [a.id, a === holder ? [4] : ownerIdsOf(a).length ? [1] : []])),
+                "the players pick did not record one offer per student a player owns, the Blackened's Standard and waiting Reinforced as one of 1 + 3");
+            const cards = game.messages.filter(m => !from.has(m.id));
+            equal(stableJson(cards.filter(m => m.speaker?.actor === holder.id).length), "0", "a card of the Level Ups is spoken by the Blackened");
+            const [offer] = offersOf(holder);
+            const sent = L.offersFor(owner).offers[holder.id]?.offers ?? [];
+            equal(stableJson([offer?.extra ?? null, offer?.deferred ?? null, S.deferredOfferStore.has(holder.id), sent.map(o => Object.keys(o).sort())]),
+                stableJson([3, 3, false, [["extra", "id", "kind"]]]),
+                "the Blackened's offer does not carry the waited picks, its waiting row still stands beside it, or its owner is sent which picks waited");
+
+            const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
+            writes = 0;
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C7${foundry.utils.randomID(8)}`, actorId: holder.id,
+                picks: Array.from({ length: 4 }, () => ({ option: "hp" })), offerId: offer?.id ?? null }, owner, { send: () => {} });
+            await settle();
+            equal(stableJson([sheet(HP_MAX) - hp, sheet(ADVANCES) - advances, writes, offersOf(holder).length]), stableJson([4, 1, 1, 0]),
+                "the Blackened's one offer was not spent as four picks in one write and one step of advances (rise, advances, writes, offers left)");
+
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.offer", requestId: `E10C7${foundry.utils.randomID(8)}`, actorId: holder.id,
+                op: "add", kind: "standard", extra: 3, deferred: 3 }, game.user.id, { send: () => {} });
+            const [again] = offersOf(holder);
+            const taken = await L.takeBackOffer(holder, again?.id ?? null);
+            const back = S.deferredOfferStore.get(holder.id);
+            equal(stableJson([again ? L.offerPicks(again) : null, again?.deferred ?? null, taken, offersOf(holder).length, back?.kind ?? null, back?.count ?? null]),
+                stableJson([4, 3, true, 0, "reinforced", 1]),
+                "a GM's offer packet lost the extra picks, or taking the offer back did not give the waiting Reinforced back to the GMs' store (picks, waited, taken, offers left, kind, count)");
+        } finally {
+            Hooks.off("updateActor", hook);
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
+            if (S.deferredOfferStore.has(holder.id)) await S.deferredOfferStore.drop(holder.id);
+            await putBack();
+        }
+    }],
+
+    ["a Level Up picker the GM closes becomes an offer, and the verdict says what was given after the fact", async () => {
+        /*
+         * E10 C7, 1.2.71; audit S03-32, S06-25, S06-32. A picker the GM closed (Escape) gave nothing
+         * and said nothing, and the verdict's line, written before any window opened, told the GMs
+         * "N survivors take a standard Level Up" - the config's raw word in it - whatever was picked.
+         * The class's window is answered "I pick" on every row and every picker closed. Read: the
+         * offers each student holds (one where a player owns them, none where nobody plays them), and
+         * the verdict's lines: none taken here, the rest waiting for their players, the kind in its
+         * own words, and each student nobody plays named as not yet given. Red at C6's tree (A1,
+         * 10.10.2026): 4 pickers closed, no offer to any of the 3 students a player owns.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, to whom a closed picker is offered");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { applyVerdict } = await import("./vote.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerIdsOf, plural } = await import("./utils.mjs");
+        const { TRIAL } = await import("./config.mjs");
+        const living = livingStudents();
+        must(living.every(a => !S.offerStore.has(a.id)), "an offer stands already - this would read it, not the ones made here");
+        const played = living.filter(a => ownerIdsOf(a).length), nobody = living.filter(a => !ownerIdsOf(a).length);
+        try {
+            let lines = null;
+            const asked = await withVerdictOpen(() => withAdvanceWindows(() => null,
+                async () => { lines = await applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }); }, "gm"));
+            await settle();
+            equal(stableJson([asked.filter(e => e.classes.includes("drpg-advance")).length,
+                played.map(a => L.offerList(S.offerStore.get(a.id)).length), nobody.filter(a => S.offerStore.has(a.id)).length]),
+                stableJson([living.length, played.map(() => 1), 0]),
+                "a picker the GM closed gave no offer to a student a player owns, or one to a student nobody plays (pickers, offers per played student, offers to nobody's)");
+            const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
+            const said = (lines ?? []).map(String);
+            equal(stableJson([said.includes(plural("DRPG.Vote.levelUpGranted", { n: 0, kind })),
+                said.includes(plural("DRPG.Vote.levelUpWaiting", { n: played.length, kind })),
+                nobody.map(a => said.includes(game.i18n.format("DRPG.Advance.notYetGiven", { name: foundry.utils.escapeHTML(a.name) })))]),
+                stableJson([true, true, nobody.map(() => true)]),
+                `the verdict's lines do not say that none was taken here, that ${played.length} wait for their players and who is not given one: ${said.join(" | ")}`);
+        } finally {
+            for (const a of living) if (S.offerStore.has(a.id)) await S.offerStore.drop(a.id);
         }
     }],
 

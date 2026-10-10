@@ -54,9 +54,11 @@
  *      the default); `verdictApplied` is cleared and `keysCharged` kept; the vote, its count and
  *      the tie are cleared and its round number carried on, so no ballot of the first trial counts
  *      in the second (C1, D17).
- *   I  a second vote names Chie and the verdict is correct: one Level Up window per survivor on
- *      gm2 (C7: one window); gm2 offers Aiko a Level Up, p1's sheet sees it, p1 picks +1 Health
- *      through the bridge and Aiko's `advances` rise by one (C6-C8 read it again).
+ *   I  a second vote names Chie and the verdict is correct: one Level Up window for the class on
+ *      gm2, a row per survivor, answered "All: the players pick" - no picker opens, and every
+ *      survivor a player owns holds one offer (C7; one picker per survivor before it); p1's sheet
+ *      sees Aiko's, p1 picks +1 Health through the bridge and Aiko's `advances` rise by one (C6-C8
+ *      read it again).
  *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
  *
@@ -82,6 +84,8 @@
  * one public card: 39 checks in 25.4 s (one run, 09.10.2026).
  * E10 C6 added I3 and I4, two offers standing side by side and one taken back from the GM's menu: 41 checks in 17.4 s
  * (one run, 09.10.2026).
+ * E10 C7 rewrote I1 and I2, the class's one Level Up window and the offer p1 spends from it: 41 checks in 17.2 s
+ * (one run, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -410,12 +414,19 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         await until(() => V.votesIn() === issued ? true : null, 10000);
         const counted = V.votesIn();
         const r = await V.closeVote();
-        let windows = 0;
+        // The class's window (C7) answered through its own "All: the players pick"; a picker, if one opens, cancelled.
+        let queues = 0, pickers = 0, rows = [];
         globalThis.__dialogAnswers.push(async function advance(cfg) {
-            if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
-            windows++;
+            const classes = cfg.classes ?? [];
             globalThis.__dialogAnswers.unshift(advance);
-            return "cancel";
+            if (classes.includes("drpg-advance")) { pickers++; return "cancel"; }
+            if (!classes.includes("drpg-advance-queue")) return null;
+            queues++;
+            const el = document.createElement("div");
+            el.innerHTML = String(cfg.content ?? "");
+            rows = [...el.querySelectorAll("[data-actor-id]")].map(row => row.dataset.actorId).sort();
+            const all = (cfg.buttons ?? []).find(b => b.action === "allPlayers");
+            return all ? all.callback(new window.Event("click"), all, { element: el }) : null;
         });
         let done = null;
         try {
@@ -424,17 +435,19 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
             const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "advance");
             if (at >= 0) q.splice(at, 1);
         }
-        const living = (await import("${repoUrl}/scripts/chapter.mjs")).livingStudents().map(a => a.id);
-        return { issued, counted, accused: r?.accusedIds ?? null, windows, living, done };`, { timeout: 90000 });
+        const living = (await import("${repoUrl}/scripts/chapter.mjs")).livingStudents().map(a => a.id).sort();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), L = await import("${repoUrl}/scripts/level-up.mjs");
+        const { ownerIdsOf } = await import("${repoUrl}/scripts/utils.mjs");
+        const offers = living.map(id => [L.offerList(S.offerStore.get(id)).length, ownerIdsOf(game.actors.get(id)).length > 0 ? 1 : 0]);
+        return { issued, counted, accused: r?.accusedIds ?? null, queues, pickers, rows, living, offers, done };`, { timeout: 90000 });
     // Every ballot answer not taken - B's too, where no ballot came - so none of them closes I's Level Up window.
     for (const c of [p1, p2, p3, p4]) await c.eval(`const q = globalThis.__dialogAnswers;
         for (let at = q.findIndex(f => f?.name === "ballot"); at >= 0; at = q.findIndex(f => f?.name === "ballot")) q.splice(at, 1);
         return true;`);
-    verdict("the second vote names Chie, and the correct verdict opens one Level Up window per survivor (C7: one window for the class)",
+    verdict("the second vote names Chie, and the correct verdict opens one Level Up window for the class; the players pick, and each survivor a player owns holds one offer (C7)",
         second.issued === second.counted && J(second.accused) === J([IDS.chie]) && second.living.length > 1
-            && second.windows === second.living.length, J(second));
-    const offered = await gm2.eval(`const L = await import("${repoUrl}/scripts/level-up.mjs");
-        const offer = await L.offerAdvancement(game.actors.get("${IDS.aiko}"), "standard"); return offer?.kind ?? null;`, { timeout: 30000 });
+            && second.queues === 1 && second.pickers === 0 && J(second.rows) === J(second.living)
+            && second.offers.every(([held, owned]) => held === owned) && second.living.includes(IDS.aiko), J(second));
     const picked = await p1.eval(`${until} const L = await import("${repoUrl}/scripts/level-up.mjs");
         const aiko = game.actors.get("${IDS.aiko}");
         const lit = Boolean(await until(() => L.pendingAdvance(aiko), 8000));
@@ -454,9 +467,9 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
             Hooks.off("updateActor", hook);
         }
         return { lit, sent, before, after: aiko.getFlag("${MOD}", "advances") ?? 0, updates, still: Boolean(L.pendingAdvance(aiko)) };`, { timeout: 60000 });
-    verdict("gm2 offers Aiko a Level Up, p1's sheet sees it, and p1's pick through the bridge raises Aiko's advances by one in one write (C6-C8 read it again)",
-        offered === "standard" && picked.lit && picked.sent?.pending === true && picked.after === picked.before + 1
-            && picked.updates === 1 && !picked.still, J({ offered, picked }));
+    verdict("p1's sheet sees Aiko's offer from the class's window, and p1's pick through the bridge raises Aiko's advances by one in one write (C7; C6-C8 read it again)",
+        picked.lit && picked.sent?.pending === true && picked.after === picked.before + 1
+            && picked.updates === 1 && !picked.still, J({ picked }));
 
     /* E10 C6 (S03-17): two offers stand side by side - the second overwrote the first before - p1 spends the
        older and the other stays lit; gm2's own Level Up menu holds a row taking it back, and once taken p1's copy

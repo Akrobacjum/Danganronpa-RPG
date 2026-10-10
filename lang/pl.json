@@ -1092,17 +1092,23 @@
       "correctSummary": "Uczniowie wskazali Blackened.",
       "wrongSummary": "Uczniowie wskazali niewłaściwą osobę.",
       "wasExecuted": "Egzekucja: {name}.",
-      "levelUp": {
-        "one": "{n} ocalały dostaje {kind} Level Up.",
-        "few": "{n} ocalałych dostaje {kind} Level Up.",
-        "many": "{n} ocalałych dostaje {kind} Level Up.",
-        "other": "{n} ocalałych dostaje {kind} Level Up."
+      "levelUpGranted": {
+        "one": "{n} ocalały dostał tu swój Level Up: {kind}.",
+        "few": "{n} ocalałych dostało tu swój Level Up: {kind}.",
+        "many": "{n} ocalałych dostało tu swój Level Up: {kind}.",
+        "other": "{n} ocalałych dostało tu swój Level Up: {kind}."
+      },
+      "levelUpWaiting": {
+        "one": "Level Up {n} ocalałego czeka, aż wybierze go gracz: {kind}.",
+        "few": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}.",
+        "many": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}.",
+        "other": "Level Upy {n} ocalałych czekają, aż wybiorą je gracze: {kind}."
       },
       "blackenedRewarded": {
-        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} Level Up czeka na następny Level Up klasy.",
-        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
-        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
-        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy."
+        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} czeka na następny Level Up klasy.",
+        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy.",
+        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy.",
+        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} każdego z nich czeka na następny Level Up klasy."
       },
       "despairFilled": "Despair napełniony do maksimum: {who}.",
       "newRule": "Blackened wprowadza jedną nową zasadę własnego wyboru, za zgodą Monokumy.",
@@ -2989,7 +2995,20 @@
         "few": "{n} oferty Level Up",
         "many": "{n} ofert Level Up",
         "other": "{n} oferty Level Up"
-      }
+      },
+      "queueTitle": "Level Upy klasy",
+      "queueIntro": "Przy każdym uczniu wybierz, kto wybiera Level Up. Gracz wybiera na swoim arkuszu, gdzie zapala mu się przycisk; twoje okna otworzą się tutaj jedno po drugim. Okno, które zamkniesz, trafia zamiast tego do gracza, a zamknięcie tego okna oddaje graczom każdy wiersz, którego postacią ktoś gra.",
+      "queuePicks": {
+        "one": "{n} wybór",
+        "few": "{n} wybory",
+        "many": "{n} wyborów",
+        "other": "{n} wyboru"
+      },
+      "pickMe": "Wybieram ja",
+      "pickPlayer": "Wybiera gracz",
+      "allPlayers": "Wszyscy: wybierają gracze",
+      "queueGive": "Przyznaj",
+      "notYetGiven": "Level Up postaci {name} nie jest jeszcze przyznany: nikt nią nie gra. Przyznaj go przyciskiem Level Up na jej arkuszu."
     },
     "Loot": {
       "take": "Weź",

@@ -1096,13 +1096,17 @@
       "correctSummary": "The students named the Blackened.",
       "wrongSummary": "The students named the wrong person.",
       "wasExecuted": "{name} has been executed.",
-      "levelUp": {
-        "one": "{n} survivor takes a {kind} Level Up.",
-        "other": "{n} survivors take a {kind} Level Up."
+      "levelUpGranted": {
+        "one": "{n} survivor took their Level Up here: {kind}.",
+        "other": "{n} survivors took their Level Up here: {kind}."
+      },
+      "levelUpWaiting": {
+        "one": "{n} survivor's Level Up waits for their player to pick it: {kind}.",
+        "other": "{n} survivors' Level Ups wait for their players to pick them: {kind}."
       },
       "blackenedRewarded": {
-        "one": "The Blackened stays anonymous and in play; their {kind} Level Up waits for the class's next Level Up.",
-        "other": "{n} Blackened stay anonymous and in play; each one's {kind} Level Up waits for the class's next Level Up."
+        "one": "The Blackened stays anonymous and in play; their {kind} waits for the class's next Level Up.",
+        "other": "{n} Blackened stay anonymous and in play; each one's {kind} waits for the class's next Level Up."
       },
       "despairFilled": "Despair filled to maximum for: {who}.",
       "newRule": "The Blackened introduces one new rule of their choosing, with Monokuma's consent.",
@@ -2875,7 +2879,18 @@
       "standing": {
         "one": "{n} Level Up on offer",
         "other": "{n} Level Ups on offer"
-      }
+      },
+      "queueTitle": "The class's Level Ups",
+      "queueIntro": "For each student, say who picks the Level Up. A player picks on their own sheet, where its button lights up; yours open here one after another. A picker you close goes to its player instead, and closing this window hands every row a player owns to its player.",
+      "queuePicks": {
+        "one": "{n} pick",
+        "other": "{n} picks"
+      },
+      "pickMe": "I pick",
+      "pickPlayer": "The player picks",
+      "allPlayers": "All: the players pick",
+      "queueGive": "Hand them out",
+      "notYetGiven": "{name}'s Level Up is not given yet: nobody plays them. Give it from the Level Up button on their sheet."
     },
     "Loot": {
       "take": "Take",

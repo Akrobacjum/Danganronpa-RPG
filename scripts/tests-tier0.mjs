@@ -3768,8 +3768,9 @@ const REGRESSIONS = [
         const offer = bodyOf(level, "export async function offerAdvancement", { until: "export function pendingAdvance" });
         ok(offer.length > 200, "offerAdvancement has moved or gone");
         ok(/if \(!game\.user\.isGM\)/.test(offer), "anybody can offer themselves a Level Up");
-        // Recorded by the primary GM, in its own store - see R98 for why not a flag.
-        ok(/recordOffer\(actor\.id, kind\)|requestOfferRecord\(actor\.id, kind\)/.test(offer),
+        // Recorded by the primary GM, in its own store - see R98 for why not a flag. Since E10 C7
+        // what is recorded is the kind with the verdict window's extra picks (`asked`).
+        ok(/recordOffer\(actor\.id, asked\)/.test(offer) && /requestOfferRecord\(actor\.id, asked\)/.test(offer),
             "the offer is not recorded anywhere, so nothing can read it back");
         ok(/whisperToOwner\(/.test(offer) && !/announce\(/.test(offer),
             "the offer is announced to the table - which advancement somebody earned "
@@ -7423,6 +7424,11 @@ const REGRESSIONS = [
          * rows, and rewrote the verdicts of the spend's picks and of `offerStore`, whose row is a list
          * per character now. Measured with the census on the working tree on 09.10.2026: 43 places
          * against 43 rows - 13 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET, 5 STORE.
+         * E10 C7 (1.2.71) added the offer's `extra` and `deferred`, two PACKET rows: the verdict's one
+         * window gives the surviving Blackened's waiting Reinforced as the extra picks of their
+         * Standard's offer, from whichever GM applies the verdict. Measured with the census on the
+         * working tree on 10.10.2026: 45 places against 45 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET,
+         * 5 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7431,6 +7437,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 added `op` and `offerId` beside it [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#op", "judged (C6): gmOnly; `as.oneOf(\"add\", \"take\")`, anything else refused by `handleAdvancementOffer` [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#kind", "judged: gmOnly - only a GM hands out a Level Up; the kind is the GM's choice [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#extra", "judged (C7): gmOnly - only a GM hands out a Level Up; `as.num`, and `recordOffer` keeps a whole number of picks [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#deferred", "judged (C7): gmOnly; `as.num`, a whole number by `recordOffer`; read only by `takeBackOffer`, which gives that many picks back to the GMs' store [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#offerId", "judged (C6): gmOnly; a take names an offer standing in that character's list as the primary holds it, else refused [F7]"],
             ["PACKET gm-bridge.mjs#advancement.ask#-", "judged: knownSender + playersOnly; quiet; the answer is addressed to the asker (`replyForMe`) [F7]"],
             ["PACKET gm-bridge.mjs#vote.run#op", "judged: gmOnly (C1) - only a GM opens, counts, restarts or reminds; a step not one of the five reads null and the primary runs nothing (`runVoteOp`), which answers `movedOn` or `notOpen` for a step the world's record has moved past [F3/F6]"],
@@ -7704,6 +7712,37 @@ const REGRESSIONS = [
             "an execution does not await the audit and read the student as the GMs hold them before `killCharacter`");
         ok(!/\b(?:isDeceased|isDeadForGm)\(\s*actor\s*\)/.test(execute), "an execution reads the document's death, which a player's forged flag can be");
         ok(!/blackened/i.test(card), "the verdict's public card reads a Blackened - a wrong verdict would name the student the class failed to");
+    }],
+
+    ["R317 - a verdict's Level Ups are one window with the players' choice, and its line is said after it", async () => {
+        /*
+         * E10 C7, 1.2.71; audit S06-25, S03-32, S06-32; ledger D3 (the stage's doneWhen: "the Level
+         * Ups open in one window with 'the player picks'"). `runAdvancementBatch` opened one picker per
+         * survivor in turn, a picker the GM closed gave nothing and said nothing, and `verdictLevelUps`
+         * wrote "N survivors take a standard Level Up" before any window opened. Read in level-up.mjs
+         * and vote.mjs: the batch asks the class's one window (`askWhoPicks`, its classes
+         * `drpg-advance-queue`, a "The player picks" choice and "All: the players pick") before it opens
+         * any picker, hands a row to its player through `offerAdvancement`, says what is not yet given;
+         * the verdict's line is built from what the batch answers, after it, with no raw kind. Tier 2
+         * drives it ("a correct verdict opens one Level Up window; the players pick records one offer
+         * each, the Blackened's 1+3 as one", "a Level Up picker the GM closes becomes an offer, and the
+         * verdict says what was given after the fact"), and 63 I on gm2.
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), vote = stripComments(sources.get("vote.mjs") ?? "");
+        const batch = fnSource(level, "runAdvancementBatch"), ask = fnSource(level, "askWhoPicks"), line = fnSource(vote, "verdictLevelUps");
+        ok(batch.length > 400 && ask.length > 400 && line.length > 200,
+            "runAdvancementBatch, askWhoPicks or verdictLevelUps is cut short - the reads below would measure nothing");
+        ok(/"drpg-advance-queue"/.test(ask) && /DRPG\.Advance\.pickPlayer/.test(ask) && /DRPG\.Advance\.allPlayers/.test(ask),
+            "the class's Level Up window is not one window that offers the player's choice row by row and for everybody");
+        const asked = batch.indexOf("askWhoPicks("), picker = batch.indexOf("openAdvancement(");
+        ok(asked > 0 && picker > asked, "the batch opens a picker before it asks the class's one window who picks");
+        ok(/offerAdvancement\(/.test(batch) && /DRPG\.Advance\.notYetGiven/.test(batch),
+            "a row the GM does not pick is not handed to its player, or what is left is not said");
+        const prompted = line.indexOf("promptAdvancements("), granted = line.indexOf("DRPG.Vote.levelUpGranted");
+        ok(prompted > 0 && granted > prompted && /DRPG\.Vote\.levelUpWaiting/.test(line),
+            "the verdict's Level Up line is said before the batch ran, or does not say what waits for the players (S06-25)");
+        ok(!/kind:\s*TRIAL\./.test(line), "the verdict's Level Up line carries the config's raw kind (S06-32)");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
