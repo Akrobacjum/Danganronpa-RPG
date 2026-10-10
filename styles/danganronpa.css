@@ -2986,6 +2986,17 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     gap: 0.5rem;
 }
 
+/* The Level Up window's two lines of its own (E10 C9, audit S03-19). Whom it is for and why is the GM's
+   first line, said once; "no experiences" is the ordinary case of a new character, so it is the module's
+   Dim - the token for "here if you want it" - and not Foundry's amber warning. */
+.drpg-advance .drpg-advance-for {
+    font-weight: 600;
+}
+
+.drpg-advance .drpg-advance-note {
+    color: var(--drpg-dim);
+}
+
 /* ==========================================================================
    VISUAL AIDS - version independent
    ========================================================================== */

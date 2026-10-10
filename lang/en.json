@@ -2864,6 +2864,8 @@
         "reinforcedHint": "The heavier step, for a chapter that earned it."
       },
       "choice": "Choice {n}",
+      "whichImprovement": "Which improvement?",
+      "forWhom": "For {name}: {reason}",
       "whichTrait": "Which statistic?",
       "whichExperience": "Which experience?",
       "newExperienceName": "New experience",

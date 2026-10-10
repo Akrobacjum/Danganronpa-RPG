@@ -2963,6 +2963,8 @@
         "reinforcedHint": "Cięższy krok, za rozdział, który na niego zasłużył."
       },
       "choice": "Wybór {n}",
+      "whichImprovement": "Które ulepszenie?",
+      "forWhom": "Postać: {name}. {reason}",
       "whichTrait": "Która statystyka?",
       "whichExperience": "Które doświadczenie?",
       "newExperienceName": "Nowe doświadczenie",

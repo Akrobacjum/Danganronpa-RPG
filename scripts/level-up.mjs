@@ -503,8 +503,17 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
-        classes: ["drpg-advance"],
-        content: buildContent(picks, experiences, why),
+        /* A MODULE PANEL, AS EVERY OTHER WINDOW OF THE MODULE (E10 C9, 1.2.71; audit S01-16, S03-19). It carried
+           `drpg-advance` alone, and the module's rules read `drpg-panel`: stacking.mjs `KEEP_ON_TOP` (the sheet
+           buried the picker when a player clicked it to compare statistics), chrome.mjs `dressChrome` (the selects'
+           arrow) and a11y.mjs (focus into a new window) all match it and nothing else, and the audit saw the
+           buttons and the title bar come out unlike the module's. `drpg-advance` stays beside it: the widths, the
+           pick rows and the notes are stated on it. Tier 2 "the Level Up window is a module panel" reads the
+           classes; what a browser then shows (the order of the windows, the arrow, the focus) is not something
+           the harness draws - LIVE check at a table, not measured here. */
+        classes: ["drpg-panel", "drpg-advance"],
+        // The GM's window says for whom it is; a player's own picker is their own character's.
+        content: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
         buttons: [
             {
                 action: "apply",
@@ -564,16 +573,29 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
  * FORM
  * ========================================================================== */
 
-function buildContent(picks, experiences, reasons) {
+/**
+ * The window's markup (E10 C9, 1.2.71; audit S03-19).
+ *
+ * @param {string|null} forName  the character's name when a GM is picking: the GM's window then says
+ *                               "For {name}: {reason}" once and the intro does not repeat the reason; null
+ *                               for a player's own picker, which keeps the reason in its intro
+ */
+function buildContent(picks, experiences, reasons, forName = null) {
+    const why = reasons.map(key => game.i18n.localize(key)).join(" ");
     const intro = game.i18n.format(
         picks === 1 ? "DRPG.Advance.introOne" : "DRPG.Advance.introMany",
-        { picks, reason: reasons.map(key => game.i18n.localize(key)).join(" ") }
-    );
+        { picks, reason: forName === null ? why : "" }
+    ).trim();
+    const forLine = forName === null ? ""
+        : `<p class="drpg-advance-for">${game.i18n.format("DRPG.Advance.forWhom", { name: foundry.utils.escapeHTML(forName), reason: why })}</p>`;
 
+    /* "CHOICE 1" OVER A WINDOW OF ONE CHOICE numbered nothing (S03-19): a Standard Level Up is one pick
+       (config.mjs `LEVEL_UP`), the Reinforced three. The legend is for telling several apart; a lone select
+       is named by its own label instead. */
     const rows = Array.from({ length: picks }, (_, i) => `
         <fieldset class="drpg-advance-pick" data-index="${i}">
-            <legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>
-            <select name="pick.${i}.option" data-pick="${i}">
+            ${picks > 1 ? `<legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>` : ""}
+            <select name="pick.${i}.option" data-pick="${i}" aria-label="${game.i18n.localize("DRPG.Advance.whichImprovement")}">
                 ${Object.entries(LEVEL_UP_OPTIONS)
                     .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${opt.label}</option>`)
                     .join("")}
@@ -582,11 +604,13 @@ function buildContent(picks, experiences, reasons) {
         </fieldset>
     `).join("");
 
+    /* A new character with no experiences is the ordinary case, not a fault: a dim note, not Foundry's amber
+       warning (S03-19). The option itself is drawn disabled above (E10 C8). */
     const warning = experiences.length
         ? ""
-        : `<p class="notification warning">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
+        : `<p class="drpg-advance-note">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
 
-    return `<form><p>${intro}</p>${warning}${rows}</form>`;
+    return `<form>${forLine}<p>${intro}</p>${warning}${rows}</form>`;
 }
 
 /** Swap the detail control whenever a pick's option changes. */
@@ -623,7 +647,7 @@ function buildDetail(option, index, actor, experiences) {
 
         case "experienceUp": {
             if (!experiences.length) {
-                return `<p class="notification warning">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
+                return `<p class="drpg-advance-note">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
             }
             const options = experiences
                 .map(e => `<option value="${e.id}">${foundry.utils.escapeHTML(e.name || "-")} (+${e.value ?? 0})</option>`)

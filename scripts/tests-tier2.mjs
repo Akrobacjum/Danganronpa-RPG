@@ -40707,6 +40707,98 @@ const SCENARIOS = [
             + "marked: applied, cub crime/alias/call, student crime/alias/call, hopeCallRefusal, cub badges, student badges; cleared: applied, cub, student)");
     }],
 
+    ["the Level Up window is a module panel that says for whom and draws no Choice over one pick and no amber for no experiences", async () => {
+        /*
+         * E10 C9, 1.2.71; audit S01-16, S03-19. The picker carried `drpg-advance` alone, and the module's panel rules
+         * (the stacking above the sheet, the selects' arrow, the focus) read `drpg-panel`; its legend said "Choice 1"
+         * over a window of one pick, a character with no experiences was warned in Foundry's amber, and a GM who
+         * opened it for a verdict was never told for whom or why beyond the title. The GM's picker is opened twice
+         * with the student prepared (`preparedAs`; at a table the student's own experiences, and the expectations
+         * follow what `listExperiences` measured): a Standard (one pick) with no experience and a Reinforced (three)
+         * with one. Read per window: its classes; the legends; the amber warnings; the dim notes; the GM's line;
+         * how often the reason is said; each select's name; and, for the first, what the pick's detail says when
+         * "Increase one experience" is forced on a character with none (the option is drawn disabled, so only a
+         * script reaches it; where the student has experiences at a table that last reading is not made). A player's
+         * picker is scenario 63's phase I.
+         */
+        needs(world.atLeast("livingStudents"), "a living student to advance");
+        const L = await import("./level-up.mjs");
+        const { listExperiences } = await import("./character.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student] = livingStudents();
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const say = (key, data) => game.i18n.format(key, data ?? {});
+        const seen = [];
+        const text = el => el?.textContent.replace(/\s+/g, " ").trim() ?? null;
+        const open = async (kind, experiences) => {
+            const unprepare = preparedAs(student, system => { system.experiences = experiences; });
+            let cfg = null, none = null;
+            try {
+                D.wait = async config => {
+                    if (!(config?.classes ?? []).includes("drpg-advance")) return null;
+                    cfg = config;
+                    return null;
+                };
+                await L.openAdvancement(student, kind);
+                none = listExperiences(student).length === 0;
+            } finally {
+                unprepare?.();
+            }
+            const form = document.createElement("div");
+            form.innerHTML = String(cfg?.content ?? "");
+            const reason = say(`DRPG.Advance.reason.${kind}`);
+            const read = {
+                classes: [...(cfg?.classes ?? [])].sort(),
+                legends: [...form.querySelectorAll("legend")].map(text),
+                amber: form.querySelectorAll(".notification").length,
+                notes: [...form.querySelectorAll(".drpg-advance-note")].map(text),
+                forLine: text(form.querySelector(".drpg-advance-for")),
+                reasonSaid: (text(form) ?? "").split(reason).length - 1,
+                named: [...form.querySelectorAll("select")].map(select => select.getAttribute("aria-label"))
+            };
+            // The detail the pick would draw for "Increase one experience" where there is none: only a script gets there.
+            let detail = null;
+            if (none && cfg?.render) {
+                const root = document.createElement("div");
+                root.innerHTML = String(cfg.content ?? "");
+                cfg.render({}, { element: root });
+                const select = root.querySelector('select[data-pick="0"]');
+                select.value = "experienceUp";
+                select.dispatchEvent(new Event("change"));
+                detail = { amber: root.querySelectorAll(".notification").length, notes: [...root.querySelectorAll(".drpg-advance-detail .drpg-advance-note")].map(text) };
+            }
+            return { read, none, detail };
+        };
+        try {
+            seen.push(await open("standard", {}));
+            seen.push(await open("reinforced", { E10C9EXPERIENCE: { name: "Patient", value: 2 } }));
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const noExperiences = say("DRPG.Advance.noExperiences");
+        const choices = n => Array.from({ length: n }, (_, i) => say("DRPG.Advance.choice", { n: i + 1 }));
+        const expected = ([kind, picks]) => {
+            const { none } = seen[picks === 1 ? 0 : 1];
+            return {
+                classes: ["drpg-advance", "drpg-panel"],
+                legends: picks === 1 ? [] : choices(picks),
+                amber: 0,
+                notes: none ? [noExperiences] : [],
+                forLine: say("DRPG.Advance.forWhom", { name: student.name, reason: say(`DRPG.Advance.reason.${kind}`) }),
+                reasonSaid: 1,
+                named: Array(picks).fill(say("DRPG.Advance.whichImprovement"))
+            };
+        };
+        must(seen[0].read.named.length === 1 && seen[1].read.named.length === 3,
+            `the picker drew ${seen[0].read.named.length} and ${seen[1].read.named.length} select(s) for a Standard and a Reinforced - this would measure nothing`);
+        equal(stableJson([seen[0].read, seen[1].read, seen[0].detail?.amber ?? 0, seen[0].detail ? seen[0].detail.notes : [noExperiences]]),
+            stableJson([expected(["standard", 1]), expected(["reinforced", 3]), 0, [noExperiences]]),
+            "the Level Up window was not the module's own, said Choice over one pick, warned in amber about no experiences, or left the GM not told for whom "
+            + "(per window: classes, legends, amber warnings, dim notes, the line for whom, how often the reason is said, the selects' names; then the detail of a forced experience pick)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

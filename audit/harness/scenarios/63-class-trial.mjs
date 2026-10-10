@@ -90,6 +90,8 @@
  * (one run, 10.10.2026).
  * E10 C8 added I5, p1's pick of an experience Aiko does not have, refused and told: 42 checks in 18.0 s (one run,
  * 10.10.2026).
+ * E10 C9 added I6, p1's own picker read off its markup (a module panel, no Choice over one pick, no line for whom):
+ * 43 checks in 19.4 s (one run, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -458,8 +460,13 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         const before = aiko.getFlag("${MOD}", "advances") ?? 0;
         let updates = 0;
         const hook = Hooks.on("updateActor", a => { if (a.id === aiko.id) updates++; });
+        let shown = null;
         globalThis.__dialogAnswers.push(async function advance(cfg) {
             if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
+            const form = document.createElement("div");
+            form.innerHTML = String(cfg.content ?? "");
+            shown = { classes: [...cfg.classes].sort(), legends: form.querySelectorAll("legend").length, forLine: Boolean(form.querySelector(".drpg-advance-for")),
+                intro: form.querySelector("form > p")?.textContent ?? "", reason: game.i18n.localize("DRPG.Advance.reason.standard") };
             return [{ option: "hp" }];
         });
         let sent = null;
@@ -470,7 +477,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         } finally {
             Hooks.off("updateActor", hook);
         }
-        return { lit, sent, before, after: aiko.getFlag("${MOD}", "advances") ?? 0, updates, still: Boolean(L.pendingAdvance(aiko)) };`, { timeout: 60000 });
+        return { lit, sent, before, after: aiko.getFlag("${MOD}", "advances") ?? 0, updates, still: Boolean(L.pendingAdvance(aiko)), shown };`, { timeout: 60000 });
     verdict("p1's sheet sees Aiko's offer from the class's window, and p1's pick through the bridge raises Aiko's advances by one in one write (C7; C6-C8 read it again)",
         picked.lit && picked.sent?.pending === true && picked.after === picked.before + 1
             && picked.updates === 1 && !picked.still, J({ picked }));
@@ -555,6 +562,11 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     verdict("p1's pick of an experience Aiko does not have is refused by gm2 and told on p1; the offer stands, lit, and nothing is written (C8)",
         offeredAgain.length === 1 && refusedOnP1.lit && refusedOnP1.res?.ok === true && refusedOnP1.told && refusedOnP1.still
             && refusedOnP1.rise === 0 && refusedOnP1.junk === false && backAgain === 0, J({ offeredAgain, refusedOnP1, backAgain }));
+    /* E10 C9 (S01-16, S03-19): the player's own picker is a module panel too - it carried `drpg-advance` alone - draws no
+       "Choice 1" over its one pick and no "For ..." line (that is the GM's), and says the reason in its intro. */
+    verdict("p1's own Level Up picker is a module panel: one pick with no Choice legend, the reason in its intro and no line for whom (C9)",
+        J(picked.shown?.classes) === J(["drpg-advance", "drpg-panel"]) && picked.shown?.legends === 0 && picked.shown?.forLine === false
+            && picked.shown?.reason?.length > 0 && picked.shown.intro.includes(picked.shown.reason), J({ shown: picked.shown }));
 
     /* ------------------------------ every client clean, every phase measured ------------------------------ */
 
