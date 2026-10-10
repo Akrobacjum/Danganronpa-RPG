@@ -4919,7 +4919,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         /*
          * 2.10.8's item transfer (E08+E28 C9, 04.10.2026; the owner's Q1 (a), 03.10). The
          * copy in lib/dh-relay.mjs is 2.10.11's since E75 C1 (10.10.2026; its cases are
-         * 2.10.8's eight), so the guard must know every case it has;
+         * 2.10.8's eight), so the guard must know every case it has, and from E75 C4 the
+         * text of its `default:` branch as well (ledger K13: before C4 the fingerprint read
+         * the case lines only, and called this listener "ok" without its default);
          * a player's transfer moves nothing, every packet is logged, each sender is told,
          * and the GM hears of it once a session - two players, three packets, one toast
          * (a 30-second window per sender would make two). The target's `transferItem` is
@@ -4928,8 +4930,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
          * no such case (2.10.5's had none).
          */
         const guard = await gm.eval(`return game.drpg.relayGuard();`);
-        check("RELAY: the guard has reviewed every case of the copied relay (2.10.11), so none is called unreviewed",
-            guard.state === "ok" && guard.fingerprint.includes("TransferItem") && guard.unreviewed.length === 0,
+        check("RELAY: the guard has reviewed every case of the copied relay (2.10.11) and its default branch",
+            guard.state === "ok" && guard.fingerprint.includes("TransferItem")
+                && guard.fingerprint.includes("default:EVENT_HANDLERS[data.action]?.(data.data)") && guard.unreviewed.length === 0,
             JSON.stringify({ state: guard.state, fingerprint: guard.fingerprint, unreviewed: guard.unreviewed }));
         const parcel = await gm.eval(`
             const [item] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "SEC parcel", type: "loot" }]);

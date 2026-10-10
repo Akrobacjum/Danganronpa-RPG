@@ -33,8 +33,9 @@
  * WHEN DAGGERHEART CHANGES. This leans on Daggerheart's own code, so it checks
  * that it is looking at what was reviewed (`fingerprintOf`), and on the primary
  * GM's client it refuses what it does not know:
- *   - a list of cases that grew, or a listener it cannot name: the unreviewed
- *     shapes are refused, and the GM is told once per Daggerheart version;
+ *   - a list of cases that grew, a `default:` branch whose text it has not
+ *     reviewed, or a listener it cannot name: the unreviewed shapes are
+ *     refused, and the GM is told once per Daggerheart version;
  *   - a packet name it does not know: refused, and the first few names are said
  *     in the GMs' chat (`SHAPES_WHISPERED`), the rest in the console;
  *   - a listener it cannot find, or a socket it cannot take one off: the
@@ -87,11 +88,18 @@ const REVIEWED_NAMES = new Set([GM_UPDATE, GM_CREATE, TRANSFER, ...UI_ONLY]);
 
 /**
  * The cases of `handleSocketEvent` this file was written against (2.6.5 and
- * 2.10.5 agree; `TransferItem` is in 2.10.8's, read 04.10.2026, and not in 2.10.5's).
+ * 2.10.5 agree; `TransferItem` is in 2.10.8's, read 04.10.2026, and not in 2.10.5's),
+ * and the one `default:` branch it was (E75 C4, 10.10.2026): 2.10.10 added it and
+ * 2.10.11 has the same (socket.mjs:36-37, read in the code), written as
+ * `fingerprintOf` reads it. Its table's keys are a module-scope const that is not
+ * on `game.system.api`, so the text of the dispatch is what can be read; the names
+ * it may run are held instead by `REVIEWED_NAMES` on a player's client and by
+ * `judgeRelay` on the GM's. Whether Daggerheart's bundle keeps these names for the
+ * clause is not read here (build/ is not in its git; AUDIT 9.2 LIVE-E75-03).
  */
 export const REVIEWED_CASES = [
     "GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart",
-    "TransferItem"
+    "TransferItem", "default:EVENT_HANDLERS[data.action]?.(data.data)"
 ];
 
 const SUB = {
@@ -115,6 +123,10 @@ const REFRESH_TYPES = new Set([
 const LISTENER_NAME = new RegExp("^handleSocketEvent(?:\\$\\d+)?$");
 /** One `case socketEvent.X:` of that listener's switch. */
 const CASE_LINE = new RegExp("case\\s+socketEvent(?:\\$\\d+)?\\.(\\w+)", "g");
+/* One `default:` clause, up to its `;` - or to the switch's `}` for a clause
+   that has none, rather than on into the rest of the function. Not after a `.`
+   or a name, so `x.default : y` is no clause. */
+const DEFAULT_LINE = new RegExp("(?<![\\w$.])default\\s*:([^;}]*)", "g");
 
 const OWNER = 3;
 /** A countdown the GM has not touched for this long is not a stale copy on its way. */
@@ -203,7 +215,7 @@ function ensureWrapped() {
         status.wrapped = originals.length;
         status.names = originals.map(fn => fn.name || "(anonymous)");
         status.fingerprint = fingerprintOf(originals);
-        status.unreviewed = status.fingerprint.filter(name => !REVIEWED_CASES.includes(name));
+        status.unreviewed = unreviewedOf(status.fingerprint);
         const unnamed = originals.some(fn => !LISTENER_NAME.test(fn.name ?? ""));
         status.state = unnamed ? "unnamed"
             : (!status.fingerprint.length || status.unreviewed.length) ? "changed" : "ok";
@@ -220,16 +232,35 @@ function ensureWrapped() {
 }
 
 /**
- * Which `socketEvent` cases a listener's own source handles. Daggerheart ships
- * as a rollup build without minification, so the switch is readable. A build
- * that cannot be read has no fingerprint, which counts as changed.
+ * Which `socketEvent` cases a listener's own source handles, and what its
+ * `default:` clauses do. Daggerheart ships as a rollup build without
+ * minification, so the switch is readable. A build that cannot be read has no
+ * fingerprint, which counts as changed.
+ *
+ * A clause is read as `default:` and its text with the whitespace taken out and
+ * rollup's `$n` suffixes dropped, so the same dispatch reads the same however the
+ * build lays it out. Until 2.10.9 the listener had no default (2.10.8's
+ * socket.mjs, read in the code) and adds no entry here; from 2.10.10 a name that
+ * is no case runs by the packet's `data.action`, so a different default reads
+ * "changed" as a new case does (E75 C4, 10.10.2026; held by R344 and by
+ * 30-security part 8's "the guard has reviewed every case of the copied relay").
  */
 export function fingerprintOf(fns) {
     const cases = new Set();
+    const defaults = new Set();
     for (const fn of fns) {
-        for (const match of String(fn).matchAll(CASE_LINE)) cases.add(match[1]);
+        const text = String(fn);
+        for (const match of text.matchAll(CASE_LINE)) cases.add(match[1]);
+        for (const match of text.matchAll(DEFAULT_LINE)) {
+            defaults.add(`default:${match[1].replace(/\s+/g, "").replace(/\$\d+/g, "")}`);
+        }
     }
-    return [...cases];
+    return [...cases, ...defaults];
+}
+
+/** The entries of a fingerprint nobody has reviewed: what makes the state "changed". */
+export function unreviewedOf(fingerprint) {
+    return fingerprint.filter(name => !REVIEWED_CASES.includes(name));
 }
 
 /**
