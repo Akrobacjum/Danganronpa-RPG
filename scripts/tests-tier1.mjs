@@ -3001,6 +3001,52 @@ const INVARIANTS = [
         }
     }],
 
+    ["R343 - a packet the relay's backstop refuses names nothing Daggerheart's listener dispatches on", async () => {
+        /*
+         * E75 C3, 10.10.2026; census B01-B05. The backstop (relay-guard.mjs `installBackstop`)
+         * refuses a packet in place, and Daggerheart's listener gets the same object after it.
+         * From 2.10.10 that listener runs a name it has no case for by the packet's
+         * `data.action` (2.10.11 socket.mjs:36-37), and its GMUpdate entry switches on
+         * `data.action` once more; its countdown entry is filed under `socketEvent.AddCountdown`,
+         * which that file does not declare, so a `data` with no `action` reaches it under the key
+         * "undefined" (read in the code, 10.10.2026). Before C3 a refusal renamed `action`
+         * alone. Each shape a player's packet comes in is handed to `disarm` here, and neither
+         * its `action` nor its `data.action` may then be a name of that listener's: a case, a
+         * table key or a GMUpdate entry's case. Pure: made-up packets, nothing sent.
+         */
+        const { disarm } = await import("./relay-guard.mjs");
+        equal(typeof disarm, "function", "relay-guard.mjs's way for the backstop to refuse a packet");
+        const dispatched = new Set(["DhGMUpdate", "DhGMCreate", "DhRefresh", "DhAddCountdowns", "DhFearUpdate", "DowntimeTrigger",
+            "DhTagTeamStart", "DhGroupRollStart", "DhTransferItem", "undefined", "DhGMUpdateDocument", "DhGMUpdateEffect",
+            "DhGMUpdateSetting", "DhGMUpdateFear", "DhGMUpdateCountdowns", "DhGMUpdateSaveMessage"]);
+        const shapes = {
+            GMUpdate: { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: "Actor.SUITEACTOR0000001", data: { name: "Suite" } } },
+            GMCreate: { action: "DhGMCreate", data: { documentType: "User", data: { name: "Suite user", role: 4 } } },
+            TransferItem: { action: "DhTransferItem", data: { item: "Item.SUITEITEM00000001", targetActor: "Actor.SUITEACTOR0000001", quantity: 1 } },
+            unknownName: { action: "SuiteUnknown", data: { action: "DhGMUpdate", data: { action: "DhGMUpdateFear", data: 0 } } },
+            noAction: { data: { data: { countdowns: [{ name: "Suite countdown" }] } } }
+        };
+        const named = Object.entries(shapes).flatMap(([shape, packet]) => {
+            disarm(packet);
+            return [packet.action, packet.data?.action].map(String).filter(name => dispatched.has(name)).map(name => `${shape}: ${name}`);
+        });
+        equal(JSON.stringify(named), "[]", "the names a refused packet still carries that Daggerheart's listener dispatches on");
+        // The backstop's catch hands it whatever arrived.
+        const thrown = [null, undefined, "DhGMUpdate", 7].map(odd => {
+            try { disarm(odd); return null; } catch (err) { return String(err?.message ?? err); }
+        });
+        equal(JSON.stringify(thrown), JSON.stringify([null, null, null, null]), "what disarm throws for a packet that is not an object");
+
+        /* AND EVERY REFUSAL OF THE BACKSTOP GOES THROUGH IT: `neutralise` and the backstop's own
+           catch (`installBackstop`, driven in 30-security part 8) rename no packet by hand. */
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        for (const name of ["neutralise", "installBackstop"]) {
+            const body = fnSource(guard, name);
+            ok(body.includes("disarm(payload)"), `${name} does not refuse through disarm`);
+            ok(!/\.action\s*=[^=]/.test(body), `${name} renames a packet itself`);
+        }
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every

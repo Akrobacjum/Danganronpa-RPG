@@ -68,6 +68,8 @@ import { senderOf, tellRefused } from "./bridge-guards.mjs";
 const GM_UPDATE = "DhGMUpdate";
 const GM_CREATE = "DhGMCreate";
 const TRANSFER = "DhTransferItem";
+/** What a refused packet is renamed to (`disarm`). */
+const REFUSED = "__drpgRefused";
 
 /** Packets that redraw something on every client and write nothing. */
 const UI_ONLY = new Set(["DhRefresh", "DhFearUpdate", "DowntimeTrigger", "DhTagTeamStart", "DhGroupRollStart"]);
@@ -234,12 +236,12 @@ export function fingerprintOf(fns) {
  * THE LAST RESORT, and only when the listener could not be found or the socket
  * has no way to take it off. `prependAny` listeners run before every event
  * listener, synchronously, with the same packet object - so a refused packet is
- * disarmed IN PLACE, by renaming its action to one Daggerheart has no case for.
+ * disarmed IN PLACE (`disarm`).
  *
  * This is the one place in the module that mutates a shared socket payload,
  * which gm-bridge.mjs forbids everywhere else, and it is allowed here because
  * there is no other way left to stop the write. It is protection, not
- * fidelity: other listeners on the channel see the renamed or narrowed packet.
+ * fidelity: other listeners on the channel see the disarmed or narrowed packet.
  * What this file writes itself (Fear, countdown ticks) goes through the same
  * `enqueue` queue as the wrapper's.
  */
@@ -254,12 +256,32 @@ function installBackstop(channel) {
         try {
             neutralise(payload, senderId);
         } catch (err) {
-            if (payload && typeof payload === "object") payload.action = "__drpgRefused";
+            disarm(payload);
             error("The Daggerheart relay backstop failed; the packet was refused", err);
         }
     });
     backstopOn = true;
     status.state = "backstop";
+}
+
+/**
+ * How the backstop refuses a packet: its `action` and its `data` both become a
+ * name that is no case of Daggerheart's listener and no key of its table (the
+ * string is not in Daggerheart's source: git grep on 2.10.8 and 2.10.11,
+ * 10.10.2026). Until E75
+ * C3 only `action` was renamed. From 2.10.10 a name the listener has no case for
+ * runs the entry of its table that the packet's `data.action` names
+ * (2.10.11 socket.mjs:36-37, read in the code), so a `data` left as sent reached
+ * that entry unjudged, and a `data` with no `action` the entry filed under the
+ * key "undefined", the countdown handler: measured on the copy of that relay in
+ * 30-security part 8, whose control hands the renamed-only packets to it. Held by
+ * R343 and by 30's "a packet the backstop disarmed reaches no handler of the
+ * copied relay".
+ */
+export function disarm(payload) {
+    if (!payload || typeof payload !== "object") return;
+    payload.action = REFUSED;
+    payload.data = { action: REFUSED };
 }
 
 function neutralise(payload, senderId) {
@@ -269,19 +291,19 @@ function neutralise(payload, senderId) {
         // A player's client refuses what the wrapper there would drop (`onRelay`).
         if (REVIEWED_NAMES.has(action) || !payload || typeof payload !== "object") return;
         debug(`Daggerheart relay backstop: "${plainWhat(String(action))}" is not a name the guard has reviewed; refused on this client.`);
-        payload.action = "__drpgRefused";
+        disarm(payload);
         return;
     }
     if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
         if (isPrimaryGm()) shapeWarning(String(action));
-        payload.action = "__drpgRefused";
+        disarm(payload);
         return;
     }
-    if (!isPrimaryGm()) { payload.action = "__drpgRefused"; return; }
+    if (!isPrimaryGm()) { disarm(payload); return; }
     const sender = senderOf(senderId);
     if (!sender) {
         noSender(payload, senderId);
-        payload.action = "__drpgRefused";
+        disarm(payload);
         return;
     }
     if (forwardsUnjudged(sender)) return;
@@ -290,7 +312,7 @@ function neutralise(payload, senderId) {
         payload.data = verdict.packet.data;
         return;
     }
-    payload.action = "__drpgRefused";
+    disarm(payload);
     if (verdict.verdict === "own") enqueue(verdict, sender);
     if (verdict.verdict === "refuse") reportRefusal(verdict, sender);
 }
