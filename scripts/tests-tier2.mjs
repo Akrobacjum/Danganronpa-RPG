@@ -2239,6 +2239,22 @@ async function standAlone(actor) {
 }
 
 /**
+ * A character sheet as the module draws it (E10 C16): no Daggerheart sheet renders in the harness
+ * (tests-kit.mjs `systemSheetsAvailable`), so the module's own render hook (sheet.mjs
+ * `onRenderCharacterSheet`) is handed a stand-in - an inventory part in the page, the actor, editable -
+ * and draws the inventory's rows into it as it does into a real sheet. Answers the element and a
+ * function that takes it out of the page.
+ */
+function drawnSheet(actor) {
+    const element = document.createElement("div");
+    element.className = "drpg-suite-sheet";
+    element.innerHTML = `<section data-application-part="inventory"></section>`;
+    document.body.append(element);
+    Hooks.callAll("renderCharacterSheet", { document: actor, isEditable: true, element, rendered: true }, element, {}, { isFirstRender: true });
+    return { element, remove: () => element.remove() };
+}
+
+/**
  * A verdict run with its windows answered (E05 C11): every `DialogV2.wait` for the length
  * of `run` is recorded - its classes, title and how many picks a Level Up window offers -
  * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
@@ -28716,6 +28732,267 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([false, true, 1]),
             "an objection took the floor with a Tool a write had made a Truth Bullet outside the GMs' mark (holds the floor, refused, actions)");
+    }],
+
+    ["opening a debate turns every open sheet's Present into Objection", async () => {
+        /*
+         * E10 C16, 1.2.71; audit S03-27, S06-43. A Truth Bullet's row draws one button, a Present while no debate
+         * is open and an Objection while one is, and the act was read once, when the sheet was drawn: the GM
+         * opening a debate redrew the floor bar and the HUD (sync.mjs `SYNC.trial`) and no sheet, so an open
+         * sheet went on offering the free Present while its window made an Objection, and after the debate the
+         * red Objection that costs an action. Drawn here by the module's own render hook on a stand-in sheet
+         * (`drawnSheet`: no Daggerheart sheet renders in the harness), in a Class Trial with no floor; then a
+         * debate is opened and closed by the floor's own functions, and the row is read each time - its act, its
+         * tooltip and its icon. Until this commit the row stayed a Present through the debate.
+         */
+        const [who] = cast(1);
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const present = game.i18n.localize("DRPG.Trial.presentTooltip");
+        const objection = game.i18n.localize("DRPG.Trial.objectionTooltip");
+        let item = null, sheet = null;
+        const read = [];
+        const row = () => {
+            const button = sheet?.element.querySelector(`[data-item-uuid="${item?.uuid}"] .drpg-row-present`);
+            return button ? [button.classList.contains("is-objection"), button.dataset.tooltip, Boolean(button.querySelector("i.fa-hand"))] : null;
+        };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            item = await bullets.createTruthBullet(who, { name: "SUITE E10 C16 a row's Present", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await settle();
+            sheet = drawnSheet(who);
+            must(row(), "the sheet's render hook drew no Present on the bullet's row - this would measure nothing");
+            read.push(row());
+            await floorMod.startFloor({});
+            await until(() => row()?.[0] === true);
+            read.push(row());
+            await floorMod.endFloor();
+            await until(() => row()?.[0] === false);
+            read.push(row());
+        } finally {
+            sheet?.remove();
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[false, present, false], [true, objection, true], [false, present, false]]),
+            "an open sheet's Present did not follow the debate (each: is an Objection, its tooltip, the hand icon - before, during, after)");
+    }],
+
+    ["a dead student is offered no Present and their Objection is refused on the primary and told", async () => {
+        /*
+         * E10 C16, 1.2.71; audit S06-35. Present asked only whether the item was a Truth Bullet and whether a trial
+         * was running, so a student killed with their bullets kept had the button, put evidence on every screen in
+         * a discussion, and in a debate an Objection card of theirs took the floor - the card is the claim, and the
+         * primary GM's `seizeFloor` is where it is judged. A student is killed with their bullet kept, in a Class
+         * Trial: their sheet's row (the module's render hook, `drawnSheet`), their window (`presentDialog`, every
+         * `DialogV2.wait` counted and closed) and the API's road (`presentBullet`) are read; then, in a debate, an
+         * Objection card in their name is posted as a console posts one. Read: whether it took the floor, whether
+         * it was marked refused, and whether a whisper said why. Then the same card again with the death taken off
+         * the document where the GMs' mark does not see it (`AUDIT_ASIDE`, a failed put-back's state): the death
+         * is read as the GMs hold it. Until this commit (e10run/scratch/c16a1/red, 10.10.2026) measured
+         * [[true,true,false,1,true,1,0],[false,true,false],[true,false,false]]: a Present button, a window, a card
+         * on every screen; the card with the death on the document refused further down the road and told
+         * nothing of the death (by reading, the price: price.mjs `cannotPayAtAll` asks `isDeadForGm` - which
+         * line refused was not measured); and with the death held by the GMs alone, the floor taken.
+         */
+        const [who, other] = cast(2);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges the objection - this would measure nothing");
+        const trial = await import("./trial.mjs");
+        const { TRIAL_FLAGS } = trial;
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const C = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const dead = game.i18n.format("DRPG.Trial.deadCannotPresent", { name: who.name });
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownWarn = ui.notifications.warn;
+        let item = null, sheet = null, windows = 0, record = null;
+        const warned = [], read = [];
+        const card = () => ChatMessage.create({
+            content: "<p>suite E10 C16 a dead student's objection</p>",
+            speaker: ChatMessage.getSpeaker({ actor: who }),
+            flags: { [MODULE_ID]: {
+                [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: true, [TRIAL_FLAGS.presenter]: who.name,
+                [TRIAL_FLAGS.item]: item.id, [TRIAL_FLAGS.target]: other.id, [TRIAL_FLAGS.targetName]: other.name,
+                [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+            } }
+        });
+        const judged = async message => {
+            await until(() => message.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === who.id);
+            await settle();
+            // `whisperToOwner` keeps the words on the private card (secret.mjs), so they are read there.
+            const { wordsOf } = await import("./secret.mjs");
+            const words = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
+            const told = words.some(w => String(w ?? "").includes(dead));
+            return [floorMod.trialFloor()?.holderId === who.id, Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), told];
+        };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            item = await bullets.createTruthBullet(who, { name: "SUITE E10 C16 a dead student's evidence", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death was not recorded`);
+            await sheetAuditIdle();
+            await settle();
+            must(C.isDeceased(who) && who.items.has(item.id), "the student is not dead on the document with the bullet kept - this would measure nothing");
+
+            D.wait = async () => { windows++; return null; };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return ownWarn.call(ui.notifications, message, ...rest); };
+            sheet = drawnSheet(who);
+            const before = game.messages.filter(m => m.getFlag(MODULE_ID, TRIAL_FLAGS.present)).length;
+            read.push([Boolean(sheet.element.querySelector(`[data-item-uuid="${item.uuid}"]`)),
+                Boolean(sheet.element.querySelector(`[data-item-uuid="${item.uuid}"] .drpg-row-present`)),
+                await trial.presentDialog(who, item), windows,
+                await trial.presentBullet(who, item, { objection: false, comment: "" }),
+                game.messages.filter(m => m.getFlag(MODULE_ID, TRIAL_FLAGS.present)).length - before,
+                warned.filter(w => w === dead).length]);
+
+            await floorMod.startFloor({});
+            await settle();
+            const first = await card();
+            read.push(await judged(first));
+
+            if (floorMod.trialFloor()?.holderId === who.id) await floorMod.returnToDebate({});
+            record = who.getFlag(MODULE_ID, FLAGS.deceased);
+            await who.update({ [`flags.${MODULE_ID}.${FLAGS.deceased}`]: forcedDeletion() }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(!C.isDeceased(who) && Boolean(sheetMarkStore.get(who.id)?.flags?.[FLAGS.deceased]),
+                "the death was not taken off the document alone, outside the GMs' mark - this would measure nothing");
+            for (const m of game.messages.filter(m => !seen.has(m.id))) seen.add(m.id);
+            const second = await card();
+            read.push(await judged(second));
+        } finally {
+            // The document as the mark holds it first, so the revival is a GM's write the mark follows.
+            if (record && !C.isDeceased(who)) await who.update({ [`flags.${MODULE_ID}.${FLAGS.deceased}`]: record }, { [AUDIT_ASIDE]: true });
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            sheet?.remove();
+            // Its cards' OBJECTION! went up on this GM's screen raised; down under the windows again, as touched.
+            for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, false, false, 0, false, 0, 2], [false, true, true], [false, true, true]]),
+            "a dead student was offered a Present, or their Objection took the floor or went untold (the row drawn, its Present, the window's answer, windows opened, the API's answer, cards posted, warnings; then the card with the death on the document: holds the floor, refused, told; then with the death held by the GMs alone)");
+    }],
+
+    ["an Objection card is raised over the windows until it is touched", async () => {
+        /*
+         * E10 C16, 1.2.71; the owner's amend of 04.10. The evidence stage sits under the windows so that what is
+         * opened over a card standing for minutes stays reachable, and so an OBJECTION! landed behind the sheet or
+         * the ballot a player had open. The stage's class is read (`is-raised`, which the stylesheet lifts over
+         * the windows): with a piece of evidence, with an Objection beside it, after a pointerdown on the
+         * Objection. Whether the raised stage stands over every window at a table is LIVE-E10-03 - the harness
+         * draws no stacking. Until this commit the stage was never raised.
+         */
+        const { showPopup } = await import("./popup.mjs");
+        const stage = () => document.getElementById("drpg-evidence");
+        // A card an earlier test left up and untouched would hold the stage up for this one.
+        for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
+        const closers = [], read = [];
+        try {
+            closers.push(showPopup("<p>suite E10 C16 evidence</p>", { kind: "evidence", sticky: true }));
+            read.push(Boolean(stage()?.classList.contains("is-raised")));
+            closers.push(showPopup("<p>suite E10 C16 objection</p>", { kind: "objection", sticky: true }));
+            read.push(Boolean(stage()?.classList.contains("is-raised")));
+            const objection = [...(stage()?.querySelectorAll(".drpg-popup") ?? [])].find(c => c.textContent.includes("suite E10 C16 objection"));
+            must(objection, "the Objection card is not on the evidence stage - this would measure nothing");
+            objection.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+            read.push(Boolean(stage()?.classList.contains("is-raised")));
+        } finally {
+            for (const close of closers) close?.();
+        }
+        equal(stableJson(read), stableJson([false, true, false]),
+            "the evidence stage was not raised for an Objection until it was touched (with evidence, with the Objection, after its pointerdown)");
+    }],
+
+    ["a Present and an Objection made through the window tell the presenter and only the Objection comes to the front", async () => {
+        /*
+         * E10 C16, 1.2.71; audit S03-27 and the owner's amend of 04.10. The window closed and nothing else on the
+         * presenter's screen moved, and the OBJECTION! card landed under the windows. A Present in a discussion and
+         * an Objection in a debate are made through the window (`presentDialog`, its default button pressed on the
+         * window's markup), and the presenter's toasts are read, and after each whether the evidence stage of this
+         * client - the card's own road, trial.mjs `registerTrial` - is raised over the windows. The Objection's
+         * floor is the primary GM's answer, so the toast says it was sent; who holds the floor is not asserted.
+         */
+        const [who] = cast(1);
+        const trial = await import("./trial.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownInfo = ui.notifications.info;
+        const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const said = [], raisedAfter = [];
+        let item = null;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({ "system.resources.actions.value": 1, "system.resources.actions.max": 2 });
+            item = await bullets.createTruthBullet(who, { name: "SUITE E10 C16 a toast", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await settle();
+            for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
+            const raised = () => Boolean(document.getElementById("drpg-evidence")?.classList.contains("is-raised"));
+            D.wait = async cfg => {
+                // `dialogContent` hands the window an element.
+                const element = cfg?.content instanceof HTMLElement ? cfg.content
+                    : Object.assign(document.createElement("div"), { innerHTML: String(cfg?.content ?? "") });
+                const button = (cfg?.buttons ?? []).find(b => b.default && !b.disabled);
+                return button?.callback?.(new Event("click"), button, { element }) ?? null;
+            };
+            ui.notifications.info = (message, ...rest) => { said.push(String(message)); return ownInfo.call(ui.notifications, message, ...rest); };
+            const presented = await trial.presentDialog(who, item);
+            await settle();
+            raisedAfter.push(raised());
+            await floorMod.startFloor({});
+            await settle();
+            const objected = await trial.presentDialog(who, item);
+            await until(raised);
+            raisedAfter.push(raised());
+            must(presented && objected, `the fixture's Present or Objection was not posted (${presented}, ${objected})`);
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            ui.notifications.info = ownInfo;
+            for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        const name = "SUITE E10 C16 a toast";
+        equal(stableJson([said.filter(s => s.includes(name)), raisedAfter]), stableJson([[
+            game.i18n.format("DRPG.Trial.presented", { name }), game.i18n.format("DRPG.Trial.objectionSent", { name })], [false, true]]),
+            "the presenter was not told their Present and their Objection went out, or the stage was not raised for the Objection alone (the toasts naming the evidence; raised after the Present, after the Objection)");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {

@@ -5843,6 +5843,15 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
        map stays draggable in the gaps between them. */
     pointer-events: none;
 }
+/* AN OBJECTION OVER THE WINDOWS UNTIL IT IS TOUCHED (E10 C16, 1.2.71; the owner's
+   amend of 04.10). popup.mjs puts `is-raised` on the stage while an OBJECTION! on
+   it has not had a pointerdown, and takes it off after. One under the notice
+   stack, whose 99990 is the reading above that clears the window layer, so a
+   notice still lands over it. Whether it stands over every window at a real
+   table is LIVE-E10-03: the harness draws no stacking. */
+#drpg-evidence.is-raised {
+    z-index: 99989;
+}
 #drpg-evidence .drpg-popup {
     pointer-events: auto;
     width: 100%;

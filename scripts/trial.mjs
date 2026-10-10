@@ -145,10 +145,25 @@ export async function presentDialog(actor, item) {
         return false;
     }
 
+    /*
+     * THE DEAD DO NOT PRESENT (E10 C16, 1.2.71; audit S06-35). This asked only
+     * whether the item was a bullet and whether a trial was running, so a student
+     * killed with their bullets kept opened this window and put evidence on every
+     * screen, and an Objection of theirs reached the primary GM, which refused it
+     * with no word of the death (e10run c16a1/red, 10.10.2026). Refused before the window,
+     * with a reason; `presentBullet` asks again for the API's road, and
+     * `seizeFloor` judges a dead objector's card on the primary GM. The document's
+     * death on this browser is a courtesy, as everything in this window is.
+     */
+    const { livingStudents, isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(actor)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
+        return false;
+    }
+
     const data = truthBulletData(item);
 
     const { trialFloor, FLOOR_MODES, floorRefusal } = await import("./trial-floor.mjs");
-    const { livingStudents } = await import("./chapter.mjs");
 
     const floor = trialFloor();
     // An open floor of any kind is a debate in progress, and evidence produced
@@ -337,7 +352,17 @@ export async function presentDialog(actor, item) {
     });
 
     if (!choice || choice === "cancel") return false;
-    return presentBullet(actor, item, choice);
+    const posted = await presentBullet(actor, item, choice);
+    /* SAID WHEN IT WENT OUT (E10 C16, 1.2.71; audit S03-27). The window closed and
+       nothing else on the presenter's screen moved - the card lands in the chat
+       and the evidence stage, and on a busy screen neither is where they look. An
+       Objection's answer is the primary GM's (`seizeFloor`), so this says it was
+       sent, not that it took the floor. */
+    if (posted) {
+        ui.notifications.info(game.i18n.format(choice.objection
+            ? "DRPG.Trial.objectionSent" : "DRPG.Trial.presented", { name: item.name }));
+    }
+    return posted;
 }
 
 /*
@@ -358,6 +383,14 @@ export async function presentBullet(actor, item, {
 } = {}) {
     const data = truthBulletData(item);
     if (!data) return false;
+
+    // The API's road to the card a dead student's window no longer opens (see
+    // `presentDialog`; E10 C16).
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(actor)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
+        return false;
+    }
 
     const target = objection && targetId ? (game.actors.get(targetId) ?? null) : null;
 
@@ -624,6 +657,21 @@ async function seizeFloor(message, objectorId, targetId) {
     }
 
     /*
+     * THE DEAD DO NOT OBJECT, AS THE GMS HOLD THE DEATH (E10 C16, 1.2.71; audit S06-35). The
+     * objector's window refuses a dead student, but the card is the claim and this is where it is
+     * judged. The death is a GM's flag the sheet audit puts back (`deceased`, sheet-audit.mjs
+     * GM_FLAGS), so it is read as the GMs hold it (`flagsAsHeld`), not off the document a player's
+     * write can have changed until the put-back lands - the same seam as the evidence below. The
+     * wait holds up nothing that holds it up, by reading: an objection writes no use's consumption
+     * and no roll's card. Refused before anything is paid, and told like every refusal here.
+     */
+    const { itemAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(await flagsAsHeld(actor))) {
+        return refuse(game.i18n.format("DRPG.Trial.deadCannotPresent", { name: actor.name }));
+    }
+
+    /*
      * THE BULLET AS THE GMS HOLD IT (E29 fix r2-H20, 06.10.2026; H18's seam). Whether the card's item is a Truth
      * Bullet is its category, a field the sheet audit judges, so it is read as the GMs hold it (sheet-audit.mjs
      * `itemAsHeld`): an item a player's browser made a bullet a moment before - a write the audit puts back - shows
@@ -632,7 +680,6 @@ async function seizeFloor(message, objectorId, targetId) {
      * 06.10.2026) a Tool made a Truth Bullet where the GMs' mark did not see it took the floor, its action paid.
      */
     const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
     const item = itemId ? await itemAsHeld(actor, itemId) : null;
     if (!item || !isTruthBullet(item)) {
         return refuse(game.i18n.localize("DRPG.Trial.objectionNoItem"));

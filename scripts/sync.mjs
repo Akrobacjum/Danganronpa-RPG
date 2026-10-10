@@ -392,6 +392,10 @@ function refresh(kind, data = {}) {
             // does not, and the turn-over animation between one mode and the
             // next never played at all.
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
+            // A debate opening or closing changes what a Truth Bullet's row on an
+            // open sheet does, Present or Objection; nothing renders a sheet here,
+            // so the rows are repainted in place (E10 C16, 1.2.71; S03-27, S06-43).
+            run("present", () => import("./sheet.mjs").then(m => m.repaintPresentButtons()));
             break;
 
         case SYNC.rules:

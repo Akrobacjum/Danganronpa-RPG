@@ -7432,6 +7432,11 @@ const REGRESSIONS = [
          * E10 C8 (1.2.71) rewrote the verdicts of the spend's picks, `applyAdvancement`, `handleAdvancement` and
          * `stampStartingSheet`: a pick the sheet cannot take is refused and told, the experiences and the starting
          * spread read as the GMs hold them; no place added or struck.
+         * E10 C16 (1.2.71) added three SHEET places, each a death the Present road reads now:
+         * `seizeFloor`'s, as the GMs hold it, and the presenter's own browser's in `presentBullet` and
+         * the sheet's `addPresentButton`; it rewrote the verdicts of `registerTrial`, `seizeFloor`'s
+         * card, `presentDialog` and `trialQueue`. Measured on the harness on 10.10.2026 with C16 in
+         * the tree: 49 places against 49 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 20 SHEET, 5 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7454,9 +7459,9 @@ const REGRESSIONS = [
             ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
-            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~501-520); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card. C16 adds the dead objector (`flagsAsHeld`) [F4 read road]"],
-            ["CHAT trial.mjs#seizeFloor", "judged: the item through `itemAsHeld` (E29); the card's flag is a claim; C16 keeps it and adds the dead objector (`await flagsAsHeld`, then the synchronous refusals) [1b.2]"],
-            ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:731, 751, GM only); a display, feeds no write"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
+            ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
+            ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
@@ -7465,7 +7470,10 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#executeSentenced", "judged (C5): each execution awaits `judgedFor(id)`, reads `isDeadForGm(flagsHeldNow(actor))` and calls `killCharacter`, whose own head check `isDeadForGm` runs with nothing awaited after that read (H3); a death the GMs hold is passed over, not killed twice [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
-            ["SHEET trial.mjs#presentDialog", "out of scope: the Present dialog's target list on the presenter's own browser (R4); `seizeFloor` judges on the primary"],
+            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
+            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); an Objection is judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
+            ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
+            ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
             ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing"],
             ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
@@ -7479,7 +7487,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; C16 reads `trialQueue.active` on render and on change"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since C16 a sheet's Present reads `trialQueue.active` on render (`addPresentButton`) and on change (`repaintPresentButtons`, from `SYNC.trial`)"]
         ];
         const ROADS = /^(?:vote|advancement)\./;
         const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
