@@ -3038,13 +3038,27 @@ const INVARIANTS = [
         equal(JSON.stringify(thrown), JSON.stringify([null, null, null, null]), "what disarm throws for a packet that is not an object");
 
         /* AND EVERY REFUSAL OF THE BACKSTOP GOES THROUGH IT: `neutralise` and the backstop's own
-           catch (`installBackstop`, driven in 30-security part 8) rename no packet by hand. */
+           catch (`installBackstop`, driven in 30-security part 8) rename no packet by hand, and each
+           of `neutralise`'s five refusals ends in `disarm` (E75 fix r1-G2; review cor F2: one
+           `disarm(payload)` anywhere satisfied this until then, and the branch on a GM that is not
+           the primary is one the one-GM harness cannot drive, so it is held here by reading). */
         const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
         for (const name of ["neutralise", "installBackstop"]) {
             const body = fnSource(guard, name);
             ok(body.includes("disarm(payload)"), `${name} does not refuse through disarm`);
             ok(!/\.action\s*=[^=]/.test(body), `${name} renames a packet itself`);
         }
+        const neutralise = fnSource(guard, "neutralise");
+        const branches = {
+            "a name a player's client has not reviewed": /refused on this client\.`\);\s*disarm\(payload\);\s*return;/,
+            "a name the GM has not reviewed": /shapeWarning\([^;]*\);\s*disarm\(payload\);\s*return;/,
+            "a GM that is not the primary": /if \(!isPrimaryGm\(\)\) \{\s*disarm\(payload\);\s*return;\s*\}/,
+            "a sender this client cannot judge": /noSender\(payload, senderId\);\s*disarm\(payload\);\s*return;/,
+            "a verdict other than forward": /disarm\(payload\);\s*if \(verdict\.verdict === "own"\)/
+        };
+        equal(JSON.stringify(Object.keys(branches).filter(branch => !branches[branch].test(neutralise))), "[]",
+            "the backstop's refusals that do not end in disarm");
+        equal((neutralise.match(/disarm\(payload\)/g) ?? []).length, Object.keys(branches).length, "the times neutralise calls disarm");
     }],
 
     ["R344 - the relay guard reads a listener's default branch, and a default it has not reviewed is a change", async () => {
@@ -3111,12 +3125,16 @@ const INVARIANTS = [
          * not taken for it. On C4's tree the shape came back kind
          * "shape" for the sub "?". Pure: nothing is sent.
          */
-        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { judgeRelay, plainWhat } = await import("./relay-guard.mjs");
         const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
         const world = { now: () => 1e12 };
         const judged = payload => {
-            const { verdict, sub, kind, why } = judgeRelay(payload, player, world);
-            return { verdict, sub, kind: kind ?? null, why };
+            try {
+                const { verdict, sub, kind, why } = judgeRelay(payload, player, world);
+                return { verdict, sub, kind: kind ?? null, why };
+            } catch (err) {
+                return { threw: String(err?.message ?? err) };
+            }
         };
         const countdowns = [{ name: "Doom", progress: { start: 4, current: 4 } }, { name: { toString: () => "Dread" } }, {}];
         equal(JSON.stringify(judged({ data: { data: { countdowns } } })),
@@ -3125,6 +3143,19 @@ const INVARIANTS = [
         equal(JSON.stringify(judged({ action: null, data: { data: { countdowns: [] } } })),
             JSON.stringify({ verdict: "drop", sub: "countdownsFromAction", kind: null, why: "no countdowns" }),
             "the verdict on the same shape with no countdowns in it");
+
+        /* A NAME `String()` CANNOT READ (E75 fix r1-G2; review sec S2): an object whose `toString`
+           is no function, which JSON carries. Until the fix `judgeRelay` threw on it, so the guard
+           logged a failure in place of this refusal and the sender was not told. It is refused by
+           name all the same, the name read as "[object Object]"; `plainWhat`, which the console
+           lines go through, reads such a value the same way. */
+        const unreadable = JSON.parse('{ "name": { "toString": "Doom", "valueOf": 0 } }');
+        equal(JSON.stringify(judged({ data: { data: { countdowns: [countdowns[0], unreadable] } } })),
+            JSON.stringify({ verdict: "refuse", sub: "countdownsFromAction", kind: "refused", why: "new countdowns (Doom, [object Object])" }),
+            "the verdict on a player's countdowns when one name cannot be read as text");
+        let shown;
+        try { shown = plainWhat(unreadable.name); } catch (err) { shown = `threw: ${err?.message ?? err}`; }
+        equal(shown, "[object Object]", "what plainWhat makes of a value String() cannot read");
 
         const near = {
             "an inner action": { data: { action: "SuiteUnknown", data: { countdowns } } },
@@ -3146,6 +3177,10 @@ const INVARIANTS = [
             const recognised = body.indexOf("isCountdownAdd(payload)"), refused = body.indexOf("shapeWarning(");
             ok(recognised > 0 && refused > recognised, `${name} does not recognise the countdown shape before it refuses an unknown name`);
         }
+        /* AND NO TEXT IS READ OFF A PACKET BUT THROUGH `textOf` (fix r1-G2): `String` is left only
+           for a listener's source (`fn`) and Foundry's own values (`game.`). */
+        const strays = guard.replace(fnSource(guard, "textOf"), "").match(/\bString\b(?!\((?:fn\)|game\.))[^\n]{0,40}/g) ?? [];
+        equal(JSON.stringify(strays), "[]", "the places relay-guard.mjs reads text with String() and not textOf");
     }],
 
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {

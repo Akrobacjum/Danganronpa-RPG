@@ -19,7 +19,10 @@
  * (`REVIEWED_NAMES`) - Daggerheart's GM handlers do nothing there - and
  * nowhere otherwise: from 2.10.10 Daggerheart's listener runs a name it has
  * no case for by the packet's inner `data.action`, on whichever client
- * receives it (read in 2.10.11's socket.mjs, 10.10.2026; E75 C2). On the primary
+ * receives it (read in 2.10.11's socket.mjs, 10.10.2026; E75 C2). The
+ * backstop (below) can refuse only an object in place: a payload that is not
+ * one goes on there, and 2.10.11's listener fails on a string or null before
+ * it writes (measured on the copy, scenario 30 part 8; fix r1-G2). On the primary
  * GM's client, a request from a player or an Assistant GM is judged against
  * the shapes Daggerheart itself sends for players (`judgeRelay`, the table
  * below), and then passed on narrowed to what was allowed, written by this
@@ -343,14 +346,17 @@ function neutralise(payload, senderId) {
     const action = payload?.action;
     if (UI_ONLY.has(action)) return;
     if (!game.user?.isGM) {
-        // A player's client refuses what the wrapper there would drop (`onRelay`).
+        // A player's client refuses what the wrapper there would drop (`onRelay`), where it can:
+        // a payload that is not an object cannot be disarmed in place, so it goes on to
+        // Daggerheart's listener - 2.10.11's fails on a string or null before it writes
+        // (measured on the copy, scenario 30 part 8; E75 fix r1-G2).
         if (REVIEWED_NAMES.has(action) || !payload || typeof payload !== "object") return;
-        debug(`Daggerheart relay backstop: "${plainWhat(String(action))}" is not a name the guard has reviewed; refused on this client.`);
+        debug(`Daggerheart relay backstop: "${plainWhat(textOf(action))}" is not a name the guard has reviewed; refused on this client.`);
         disarm(payload);
         return;
     }
     if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
-        if (isPrimaryGm()) shapeWarning(String(action));
+        if (isPrimaryGm()) shapeWarning(textOf(action));
         disarm(payload);
         return;
     }
@@ -413,16 +419,16 @@ function onRelay(payload, senderId) {
             // reviewed name has nothing to judge, and any other name goes nowhere
             // (`REVIEWED_NAMES`).
             if (REVIEWED_NAMES.has(action)) return forward(payload, senderId);
-            debug(`Daggerheart relay: "${plainWhat(String(action))}" is not a name the guard has reviewed; not run on this client.`);
+            debug(`Daggerheart relay: "${plainWhat(textOf(action))}" is not a name the guard has reviewed; not run on this client.`);
             return;
         }
         if (!isCountdownAdd(payload) && action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
             // Said by the primary GM only, so one GM speaks for the table.
-            if (isPrimaryGm()) shapeWarning(String(action));
+            if (isPrimaryGm()) shapeWarning(textOf(action));
             return;
         }
         if (!isPrimaryGm()) {
-            debug(`Daggerheart relay: "${relayName(payload)}" left to the primary GM.`);
+            debug(`Daggerheart relay: "${plainWhat(textOf(relayName(payload)))}" left to the primary GM.`);
             return;
         }
         const sender = senderOf(senderId);
@@ -482,7 +488,7 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
         return { ...refuseAs(TRANSFER, "refused", "an item transfer, which waits for the GM in this game"), once: true };
     }
     if (payload?.action === GM_CREATE) {
-        const type = String(data?.documentType ?? "?");
+        const type = textOf(data?.documentType ?? "?");
         // D-a: every region in this game is a room (movement.mjs reads rooms off
         // region names), so a player's Daggerheart area would move the map.
         if (type === "Region") return refuseAs("DhGMCreate", "refused", "a Daggerheart area (a Region) placed by a player");
@@ -496,8 +502,8 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
         case SUB.countdowns: return judgeCountdowns(data, sender, world);
         case SUB.save: return judgeSave(data, sender, world);
         case SUB.effect: return refuseAs(sub, "forged", "an effect applied by the GM's hand");
-        case SUB.setting: return refuseAs(sub, "forged", `the setting "${String(data?.uuid ?? "?")}"`);
-        default: return refuseAs(String(sub ?? "?"), "shape", `"${String(sub ?? "?")}", which this module has not reviewed`);
+        case SUB.setting: return refuseAs(sub, "forged", `the setting "${textOf(data?.uuid ?? "?")}"`);
+        default: return refuseAs(textOf(sub ?? "?"), "shape", `"${textOf(sub ?? "?")}", which this module has not reviewed`);
     }
 }
 
@@ -627,7 +633,7 @@ function sceneRefusal(doc, flat) {
     const next = entries[0][1];
     const current = doc.flags?.daggerheart?.sceneEnvironments ?? [];
     const same = Array.isArray(next) && Array.isArray(current) && next.length === current.length
-        && [...next].map(String).sort().join("\n") === [...current].map(String).sort().join("\n");
+        && [...next].map(textOf).sort().join("\n") === [...current].map(textOf).sort().join("\n");
     return same ? null : `the environments of ${doc.name}, which is not a reordering`;
 }
 
@@ -668,7 +674,7 @@ function partyRefusal(doc, flat, sender, world) {
 function judgeFear(data, sender, world) {
     const sub = SUB.fear;
     const asked = Number(data?.data);
-    if (!Number.isFinite(asked)) return refuseAs(sub, "forged", `Fear set to ${data?.data}`);
+    if (!Number.isFinite(asked)) return refuseAs(sub, "forged", `Fear set to ${textOf(data?.data)}`);
     const fear = world.fear();
     const gap = Math.round(asked) - fear;
     const step = Math.max(-1, Math.min(1, gap));
@@ -706,7 +712,7 @@ function judgeCountdowns(data, sender, world) {
     for (const [id, next] of Object.entries(theirs.countdowns)) {
         const now = oursById[id];
         if (!now) {
-            created.push(String(next?.name ?? id));
+            created.push(textOf(next?.name ?? id));
             continue;
         }
         const dCurrent = Number(next?.progress?.current) - Number(now.progress?.current);
@@ -759,7 +765,7 @@ function judgeCountdowns(data, sender, world) {
  * start them by hand. An empty list is what Daggerheart's handler would add nothing for.
  */
 function judgeCountdownAdd(countdowns) {
-    const names = countdowns.map(countdown => String(countdown?.name ?? "?"));
+    const names = countdowns.map(countdown => textOf(countdown?.name ?? "?"));
     if (!names.length) return dropAs(COUNTDOWN_ADD, "no countdowns");
     return refuseAs(COUNTDOWN_ADD, "refused", `new countdowns (${names.join(", ")})`);
 }
@@ -805,7 +811,7 @@ function judgeSave(data, sender, world) {
             action: sub, uuid: null, refresh: validRefresh(data.refresh),
             data: {
                 action: typeof inner.action === "string" ? inner.action : null,
-                message: message.id, token: String(inner.token),
+                message: message.id, token: textOf(inner.token),
                 result: { roll: { total: Math.round(total), isCritical: Boolean(inner.result.roll.isCritical) } }
             }
         }
@@ -1002,12 +1008,33 @@ const saidOnce = new Set();
 let unknownSaid = false;
 
 /**
+ * Text read off a packet, as a string and never a throw (E75 fix r1-G2, 10.10.2026; review
+ * sec S2). `String()` of an object whose `toString` is no function - `{"toString": 1}`, which
+ * JSON and so a socket carries - throws "Cannot convert object to primitive value" (measured
+ * in node, 10.10.2026). Every reading of a packet here sits inside the try of `onRelay` or of
+ * the backstop, so such a name failed closed, but as "the guard failed": a player's
+ * countdowns from an action were not refused by name, counted or told to the sender (R345,
+ * red on that before this helper). So a string is taken as it is; anything else goes through
+ * `String`, then `Object.prototype.toString` ("[object Object]"), then "?". Every text this
+ * file reads off a packet goes through here; `String(` is left for Foundry's own values and a
+ * listener's source (R345 reads the file for it). `Number()` of the same object throws as
+ * well; the numbers read off a packet (Fear, a countdown's progress, a save's total, a
+ * resource) do not go through here, and still fail closed in that try (read in the code; so
+ * on a GM the backstop's own catch stays reachable by a value a socket carries, not run).
+ */
+function textOf(value) {
+    if (typeof value === "string") return value;
+    try { return String(value); } catch { /* the next reading */ }
+    try { return Object.prototype.toString.call(value); } catch { return "?"; }
+}
+
+/**
  * Text read off a packet, made safe to show: no markup, and not a page long.
  * A toast's escaping is not something this file has measured on v14, so what
  * reaches one carries no angle brackets to begin with.
  */
 export function plainWhat(text) {
-    const flat = String(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+    const flat = textOf(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
     return flat.length > 160 ? `${flat.slice(0, 159)}…` : flat;
 }
 
