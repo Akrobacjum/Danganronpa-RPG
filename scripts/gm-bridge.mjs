@@ -364,7 +364,7 @@ async function handleAdvancement(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor) return { refused: "no such character" };
 
-    const { standingOffers, offerPicks, applyAdvancement } = await import("./level-up.mjs");
+    const { standingOffers, offerPicks, applyAdvancement, advancing } = await import("./level-up.mjs");
     const { numberHeld } = await import("./sheet-audit.mjs");
     const standing = standingOffers(actor);
     const offer = standing.find(held => held.id === payload.offerId) ?? null;
@@ -428,7 +428,8 @@ async function handleAdvancement(payload, sender, ctx) {
        trips later; two packets inside that window - two stacked pickers, a double
        press on a slow server - both found the offer standing and both applied. The
        lines above are synchronous, so nothing interleaves between reading the offer
-       and taking the latch. */
+       and taking the latch. The latch is level-up.mjs's since E10 fix r1-G2: a take-back
+       of the offer reads it and is refused while it is held. */
     if (advancing.has(actor.id)) {
         return { refused: "a Level Up for that character is already being written" };
     }
@@ -440,8 +441,6 @@ async function handleAdvancement(payload, sender, ctx) {
     }
 }
 
-/** Characters whose Level Up is being written right now (see handleAdvancement). */
-const advancing = new Set();
 /** Characters whose refused Level Up the GMs were told this browser may not hold (see handleAdvancement). */
 const offerMissingTold = new Set();
 
@@ -455,11 +454,13 @@ const offerMissingTold = new Set();
 async function handleAdvancementOffer(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor || actor.type !== "character") return { refused: "no such character" };
-    const { recordOffer, dropOffer, standingOffers } = await import("./level-up.mjs");
+    const { recordOffer, dropOffer, standingOffers, advancing } = await import("./level-up.mjs");
     if (payload.op === "take") {
         if (!standingOffers(actor).some(offer => offer.id === payload.offerId)) {
             return { refused: "no Level Up is on offer under that name for that character" };
         }
+        // Not while the Level Up it would spend is being written (level-up.mjs `takeBackOffer`; E10 fix r1-G2).
+        if (advancing.has(actor.id)) return { refused: "a Level Up for that character is already being written" };
         await dropOffer(actor.id, payload.offerId);
         return { reply: { taken: payload.offerId } };
     }

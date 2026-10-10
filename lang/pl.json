@@ -2992,6 +2992,7 @@
       "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
       "takeBack": "Cofnij ofertę: {kind}",
       "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
+      "takeBackBusy": "Level Up postaci {name} jest właśnie zapisywany, więc jego oferty nie można cofnąć. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
       "offerStillStands": "Level Up postaci {name} jest zapisany, ale oferty, którą wykorzystał, nie udało się wycofać i wciąż stoi: cofnij ją w menu Level Up na arkuszu.",
       "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
       "standing": {

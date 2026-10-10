@@ -19575,6 +19575,142 @@ const SCENARIOS = [
         }
     }],
 
+    ["a take-back of an offer whose Level Up is being written is refused on both roads", async () => {
+        /*
+         * E10 fix r1-G2, 1.2.71; the round-1 security review's F1 and the goal verifier's item (a). A
+         * player's Level Up reads its offer, waits in the student's queue, writes, and spends the offer
+         * after; a take-back in that wait found the offer standing and took it, so both happened - the
+         * GM told "taken back", the Level Up on the sheet, and the Blackened's waiting Reinforced back in
+         * the GMs' store to be given again. An offer of 1 + 3 waited picks (the C7 shape) is given to a
+         * student a connected player owns; a take of an id that does not stand is sent first. Then the
+         * student's queue is held (`gmMeansWrite`), the player's four picks are judged and wait in it,
+         * and the offer is taken back on both roads: the primary's own menu (`takeBackOffer`) and
+         * another GM's packet (`advancement.offer` op "take"). Read: the stale take's refusal and what
+         * it left, the sheet untouched while held, each road's answer and what it was told, then - the
+         * queue let go - the rise, the advances, the offers left, the waiting row, the apply's refusals.
+         * Red at 1a9a07e (10.10.2026): the stale take refused and nothing moved, but the primary's road
+         * answered true, untold, and put the waiting Reinforced back in the GMs' store; another GM's take
+         * was told the offer was gone; and the Level Up was written as well (+4, one step of advances).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who spends the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { gmMeansWrite } = await import("./sheet-audit.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
+            `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
+        const offersOf = () => L.offerList(S.offerStore.get(student.id));
+        // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
+        const judged = async (fields, sender) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { requestId: `E10G2${foundry.utils.randomID(8)}`, actorId: student.id, ...fields }, sender,
+                { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason ?? null); } });
+            return told;
+        };
+        const busy = game.i18n.format("DRPG.Advance.takeBackBusy", { name: student.name });
+        const notes = ui.notifications, warn = notes.warn;
+        const warned = [];
+        let release = () => {};
+        let read = null;
+        try {
+            await judged({ action: "advancement.offer", op: "add", kind: "standard", extra: 3, deferred: 3 }, game.user.id);
+            const [offer] = offersOf();
+            const stale = await judged({ action: "advancement.offer", op: "take", offerId: "notAnOfferHere" }, game.user.id);
+            const afterStale = [offersOf().map(o => o.id === offer?.id), S.deferredOfferStore.has(student.id)];
+            const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
+            const gate = new Promise(resolve => { release = resolve; });
+            const held = gmMeansWrite(student, () => gate);
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+                offerId: offer?.id ?? null }, player.id);
+            // The apply's road to the queue awaits nothing slow (cached imports, synchronous checks); 400 ms is room to spare.
+            await wait(400);
+            const whileHeld = [sheet(HP_MAX) - hp, sheet(ADVANCES) - advances];
+            notes.warn = (message, ...rest) => { warned.push(message); return warn.call(notes, message, ...rest); };
+            const primaryRoad = await L.takeBackOffer(student, offer?.id ?? null);
+            const otherGm = await judged({ action: "advancement.offer", op: "take", offerId: offer?.id ?? null }, game.user.id);
+            notes.warn = warn;
+            release();
+            await held;
+            const applied = await applying;
+            await settle();
+            read = [stale, afterStale, whileHeld, primaryRoad, warned.includes(busy), otherGm,
+                sheet(HP_MAX) - hp, sheet(ADVANCES) - advances, offersOf().length, S.deferredOfferStore.has(student.id), applied];
+        } finally {
+            notes.warn = warn;
+            release();
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (S.deferredOfferStore.has(student.id)) await S.deferredOfferStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([["notOffered"], [[true], false], [0, 0], false, true, ["busy"], 4, 1, 0, false, []]),
+            "a take-back met a Level Up being written and both happened, or a take of an offer that does not stand was not refused "
+            + "(the stale take told, the offers and waiting row it left; the sheet while held; the primary's road answered, told busy; "
+            + "another GM's take told; the rise, advances, offers left, waiting row; the apply's refusals)");
+    }],
+
+    ["Enter in the class's Level Up window gives what its rows say", async () => {
+        /*
+         * E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b). The class's window (level-up.mjs
+         * `askWhoPicks`) marks "Hand them out" as its default, the answer its rows give, but listed "All:
+         * the players pick" first, and Enter presses a form's first submit button in DOM order (HTML's
+         * implicit submission; the C4 test "Enter in the verdict window executes nobody" makes the press
+         * the same way, as jsdom submits nothing on a synthetic key). The window is drawn for every
+         * student a connected player owns, each row set to "I pick", and the form submitted by its first
+         * submit button. Read: that button, the buttons marked default, and each row's answer. The batch
+ * is stopped at the window's answer, so nothing is offered or written. Red at 1a9a07e (10.10.2026):
+         * the first submit button was "All: the players pick", and each of the three rows answered "player".
+         * The key itself in Foundry's window is not measured here.
+         */
+        needs(env.dialogs(), "the class's window is drawn and its first button pressed");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a row that opens on its player");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const rows = livingStudents().filter(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
+        must(rows.every(a => !S.deferredOfferStore.has(a.id)), "a waiting Level Up stands - its row would carry it, and this would read it");
+        const D = foundry.applications.api.DialogV2;
+        const title = game.i18n.localize("DRPG.Advance.queueTitle");
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const drawn = () => [...foundry.applications.instances.values()]
+            .find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const stop = new Error("the class's window answered");
+        let answer = "unanswered", reading = null;
+        D.wait = async function (cfg) {
+            if (cfg?.window?.title !== title) return null;
+            answer = await drawWait.call(this, cfg);
+            throw stop;
+        };
+        try {
+            const batch = L.runAdvancementBatch(rows, "standard").catch(err => { if (err !== stop) throw err; });
+            if (await until(() => Boolean(drawn()), 8000)) {
+                const element = drawn().element;
+                for (const input of element.querySelectorAll('input[type="radio"][value="gm"]')) input.checked = true;
+                const form = element.querySelector("form");
+                const first = element.querySelector('button[type="submit"]');
+                reading = [first?.dataset?.action ?? null, [...element.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action)];
+                if (form && first) form.requestSubmit(first);
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            await Promise.race([batch, wait(4000)]);
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+        }
+        const byRow = value => value && typeof value === "object" ? Object.entries(value).sort(([a], [b]) => a.localeCompare(b)) : value;
+        equal(stableJson([reading, byRow(answer)]), stableJson([["give", ["give"]], byRow(Object.fromEntries(rows.map(a => [a.id, "gm"])))]),
+            "Enter in the class's Level Up window does not give what its rows say (the first submit button, the buttons marked default; each row's answer)");
+    }],
+
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
         // `openMurder` that happens WHILE an Eclipse is closing - a Direct
