@@ -2616,6 +2616,21 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     color: var(--drpg-line-strong);
 }
 
+/* The Start the Class Trial window's list of steps is what the window tells you, and the clock note under
+   it is the footnote: the audit (S06-29) found them the other way round, the steps smaller and darker than
+   the note. Only this list - the same class is metadata on the roll and murder briefings - so the steps
+   take the body's size and Bone, and the note after them text-sm in Dim (E10 C15, 1.2.71; the sizes are the
+   tokens' own, the rendering is not measured here: the harness draws no CSS). */
+.drpg-briefing-facts.drpg-trial-facts {
+    font-size: var(--drpg-text-md);
+    color: var(--drpg-bone);
+}
+
+.drpg-briefing-facts.drpg-trial-facts + .notes {
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
+}
+
 /* The lead - the sentence that says what this action IS. One step above the
    body, which is all the loudness a lead needs when everything else steps
    down around it. */
@@ -12339,6 +12354,14 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     margin: 10px 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
+    /* The audit read the section headings at about 8 px of capital height (S06-29); the body's size. */
+    font-size: var(--drpg-text-md);
+}
+
+/* The console's lines say the trial's STATE, in Bone; `notes` is left for the lines that explain
+   (E10 C15, 1.2.71). A warning keeps its own crimson ground and the ink that goes with it. */
+.drpg-trial-console p:not(.notes):not(.drpg-warning) {
+    color: var(--drpg-bone);
 }
 
 .drpg-trial-console h4:first-child {

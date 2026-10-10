@@ -29727,6 +29727,205 @@ const SCENARIOS = [
             + "the windows, the footer and the line again; first, with nobody connected: the footer and the line saying so)");
     }],
 
+    ["the console says Nonstop Debate while a debate runs", async () => {
+        /* E10 C15, 1.2.71; audit S06-10 and S06-29. The harm, read on the audit's screenshots: a Nonstop Debate
+           running read "Open discussion - 175 s left on your budget" in the console (the clock, the Event panel
+           and the chat card all say Debate), and once the debate was closed the console said "open discussion"
+           again for the opposite state; and the lines that answer "what state is the trial in" - the discussion,
+           "No vote is open right now", "The verdict opens once the vote has been counted" - were `notes`, the dim
+           footnote ink the audit measured at 3.56:1 and 4.06:1. Four states written to the world - the discussion,
+           a debate, a debate past its budget, an objection - each read off the console's own `DialogV2.wait`
+           (answered null, so nothing is drawn): the line under "The debate", whether it begins with the mode's
+           name, and the `notes` paragraphs of the whole console, which are to be the explanations and nothing
+           else. The seconds are the clock's, so they are read as N. The clock, the floor and the record are put
+           back here. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const [holder, target] = cast(2);
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), ownConfirm = Object.getOwnPropertyDescriptor(D, "confirm");
+        const consoleTitle = game.i18n.localize("DRPG.Floor.manageTrial");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        let opened = null;
+        D.wait = async config => {
+            if (config?.window?.title === consoleTitle) opened = config;
+            return null;
+        };
+        D.confirm = async () => false;
+        const loc = key => game.i18n.localize(key);
+        const normal = text => String(text ?? "").replace(/\d+/, "N");
+        const read = async () => {
+            opened = null;
+            await UI.manageClassTrial();
+            const content = opened?.content;
+            const heading = [...(content?.querySelectorAll?.("h4") ?? [])][1];
+            const line = heading?.nextElementSibling ?? null;
+            const text = line?.textContent?.trim() ?? null;
+            return {
+                line: normal(text), isDebate: Boolean(text) && text.startsWith(loc("DRPG.Floor.mode.debate")),
+                warning: line?.classList?.contains("drpg-warning") ?? null,
+                notes: [...(content?.querySelectorAll?.("p.notes") ?? [])].map(p => p.textContent.trim())
+            };
+        };
+        const readings = {};
+        try {
+            await setClock({ ...getClock(), phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { chapter: getClock().chapter });
+            await settle();
+            readings.discussion = await read();
+            await floorMod.startFloor({ seconds: 180 });
+            await settle();
+            readings.debate = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), startedAt: serverNow() - 200_000 });
+            await settle();
+            readings.over = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...getSetting(SETTINGS.trialQueue), mode: "objection",
+                holderId: holder.id, targetId: target.id, startedAt: serverNow() });
+            await settle();
+            readings.objection = await read();
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (ownConfirm) Object.defineProperty(D, "confirm", ownConfirm); else delete D.confirm;
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        const modeNote = loc("DRPG.Floor.modeNote"), objectionNote = loc("DRPG.Floor.objectionNote");
+        equal(stableJson(readings), stableJson({
+            discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
+            debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },
+            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0 })), isDebate: true, warning: true, notes: [objectionNote] },
+            objection: { line: normal(game.i18n.format("DRPG.Floor.holdingObjection", { who: holder.name, target: target.name, seconds: 0 })),
+                isDebate: false, warning: false, notes: [modeNote] }
+        }), "the console's debate line does not carry the debate's name (or the discussion's does), or a line that states the "
+            + "trial's state is a `notes` footnote again (read per state: the line under \"The debate\" with its seconds as N, "
+            + "whether it begins with the mode's name, whether it is the warning, and every `notes` paragraph of the console)");
+    }],
+
+    ["the Event panel's trial card names who has the floor and tells a player what to do", async () => {
+        /* E10 C15, 1.2.71; audit S06-24. The harm: the card set a meta only for a Rebuttal. An Objection read
+           "Everyone has the floor" under the speaker's own name, and a Debate and a Discussion read the same
+           "EVERYONE" over "EVERYONE HAS THE FLOOR" - the card contradicted itself at the trial's loudest moment and
+           the two modes looked alike. Four modes written as the trial's floor, the card read for each (no vote open,
+           so the trial's mode is what it shows): the title, the speaker's line (none when nobody holds the floor),
+           and the meta - an instruction for the two open modes, the holder's name for an Objection, "vs" for a
+           Rebuttal. "Everyone" must appear nowhere on it. */
+        const events = await import("./events.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const { serverNow } = await import("./utils.mjs");
+        const [holder, target] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const loc = key => game.i18n.localize(key);
+        const readings = {};
+        const card = () => {
+            const read = events.trialCard(getClock());
+            return read && { title: read.title, sub: read.sub ?? null, meta: read.meta, clock: read.clock };
+        };
+        try {
+            await setClock({ ...getClock(), phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { chapter: getClock().chapter });
+            await settle();
+            readings.discussion = card();
+            await floorMod.startFloor({ seconds: 180 });
+            await settle();
+            readings.debate = card();
+            const floor = { ...getSetting(SETTINGS.trialQueue), holderId: holder.id, targetId: target.id, startedAt: serverNow() };
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...floor, mode: "objection" });
+            await settle();
+            readings.objection = card();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...floor, mode: "rebuttal" });
+            await settle();
+            readings.rebuttal = card();
+        } finally {
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        equal(stableJson(readings), stableJson({
+            discussion: { title: loc("DRPG.Hud.trial.discussion"), sub: null, meta: loc("DRPG.Events.trialDiscussionMeta"), clock: false },
+            debate: { title: loc("DRPG.Hud.trial.debate"), sub: null, meta: loc("DRPG.Events.trialDebateMeta"), clock: true },
+            objection: { title: loc("DRPG.Hud.trial.objection"), sub: holder.name,
+                meta: game.i18n.format("DRPG.Events.trialObjectionFloor", { who: holder.name }), clock: true },
+            rebuttal: { title: loc("DRPG.Hud.trial.rebuttal"), sub: target.name,
+                meta: game.i18n.format("DRPG.Hud.trialVersus", { who: holder.name }), clock: true }
+        }), "the trial card still says Everyone, has no instruction for the open modes, or does not name the Objection's floor "
+            + "(read per mode: the title, the speaker's line, the meta, whether the debate's clock is on)");
+    }],
+
+    ["the trial's four chat cards are headed as events in the vote's banner", async () => {
+        /* E10 C15, 1.2.71; audit S06-31. The harm: the cards were headed with the buttons' own labels - Start the
+           Class Trial, Open Debate, Close Debate, End the trial - which a player reads as an order given to them, and
+           the end card was a small h3 where the vote's two cards are a red banner. Driven through the real
+           functions (the Start window answered "ok", every other question no): after each, the chat card made by it
+           is read for its banner's words, whether it is the vote's markup (`drpg-evidence-card`), and whether an
+           h3 is left. The clock, the floor, the record and the cards are put back here. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), ownConfirm = Object.getOwnPropertyDescriptor(D, "confirm");
+        const startTitle = game.i18n.localize("DRPG.Floor.startTrial");
+        D.wait = async config => (config?.window?.title === startTitle ? "ok" : null);
+        D.confirm = async () => false;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const loc = key => game.i18n.localize(key);
+        const made = [];
+        const newest = async (name, run) => {
+            const before = new Set(game.messages.map(m => m.id));
+            const answer = await run();
+            await settle();
+            const fresh = game.messages.filter(m => !before.has(m.id));
+            made.push(...fresh);
+            /* The phase's own announcements (the Start card's step moves it, and a message may come with it) are other
+               messages: the trial's card is the one in the vote's banner, and is counted as such. */
+            const banners = fresh.map(m => { const el = document.createElement("div"); el.innerHTML = String(m.content ?? ""); return el; })
+                .filter(el => el.querySelector(".drpg-evidence-card > .drpg-objection-banner"));
+            const card = banners.at(-1);
+            return [name, answer, banners.length, card?.querySelector(".drpg-objection-banner")?.textContent?.trim() ?? null,
+                card?.querySelectorAll("h3").length ?? null];
+        };
+        const readings = [];
+        try {
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { chapter: getClock().chapter });
+            await settle();
+            readings.push(await newest("begins", () => UI.startClassTrial()));
+            readings.push(await newest("opened", () => UI.openDebate(200)));
+            readings.push(await newest("closed", () => UI.closeDebate()));
+            readings.push(await newest("over", () => UI.closeTrial()));
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (ownConfirm) Object.defineProperty(D, "confirm", ownConfirm); else delete D.confirm;
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            for (const m of made) { try { await m.delete(); } catch { /* already gone */ } }
+            await settle();
+        }
+        equal(stableJson(readings), stableJson([
+            ["begins", true, 1, loc("DRPG.Floor.trialBegins"), 0],
+            ["opened", true, 1, loc("DRPG.Floor.debateOpenedTitle"), 0],
+            ["closed", true, 1, loc("DRPG.Floor.debateClosedTitle"), 0],
+            ["over", true, 1, loc("DRPG.Floor.trialOver"), 0]
+        ]), "a trial card is not one card in the vote's banner with the event's title, or still has an h3 (read per card: the call's "
+            + "answer, the cards it made, its banner's words, the h3s left)");
+    }],
+
     ["+30 seconds on an overrun debate leaves thirty seconds on the clock", async () => {
         /*
          * F9. The overrun is written by hand rather than waited for: three minutes of

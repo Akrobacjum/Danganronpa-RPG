@@ -897,7 +897,11 @@
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
     "Floor": {
-      "nobody": "There is nobody alive to open the debate with.",
+      "nobodyForTrial": "There is nobody alive to hold a Class Trial with.",
+      "trialBegins": "The Class Trial begins",
+      "debateOpenedTitle": "Nonstop Debate!",
+      "debateClosedTitle": "The debate is closed",
+      "trialOver": "The trial is over",
       "seconds": "Debate length (seconds)",
       "startTrial": "Start the Class Trial",
       "newTrialTitle": "Open a new trial",
@@ -942,8 +946,8 @@
         "rebuttal": "Rebuttal"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
-      "holdingDiscussionOver": "Open discussion - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
-      "holdingDiscussion": "Open discussion - {seconds} s left on your budget. Everyone may speak.",
+      "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
+      "holdingDebate": "Nonstop Debate - {seconds} s left on your budget. Everyone may speak; a Truth Bullet presented now is an Objection.",
       "holdingObjection": "{who} holds the debate, objecting to {target} - {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
       "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
       "modeNote": "This runs out on its own. Use the buttons below to cut it short, give it another half minute, or drop straight back to the open debate.",
@@ -995,7 +999,9 @@
       "voteSub": "Name the blackened.",
       "voteMeta": "The trial waits on the ballots.",
       "voteMetaGm": "{back} of {total} ballots back",
-      "trialFloorOpen": "Everyone has the floor",
+      "trialDebateMeta": "Present a Truth Bullet from your Inventory",
+      "trialDiscussionMeta": "Talk it through - the GM opens the debate",
+      "trialObjectionFloor": "{who} has the floor",
       "afterVerdict": "The verdict is in"
     },
     "Handbooks": {
@@ -1075,8 +1081,8 @@
       "tally": "Close and count",
       "sendAgain": "Start the vote over",
       "resendWarning": {
-        "one": "One ballot has already come back. Starting over throws it away and hands everybody a fresh one. To chase the people who have not answered, use Remind instead.",
-        "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Remind instead."
+        "one": "One ballot has already come back. Starting over throws it away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead.",
+        "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead."
       },
       "banner": "THE VOTE IS OPEN",
       "opened": {

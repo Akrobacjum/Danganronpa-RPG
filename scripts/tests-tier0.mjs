@@ -2899,7 +2899,7 @@ const REGRESSIONS = [
             + "record no longer wake it");
 
         const view = bodyOf(ui2, "function trialConsoleHtml(", { until: "function trialSignature(" });
-        ok(view.includes("DRPG.Floor.holdingDiscussionOver") && view.includes("Math.max(left, 0)"),
+        ok(view.includes("DRPG.Floor.holdingDebateOver") && view.includes("Math.max(left, 0)"),
             "an overrun mode prints a clock running backwards again");
 
         // `drpgBallotsChanged` is 1.2.47's name for this event, fired where a
@@ -7824,6 +7824,76 @@ const REGRESSIONS = [
             "the heartbeat writes a transition while the last one is on its way, or a write that threw stops it for good (S06-38)");
         ok(/addEventListener\("visibilitychange",[^]*?advanceIfDue\(\)/.test(fnSource(floor, "registerTrialFloor")),
             "the primary GM's tab coming back waits for its throttled heartbeat to move an expired mode on (S06-38)");
+    }],
+
+    ["R320 - the trial's words: the console names the mode, its state lines are body text, its cards are headed as events, and the Event card names the floor", async () => {
+        /*
+         * E10 C15, 1.2.71; audit S06-10, S06-24, S06-29, S06-31, S06-32 (its rest: one word for the reminder).
+         * Read in the source, the stylesheet and the two language files: the console's debate line is
+         * `holdingDebate`/`holdingDebateOver` for a debate and `inDiscussion` only without one, and the one `notes`
+         * paragraph the console builds is the mode's explanation; the four chat cards of the trial (the trial begins,
+         * the debate opens, the debate closes, the trial is over) are `trialEventCard`s - the vote's banner, a title
+         * key of their own, no h3 - and the Start window's list of steps carries the class the stylesheet sets in
+         * Bone at the body's size; the stylesheet gives the console's h4 the body's size; `trialCard` names no
+         * "Everyone" and carries the three new metas; the words are what the audit asked for, in both languages, and
+         * the restart warning names the button that is there ("Send another ballot"). Tier 2 drives the console, the
+         * card and the four chat cards: "the console says Nonstop Debate while a debate runs", "the Event panel's trial
+         * card names who has the floor and tells a player what to do", "the trial's four chat cards are headed as events,
+         * in the vote's banner". The rendered size and colour are not measured: the harness draws no CSS.
+         */
+        const sources = new Map(await otherSources());
+        const ui = stripComments(sources.get("trial-floor-ui.mjs") ?? ""), events = stripComments(sources.get("events.mjs") ?? "");
+        const view = fnSource(ui, "trialConsoleHtml");
+        ok(view.length > 500, "trialConsoleHtml is cut short or gone");
+        ok(view.includes("DRPG.Floor.holdingDebate\"") && view.includes("DRPG.Floor.holdingDebateOver\"") && !view.includes("holdingDiscussion"),
+            "a running debate is not named as a debate in the console (S06-10)");
+        const noted = [...view.matchAll(/class="notes"[^]{0,140}/g)].map(m => m[0]);
+        ok(noted.length === 1 && noted[0].includes("DRPG.Floor.modeNote"),
+            `the console sets a state line as a footnote again (S06-29): ${noted.join(" | ")}`);
+        ok(/!floor\s*\?\s*`<p>\$\{game\.i18n\.localize\("DRPG\.Floor\.inDiscussion"\)/.test(view),
+            "the discussion's line is not the plain line of a trial with no debate (S06-10)");
+        const cards = [["startClassTrial", "trialBegins"], ["openDebate", "debateOpenedTitle"], ["closeDebate", "debateClosedTitle"], ["closeTrial", "trialOver"]];
+        for (const [name, key] of cards) {
+            const body = fnSource(ui, name);
+            ok(body.length > 150, `${name} is cut short or gone`);
+            ok(body.includes(`trialEventCard("DRPG.Floor.${key}"`) && !/<h3>|drpg-card/.test(body),
+                `${name} does not announce with the ${key} title in the vote's banner (S06-31)`);
+        }
+        ok(/class="drpg-evidence-card"[^]*class="drpg-objection-banner"/.test(fnSource(ui, "trialEventCard")),
+            "the trial's cards are not the vote's markup (drpg-evidence-card and its banner)");
+        ok(fnSource(ui, "startClassTrial").includes("drpg-briefing-facts drpg-trial-facts"), "the Start window's steps lost their own class (S06-29)");
+        const trialCard = fnSource(events, "trialCard");
+        ok(trialCard.length > 400 && !/trialEveryone|trialFloorOpen/.test(trialCard)
+            && ["trialDebateMeta", "trialDiscussionMeta", "trialObjectionFloor"].every(k => trialCard.includes(`DRPG.Events.${k}"`)),
+            "the Event card says Everyone again, or lacks an instruction or the Objection's floor (S06-24)");
+
+        const css = await moduleStyles();
+        ok(/\.drpg-trial-console h4 \{[^}]*font-size:\s*var\(--drpg-text-md\)/.test(css), "the console's headings are not at the body's size (S06-29)");
+        ok(/\.drpg-briefing-facts\.drpg-trial-facts \{[^}]*font-size:\s*var\(--drpg-text-md\);[^}]*color:\s*var\(--drpg-bone\)/.test(css)
+            && /\.drpg-briefing-facts\.drpg-trial-facts \+ \.notes \{[^}]*font-size:\s*var\(--drpg-text-sm\);[^}]*color:\s*var\(--drpg-dim\)/.test(css),
+            "the Start window's steps are not in Bone at the body's size with the note after them in text-sm Dim (S06-29)");
+        ok(/\.drpg-trial-console p:not\(\.notes\):not\(\.drpg-warning\) \{[^}]*color:\s*var\(--drpg-bone\)/.test(css), "the console's state lines are not set in Bone (S06-29)");
+
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG);
+        const floor = lang.en.Floor, ev = lang.en.Events;
+        equal(JSON.stringify([floor.trialBegins, floor.debateOpenedTitle, floor.debateClosedTitle, floor.trialOver]),
+            JSON.stringify(["The Class Trial begins", "Nonstop Debate!", "The debate is closed", "The trial is over"]), "the cards' titles are not the audit's (S06-31)");
+        ok(/^Nonstop Debate - /.test(floor.holdingDebate) && /^Nonstop Debate - /.test(floor.holdingDebateOver)
+            && !/discussion/i.test(floor.holdingDebate + floor.holdingDebateOver), "the console's debate lines are not the debate's (S06-10)");
+        equal(JSON.stringify([ev.trialDebateMeta, ev.trialDiscussionMeta, ev.trialObjectionFloor]),
+            JSON.stringify(["Present a Truth Bullet from your Inventory", "Talk it through - the GM opens the debate", "{who} has the floor"]),
+            "the Event card's metas are not the audit's (S06-24)");
+        for (const code of ["en", "pl"]) {
+            const l = lang[code];
+            equal(JSON.stringify(["holdingDiscussion", "holdingDiscussionOver", "nobody"].filter(k => k in l.Floor).concat("trialFloorOpen" in l.Events ? ["trialFloorOpen"] : [])),
+                JSON.stringify([]), `${code}: a retired trial key is still in the file`);
+            ok(["nobodyForTrial", "trialBegins", "debateOpenedTitle", "debateClosedTitle", "trialOver", "holdingDebate", "holdingDebateOver"].every(k => typeof l.Floor[k] === "string"),
+                `${code}: a trial key of C15's is missing`);
+            const button = l.Vote.remind.split(" (")[0], warning = Object.values(l.Vote.resendWarning);
+            ok(warning.length >= 2 && warning.every(text => text.includes(button)), `${code}: the restart warning does not name the button ("${button}") (S06-32)`);
+        }
+        ok(!Object.values(lang.en.Vote.resendWarning).some(text => text.includes("Remind")), "the English restart warning still says Remind");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

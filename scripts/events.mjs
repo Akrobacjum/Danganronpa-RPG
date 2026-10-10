@@ -375,19 +375,28 @@ export function trialCard(clock) {
         const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
-        let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
-        let versus = null;
+        /* WHAT THE CARD SAYS UNDER THE MODE (E10 C15, 1.2.71; audit S06-24). It set a meta only for a
+           Rebuttal; an Objection read "Everyone has the floor" under the speaker's own name, and Debate
+           and Discussion read the same "EVERYONE" over "EVERYONE HAS THE FLOOR", so two different modes
+           looked alike and neither told a player what to do. Now: a mode nobody holds has no speaker line
+           (there is no "Everyone" to name) and its meta is an instruction - what a player does in it; an
+           Objection says whose floor it is; and "floor" belongs to the Objection alone. The HUD's own
+           row keeps its "Everyone" (hud.mjs `trialSlot`): it is a different surface and not this card. */
+        let speaker = null;
+        let meta = game.i18n.localize(floor?.mode === FLOOR_MODES.debate
+            ? "DRPG.Events.trialDebateMeta" : "DRPG.Events.trialDiscussionMeta");
         if (floor?.mode === FLOOR_MODES.objection) {
             speaker = floorHolder(floor)?.name ?? unknown;
+            meta = game.i18n.format("DRPG.Events.trialObjectionFloor", { who: speaker });
         } else if (floor?.mode === FLOOR_MODES.rebuttal) {
             speaker = floorTarget(floor)?.name ?? unknown;
-            versus = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+            meta = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
         }
         return {
             kind: "trial",
             title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
             sub: speaker,
-            meta: versus ?? game.i18n.localize("DRPG.Events.trialFloorOpen"),
+            meta,
             // The debate's countdown, only while a floor is open: a trial in session
             // with nobody holding the floor has no clock running (see `paintTrialClock`).
             clock: Boolean(floor)

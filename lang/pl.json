@@ -886,7 +886,11 @@
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Floor": {
-      "nobody": "Nie ma nikogo żywego, z kim dałoby się otworzyć debatę.",
+      "nobodyForTrial": "Nie ma nikogo żywego, z kim dałoby się przeprowadzić Class Trial.",
+      "trialBegins": "Class Trial się zaczyna",
+      "debateOpenedTitle": "Nonstop Debate!",
+      "debateClosedTitle": "Debata jest zamknięta",
+      "trialOver": "Class Trial się skończył",
       "seconds": "Długość debaty (sekundy)",
       "startTrial": "Zacznij Class Trial",
       "newTrialTitle": "Otwórz nowy Class Trial",
@@ -929,7 +933,7 @@
         "rebuttal": "Rebuttal"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
-      "holdingDiscussion": "Otwarta dyskusja - {seconds} s budżetu. Każdy może mówić.",
+      "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; Truth Bullet przedstawiony teraz to Objection.",
       "holdingObjection": "{who} ma głos, objection wobec: {target} - {seconds} s. Nikt inny nie mówi; rebuttal następuje automatycznie.",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
       "modeNote": "To kończy się samo. Przyciskami poniżej skróć to, dodaj pół minuty albo wróć od razu do otwartej debaty.",
@@ -955,7 +959,7 @@
         "many": "{n} uczniów ma na Class Trial akcje tej pory dnia.",
         "other": "{n} uczniów ma na Class Trial akcje tej pory dnia."
       },
-      "holdingDiscussionOver": "Otwarta dyskusja - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
+      "holdingDebateOver": "Nonstop Debate - {seconds} s ponad budżet. Każdy może mówić; +30 sekund oddaje zegarowi pół minuty."
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
@@ -988,7 +992,9 @@
       "voteSub": "Wskaż blackened.",
       "voteMeta": "Trial czeka na głosy.",
       "voteMetaGm": "{back} z {total} głosów wróciło",
-      "trialFloorOpen": "Wszyscy mają głos",
+      "trialDebateMeta": "Przedstaw Truth Bullet ze swojego ekwipunku",
+      "trialDiscussionMeta": "Omówcie to - GM otworzy debatę",
+      "trialObjectionFloor": "{who} ma głos",
       "afterVerdict": "Werdykt zapadł"
     },
     "Handbooks": {
@@ -1070,10 +1076,10 @@
       "tally": "Zamknij i policz",
       "sendAgain": "Zacznij głosowanie od nowa",
       "resendWarning": {
-        "one": "Jedna karta już wróciła. Start od nowa ją wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "few": "{n} karty już wróciły. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
-        "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij."
+        "one": "Jedna karta już wróciła. Start od nowa ją wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "few": "{n} karty już wróciły. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
+        "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie."
       },
       "banner": "GŁOSOWANIE OTWARTE",
       "opened": {

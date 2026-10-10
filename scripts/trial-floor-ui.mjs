@@ -43,6 +43,23 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * ========================================================================== */
 
 /**
+ * A CARD OF THE TRIAL'S IN THE CHAT, TOLD AS SOMETHING THAT HAPPENED (E10 C15, 1.2.71; audit S06-31).
+ * The four cards - the trial begins, the debate opens, the debate closes, the trial is over - were
+ * headed with the button's own label ("Start the Class Trial", "Open Debate", "Close Debate", "End the
+ * trial"), which a player reads as an order given to them and not as news, and the end card was a small
+ * h3 where the vote's two cards are a red banner: two cards of one trial that did not look alike. They
+ * are the vote's own markup now (`drpg-evidence-card` and its banner, vote.mjs `openVote`), each with a
+ * title key of its own. The body keys (`Floor.debateOpened`, `debateClosed`, `trialClosed`,
+ * `trialOpened`) are unchanged: tier 2 finds an end card by the words of its body.
+ */
+function trialEventCard(titleKey, ...paragraphs) {
+    return `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${game.i18n.localize(titleKey)}</div>
+            ${paragraphs.map(text => `<p>${text}</p>`).join("\n            ")}
+        </div>`;
+}
+
+/**
  * Start a Class Trial.
  *
  * IT DOES NOT OPEN THE DEBATE, and that is the change this window exists to
@@ -89,7 +106,7 @@ export async function startClassTrial() {
     await judgedFor(...students.map(actor => actor.id));
     const living = students.filter(actor => !isDeceased(flagsHeldNow(actor)));
     if (!living.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Floor.nobody"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.nobodyForTrial"));
         return null;
     }
 
@@ -98,7 +115,7 @@ export async function startClassTrial() {
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Floor.startTrialIntro")}</p>
-            <ul class="drpg-briefing-facts">
+            <ul class="drpg-briefing-facts drpg-trial-facts">
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepPhase")}</li>
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepDiscussion")}</li>
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepAnnounce")}</li>
@@ -137,10 +154,8 @@ export async function startClassTrial() {
     const { announce } = await import("./utils.mjs");
     const { livingStudents } = await import("./chapter.mjs");
     await announce({
-        content: `<div class="drpg-card"><h3>${
-            game.i18n.localize("DRPG.Floor.startTrial")}</h3><p>${
-            game.i18n.localize("DRPG.Floor.trialOpened")}</p><p>${
-            plural("DRPG.Floor.trialBudget", { n: livingStudents().length })}</p></div>`
+        content: trialEventCard("DRPG.Floor.trialBegins", game.i18n.localize("DRPG.Floor.trialOpened"),
+            plural("DRPG.Floor.trialBudget", { n: livingStudents().length }))
     });
 
     return true;
@@ -287,9 +302,7 @@ export async function openDebate(options = {}) {
 
     const { announce } = await import("./utils.mjs");
     await announce({
-        content: `<div class="drpg-card"><h3>${
-            game.i18n.localize("DRPG.Floor.openDebate")}</h3><p>${
-            game.i18n.localize("DRPG.Floor.debateOpened")}</p></div>`
+        content: trialEventCard("DRPG.Floor.debateOpenedTitle", game.i18n.localize("DRPG.Floor.debateOpened"))
     });
     return true;
 }
@@ -303,9 +316,7 @@ export async function closeDebate() {
 
     const { announce } = await import("./utils.mjs");
     await announce({
-        content: `<div class="drpg-card"><h3>${
-            game.i18n.localize("DRPG.Floor.closeDebate")}</h3><p>${
-            game.i18n.localize("DRPG.Floor.debateClosed")}</p></div>`
+        content: trialEventCard("DRPG.Floor.debateClosedTitle", game.i18n.localize("DRPG.Floor.debateClosed"))
     });
     return true;
 }
@@ -403,9 +414,7 @@ export async function closeTrial() {
 
     const { announce } = await import("./utils.mjs");
     await announce({
-        content: `<div class="drpg-card"><h3>${
-            game.i18n.localize("DRPG.Floor.endTrial")}</h3><p>${
-            game.i18n.localize("DRPG.Floor.trialClosed")}</p></div>`
+        content: trialEventCard("DRPG.Floor.trialOver", game.i18n.localize("DRPG.Floor.trialClosed"))
     });
     return true;
 }
@@ -531,13 +540,19 @@ function trialConsoleHtml(view) {
         const holder = floorHolder(floor);
         const target = floorTarget(floor);
 
+        /* THE STATE'S NAME IS THE MODE'S (E10 C15, 1.2.71; audit S06-10). A running Nonstop Debate read
+           "Open discussion - 175 s left on your budget", and the same word, discussion, then described the
+           trial once the debate was closed - two opposite states, which the clock, the Event panel and the
+           chat card all tell apart ("Debate" against "Discussion"), under one name in the console. The word
+           discussion is now only the state with no debate (`inDiscussion`), and it is a line of the state,
+           not a footnote: the same paragraph the other modes use. */
         const debateLine = !floor
-            ? `<p class="notes">${game.i18n.localize("DRPG.Floor.inDiscussion")}</p>`
+            ? `<p>${game.i18n.localize("DRPG.Floor.inDiscussion")}</p>`
             : floor.mode === FLOOR_MODES.debate
                 ? (over
                     ? `<p class="drpg-warning">${game.i18n.format(
-                        "DRPG.Floor.holdingDiscussionOver", { seconds: Math.abs(left) })}</p>`
-                    : `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`)
+                        "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left) })}</p>`
+                    : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
                 : floor.mode === FLOOR_MODES.objection
                     ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
                         who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"),
@@ -551,35 +566,39 @@ function trialConsoleHtml(view) {
         // Who has not voted yet, if a vote is open at all. Names only: who has
         // voted is not how they voted, and only the second is the secret the
         // guide keeps. Same read as the vote window's own.
+        // These are lines of the console's STATE, so they are body text and not `notes` (E10 C15; audit
+        // S06-29): "No vote is open right now" is the answer a GM opens the console for, and `notes` set
+        // it in the dim ink the audit measured at 3.56:1 and 4.06:1 (the audit's reading, not
+        // measured again here). `notes` stays for the lines that EXPLAIN - `modeNote`, `objectionNote`.
         // Counted, it says nothing here: the lead line above says so ("The vote is counted. Deliver the
         // verdict..."), and the two lines together printed the count twice (E10 C14; audit S06-27).
         const voteLine = pending === null
-            ? (progress.voteClosed ? "" : `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
+            ? (progress.voteClosed ? "" : `<p>${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
             : pending.length
                 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
                     n: pending.length, who: esc(pending.map(v => v.name).join(", "))
                 })}</p>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+                : `<p>${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         // How many are back and the bar a conviction needs, as the vote window
         // prints it (E10 C3): a player who joins mid-vote raises it, and this
         // region is redrawn when they do - on the world's record and on
         // `drpgBallotsChanged` (the vote window's redraw is 63's C3; this one's
         // is read in the code, not measured).
-        const barLine = bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : "";
+        const barLine = bar ? `<p>${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : "";
 
         // What the verdict's disabled button is waiting for, said out loud: a disabled button with no
         // explanation is a bug report. Once the vote is counted the lead line names the step, so this
         // says nothing more - but a verdict that stopped halfway says where, beside the button that
         // finishes it (E10 C5).
         const gateLine = !progress.voteClosed
-            ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
+            ? `<p>${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
             : stopped
                 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
                 : "";
 
         const registerLine = !register && deathThisChapter
             ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.registerEmpty")}</p>`
-            : `<p class="notes">${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
+            : `<p>${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
         const finalLine = finalNow
             ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : "";
 
