@@ -18087,6 +18087,13 @@ const SCENARIOS = [
          * runs: two incidents closed as "openingFailed" and one roll gave the GM a Fear. So the
          * three are picked from every living student, not from the first four (`cast`), and a
          * world without three such students is a skip.
+         * E10 fix r2-G1 (10.10.2026): the last read moved with the owner's Q-E10-2 (a) of 10.10.2026 -
+         * executing a student whose body nobody has found makes that death the execution (vote.mjs
+         * `executeSentenced`, E10 fix r1-G4), so the card and every sheet agree. Until then that read
+         * expected the GMs to keep the death after the GM had named its victim for execution; on
+         * 7ff93ec it measured the row gone and the test was red in the k2 suite. A GM's naming is not
+         * the harm E05 guarded: the trial telling the table of a body nobody named, which the ballots,
+         * the wrong and the right verdict above still read.
          */
         needs(world.atLeast("livingStudents", 4), "two incidents, each with a killer and a victim");
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "the two killers and the victim nobody found, each with a connected player");
@@ -18198,9 +18205,11 @@ const SCENARIOS = [
 
             const named = await withVerdictOpen(() => withAdvanceWindows(() => null,
                 () => V.applyVerdict({ correct: true, executedIds: [hiddenVictim.id], blackenedIds: [hiddenVictim.id] })));
-            equal(stableJson([named.some(e => e.title === title(hiddenVictim)), named.some(e => e.title === title(hiddenKiller)), deathStore.has(hiddenVictim.id)]),
-                stableJson([false, true, true]),
-                "a verdict that names a victim nobody has found for execution offers them a Level Up, or offers the class none, or publishes the death");
+            equal(stableJson([named.some(e => e.title === title(hiddenVictim)), named.some(e => e.title === title(hiddenKiller)),
+                deathStore.has(hiddenVictim.id), isDeceased(hiddenVictim)]),
+                stableJson([false, true, false, true]),
+                "a verdict that names a victim nobody has found for execution offers them a Level Up, or offers the class none, or does "
+                    + "not make the death the GMs held the execution (their Level Up; the class's; the GMs' row; the flag every console reads)");
         } finally {
             putBack();
             await deferredOfferStore.dropMany(people.map(a => a.id).filter(id => deferredOfferStore.has(id)));
@@ -18833,13 +18842,19 @@ const SCENARIOS = [
          * E10 C4, 1.2.71; Q-E10-1, the owner's answer (c) of 08.10.2026: the window opens on "Nobody is
          * executed" and the GM may pick a living student. The class may vote for the dead (the amend of
          * 27.09), so the count can accuse one, and the window opened on the first student whoever was
-         * accused. A death the GMs keep stands for one here (`killCharacter` secret: nothing written on
+         * accused. The death is one the table knows (`killCharacter` with `secret: false`: the flag on
          * the actor; revived after). Drawn twice over a record accusing the dead student: read the
          * select's value, the dead one's option (disabled, " - dead") and the window's line that the
          * accused is dead; then the dead one forced into the select as an edited form would and the wrong
          * verdict pressed - refused, nobody executed; then a living student picked and the wrong verdict
          * pressed - executed. Red at E10 C3's tree (A1, 09.10.2026): the first student selected, the dead
          * one choosable and unmarked (a death nobody published), and executed when forced.
+         * E10 fix r2-G1 (10.10.2026): until then the death here was one the GMs keep (`secret: true`).
+         * Since fix r1-G4 such a student is not dead to the verdict (the owner's Q-E10-2 (a); its own
+         * test is "the verdict window offers an accused whose body nobody has found ..."), so on
+         * 7ff93ec this test read the window open on the accused, offered and unmarked - red by its
+         * assertion in the k2 suite, and no passing test checked Q-E10-1 (c)'s dead accused. Q-E10-1 (c)
+         * was asked about a death the table knows, and that is the death killed here now.
          */
         needs(env.dialogs(), "the verdict's window is drawn and its select used");
         const { trialBlackenedActors } = await import("./murder.mjs");
@@ -18852,7 +18867,7 @@ const SCENARIOS = [
         const deadLine = game.i18n.format("DRPG.Vote.accusedDead", { names: corpse.name });
         const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
         try {
-            ok(await killCharacter(corpse, { secret: true, keepBullets: true }), "the death was not kept by the GMs");
+            ok(await killCharacter(corpse, { secret: false, keepBullets: true }), "the death was not the table's");
             const forced = await verdictWindow(record, element => {
                 const select = element.querySelector('select[name="executed"]');
                 const option = [...(select?.options ?? [])].find(o => o.value === corpse.id);
