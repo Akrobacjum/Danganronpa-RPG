@@ -4932,7 +4932,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const guard = await gm.eval(`return game.drpg.relayGuard();`);
         check("RELAY: the guard has reviewed every case of the copied relay (2.10.11) and its default branch",
             guard.state === "ok" && guard.fingerprint.includes("TransferItem")
-                && guard.fingerprint.includes("default:EVENT_HANDLERS[data.action]?.(data.data)") && guard.unreviewed.length === 0,
+                && guard.fingerprint.includes("default:EVENT_HANDLERS[data.action]?.(data.data);") && guard.unreviewed.length === 0,
             JSON.stringify({ state: guard.state, fingerprint: guard.fingerprint, unreviewed: guard.unreviewed }));
         const parcel = await gm.eval(`
             const [item] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "SEC parcel", type: "loot" }]);

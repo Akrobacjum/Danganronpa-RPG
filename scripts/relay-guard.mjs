@@ -99,7 +99,7 @@ const REVIEWED_NAMES = new Set([GM_UPDATE, GM_CREATE, TRANSFER, ...UI_ONLY]);
  */
 export const REVIEWED_CASES = [
     "GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart",
-    "TransferItem", "default:EVENT_HANDLERS[data.action]?.(data.data)"
+    "TransferItem", "default:EVENT_HANDLERS[data.action]?.(data.data);"
 ];
 
 const SUB = {
@@ -140,10 +140,15 @@ const REFRESH_TYPES = new Set([
 const LISTENER_NAME = new RegExp("^handleSocketEvent(?:\\$\\d+)?$");
 /** One `case socketEvent.X:` of that listener's switch. */
 const CASE_LINE = new RegExp("case\\s+socketEvent(?:\\$\\d+)?\\.(\\w+)", "g");
-/* One `default:` clause, up to its `;` - or to the switch's `}` for a clause
-   that has none, rather than on into the rest of the function. Not after a `.`
-   or a name, so `x.default : y` is no clause. */
-const DEFAULT_LINE = new RegExp("(?<![\\w$.])default\\s*:([^;}]*)", "g");
+/* One `default:` clause, every statement of it up to the switch's `}` (or the
+   first `}` inside it, which is no longer the reviewed text either), rather than
+   on into the rest of the function. Until E75 fix r1-G1 (10.10.2026) it stopped at
+   the first `;` as well, and a default that kept 2.10.11's statement and added a
+   second read "ok": four such changes to 2.10.11's listener text did, read through
+   this file's own functions (a `break;`, a hook call, a second table, the same
+   table by `action`; review round 1), and R344's fourth stand-in holds it. Not after
+   a `.` or a name, so `x.default : y` is no clause. */
+const DEFAULT_LINE = new RegExp("(?<![\\w$.])default\\s*:([^}]*)", "g");
 
 const OWNER = 3;
 /** A countdown the GM has not touched for this long is not a stale copy on its way. */
@@ -261,6 +266,8 @@ function ensureWrapped() {
  * is no case runs by the packet's `data.action`, so a different default reads
  * "changed" as a new case does (E75 C4, 10.10.2026; held by R344 and by
  * 30-security part 8's "the guard has reviewed every case of the copied relay").
+ * The clause is read whole, to the switch's `}` (`DEFAULT_LINE`), so a default that
+ * keeps the reviewed statement and adds another is "changed" too (E75 fix r1-G1).
  */
 export function fingerprintOf(fns) {
     const cases = new Set();

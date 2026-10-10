@@ -3053,11 +3053,14 @@ const INVARIANTS = [
          * branch that runs a name it has no case for by the packet's `data.action`
          * (2.10.11 socket.mjs:36-37, read in the code); its `case` lines stayed as they were,
          * so a guard that read only those called the listener "ok" and the GM was never
-         * told the relay had changed. Three stand-in listeners, as source text (`fingerprintOf`
+         * told the relay had changed. Four stand-in listeners, as source text (`fingerprintOf`
          * reads `String(fn)`, and a string is its own): 2.10.8's switch, which has no default;
-         * 2.10.11's, laid out as rollup may lay it out (`$1` suffixes, a line break); and one
-         * whose default dispatches some other way. The first two must read reviewed and the
-         * third not. Pure: nothing is wrapped or sent.
+         * 2.10.11's, laid out as rollup may lay it out (`$1` suffixes, a line break); one
+         * whose default dispatches some other way; and 2.10.11's default with a second
+         * statement after the reviewed one (E75 fix r1-G1, 10.10.2026, review round 1 sec S1 /
+         * cor F1: the fingerprint read a clause only to its first `;`, and this one read "ok"
+         * on C6's tree). The first two must read reviewed and the last two not. Pure: nothing
+         * is wrapped or sent.
          */
         const { fingerprintOf, unreviewedOf, REVIEWED_CASES } = await import("./relay-guard.mjs");
         const cases = ["GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart", "TransferItem"];
@@ -3066,9 +3069,17 @@ const INVARIANTS = [
         const listeners = {
             "2.10.8": switchOf("socketEvent", ""),
             "2.10.11": switchOf("socketEvent$1", "default:\n            EVENT_HANDLERS$1[data.action]?.(data.data);\n    "),
-            other: switchOf("socketEvent", "default: EVENT_HANDLERS[data.type]?.(data);")
+            other: switchOf("socketEvent", "default: EVENT_HANDLERS[data.type]?.(data);"),
+            after: switchOf("socketEvent", "default:\n            EVENT_HANDLERS[data.action]?.(data.data);\n            Hooks.callAll(data.action, data.data);\n    ")
         };
-        const reviewedDefault = "default:EVENT_HANDLERS[data.action]?.(data.data)";
+
+        /* THE STATE THE GM IS TOLD OF, first: `ensureWrapped` calls a listener "changed"
+           when `unreviewedOf` names anything. */
+        equal(JSON.stringify(Object.values(listeners).map(source => unreviewedOf(fingerprintOf([source])).length ? "changed" : "ok")),
+            JSON.stringify(["ok", "ok", "changed", "changed"]), "the state the guard gives each listener");
+
+        const reviewedDefault = "default:EVENT_HANDLERS[data.action]?.(data.data);";
+        const afterDefault = "default:EVENT_HANDLERS[data.action]?.(data.data);Hooks.callAll(data.action,data.data);";
         const read = Object.fromEntries(Object.entries(listeners).map(([which, source]) => {
             const fingerprint = fingerprintOf([source]);
             return [which, { fingerprint, unreviewed: fingerprint.filter(name => !REVIEWED_CASES.includes(name)) }];
@@ -3076,13 +3087,13 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({
             "2.10.8": { fingerprint: cases, unreviewed: [] },
             "2.10.11": { fingerprint: [...cases, reviewedDefault], unreviewed: [] },
-            other: { fingerprint: [...cases, "default:EVENT_HANDLERS[data.type]?.(data)"], unreviewed: ["default:EVENT_HANDLERS[data.type]?.(data)"] }
+            other: { fingerprint: [...cases, "default:EVENT_HANDLERS[data.type]?.(data);"], unreviewed: ["default:EVENT_HANDLERS[data.type]?.(data);"] },
+            after: { fingerprint: [...cases, afterDefault], unreviewed: [afterDefault] }
         }), "what the guard reads off each listener, and which of it nobody reviewed");
 
-        /* THE STATE IS DECIDED BY THE SAME READING: `ensureWrapped` calls a listener
-           "changed" when `unreviewedOf` names anything. */
+        /* WHAT THE GUARD ITSELF CALLS UNREVIEWED, by the function `ensureWrapped` uses. */
         equal(JSON.stringify(Object.values(listeners).map(source => unreviewedOf(fingerprintOf([source])))),
-            JSON.stringify([[], [], ["default:EVENT_HANDLERS[data.type]?.(data)"]]), "what the guard itself calls unreviewed on each listener");
+            JSON.stringify([[], [], ["default:EVENT_HANDLERS[data.type]?.(data);"], [afterDefault]]), "what the guard itself calls unreviewed on each listener");
         const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
         ok(fnSource(guard, "ensureWrapped").includes("status.unreviewed = unreviewedOf(status.fingerprint)"),
             "ensureWrapped decides the state by something other than unreviewedOf");
