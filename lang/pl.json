@@ -2513,6 +2513,13 @@
       "changeImage": "Kliknij, by zmienić obrazek projektu",
       "tokenName": "Coś w robocie",
       "tokenMoved": "<strong>{project}</strong> należy teraz do pomieszczenia <strong>{to}</strong> - jego token został tam przeniesiony z: {from}.",
+      "showOnMap": "Pokaż na mapie",
+      "sweptOld": {
+        "one": "{n} token projektu, którego już nie ma, stał na mapie i został usunięty.",
+        "few": "{n} tokeny projektów, których już nie ma, stały na mapie i zostały usunięte.",
+        "many": "{n} tokenów projektów, których już nie ma, stało na mapie i zostało usuniętych.",
+        "other": "{n} tokenów projektów, których już nie ma, stało na mapie i zostało usuniętych."
+      },
       "duplicates": {
         "one": "Projekt stoi na mapie dwa razy: {list}. Token, na który wskazuje projekt, zostaje, a zapasowy stoi dalej - usuń go ręcznie, jeśli to pomyłka.",
         "few": "{n} zapasowe tokeny projektów stoją obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki.",

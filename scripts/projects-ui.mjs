@@ -158,6 +158,11 @@ function projectManagerRows(projects, rooms) {
                         data-tooltip="${game.i18n.localize("DRPG.Project.editTitle")}">
                     <i class="fa-solid fa-pen-to-square" inert></i>
                 </button>
+                ${metaFor(p.id).mapHidden ? `<button type="button" class="drpg-mini-button" data-drpg-show-on-map="${p.id}"
+                        aria-label="${rowName("DRPG.Project.showOnMap", p)}"
+                        data-tooltip="${game.i18n.localize("DRPG.Project.showOnMap")}">
+                    <i class="fa-solid fa-map-location-dot" inert></i>
+                </button>` : ""}
             </td>
             <td style="text-align:center">
                 <input type="checkbox" name="delete.${p.id}" class="drpg-project-delete"
@@ -205,6 +210,19 @@ function wireProjectManager(dialog, projects, rooms) {
             await dialog.close();
             await openProjectDialog({ project, rooms });
             await openProjectManager();
+        });
+    }
+
+    /* A PROJECT A GM DELETED FROM THE MAP COMES BACK FROM HERE (E11 C8; S09-47). Its token stays
+       gone through every scene draw (projects-map.mjs `onProjectTokenDeleted`), so the way back
+       is a GM's choice, in the window that holds every other choice about a project. In place,
+       as the figures above are: reopening the window would drop what the GM has ticked. */
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-show-on-map]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const { showProjectOnMap } = await import("./projects-map.mjs");
+            await showProjectOnMap(btn.dataset.drpgShowOnMap);
+            btn.remove();
         });
     }
 }

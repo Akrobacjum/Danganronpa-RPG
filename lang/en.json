@@ -2436,6 +2436,11 @@
       "changeImage": "Click to change this project's image",
       "tokenName": "Work in progress",
       "tokenMoved": "<strong>{project}</strong> now belongs to <strong>{to}</strong> - its token was moved there from {from}.",
+      "showOnMap": "Show on the map",
+      "sweptOld": {
+        "one": "{n} project token was left on the map by a project that no longer exists, and has been removed.",
+        "other": "{n} project tokens were left on the map by projects that no longer exist, and have been removed."
+      },
       "duplicates": {
         "one": "A project stands on the map twice: {list}. The token the project points at is kept and the spare one is left where it is - delete it by hand if it is a mistake.",
         "other": "{n} spare project tokens stand beside the ones their projects point at: {list}. Nothing was removed - delete them by hand if they are mistakes."

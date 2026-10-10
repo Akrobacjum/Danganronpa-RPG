@@ -41,7 +41,11 @@
  *   F  a reset whose chat deletion throws on the GM: whether the GM is told, and that every
  *      other group still ran (C9).
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
- *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves (C8).
+ *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves, and
+ *      the manager's "Show on the map" (C8). Then a second GM (`gm2`, late, its id sorting
+ *      after the seed GM's, so the seed GM stays the primary) draws a scene where a project
+ *      has no token yet and drags that project's token: who places it and what the drag
+ *      writes (C8: the primary alone). Last, the upgrade's pass over a world holding an orphan (C8).
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -55,11 +59,15 @@
  * states no `timeoutMs` of its own. The plan's 480 s was 61's.
  */
 export const layers = ["ci"];
+// The second GM of G3 (E11 C8), as 61 declares its own.
+export const accounts = [
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
     const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
     const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
@@ -100,7 +108,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     /* ------------------------------ A. the board ------------------------------ */
     phase("A: two scenes, a project on each, a duplicate and an orphan", { flow: "season-reset" });
     const ORPHAN = "E11C0ORPHAN00001";
-    const setA = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+    /* The board waits for the migration this load started (E11 C8): the harness's world is unstamped, so every clause runs,
+       and from 1.2.73 one of them sweeps the project tokens of no project over every scene. It finished during A in the first
+       run (10.10.2026) and took the orphan planted here - R2 counted three - so without the wait which board R reads would
+       be a race. */
+    const setA = await gm.eval(`await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad();
+        const P = await import("${repoUrl}/scripts/projects.mjs");
         const PM = await import("${repoUrl}/scripts/projects-map.mjs");
         ${PROJECT_TOKENS}
         const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
@@ -518,12 +531,85 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
             await new Promise(r => setTimeout(r, 2000));
         } finally { canvas.scene = view; }
         const after = projectTokens();
-        return { three: three?.id ?? null, four: four?.id ?? null, deleted, planted: planted.length,
+        const read = { three: three?.id ?? null, four: four?.id ?? null, deleted, planted: planted.length,
             orphan: after.some(t => t.project === "${ORPHAN_G}"), duplicates: after.filter(t => t.project === three?.id).length,
-            back: after.some(t => t.project === four?.id), warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").length };`, { timeout: 60000 });
-    // Today the primary's sync keeps the orphan and the duplicate unremarked, and puts the token a GM deleted back. C8: the orphan gone,
-    // the duplicate kept and warned of, the deleted token left deleted.
-    check("G1: the canvas drawn again keeps the orphan and the duplicate without a word and puts back the token deleted by hand - today's reading; E11 C8 changes all three",
-        Boolean(swept.three) && Boolean(swept.four) && swept.deleted && swept.planted === 3 && swept.orphan === true && swept.duplicates === 2
-            && swept.back === true && swept.warned === 0, J(swept), { flow: "season-reset" });
+            back: after.some(t => t.project === four?.id), warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").length };
+        canvas.scene = annex;
+        try { await PM.showProjectOnMap?.(four?.id); } finally { canvas.scene = view; }
+        return { ...read, shown: projectTokens().filter(t => t.project === four?.id).length };`, { timeout: 60000 });
+    /* At 80ba2a5 (10.10.2026) the primary's sync kept the orphan (orphan true), warned of no duplicate (warned 0) and put the token a GM deleted back (back true). E11 C8: the
+       orphan gone, the duplicate kept and warned of once, the deleted token left deleted - and back from the manager's "Show on the map". */
+    check("G1: the canvas drawn again removes the orphan, keeps the duplicate and warns of it, and leaves the token deleted by hand deleted (E11 C8)",
+        Boolean(swept.three) && Boolean(swept.four) && swept.deleted && swept.planted === 3 && swept.orphan === false && swept.duplicates === 2
+            && swept.back === false && swept.warned === 1, J(swept), { flow: "season-reset" });
+    check("G2: Show on the map puts back the token of a project a GM deleted from the map (E11 C8)",
+        swept.back === false && swept.shown === 1, J(swept), { flow: "season-reset" });
+
+    /* G3 (E11 C8). With a second GM at the table, a scene drawn on its browser where a project has no token yet, and a drag of
+       that project's token there. At 80ba2a5 (10.10.2026) the second GM's draw placed the token (second.placed 1); the
+       drag wrote the metadata once and whispered once there too, so those two readings guard
+       the primary-only move rather than prove it. The project's room is the Gym, created while the GM looks at the
+       Annex, so nothing is placed until a draw of the Academy. */
+    await connect("gm2");
+    const IMPORTS = `const P = await import("${repoUrl}/scripts/projects.mjs"); const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        const U = await import("${repoUrl}/scripts/utils.mjs"); ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        const draw = async scene => { const view = canvas.scene; canvas.scene = scene;
+            try { Hooks.callAll("canvasReady", canvas); await new Promise(r => setTimeout(r, 2000)); } finally { canvas.scene = view; } };`;
+    let g3 = null;
+    try {
+        const made = await gm.eval(`${IMPORTS} const view = canvas.scene; canvas.scene = annex;
+            let five = null;
+            try { five = await P.createProject({ name: "E11 C8 65 G3 the Gym's project", target: 6, room: "Gym" }); } finally { canvas.scene = view; }
+            return { five: five?.id ?? null, tokens: projectTokens().filter(t => t.project === five?.id).length };`, { timeout: 30000 });
+        const second = await gm2.eval(`${IMPORTS} await draw(academy);
+            return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length };`, { timeout: 30000 });
+        const first = await gm.eval(`${IMPORTS} await draw(academy);
+            globalThis.__g3Messages = game.messages.map(m => m.id);
+            globalThis.__g3Writes = 0;
+            globalThis.__g3WritesFn = s => { if (s?.key === "${MOD}.projectMeta") globalThis.__g3Writes++; };
+            Hooks.on("updateSetting", globalThis.__g3WritesFn);
+            const own = PM.projectTokenOf("${made.five}");
+            return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length, token: own?.id ?? null };`, { timeout: 30000 });
+        await gm2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+            const t = game.scenes.get("${IDS.scene}").tokens.get(${J(first.token)});
+            if (t) await t.update(M.positionIn("Cafeteria", t), { teleport: true, movementAction: "displace", animate: false });
+            await new Promise(r => setTimeout(r, 2000));
+            return true;`, { timeout: 30000 });
+        const moved = await gm.eval(`${IMPORTS} const was = new Set(globalThis.__g3Messages ?? []);
+            Hooks.off("updateSetting", globalThis.__g3WritesFn);
+            return { room: P.roomOf("${made.five}"), writes: globalThis.__g3Writes,
+                whispers: game.messages.filter(m => !was.has(m.id)).length };`, { timeout: 30000 });
+        g3 = { made, second, first, moved };
+    } finally {
+        await gm.eval(`if (globalThis.__g3WritesFn) Hooks.off("updateSetting", globalThis.__g3WritesFn);
+            const P = await import("${repoUrl}/scripts/projects.mjs");
+            for (const p of P.allProjects().filter(p => p.name === "E11 C8 65 G3 the Gym's project")) await P.deleteProject(p.id);
+            return true;`, { timeout: 30000 });
+        await disconnect("gm2");
+    }
+    check("G3: a second GM's scene draw places no project token and its drag moves the project with one write of the metadata; the primary's draw places it (E11 C8)",
+        Boolean(g3?.made.five) && g3.made.tokens === 0 && g3.second.primary === false && g3.second.placed === 0 && g3.first.primary === true
+            && g3.first.placed === 1 && g3.moved.room === "Cafeteria" && g3.moved.writes === 1
+            && g3.moved.whispers === 1, J(g3), { flow: "season-reset" });
+
+    /* G4 (E11 C8). The upgrade's pass on a world an earlier season left a project token of no project in: the clause
+       `sweepOldProjectTokens`, run alone as `migrate1_2_0` runs it at the first ready after 1.2.73. It removes the orphan, keeps
+       G1's live spare and tells the GM how many went. At 80ba2a5 there is no such clause and the orphan stays. */
+    const ORPHAN_G4 = "E11C8ORPHAN00004";
+    const upgraded = await gm.eval(`const M = await import("${repoUrl}/scripts/migrate.mjs"); ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}");
+        const t = projectTokens().map(t => game.scenes.get(t.scene).tokens.get(t.id)).find(Boolean);
+        if (t) await academy.createEmbeddedDocuments("Token", [{ name: t.name, actorId: t.actorId, actorLink: false, x: 200, y: t.y,
+            width: t.width, height: t.height, texture: { src: t.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId: "${ORPHAN_G4}" } } }]);
+        const planted = projectTokens().filter(t => t.project === "${ORPHAN_G4}").length;
+        const spares = projectTokens().filter(t => t.project === ${J(swept.three)}).length;
+        const told = globalThis.__notifications.length;
+        const report = await M.migrate1_2_0({ force: true, quiet: true, only: ["sweepOldProjectTokens"] });
+        return { planted, spares, clause: report?.clauses?.sweepOldProjectTokens ?? null,
+            orphan: projectTokens().some(t => t.project === "${ORPHAN_G4}"), kept: projectTokens().filter(t => t.project === ${J(swept.three)}).length,
+            told: globalThis.__notifications.slice(told).filter(n => n.level === "info" && /no longer exist/.test(n.msg)).length };`, { timeout: 60000 });
+    check("G4: the upgrade's pass removes a project token of no project, keeps a live project's spare and tells the GM once (E11 C8)",
+        upgraded.planted === 1 && upgraded.spares === 2 && upgraded.clause?.removed === 1 && upgraded.orphan === false && upgraded.kept === 2
+            && upgraded.told === 1, J(upgraded), { flow: "season-reset" });
 }

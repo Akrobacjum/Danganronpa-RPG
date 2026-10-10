@@ -24084,6 +24084,108 @@ const SCENARIOS = [
             + "(read: removed, the spares listed, the spare there, the orphan there, the project's token there, warnings, the warning's names)");
     }],
 
+    ["a project token a GM deleted by hand stays off the map through the next scene draw until Show on the map puts it back; one the module removes is not kept off", async () => {
+        /*
+         * E11 C8, 1.2.73; audit S09-47; the ask A2, the plan's 3.2. The sync that runs at every scene
+         * draw put a project with a room back on the map, so a token a GM deleted came back. Run on
+         * the primary GM, whose `deleteToken` hook writes the project down as kept off the map: a
+         * project with a room and its token on the scene on screen, the token deleted as a GM's
+         * Delete key deletes it, the scene's draw run (`syncProjectTokens`, which from 1.2.73 also
+         * sweeps the world's project tokens of no project - as every draw of a scene does), then the
+         * manager's "Show on the map"; then the module's own removal, which must keep nothing off: the
+         * room cleared and the scene drawn (the sync takes the token off), the room given back and
+         * the scene drawn again. Red at 80ba2a5 (10.10.2026), read [false, the old ref, 1,
+         * false, 1, 0, false, 1]: the deletion was written down nowhere and the draw put the token back.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose hook keeps a deleted project off the map - run the suite on the primary GM");
+        const scene = canvas.scene;
+        const room = scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const tokensOf = id => game.scenes.contents.reduce((n, s) => n + s.tokens.filter(t => t.getFlag(MODULE_ID, "projectId") === id).length, 0);
+        let made = null, read = null;
+        try {
+            made = (await P.createProject({ name: "SUITE E11 C8 deleted by hand", target: 4, room }))?.id ?? null;
+            const own = PM.projectTokenOf(made);
+            must(own, "the project's token was not placed - this would measure nothing");
+            await own.delete();
+            await until(() => P.metaFor(made).mapHidden === true);
+            const hidden = [P.metaFor(made).mapHidden === true, P.tokenRefOf(made)];
+            await PM.syncProjectTokens();
+            const afterDraw = tokensOf(made);
+            await PM.showProjectOnMap?.(made);
+            const shown = [P.metaFor(made).mapHidden === true, tokensOf(made)];
+            await P.updateProject(made, { room: null });
+            await PM.syncProjectTokens();
+            await settle();
+            const roomless = [tokensOf(made), P.metaFor(made).mapHidden === true];
+            await P.updateProject(made, { room });
+            await PM.syncProjectTokens();
+            read = [...hidden, afterDraw, ...shown, ...roomless, tokensOf(made)];
+        } finally {
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, null, 0, false, 1, 0, false, 1]),
+            "a token deleted by hand was not written down, came back at the scene's draw, Show on the map did not put it back, or the module's "
+            + "own removal kept the project off the map (read: kept off the map, the token it names, its tokens after the draw, kept off after "
+            + "Show on the map, its tokens then, its tokens with no room, kept off then, its tokens with the room back)");
+    }],
+
+    ["dragging a project's spare copy or a token of no project moves no project and writes no row", async () => {
+        /*
+         * E11 C8, 1.2.73; the plan's 3.2. `onProjectTokenMoved` moved the project of any token carrying
+         * its id: a spare's drag took the project away from the token its metadata names, and an
+         * orphan's drag wrote a projectMeta row for a countdown that does not exist. Run on the primary
+         * GM, whose hook moves a project: a project with its token in one room of the scene on screen,
+         * a spare of it and a token of an id that never had a countdown, both dragged into a second
+         * room; then the project's own token dragged there, which does move it. Red at 80ba2a5
+         * (10.10.2026), read [the second room, true, the second room]: the spare's drag moved the
+         * project and the orphan's wrote a row.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose hook moves a project with its token - run the suite on the primary GM");
+        const scene = canvas.scene;
+        const [room, elsewhere] = (scene.regions?.contents ?? []).map(region => region.name).filter(Boolean);
+        must(room && elsewhere && room !== elsewhere, "the scene on screen has no two named regions to drag between - this would measure nothing");
+        const ghost = foundry.utils.randomID();
+        const drag = token => token.update(positionIn(elsewhere, token), { teleport: true, movementAction: "displace", animate: false });
+        let made = null, read = null;
+        const planted = [];
+        try {
+            made = (await P.createProject({ name: "SUITE E11 C8 dragged copies", target: 4, room }))?.id ?? null;
+            const own = PM.projectTokenOf(made);
+            must(own && positionIn(elsewhere, own), "the project's token was not placed, or the second room has no place - this would measure nothing");
+            const like = (x, projectId) => ({ name: own.name, actorId: own.actorId, actorLink: false, x, y: own.y, width: own.width,
+                height: own.height, texture: { src: own.texture?.src ?? "" }, hidden: false, flags: { [MODULE_ID]: { projectId } } });
+            planted.push(...(await scene.createEmbeddedDocuments("Token", [like(own.x + 10, made), like(own.x + 20, ghost)])).map(t => t.id));
+            for (const id of planted) await drag(scene.tokens.get(id));
+            await settle();
+            const copies = [P.roomOf(made), Object.hasOwn(game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {}, ghost)];
+            await drag(own);
+            await until(() => P.roomOf(made) === elsewhere);
+            read = [...copies, P.roomOf(made)];
+        } finally {
+            const left = planted.filter(id => scene.tokens.get(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            if (made) await P.deleteProject(made).catch(() => {});
+            const rows = game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {};
+            if (Object.hasOwn(rows, ghost)) {
+                const { [ghost]: drop, ...rest } = rows;
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, rest);
+            }
+        }
+        equal(JSON.stringify(read), JSON.stringify([room, false, elsewhere]),
+            "a spare's drag moved its project, an orphan's drag wrote a row for a countdown that does not exist, or the project's own token's drag "
+            + "did not move it (read: the room after the copies' drags, a row for the orphan, the room after its own token's drag)");
+    }],
+
     ["the Projects tray shows a project only once its reader has found it", async () => {
         /*
          * STAGE 2: the tray and the map token answer the same question.

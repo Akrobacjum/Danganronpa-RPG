@@ -7978,6 +7978,30 @@ const REGRESSIONS = [
             + "and with no project live the orphans' count and the spares')");
     }],
 
+    ["R352 - a project's own token: only the token a live project's metadata names moves the project or keeps it off the map", async () => {
+        /*
+         * E11 C8, 1.2.73; audit S09-47; the ask A2, the plan's 3.2, the ledger's D1. projects-map.mjs
+         * `projectOwning`, which the primary's `updateToken` and `deleteToken` hooks ask before a drag
+         * moves a project or a Delete keeps it off the map. Until 1.2.73 any token carrying a project's
+         * id did both: an orphan's drag wrote a metadata row for a countdown that does not exist, and a
+         * spare's drag moved the project away from the token its metadata names. Driven on fakes,
+         * nothing read or written: the named token, a spare on the same scene, a token with the named
+         * id on another scene, a token of a deleted project whose row still names it (nothing in the
+         * module drops the row of a countdown deleted in Daggerheart's own window - read), a token
+         * with no id, and a live project's token whose metadata names no token.
+         */
+        const { projectOwning } = await import("./projects-map.mjs");
+        ok(typeof projectOwning === "function", "projects-map.mjs exports no `projectOwning` - nothing tells a project's own token from a copy");
+        const token = (id, sceneId, projectId) => ({ id, parent: { id: sceneId }, getFlag: (scope, key) => (key === "projectId" ? projectId : undefined) });
+        const refs = { live: { sceneId: "A", tokenId: "named" }, deleted: { sceneId: "A", tokenId: "gone" } };
+        const readers = { isLive: id => id === "live" || id === "unplaced", refOf: id => refs[id] ?? null };
+        const read = [token("named", "A", "live"), token("spare", "A", "live"), token("named", "B", "live"), token("gone", "A", "deleted"),
+            token("plain", "A", undefined), token("loose", "A", "unplaced")].map(t => projectOwning(t, readers));
+        equal(JSON.stringify(read), JSON.stringify(["live", null, null, null, null, null]),
+            "a token other than the one a live project's metadata names was read as the project's own, or that one was not (read: the named "
+            + "token, a spare, the named id on another scene, a deleted project's still named, no id, a live project naming no token)");
+    }],
+
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
         /*
          * E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3. Until 1.2.71 the ballots were a
