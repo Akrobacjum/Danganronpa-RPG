@@ -487,7 +487,7 @@
       "elapsedUnknown": "nie zaczęto",
       "elapsedTooltip": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}.",
       "bodyFound": "Znaleziono ciało",
-      "bodyFoundTooltip": "Znaleziono ciało i nikt jeszcze nie szuka. Gra czeka, aż GM rozpocznie Investigation.",
+      "bodyFoundTooltip": "Znaleziono ciało, a Investigation jeszcze nie trwa: rozpoczyna je GM.",
       "stillToAct": "Zostały akcje",
       "stillToActTooltip": "Uczniowie, którym zostały akcje. Lista po lewej pokazuje, którzy.",
       "stillPlacing": "Jeszcze się ustawiają",
@@ -970,7 +970,7 @@
       "bodySubRoom": "{victim}, w: {room}",
       "bodyMeta": "Investigation otwarte",
       "bodyMetaGm": "Znaleziono {found} z {total} Key Remnants",
-      "bodyHoldMeta": "Wszystko stanęło. Nikt jeszcze nie szuka.",
+      "bodyHoldMeta": "Ciało zostało znalezione. Investigation jeszcze nie trwa.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
         "safeword": "Stop",
@@ -1848,7 +1848,7 @@
       "bodyBanner": "ZNALEZIONO CIAŁO",
       "bodyFound": "Znaleziono ciało w: {room}.",
       "bodyFoundNamed": "{name} znaleziony martwy w: {room}.",
-      "bodyCalled": "Wszyscy wezwani na miejsce. Nikt jeszcze nie szuka.",
+      "bodyCalled": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",
       "bodyDone": {
         "one": "{moved} przeniesionych na miejsce, {promoted} ślad utrwalony.",
         "few": "{moved} przeniesionych na miejsce, {promoted} ślady utrwalone.",
@@ -2388,6 +2388,7 @@
     },
     "Eclipse": {
       "already": "Eclipse już trwa.",
+      "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
       "announce": {
         "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
         "few": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",

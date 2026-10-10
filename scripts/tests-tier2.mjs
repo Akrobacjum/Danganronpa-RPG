@@ -43693,6 +43693,117 @@ const SCENARIOS = [
         }
     }],
 
+    ["during the hold the Eclipse is refused and a Search is not", async () => {
+        /*
+         * E11 C3, 1.2.73; audit S06-05 and S03-28; the owner's Q4 as corrected (09.10.2026). A body
+         * nobody has answered holds the game until the Investigation starts, and nothing refused an
+         * Eclipse over it: every budget came back and the clock moved with the hold still standing.
+         * What the hold does NOT hold is the actions - the owner's answer holds them only during the
+         * Class Trial (action-rolls.mjs `performAction`) - so the hold's words say only that the
+         * Investigation has not started, and a Search in the hold is made like any other. A student
+         * stood alone in a room (`standAlone`), the hold written on that room as a discovery writes
+         * it (`setBodyDiscovery`), in Daily Life. Read: what `startEclipse` answers, whether an Eclipse
+         * runs and whether the GM was told why; then a free Search from this GM's browser, its goal
+         * window pressed and its roll handed back by a stand-in `rollTrait` (the stash test's shape,
+         * no dice of its own): whether it made a message, what it warned, and the hold after it.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const E = await import("./eclipse.mjs");
+        const { bodyDiscovery, setBodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stood = await standAlone(actor);
+        const windows = answerWindows(press);
+        const warn = ui.notifications.warn, told = [], itemsBefore = new Set(actor.items.map(i => i.id));
+        try {
+            await setClock({ phase: "dailyLife" });
+            await setBodyDiscovery({ room: stood.room });
+            must(bodyDiscovery()?.room === stood.room, "the hold was not written - this would measure nothing");
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await E.startEclipse();
+            const eclipse = [answered === null, isEclipse(), told.includes(game.i18n.localize("DRPG.Eclipse.bodyFirst"))];
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await settle();
+            const toldBefore = told.length, had = new Set(game.messages.contents.map(m => m.id));
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                options: { roll: { trait: "instinct" } } } });
+            await rolls.performAction(actor, "search", { free: true });
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            await settle();
+            const search = [game.messages.contents.some(m => !had.has(m.id)), told.slice(toldBefore), bodyDiscovery()?.room ?? null];
+            equal(stableJson([eclipse, search]), stableJson([[true, false, true], [true, [], stood.room]]),
+                "an Eclipse opened over the hold or the GM was not told why, or a Search in the hold was refused, warned "
+                + "or ended the hold ([answered null, an Eclipse running, told], [the Search's message, its warnings, the hold's room])");
+        } finally {
+            ui.notifications.warn = warn;
+            windows.restore();
+            delete actor.rollTrait;
+            // What the Search found (measured 10.10.2026: the band above the lowest hands over a thing).
+            const found = actor.items.filter(i => !itemsBefore.has(i.id)).map(i => i.id);
+            if (found.length) await actor.deleteEmbeddedDocuments("Item", found);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await stood.back();
+        }
+    }],
+
+    ["the gather tells each client where its token went", async () => {
+        /*
+         * E11 C3, 1.2.73; audit S06-07; the ledger's G-b. `gatherEveryone` moved the cast into the
+         * body's room (or a Public Announcement's) and told no screen: the HUD named the new room
+         * while each player's view stayed on the old one, empty. Read on this GM, the one browser
+         * the suite runs in: the sync packets the gather sends (`game.socket.emit`, passed on) while
+         * it gathers the scene on screen into a room nobody stood in - one packet naming the room, the
+         * scene and exactly the tokens it moves: the living cast's, a Monocub's, no Monokuma's and no
+         * body's (DESP-15), read off the scene before the gather. Not where they stand afterwards:
+         * the harness's regions have no `teleportTokens`, and the fallback's ring around the room's
+         * centre left two of four outside a small room (measured 10.10.2026). What a
+         * player's browser does with it (pans to its own token, and only from a GM) is scenario 65
+         * B1b's, where four browsers run.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students are gathered by their tokens");
+        needs(world.atLeast("namedRooms", 2), "a room nobody stands in is left to gather into");
+        const { gatherEveryone } = await import("./call-world.mjs");
+        const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const scene = canvas.scene;
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        const was = new Map([...scene.tokens].filter(t => t.actor?.type === "character").map(t => [t.id, { x: t.x, y: t.y }]));
+        const gathered = [...scene.tokens].filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
+            && !(isDeadForGm(t.actor) && !isMonocub(t.actor))).map(t => t.id).sort();
+        must(gathered.length >= 2, "fewer than two students would be gathered - this would measure nothing");
+        const socket = game.socket, emit = socket.emit, sent = [];
+        socket.emit = function (event, packet, ...rest) {
+            if (packet?.action === "sync" && packet.kind === "gather") sent.push(foundry.utils.deepClone(packet.data ?? null));
+            return emit.call(this, event, packet, ...rest);
+        };
+        try {
+            const moved = await gatherEveryone(room, scene);
+            await settle();
+            const data = sent[0] ?? {};
+            equal(stableJson([sent.length, data.room ?? null, data.scene ?? null, [...(data.tokenIds ?? [])].sort(), moved]),
+                stableJson([1, room, scene.id, gathered, gathered.length]),
+                "the gather told no client, more than once, or named another room, scene or other tokens than it moved "
+                + "([packets, room, scene, token ids, moved])");
+        } finally {
+            socket.emit = emit;
+            const back = [...was].filter(([id]) => scene.tokens.has(id)).map(([_id, at]) => ({ _id, ...at }));
+            await scene.updateEmbeddedDocuments("Token", back, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+        }
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

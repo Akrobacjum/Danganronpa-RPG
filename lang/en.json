@@ -509,7 +509,7 @@
       "elapsedUnknown": "not started",
       "elapsedTooltip": "How long this time of day has run. Amber at {first} minutes, red at {second}.",
       "bodyFound": "Body found",
-      "bodyFoundTooltip": "A body has been found and nobody is searching yet. The game waits for the GM to start the Investigation.",
+      "bodyFoundTooltip": "A body has been found, and the Investigation has not started yet: the GM starts it.",
       "stillToAct": "Still to act",
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
       "stillPlacing": "Still placing",
@@ -977,7 +977,7 @@
       "bodySubRoom": "{victim}, in the {room}",
       "bodyMeta": "The investigation is open",
       "bodyMetaGm": "{found} of {total} Key Remnants found",
-      "bodyHoldMeta": "Everything has stopped. Nobody is searching yet.",
+      "bodyHoldMeta": "The body has been found. The Investigation has not started yet.",
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
         "safeword": "Stop",
@@ -1799,7 +1799,7 @@
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
-      "bodyCalled": "Everyone is called to the scene. Nobody is searching yet.",
+      "bodyCalled": "Everyone is called to the scene. The Investigation has not started yet.",
       "bodyDone": {
         "one": "{moved} moved to the scene, {promoted} trace made permanent.",
         "other": "{moved} moved to the scene, {promoted} traces made permanent."
@@ -2302,6 +2302,7 @@
     },
     "Eclipse": {
       "already": "An Eclipse is already running.",
+      "bodyFirst": "A body has been found - start the Investigation first.",
       "announce": {
         "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
         "other": "Lights out. Place your token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."

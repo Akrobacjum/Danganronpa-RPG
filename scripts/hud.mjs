@@ -31,7 +31,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery } from "./settings.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -1203,8 +1203,13 @@ function buildTimeRow(clock, isGM) {
         const incoming = incomingTimeOfDay(clock);
         const free = ECLIPSE_FREE_PLACEMENT.includes(incoming);
 
+        // Dimmed over a body nobody has answered, and named why: `startEclipse` refuses there
+        // (E11 C3, audit S06-05). Still pressable, so the press says it too - a disabled
+        // button would also be re-enabled by `releaseControls` after the next press.
+        const held = !eclipseRunning && Boolean(bodyDiscovery());
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
+            : held ? game.i18n.localize("DRPG.Eclipse.bodyFirst")
             : game.i18n.format(
                 index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession"
                     : free ? "DRPG.Hud.startEclipseFree"
@@ -1219,7 +1224,7 @@ function buildTimeRow(clock, isGM) {
                 if (isEclipse()) await endEclipse({ advance: true });
                 else await startEclipse();
             },
-            { literal: true }
+            { literal: true, held }
         ));
     }
 
@@ -1587,14 +1592,17 @@ function releaseControls(token) {
  * @param {string} tooltipKey  An i18n key, or already-localised text when
  *   `literal` is set - the Eclipse control builds its own from the time of day
  *   it is about to open.
+ * @param {boolean} held  Dimmed and marked `aria-disabled`, still pressable: the
+ *   press is the handler's to refuse, and it says why (the Eclipse over a body).
  */
-function control(icon, tooltipKey, handler, { literal = false } = {}) {
+function control(icon, tooltipKey, handler, { literal = false, held = false } = {}) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "drpg-hud-button";
     const label = literal ? tooltipKey : game.i18n.localize(tooltipKey);
     button.dataset.tooltip = label;
     button.setAttribute("aria-label", label);
+    if (held) button.setAttribute("aria-disabled", "true");
     button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
     // Born disabled if a press is still in flight: this render may BE the one
     // that press triggered.

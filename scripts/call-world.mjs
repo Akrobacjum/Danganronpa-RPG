@@ -369,14 +369,50 @@ export async function gatherEveryone(room, onScene = null) {
 
     // Nobody is billed for this: the move is made by a GM client, and
     // movement.mjs exempts GM-initiated moves outright.
+    let moved;
     try {
         await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
-        return tokens.length;
+        moved = tokens.length;
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);
         const { REVERT } = await import("./movement.mjs");
-        return fallbackGather(scene, region, tokens, REVERT);
+        moved = await fallbackGather(scene, region, tokens, REVERT);
     }
+
+    /* AND EVERY CAMERA GOES WITH ITS TOKEN (E11 C3, 1.2.73; audit S06-07). The tokens were moved
+       and nothing told the screens: a player's HUD named the room of the body while the view
+       stayed on the room they had left, now empty, and in an Eclipse the notice said "Drag your
+       token" with no token on screen. `pan: false` above is the teleport's own camera, which
+       would move only this GM's. Told after the moves, so a client that pans finds its token
+       where it now stands; each client pans to its own (`panToGathered`). Lazily, as the rest:
+       this file imports only config.mjs, settings.mjs and utils.mjs statically (the header).
+       Tier 2 "the gather tells each client where its token went"; scenario 65 B1b. */
+    const { broadcast, SYNC } = await import("./sync.mjs");
+    broadcast(SYNC.gather, { room, scene: scene.id, tokenIds: tokens.map(t => t.id) });
+    return moved;
+}
+
+/**
+ * Pan this client's camera to its own token among the ones a gather moved (`SYNC.gather`,
+ * sync.mjs; E11 C3, 1.2.73). Answers the token's id, or null when there is nothing to pan to:
+ * no drawn canvas, another scene on screen, or none of the tokens this user's own student
+ * (`ownStudent`: a GM with no assigned student has none, so the GM's camera stays where the GM
+ * put it). It reads the packet's ids and this client's canvas and writes nothing; the packet is
+ * applied only from a GM (sync.mjs `registerSync`). The headless harness has a canvas whose
+ * `animatePan` does nothing, so scenario 65 reads the call and not a camera; whether the token's
+ * new position reaches a player's canvas before this packet does at a real table is not
+ * measured: both go through the server from the same GM, and the position's write is sent first.
+ */
+export async function panToGathered({ scene, tokenIds } = {}) {
+    if (!canvas?.ready || !scene || canvas.scene?.id !== scene || !Array.isArray(tokenIds)) return null;
+    const { ownStudent } = await import("./monokuma.mjs");
+    const mine = ownStudent();
+    if (!mine) return null;
+    const token = tokenIds.map(id => canvas.tokens?.get(id)).find(t => t?.actor?.id === mine.id);
+    const centre = token?.center;
+    if (!centre) return null;
+    await canvas.animatePan({ x: centre.x, y: centre.y });
+    return token.id;
 }
 
 /**

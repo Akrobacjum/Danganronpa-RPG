@@ -3156,12 +3156,13 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button {
     border-radius: 0;
     clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
 }
-body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:hover:not(:disabled) {
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:hover:not(:disabled):not([aria-disabled="true"]) {
     opacity: 1;
     border-color: var(--drpg-glass-accent);
     background: color-mix(in srgb, var(--drpg-glass-accent) 22%, rgba(7, 7, 10, 0.5));
 }
-body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:disabled { opacity: 0.35; }
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:disabled,
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button[aria-disabled="true"] { opacity: 0.35; }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button i {
     width: calc(14px * var(--drpg-sg-scale));
     height: calc(14px * var(--drpg-sg-scale));

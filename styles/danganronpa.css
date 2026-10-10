@@ -1084,13 +1084,14 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     transition: opacity var(--drpg-t-enter) var(--drpg-ease-arrive);
 }
 
-#drpg-hud .drpg-hud-button:hover:not(:disabled) {
+#drpg-hud .drpg-hud-button:hover:not(:disabled):not([aria-disabled="true"]) {
     opacity: 1;
     background: none;
     border-color: var(--color-border, currentColor);
 }
 
-#drpg-hud .drpg-hud-button:disabled {
+#drpg-hud .drpg-hud-button:disabled,
+#drpg-hud .drpg-hud-button[aria-disabled="true"] {
     opacity: 0.25;
 }
 

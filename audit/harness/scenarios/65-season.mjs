@@ -16,8 +16,9 @@
  *      first's token on the Annex and an orphan (a project token whose id has no countdown):
  *      four project tokens; whether p1 knows the orphan (C7).
  *   B  Chie kills Daichi, kept, and the incident is closed: the GM panel's next line (C2); Aiko
- *      and Botan walk in on the body: one discovery card, the hold and the line on it. An Eclipse
- *      asked for during the hold (C3). Investigation, the Class Trial and a
+ *      and Botan walk in on the body: one discovery card, the hold and the line on it; the gather
+ *      that follows, on Aiko's, Botan's and the GM's browsers, and a gather packet a player sends
+ *      (C3). An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
  *      wrong verdict that executes Botan; a move inside the room after the verdict (already
  *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
  *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
@@ -40,8 +41,10 @@
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
  *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves (C8).
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
- * token (`applyToProjectToken` needs `token.object`), the gather's camera and the Eclipse
- * button's greying. The GM panel's next line is read off the panel's content as it is drawn
+ * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
+ * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
+ * so B1b reads the call each browser makes and where it points, and B2 reads the chevron's
+ * `aria-disabled` and its words (E11 C3). The GM panel's next line is read off the panel's content as it is drawn
  * (E11 C2, `NEXT` below), not off a window on screen.
  *
  * Its bound (the plan's M4, set from C0's first readings): its 17 checks took 20.2-21.6 s
@@ -145,6 +148,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     check("B0: the incident closed with Daichi's death kept, the GM's next line says a body is waiting in his room and offers the announcement",
         waiting.open === true && waiting.closed === true && Boolean(waiting.room) && J(waiting.line) === J([waiting.text, "bodyDialog"]),
         J(waiting), { flow: "body-discovery" });
+    /* E11 C3: every browser's camera calls, kept from here on (the harness canvas's own `animatePan` does nothing). */
+    const PANS = `if (!globalThis.__pans) { globalThis.__pans = []; const pan = canvas.animatePan;
+        canvas.animatePan = async function (view) { globalThis.__pans.push({ x: view?.x ?? null, y: view?.y ?? null }); return pan.call(this, view); }; } return true;`;
+    await Promise.all([gm, p1, p2].map(client => client.eval(PANS)));
     const found = await gm.eval(`${UNTIL} ${CARDS} ${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
         const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
@@ -163,16 +170,39 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
             && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]) && J(found.line) === J([found.holdLine, "startInvestigation"]),
         J({ blow, found }), { flow: "body-discovery" });
+    const PANNED = actorId => `${UNTIL} await until(() => globalThis.__pans.length > 0, 4000);
+        const t = canvas.scene?.tokens.find(x => x.actorId === "${actorId}");
+        return { pans: globalThis.__pans, at: t ? { x: t.center.x, y: t.center.y } : null, scene: canvas.scene?.id ?? null };`;
+    const pannedP1 = await p1.eval(PANNED(IDS.aiko)), pannedP2 = await p2.eval(PANNED(IDS.botan));
+    const pannedGm = await gm.eval(`return { pans: globalThis.__pans };`);
+    await p1.eval(`const t = game.scenes.get("${IDS.scene}").tokens.find(x => x.actorId === "${IDS.botan}");
+        game.socket.emit("module.${MOD}", { action: "sync", kind: "gather", data: { room: ${J(found.room)}, scene: "${IDS.scene}", tokenIds: [t.id] } });
+        return true;`);
+    await settle(1500);
+    const forged = await p2.eval(`return globalThis.__pans.length;`);
+    /* E11 C3 (audit S06-07): the discovery's gather moved the cast and told no screen - at 9e97646 no browser
+       made a camera call. Each player's browser pans to its own student's token where it now stands, the GM's
+       (no student of its own) does not, and the same packet sent by a player is not applied (sync.mjs
+       `registerSync` takes a packet only from a GM). */
+    const at = panned => J(panned.pans) === J([panned.at]);
+    check("B1b: the gather after the discovery pans Aiko's and Botan's players to their own tokens and not the GM; a gather packet a player sends pans nobody",
+        at(pannedP1) && at(pannedP2) && pannedP1.scene === IDS.scene && pannedGm.pans.length === 0 && forged === pannedP2.pans.length,
+        J({ pannedP1, pannedP2, pannedGm, forged }), { flow: "body-discovery" });
     const eclipse = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
         const { isEclipse, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
-        const held = Boolean(bodyDiscovery());
-        await E.startEclipse();
+        const held = Boolean(bodyDiscovery()), first = game.i18n.localize("DRPG.Eclipse.bodyFirst"), told = [], warn = ui.notifications.warn;
+        ui.notifications.warn = function (message, ...rest) { told.push(String(message)); return warn.call(this, message, ...rest); };
+        let answered;
+        try { answered = await E.startEclipse(); } finally { ui.notifications.warn = warn; }
         const on = isEclipse();
         if (on) await E.endEclipse({ advance: false });
-        return { held, on, off: !isEclipse() };`, { timeout: 60000 });
-    // Today the Eclipse opens during the hold. C3: refused, and the GM told.
-    check("B2: an Eclipse asked for during the hold opens - today's reading; E11 C3 refuses it",
-        eclipse.held === true && eclipse.on === true && eclipse.off === true, J(eclipse), { flow: "body-discovery" });
+        const chevron = document.querySelector('#drpg-hud .drpg-hud-button[aria-disabled="true"]');
+        return { held, answered: answered ?? null, on, told: told.includes(first), chevron: chevron?.dataset?.tooltip === first, off: !isEclipse() };`, { timeout: 60000 });
+    /* At C0 (4aad1fd) the Eclipse opened during the hold. E11 C3 (audit S06-05): refused, the GM told why, and
+       the HUD's chevron dimmed with the same words. */
+    check("B2: an Eclipse asked for during the hold is refused, the GM told why, and the HUD's Eclipse chevron is dimmed with the same words",
+        eclipse.held === true && eclipse.answered === null && eclipse.on === false && eclipse.told === true && eclipse.chevron === true && eclipse.off === true,
+        J(eclipse), { flow: "body-discovery" });
     const trial = await gm.eval(`${CARDS} const { setPhase } = await import("${repoUrl}/scripts/clock.mjs");
         const { getClock, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
         const I = await import("${repoUrl}/scripts/incident-store.mjs");
