@@ -92,6 +92,7 @@ export async function startClassTrial() {
     });
 
     if (!result || result === "cancel") return null;
+    if (!(await confirmNewTrial())) return null;
 
     // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
     // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw
@@ -123,6 +124,36 @@ export async function startClassTrial() {
 }
 
 /**
+ * A SECOND TRIAL IN A CHAPTER WITH A VERDICT ASKS FIRST (E10 C11, 1.2.71; audit S06-33; D17 option 1).
+ *
+ * Entering the trial's phase blanks the chapter's trial record (`reconcilePhase` in clock.mjs), and
+ * `verdictApplied` in that record is the only thing that keeps a second verdict out: the verdict's
+ * window refuses while it stands. So End the trial and Start it again, or the phase moved back from
+ * Edit campaign, opened a fresh trial with no word said, and its verdict meant another execution and
+ * another round of Level Ups. A second trial is a thing a table may want (the owner's D17: allowed,
+ * asked), so this asks rather than refuses, and Cancel is the first button and the only default:
+ * Enter presses the first submit button in DOM order (the finding behind the verdict's footer, E10
+ * C4), so Enter keeps the verdict. Answers true when the chapter has no verdict, without asking.
+ * Measured on the harness: tier 2 "re-entering the trial after a verdict asks and Cancel keeps the
+ * lock" and scenario 63's H; the key itself in Foundry's window is not measured here (LIVE-E10-02's).
+ */
+export async function confirmNewTrial() {
+    const { trialProgress } = await import("./vote.mjs");
+    if (!trialProgress().verdictApplied) return true;
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Floor.newTrialTitle") },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<p>${game.i18n.localize("DRPG.Floor.newTrialConfirm")}</p>`),
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "ok", label: game.i18n.localize("DRPG.Floor.newTrialTitle") }
+        ],
+        rejectClose: false
+    });
+    return answer === "ok";
+}
+
+/**
  * Open the Nonstop Debate, for as long as the GM thinks this one is worth.
  *
  * The moment the Objection rules come into force, which is why it is announced
@@ -148,6 +179,15 @@ export async function openDebate(options = {}) {
     if (trialFloor()) return null;
 
     const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+    /* A debate opened outside a trial opens the trial (`startFloor` moves the phase), so in a
+       chapter with a verdict it is a second trial with no question asked (E10 C11; D17). It is
+       refused here, before the length is asked or remembered into the verdict's record, and the
+       GM is told where the asked road is. `confirmNewTrial: true` is the caller saying it asked. */
+    const confirmed = options?.confirmNewTrial === true;
+    if (getClock().phase !== "classTrial" && trialProgress().verdictApplied && !confirmed) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.newTrialRefused"));
+        return null;
+    }
     const remembered = trialProgress().seconds || TRIAL.speakSeconds;
 
     const given = typeof options === "number" ? options : options?.seconds;
@@ -181,7 +221,7 @@ export async function openDebate(options = {}) {
     // Remembered for the next one in this trial, which is what makes the
     // default above worth having.
     await setTrialProgress({ seconds: budget });
-    await startFloor({ seconds: budget });
+    await startFloor({ seconds: budget, confirmNewTrial: confirmed });
 
     const { announce } = await import("./utils.mjs");
     await announce({

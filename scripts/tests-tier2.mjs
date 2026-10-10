@@ -26336,6 +26336,119 @@ const SCENARIOS = [
         }
     }],
 
+    ["re-entering the trial after a verdict asks and Cancel keeps the lock", async () => {
+        /*
+         * E10 C11, 1.2.71; audit S06-33; D17 option 1. The harm: in a chapter whose trial has a
+         * verdict, End the trial and Start it again - or the phase moved back to Class Trial from Edit
+         * campaign, `game.drpg.setPhase`, a debate opened outside the trial - blanked the record's
+         * `verdictApplied` with no word said, and with it the one thing that keeps a second verdict
+         * (another execution, another round of Level Ups) out. Each road is driven from the same
+         * record, a verdict given and the phase Daily Life: the two with a window are answered as
+         * Enter answers them (the first submit button of the drawn window pressed, as C4's verdict
+         * test presses it), the three without one as a macro calls them. Read per road: the phase, the
+         * record as it was, the floor shut; the windows asked; the confirmation's first submit button
+         * and its defaults; the warnings told. Last, the confirmation answered yes: a fresh trial,
+         * `keysCharged` kept (the Key fee is the chapter's, E09 C7). Red at E10 C10's tree (A1,
+         * 10.10.2026): no question, the phase Class Trial and the record blank after the first road.
+         */
+        needs(env.dialogs(), "the confirmation's window is drawn and its first button pressed, as Enter presses it");
+        const V = await import("./vote.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const { setPhase } = await import("./clock.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const titles = { start: game.i18n.localize("DRPG.Floor.startTrial"), clock: game.i18n.localize("DRPG.Panel.jump"),
+            ask: game.i18n.localize("DRPG.Floor.newTrialTitle") };
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const ownWarn = ui.notifications.warn;
+        const drawn = () => [...foundry.applications.instances.values()]
+            .find(a => a.rendered && a.element && a.options?.window?.title === titles.ask) ?? null;
+        const asked = [], buttons = [], told = [];
+        let press = "enter";
+        D.wait = async function (cfg) {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? title;
+            asked.push(kind);
+            if (kind === "start") return "ok";
+            if (kind === "clock") {
+                const c = getClock();
+                return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter), day: c.day ?? 1, phase: "classTrial",
+                    session: c.session, timeOfDay: c.timeOfDay, reset: false };
+            }
+            if (kind !== "ask") return null;
+            const pending = drawWait.call(this, cfg);
+            if (await until(() => Boolean(drawn()), 8000)) {
+                const element = drawn().element;
+                const first = element.querySelector('button[type="submit"]');
+                buttons.push([first?.dataset?.action ?? null, [...element.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action)]);
+                const pressed = press === "enter" ? first : element.querySelector('footer button[data-action="ok"]');
+                if (press === "enter") element.querySelector("form")?.requestSubmit(pressed);
+                else pressed?.click();
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            return Promise.race([pending, wait(4000).then(() => "unanswered")]);
+        };
+        ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+        const given = async () => {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter,
+                voteClosed: true, verdictApplied: true, keysCharged: true });
+            return stableJson(V.trialProgress());
+        };
+        const roads = {
+            start: () => UI.startClassTrial(),
+            clock: () => openClockDialog(),
+            setPhase: () => setPhase("classTrial"),
+            openDebate: () => UI.openDebate(60),
+            startFloor: () => floor.startFloor({})
+        };
+        const readings = {};
+        let confirmed = null, toldOnRoads = [];
+        try {
+            for (const [road, run] of Object.entries(roads)) {
+                const record = await given();
+                const toldBefore = told.length;
+                await run();
+                await settle();
+                readings[road] = [getClock().phase, stableJson(V.trialProgress()) === record, Boolean(floor.trialFloor()),
+                    told.length - toldBefore];
+            }
+            toldOnRoads = told.map(m => m === game.i18n.localize("DRPG.Floor.newTrialRefused"));
+            await given();
+            press = "ok";
+            const started = await UI.startClassTrial();
+            await settle();
+            const now = V.trialProgress();
+            confirmed = [started, getClock().phase, now.verdictApplied, now.keysCharged, now.voteClosed];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        const kept = ["dailyLife", true, false];
+        equal(stableJson({ readings, asked, buttons, told: toldOnRoads, confirmed }),
+            stableJson({
+                readings: { start: [...kept, 0], clock: [...kept, 0], setPhase: [...kept, 1], openDebate: [...kept, 1], startFloor: [...kept, 1] },
+                asked: ["start", "ask", "clock", "ask", "start", "ask"],
+                buttons: [["cancel", ["cancel"]], ["cancel", ["cancel"]], ["cancel", ["cancel"]]],
+                told: [true, true, true],
+                confirmed: [true, "classTrial", false, true, false]
+            }),
+            "a road into the trial after a verdict opened a second one unasked, or Enter confirmed it, or a yes did not open it "
+            + "(read per road: the phase, the record kept, the floor open, warnings told; the windows asked; the confirmation's "
+            + "first submit button and its defaults; the warnings; the yes: answer, phase, verdictApplied, keysCharged, voteClosed)");
+    }],
+
     ["the Event panel's incident card reads the cast, not the world", async () => {
         /*
          * THE PANEL VANISHED THE MOMENT THE OPENING ROLL LANDED (Dawid, 14.09).

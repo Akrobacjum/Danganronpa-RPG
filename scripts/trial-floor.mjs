@@ -153,7 +153,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * from the first second. All the GM chooses is how long they expect it to run,
  * and even that is a budget rather than a limit.
  */
-export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
+export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial = false } = {}) {
     if (!game.user.isGM) return null;
 
     // THE PHASE FOLLOWS THE FLOOR, and it is set here rather than at the call
@@ -179,8 +179,13 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
              *
              * Inside the `if`, so the second and third debate of the same trial
              * move nothing and refill nothing.
+             *
+             * A REFUSAL IS NOT THAT COSMETIC PROBLEM (E10 C11). In a chapter with a verdict
+             * `setPhase` refuses a trial nobody confirmed and answers null; a floor opened then
+             * would be a debate in Daily Life beside a verdict, so the floor stays shut too.
+             * `confirmNewTrial` is passed on from a caller that asked (`openDebate`).
              */
-            await setPhase("classTrial");
+            if (await setPhase("classTrial", { confirmNewTrial }) === null) return null;
         }
     } catch (err) {
         // A phase that did not move is a cosmetic problem; a floor that did

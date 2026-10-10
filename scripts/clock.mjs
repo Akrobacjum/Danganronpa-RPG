@@ -46,11 +46,32 @@ export function campaignName(clock = getClock()) {
     return clock.campaignName?.trim() || game.world?.title || "";
 }
 
-/** Set the phase: dailyLife | investigation | classTrial. */
-export async function setPhase(key) {
+/**
+ * Set the phase: dailyLife | investigation | classTrial.
+ *
+ * INTO A TRIAL AFTER A VERDICT ONLY WHEN THE CALLER ASKED (E10 C11, 1.2.71; audit S06-33; D17).
+ * Entering the trial blanks the chapter's trial record (`reconcilePhase`), its `verdictApplied`
+ * included, so a second trial in a chapter with a verdict is a second execution waiting to happen.
+ * This is `game.drpg.setPhase` and the road `startFloor` takes - calls from a macro or from another
+ * function, not a GM at a button - so without `confirmNewTrial` it refuses with a warning and writes
+ * nothing; the asking is trial-floor-ui.mjs `confirmNewTrial`, behind Start the Class Trial and Edit
+ * campaign. `setClock` itself stays the bare writer every door uses, and is not asked (a GM's own
+ * `game.drpg.setClock({ phase })` still opens a trial unasked: E10 C11's note names that road).
+ *
+ * @param {string} key
+ * @param {{confirmNewTrial?: boolean}} [options]  true: the GM was asked and said yes.
+ */
+export async function setPhase(key, { confirmNewTrial = false } = {}) {
     if (!PHASES[key]) {
         ui.notifications.error(game.i18n.format("DRPG.Clock.unknownPhase", { key }));
         return null;
+    }
+    if (key === "classTrial" && getClock().phase !== "classTrial" && !confirmNewTrial) {
+        const { trialProgress } = await import("./vote.mjs");
+        if (trialProgress().verdictApplied) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Floor.newTrialRefused"));
+            return null;
+        }
     }
     return setClock({ phase: key });
 }

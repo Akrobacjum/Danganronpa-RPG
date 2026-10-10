@@ -50,10 +50,11 @@
  *      audit, which puts the flag back, and executes Botan, and its record reads "done" (C5);
  *      every player holds the verdict's one public card - Botan executed, the class got it wrong
  *      (C5) - and nothing a player who does not own Chie holds names her.
- *   H  End the trial, Start it again: only the Start window is asked (C11: a confirmation, Cancel
- *      the default); `verdictApplied` is cleared and `keysCharged` kept; the vote, its count and
- *      the tie are cleared and its round number carried on, so no ballot of the first trial counts
- *      in the second (C1, D17).
+ *   H  End the trial, Start it again: after the Start window the chapter's verdict asks, drawn on
+ *      gm2 - Cancel its first submit button and only default, so Enter keeps Daily Life and the
+ *      verdict (C11); Start again and yes: `verdictApplied` is cleared and `keysCharged` kept; the
+ *      vote, its count and the tie are cleared and its round number carried on, so no ballot of the
+ *      first trial counts in the second (C1, D17).
  *   I  a second vote names Chie and the verdict is correct: one Level Up window for the class on
  *      gm2, a row per survivor, answered "All: the players pick" - no picker opens, and every
  *      survivor a player owns holds one offer (C7; one picker per survivor before it); p1's sheet
@@ -92,6 +93,8 @@
  * 10.10.2026).
  * E10 C9 added I6, p1's own picker read off its markup (a module panel, no Choice over one pick, no line for whom):
  * 43 checks in 19.4 s (one run, 10.10.2026).
+ * E10 C11 rewrote H1 and H2, the second Start's confirmation drawn on gm2 and answered by Enter, then by its yes: 43
+ * checks in 18.6 s (one run, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -390,23 +393,48 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
 
     /* ------------------------------ H. a second trial in the chapter ------------------------------ */
 
-    begin("H", "End the trial, Start it again");
-    const again = await gm2.eval(`${V} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
+    begin("H", "End the trial, Start it again: asked first, Enter keeps the verdict, yes opens a new trial");
+    /* E10 C11 (S06-33; D17): the confirmation is drawn on gm2 (`__dialogWindows`) and answered as Enter answers it - its
+       first submit button - then, on a second Start, by its yes. A start window that asked nothing more leaves the queued
+       "ok" unanswered; it is taken back so that I is not answered by it. */
+    const again = await gm2.eval(`${until} ${V} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const askTitle = ${text("DRPG.Floor.newTrialTitle")};
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === askTitle);
         const before = V.trialProgress();
         globalThis.__dialogAnswers.push(true);
         const ended = await UI.endClassTrial();
-        const from = globalThis.__dialogLog.length;
-        globalThis.__dialogAnswers.push("ok");
-        const started = await UI.startClassTrial();
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const start = async press => {
+            const from = globalThis.__dialogLog.length, queued = globalThis.__dialogAnswers.length;
+            globalThis.__dialogAnswers.push("ok");
+            const pending = UI.startClassTrial();
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const first = el?.querySelector('button[type="submit"]');
+            const read = el ? { first: first?.dataset?.action ?? null, said: el.textContent.includes(${text("DRPG.Floor.newTrialConfirm")}),
+                defaults: [...el.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action) } : null;
+            if (press === "enter") el?.querySelector("form")?.requestSubmit(first);
+            else el?.querySelector('footer button[data-action="ok"]')?.click();
+            const started = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 5000))]);
+            if (globalThis.__dialogAnswers.length > queued) globalThis.__dialogAnswers.splice(queued);
+            const now = V.trialProgress();
+            return { read, started, phase: getClock().phase, asked: globalThis.__dialogLog.slice(from).map(d => d.kind + ":" + d.title),
+                verdictApplied: now.verdictApplied, keysCharged: now.keysCharged };
+        };
+        let enter = null, yes = null;
+        try { enter = await start("enter"); yes = await start("ok"); } finally { globalThis.__dialogWindows = was; }
         const after = V.trialProgress();
-        return { ended, started, asked: globalThis.__dialogLog.slice(from).map(d => d.kind + ":" + d.title),
-            startTitle: ${text("DRPG.Floor.startTrial")}, before: [before.verdictApplied, before.keysCharged], after: [after.verdictApplied, after.keysCharged],
+        return { ended, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
             round: before.vote?.round ?? null, cleared: { vote: after.vote ?? null, voteClosed: after.voteClosed, tied: after.tied,
                 accused: after.accused ?? null, accusedIds: after.accusedIds ?? null, total: after.total ?? null } };`, { timeout: 60000 });
-    verdict("the second Start asks only its own window (C11 asks first, Cancel the default)",
-        again.ended === true && again.started === true && J(again.asked) === J([`wait:${again.startTitle}`]), J(again));
-    verdict("the second trial clears `verdictApplied` and keeps `keysCharged`",
-        again.before[0] === true && again.after[0] === false && again.after[1] === again.before[1], J(again));
+    verdict("the second Start asks first: the confirmation's first submit button, which Enter presses, is Cancel, the only default; Enter keeps Daily Life and the verdict (C11)",
+        again.ended === true && J(again.enter?.asked) === J([`wait:${again.startTitle}`, `wait:${again.askTitle}`])
+            && again.enter.read?.first === "cancel" && J(again.enter.read.defaults) === J(["cancel"]) && again.enter.read.said === true
+            && again.enter.started === null && again.enter.phase === "dailyLife" && again.enter.verdictApplied === true, J(again));
+    verdict("its yes opens the second trial, which clears `verdictApplied` and keeps `keysCharged` (C11)",
+        again.yes?.started === true && again.yes.phase === "classTrial" && again.before[0] === true && again.yes.verdictApplied === false
+            && again.yes.keysCharged === again.before[1], J(again));
     const fresh = again.cleared;
     verdict("the second trial clears the vote, its count and the tie, and carries the round number on (C1, D17)",
         again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false

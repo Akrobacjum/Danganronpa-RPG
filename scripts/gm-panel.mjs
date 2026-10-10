@@ -1452,11 +1452,23 @@ export async function openClockDialog() {
      */
     const before = getClock();
 
+    /* THE PHASE SELECT IS A DOOR INTO A TRIAL TOO (E10 C11, 1.2.71; audit S06-33; D17). Moving it to
+       Class Trial in a chapter whose trial has a verdict blanks that verdict (`reconcilePhase`), so it
+       asks as Start the Class Trial does, Cancel the default; Cancel keeps the phase and applies the
+       rest of the window. Asked only when the chapter stays: `confirmNewTrial` reads the record for the
+       chapter on the clock, and a write that moves the chapter as well is not asked (read in the code).
+       The clock is read again here, not through `before`: R69 keeps the phase out of that comparison. */
+    let phase = result.phase;
+    if (phase === "classTrial" && getClock().phase !== "classTrial" && result.chapter === Number(before.chapter)) {
+        const { confirmNewTrial } = await import("./trial-floor-ui.mjs");
+        if (!(await confirmNewTrial())) phase = getClock().phase;
+    }
+
     await setClock({
         campaignName: result.campaignName,
         chapter: result.chapter,
         day: result.day,
-        phase: result.phase,
+        phase,
         session: result.session,
         timeOfDay: result.timeOfDay
     });
