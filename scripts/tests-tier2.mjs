@@ -29559,6 +29559,99 @@ const SCENARIOS = [
         }
     }],
 
+    ["two ticks during one write open one rebuttal", async () => {
+        /*
+         * E10 C13, 1.2.71; audit S06-38. The primary GM's heartbeat ticks every second, and an objection that has
+         * run out is moved on by the tick that sees it. A write that takes longer than a second - a slow server, a
+         * busy GM's browser - was still on its way when the next tick read the floor, which still said "objection",
+         * and wrote the rebuttal again: every write restarts the rebuttal's two minutes. Every write of a rebuttal is
+         * held here for 2.5 s before it goes on, and the heartbeat is left to run; the writes are counted as they are
+         * asked for, and every one of them is let land before the floor is put back.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose heartbeat writes the transition - this would measure nothing");
+        const [objector, target] = cast(2);
+        const floorMod = await import("./trial-floor.mjs");
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const asked = [];
+        let holding = 0;
+        let moved = false;
+        try {
+            settings.set = async function (namespace, key, value, ...rest) {
+                if (namespace === MODULE_ID && key === SETTINGS.trialQueue && value?.mode === floorMod.FLOOR_MODES.rebuttal) {
+                    asked.push(value.startedAt);
+                    holding++;
+                    try {
+                        await wait(2500);
+                        return await realSet.call(this, namespace, key, value, ...rest);
+                    } finally {
+                        holding--;
+                    }
+                }
+                return realSet.call(this, namespace, key, value, ...rest);
+            };
+            await settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: floorMod.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id,
+                seconds: 180, startedAt: Date.now() - 90_000
+            });
+            floorMod.renderTrialFloor();
+            moved = await until(() => floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.rebuttal, 8000);
+            // Two more ticks after the first write landed: the rebuttal it opened has its two minutes.
+            await wait(2200);
+        } finally {
+            await until(() => holding === 0, 10000);
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(JSON.stringify([moved, asked.length]), JSON.stringify([true, 1]),
+            `the objection that ran out was moved on ${asked.length} times while one write was on its way, or never`);
+    }],
+
+    ["the primary GM's tab coming back moves an expired objection on at once", async () => {
+        /*
+         * E10 C13, 1.2.71; audit S06-38. A browser throttles the timers of a tab nobody is looking at, so the primary
+         * GM's one-second heartbeat can leave an objection long past zero while the table waits for its rebuttal. The
+         * heartbeat is held here the way such a tab holds it - started with a `setInterval` that never fires, for the
+         * one call that starts it - and the tab comes back: the rebuttal must be written before a heartbeat started
+         * at the same moment could have ticked (half a second; the heartbeat ticks at one).
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose heartbeat writes the transition - this would measure nothing");
+        const [objector, target] = cast(2);
+        const floorMod = await import("./trial-floor.mjs");
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const realInterval = globalThis.setInterval;
+        let held = null, moved = false;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: floorMod.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id,
+                seconds: 180, startedAt: Date.now() - 90_000
+            });
+            await settle();
+            globalThis.setInterval = () => 0;
+            try {
+                floorMod.renderTrialFloor();
+            } finally {
+                globalThis.setInterval = realInterval;
+            }
+            held = floorMod.trialFloor()?.mode ?? null;
+            document.dispatchEvent(new Event("visibilitychange"));
+            moved = await until(() => floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.rebuttal, 500);
+        } finally {
+            globalThis.setInterval = realInterval;
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(JSON.stringify([held, moved]), JSON.stringify([floorMod.FLOOR_MODES.objection, true]),
+            "the expired objection waited for the held heartbeat when the tab came back, or had moved before it did");
+    }],
+
     ["the murder window refuses at the door during an Eclipse", async () => {
         /*
          * F11. The measurement is that the promise SETTLES: a window that opened

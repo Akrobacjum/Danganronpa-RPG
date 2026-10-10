@@ -11,7 +11,7 @@ import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     extendFloor, returnToDebate, advanceFloorNow, FLOOR_MODES
 } from "./trial-floor.mjs";
-import { dialogContent, plural, error, esc} from "./utils.mjs";
+import { dialogContent, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -127,7 +127,7 @@ export async function startClassTrial() {
     // in clock.mjs runs them off the write below - which is what makes the clock
     // editor, `setPhase` and a debate opened outside a trial open one the same
     // way this does.
-    await setClock({ phase: "classTrial", timeOfDayStartedAt: Date.now() });
+    await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() });
 
     // The refill is announced rather than done quietly: a rule the table cannot
     // see is a rule the table does not use, and "you have your actions again" is
@@ -375,7 +375,7 @@ export async function closeTrial() {
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
         // is what makes ending a trial from the clock editor end it properly too.
-        await setClock({ phase: "dailyLife", timeOfDayStartedAt: Date.now() });
+        await setClock({ phase: "dailyLife", timeOfDayStartedAt: serverNow() });
     } catch (err) {
         /* A WRITE THAT THREW ENDED NOTHING (E10 C12, 1.2.71; audit S06-36). This said "the floor is
            shut either way" and went on to announce the trial over and answer true - but the floor

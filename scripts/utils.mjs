@@ -121,6 +121,23 @@ export function pause(ms) {
 }
 
 /**
+ * Now, on the server's clock where Foundry gives one (`game.time.serverTime`), else this
+ * machine's - the same reading the GMs' store stamps with (gm-store.mjs `now`).
+ *
+ * FOR A STAMP ONE BROWSER WRITES AND ANOTHER COUNTS FROM (E10 C13, 1.2.71; audit S06-37). The
+ * debate's `startedAt` and the time of day's `timeOfDayStartedAt`/`pausedAt` were each written
+ * off the writing GM's `Date.now()` and counted off every reader's own: a player whose machine
+ * ran a minute fast read the debate a minute shorter than the GM did (scenario 63 J1, a client
+ * started with `clockSkewMs: 60000`: 60 s apart before this, within one second after). Both ends
+ * read this now. How v14 computes `serverTime` is LIVE-E04-01, and the harness's is its own
+ * process clock (client-entry.mjs), so the agreement measured here is the harness's.
+ */
+export function serverNow() {
+    const t = game.time?.serverTime;
+    return Number.isFinite(t) && t > 0 ? t : Date.now();
+}
+
+/**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
  * same effect.
  *

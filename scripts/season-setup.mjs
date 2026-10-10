@@ -45,7 +45,7 @@ import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs"
 import { monokumas } from "./despair.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
@@ -1355,7 +1355,7 @@ async function wipeSeason(plan) {
         await setClock({
             chapter: 1, day: 1, session: 1, timeOfDay: "morning",
             phase: "dailyLife", eclipse: false, pausedAt: null,
-            timeOfDayStartedAt: Date.now(),
+            timeOfDayStartedAt: serverNow(),
             // Kept: the season is new, the campaign is not.
             campaignName: clock.campaignName,
             season: (clock.season ?? 1) + 1,

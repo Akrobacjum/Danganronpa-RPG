@@ -22,7 +22,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, error, plural } from "./utils.mjs";
+import { announce, log, warn, error, plural, serverNow } from "./utils.mjs";
 
 /**
  * Current clock, always with every field present. Defined in settings.mjs -
@@ -126,12 +126,13 @@ export async function setClock(patch = {}) {
     // day from before the trial, in red. Only a move into or out of the Class Trial: a body
     // found turns Daily Life into the Investigation in the middle of a time of day, and the
     // day's summary (day-summary.mjs) is bounded by this stamp. Measured in tier 2 "the trial's
-    // exits say what happened".
+    // exits say what happened". The stamp is the server's clock (utils.mjs `serverNow`, E10 C13), as
+    // is every reader's count from it: the HUD's elapsed line on a player's machine counts from a GM's.
     const trialEdge = patch.phase !== undefined && patch.phase !== before.phase
         && (patch.phase === "classTrial" || before.phase === "classTrial");
     if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
         && patch.timeOfDayStartedAt === undefined) {
-        next.timeOfDayStartedAt = Date.now();
+        next.timeOfDayStartedAt = serverNow();
     }
     // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
     // flag set again later by hand must not inherit the last Eclipse's name.

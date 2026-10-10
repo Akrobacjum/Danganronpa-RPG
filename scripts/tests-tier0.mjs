@@ -7792,6 +7792,40 @@ const REGRESSIONS = [
             "the season's starting sheet is stamped off the prepared sheet, not as the GMs hold it (S03-23; 1b.2)");
     }],
 
+    ["R319 - the trial's clock and the time of day's stamps count the server's time, and a transition is written once", async () => {
+        /*
+         * E10 C13, 1.2.71; audit S06-37, S06-38. Read in the source: every stamp the floor writes (`startFloor`,
+         * `openObjection`, `openRebuttal`, `returnToDebate`, `extendFloor`) and the count from it (`secondsLeft`, which
+         * the console, the Event card and the transition read) are the server's clock (utils.mjs `serverNow`), and so are
+         * the time of day's (`setClock`'s stamp, Start and End the trial, the season's reset, the pause's stamp and its
+         * settling, the HUD's elapsed line); `advanceIfDue` writes one transition at a time, its flag cleared in a
+         * `finally`; the floor's registration asks for the transition when the tab's visibility changes. Scenario 63 J1
+         * drives the clock on a player a minute off; tier 2 "two ticks during one write open one rebuttal" and "the
+         * primary GM's tab coming back moves an expired objection on at once" drive the other two.
+         */
+        const sources = new Map(await otherSources());
+        const floor = stripComments(sources.get("trial-floor.mjs") ?? ""), clock = stripComments(sources.get("clock.mjs") ?? "");
+        const hud = stripComments(sources.get("hud.mjs") ?? ""), ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        const season = stripComments(sources.get("season-setup.mjs") ?? ""), utils = stripComments(sources.get("utils.mjs") ?? "");
+        const now = topLevelFunction(utils, "serverNow") ?? "";
+        ok(/game\.time\?\.serverTime/.test(now), "utils.mjs has no serverNow, or it no longer reads the server's clock Foundry gives");
+        const floorFns = ["startFloor", "openObjection", "openRebuttal", "returnToDebate", "extendFloor", "secondsLeft"];
+        const timeFns = [[clock, "setClock"], [hud, "settleElapsedPause"], [hud, "paintElapsed"], [ui, "startClassTrial"], [ui, "closeTrial"], [season, "wipeSeason"]];
+        const cut = [...floorFns.map(name => [name, fnSource(floor, name)]), ...timeFns.map(([src, name]) => [name, fnSource(src, name)])];
+        ok(cut.every(([, body]) => body.length > 150), `a function this reads is cut short: ${cut.filter(([, b]) => b.length <= 150).map(([n]) => n).join(", ")}`);
+        const local = cut.filter(([, body]) => /\bDate\.now\(/.test(body)).map(([name]) => name);
+        const server = cut.filter(([, body]) => /\bserverNow\(\)/.test(body)).map(([name]) => name);
+        equal(JSON.stringify(local), JSON.stringify([]), "a stamp or a count of the trial's clock or the time of day is this machine's clock again (S06-37)");
+        equal(JSON.stringify(server), JSON.stringify(cut.map(([name]) => name)), "a stamp or a count of the trial's clock or the time of day reads no server time (S06-37)");
+        const advance = fnSource(floor, "advanceIfDue");
+        const guard = advance.search(/if \(advancing\) return;/), raised = advance.search(/advancing = true;/);
+        ok(guard >= 0 && guard < advance.search(/trialFloor\(\)/) && raised > guard && raised < advance.search(/openRebuttal\(\)/)
+            && /finally \{\s*advancing = false;/.test(advance),
+            "the heartbeat writes a transition while the last one is on its way, or a write that threw stops it for good (S06-38)");
+        ok(/addEventListener\("visibilitychange",[^]*?advanceIfDue\(\)/.test(fnSource(floor, "registerTrialFloor")),
+            "the primary GM's tab coming back waits for its throttled heartbeat to move an expired mode on (S06-38)");
+    }],
+
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
         /*
          * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's

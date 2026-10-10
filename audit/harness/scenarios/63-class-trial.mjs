@@ -64,6 +64,9 @@
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
  *      Then (C8) gm2 offers Aiko one more, and p1's pick of an experience Aiko does not have is refused and
  *      told on p1, the offer standing and nothing written; gm2 takes it back.
+ *   J  (run between H and I) p4 comes back on a machine whose clock runs a minute fast (`clockSkewMs`:
+ *      `Date.now` moves, the server's time does not); gm2 opens a five-minute debate in H's second trial,
+ *      and p4's count of its seconds and its Event card's clock read what gm2's read (C13); gm2 closes it.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -95,6 +98,8 @@
  * 43 checks in 19.4 s (one run, 10.10.2026).
  * E10 C11 rewrote H1 and H2, the second Start's confirmation drawn on gm2 and answered by Enter, then by its yes: 43
  * checks in 18.6 s (one run, 10.10.2026).
+ * E10 C13 added J1 and J2, p4 back on a machine a minute fast reading gm2's debate: 46 checks in 23.5 and 20.0 s (two
+ * runs, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -440,6 +445,36 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false
             && fresh.tied === false && J(fresh.accused) === J([]) && J(fresh.accusedIds) === J([]) && fresh.total === 0, J(again));
 
+    /* ------------------------------ J. the debate's clock on a machine a minute fast ------------------------------ */
+
+    /* Before I, not after it: once a verdict has been told, the Event card shows the verdict rather than the floor
+       (events.mjs `afterVerdictCard`), and H's second trial has just blanked the first one's. p4 stays on the fast
+       machine through I. */
+    begin("J", "a debate on gm2, read on p4 whose machine runs a minute fast");
+    const p4Fast = await (async () => { await disconnect("p4"); return storageOf("p4"); })();
+    await connect("p4", { storage: p4Fast, announceFirst: true, clockSkewMs: 60000 });
+    const debate = await gm2.eval(`const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const phase = getClock().phase;
+        return { phase, opened: Boolean(await F.startFloor({ seconds: 300 })) };`, { timeout: 30000 });
+    /* The module's count and the Event card's clock, read on p4 first and on gm2 straight after: the two reads are one
+       eval apart, so a second between them is the reading's, not the clock's. */
+    const clockOn = client => client.eval(`${until} const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const face = () => document.querySelector("#drpg-events .drpg-event-clock")?.textContent || null;
+        await until(() => F.trialFloor() && face() ? true : null, 8000);
+        const m = /^(\\+?)(\\d+):(\\d{2})$/.exec(face() ?? "");
+        return { left: F.secondsLeft(), face: face(), faceLeft: m ? (m[1] ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : null,
+            skew: Date.now() - game.time.serverTime };`, { timeout: 20000 });
+    const onP4 = await clockOn(p4);
+    const onGm = await clockOn(gm2);
+    verdict("p4's machine runs a minute fast, and its debate has the seconds left gm2's has, within one (C13; the minute apart before it)",
+        debate.opened && onP4.skew >= 59000 && Math.abs(onGm.skew) < 1000 && onGm.left > 290 && Math.abs(onP4.left - onGm.left) <= 1,
+        J({ debate, onP4, onGm }));
+    verdict("p4's Event card shows the debate's clock gm2's shows, within two seconds (C13; it ticks once a second)",
+        onP4.faceLeft !== null && onGm.faceLeft !== null && onGm.faceLeft > 290 && Math.abs(onP4.faceLeft - onGm.faceLeft) <= 2,
+        J({ onP4, onGm }));
+    await gm2.eval(`await (await import("${repoUrl}/scripts/trial-floor.mjs")).endFloor(); return true;`);
+
     /* ------------------------------ I. a correct verdict and its Level Ups ------------------------------ */
 
     begin("I", "a vote for Chie, a correct verdict, and a Level Up picked through the bridge");
@@ -601,7 +636,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     const errors = {};
     for (const [who, c] of Object.entries({ gm2, p1, p2, p3, p4 })) errors[who] = await c.eval(`return globalThis.__errors.slice(0, 3).map(e => String(e?.message ?? e).slice(0, 200));`);
     check("no uncaught error on gm2 or any player", Object.values(errors).every(list => list.length === 0), J(errors));
-    for (const letter of ["A", "B", "C", "D", "E", "F", "G", "H", "I"]) {
+    for (const letter of ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("p4");
