@@ -18,7 +18,8 @@
  *   B  Chie kills Daichi, kept, and the incident is closed: the GM panel's next line (C2); Aiko
  *      and Botan walk in on the body: one discovery card, the hold and the line on it; the gather
  *      that follows, on Aiko's, Botan's and the GM's browsers, and a gather packet a player sends
- *      (C3). An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
+ *      (C3). The announcing window's note, the GM's Prep question after the card and the toast (C4).
+ *      An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
  *      wrong verdict that executes Botan; a move inside the room after the verdict (already
  *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
  *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
@@ -152,6 +153,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     const PANS = `if (!globalThis.__pans) { globalThis.__pans = []; const pan = canvas.animatePan;
         canvas.animatePan = async function (view) { globalThis.__pans.push({ x: view?.x ?? null, y: view?.y ?? null }); return pan.call(this, view); }; } return true;`;
     await Promise.all([gm, p1, p2].map(client => client.eval(PANS)));
+    /* E11 C4: the GM's Prep question and toasts, kept from here to B1c. Before any trace is placed, the
+       announcing window's note in Daily Life (answered "cancel"); then two Faint Prep traces, this chapter's
+       and another's, and the GM's window answered as it is asked - the cards on the table then, its title,
+       what it lists - with nothing ticked. Every other window goes to the harness's own answer. */
+    const asking = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const D = foundry.applications.api.DialogV2, wait = D.wait;
+        const parse = config => { const el = document.createElement("div");
+            if (typeof config?.content === "string") el.innerHTML = config.content; else if (config?.content) el.append(config.content.cloneNode(true));
+            return el; };
+        let note = null;
+        D.wait = async function (config) { const el = parse(config);
+            if (el.querySelector('select[name="room"]')) { note = el.querySelector(".notes")?.textContent?.trim() ?? null; return "cancel"; }
+            return wait.call(this, config); };
+        try { await C.openBodyDiscoveryDialog(); } finally { D.wait = wait; }
+        const chapter = getClock().chapter, academy = game.scenes.get("${IDS.scene}");
+        const place = (chapter, subject) => R.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, x: 0, y: 0, scene: academy, chapter, subject });
+        const mine = await place(chapter, "65 C4 this chapter"), old = await place(chapter + 1, "65 C4 another chapter");
+        globalThis.__c4 = { traces: [mine?.id ?? null, old?.id ?? null], asked: null, told: [], wait, info: ui.notifications.info };
+        D.wait = async function (config) { const el = parse(config);
+            if (!el.querySelector('input[name="promote"]')) return wait.call(this, config);
+            globalThis.__c4.asked ??= { cards: game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length, title: config.window?.title ?? null,
+                listed: [...el.querySelectorAll("label")].map(l => l.textContent ?? "") };
+            return []; };
+        ui.notifications.info = function (message, ...rest) { globalThis.__c4.told.push(String(message)); return globalThis.__c4.info.call(this, message, ...rest); };
+        return { note, bodyNote: game.i18n.localize("DRPG.Chapter.bodyNote"), placed: Boolean(mine && old), phase: getClock().phase };`, { timeout: 60000 });
     const found = await gm.eval(`${UNTIL} ${CARDS} ${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
         const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
@@ -170,6 +197,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
             && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]) && J(found.line) === J([found.holdLine, "startInvestigation"]),
         J({ blow, found }), { flow: "body-discovery" });
+    const asked = await gm.eval(`${UNTIL} await until(() => globalThis.__c4?.asked, 6000);
+        const c4 = globalThis.__c4, D = foundry.applications.api.DialogV2;
+        D.wait = c4.wait; ui.notifications.info = c4.info;
+        for (const id of c4.traces) { const t = id ? game.scenes.get("${IDS.scene}").tokens.get(id) : null;
+            if (t) { try { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(t); } catch { /* nothing filed */ } await t.delete(); } }
+        return { asked: c4.asked, told: c4.told, title: game.i18n.format("DRPG.Chapter.promoteTitle", { room: ${J(found.room)} }),
+            done: game.i18n.format("DRPG.Chapter.bodyDone", { room: ${J(found.room)} }) };`, { timeout: 60000 });
+    /* E11 C4 (audit S06-44, S13-27). At 2dd4fb9 the GM was asked about Prep traces before the card was on the table
+       (no card yet when asked), under a title without the room, about every chapter's Faint Prep; the toast counted
+       tokens and "traces made permanent"; and the window's note promised the Prep traces to a world with none.
+       Now the card is up when the question comes, headed by the room, listing this chapter's trace alone, the toast
+       says where everyone was brought, and the note before any trace is the Daily Life sentence alone. */
+    check("B1c: the GM is asked about Prep traces after the card, under the body's room, about this chapter's alone; the toast names the room; the note names no traces when there are none",
+        asking.placed === true && asking.phase === "dailyLife" && asking.note === asking.bodyNote && asked.asked?.cards === 1 && asked.asked?.title === asked.title
+            && asked.asked.listed.some(t => t.includes("65 C4 this chapter")) && !asked.asked.listed.some(t => t.includes("65 C4 another chapter"))
+            && asked.told.includes(asked.done),
+        J({ asking, asked }), { flow: "body-discovery" });
     const PANNED = actorId => `${UNTIL} await until(() => globalThis.__pans.length > 0, 4000);
         const t = canvas.scene?.tokens.find(x => x.actorId === "${actorId}");
         return { pans: globalThis.__pans, at: t ? { x: t.center.x, y: t.center.y } : null, scene: canvas.scene?.id ?? null };`;

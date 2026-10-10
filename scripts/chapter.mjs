@@ -692,6 +692,29 @@ export async function openDeathDialog({ actor = null } = {}) {
  * ========================================================================== */
 
 /**
+ * The Faint Prep traces a discovery in `chapter` asks about: Faint, Prep, not tied to the crime
+ * already, and left in this chapter (E11 C4, 1.2.73; audit S06-44: the list offered the Faint
+ * Prep of every earlier chapter as well). A trace with no chapter - placed by hand, or from before
+ * traces carried one - is taken as this chapter's, as every trace was before. A trace carries no
+ * season: the reset's Remnants group (season-setup.mjs `wipeSeason`) removes them when ticked, and
+ * a season stamp on chapter-stamped records is E11 C12's.
+ */
+export function faintPrepCandidates(chapter = getClock().chapter) {
+    const candidates = [];
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const data = remnantData(token);
+            if (!data?.faint) continue;
+            if (data.type !== "prep") continue;
+            if (data.tiedToCrime) continue;
+            if ((data.chapter ?? chapter) !== chapter) continue;
+            candidates.push({ token, data, scene });
+        }
+    }
+    return candidates;
+}
+
+/**
  * Faint Prep traces that belong to this murder stop being doubtful.
  *
  * Which ones those are is a judgement only the GM can make - a Prep Remnant is
@@ -704,19 +727,15 @@ export async function openDeathDialog({ actor = null } = {}) {
  * `tieTraceForItem`), was offered at every discovery as though it were still a
  * question - and it survives the sweep already. Exported for the suite, which
  * answers the window itself.
+ *
+ * ASKED AFTER THE ANNOUNCEMENT, HEADED BY ITS ROOM (E11 C4, 1.2.73; audit S06-44). The
+ * discovery awaited this before its card and its gather, so two students walking in on a body
+ * gave the GM a window about Prep traces with no word of a body, and the table waited on the
+ * answer. `runDiscovery` asks it last now, not awaited, under "Body found in {room}", and only
+ * about this chapter's traces (`faintPrepCandidates`).
  */
-export async function promoteFaintPrep() {
-    const candidates = [];
-    for (const scene of game.scenes) {
-        for (const token of remnantsOn(scene)) {
-            const data = remnantData(token);
-            if (!data?.faint) continue;
-            if (data.type !== "prep") continue;
-            if (data.tiedToCrime) continue;
-            candidates.push({ token, data, scene });
-        }
-    }
-
+export async function promoteFaintPrep({ room = null, chapter = getClock().chapter } = {}) {
+    const candidates = faintPrepCandidates(chapter);
     if (!candidates.length) return 0;
 
     const rows = candidates.map((c, i) => `
@@ -730,7 +749,7 @@ export async function promoteFaintPrep() {
             )}</label>`).join("");
 
     const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Chapter.promoteTitle") },
+        window: { title: room ? game.i18n.format("DRPG.Chapter.promoteTitle", { room }) : game.i18n.localize("DRPG.Chapter.bodyBanner") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Chapter.promoteIntro")}</p>
@@ -794,8 +813,8 @@ function enqueueBodyWork(work) {
 }
 
 /**
- * The body discovery announcement: promote the traces, call everyone to the
- * scene, and hold the game there until the GM answers.
+ * The body discovery announcement: call everyone to the scene, hold the game there
+ * until the GM answers, then ask which Prep traces belong to the murder.
  *
  * @param {object} options
  * @param {string} options.room     Where the body is.
@@ -857,8 +876,6 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        ties a second death, still kept, had made (tier 2 "a body's discovery sends only the ties
        its own death made"). Each body published above sends its own (`publishDeath`). */
 
-    const promoted = await promoteFaintPrep();
-
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
     // here rather than at the end of Stage 6 - see CLEANUP.destroysToolsOnDiscovery.
     // The gloves of the bodies found, and no others (fix r2-G3: `destroyCleaningTools`).
@@ -900,9 +917,33 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
      */
     await setBodyDiscovery({ room, victimId: victim?.id ?? null });
 
-    ui.notifications.info(plural("DRPG.Chapter.bodyDone", { moved, promoted }, "promoted"));
-    log(`Body discovered in ${room}: ${promoted} trace(s) promoted, ${moved} token(s) gathered.`);
-    return { promoted, moved };
+    ui.notifications.info(game.i18n.format("DRPG.Chapter.bodyDone", { room }));
+    log(`Body discovered in ${room}: ${moved} token(s) gathered.`);
+
+    /* ANNOUNCE FIRST, ASK AFTER (E11 C4, 1.2.73; audit S06-44). The Prep question was awaited
+       before the card and the gather: the GM was asked about traces with no word of a body while
+       the table waited on the answer, and the toast that followed counted tokens and "traces made
+       permanent" (confirmed at a table). The question is asked last, headed by the room, and not
+       awaited, so the queue above lets the next discovery through while it is open; questions
+       wait for each other (`promotionQueue`), so a second one lists only what the first left
+       Faint (read in the code; no test drives two at once). Its own toast comes only when a trace was ticked. Tier 2 "the discovery card comes
+       before the Prep question"; 65-season B1c on the witnesses' road. */
+    const promotion = askPromotion({ room, chapter: clock.chapter });
+    return { moved, promotion };
+}
+
+let promotionQueue = Promise.resolve(0);
+
+/** The discovery's Prep question, after any still open; answers how many traces were ticked. */
+function askPromotion(where) {
+    promotionQueue = promotionQueue.catch(() => 0).then(() => promoteFaintPrep(where)).then(promoted => {
+        if (promoted > 0) ui.notifications.info(plural("DRPG.Chapter.promoted", { n: promoted }));
+        return promoted;
+    }).catch(err => {
+        error("Could not ask which Prep traces belong to the murder", err);
+        return 0;
+    });
+    return promotionQueue;
 }
 
 /**
@@ -1210,6 +1251,13 @@ export async function openBodyDiscoveryDialog() {
     const dead = studentActors().filter(isDeadForGm);
     const victims = dead
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
+       phase stays Daily Life ... until you start the Investigation" in every phase - from the
+       Investigation's own footer too - and promised the doubtful Prep traces, which a world with
+       none never showed. The hold's sentence is Daily Life's; elsewhere the phase is left as it is
+       (`runDiscovery` writes no phase). The traces' sentence only when this chapter has some. */
+    const notes = [game.i18n.localize(getClock().phase === "dailyLife" ? "DRPG.Chapter.bodyNote" : "DRPG.Chapter.bodyNoteLater")];
+    if (faintPrepCandidates().length) notes.push(game.i18n.localize("DRPG.Chapter.bodyNoteTraces"));
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.bodyTitle") },
@@ -1224,7 +1272,7 @@ export async function openBodyDiscoveryDialog() {
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
                     ${victims}
                 </select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.bodyNote")}</p>
+            <p class="notes">${notes.join(" ")}</p>
         </form>`),
         buttons: [
             {

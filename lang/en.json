@@ -1794,17 +1794,20 @@
       "whoseBody": "Whose body? (optional)",
       "unnamedVictim": "Do not name them",
       "noRooms": "This scene has no room regions to gather anyone into.",
-      "bodyNote": "Calls everyone to the scene and holds the game there: the phase stays Daily Life and the music stops until you start the Investigation (moving the time of day ends only the silence). First it offers you the doubtful Prep traces, so you can say which belong to this murder.",
+      "bodyNote": "Everyone is called to the room. The phase does not change until you start the Investigation.",
+      "bodyNoteLater": "Everyone is called to the room. The phase does not change.",
+      "bodyNoteTraces": "Then you are asked which traces left while somebody gathered tools belong to this murder.",
       "announce": "Announce it",
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
       "bodyCalled": "Everyone is called to the scene. The Investigation has not started yet.",
-      "bodyDone": {
-        "one": "{moved} moved to the scene, {promoted} trace made permanent.",
-        "other": "{moved} moved to the scene, {promoted} traces made permanent."
+      "bodyDone": "Everyone was brought to {room}.",
+      "promoted": {
+        "one": "{n} trace now counts as evidence of this murder.",
+        "other": "{n} traces now count as evidence of this murder."
       },
-      "promoteTitle": "Which traces belong to this murder?",
+      "promoteTitle": "Body found in {room}",
       "promoteIntro": "These Prep traces were left while somebody gathered tools. Most mean nothing. Tick the ones that belong to this killing.",
       "promoteNote": "Ticked traces stop being doubtful: they count as evidence tied to the crime, and a Faint clear will not take them. Leave the rest and they stay Faint.",
       "promoteConfirm": "These belong to it",

@@ -43804,6 +43804,139 @@ const SCENARIOS = [
         }
     }],
 
+    ["the discovery card comes before the Prep question", async () => {
+        /*
+         * E11 C4, 1.2.73; audit S06-44 (confirmed at a table). Two students walking in on a body
+         * gave the GM a window about Prep traces with no word of a body, the card and the gather
+         * waiting on the answer; the list held the Faint Prep of earlier chapters too, and the toast
+         * after it counted tokens and "traces made permanent". Driven by the GM's own road
+         * (`discoverBody`; 65-season B1c drives the witnesses'), a death the GMs keep, in Daily Life,
+         * in a room nobody stands in, with two Faint Prep traces: one of this chapter, one of another.
+         * Read when the question is asked: whether the card is on the table, the window's title, which
+         * of the two it lists; and the toast. Nothing is ticked.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE E11 C4 a room nobody stands in";
+        const chapter = getClock().chapter;
+        const other = chapter > 1 ? chapter - 1 : chapter + 1;
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const at = { x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene };
+        const isCard = m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound";
+        const cardsBefore = game.messages.filter(isCard).length;
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const info = ui.notifications.info, told = [], placed = [];
+        let asked = null;
+        try {
+            const mine = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, ...at, chapter, subject: "SUITE C4 this chapter" });
+            const old = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, ...at, chapter: other, subject: "SUITE C4 another chapter" });
+            placed.push(mine, old);
+            must(mine && old, "could not place the fixture traces");
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (!el.querySelector('input[name="promote"]')) return null;
+                // The first time it is asked: a question asked twice is read where it first stopped the GM.
+                asked ??= { cards: game.messages.filter(isCard).length - cardsBefore, title: config.window?.title ?? null,
+                    listed: [...el.querySelectorAll("label")].map(l => l.textContent ?? "") };
+                return [];
+            };
+            ui.notifications.info = function (message, ...rest) { told.push(String(message)); return info.call(this, message, ...rest); };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const result = await discoverBody({ room: ROOM, victim, scene });
+            await result?.promotion;
+            await until(() => asked);
+            must(asked, "the Prep question was never asked - this would measure nothing");
+            equal(stableJson([asked.cards, asked.title, asked.listed.some(t => t.includes("SUITE C4 this chapter")),
+                asked.listed.some(t => t.includes("SUITE C4 another chapter")), told.includes(game.i18n.format("DRPG.Chapter.bodyDone", { room: ROOM }))]),
+                stableJson([1, game.i18n.format("DRPG.Chapter.promoteTitle", { room: ROOM }), true, false, true]),
+                "the GM was asked about the traces before the card was on the table, without the body's room, about another "
+                + "chapter's trace, or was not told where everyone was brought "
+                + "([cards on the table when asked, the window's title, this chapter's trace listed, another chapter's listed, the toast])");
+        } finally {
+            ui.notifications.info = info;
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["the discovery window's note follows the phase and names the traces when there are some", async () => {
+        /*
+         * E11 C4, 1.2.73; audit S13-27. The window that announces a body said "the phase stays
+         * Daily Life ... until you start the Investigation" in every phase, from the Investigation's
+         * own footer too, and promised "the doubtful Prep traces" to a world with none. Read off the
+         * window as it is drawn (`openBodyDiscoveryDialog`, answered "cancel" at once), with a Faint
+         * Prep trace of this chapter on the scene: its note in Daily Life and in the Investigation.
+         * That the traces' sentence is left out when there are none is 65-season B1c's (a world whose
+         * traces are known).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const remnants = await import("./remnants.mjs");
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const placed = [];
+        let note = null;
+        const noteNow = async () => {
+            note = null;
+            await openBodyDiscoveryDialog();
+            return note;
+        };
+        try {
+            must(!isEclipse(), "an Eclipse is running - the window would refuse before its form");
+            const trace = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter: getClock().chapter, subject: "SUITE C4 a note's trace" });
+            placed.push(trace);
+            must(trace, "could not place the fixture trace");
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (el.querySelector('select[name="room"]')) note = el.querySelector(".notes")?.textContent?.trim() ?? null;
+                return "cancel";
+            };
+            await setClock({ phase: "dailyLife" });
+            const daily = await noteNow();
+            await setClock({ phase: "investigation" });
+            const investigation = await noteNow();
+            const L = key => game.i18n.localize(`DRPG.Chapter.${key}`);
+            equal(stableJson([daily, investigation]),
+                stableJson([`${L("bodyNote")} ${L("bodyNoteTraces")}`, `${L("bodyNoteLater")} ${L("bodyNoteTraces")}`]),
+                "the window's note did not follow the phase, or left out the traces this chapter has ([in Daily Life, in the Investigation])");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID
