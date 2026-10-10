@@ -936,6 +936,8 @@
         "vote": "The ballots are out. When they are back, Close and count in The vote.",
         "verdict": "The vote is counted. Deliver the verdict, then end the chapter.",
         "finishVerdict": "The verdict stopped before every step was done. Finish the verdict, then end the chapter.",
+        "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it, so that each of its steps is done once: ask {name}, then end the chapter.",
+        "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter."
       },
       "objectionNote": "You never move the debate for an objection: presenting evidence takes it.",
@@ -1174,7 +1176,7 @@
       "executedNote": "The verdict has been carried out on you, {name}. Your character is dead.",
       "verdictStopped": "The verdict stopped at: {steps}. Finish the verdict does the rest.",
       "finishVerdict": "Finish the verdict",
-      "finishPrimaryOnly": "Only the primary GM, {name}, can finish the verdict, so that each of its steps is done once. Ask {name}.",
+      "finishOtherGm": "Only {name} can finish the verdict - the GM who gave it while they are connected, otherwise the primary GM - so that each of its steps is done once. Ask {name}.",
       "verdictSteps": {
         "sentence": "who is executed",
         "executions": "the executions",

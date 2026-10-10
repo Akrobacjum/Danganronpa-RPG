@@ -923,6 +923,8 @@
         "vote": "Karty są rozesłane. Gdy wrócą, użyj Zamknij i policz w oknie Głosowanie.",
         "verdict": "Głosy policzone. Ogłoś werdykt, potem zakończ rozdział.",
         "finishVerdict": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończ werdykt, potem zakończ rozdział.",
+        "finishElsewhere": "Werdykt zatrzymał się, zanim wykonał wszystkie kroki. Dokończyć go może tylko {name}, żeby każdy jego krok wykonał się raz: poproś o to GM-a {name}, potem zakończ rozdział.",
+        "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału."
       },
       "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przedstawienie dowodu robi to samo.",
@@ -1185,7 +1187,7 @@
       "executedNote": "Wyrok wykonano na tobie, {name}. Twoja postać nie żyje.",
       "verdictStopped": "Werdykt zatrzymał się na: {steps}. Przycisk Dokończ werdykt wykona resztę.",
       "finishVerdict": "Dokończ werdykt",
-      "finishPrimaryOnly": "Werdykt dokańcza tylko główny GM, {name}, żeby każdy jego krok wykonał się raz. Poproś o to GM-a {name}.",
+      "finishOtherGm": "Werdykt dokańcza tylko {name} - GM, który go wydał, dopóki jest połączony, a inaczej główny GM - żeby każdy jego krok wykonał się raz. Poproś o to GM-a {name}.",
       "verdictSteps": {
         "sentence": "kto zostaje stracony",
         "executions": "egzekucje",

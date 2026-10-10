@@ -19432,6 +19432,110 @@ const SCENARIOS = [
         });
     }],
 
+    ["a stopped verdict is finished by the GM who gave it while they are connected, and another GM's console names them", async () => {
+        /*
+         * E10 fix r2-G2, 1.2.71; round 2's cor M1, cor m1 and sec S2-3. Fix r1-G1 made Finish the primary's
+         * alone, while `verdictStopped` offers it on the verdict's own GM as long as that GM is connected: a
+         * verdict given by a GM who is not the primary, whose page reloaded inside it, could be finished by
+         * nobody while that GM stayed (cor M1, measured in round 2's scenario 92 at 302ae45), and every
+         * other GM's console led to End the chapter, which drops the steps not done. After a failed step every
+         * GM's console made Finish its default, which refuses on all but one (cor m1, sec S2-3). The harness
+         * has one GM, so others are put in this browser's list of users as in r1-G1's test above: one whose id
+         * sorts first, the primary as `primaryGmId` reads the list, and one whose id sorts last. Each is taken
+         * out right after `finishVerdict` is called and before it awaits anything - its gate runs in that
+         * synchronous first part - so no step of the verdict meets a user that is not there.
+         * Three roads, a correct verdict stopped after its Level Ups each time:
+         * 1. this GM gave it and reloaded (nothing failed), another GM is the primary: Finish here is
+         *    offered, the default, and runs - the steps done, one summary to the GMs;
+         * 2. this GM is the primary, another connected GM gave it and nothing failed: the lead names that GM,
+         *    no Finish and no default, and Finish pressed here refuses naming them;
+         * 3. the same with a failed step: Finish shown and not the default, the lead names that GM; once that
+         *    GM is gone this GM, the primary, finishes it.
+         * Red at 4a4b15e (fix r2-G2, 10.10.2026): road 1's press refused (answer null, stage "applying").
+         */
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { manageClassTrial } = await import("./trial-floor-ui.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const me = game.user.id;
+        const gm = (id, name) => ({ id, name, role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true });
+        const primary = gm("!E10G2primaryGM", "E10 G2 primary GM"), other = gm("~E10G2otherGM", "E10 G2 other GM");
+        must(primary.id < me && me < other.id, "this GM's id does not sort between the two put in - this would measure nothing");
+        const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const from = new Set(game.messages.map(m => m.id));
+        const summaries = async () => (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000))))
+            .filter(words => String(words ?? "").includes(title)).length;
+        const stoppedBy = (by, failed = []) => V.setTrialProgress({ verdictApplied: true, verdict: { stage: "applying", correct: true,
+            executedIds: [], by, at: Date.now(), done: ["sentence", "executions", "card", "levelUps"], failed } });
+        // The console as this GM draws it: [the lead names `name`, Finish shown, Finish the default, End the chapter the default].
+        const trialConsole = async name => {
+            const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+            let opened = null;
+            D.wait = async cfg => {
+                if ((cfg?.classes ?? []).includes("drpg-window-trial")) opened = cfg;
+                return null;
+            };
+            try {
+                await manageClassTrial();
+            } finally {
+                if (kept) Object.defineProperty(D, "wait", kept);
+                else delete D.wait;
+            }
+            const button = action => (opened?.buttons ?? []).find(b => b.action === action);
+            return [String(opened?.content?.querySelector?.(".drpg-trial-lead")?.textContent ?? "").includes(name),
+                Boolean(button("finishVerdict")), button("finishVerdict")?.default === true, button("chapterEnd")?.default === true];
+        };
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (message, ...rest) => {
+            warned.push(String(message));
+            return warn.call(ui.notifications, message, ...rest);
+        };
+        // Called with `extra` in the list of users, taken out before the call's first await.
+        const press = extra => {
+            const pressed = V.finishVerdict();
+            game.users.delete(extra.id);
+            return pressed;
+        };
+        try {
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ voteClosed: true });
+                await stoppedBy(me);
+                game.users.set(primary.id, primary);
+                const seen = await trialConsole(primary.name);
+                const answer = await press(primary);
+                await settle();
+                equal(stableJson([seen, Array.isArray(answer), V.trialProgress().verdict?.stage ?? null, await summaries(),
+                    warned.filter(line => line.includes(primary.name))]),
+                    stableJson([[false, true, true, false], true, "done", 1, []]),
+                    "a GM who is not the primary, whose page reloaded inside the verdict they gave, was not offered Finish or could not finish it (console: lead names the primary, Finish, its default, End's default; answered, stage, summaries, warnings)");
+
+                await stoppedBy(other.id);
+                game.users.set(other.id, other);
+                const leadNow = await trialConsole(other.name);
+                const refused = await press(other);
+                equal(stableJson([leadNow, refused ?? null, V.trialProgress().verdict?.stage ?? null, warned.some(line => line.includes(other.name))]),
+                    stableJson([[true, false, false, false], null, "applying", true]),
+                    "while another connected GM gives the verdict, this GM's console did not name them or made a step the default, or Finish here was not refused naming them (console: lead, Finish, its default, End's default; answer, stage, told)");
+
+                await stoppedBy(other.id, ["offers"]);
+                game.users.set(other.id, other);
+                const failedThere = await trialConsole(other.name);
+                other.active = false;
+                const gone = await trialConsole(other.name);
+                const finished = await press(other);
+                await settle();
+                equal(stableJson([failedThere, gone, Array.isArray(finished), V.trialProgress().verdict?.stage ?? null, await summaries()]),
+                    stableJson([[true, true, false, false], [false, true, true, false], true, "done", 2]),
+                    "after a step failed on another GM's verdict, this GM's console made Finish the default or did not name that GM, or once that GM was gone this GM, the primary, could not finish it (console there, console after, answered, stage, summaries)");
+            });
+        } finally {
+            game.users.delete(primary.id);
+            game.users.delete(other.id);
+            ui.notifications.warn = warn;
+        }
+    }],
+
     ["a Finish of a wrong verdict gives the Blackened the GM named by hand their Level Up and their rule", async () => {
         /*
          * E10 fix r1-G1, 1.2.71; the round-1 security review's F3. A Finish read the Blackened from the

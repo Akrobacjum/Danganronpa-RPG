@@ -8292,6 +8292,9 @@ const REGRESSIONS = [
          * the sentence says so), a take-back refused while the Level Up is written (`takeBackOffer`),
          * Enter giving what the rows say (`askWhoPicks`), and a body nobody has found made the execution
          * (`executeSentenced`). At the books before it the twelve sentences were missing.
+         * E10 fix r2-G2 (10.10.2026; round 2's cor M1) moved Finish from the primary alone to the verdict's
+         * runner (`verdictRunner`: its own GM while connected, otherwise the primary), which the console's
+         * lead reads too (`trialNextStep`); the claim and both sentences say so now.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -8319,8 +8322,11 @@ const REGRESSIONS = [
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
             deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
-            finishPrimary: /if \(!isPrimaryGm\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishPrimaryOnly"/
-                .test(fnSource(vote, "finishVerdict")),
+            finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
+                .test(fnSource(vote, "finishVerdict"))
+                && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
+                && /if \(progress\.verdictApplied && runner && runner !== game\.user\.id\) return stopped \? "finishElsewhere" : "verdictElsewhere";/
+                    .test(fnSource(floorUi, "trialNextStep")),
             noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
                 && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
@@ -8346,7 +8352,7 @@ const REGRESSIONS = [
                     finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the Mastermind window's or the trial console's \*\*Final Trial verdict\*\* \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
                     deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
-                    finishPrimary: [/It runs on the primary GM's browser alone - on another GM's it names whom to ask/],
+                    finishRunner: [/It runs on the browser of the GM who gave the verdict while they are connected, otherwise on the primary GM's - on another GM's the console names whom to ask, and Enter presses nothing there/],
                     noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
                     givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
                     takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
@@ -8377,7 +8383,7 @@ const REGRESSIONS = [
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem \*\*Werdykt Final Trial\*\* w oknie Masterminda albo w konsoli Class Trial \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
                     deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
-                    finishPrimary: [/Wykonuje się tylko w przeglądarce głównego GMa - w przeglądarce innego GMa mówi, kogo poprosić/],
+                    finishRunner: [/Wykonuje się w przeglądarce GMa, który wydał werdykt, dopóki jest połączony, a inaczej w przeglądarce głównego GMa - w przeglądarce innego GMa konsola mówi, kogo poprosić, a Enter niczego tam nie naciska/],
                     noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
                     givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
                     takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],

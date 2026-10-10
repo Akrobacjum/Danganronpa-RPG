@@ -444,8 +444,8 @@ export async function closeTrial() {
  * opened it. Measured before this: the whole window byte-identical across an
  * Eclipse starting and ending underneath it.
  */
-function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, blackenedIds, studentActors,
-    isDeadForGm, deathRecordFor }) {
+function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
+    studentActors, isDeadForGm, deathRecordFor }) {
         const floor = trialFloor();
         const { phase, chapter } = getClock();
         const running = phase === "classTrial";
@@ -464,6 +464,8 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
             // A verdict that stopped halfway (E10 C5, S06-39): the steps it did
             // not finish, named, or null - see `verdictStopped` in vote.mjs.
             stopped: verdictStopped(progress),
+            // The GM who may finish a verdict not yet done (E10 fix r2-G2) - see `verdictRunner` in vote.mjs.
+            runner: verdictRunner(progress),
             /* THE BLACKENED REGISTER, COUNTED (E10 C12, 1.2.71; audit S06-18). The register takes a
                killer when their incident is closed, and the vote asks as many names as it holds, so
                an empty one in a chapter where somebody died is an incident nobody closed - or a GM
@@ -493,11 +495,19 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
  * Open Debate is the step only before any ballot went out. A trial ended with its record standing
  * ("afterwards" without "running") goes on to its verdict and the chapter's end: those are the steps left,
  * and Start the Class Trial would ask first in a chapter with a verdict (E10 C11).
+ *
+ * A VERDICT ANOTHER GM RUNS HAS NO BUTTON HERE (E10 fix r2-G2, 1.2.71; round 2's cor M1, cor m1, sec S2-3).
+ * After a failed step every GM's console made Finish the verdict its next step and Enter's default, and
+ * Finish refuses on every GM but one; while another GM was still giving the verdict, or had reloaded
+ * inside it, the console made End the chapter the default, which drops the steps not done. On a GM who is
+ * not the verdict's runner (`verdictRunner`) the lead names the runner and no button is the next step, so
+ * Enter presses nothing - the one state in which the next step is not a button.
  */
-function trialNextStep({ floor, running, restrictive, progress, afterwards, stopped }) {
+function trialNextStep({ floor, running, restrictive, progress, afterwards, stopped, runner }) {
     if (!afterwards) return "start";
     if (running && restrictive) return "now";
     if (running && floor) return "closeDebate";
+    if (progress.verdictApplied && runner && runner !== game.user.id) return stopped ? "finishElsewhere" : "verdictElsewhere";
     if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
     if (progress.voteClosed) return "verdict";
     // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
@@ -513,13 +523,15 @@ const TRIAL_LEADS = {
     vote: "DRPG.Floor.lead.vote",
     verdict: "DRPG.Floor.lead.verdict",
     finishVerdict: "DRPG.Floor.lead.finishVerdict",
+    finishElsewhere: "DRPG.Floor.lead.finishElsewhere",
+    verdictElsewhere: "DRPG.Floor.lead.verdictElsewhere",
     chapterEnd: "DRPG.Floor.lead.chapterEnd"
 };
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
     const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter,
-        next } = view;
+        next, runner } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -609,7 +621,8 @@ function trialConsoleHtml(view) {
            standing says so first. The register's line stays (E10 C12: it is what to check before a Start),
            and so does a verdict that stopped, which Finish the verdict below it answers. */
         const lead = `<p class="drpg-trial-lead">${running || !afterwards ? ""
-            : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.localize(TRIAL_LEADS[next])}</p>`;
+            : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.format(TRIAL_LEADS[next],
+                { name: esc(game.users.get(runner ?? "")?.name ?? "?") })}</p>`;
         if (!running) {
             return `<div class="drpg-trial-console">
             ${lead}
@@ -773,14 +786,14 @@ export async function manageClassTrial() {
     }
 
     const { inFinalTrial } = await import("./mastermind.mjs");
-    const { pendingVoters, voteBar, trialProgress, verdictStopped } = await import("./vote.mjs");
+    const { pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner } = await import("./vote.mjs");
 
     const { blackenedIds } = await import("./murder.mjs");
     const { studentActors } = await import("./monokuma.mjs");
     const { isDeadForGm, deathRecordFor } = await import("./settings.mjs");
     const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
-    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, blackenedIds, studentActors,
-        isDeadForGm, deathRecordFor };
+    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
+        studentActors, isDeadForGm, deathRecordFor };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
@@ -823,7 +836,8 @@ export async function manageClassTrial() {
                  * `userConnected` because a verdict stops halfway when the GM giving
                  * it leaves, and nothing in the world is written when they do: the
                  * record still says "applying" and only the user list has changed
-                 * (`verdictStopped`; E10 C5, read in the code, not measured).
+                 * (`verdictStopped`; E10 C5, read in the code, not measured) - and with it the GM
+                 * who may finish it (`verdictRunner`, fix r2-G2).
                  *
                  * The register and the deaths the GMs keep are GM stores too (`watch.stores`, E09 C3):
                  * the register's line is redrawn when a row lands in either (E10 C12; read in the

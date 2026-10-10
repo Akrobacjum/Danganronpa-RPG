@@ -1786,27 +1786,58 @@ export function verdictStopped(progress = trialProgress()) {
 }
 
 /**
+ * WHO RUNS A VERDICT NOT YET DONE (E10 fix r2-G2, 1.2.71; round 2's cor M1, cor m1 and sec S2-3): the GM
+ * who gave it while they are connected, otherwise the primary GM - the id, or null when no verdict is
+ * being given. Read by `finishVerdict` and by the trial console's lead (trial-floor-ui.mjs
+ * `trialNextStep`), so the GM the console sends to Finish is the GM Finish runs on.
+ *
+ * Fix r1-G1 made Finish the primary's alone, and `verdictStopped` offers it on the verdict's own GM
+ * while that GM is connected: a verdict given by a GM who is not the primary, whose page reloaded inside
+ * it, was offered Finish where Finish refused and refused where it would have run, and nobody could finish
+ * it until that GM left the game (round 2's scenario 92 at 302ae45: stage "applying" after both presses).
+ * On every other GM the console then led to End the chapter, which drops the steps not done.
+ *
+ * The other reading on the table (round 2's goal S06-39) cleared `by` on the reloaded GM's load, so the
+ * primary is offered Finish. Not that: it is a world write racing a Finish already pressed on another
+ * GM after a failed step (both write the record, and the older `done` would run a step twice - read
+ * in the code), and it
+ * leaves the primary's console leading to End the chapter while a GM who is not the primary is still in
+ * the verdict's windows. This writes nothing: each GM reads the same two facts, `by` and who is
+ * connected, and one browser at a time is the runner, whose latch (`verdictRunning`) holds two presses
+ * apart - as r1-G1's primary did. Left as it was before r1-G1: the moment a runner disconnects, the GM
+ * who becomes it may press before the first one's last write lands (read in the code, not measured).
+ */
+export function verdictRunner(progress = trialProgress()) {
+    const verdict = progress?.verdict;
+    if (verdict?.stage !== "applying") return null;
+    const by = game.users.get(verdict.by);
+    return by?.active ? by.id : primaryGmId();
+}
+
+/**
  * FINISH THE VERDICT (E10 C5, 1.2.71; audit S06-39): the steps a verdict that stopped had not done,
  * given by this GM - what it had done is not done again (`runVerdict`). The Blackened are the ones
  * its GM named (`keepVerdictBlackened`), and the register's, as the verdict's window reads them
  * (`whenTrialReadable`, `trialBlackenedIds`), only when the GMs' store holds none for this verdict -
  * never the world's record, which holds none.
  *
- * ON THE PRIMARY GM ALONE (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39, its doubt 2).
+ * ON ONE GM ALONE (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39, its doubt 2).
  * Every GM is offered Finish once a step failed or the verdict's GM left, and this browser's latch
  * (`verdictRunning`) is the only one: two GMs pressing it within one round trip both ran the steps
- * left - two cards, two class windows. One browser runs it now, the primary, whose latch holds two
- * presses apart; another GM is told whom to ask.
+ * left - two cards, two class windows. One browser runs it now, whose latch holds two presses apart;
+ * another GM is told whom to ask. Since fix r2-G2 that browser is the verdict's runner (`verdictRunner`):
+ * its own GM while connected, otherwise the primary.
  */
 export async function finishVerdict() {
     if (!game.user.isGM) return null;
     const progress = trialProgress();
-    if (!verdictStopped(progress)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+    const runner = verdictRunner(progress);
+    if (runner && runner !== game.user.id) {
+        ui.notifications.warn(game.i18n.format("DRPG.Vote.finishOtherGm", { name: game.users.get(runner)?.name ?? "?" }));
         return null;
     }
-    if (!isPrimaryGm()) {
-        ui.notifications.warn(game.i18n.format("DRPG.Vote.finishPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" }));
+    if (!verdictStopped(progress)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
         return null;
     }
     verdictRunning = true;
