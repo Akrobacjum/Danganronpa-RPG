@@ -4978,6 +4978,117 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     }
 
     /*
+     * NAMES THE GUARD HAS NOT REVIEWED (E75 C2, 10.10.2026; census P11, P13-P16). The copy is
+     * 2.10.11's, whose listener has a `default:` branch (lib/dh-relay.mjs): a packet whose name is
+     * no case runs the entry of Daggerheart's own table its `data.action` names, on whichever
+     * client receives it - read in the copy. p1 sends three packets whose names are none of the
+     * eight: a made-up name whose `data.action` is the GMUpdate entry (a rename of Botan, p2's
+     * character), the countdown shape 2.10.10 sends from a player's action (no `action` at all: the
+     * entry under the key "undefined") and `DhAddCountdowns` (declared, sent by nothing). On every
+     * client a recorder stands in for
+     * what that table would call - Botan's `update` with the marked name, and `add` on the
+     * Countdowns setting (the harness's `game.settings.get` hands back a deep copy, client-entry.mjs
+     * `coerce`, so a recorder set on it stores nothing) - and lets everything else through. The
+     * control hands the same three packets to the copied relay itself on p2: each reaches its
+     * recorder, so a quiet recorder is the guard's doing, not a packet that runs nothing anyway.
+     */
+    const UNREVIEWED = "SEC unreviewed";
+    const botanUuid = await gm.eval(`return game.actors.get("${ids.botan}").uuid;`);
+    const unreviewed = JSON.stringify([
+        { action: "SECunreviewed", data: { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: botanUuid, data: { name: UNREVIEWED } } } },
+        { data: { data: { countdowns: [{ name: `${UNREVIEWED} countdown` }] } } },
+        { action: "DhAddCountdowns", data: { data: { countdowns: [{ name: `${UNREVIEWED} countdown` }] } } }
+    ]);
+    const unreviewedClients = [gm, p1, p2, p3];
+    const recordUnreviewed = `const botan = game.actors.get("${ids.botan}"), heard = globalThis.__secUnreviewed = { updates: [], adds: [] };
+        botan.update = function (changes, options) {
+            if (changes?.name === "${UNREVIEWED}") { heard.updates.push(changes.name); return Promise.resolve(this); }
+            return Object.getPrototypeOf(this).update.call(this, changes, options);
+        };
+        const get = globalThis.__secSettingsGet = game.settings.get;
+        game.settings.get = function (ns, key) {
+            const value = get.call(this, ns, key);
+            if (ns === "daggerheart" && key === "Countdowns" && value && typeof value === "object") {
+                value.add = async (...added) => { heard.adds.push(...added.map(c => c?.name ?? null)); };
+            }
+            return value;
+        };
+        return true;`;
+    const heardUnreviewed = `return { updates: globalThis.__secUnreviewed.updates.length, adds: globalThis.__secUnreviewed.adds.length };`;
+    try {
+        for (const client of unreviewedClients) await client.eval(recordUnreviewed);
+        await p1.eval(`for (const packet of ${unreviewed}) game.socket.emit("${DH}", packet); return true;`);
+        await settle(1500);
+        const ranOn = await Promise.all(unreviewedClients.map(client => client.eval(heardUnreviewed)));
+        check("RELAY: a packet with a name the guard has not reviewed runs nothing on a player's client",
+            ranOn.every(r => r.updates === 0 && r.adds === 0), JSON.stringify({ gm: ranOn[0], p1: ranOn[1], p2: ranOn[2], p3: ranOn[3] }));
+        const ranDirect = await p2.eval(`const R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs");
+            globalThis.__secUnreviewed.updates.length = 0;
+            globalThis.__secUnreviewed.adds.length = 0;
+            for (const packet of ${unreviewed}) await R.handleSocketEvent(packet);
+            ${heardUnreviewed}`);
+        check("control: the same three packets run through the copied relay itself on a player's client reach what it would call",
+            ranDirect.updates === 1 && ranDirect.adds === 2, JSON.stringify(ranDirect));
+
+        /*
+         * The other side (census P03, P05): a reviewed name still goes to Daggerheart's listener on a
+         * player's client, where its case hands the packet to a hook. Handed to p2's guard as the
+         * channel hands it over (its own listener, p1's id), so the GM judges nothing and writes nothing;
+         * a hook beside Daggerheart's reads what arrives.
+         */
+        const reached = await p2.eval(`const reached = [], heard = data => reached.push(data?.action ?? data?.documentType ?? null);
+            const guard = game.socket.listeners("${DH}").find(fn => fn.__drpgRelayGuard);
+            Hooks.on("DhGMUpdate", heard);
+            Hooks.on("DhGMCreate", heard);
+            try {
+                await guard?.({ action: "DhGMUpdate", data: { action: "DhGMUpdateFear", data: 0 } }, "${p1.userId}");
+                await guard?.({ action: "DhGMCreate", data: { documentType: "Item", data: { name: "SEC reviewed" } } }, "${p1.userId}");
+                await new Promise(resolve => setTimeout(resolve, 300));
+            } finally {
+                Hooks.off("DhGMUpdate", heard);
+                Hooks.off("DhGMCreate", heard);
+            }
+            return { guard: Boolean(guard), reached };`);
+        check("control: a packet with a name the guard has reviewed still reaches Daggerheart's listener on a player's client",
+            reached.guard && JSON.stringify(reached.reached) === JSON.stringify(["DhGMUpdateFear", "Item"]), JSON.stringify(reached));
+
+        /*
+         * THE BACKSTOP ON A PLAYER'S CLIENT (E75 C2; census B06). The backstop stands in when the
+         * wrapper could not (`installBackstop`), and no run reached its player's branch before. A
+         * second copy of relay-guard.mjs, imported under its own URL on p2, finds no listener left
+         * to wrap - p2's guard took Daggerheart's at start-up - and so stands the backstop up (its
+         * `setup` and `ready` hooks are kept from registering). Its listener is handed the three
+         * packets above and the eight reviewed names as the channel hands them over, and is taken
+         * off again. Each unreviewed packet must come out refused - renamed, as the backstop
+         * refuses on a GM - and each reviewed one as it came.
+         */
+        const backstop = await p2.eval(`const loose = game.socket.listeners("${DH}").filter(fn => !fn.__drpgRelayGuard).length;
+            if (loose) return { loose };
+            const G = await import("${repoUrl}/scripts/relay-guard.mjs?drpg-e75-backstop");
+            const before = new Set(game.socket._any), ownOnce = Object.prototype.hasOwnProperty.call(Hooks, "once"), once = Hooks.once;
+            Hooks.once = () => 0;
+            try { G.registerRelayGuard(); } finally { if (ownOnce) Hooks.once = once; else delete Hooks.once; }
+            const listener = game.socket._any.find(fn => !before.has(fn));
+            const reviewed = ["DhGMUpdate", "DhGMCreate", "DhTransferItem", "DhRefresh", "DhFearUpdate", "DowntimeTrigger", "DhTagTeamStart", "DhGroupRollStart"];
+            try {
+                const out = packets => packets.map(packet => { listener?.("${DH}", packet, "${p1.userId}"); return packet.action ?? null; });
+                return { loose, state: G.relayGuardStatus().state, listener: Boolean(listener),
+                    unreviewed: out(${unreviewed}), reviewed: out(reviewed.map(action => ({ action, data: {} }))), names: reviewed };
+            } finally {
+                if (listener) game.socket._any.splice(game.socket._any.indexOf(listener), 1);
+            }`);
+        check("RELAY: the backstop on a player's client refuses a packet with a name the guard has not reviewed, and passes the eight it has",
+            backstop.state === "backstop" && backstop.listener && backstop.unreviewed?.every(action => action === "__drpgRefused")
+            && JSON.stringify(backstop.reviewed) === JSON.stringify(backstop.names), JSON.stringify(backstop));
+    } finally {
+        for (const client of unreviewedClients) {
+            await client.eval(`delete game.actors.get("${ids.botan}").update;
+                if (globalThis.__secSettingsGet) game.settings.get = globalThis.__secSettingsGet;
+                delete globalThis.__secSettingsGet; delete globalThis.__secUnreviewed; return true;`);
+        }
+    }
+
+    /*
      * FORGERIES OF A MONOCUB'S ABILITY (E33 C10, 07.10.2026; the plan's 2.7). `monocub.ability` carries a `key` and a
      * `choice` beside the two ids, and each field is a claim. The GM makes Botan (p2's) a dead Monocub with an action
      * and a Hope, his token beside Aiko's. Then: p1 names Botan as the Monocub (p1 does not own him: refused for

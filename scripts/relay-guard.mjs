@@ -13,9 +13,13 @@
  * puts the same question in front of that one.
  *
  * WHAT THIS DOES. At `init` it takes Daggerheart's listener off the channel
- * and puts one of its own in front of it. On a player's client, and for the
- * packets that only redraw something, the packet goes straight through -
- * Daggerheart's GM handlers do nothing on a player's client. On the primary
+ * and puts one of its own in front of it. The packets that only redraw
+ * something go straight through everywhere. On a player's client a packet
+ * goes through when its name is one of the eight the guard has reviewed
+ * (`REVIEWED_NAMES`) - Daggerheart's GM handlers do nothing there - and
+ * nowhere otherwise: from 2.10.10 Daggerheart's listener runs a name it has
+ * no case for by the packet's inner `data.action`, on whichever client
+ * receives it (read in 2.10.11's socket.mjs, 10.10.2026; E75 C2). On the primary
  * GM's client, a request from a player or an Assistant GM is judged against
  * the shapes Daggerheart itself sends for players (`judgeRelay`, the table
  * below), and then passed on narrowed to what was allowed, written by this
@@ -67,6 +71,17 @@ const TRANSFER = "DhTransferItem";
 
 /** Packets that redraw something on every client and write nothing. */
 const UI_ONLY = new Set(["DhRefresh", "DhFearUpdate", "DowntimeTrigger", "DhTagTeamStart", "DhGroupRollStart"]);
+
+/**
+ * The names of the eight cases of `handleSocketEvent`, as each is sent, and the
+ * only packets a player's client hands on (E75 C2, 10.10.2026). Until 2.10.9 a
+ * name that is no case did nothing there; 2.10.10 added a `default:` branch that
+ * runs the entry of Daggerheart's own table named by the packet's `data.action`,
+ * with no GM check of its own (2.10.11 socket.mjs:36-37, read in the code). Held by
+ * 30-security part 8: "a packet with a name the guard has not reviewed runs
+ * nothing on a player's client", and the backstop's check beside it.
+ */
+const REVIEWED_NAMES = new Set([GM_UPDATE, GM_CREATE, TRANSFER, ...UI_ONLY]);
 
 /**
  * The cases of `handleSocketEvent` this file was written against (2.6.5 and
@@ -249,7 +264,14 @@ function installBackstop(channel) {
 
 function neutralise(payload, senderId) {
     const action = payload?.action;
-    if (!game.user?.isGM || UI_ONLY.has(action)) return;
+    if (UI_ONLY.has(action)) return;
+    if (!game.user?.isGM) {
+        // A player's client refuses what the wrapper there would drop (`onRelay`).
+        if (REVIEWED_NAMES.has(action) || !payload || typeof payload !== "object") return;
+        debug(`Daggerheart relay backstop: "${plainWhat(String(action))}" is not a name the guard has reviewed; refused on this client.`);
+        payload.action = "__drpgRefused";
+        return;
+    }
     if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
         if (isPrimaryGm()) shapeWarning(String(action));
         payload.action = "__drpgRefused";
@@ -307,9 +329,16 @@ function forward(packet, senderId) {
 function onRelay(payload, senderId) {
     try {
         const action = payload?.action;
-        // A player's client, and a redraw anywhere: Daggerheart's GM handlers
-        // do nothing on a player's client, so there is nothing to judge.
-        if (UI_ONLY.has(action) || !game.user?.isGM) return forward(payload, senderId);
+        // A redraw goes through anywhere: it writes nothing.
+        if (UI_ONLY.has(action)) return forward(payload, senderId);
+        if (!game.user?.isGM) {
+            // A player's client: Daggerheart's GM handlers do nothing here, so a
+            // reviewed name has nothing to judge, and any other name goes nowhere
+            // (`REVIEWED_NAMES`).
+            if (REVIEWED_NAMES.has(action)) return forward(payload, senderId);
+            debug(`Daggerheart relay: "${plainWhat(String(action))}" is not a name the guard has reviewed; not run on this client.`);
+            return;
+        }
         if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
             // Said by the primary GM only, so one GM speaks for the table.
             if (isPrimaryGm()) shapeWarning(String(action));
