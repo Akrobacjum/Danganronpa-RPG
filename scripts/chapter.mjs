@@ -40,7 +40,7 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId }
     from "./utils.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 
@@ -829,7 +829,36 @@ function enqueueBodyWork(work) {
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    if (!discoveryHere()) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
+}
+
+/* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
+   walk-in watcher has always run on the primary only (murder-rules.mjs, `updateToken`); the GM's
+   own announcement ran on whichever GM pressed it. On any other GM `flagsHeldNow` reads the
+   document, so a player's own `deceased` write the audit had not put back yet was stamped as a
+   found body and named on the Investigation card (measured by the review at 0d860df, with a
+   second GM put first in the users); and two GMs announcing one body at once each posted a card
+   and each wrote the stamp from its own copy (`bodyWorkQueue` orders one browser only; 17-assistant
+   F1). One browser decides, as the season's reset does (season-setup.mjs), and another GM is told
+   whose the announcement is. Refused rather than sent on to the primary: a forwarded press would
+   be a new GM-to-GM request with its own checks and census row, for a window the primary GM can
+   open just as well. Tier 2 "a GM who is not the primary announces no body and is told whose it is". */
+function discoveryHere() {
+    if (isPrimaryGm()) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name }));
+    return false;
+}
+
+/* A BODY THIS CHAPTER HAS ANNOUNCED ALREADY (E11 fix r1-G2, 1.2.73; round 1's goal K5). The GM's
+   list offered every dead student, one announced this chapter unmarked among them, and announcing
+   it again posted a second card and wrote a second stamp row. `held` as `bodiesToDiscover` reads
+   it (the caller's `flagsHeldNow`), and the death's record is the flag or the GMs' row
+   (`deathRecordFor`); a death revived and given again is a new death, not yet announced
+   (`announcedIn`, E11 fix r1-G1). */
+function announcedAlready(actor, held, { clock = getClock(), epoch = seasonEpoch() } = {}) {
+    return announcedIn(clock.chapter, epoch)(actor.id, deathRecordFor(held(actor)));
 }
 
 async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
@@ -858,6 +887,17 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
     const { isEclipse } = await import("./eclipse.mjs");
     if (isEclipse()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyLocked"));
+        return null;
+    }
+
+    /* A NAMED BODY THIS CHAPTER ALREADY ANNOUNCED IS NOT ANNOUNCED AGAIN (E11 fix r1-G2; goal K5).
+       Asked inside the queue, so a second press of the same body waits for the first one's stamp
+       and is then refused. The watcher names only a body still to discover, so this refuses only
+       the GM's road. Tier 2 "a body already announced is marked in the GM's list and not
+       announced twice in the chapter". */
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    if (victim && announcedAlready(victim, flagsHeldNow, { clock, epoch })) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name }));
         return null;
     }
 
@@ -970,7 +1010,8 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
         /* AS THE GMS HOLD THEM, IN ONE STEP (E11 C1; plan 1b.2, H3). Every death below is read
            off the primary's mark (`flagsHeldNow`), with nothing awaited between two reads, and
            before any of them is published: a player's own `deceased` write the audit has not put
-           back yet makes nobody a body. */
+           back yet makes nobody a body. That holds because a discovery runs on the primary GM
+           only (`discoveryHere`, E11 fix r1-G2): on another GM this reader reads the document. */
         const students = new Set(studentActors().map(a => a.id));
         const here = [...(scene?.tokens ?? [])].filter(t => t.actor?.id && roomOfToken(t) === room);
         const fresh = new Set(bodiesToDiscover({ actors: here.map(t => t.actor).filter(a => students.has(a.id)), clock, epoch,
@@ -988,6 +1029,12 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
+    /* ONLY WHAT WAS PUBLISHED IS STAMPED (E11 fix r1-G2; early review EARLY-C1-3). A publication
+       that failed leaves the GMs' row, and the death is still theirs alone; the stamp is
+       world-readable and the Investigation card draws it, so a body it named here was a death the
+       table did not know of, and read as announced for the rest of the chapter. Tier 2 "a body
+       whose publication failed is neither stamped as found nor drawn on the card". */
+    for (const id of [...victims]) if (deathStore.has(id)) victims.delete(id);
     /* AND WHICH DEATH EACH OF THEM WAS (E11 fix r1-G1): the stamp names the death it announced
        (`deathId`), read off the primary's mark in one step once they are published. */
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
@@ -1239,6 +1286,8 @@ export async function openBodyDiscoveryDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Another GM is told whose the announcement is before a form it could not send (E11 fix r1-G2).
+    if (!discoveryHere()) return null;
 
     /*
      * REFUSED BEFORE THE FORM, NOT AFTER IT (F12).
@@ -1269,10 +1318,15 @@ export async function openBodyDiscoveryDialog() {
     }
 
     // The dead are the candidates here - the victim is normally already marked
-    // by the time anybody trips over them.
+    // by the time anybody trips over them. One this chapter has announced says so (E11 fix
+    // r1-G2): `runDiscovery` refuses it a second time.
     const dead = studentActors().filter(isDeadForGm);
-    const victims = dead
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const victims = dead.map(a => {
+        const name = foundry.utils.escapeHTML(a.name);
+        const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
+        return `<option value="${a.id}">${label}</option>`;
+    }).join("");
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
        Investigation's own footer too - and promised the doubtful Prep traces, which a world with

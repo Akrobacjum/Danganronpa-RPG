@@ -29,7 +29,8 @@ import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodiesFoundIn, incidentCast, incidentSeats,
-    incidentWitness } from "./settings.mjs";
+    incidentWitness, isDeceased } from "./settings.mjs";
+import { flagsHeldNow } from "./sheet-audit.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters } from "./vote.mjs";
@@ -456,7 +457,13 @@ export function bodyCard(clock) {
         room = stamp.room ?? null;
     }
 
-    const victims = victimIds.map(id => game.actors.get(id)).filter(Boolean);
+    /* ONLY THE DEAD THE TABLE KNOWS OF (E11 fix r1-G2; early review EARLY-C2-2). The card draws on
+       every client, and drew every name the stamp or the hold gave it: a failed publication left a
+       death the GMs still held in the stamp (`publishFoundBodies` stamps only what was published
+       since), and nothing takes a name out of the stamp when the GM revives the student (read in
+       the code). Read as the GMs hold it (`flagsHeldNow`, the primary's mark there, the document anywhere
+       else). Tier 2 "a body whose publication failed is neither stamped as found nor drawn on the card". */
+    const victims = victimIds.map(id => game.actors.get(id)).filter(actor => actor && isDeceased(flagsHeldNow(actor)));
     if (!victims.length && !room) return null;
     if (!room && victims.length) {
         // A room's name: `roomOfToken` answers the name, not the region (65-season B1 compares it with the hold's `room`).

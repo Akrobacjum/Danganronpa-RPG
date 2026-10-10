@@ -14,7 +14,9 @@
  *      the users that belong to a Gamemaster;
  *   D  the full GM leaves: the Assistant becomes the primary and carries out
  *      what B's GM did;
- *   E  no exception escaped into Foundry on any client.
+ *   E  no exception escaped into Foundry on any client;
+ *   F  a body's discovery is the primary's: two GMs announcing one body at once
+ *      post one card (run before D, while the full GM is here; E11 fix r1-G2).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
@@ -202,6 +204,45 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
     } finally {
         await putBack();
         await settle(400);
+    }
+
+    /* ------------------------- F. one discovery, the primary's ------------------------- */
+
+    /* E11 fix r1-G2 (10.10.2026; round 1's goal K6 and sec F1). The GM's announcement ran on
+       whichever GM pressed it, and each GM's queue orders its own browser only: two GMs announcing
+       one body at once each posted a card and each wrote the stamp from its own copy. Daichi's death
+       kept by the GMs; the GM and the Assistant announce it at the same moment, in a room no region
+       has (nobody is gathered). Read on the GM: the discovery cards the two presses added and their
+       authors, and the stamp rows added; on the Assistant: whether it was told the primary's name.
+       Put back after: Daichi revived, the hold and the stamps as they were. */
+    const chapterJs = `(await import("${repoUrl}/scripts/chapter.mjs"))`;
+    const bodyCards = `game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound")`;
+    const stampRows = `Object.values(game.settings.get("${MOD}", "bodiesFound") ?? {}).flat().length`;
+    const f0 = await gm.eval(`const kept = Boolean(await ${chapterJs}.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));
+        return { kept, cards: ${bodyCards}.map(m => m.id), rows: ${stampRows},
+            stamps: foundry.utils.deepClone(game.settings.get("${MOD}", "bodiesFound") ?? {}), hold: game.settings.get("${MOD}", "bodyFound") ?? {} };`);
+    await settle(800);
+    const agMark = await ag.eval(`return globalThis.__notifications.length;`);
+    const announceOn = c => c.eval(`await ${chapterJs}.discoverBody({ room: "E11 G2 a room no region has",
+        victim: game.actors.get("${IDS.daichi}"), scene: game.scenes.get("${scene}") }); return true;`);
+    try {
+        await Promise.all([announceOn(gm), announceOn(ag)]);
+        await settle(1200);
+        const f1 = {
+            kept: f0.kept,
+            ...await gm.eval(`const before = new Set(${JSON.stringify(f0.cards)});
+                return { cards: ${bodyCards}.filter(m => !before.has(m.id)).map(m => m.author?.id ?? m.user?.id ?? null), rows: ${stampRows} - ${f0.rows} };`),
+            told: await ag.eval(`const said = game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name: game.users.get("${IDS.gm}")?.name ?? "?" });
+                return globalThis.__notifications.slice(${agMark}).some(n => n.msg === said);`)
+        };
+        check("F1: two GMs announcing one body at once post one card and one stamp row, the primary's, and the Assistant is told whose the announcement is",
+            f1.kept && JSON.stringify(f1.cards) === JSON.stringify([IDS.gm]) && f1.rows === 1 && f1.told === true, JSON.stringify(f1));
+    } finally {
+        await gm.eval(`const C = ${chapterJs}; const a = game.actors.get("${IDS.daichi}");
+            if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+            await game.settings.set("${MOD}", "bodyFound", ${JSON.stringify(f0.hold)});
+            await game.settings.set("${MOD}", "bodiesFound", ${JSON.stringify(f0.stamps)}); return true;`);
+        await settle(600);
     }
 
     /* ---------------------------- D. the full GM leaves ----------------------------- */
