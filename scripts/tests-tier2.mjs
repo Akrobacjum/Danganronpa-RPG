@@ -19823,6 +19823,106 @@ const SCENARIOS = [
             + "or ran though Cancel was answered (questions asked; each saying it cannot tell how many; the round after)");
     }],
 
+    ["the verdict window offers an accused whose body nobody has found and the wrong verdict makes that death the execution", async () => {
+        /*
+         * E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the owner's Q-E10-2 (a), 10.10.2026. The window read who
+         * is dead as the GMs hold it, so an accused whose body nobody has found was dead there, while the public card
+         * counts the death the table knows: the window opened on "Nobody is executed" with the accused listed " - dead"
+         * and disabled, and the wrong verdict it then gave told every console that nobody was executed - right after
+         * the class had accused that student (the review's scenario 91, X2 and X3). The accused killed with
+         * `secret: true`, the window drawn over a count that accused them and its wrong verdict pressed, and its answer
+         * applied. Read: the select's value, the accused's option (disabled, its words), whether the window names them
+         * as a death nobody has found and as already dead; then the card's line, the flag every console reads, the
+         * GMs' row of the death and the verdict's stage.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn and its verdict pressed");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [accused] = cast(3).filter(a => !known.has(a.id));
+        must(accused, "no living student who is not a known Blackened");
+        const V = await import("./vote.mjs");
+        const { killCharacter, reviveCharacter, isDeceased } = await import("./chapter.mjs");
+        const { deathStore, deferredOfferStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const from = new Set(game.messages.map(m => m.id));
+        let answer = null;
+        must(await killCharacter(accused, { secret: true, keepBullets: true }), `${accused.name}'s death was not kept by the GMs`);
+        try {
+            const unfound = game.i18n.format("DRPG.Vote.unfoundDead", { names: accused.name });
+            const dead = game.i18n.format("DRPG.Vote.accusedDead", { names: accused.name });
+            const drawn = await verdictWindow({ voteClosed: true, accused: [{ id: accused.id, n: 3 }], total: 4,
+                majority: 3, noMajority: false, tied: false, accusedIds: [accused.id] }, element => {
+                const select = element.querySelector('select[name="executed"]');
+                const option = [...(select?.options ?? [])].find(o => o.value === accused.id);
+                const out = [select?.value ?? null, option?.disabled ?? null, option?.textContent ?? null,
+                    element.textContent.includes(unfound), element.textContent.includes(dead)];
+                element.querySelector('footer button[data-action="wrong"]')?.click();
+                return out;
+            });
+            answer = drawn.answer;
+            equal(stableJson(drawn.reading), stableJson([accused.id, false, accused.name, true, false]),
+                "the verdict window did not open on an accused whose body nobody has found, listed them dead or not to be "
+                + "picked, or did not tell the GM whose death that is (the select's value; the option disabled, its words; the "
+                + "GM's line; \"already dead\")");
+            const stage = await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null, () => V.applyVerdict(answer));
+                await settle();
+                return V.trialProgress().verdict?.stage ?? null;
+            });
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
+            const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
+            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))),
+                cards.some(words => words.includes(game.i18n.localize("DRPG.Vote.nobodyExecuted"))),
+                isDeceased(accused), deathStore.has(accused.id), stage]),
+            stableJson([1, true, false, true, false, "done"]),
+            "the wrong verdict the window gave did not execute the accused whose body nobody had found, or the card and the "
+                + "sheet disagree (cards; the card names them executed; it says nobody was; the flag; the GMs' row; the stage)");
+        } finally {
+            await reviveCharacter(accused, { quiet: true });
+            for (const id of answer?.blackenedIds ?? []) if (deferredOfferStore.has(id)) await deferredOfferStore.drop(id);
+        }
+    }],
+
+    ["a right verdict on a Blackened whose body nobody has found makes that death the execution", async () => {
+        /*
+         * E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the owner's Q-E10-2 (a), 10.10.2026. The executions passed
+         * over a death the GMs hold, and the card named everyone the verdict sentenced: a right verdict whose Blackened
+         * had died where nobody has found the body told every console "<name> has been executed" while every sheet
+         * still read them alive, and the GMs still held the death unfound (the review's scenario 91, X4). The Blackened
+         * killed with `secret: true` and the right verdict applied as the window's `read` gives it. Read: the card's
+         * line, the flag every console reads, the GMs' row of the death and the verdict's stage.
+         */
+        const [killer] = cast(2);
+        const V = await import("./vote.mjs");
+        const { killCharacter, reviveCharacter, isDeceased } = await import("./chapter.mjs");
+        const { deathStore, offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const from = new Set(game.messages.map(m => m.id));
+        must(await killCharacter(killer, { secret: true, keepBullets: true }), `${killer.name}'s death was not kept by the GMs`);
+        try {
+            const stage = await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }));
+                await settle();
+                return V.trialProgress().verdict?.stage ?? null;
+            });
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const said = await Promise.all(fresh.map(async m => String(await wordsOf(m, 1000) ?? "")));
+            const cards = said.filter(words => words.includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
+            equal(stableJson([cards.length, cards.some(words => words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(killer.name) }))),
+                isDeceased(killer), deathStore.has(killer.id), stage]),
+            stableJson([1, true, true, false, "done"]),
+            "the right verdict's card and the sheet of the Blackened whose body nobody had found disagree (cards; the card "
+                + "names them executed; the flag; the GMs' row; the stage)");
+        } finally {
+            await reviveCharacter(killer, { quiet: true });
+            for (const a of studentActors()) if (offerStore.has(a.id)) await offerStore.drop(a.id);
+        }
+    }],
+
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
         // `openMurder` that happens WHILE an Eclipse is closing - a Direct

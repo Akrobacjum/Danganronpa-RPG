@@ -1134,6 +1134,7 @@
       "nobodyNamed": "Nobody named",
       "namedByTable": "Named by the table: {names}, {n} of {total}.",
       "accusedDead": "Already dead: {names}. Nobody is executed unless you pick a living student.",
+      "unfoundDead": "Dead, and nobody has found the body: {names}. Executing them makes that death the execution, and the table learns of it with the verdict.",
       "storeNotReady": "This browser has not got the GMs' copy of the ballots yet.",
       "movedOn": "The vote has moved on - this window was out of date.",
       "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over.",

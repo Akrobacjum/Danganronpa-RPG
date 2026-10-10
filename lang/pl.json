@@ -1140,6 +1140,7 @@
       "nobodyNamed": "Nikt niewskazany",
       "namedByTable": "Wskazani przez stół: {names}, {n} z {total}.",
       "accusedDead": "Już nie żyje: {names}. Nikt nie zostaje stracony, chyba że wybierzesz żywego ucznia.",
+      "unfoundDead": "Nie żyje, a nikt nie znalazł ciała: {names}. Stracenie tej osoby czyni tę śmierć egzekucją, a stół dowiaduje się o niej wraz z werdyktem.",
       "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.",
       "storeNotReady": "Ta przeglądarka nie ma jeszcze kopii kart do głosowania od GM-ów.",
       "movedOn": "Głosowanie poszło dalej - to okno było nieaktualne.",

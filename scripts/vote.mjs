@@ -36,7 +36,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, isDeadForGm, killCharacter } from "./chapter.mjs";
+import { isDeceased, isDeadForGm, killCharacter, publishDeath } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { ballotStore, deferredOfferStore, verdictStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -1156,11 +1156,20 @@ export async function openVerdictDialog() {
        execute - so here a dead one is a disabled option, a display and not a choice, and `read`
        refuses one that is submitted anyway. The disabled options and the refusal are one set,
        read after every write queued on a student is judged (`judgedFor`) in one synchronous pass
-       off the primary's mark (`flagsHeldNow`, the GMs' copy - a death nobody has found included,
-       as `applyVerdict` skips one); a student who dies or comes back while the window is open is
-       `applyVerdict`'s to judge. */
+       off the primary's mark (`flagsHeldNow`, the GMs' copy); a student who dies or comes back
+       while the window is open is `applyVerdict`'s to judge.
+       DEAD AS THE TABLE KNOWS IT (E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the owner's
+       Q-E10-2 (a), 10.10.2026). The set read the GMs' deaths store beside the flag, so a body nobody
+       had found counted as dead here while the public card counts the flag alone: the window opened on
+       "Nobody is executed" after the class had accused that student, said "Already dead" of them, and
+       a wrong verdict then told every console nobody was executed (measured by the review's scenario 91,
+       X2-X3). Such a death is not the table's yet, so it is not dead to the verdict: the student is a
+       choice like any other, and this GM alone is told whose death is held (`unfoundLine`) and that
+       executing them makes it the execution (`executeSentenced`). */
     await judgedFor(...students.map(a => a.id));
-    const dead = new Set(students.filter(a => isDeadForGm(flagsHeldNow(a))).map(a => a.id));
+    const held = new Map(students.map(a => [a.id, flagsHeldNow(a)]));
+    const dead = new Set(students.filter(a => isDeceased(held.get(a.id))).map(a => a.id));
+    const unfound = students.filter(a => !dead.has(a.id) && isDeadForGm(held.get(a.id)));
     const knownIds = new Set(known.map(a => a.id));
     const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
     const option = (a, chosen, { lockDead = false } = {}) => `<option value="${a.id}"${
@@ -1192,6 +1201,10 @@ export async function openVerdictDialog() {
         ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.accusedDead", {
             names: deadAccused.map(id => esc(named(id))).join(", ") })}</p>`
         : "";
+    const unfoundLine = unfound.length
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.unfoundDead", {
+            names: unfound.map(a => esc(a.name)).join(", ") })}</p>`
+        : "";
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
         students.filter(a => !knownIds.has(a.id)).map(a => option(a, preselect, { lockDead: true })).join("")}`;
     // Without a register the right verdict executes the Blackened named here (`read`), so this
@@ -1217,6 +1230,7 @@ export async function openVerdictDialog() {
             ${roster}
             ${namedLine}
             ${deadLine}
+            ${unfoundLine}
             <label class="drpg-verdict-field">${game.i18n.localize(known.length
                 ? "DRPG.Vote.executedIfWrong" : "DRPG.Vote.executed")}
                 <select name="executed">${executedOptions}</select></label>
@@ -1513,8 +1527,8 @@ async function verdictReading(context) {
  * S2-m6, the plan's rule A). The list was the GMs' (`livingStudentsForGm`), so a student whose body
  * nobody had found was passed over - no Level Up window for them, measured on the harness - and every
  * console saw the class advance and one student not. A Level Up is a write every console reads: the
- * table's list, less whoever this verdict named for execution - one already dead to the GMs is not
- * killed twice (`executeSentenced` passes over them), and does not advance either.
+ * table's list, less whoever this verdict named for execution - one whose body nobody has found is
+ * executed by making that death the table's (`executeSentenced`, fix r1-G4), and does not advance either.
  *
  * The killers of a wrong verdict: EVERY one who is still breathing, not just the first one named, and
  * not one this verdict executes.
@@ -1545,15 +1559,26 @@ async function readSentence(context) {
 /*
  * THE EXECUTIONS (E10 C5; plan 1b.2, H3). Each waits for the audit of that student and reads them held
  * again, and `killCharacter` is called with nothing awaited between that read and its own head check.
- * A death the GMs hold and this verdict did not cause here - a body nobody has found, or one this
- * verdict killed before it stopped - is passed over, not killed twice. A kill `killCharacter` refuses
- * of a student the GMs hold alive fails the step, for Finish the verdict.
+ * One the table knows dead - this verdict's own kill before it stopped, or one that died since it was
+ * read - is passed over, not killed twice. A kill `killCharacter` refuses of a student the GMs hold
+ * alive fails the step, for Finish the verdict.
+ *
+ * A BODY NOBODY HAS FOUND IS THE EXECUTION (E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the
+ * owner's Q-E10-2 (a), 10.10.2026). Such a student was passed over as dead, and the card named them
+ * executed all the same: every console read an execution before anybody had found the body, every
+ * sheet read the student alive, and the GMs still held the death (the review's scenario 91, X4). The
+ * verdict counts them living (`verdictHeld`, `openVerdictDialog`), so the held death is made the
+ * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
+ * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
+ * publish fails the step.
  */
 async function executeSentenced(context) {
     for (const actor of context.record.executedIds.map(id => game.actors.get(id)).filter(Boolean)) {
         await judgedFor(actor.id);
-        if (isDeadForGm(flagsHeldNow(actor))) continue;
-        if (!await killCharacter(actor)) throw new Error(`${actor.name} could not be executed`);
+        const held = flagsHeldNow(actor);
+        if (isDeceased(held)) continue;
+        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor);
+        if (!died) throw new Error(`${actor.name} could not be executed`);
         context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
         }));
