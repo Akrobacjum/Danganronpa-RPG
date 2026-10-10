@@ -1801,7 +1801,6 @@
       "notSharedNote": "„To nie pokój” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
     },
     "Chapter": {
-      "alreadyEnded": "Rozdział {n} został już zakończony przez innego GM-a. Nic nie wykonano dwa razy.",
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "keepBullets": "Zachowaj ich Truth Bullets (śmierć spoza killing game)",
@@ -1909,7 +1908,21 @@
       },
       "optEndTrial": "Zamknij Class Trial i przywróć salę do Daily Life",
       "doneEndTrial": "Class Trial zamknięty; kampania wraca do Daily Life.",
-      "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami."
+      "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
+      "doneInvestigationOver": "Investigation zakończone; kampania wraca do Daily Life.",
+      "endTwice": "To okno końca rozdziału otwarto przy rozdziale {chapter}, sesji {session}, dniu {day}, a zegar od tego czasu się przesunął - inny koniec rozdziału był pierwszy. Nic nie wykonano dwa razy.",
+      "endFailed": "Koniec rozdziału nie dobiegł końca: {steps}. Cała reszta została wykonana - dokończ to ręcznie, zamiast kończyć rozdział jeszcze raz.",
+      "step": {
+        "reveal": "ujawnianie Truth Bullets",
+        "sweep": "zbieranie Truth Bullets",
+        "faint": "czyszczenie Faint Remnants",
+        "keys": "zdejmowanie Key Remnants z mapy",
+        "tools": "opróżnianie zużytych Cleaning Tools",
+        "clock": "przesuwanie zegara",
+        "trial": "zamykanie Class Trial",
+        "morning": "otwieranie następnego ranka",
+        "hold": "zamykanie odkrycia ciała"
+      }
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",

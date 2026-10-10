@@ -43937,6 +43937,92 @@ const SCENARIOS = [
         }
     }],
 
+    ["the chapter's end leaves the Investigation and counts once", async () => {
+        /*
+         * E11 C5, 1.2.73; audit S06-13 and S06-40. Ended from the Investigation, the chapter's
+         * end moved the session and left the phase where it was; and its guard compared only the
+         * chapter, so with "next chapter" unticked a second end - another GM's window, or one
+         * started while the first was still running - counted the session again. Three ends here,
+         * each told it was chosen on the clock as it stood before the first (`opened`, what the
+         * window sends): two started together, then one after both. Read: which of them did
+         * anything, how far the session and the chapter moved, the phase, and how many of the
+         * refused were told to the GMs (`endTwice`).
+         */
+        const { applyChapterEnd } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await setClock({ phase: "investigation" });
+            const opened = { chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1 };
+            const twiceText = game.i18n.format("DRPG.Chapter.endTwice", opened);
+            const told = () => game.messages.filter(m => String(contentOf(m)).includes(twiceText)).length;
+            const choices = { nextSession: true, opened };
+            const together = await Promise.all([applyChapterEnd(choices), applyChapterEnd(choices)]);
+            const later = await applyChapterEnd(choices);
+            await settle();
+            equal(stableJson([together.map(Boolean), Boolean(later), getClock().session - opened.session,
+                getClock().chapter - opened.chapter, getClock().phase, told()]),
+                stableJson([[true, false], false, 1, 0, "dailyLife", 2]),
+                "the chapter's end counted twice, stayed in the Investigation, or refused without telling the GMs "
+                + "([the two together did anything, the later one did anything, sessions on, chapters on, the phase, refusals told])");
+        } finally {
+            await setClock(clock);
+        }
+    }],
+
+    ["a chapter end step that fails is named, and the steps after it still run", async () => {
+        /*
+         * E11 C5, 1.2.73 (the plan's section 3.4 for the chapter's end). A step that threw stopped
+         * the chapter's end where it stood, with nothing said to the GM, and `closeTrial`'s false
+         * (its clock write threw, E10 C12) was taken as nothing to say: no line, no word, the trial
+         * still sitting. Here two of the clock's writes are refused - the session's move (the step
+         * throws) and the trial's close (`closeTrial` answers false) - and the morning's is let
+         * through. Read: what the GM was shown as an error, whether the end answered anything (or
+         * threw), how far the session and the day moved, the phase, and whether the floor is open.
+         */
+        const { applyChapterEnd } = await import("./chapter.mjs");
+        const { startFloor, trialFloor, endFloor } = await import("./trial-floor.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const error = ui.notifications.error;
+        const errors = [];
+        let ended = null, after = null;
+        try {
+            await startFloor({});
+            must(getClock().phase === "classTrial", "the fixture did not open a trial");
+            const opened = { chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1 };
+            const set = game.settings.set;
+            game.settings.set = function (scope, key, value, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.clock && (value?.phase === "dailyLife" || value?.session !== opened.session)) {
+                    throw new Error("E11 C5's test: the clock's move or the trial's close refused");
+                }
+                return set.call(this, scope, key, value, ...rest);
+            };
+            ui.notifications.error = (text, ...rest) => { errors.push(String(text)); return error.call(ui.notifications, text, ...rest); };
+            try {
+                ended = await applyChapterEnd({ endTrial: true, nextSession: true, nextMorning: true, opened })
+                    .catch(err => `threw: ${err?.message}`);
+            } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+                ui.notifications.error = error;
+            }
+            await settle();
+            after = [getClock().session - opened.session, (getClock().day ?? 1) - opened.day, getClock().phase, Boolean(trialFloor())];
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            ui.notifications.error = error;
+            if (trialFloor()) await endFloor();
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+        }
+        const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
+        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}` });
+        equal(stableJson([errors, Array.isArray(ended), after]), stableJson([[failed], true, [0, 1, "classTrial", false]]),
+            "a step that threw or a trial that would not close was not named to the GM, or the steps after them did not run "
+            + "([the errors shown, the end answered, [sessions on, days on, the phase, the floor open]])");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

@@ -6268,7 +6268,9 @@ const LITERAL_KEYS = [
         "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall", "levelData", "scars"]
         .map(kind => `DRPG.Audit.field.${kind}`),
     // cleanup.mjs names a Stage 6 roll's band on the GMs' copy `DRPG.Action.duality.<band>` (E09 C14): the three bands.
-    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`)
+    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`),
+    // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
+    ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`)
 ];
 
 export { INVARIANTS };

@@ -1756,7 +1756,6 @@
       "notSharedNote": "“Not a room” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
     },
     "Chapter": {
-      "alreadyEnded": "Chapter {n} was already ended by another GM. Nothing was done twice.",
       "deathTitle": "A character dies",
       "whoDied": "Who died?",
       "keepBullets": "Keep their Truth Bullets (not a killing-game death)",
@@ -1839,7 +1838,21 @@
       "doneKeys": { "one": "Took {n} Key Remnant off the map.", "other": "Took {n} Key Remnants off the map." },
       "optEndTrial": "Close the trial and put the room back into Daily Life",
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
-      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled."
+      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
+      "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
+      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock has moved since - another End of chapter got there first. Nothing was done twice.",
+      "endFailed": "The end of the chapter did not finish: {steps}. Everything else was done - finish those by hand rather than ending the chapter again.",
+      "step": {
+        "reveal": "revealing the Truth Bullets",
+        "sweep": "collecting the Truth Bullets",
+        "faint": "clearing the Faint Remnants",
+        "keys": "taking the Key Remnants off the map",
+        "tools": "emptying the used Cleaning Tools",
+        "clock": "moving the clock",
+        "trial": "closing the trial",
+        "morning": "opening the next morning",
+        "hold": "clearing the body's discovery"
+      }
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

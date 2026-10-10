@@ -1540,6 +1540,16 @@ export async function openChapterEndDialog() {
     const { incidentClosedFirst } = await import("./trial-floor-ui.mjs");
     if (!(await incidentClosedFirst())) return null;
 
+    /* THE CLOCK THIS WINDOW WAS OPENED ON, read once, after the incident's question (E11 C5, 1.2.73;
+       audit S06-40). The window used to send the chapter it found when Do it was pressed, and
+       `applyChapterEnd` refused only a chapter that had moved: with "next chapter" unticked nothing it
+       compared ever moved, so a second window - another GM's, or one left open - counted the session
+       and the morning again (65-season C1, measured on 10.10.2026 with the code before this: two
+       sessions and two days on). The chapter, the
+       session and the day as they stood when the GM was shown this window are what the GM chose
+       against; `applyChapterEnd` refuses the end when any of them has moved since. */
+    const opened = endMark(getClock());
+
     // The SAME test the reveal itself applies, or the preview promises work the
     // action will not do - `revealPlan`, since E09 C8 the reveal's own answer.
     //
@@ -1655,10 +1665,7 @@ export async function openChapterEndDialog() {
                         endTrial: f.endTrial.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked,
-                        nextMorning: f.nextMorning.checked,
-                        // The chapter this window was opened for, so a second
-                        // GM's End of chapter cannot end the next one (CORE-17).
-                        endingChapter: getClock().chapter
+                        nextMorning: f.nextMorning.checked
                     };
                 }
             },
@@ -1669,8 +1676,154 @@ export async function openChapterEndDialog() {
 
     if (!result || result === "cancel") return null;
 
-    return applyChapterEnd(result);
+    return applyChapterEnd({ ...result, opened });
 }
+
+/** The part of the clock an End of chapter is chosen against: `openChapterEndDialog` reads it, `applyChapterEnd` compares. */
+function endMark(clock) {
+    return { chapter: clock.chapter, session: clock.session, day: clock.day ?? 1 };
+}
+
+/**
+ * THE CHAPTER'S END, ONE ORDERED LIST (E11 C5, 1.2.73; audit S06-13, S06-40; the plan's p10change).
+ *
+ * Each step is `{ key, run }`; `run({ choices, ending })` answers the line the GMs' card reports, null
+ * when it had nothing to do, or false when it failed without throwing (`closeTrial` answers false
+ * when its clock write threw, E10 C12). `applyChapterEnd` runs them in this order, one try/catch each:
+ * a step that fails is logged and named, and the steps after it still run. Until 1.2.73 the same
+ * work was one function of nine steps, three of them in a try/catch and six not, so a clock move
+ * that threw stopped the end there with the rest undone and the GM told nothing, and a trial that would not
+ * close left no line on the GMs' card and no word to the GM (tier 2 "a chapter end step that fails
+ * is named, ..." measured both with the code before this, 10.10.2026).
+ *
+ * THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
+ * Reveal first - it publishes the bullets the sweep is about to take, shows a Final its kind, and
+ * leaves a Faint (`revealPlan`, E09 C8 and fix r1-G5). Then the sweep, then the Remnants, and only
+ * then the clock, because everything here is scoped to the chapter that is ENDING and the moment the
+ * clock moves, "this chapter" means the next one. Measured on 10.09: crossing a chapter with none of
+ * this wired left the map holding the previous case's five clues and the players holding its Truth
+ * Bullets, while the plan that described them was silently discarded - the module dropped the GM's
+ * knowledge and kept everybody else's.
+ *
+ * THE PLAN STAYS WITH ITS CHAPTER, AND NOTHING IS FILED HERE (E05 C5, 1.2.64). Until then `keyPlan()`
+ * read one chapter's plan off a world setting and gave any other chapter blanks, so the ending
+ * chapter's plan was filed under `archive` here, before the clock moved - the only way what a GM wrote
+ * about a case outlived it. The plan is a GM store since, a row per chapter and slot (gm-stores.mjs
+ * `keyPlanStore`): the ending chapter's rows stay where they are, and the next chapter's are its own.
+ *
+ * The register of who killed belongs to the chapter that is ending, and is no longer emptied here
+ * (E04): `blackenedIds` reads the rows of the clock's chapter, so the next chapter starts with
+ * nobody's blood on anybody - and a GM's copy that missed an emptying cannot bring last chapter's
+ * killers back.
+ *
+ * A DEATH THE GMS STILL HOLD IS NOT THE CHAPTER'S TO TELL (the amendment of 26.09.2026): no step
+ * publishes, revives or counts one - 65-season Q reads it kept, and the living count the table
+ * reads unchanged, across an end.
+ */
+export const CHAPTER_END_STEPS = [
+    { key: "reveal", run: async ({ choices }) => choices.reveal
+        ? plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }) : null },
+    { key: "sweep", run: async ({ choices }) => choices.sweep
+        ? plural("DRPG.Chapter.doneSweep", { n: (await sweepTruthBullets()).removed }) : null },
+    { key: "faint", run: async ({ choices }) => {
+        if (!choices.faint) return null;
+        const { clearFaintRemnants } = await import("./remnants.mjs");
+        return plural("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() });
+    } },
+    { key: "keys", run: async ({ choices, ending }) => choices.keys
+        ? plural("DRPG.Chapter.doneKeys", { n: await clearChapterKeyRemnants(ending.chapter) }) : null },
+    // The Cleaning Tools the chapter's clean-ups used (E32+E07 C12; cleanup.mjs
+    // `noteCleaningTool`) are for its own discovery: a row the next chapter reads
+    // counts nothing, and the move to it takes them all.
+    { key: "tools", run: async ({ choices }) => {
+        if (!choices.nextChapter) return null;
+        const { clearUsedTools } = await import("./cleanup.mjs");
+        await clearUsedTools();
+        return null;
+    } },
+    /* And the chapter actually ends.
+
+       The window is called "End of chapter / new session" and did three clean-ups without touching
+       either counter - measured, the clock read Chapter 1 · Session 5 before and after, and the GM had
+       to go and nudge both by hand in "Edit campaign…". Tidying up and moving on are one event at the
+       table, so they are one screen here.
+
+       OUT OF THE INVESTIGATION WITH IT (E11 C5; audit S06-13). The move wrote the counters and nothing
+       else, so a chapter ended from the Investigation - a body found, the trial skipped or held
+       elsewhere - opened the next session still investigating: 65-season C1 read `investigation`
+       after two ends with the code before this (10.10.2026). The phase goes back to Daily Life in the same write as the counters.
+       A Class Trial is not left here: `closeTrial` below does that, after the move, and only when
+       the GM ticked it. */
+    { key: "clock", run: async ({ choices, ending }) => {
+        const clock = getClock();
+        const move = {};
+        if (choices.nextChapter) move.chapter = clock.chapter + 1;
+        if (choices.nextSession) move.session = clock.session + 1;
+        if (!Object.keys(move).length) return null;
+        if (ending.phase === "investigation") move.phase = "dailyLife";
+        const { setClock } = await import("./clock.mjs");
+        if (!(await setClock(move))) return false;
+        const moved = game.i18n.format("DRPG.Chapter.moved", {
+            chapter: move.chapter ?? clock.chapter,
+            session: move.session ?? clock.session
+        });
+        return move.phase ? `${moved} ${game.i18n.localize("DRPG.Chapter.doneInvestigationOver")}` : moved;
+    } },
+    /* AND THE ROOM EMPTIES. AFTER THE MOVE, AND THAT ORDER IS THE POINT.
+
+       Everything above is scoped to the chapter that is ending, so it has to run while the clock
+       still says so. This one is scoped to what comes AFTER: the phase the next chapter opens in, and
+       the elapsed clock that the first Daily Life of it is measured against. Closing the trial before
+       the move would start that clock against a chapter that had not begun yet.
+
+       Measured on 10.09, with the whole chapter driven end to end: this screen moved the clock to
+       chapter 2 and left `phase: "classTrial"` with the debate floor open. The GM was told "The debate
+       is open - Nonstop Debate." and pointed back at the trial they had just finished; every player's
+       HUD read "Chapter 2 - Day 2 - Class Trial". The way out existed - one button, listed BELOW this
+       screen's own on the trial console - and nothing anywhere said to press it.
+
+       `closeTrial` answers false when its clock write threw (E10 C12): the floor is shut and nothing
+       announced. That is this step failing, and the GMs are told so (tier 2 "a chapter end step that
+       fails is named, and the steps after it still run"). */
+    { key: "trial", run: async ({ choices, ending }) => {
+        if (!choices.endTrial || ending.phase !== "classTrial") return null;
+        const { closeTrial } = await import("./trial-floor-ui.mjs");
+        return (await closeTrial()) ? game.i18n.localize("DRPG.Chapter.doneEndTrial") : false;
+    } },
+    /* AND THE NEXT CHAPTER OPENS THE FOLLOWING MORNING.
+
+       This screen moved the chapter and the session and nothing else, which left the clock reading
+       whatever the trial ended on. Measured across two chapters run end to end on 11.09: chapter 1
+       finished at Day 1 - Night and chapter 2 opened at Day 1 - Night, with everybody's actions still
+       spent from the time of day before the murder. The panel duly reported "1 student still has
+       actions to spend", which was true and was a leftover.
+
+       Murders happen at night, so this is not an edge case - it is where every chapter ends. And the
+       fix is not "reset the clock": it is the next MORNING, one day on, which is the beat the table is
+       actually resuming from. Actions and search tokens come back because that is what a new time of
+       day does, through the same call every other advance uses rather than a second copy of the rule.
+
+       LAST, AFTER THE TRIAL IS CLOSED. `closeTrial` puts the phase back to Daily Life and starts the
+       elapsed clock; announcing a new morning before that would post the card into a Class Trial that
+       has not finished. */
+    { key: "morning", run: async ({ choices }) => {
+        if (!choices.nextMorning) return null;
+        const { setTimeOfDay } = await import("./clock.mjs");
+        // One write for the day and the hour: each write is a full redraw on every client (CORE-12).
+        await setTimeOfDay("morning", {
+            resetActions: true, resetSearchTokens: true, announce: true,
+            also: { day: (getClock().day ?? 1) + 1 }
+        });
+        return game.i18n.format("DRPG.Chapter.doneNextMorning", { day: getClock().day });
+    } },
+    // Nothing outlives its chapter. Ordinarily the trial's phase change cleared
+    // this long ago; a GM who ended a chapter straight out of Daily Life would
+    // otherwise carry a body card into the next one.
+    { key: "hold", run: async () => {
+        await clearBodyDiscovery();
+        return null;
+    } }
+];
 
 /**
  * Everything the End of chapter screen does, once the GM has said which parts.
@@ -1688,162 +1841,71 @@ export async function openChapterEndDialog() {
  * is scoped to "the chapter that is ending" and "is the trial sitting", and both
  * are facts about the moment the work runs, not about the moment the GM was asked.
  *
+ * ONCE (E11 C5, 1.2.73; audit S06-40). Two guards, for two ways of pressing twice:
+ * - `opened`, the clock the window was shown on (`endMark`): an end whose chapter,
+ *   session or day has moved since is refused whole and the GMs are told
+ *   (`endTwice`). Until 1.2.73 the window sent the chapter read when Do it was
+ *   pressed and only a moved chapter was refused (CORE-17), which saw nothing when
+ *   "next chapter" was unticked: 65-season C1 read two sessions on with the code
+ *   before this (10.10.2026).
+ * - one end at a time on this browser: a second call waits for the first to finish
+ *   before it compares, so two in flight at once cannot both read the clock before
+ *   either moves it (tier 2 "the chapter's end leaves the Investigation and counts
+ *   once" starts two together). Two GMs' browsers have no such queue: a second
+ *   GM's Do it pressed while the first's steps are still running reads the clock
+ *   before the first's move lands. Read in the code, not measured - the harness
+ *   has one GM.
+ *
  * @param {object} choices Which parts to do. Anything absent is not done, so a
- *   caller can ask for one step without knowing about the others.
+ *   caller can ask for one step without knowing about the others. `opened` is
+ *   the window's `endMark`; a call without it (the console, the suite) is not
+ *   compared.
  */
 export async function applyChapterEnd(choices = {}) {
     if (!game.user.isGM) return null;
+    const run = chapterEnds.then(() => endChapterNow(choices));
+    chapterEnds = run.catch(() => null);
+    return run;
+}
 
-    const result = choices;
-    const endingChapter = getClock().chapter;
-    const trialSitting = getClock().phase === "classTrial";
+let chapterEnds = Promise.resolve();
 
-    // Two GMs with the console open pressing End of chapter a few seconds
-    // apart moved the clock two chapters and swept twice (CORE-17). Optional,
-    // so the API and the suite can still call this without naming a chapter.
-    if (choices.endingChapter != null && choices.endingChapter !== endingChapter) {
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.alreadyEnded", {
-            n: choices.endingChapter
-        })}</p>`);
+async function endChapterNow(choices) {
+    const now = getClock();
+    const { opened } = choices;
+    if (opened && Object.entries(endMark(now)).some(([key, value]) => opened[key] != null && opened[key] !== value)) {
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.endTwice", opened)}</p>`);
         return null;
     }
 
-    const done = [];
-    if (result.reveal) {
-        done.push(plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
-    }
-
-    /* THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
-       Reveal first (above) - it publishes the bullets the sweep is about to take, shows a Final
-       its kind, and leaves a Faint (`revealPlan`, E09 C8 and fix r1-G5). Then the sweep, then
-       the Remnants, and only then the clock, because everything here is scoped to the chapter that is
-       ENDING and the moment the clock moves, "this chapter" means the next one. Measured
-       on 10.09: crossing a chapter with none of this wired left the map holding the
-       previous case's five clues and the players holding its Truth Bullets, while the plan
-       that described them was silently discarded - the module dropped the GM's knowledge
-       and kept everybody else's. */
-    if (result.sweep) {
-        const { removed } = await sweepTruthBullets();
-        done.push(plural("DRPG.Chapter.doneSweep", { n: removed }));
-    }
-    if (result.faint) {
-        const { clearFaintRemnants } = await import("./remnants.mjs");
-        done.push(plural("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
-    }
-    if (result.keys) {
-        done.push(plural("DRPG.Chapter.doneKeys",
-            { n: await clearChapterKeyRemnants(endingChapter) }));
-    }
-
-    /* THE PLAN STAYS WITH ITS CHAPTER, AND NOTHING IS FILED HERE (E05 C5, 1.2.64). Until then
-       `keyPlan()` read one chapter's plan off a world setting and gave any other chapter blanks,
-       so the ending chapter's plan was filed under `archive` here, before the clock moved - the
-       only way what a GM wrote about a case outlived it. The plan is a GM store since, a row per
-       chapter and slot (gm-stores.mjs `keyPlanStore`): the ending chapter's rows stay where they
-       are, and the next chapter's are its own. */
-
-    // The register of who killed belongs to the chapter that is ending, and is
-    // no longer emptied here (E04): `blackenedIds` reads the rows of the clock's
-    // chapter, so the next chapter starts with nobody's blood on anybody - and a
-    // GM's copy that missed an emptying cannot bring last chapter's killers back.
-
-    // The Cleaning Tools the chapter's clean-ups used (E32+E07 C12; cleanup.mjs
-    // `noteCleaningTool`) are for its own discovery: a row the next chapter reads
-    // counts nothing, and the move to it takes them all.
-    if (result.nextChapter) {
+    const ending = { chapter: now.chapter, phase: now.phase };
+    const done = [], failed = [];
+    for (const step of CHAPTER_END_STEPS) {
         try {
-            const { clearUsedTools } = await import("./cleanup.mjs");
-            await clearUsedTools();
+            const line = await step.run({ choices, ending });
+            if (line === false) failed.push(step.key);
+            else if (line) done.push(line);
         } catch (err) {
-            error("Could not empty the used Cleaning Tools at the end of the chapter", err);
+            error(`The end of the chapter could not finish its step "${step.key}"`, err);
+            failed.push(step.key);
         }
     }
 
-    // And the chapter actually ends.
-    //
-    // The window is called "End of chapter / new session" and did three
-    // clean-ups without touching either counter - measured, the clock read
-    // Chapter 1 · Session 5 before and after, and the GM had to go and nudge
-    // both by hand in "Edit campaign…". Tidying up and moving on are one event
-    // at the table, so they are one screen here.
-    const clock = getClock();
-    const move = {};
-    if (result.nextChapter) move.chapter = clock.chapter + 1;
-    if (result.nextSession) move.session = clock.session + 1;
-    if (Object.keys(move).length) {
-        const { setClock } = await import("./clock.mjs");
-        await setClock(move);
-        done.push(game.i18n.format("DRPG.Chapter.moved", {
-            chapter: move.chapter ?? clock.chapter,
-            session: move.session ?? clock.session
-        }));
+    /* A FAILED STEP IS TOLD, the way the season reset tells one (the plan's section 3.4): the GM
+       who pressed Do it is shown which, and the GMs' card lists it after what was done. Not "run it
+       again": a second end of a chapter whose clock has moved is refused above, and one whose clock
+       has not would redo every clean-up - the words say to finish those by hand. */
+    let report = "";
+    if (failed.length) {
+        const text = game.i18n.format("DRPG.Chapter.endFailed", {
+            steps: failed.map(key => game.i18n.localize(`DRPG.Chapter.step.${key}`)).join(", ")
+        });
+        ui.notifications.error(text);
+        report = `<p class="drpg-warning">${esc(text)}</p>`;
     }
-
-    /* AND THE ROOM EMPTIES. LAST, AND THAT ORDER IS THE POINT.
-
-       Everything above is scoped to the chapter that is ending, so it has to run
-       while the clock still says so. This one is scoped to what comes AFTER: the
-       phase the next chapter opens in, and the elapsed clock that the first Daily
-       Life of it is measured against. Closing the trial before the move would start
-       that clock against a chapter that had not begun yet.
-
-       Measured on 10.09, with the whole chapter driven end to end: this screen moved
-       the clock to chapter 2 and left `phase: "classTrial"` with the debate floor
-       open. The GM was told "The debate is open - Nonstop Debate." and pointed back
-       at the trial they had just finished; every player's HUD read "Chapter 2 - Day 2
-       - Class Trial". The way out existed - one button, listed BELOW this screen's
-       own on the trial console - and nothing anywhere said to press it. */
-    if (result.endTrial && trialSitting) {
-        try {
-            const { closeTrial } = await import("./trial-floor-ui.mjs");
-            if (await closeTrial()) done.push(game.i18n.localize("DRPG.Chapter.doneEndTrial"));
-        } catch (err) {
-            error("Could not close the trial at the end of the chapter", err);
-        }
-    }
-
-    /* AND THE NEXT CHAPTER OPENS THE FOLLOWING MORNING.
-
-       This screen moved the chapter and the session and nothing else, which left the
-       clock reading whatever the trial ended on. Measured across two chapters run end
-       to end on 11.09: chapter 1 finished at Day 1 - Night and chapter 2 opened at Day
-       1 - Night, with everybody's actions still spent from the time of day before the
-       murder. The panel duly reported "1 student still has actions to spend", which was
-       true and was a leftover.
-
-       Murders happen at night, so this is not an edge case - it is where every chapter
-       ends. And the fix is not "reset the clock": it is the next MORNING, one day on,
-       which is the beat the table is actually resuming from. Actions and search tokens
-       come back because that is what a new time of day does, through the same call
-       every other advance uses rather than a second copy of the rule.
-
-       LAST, AFTER THE TRIAL IS CLOSED. `closeTrial` puts the phase back to Daily Life
-       and starts the elapsed clock; announcing a new morning before that would post the
-       card into a Class Trial that has not finished. */
-    if (result.nextMorning) {
-        try {
-            const { setTimeOfDay } = await import("./clock.mjs");
-            // One write for the day and the hour: each write is a full redraw
-            // on every client (CORE-12).
-            await setTimeOfDay("morning", {
-                resetActions: true, resetSearchTokens: true, announce: true,
-                also: { day: (getClock().day ?? 1) + 1 }
-            });
-            done.push(game.i18n.format("DRPG.Chapter.doneNextMorning",
-                { day: getClock().day }));
-        } catch (err) {
-            error("Could not open the next chapter on a fresh morning", err);
-        }
-    }
-
-    // Nothing outlives its chapter. Ordinarily the trial's phase change cleared
-    // this long ago; a GM who ended a chapter straight out of Daily Life would
-    // otherwise carry a body card into the next one.
-    await clearBodyDiscovery();
-
-    if (!done.length) return null;
+    if (!done.length && !report) return null;
 
     await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3>
-        <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>`);
-    return done;
+        <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>${report}`);
+    return done.length ? done : null;
 }

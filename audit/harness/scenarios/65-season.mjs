@@ -23,8 +23,9 @@
  *      wrong verdict that executes Botan; a move inside the room after the verdict (already
  *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
  *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
- *   C  the chapter ended twice from the Investigation with "next chapter" unticked: the
- *      session and the phase (C5). Edit campaign moving the time of day back while an
+ *   C  two End of chapter windows opened on one clock in the Investigation, "next chapter"
+ *      unticked, the first pressed after the second's end: the refusal, the session, the day
+ *      and the phase (C5). Edit campaign moving the time of day back while an
  *      assembly is called: whether the assembly is held (C6).
  *   Q  Q3 (a): Botan kills Daichi, kept; the incident is closed and the chapter ended with
  *      the death still kept; announced by hand in the next chapter, its Blackened reaches
@@ -300,19 +301,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
 
     /* ------------------------------ C. the chapter's end and Edit campaign ------------------------------ */
     phase("C: the chapter ended twice from the Investigation, and Edit campaign with an assembly called", { flow: "clock-day" });
+    /* Two End of chapter windows open on the same clock, as two GMs' would be: the one opened first is
+       pressed last, after the other's end has run (its answer opens and answers the second window
+       before it answers itself). Before E11 C5 the window sent the chapter read when Do it was pressed
+       and nothing compared the session, so both ran: two sessions on, and still the Investigation. */
     const twice = await gm.eval(`const { setPhase } = await import("${repoUrl}/scripts/clock.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         await setPhase("investigation");
-        const before = { chapter: getClock().chapter, session: getClock().session, phase: getClock().phase };
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase });
+        const before = mark();
+        const twiceText = game.i18n.format("DRPG.Chapter.endTwice", before);
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const told = () => game.messages.filter(m => String(contentOf(m)).includes(twiceText)).length;
         const answer = () => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true });
-        const ends = [];
-        for (let i = 0; i < 2; i++) { globalThis.__dialogAnswers.push(answer); ends.push(Boolean(await C.openChapterEndDialog())); }
-        return { before, ends, chapter: getClock().chapter, session: getClock().session, phase: getClock().phase };`, { timeout: 60000 });
-    // Today each end adds a session and neither leaves the Investigation. C5: one session, and Daily Life.
-    check("C1: ended twice from the Investigation, next chapter unticked: two sessions on and still the Investigation - today's reading; E11 C5 makes it one and Daily Life",
-        twice.before.phase === "investigation" && J(twice.ends) === J([true, true]) && twice.chapter === twice.before.chapter
-            && twice.session === twice.before.session + 2 && twice.phase === "investigation",
+        const ends = {};
+        globalThis.__dialogAnswers.push(async () => {
+            globalThis.__dialogAnswers.push(answer);
+            ends.second = Boolean(await C.openChapterEndDialog());
+            return answer();
+        });
+        ends.first = Boolean(await C.openChapterEndDialog());
+        return { before, ends, after: mark(), told: told() };`, { timeout: 60000 });
+    check("C1: two End of chapter windows opened on the same clock in the Investigation, next chapter unticked: the one pressed second is refused and told, one session and one day on, and Daily Life (E11 C5)",
+        twice.before.phase === "investigation" && twice.ends.second === true && twice.ends.first === false && twice.told === 1
+            && twice.after.chapter === twice.before.chapter && twice.after.session === twice.before.session + 1
+            && twice.after.day === twice.before.day + 1 && twice.after.phase === "dailyLife",
         J(twice), { flow: "clock-day" });
     const edit = await gm.eval(`${UNTIL} const { setPhase, setClock } = await import("${repoUrl}/scripts/clock.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -344,17 +358,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         const C = await import("${repoUrl}/scripts/chapter.mjs"); const I = await import("${repoUrl}/scripts/incident-store.mjs");
         const daichi = game.actors.get("${IDS.daichi}");
         await game.drpg.endMurder({ reason: "closed", followUp: false });
-        const from = getClock().chapter, register = I.blackenedIds();
+        const from = getClock().chapter, register = I.blackenedIds(), livingBefore = C.livingStudents().length;
         globalThis.__dialogAnswers.push(() => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: true, nextSession: true, nextMorning: true }));
         const ended = Boolean(await C.openChapterEndDialog());
         const keptAtEnd = game.drpg.isDeadForGm(daichi) && !game.drpg.isDeceased(daichi);
+        const living = [livingBefore, C.livingStudents().length];
         await C.publishDeath(daichi);
-        return { from, to: getClock().chapter, ended, register, keptAtEnd, announced: game.drpg.isDeceased(daichi), trial: I.trialBlackenedIds() };`, { timeout: 60000 });
+        return { from, to: getClock().chapter, ended, register, keptAtEnd, living, announced: game.drpg.isDeceased(daichi), trial: I.trialBlackenedIds() };`, { timeout: 60000 });
     // Q3 (a), the owner's answer of 09.10.2026: today's code already does this (anchors.md section 2 (6), read in the code); this measures it.
     check("Q1: Botan's kill of Daichi, kept through the chapter's end and announced in the next chapter, puts no Blackened before that chapter's trial",
         keptBlow.dead === true && keptBlow.flag === false && late.register.includes(IDS.botan) && late.ended === true && late.to === late.from + 1
             && late.keptAtEnd === true && late.announced === true && J(late.trial) === J([]),
         J({ keptBlow, late }), { flow: "murder-incident" });
+    /* The amendment of 26.09.2026: the chapter's end neither reveals a death the GMs hold (Q1's `keptAtEnd`) nor
+       counts it - the living the table reads (`livingStudents`, the published flag) are as many after the end
+       as before it (E11 C5; green before it too, measured 10.10.2026: no step of the end touches a death). */
+    check("Q2: the chapter's end leaves the living count the table reads as it was, with Daichi's death still kept",
+        late.ended === true && late.keptAtEnd === true && late.living[0] === late.living[1], J(late), { flow: "murder-incident" });
 
     /* ------------------------------ D. the season to reset ------------------------------ */
     phase("D: a suicide at Stage 6, an offer, an armed Call, the Final Trial, a bedroom and its key", { flow: "season-reset" });
