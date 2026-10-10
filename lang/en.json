@@ -2436,6 +2436,10 @@
       "changeImage": "Click to change this project's image",
       "tokenName": "Work in progress",
       "tokenMoved": "<strong>{project}</strong> now belongs to <strong>{to}</strong> - its token was moved there from {from}.",
+      "duplicates": {
+        "one": "A project stands on the map twice: {list}. The token the project points at is kept and the spare one is left where it is - delete it by hand if it is a mistake.",
+        "other": "{n} spare project tokens stand beside the ones their projects point at: {list}. Nothing was removed - delete them by hand if they are mistakes."
+      },
       "glyphLabel": "Tray icon",
       "glyphDefault": "Default (hourglass)",
       "glyphNote": "Under the Stained Glass theme the Projects tray draws this instead of the image, in the interface's colour. The image is used everywhere else.",
@@ -3445,6 +3449,10 @@
       "resetProjects": {
         "one": "{n} project",
         "other": "{n} projects"
+      },
+      "resetProjectTokens": {
+        "one": "{n} project token on the maps",
+        "other": "{n} project tokens on the maps"
       },
       "resetRemnants": {
         "one": "{n} Remnant on the maps",

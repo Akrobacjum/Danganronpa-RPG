@@ -50,6 +50,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
+import { projectTokensOn } from "./projects-map.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -790,6 +791,8 @@ function writtenNotes(actor) {
 function resetTally() {
     const remnants = game.scenes.reduce((n, scene) =>
         n + scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0);
+    // What the projects step takes off the maps since E11 C7: every project token, the orphans included.
+    const projectTokens = projectTokensOn(game.scenes).length;
 
     const bullets = game.actors.reduce((n, a) =>
         n + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
@@ -823,7 +826,7 @@ function resetTally() {
         despair = 0;
     }
 
-    return { projects, remnants, bullets, dead, items, advances, notes, cards, chat, despair };
+    return { projects, projectTokens, remnants, bullets, dead, items, advances, notes, cards, chat, despair };
 }
 
 /**
@@ -906,6 +909,7 @@ export async function resetSeason() {
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>
             <ul>
                 <li>${esc(plural("DRPG.Season.resetProjects", { n: tally.projects }))}</li>
+                <li>${esc(plural("DRPG.Season.resetProjectTokens", { n: tally.projectTokens }))}</li>
                 <li>${esc(plural("DRPG.Season.resetRemnants", { n: tally.remnants }))}</li>
                 <li>${esc(plural("DRPG.Season.resetBullets", { n: tally.bullets }))}</li>
                 <li>${esc(plural("DRPG.Season.resetDead", { n: tally.dead }))}</li>

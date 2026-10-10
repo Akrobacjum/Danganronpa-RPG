@@ -14,7 +14,7 @@
  * code. A reading no E11 commit changes is green today and stays so.
  *   A  two scenes with rooms (the Annex gains one), a project on each, a duplicate of the
  *      first's token on the Annex and an orphan (a project token whose id has no countdown):
- *      four project tokens; whether p1 knows the orphan (C7).
+ *      four project tokens; whether p1 knows the orphan (C7: it does not).
  *   B  Chie kills Daichi, kept, and the incident is closed: the GM panel's next line (C2); Aiko
  *      and Botan walk in on the body: one discovery card, the hold and the line on it; the gather
  *      that follows, on Aiko's, Botan's and the GM's browsers, and a gather packet a player sends
@@ -33,11 +33,11 @@
  *   D  Chie's suicide at Stage 6, a Level Up offered to Aiko (p1), a Call armed on Botan
  *      (p2), the Final Trial set, Dorm A Aiko's bedroom with its key, and Aiko's Health,
  *      Sanity and Hope moved off their reset values.
- *   R  the reset, every group ticked, answered as 61 answers it: the project tokens left on
- *      every scene (C7), the offers (E04), the armed Calls (C10), the Final Trial and the
- *      season (E10 C10), the suicide's victim (alive already; C9 must keep it), Aiko's
- *      Health, Sanity and Hope (reset already), her bedroom's key (C10), the stamps of the
- *      bodies found (C1: none left), and the errors.
+ *   R  the reset, every group ticked, answered as 61 answers it: the project tokens the window
+ *      counts and those left on every scene (C7: four, none), the offers (E04), the armed
+ *      Calls (C10), the Final Trial and the season (E10 C10), the suicide's victim (alive
+ *      already; C9 must keep it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
+ *      key (C10), the stamps of the bodies found (C1: none left), and the errors.
  *   F  a reset whose chat deletion throws on the GM: whether the GM is told, and that every
  *      other group still ran (C9).
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
@@ -130,9 +130,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         Boolean(setA.one) && Boolean(setA.two) && setA.first?.scene === IDS.scene && setA.second?.scene === IDS.annex && setA.tokens.length === 4
             && setA.tokens.filter(t => t.project === setA.one).length === 2 && setA.tokens.some(t => t.project === ORPHAN && t.scene === IDS.scene),
         J(setA), { flow: "season-reset" });
-    // Today p1 reads an orphan as a project it knows (projects-secrecy.mjs `isSecret` reads a missing countdown as public). C7: false.
-    check("A2: p1 knows the orphan's project, which has no countdown - today's reading; E11 C7 makes it false",
-        knowsA.orphan === true && knowsA.countdowns === false, J(knowsA), { flow: "season-reset" });
+    /* At 4aad1fd p1 read the orphan as a project it knew (projects-secrecy.mjs `isSecret` reads a missing countdown as
+       public, and `roomOf` a missing row as no room). E11 C7: an id with no countdown is nobody's project. */
+    check("A2: p1 does not know the orphan's project, which has no countdown (E11 C7)",
+        knowsA.orphan === false && knowsA.countdowns === false, J(knowsA), { flow: "season-reset" });
 
     /* ------------------------------ B. the discovery ------------------------------ */
     phase("B: a body found by two, the hold, the trial and its verdict", { flow: "body-discovery" });
@@ -430,12 +431,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         // The stamps' setting is C1's: before it, reading it throws, so the count is null and R1 fails as a check.
         const told = globalThis.__notifications.length, seasons = () => { try { return Object.keys(game.settings.get("${MOD}", "bodiesFound") ?? {}).length; } catch { return null; } };
         const stampedBefore = seasons();
-        globalThis.__dialogAnswers.push(() => ({ word, ticked: X.RESET_GROUPS.map(g => g.key) }));
+        // The window's own count of the project tokens (E11 C7, \`resetTally\`), read off the content it was opened with -
+        // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
+        let counted = null;
+        globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            const line = /(\\d+) project tokens? on the maps/.exec(typeof c === "string" ? c : c?.textContent ?? "");
+            counted = line ? Number(line[1]) : null; return { word, ticked: X.RESET_GROUPS.map(g => g.key) }; });
         const result = await R.resetSeason();
         await gmStoresIdle();
         await new Promise(r => setTimeout(r, 800));
         const ids = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"], aiko = game.actors.get("${IDS.aiko}"), r = aiko.system.resources;
-        const read = { cleared: result?.cleared ?? null, kept: result?.kept ?? null, tokens: projectTokens().length,
+        const read = { cleared: result?.cleared ?? null, kept: result?.kept ?? null, tokens: projectTokens().length, counted,
             offers: ids.reduce((n, id) => n + L.offerList(S.offerStore.get(id)).length, 0),
             calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
@@ -446,9 +452,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, and no error was told",
         Array.isArray(reset.cleared) && reset.kept?.length === 0 && reset.offers === 0 && reset.finalTrial === false && reset.season === 2
             && reset.stamped[0] > 0 && reset.stamped[1] === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
-    // Today `clearAllProjects` clears the countdowns and the meta and removes no token. C7: none left.
-    check("R2: the reset leaves the four project tokens on their scenes - today's reading; E11 C7 removes them",
-        reset.tokens === 4, J(reset), { flow: "season-reset" });
+    /* At 4aad1fd `clearAllProjects` cleared the countdowns and the meta and removed no token: all four stood after the
+       reset. E11 C7: the projects step sweeps every project token first, and the window counts them before it asks. */
+    check("R2: the reset window counts the four project tokens and the reset leaves none on any scene (E11 C7)",
+        reset.counted === 4 && reset.tokens === 0, J(reset), { flow: "season-reset" });
     // Today `seals` clears the seals and not the armed Call. C10: none left.
     check("R3: the reset leaves Botan's armed Call - today's reading; E11 C10 unsets it",
         reset.calls === 1, J(reset), { flow: "season-reset" });

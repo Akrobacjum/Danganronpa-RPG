@@ -23993,6 +23993,97 @@ const SCENARIOS = [
         }
     }],
 
+    ["an orphan is no player's project and deleting a project takes every token of it off the map", async () => {
+        /*
+         * E11 C7, 1.2.73; audit S06-23, S07-27, S09-21; the ask A2, the ledger's D1. A project token
+         * reaches every browser on its scene, and whether a player's canvas draws it is `knowsProject`.
+         * A token whose project is gone - the spare a deletion left, or every token a reset before
+         * 1.2.73 left - read as known there: `isSecret` reads a missing countdown as public and
+         * `roomOf` a missing row as no room. Asked for a player's account on the GM's client: a
+         * project with a room and its token on the scene on screen, a spare copy of that token and a
+         * token of an id that never had a countdown beside it; then the project deleted. Red at
+         * 0d860df: the spare outlived the deletion, and both ids read as known to the player.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        needs(world.atLeast("playerAccounts"), "a player whose knowledge is read");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const scene = canvas.scene;
+        const player = game.users.find(u => !u.isGM), gm = game.users.find(u => u.isGM);
+        const room = scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const ghost = foundry.utils.randomID();
+        const tokensOf = id => game.scenes.contents.reduce((n, s) => n + s.tokens.filter(t => t.getFlag(MODULE_ID, "projectId") === id).length, 0);
+        let made = null, read = null;
+        const planted = [];
+        try {
+            made = (await P.createProject({ name: "SUITE E11 C7 orphan", target: 4, room }))?.id ?? null;
+            const own = PM.projectTokenOf(made);
+            must(own, "the project's token was not placed - this would measure nothing");
+            const like = (x, projectId) => ({ name: own.name, actorId: own.actorId, actorLink: false, x, y: own.y, width: own.width,
+                height: own.height, texture: { src: own.texture?.src ?? "" }, hidden: false, flags: { [MODULE_ID]: { projectId } } });
+            planted.push(...(await scene.createEmbeddedDocuments("Token", [like(own.x + 100, made), like(own.x + 200, ghost)])).map(t => t.id));
+            must(tokensOf(made) === 2 && tokensOf(ghost) === 1, "the spare or the orphan was not planted - this would measure nothing");
+            const gone = made;
+            await P.deleteProject(gone);
+            made = null;
+            read = [tokensOf(gone), tokensOf(ghost), P.knowsProject(gone, player), P.knowsProject(ghost, player), P.knowsProject(ghost, gm)];
+        } finally {
+            const left = planted.filter(id => scene.tokens.get(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        equal(JSON.stringify(read), JSON.stringify([0, 1, false, false, true]),
+            "a deleted project left a token, its deletion took another id's, an id with no countdown was known to a player, or not to the GM "
+            + "(read: the deleted project's tokens, the orphan's, the player's knowledge of each, the GM's of the orphan)");
+    }],
+
+    ["a project token sweep removes the orphans it is given and only tells the GM of a live project's spare token", async () => {
+        /*
+         * E11 C7, 1.2.73; the plan's 3.2, decision D12 (orphans always removed, a live project's
+         * duplicates only warned). projects-map.mjs `sweepProjectTokens` limited to this test's
+         * two ids (`only`), so a world's own tokens are not its to judge: a live project with its
+         * token and a spare beside it, and a token of an id that never had a countdown. The orphan
+         * goes; the spare and the project's own token stay, and one warning names the project and
+         * the scene. Red at 0d860df: there is no sweep.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        ok(typeof PM.sweepProjectTokens === "function", "projects-map.mjs has no `sweepProjectTokens` - nothing takes an orphan off the map");
+        const scene = canvas.scene;
+        const room = scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const ghost = foundry.utils.randomID(), name = "SUITE E11 C7 spare";
+        const warn = ui.notifications.warn, warned = [];
+        let made = null, read = null;
+        const planted = [];
+        try {
+            made = (await P.createProject({ name, target: 4, room }))?.id ?? null;
+            const own = PM.projectTokenOf(made);
+            must(own, "the project's token was not placed - this would measure nothing");
+            const like = (x, projectId) => ({ name: own.name, actorId: own.actorId, actorLink: false, x, y: own.y, width: own.width,
+                height: own.height, texture: { src: own.texture?.src ?? "" }, hidden: false, flags: { [MODULE_ID]: { projectId } } });
+            planted.push(...(await scene.createEmbeddedDocuments("Token", [like(own.x + 100, made), like(own.x + 200, ghost)])).map(t => t.id));
+            const [spare, orphan] = planted;
+            ui.notifications.warn = (message, ...rest) => {
+                warned.push(String(message));
+                return warn.call(ui.notifications, message, ...rest);
+            };
+            const swept = await PM.sweepProjectTokens({ scenes: [scene], only: [made, ghost] });
+            read = [swept.removed, swept.duplicates.map(t => t.tokenId), Boolean(scene.tokens.get(spare)), Boolean(scene.tokens.get(orphan)),
+                Boolean(PM.projectTokenOf(made)), warned.length, warned.some(m => m.includes(name) && m.includes(scene.name)), spare];
+        } finally {
+            ui.notifications.warn = warn;
+            const left = planted.filter(id => scene.tokens.get(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        equal(JSON.stringify(read.slice(0, 7)), JSON.stringify([1, [read[7]], true, false, true, 1, true]),
+            "the sweep kept the orphan, removed the spare or the project's own token, or did not tell the GM once naming the project and the scene "
+            + "(read: removed, the spares listed, the spare there, the orphan there, the project's token there, warnings, the warning's names)");
+    }],
+
     ["the Projects tray shows a project only once its reader has found it", async () => {
         /*
          * STAGE 2: the tray and the map token answer the same question.

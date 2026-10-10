@@ -7951,6 +7951,33 @@ const REGRESSIONS = [
             + "the next chapter's, its own noon; without a day on day 1 and day 2; no hold)");
     }],
 
+    ["R351 - a project token plan: a token of no live project goes, a live project's spare is listed and kept", async () => {
+        /*
+         * E11 C7, 1.2.73; audit S06-23, S07-27, S09-21; the ask A2, the plan's 3.2, the ledger's D1.
+         * projects-map.mjs `projectTokenPlan`, by which `sweepProjectTokens` decides what the reset
+         * and a deletion take off the maps. Until 1.2.73 nothing decided it: the reset left every
+         * project token standing and a deletion left every one its metadata did not name. Driven on
+         * fakes, nothing read or written: a live project's token its metadata names and a spare of
+         * it on another scene, a token of a deleted project, a copy of the shared actor carrying no
+         * id, a live project with one token, and a live project with two tokens its metadata names
+         * neither of (the first found is kept); then the same tokens with no project live, as the
+         * reset hands them over.
+         */
+        const { projectTokenPlan } = await import("./projects-map.mjs");
+        ok(typeof projectTokenPlan === "function", "projects-map.mjs exports no `projectTokenPlan` - nothing decides which project tokens go");
+        const t = (sceneId, tokenId, projectId) => ({ sceneId, tokenId, projectId });
+        const tokens = [t("B", "spare", "live"), t("A", "named", "live"), t("A", "gone", "deleted"), t("A", "bare", null),
+            t("B", "alone", "solo"), t("A", "first", "stale"), t("B", "second", "stale")];
+        const refs = { live: { sceneId: "A", tokenId: "named" }, solo: { sceneId: "B", tokenId: "alone" }, stale: { sceneId: "C", tokenId: "moved" } };
+        const ids = list => list.map(token => token.tokenId).sort();
+        const plan = projectTokenPlan(tokens, ["live", "solo", "stale"], id => refs[id] ?? null);
+        const reset = projectTokenPlan(tokens, [], id => refs[id] ?? null);
+        equal(JSON.stringify([ids(plan.orphans), ids(plan.duplicates), reset.orphans.length, reset.duplicates.length]),
+            JSON.stringify([["bare", "gone"], ["second", "spare"], 7, 0]),
+            "the plan removes a live project's token or keeps one of no live project, or keeps the wrong one of two (read: the orphans, the spares, "
+            + "and with no project live the orphans' count and the spares')");
+    }],
+
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
         /*
          * E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3. Until 1.2.71 the ballots were a

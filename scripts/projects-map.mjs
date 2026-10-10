@@ -34,7 +34,7 @@ import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
 import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret }
     from "./projects.mjs";
 import { boundsOf } from "./movement.mjs";
-import { log, error, whisperToGms, esc } from "./utils.mjs";
+import { log, error, whisperToGms, esc, plural } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -263,6 +263,112 @@ export async function removeProjectToken(countdownId) {
        without one, and a stale id would stop it ever being placed again. */
     await setProjectMeta(countdownId, { tokenId: null, tokenScene: null });
     return true;
+}
+
+/* ---- tokens no project owns ----------------------------------------------------
+   E11 C7, 1.2.73; audit S06-23, S07-27, S09-21; the ask A2. The season reset cleared the
+   countdowns and the metadata and removed no token: measured in scenario 65 at 4aad1fd
+   (10.10.2026), the four project tokens of a played season - two projects, a duplicate and
+   an orphan - all stood on their scenes after the reset, and p1 read the orphan's id as a
+   project it knew (`knowsProject`, now false for an id with no countdown). A token is found by
+   what it is, not by what the metadata says of it: the metadata is exactly what a reset, a
+   deletion or Daggerheart's own countdown window leaves behind, so the tokens' own flag is
+   the only record that is still there afterwards. */
+
+/** Every project token on these scenes: one carrying a project's id, or a copy of the shared actor carrying none. */
+export function projectTokensOn(scenes = game.scenes) {
+    const base = findProjectActor()?.id ?? null;
+    const found = [];
+    for (const scene of scenes ?? []) {
+        for (const token of scene?.tokens ?? []) {
+            const id = projectIdOf(token);
+            const projectId = typeof id === "string" && id ? id : null;
+            if (!projectId && !(base && token.actorId === base)) continue;
+            found.push({ sceneId: scene.id, tokenId: token.id, projectId });
+        }
+    }
+    return found;
+}
+
+/**
+ * WHICH OF THESE TOKENS GO, AND WHICH ARE A LIVE PROJECT'S SPARE (E11 C7; the plan's 3.2).
+ * Pure over what it is handed: `tokens` as `projectTokensOn` lists them, `liveIds` the
+ * projects that exist, `refOf(id)` the `{ sceneId, tokenId }` a project's metadata names.
+ * A token whose id is not live, or that carries none, is an orphan - nobody's project, so
+ * nobody's to see (D12: always removed). More than one token for one live project are
+ * duplicates: the one its metadata names is kept (the first found when it names none of
+ * them), and the others are listed and never removed - a GM may have placed one by hand
+ * on purpose, and which of two copies is the mistake is not this function's to guess.
+ * @returns {{ orphans: object[], duplicates: object[] }} duplicates: the spare tokens alone
+ */
+export function projectTokenPlan(tokens, liveIds, refOf = () => null) {
+    const live = new Set(liveIds ?? []);
+    const orphans = [], byProject = new Map();
+    for (const token of tokens ?? []) {
+        if (!token?.projectId || !live.has(token.projectId)) { orphans.push(token); continue; }
+        if (!byProject.has(token.projectId)) byProject.set(token.projectId, []);
+        byProject.get(token.projectId).push(token);
+    }
+    const duplicates = [];
+    for (const [projectId, own] of byProject) {
+        if (own.length < 2) continue;
+        const ref = refOf(projectId);
+        const kept = own.find(t => ref && t.sceneId === ref.sceneId && t.tokenId === ref.tokenId) ?? own[0];
+        duplicates.push(...own.filter(t => t !== kept));
+    }
+    return { orphans, duplicates };
+}
+
+/**
+ * Remove the orphans among the project tokens on `scenes`, scene by scene. GM only. `live`
+ * is the projects that exist (every countdown, unless the caller knows better - the reset
+ * passes none, a deletion passes none for its own id); `only`, when given, limits the
+ * sweep to the tokens of those ids, so deleting one project touches nothing of another.
+ * A live project's duplicates are told to the GM and kept (`warnProjectDuplicates`).
+ * @returns {Promise<{ removed: number, duplicates: object[] }>}
+ */
+export async function sweepProjectTokens({ live = allProjects().map(p => p.id), scenes = game.scenes, only = null } = {}) {
+    if (!game.user.isGM) return { removed: 0, duplicates: [] };
+    const limit = only ? new Set(only) : null;
+    const tokens = projectTokensOn(scenes).filter(t => !limit || limit.has(t.projectId));
+    const { orphans, duplicates } = projectTokenPlan(tokens, live, tokenRefOf);
+    let removed = 0;
+    for (const scene of scenes ?? []) {
+        const ids = orphans.filter(t => t.sceneId === scene.id && scene.tokens?.get(t.tokenId)).map(t => t.tokenId);
+        if (!ids.length) continue;
+        // Counted by what is gone afterwards, not by what the call returns: the harness's shim returns
+        // an empty list from every deletion, and the first run counted 0 for an orphan it had removed.
+        try {
+            await scene.deleteEmbeddedDocuments("Token", ids);
+        } catch (err) {
+            error(`Could not take ${ids.length} project token(s) without a project off ${scene.name}`, err);
+        }
+        removed += ids.filter(id => !scene.tokens?.get(id)).length;
+    }
+    if (removed) log(`Project tokens: ${removed} without a project removed.`);
+    if (duplicates.length) warnProjectDuplicates(duplicates);
+    return { removed, duplicates };
+}
+
+/**
+ * Tell the GM which live projects stand on the map more than once, and where: one
+ * notification for the lot, naming each project and the scenes its spare tokens are on.
+ * Removes nothing (D12). The GM's alone - a project's name is the countdown's, which a
+ * player may not be in on.
+ * @returns {string|null} what was told
+ */
+export function warnProjectDuplicates(duplicates) {
+    if (!game.user.isGM || !duplicates?.length) return null;
+    const names = new Map(allProjects().map(p => [p.id, p.name]));
+    const where = new Map();
+    for (const { projectId, sceneId } of duplicates) {
+        if (!where.has(projectId)) where.set(projectId, new Set());
+        where.get(projectId).add(game.scenes?.get(sceneId)?.name ?? sceneId);
+    }
+    const list = [...where].map(([id, scenes]) => `${names.get(id) ?? id} (${[...scenes].join(", ")})`).join("; ");
+    const told = plural("DRPG.Project.duplicates", { n: duplicates.length, list });
+    ui.notifications?.warn(told);
+    return told;
 }
 
 /**

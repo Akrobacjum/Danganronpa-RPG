@@ -2513,6 +2513,12 @@
       "changeImage": "Kliknij, by zmienić obrazek projektu",
       "tokenName": "Coś w robocie",
       "tokenMoved": "<strong>{project}</strong> należy teraz do pomieszczenia <strong>{to}</strong> - jego token został tam przeniesiony z: {from}.",
+      "duplicates": {
+        "one": "Projekt stoi na mapie dwa razy: {list}. Token, na który wskazuje projekt, zostaje, a zapasowy stoi dalej - usuń go ręcznie, jeśli to pomyłka.",
+        "few": "{n} zapasowe tokeny projektów stoją obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki.",
+        "many": "{n} zapasowych tokenów projektów stoi obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki.",
+        "other": "{n} zapasowych tokenów projektów stoi obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki."
+      },
       "glyphLabel": "Ikona w zasobniku",
       "glyphDefault": "Domyślna (klepsydra)",
       "glyphNote": "W motywie Stained Glass zasobnik projektów rysuje to zamiast obrazka, w kolorze interfejsu. Obrazek używany jest wszędzie indziej.",
@@ -3591,6 +3597,12 @@
         "few": "{n} projekty",
         "many": "{n} projektów",
         "other": "{n} projektów"
+      },
+      "resetProjectTokens": {
+        "one": "{n} token projektu na mapach",
+        "few": "{n} tokeny projektów na mapach",
+        "many": "{n} tokenów projektów na mapach",
+        "other": "{n} tokenów projektów na mapach"
       },
       "resetRemnants": {
         "one": "{n} Remnant na mapach",
