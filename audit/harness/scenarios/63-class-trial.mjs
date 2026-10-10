@@ -57,6 +57,8 @@
  *   I  a second vote names Chie and the verdict is correct: one Level Up window per survivor on
  *      gm2 (C7: one window); gm2 offers Aiko a Level Up, p1's sheet sees it, p1 picks +1 Health
  *      through the bridge and Aiko's `advances` rise by one (C6-C8 read it again).
+ *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
+ *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -78,6 +80,8 @@
  * E10 C4 rewrote F's three checks, the verdict's window: 39 checks in 22.0 s (one run, 09.10.2026).
  * E10 C5 rewrote G2 and G3, the verdict executes Botan once the audit has put the flag back and every player holds its
  * one public card: 39 checks in 25.4 s (one run, 09.10.2026).
+ * E10 C6 added I3 and I4, two offers standing side by side and one taken back from the GM's menu: 41 checks in 17.4 s
+ * (one run, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -453,6 +457,59 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     verdict("gm2 offers Aiko a Level Up, p1's sheet sees it, and p1's pick through the bridge raises Aiko's advances by one in one write (C6-C8 read it again)",
         offered === "standard" && picked.lit && picked.sent?.pending === true && picked.after === picked.before + 1
             && picked.updates === 1 && !picked.still, J({ offered, picked }));
+
+    /* E10 C6 (S03-17): two offers stand side by side - the second overwrote the first before - p1 spends the
+       older and the other stays lit; gm2's own Level Up menu holds a row taking it back, and once taken p1's copy
+       is empty and a lit button its sheet drew before goes out. The button is drawn as Daggerheart's sheet hands
+       its header to the module (`renderCharacterSheet`), lit first as an earlier render left it. */
+    const litButton = `const root = document.createElement("div");
+        root.innerHTML = '<div class="character-header-sheet"><div class="name-row"><button type="button" class="drpg-advance-button is-offered" data-drpg-advance=""></button></div></div>';
+        Hooks.callAll("renderCharacterSheet", { document: aiko, isEditable: true }, root, {}, { isFirstRender: false });
+        const button = root.querySelector("[data-drpg-advance]");`;
+    // The offers as this browser holds them - the GMs' store on gm2, the owner's copy on p1 - read off the row, as a
+    // 1.2.70 row of one offer (`{ kind }`) or a list: the same reading before C6 and after it.
+    const offersHeld = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const heldOn = a => { const row = game.user.isGM ? S.offerStore.get(a.id) : S.offerCopy.read()[a.id]; return row?.offers ?? (row?.kind ? [row] : []); };`;
+    const twice = await gm2.eval(`${until} ${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        for (const kind of ["standard", "standard"]) await L.offerAdvancement(aiko, kind);
+        return heldOn(aiko).map(offer => offer.id ?? null);`, { timeout: 30000 });
+    const spentOne = await p1.eval(`${until} ${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const both = (await until(() => heldOn(aiko).length === 2 ? true : null, 8000)) ? 2 : heldOn(aiko).length;
+        const before = aiko.getFlag("${MOD}", "advances") ?? 0;
+        globalThis.__dialogAnswers.push(async function advance(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
+            return [{ option: "hp" }];
+        });
+        const sent = await L.openAdvancement(aiko, "standard");
+        await until(() => heldOn(aiko).length < both ? true : null, 10000);
+        ${litButton}
+        return { held: both, sent: sent?.pending ?? null, rise: (aiko.getFlag("${MOD}", "advances") ?? 0) - before,
+            left: heldOn(aiko).map(offer => offer.id ?? null), lit: Boolean(button) };`, { timeout: 60000 });
+    verdict("gm2 offers Aiko two Level Ups and p1's copy holds both; p1 spends the older and the other stays lit (C6)",
+        twice.length === 2 && spentOne.held === 2 && spentOne.sent === true && spentOne.rise === 1
+            && J(spentOne.left) === J([twice[1]]) && spentOne.lit, J({ twice, spentOne }));
+    const takenBack = await gm2.eval(`${until} ${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        await until(() => heldOn(aiko).length === 1 ? true : null, 8000);
+        let rows = null;
+        globalThis.__dialogAnswers.push(cfg => {
+            const markup = typeof cfg.content === "string" ? cfg.content : (cfg.content?.outerHTML ?? "");
+            rows = [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]);
+            const take = rows.find(value => value.startsWith("take:"));
+            return take ? { value: take } : null;
+        });
+        const taken = await L.openAdvancementFor(aiko);
+        return { rows, taken, left: heldOn(aiko).length };`, { timeout: 30000 });
+    const outOnP1 = await p1.eval(`${until} ${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        await until(() => heldOn(aiko).length === 0 ? true : null, 8000);
+        ${litButton}
+        return { left: heldOn(aiko).length, lit: Boolean(button) };`, { timeout: 30000 });
+    verdict("gm2's Level Up menu has a row taking the standing offer back; taken, gm2 holds none, p1's copy is empty and its lit button goes out (C6)",
+        J(takenBack.rows) === J(["standard", "reinforced", `take:${twice[1]}`]) && takenBack.taken === true && takenBack.left === 0
+            && outOnP1.left === 0 && outOnP1.lit === false, J({ takenBack, outOnP1 }));
 
     /* ------------------------------ every client clean, every phase measured ------------------------------ */
 

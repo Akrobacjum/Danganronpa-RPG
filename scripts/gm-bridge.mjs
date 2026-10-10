@@ -352,16 +352,22 @@ async function handleAnalyzeResolve(payload, sender, ctx) {
  * Nothing here trusts the claim except the picks themselves, which are the one
  * thing the offer was made to let them choose.
  *
- * The offer is cleared by `applyAdvancement`, so a second packet finds nothing
- * standing and is refused by the same test that admitted the first.
+ * The offer it names is cleared by `applyAdvancement`, so a second packet naming
+ * it is refused by the same test that admitted the first.
+ *
+ * WHICH OFFER (E10 C6, 1.2.71; audit S03-17). A character holds a list of offers now, and
+ * the packet names the one it spends (`offerId`): it has to stand in this character's list
+ * as this GM holds it, and the picks are the ones THAT offer buys - its kind's and its extra
+ * (level-up.mjs `offerPicks`). One taken back, or spent, names nothing and is refused.
  */
 async function handleAdvancement(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor) return { refused: "no such character" };
 
-    const { pendingAdvance, applyAdvancement } = await import("./level-up.mjs");
-    const offer = pendingAdvance(actor);
-    if (!offer) {
+    const { standingOffers, offerPicks, applyAdvancement } = await import("./level-up.mjs");
+    const standing = standingOffers(actor);
+    const offer = standing.find(held => held.id === payload.offerId) ?? null;
+    if (!standing.length) {
         /* THE GMs ARE TOLD WHEN THE REFUSAL MAY BE THIS BROWSER'S (E04 C8; E31 row 5):
            the offers store has not heard from the other GMs yet, or holds nothing at
            all - a primary that came with an empty browser, which is the case the
@@ -376,8 +382,9 @@ async function handleAdvancement(payload, sender, ctx) {
         }
         return { refused: "no Level Up is on offer for that character" };
     }
+    if (!offer) return { refused: "no Level Up is on offer under that name for that character" };
 
-    const wanted = LEVEL_UP[offer.kind]?.picks ?? 0;
+    const wanted = offerPicks(offer);
     const picks = Array.isArray(payload.picks) ? payload.picks : [];
     if (picks.length !== wanted) {
         return { refused: `that offer buys ${wanted} pick(s), the packet carried ${picks.length}` };
@@ -404,7 +411,7 @@ async function handleAdvancement(payload, sender, ctx) {
     }
     advancing.add(actor.id);
     try {
-        await applyAdvancement(actor, picks, offer.kind);
+        await applyAdvancement(actor, picks, offer.kind, { offerId: offer.id });
     } finally {
         advancing.delete(actor.id);
     }
@@ -415,14 +422,27 @@ const advancing = new Set();
 /** Characters whose refused Level Up the GMs were told this browser may not hold (see handleAdvancement). */
 const offerMissingTold = new Set();
 
-/** A GM asks the primary to record or withdraw an offer (N-2). Only a GM - the declaration's first guard. */
+/**
+ * A GM asks the primary to give an offer or take one back (N-2; E10 C6). Only a GM - the
+ * declaration's first guard. `add` appends one of `kind` and answers its id; `take` names an
+ * offer standing on that character as the primary holds it (`offerId`), else it is refused.
+ */
 async function handleAdvancementOffer(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     if (!actor || actor.type !== "character") return { refused: "no such character" };
+    const { recordOffer, dropOffer, standingOffers } = await import("./level-up.mjs");
+    if (payload.op === "take") {
+        if (!standingOffers(actor).some(offer => offer.id === payload.offerId)) {
+            return { refused: "no Level Up is on offer under that name for that character" };
+        }
+        await dropOffer(actor.id, payload.offerId);
+        return { reply: { taken: payload.offerId } };
+    }
+    if (payload.op !== "add") return { refused: "an offer is given or taken back, nothing else" };
     const kind = payload.kind;
-    if (kind !== null && !LEVEL_UP[kind]?.picks) return { refused: `no such Level Up: ${kind}` };
-    const { recordOffer } = await import("./level-up.mjs");
-    await recordOffer(actor.id, kind);
+    if (!LEVEL_UP[kind]?.picks) return { refused: `no such Level Up: ${kind}` };
+    const added = await recordOffer(actor.id, { kind });
+    return { reply: added ? { id: added.id } : null };
 }
 
 /**
@@ -452,9 +472,16 @@ export async function sendOffersTo(userId) {
     }, { recipients: [userId] });
 }
 
-/** A GM other than the primary: have the primary record or withdraw an offer. */
-export function requestOfferRecord(actorId, kind) {
-    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, kind });
+/**
+ * Any GM: have the primary give an offer of `kind`, or - `kind` null - take back the one
+ * `offerId` names (E10 C6). Done on the primary itself, asked of it from any other GM.
+ */
+export function requestOfferRecord(actorId, kind, offerId = null) {
+    const op = kind ? "add" : "take";
+    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, op, kind: kind ?? null, offerId }, {
+        onPrimary: true,
+        local: () => import("./level-up.mjs").then(m => op === "add" ? m.recordOffer(actorId, { kind }) : m.dropOffer(actorId, offerId))
+    });
 }
 
 /** An owner's browser: take the set the primary sent. Outside the primary gate. */
@@ -1512,10 +1539,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, picks: as.raw }),
+        sanitize: pick({ actorId: as.id, picks: as.raw, offerId: as.id }),
         run: handleAdvancement,
         answer: "ack",
-        claims: { picks: "checked in the run against the offer standing on this side: as many as its kind buys, each a Level Up option, a new experience named" }
+        claims: { picks: "checked in the run against the offer `offerId` names: as many as it buys, each a Level Up option, a new experience named",
+            offerId: "must name an offer standing in that character's list as this GM holds it, else refused and told (handleAdvancement)" }
     },
     [ACTION_ADVANCEMENT_OFFER]: {
         label: "DRPG.Bridge.what.advancement.offer",
@@ -1523,9 +1551,10 @@ export const BRIDGE_ACTIONS = table({
         // stays because every declaration that acts on `actorId` answers the same
         // two questions, and a rule with an exception is two rules.
         guards: [gmOnly("only a GM hands out a Level Up"), owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, kind: as.maybeText }),
+        sanitize: pick({ actorId: as.id, op: as.oneOf("add", "take"), kind: as.maybeText, offerId: as.id }),
         run: handleAdvancementOffer,
-        answer: "reply"
+        answer: "reply",
+        claims: { offerId: "a `take` must name an offer standing on that character as the primary holds it (handleAdvancementOffer), else refused and told" }
     },
     [ACTION_ADVANCEMENT_ASK]: {
         label: "DRPG.Bridge.what.advancement.ask",
@@ -2832,14 +2861,18 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
  *
  * `applyAdvancement` writes through `trustedWrite`, which bypasses the resource
  * guard on purpose - so it is GM-only, and it has to stay that way. The player
- * picks; the GM's client checks the offer again and writes.
+ * picks; the GM's client checks the offer again and writes. `offerId` names the
+ * offer the picks spend (E10 C6); a caller that names none spends the oldest this
+ * browser holds on that character (level-up.mjs `pendingAdvance`).
  */
-export function requestAdvancement({ actorId, picks, kind }) {
-    return ask(ACTION_ADVANCEMENT, { actorId, picks, kind }, {
-        local: () => import("./level-up.mjs").then(m => {
+export async function requestAdvancement({ actorId, picks, kind, offerId = null }) {
+    const L = await import("./level-up.mjs");
+    const spent = offerId ?? L.pendingAdvance(game.actors.get(actorId))?.id ?? null;
+    return ask(ACTION_ADVANCEMENT, { actorId, picks, kind, offerId: spent }, {
+        local: () => {
             const actor = game.actors.get(actorId);
-            return actor ? m.applyAdvancement(actor, picks, kind) : null;
-        })
+            return actor ? L.applyAdvancement(actor, picks, kind, { offerId: spent }) : null;
+        }
     });
 }
 

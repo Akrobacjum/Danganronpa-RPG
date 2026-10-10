@@ -20,7 +20,7 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
-import { pendingAdvance as pendingAdvanceFor } from "./level-up.mjs";
+import { standingOffers } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -1539,15 +1539,33 @@ function injectAdvanceButton(app, element) {
     // The owner's alone. Another player opening this sheet used to see the lit badge
     // and read the kind off its tooltip - after a wrong verdict, the Blackened's
     // Reinforced Level Up, on the one character who has it (review of stage D).
-    const offer = (game.user.isGM || !app.document.isOwner) ? null : pendingAdvanceFor(app.document);
-    if (!game.user.isGM && !offer) return;
+    //
+    // AND THE GM'S (E10 C6, 1.2.71; audit S03-17). A GM was handed no offer here, so the
+    // GM's button never lit and nothing said one stood: it lights from the GMs' store now,
+    // and says how many stand; its menu takes one back (level-up.mjs `openAdvancementFor`).
+    const offers = !app.document.isOwner ? [] : standingOffers(app.document);
+    const [offer] = offers;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
+    const standing = nameRow?.querySelector("[data-drpg-advance]");
+    // A player with nothing on offer has no button: a header drawn again after the offer
+    // was spent or taken back used to keep the lit one, whose press said "GM only" (S03-17).
+    if (!game.user.isGM && !offer) {
+        standing?.remove();
+        return;
+    }
     if (!nameRow) return;
-    const standing = nameRow.querySelector("[data-drpg-advance]");
+
+    const count = offers.length > 1 ? plural("DRPG.Advance.standing", { n: offers.length }) : "";
+    const tip = game.user.isGM
+        ? (offer ? plural("DRPG.Advance.standing", { n: offers.length }) : game.i18n.localize("DRPG.Advance.buttonTooltip"))
+        : [game.i18n.format("DRPG.Advance.offerTooltip", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) }), count]
+            .filter(Boolean).join(" ");
     if (standing) {
         // A sheet re-rendered after the offer was taken must not keep the glow.
         standing.classList.toggle("is-offered", Boolean(offer));
+        standing.dataset.tooltip = tip;
+        standing.setAttribute("aria-label", tip);
         return;
     }
 
@@ -1556,11 +1574,6 @@ function injectAdvanceButton(app, element) {
     button.className = "drpg-advance-button";
     if (offer) button.classList.add("is-offered");
     button.dataset.drpgAdvance = "";
-    const tip = offer
-        ? game.i18n.format("DRPG.Advance.offerTooltip", {
-            kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
-        })
-        : game.i18n.localize("DRPG.Advance.buttonTooltip");
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-angles-up" inert></i>`;

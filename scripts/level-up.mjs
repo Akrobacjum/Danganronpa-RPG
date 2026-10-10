@@ -53,6 +53,14 @@ export async function openAdvancementFor(actor) {
     // for that module.
     const { chooseVariant } = await import("./action-rolls.mjs");
 
+    /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
+       and this menu had no way back from one: an offer made by mistake stood until it was
+       spent. Each standing offer is a third choice here, oldest first. */
+    const standing = standingOffers(actor).map(offer => ({
+        value: `take:${offer.id}`, icon: "fa-rotate-left",
+        label: game.i18n.format("DRPG.Advance.takeBack", { kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`) })
+    }));
+
     const picked = await chooseVariant({
         actor,
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
@@ -65,11 +73,18 @@ export async function openAdvancementFor(actor) {
               hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
             { value: "reinforced", icon: "fa-shield-halved",
               label: game.i18n.localize("DRPG.Advance.kind.reinforced"),
-              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") }
+              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") },
+            ...standing
         ]
     });
 
     if (!picked) return null;
+    if (picked.value.startsWith("take:")) return takeBackOffer(actor, picked.value.slice("take:".length));
+    // Nobody would see an offer (`offerAdvancement`): said, and the GM picks.
+    if (!ownerIdsOf(actor).length) {
+        ui.notifications.info(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
+        return openAdvancement(actor, picked.value);
+    }
 
     /*
      * WHO PICKS (N-2, Dawid 20.09).
@@ -141,16 +156,97 @@ function readOffers() {
     }
 }
 
-/** Primary GM: write or withdraw one offer, then send each owner their set. */
-export async function recordOffer(actorId, kind) {
-    if (!isPrimaryGm()) return null;
-    // An offer is a row, a withdrawal a stamped drop: a GM that still holds it cannot write it back.
-    if (kind && LEVEL_UP[kind]?.picks) await offerStore.patch(actorId, { kind, at: Date.now() }, { whole: true });
-    else await offerStore.drop(actorId);
+/*
+ * A LIST PER CHARACTER (E10 C6, 1.2.71; audit S03-17). The row was one offer, `{ kind, at }`,
+ * written whole: a second offer took the first one's place, so a player with two unspent
+ * Standards kept one, and a GM's own Level Up of the character spent the offer standing on it
+ * without a word (`applyAdvancement` withdrew whatever stood). A row is `{ offers: [{ id, kind,
+ * extra, deferred, at }] }` now, oldest first: a new offer is appended, an apply or a take-back
+ * removes the one it names, and the last one going is the stamped drop it always was. `extra`
+ * is picks on top of the kind's own and `deferred` marks the Blackened's Reinforced that waited
+ * for the class (E05 C11; C7 writes them), so an offer buys `offerPicks` picks. A row a 1.2.70
+ * browser wrote, `{ kind, at }`, is read as a list of one under the id `legacy` - no migration
+ * step: the first write after it is a list, and nulls the two old fields so a GM that still
+ * holds them cannot merge them back (a ledger merges field by field). An owner's copy holds the
+ * list of their own characters, `{ offers: [{ id, kind, extra }] }`, or the old `{ kind }`.
+ */
+const LEGACY_OFFER = "legacy";
+
+const wholeCount = value => Math.max(0, Math.trunc(Number(value) || 0));
+
+/** The offers a row of the store, or of an owner's copy, stands for - oldest first; [] for anything else. */
+export function offerList(row) {
+    if (!row || typeof row !== "object") return [];
+    if (Array.isArray(row.offers)) {
+        return row.offers.filter(offer => typeof offer?.id === "string" && offer.id && LEVEL_UP[offer.kind]?.picks)
+            .map(offer => ({ id: offer.id, kind: offer.kind, extra: wholeCount(offer.extra), deferred: Boolean(offer.deferred),
+                at: Number(offer.at) || 0 }));
+    }
+    return LEVEL_UP[row.kind]?.picks ? [{ id: LEGACY_OFFER, kind: row.kind, extra: 0, deferred: false, at: Number(row.at) || 0 }] : [];
+}
+
+/** How many picks an offer buys: its kind's and its extra. */
+export function offerPicks(offer) {
+    return (LEVEL_UP[offer?.kind]?.picks ?? 0) + wholeCount(offer?.extra);
+}
+
+/** The offers standing on this character as THIS browser holds them: every GM's store, an owner's copy, nothing elsewhere. */
+export function standingOffers(actor) {
+    return actor ? offerList(readOffers()[actor.id]) : [];
+}
+
+/** The fields a list is written with: the list, and the old row's two fields nulled where they stand. */
+function listFields(row, offers) {
+    return { offers, ...(row && Object.hasOwn(row, "kind") ? { kind: null, at: null } : {}) };
+}
+
+/** Primary GM: each owner of the character is sent their set again. */
+async function tellOwners(actorId) {
     const actor = game.actors.get(actorId);
     const { sendOffersTo } = await import("./gm-bridge.mjs");
     for (const userId of actor ? ownerIdsOf(actor) : []) sendOffersTo(userId);
-    return readOffers()[actorId] ?? null;
+}
+
+/**
+ * Primary GM: append one offer to the character's list - `offer` is `{ kind, extra, deferred }`
+ * or a kind - and answer it; or, for null, take back every offer standing on it. The read and
+ * the write are one synchronous step after the store has heard from the other GMs, so two
+ * offers in a row both stand.
+ */
+export async function recordOffer(actorId, offer) {
+    if (!isPrimaryGm()) return null;
+    const asked = typeof offer === "string" ? { kind: offer } : offer;
+    let added = null;
+    if (!asked) {
+        await offerStore.drop(actorId);
+    } else {
+        if (!LEVEL_UP[asked.kind]?.picks) return null;
+        await offerStore.whenHydrated();
+        const row = offerStore.get(actorId);
+        added = { id: foundry.utils.randomID(), kind: asked.kind, extra: wholeCount(asked.extra), deferred: Boolean(asked.deferred),
+            at: Date.now() };
+        await offerStore.patch(actorId, listFields(row, [...offerList(row), added]));
+    }
+    await tellOwners(actorId);
+    return added;
+}
+
+/**
+ * Primary GM: take one offer off the character's list - spent or taken back. An offer is a
+ * row, a withdrawal a stamped drop: a GM that still holds it cannot write it back. Answers
+ * whether it stood.
+ */
+export async function dropOffer(actorId, offerId) {
+    if (!isPrimaryGm()) return false;
+    await offerStore.whenHydrated();
+    const row = offerStore.get(actorId);
+    const standing = offerList(row);
+    const left = standing.filter(offer => offer.id !== offerId);
+    if (left.length === standing.length) return false;
+    if (left.length) await offerStore.patch(actorId, listFields(row, left));
+    else await offerStore.drop(actorId);
+    await tellOwners(actorId);
+    return true;
 }
 
 /**
@@ -169,8 +265,9 @@ export function offersFor(userId) {
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = offerStore.newest(actor.id);
-        const offer = held[actor.id];
-        if (LEVEL_UP[offer?.kind]?.picks) offers[actor.id] = { kind: offer.kind };
+        // What the owner's picker needs and nothing more: not when, nor which one waited for the class.
+        const list = offerList(held[actor.id]).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        if (list.length) offers[actor.id] = { offers: list };
     }
     return { offers, stamps };
 }
@@ -199,11 +296,11 @@ export async function retellOffers() {
 export async function receiveOffers(offers, stamps) {
     const before = readOffers();
     const mine = {};
-    for (const [actorId, offer] of Object.entries(offers ?? {})) {
+    for (const [actorId, row] of Object.entries(offers ?? {})) {
         // Bounded here as well: only a character this user owns, only a real kind.
-        if (game.actors.get(actorId)?.isOwner && LEVEL_UP[offer?.kind]?.picks) {
-            mine[actorId] = { kind: offer.kind };
-        }
+        if (!game.actors.get(actorId)?.isOwner) continue;
+        const list = offerList(row).map(({ id, kind, extra }) => ({ id, kind, extra }));
+        if (list.length) mine[actorId] = { offers: list };
     }
     if (!await offerCopy.receive(mine, stamps)) return false;
     for (const id of new Set([...Object.keys(before), ...Object.keys(readOffers())])) {
@@ -230,12 +327,29 @@ export function redrawOwnSheets() {
     return n;
 }
 
-/** Any GM: an offer is spent or taken back. The primary writes it; others ask it to. */
-async function withdrawOffer(actorId) {
-    if (isPrimaryGm()) return recordOffer(actorId, null);
+/** Any GM: one offer is spent or taken back. The primary writes it; others ask it to. */
+async function withdrawOffer(actorId, offerId) {
+    if (isPrimaryGm()) return dropOffer(actorId, offerId);
     const { requestOfferRecord } = await import("./gm-bridge.mjs");
-    const res = await requestOfferRecord(actorId, null);
-    return res.ok ? { pending: true } : null;
+    const res = await requestOfferRecord(actorId, null, offerId);
+    return res.ok;
+}
+
+/**
+ * A GM takes one offer back (E10 C6; audit S03-17): the third choice of the sheet's Level Up
+ * menu, one per standing offer. Its owner's button goes out with the set the primary sends.
+ * Answers whether it was taken.
+ */
+export async function takeBackOffer(actor, offerId) {
+    if (!game.user.isGM || !actor) return false;
+    const offer = standingOffers(actor).find(standing => standing.id === offerId);
+    if (!offer || !await withdrawOffer(actor.id, offerId)) return false;
+    ui.notifications.info(game.i18n.format("DRPG.Advance.takenBack", {
+        name: actor.name, kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
+    }));
+    actor.sheet?.render(false);
+    log(`${actor.name}'s ${offer.kind} Level Up on offer was taken back.`);
+    return true;
 }
 
 /**
@@ -262,6 +376,13 @@ export async function offerAdvancement(actor, kind = "standard") {
     }
     if (!LEVEL_UP[kind]?.picks) {
         ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
+        return null;
+    }
+    /* NOBODY TO HAND IT TO (E10 C6; audit S03-17). An offer lights a button on its owner's
+       sheet, and a character no player owns has nobody to see it: it was recorded and the GM
+       told "sent" all the same. Refused and said; the sheet's menu opens the GM's own picker. */
+    if (!ownerIdsOf(actor).length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
         return null;
     }
 
@@ -299,13 +420,13 @@ export async function offerAdvancement(actor, kind = "standard") {
 }
 
 /**
- * The offer standing on this character, if any (N-2) - as THIS browser holds it:
- * every offer on the primary GM, a character's own on its owner's, nothing
- * anywhere else.
+ * The offer standing on this character that a press spends next, if any (N-2) - the
+ * oldest of its list (E10 C6), with the picks it buys - as THIS browser holds it: every
+ * offer on a GM's, a character's own on its owner's, nothing anywhere else.
  */
 export function pendingAdvance(actor) {
-    const offer = readOffers()[actor?.id] ?? null;
-    return offer && LEVEL_UP[offer.kind]?.picks ? offer : null;
+    const [offer] = standingOffers(actor);
+    return offer ? { ...offer, picks: offerPicks(offer) } : null;
 }
 
 
@@ -358,7 +479,8 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
         ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
         return null;
     }
-    const picks = own + (asPlayer ? 0 : Math.max(0, Math.trunc(Number(extraPicks) || 0)));
+    // A player's count is the offer's (`offerPicks`: the kind's and its extra), never an argument.
+    const picks = own + (asPlayer ? offer.extra : Math.max(0, Math.trunc(Number(extraPicks) || 0)));
     const why = asPlayer || !Array.isArray(reasons) || !reasons.length ? [`DRPG.Advance.reason.${kind}`] : reasons;
 
     const experiences = listExperiences(actor);
@@ -390,7 +512,8 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
      * are a claim: the count, the options and the character are all checked again
      * on the GM's client before anything is written - see `requestAdvancement` and
      * its handler in gm-bridge.mjs. The offer is cleared by the apply, so pressing
-     * twice cannot buy two.
+     * twice cannot buy two - and since E10 C6 the packet names WHICH offer it spends,
+     * and the GM checks that one.
      */
     if (asPlayer) {
         /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
@@ -403,7 +526,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
             return null;
         }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
-        const res = await requestAdvancement({ actorId: actor.id, picks: result, kind });
+        const res = await requestAdvancement({ actorId: actor.id, picks: result, kind, offerId: offer.id });
         return res.ok ? { pending: true } : null;
     }
     return applyAdvancement(actor, result, kind, { reasons: why });
@@ -523,8 +646,9 @@ function readForm(dialog, picks) {
  *
  * @param {object} [options]
  * @param {string[]} [options.reasons]  the translation keys the card gives as the reason
+ * @param {string} [options.offerId]    the offer this spends (a player's picks); none for a GM's own
  */
-export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null } = {}) {
+export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null, offerId = null } = {}) {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
     // `game.drpg`, and it writes through `trustedWrite` - which bypasses the
     // resource guard by design - so without it a player could raise their own
@@ -648,11 +772,12 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             await trustedWrite(actor, update, { reason: "levelUp" });
             return taken;
         });
-        /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
-           three call sites - the GM's own picker, a player's picks arriving over the
-           socket, and the API - because this is the one place that writes an
-           advancement. Through the primary GM, which holds the offers. */
-        await withdrawOffer(actor.id);
+        /* AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
+           (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
+           Level Up of a student spent the player's standing one without a word; a GM's
+           picker names none now, and a player's picks name theirs (`handleAdvancement`).
+           Through the primary GM, which holds the offers. */
+        if (offerId) await withdrawOffer(actor.id, offerId);
 
         log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
         await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);

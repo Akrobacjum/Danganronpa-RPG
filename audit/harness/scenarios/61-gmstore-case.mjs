@@ -1435,7 +1435,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared(), offers: S.offerStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length,
             tokens: game.scenes.contents.reduce((n, scene) => n + scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length, 0),
-            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null,
+            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null,
             keyPlanRows: Object.keys(S.keyPlanStore.entries()) };`, { timeout: 60000 });
     const firstReset = await resetOnce(["remnants", "mastermind"]);
     /* `1:0` is this run's own planted row; P4 above left `1:2`-`1:4` behind too (every Save of
@@ -1494,7 +1494,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         return { primary: U.isPrimaryGm(), hydration: E.gmStoreHydration().state,
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length, pick: S.mastermindStore.record().actorId ?? null,
-            offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null, offerAt: S.offerStore.newest("${IDS.aiko}") };`);
+            offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null, offerAt: S.offerStore.newest("${IDS.aiko}") };`);
     check("J3: alone after both resets, its traces are cut at the second reset's stamp and its pick at the first's, by the clock alone, and its Level Up is kept",
         heldGm2.traces >= 2 && heldGm2.pick === IDS.aiko && onGm2J3.primary && onGm2J3.hydration === "alone"
         && onGm2J3.watermarks.remnants === secondReset.cuts.remnants && onGm2J3.watermarks.mastermind === cutJ2.mastermind
@@ -1523,7 +1523,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(800);
     const afterSpend = await litOn(p1), onGm2Spent = await litOn(gm2);
     check("H2a: the primary alone answers the owner's ask with the offer at its stamp, and spends it: the Level Up is written and the button goes out",
-        answeredOnJoin.some(d => d.from === GM2 && d.offers?.[IDS.aiko]?.kind === "standard" && d.stamps?.[IDS.aiko] === offeredAt)
+        answeredOnJoin.some(d => d.from === GM2 && d.offers?.[IDS.aiko]?.offers?.[0]?.kind === "standard" && d.stamps?.[IDS.aiko] === offeredAt)
         && litH2.offer === "standard" && spent.ok && afterSpend.offer === null && afterSpend.stamp > offeredAt
         && onGm2Spent.advances === litH2.advances + 1, J({ answeredOnJoin, litH2, spent, afterSpend, onGm2Spent }));
 
@@ -1600,7 +1600,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         const result = await R.resetSeason();
         await E.gmStoresIdle();
         const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock();
-        return { cleared: result?.cleared ?? null, cut: clock.resetCuts?.advancement ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`,
+        return { cleared: result?.cleared ?? null, cut: clock.resetCuts?.advancement ?? null, offer: S.offerStore.get("${IDS.aiko}")?.offers?.[0]?.kind ?? null };`,
         { timeout: 60000 });
     await settle(800);
     const afterJ4 = await p1.eval(`${LV} const a = game.actors.get("${IDS.aiko}");

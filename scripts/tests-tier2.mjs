@@ -420,6 +420,45 @@ function drawnSheetFields(student) {
 }
 
 /**
+ * The Level Up button a character sheet's header gets, drawn by the module's own hook (sheet.mjs
+ * `onRenderCharacterSheet`, `injectAdvanceButton`) into a root that holds only the header's name row,
+ * as Daggerheart's sheet would hand it over (E10 C6). `lit` puts a lit button there first, as a
+ * header drawn before holds one. Answers the button, or null where the hook left none.
+ */
+function drawnAdvanceButton(student, { lit = false } = {}) {
+    const root = document.createElement("div");
+    root.innerHTML = `<div class="character-header-sheet"><div class="name-row">${
+        lit ? `<button type="button" class="drpg-advance-button is-offered" data-drpg-advance=""></button>` : ""}</div></div>`;
+    Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true }, root, {}, { isFirstRender: !lit });
+    return root.querySelector("[data-drpg-advance]");
+}
+
+/**
+ * Every window `run` opens through DialogV2.wait answered by `answer(seen)` (E10 C6): `seen` is
+ * `{ kind, choices }` - "advance" for a Level Up picker, "menu" for `chooseVariant`'s (action-rolls.mjs)
+ * with the values of its rows. Answers the windows seen, in order; Foundry's own `wait` is put back.
+ */
+async function withAnsweredWindows(answer, run) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const seen = [];
+    D.wait = async cfg => {
+        const markup = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
+        const entry = { kind: (cfg?.classes ?? []).includes("drpg-advance") ? "advance" : "menu",
+            choices: [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]) };
+        seen.push(entry);
+        return answer(entry);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own);
+        else delete D.wait;
+    }
+    return seen;
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -34310,13 +34349,213 @@ const SCENARIOS = [
                 "the primary holding no offer does not answer nothing at stamp 0");
             await S.offerStore.patch(student.id, { kind: "standard", at: Date.now() });
             const one = L.offersFor(owner.id);
-            equal(stableJson([one.offers[student.id], one.stamps[student.id]]), stableJson([{ kind: "standard" }, S.offerStore.stampOf(student.id)]),
+            // A list since E10 C6: the row written here is a 1.2.70 one, sent as a list of one.
+            equal(stableJson([one.offers[student.id], one.stamps[student.id]]),
+                stableJson([{ offers: [{ id: "legacy", kind: "standard", extra: 0 }] }, S.offerStore.stampOf(student.id)]),
                 "the primary's answer does not carry the offer at its row's stamp");
             await S.offerStore.drop(student.id);
             const gone = L.offersFor(owner.id);
             ok(gone.stamps[student.id] > one.stamps[student.id] && !gone.offers[student.id],
                 `the primary's answer after a withdrawal is not newer than the offer, so the owner would keep it lit: ${stableJson(gone)}`);
         });
+    }],
+
+    ["two offers stand side by side and neither a GM's own Level Up nor the spending of one takes the other", async () => {
+        /*
+         * E10 C6, 1.2.71; audit S03-17. An offer was one row per character, written whole: a second
+         * offer took the first one's place, so a player handed two Standards could spend one; and
+         * every Level Up written - a GM's own picker's too - withdrew whatever offer stood, so a GM
+         * advancing a student by hand spent the player's offer without a word. Two Standards are
+         * offered to a student a connected player owns; the GM applies a Level Up of their own; the
+         * player spends the first offer (an `advancement.apply` packet, judged here as theirs). Read
+         * after each: how many offers the owner is sent (level-up.mjs `offersFor`, the primary's
+         * answer to an owner), then whether the spent one is still among them and how many advances
+         * the student gained. At the snapshot of C5's tree (6d5c20d, 09.10.2026): [1, 0, 0, false, 1]
+         * - the second offer in the first one's place, the GM's apply spending it, and the player's
+         * packet refused for an offer that was gone.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who spends the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        // A row of the answer is a list since C6, one offer before it.
+        const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
+        const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
+        const before = advances();
+        const read = [];
+        try {
+            await L.offerAdvancement(student, "standard");
+            await L.offerAdvancement(student, "standard");
+            read.push(told().length);
+            await L.applyAdvancement(student, [{ option: "hp" }]);
+            read.push(told().length);
+            const [first] = told();
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
+                picks: [{ option: "hp" }], offerId: first?.id ?? null }, player.id, { send: () => {} });
+            const left = told();
+            read.push(left.length, left.some(offer => offer.id === first?.id), advances() - before);
+        } finally {
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([2, 2, 1, false, 2]),
+            "a second offer took the first one's place, a GM's own Level Up spent the player's offer, or the player's spend took more or less "
+            + "than the offer it named (offers after two, after the GM's Level Up, after the spend; the spent one still there; advances gained)");
+    }],
+
+    ["the GM's sheet shows the offers standing and its menu takes one back that cannot then be spent", async () => {
+        /*
+         * E10 C6, 1.2.71; audit S03-17. A GM's sheet was handed no offer (sheet.mjs `injectAdvanceButton`
+         * read none on a GM's browser), so the GM's Level Up button never lit and nothing said what
+         * stood; and the menu behind it asked only which Level Up and who picks - an offer made by
+         * mistake stood until it was spent. Two Standards are offered to a student a connected player
+         * owns. Read: the GM's button drawn by the sheet's own hook (lit, and its words); the menu the
+         * button opens (level-up.mjs `openAdvancementFor`, answered with its first take-back row); the
+         * player's packet naming the offer taken back (the refusal it is told, the advances); the
+         * offers the owner is sent after it (level-up.mjs `offersFor`), and the button drawn again. At the snapshot of C5's tree (6d5c20d, 09.10.2026):
+         * an unlit button saying "Level Up" and a menu of two rows, with nothing to take back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who would spend the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { plural } = await import("./utils.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        // A row of the answer is a list since C6, one offer before it.
+        const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
+        const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
+        const button = () => { const b = drawnAdvanceButton(student); return [Boolean(b?.classList.contains("is-offered")), b?.dataset.tooltip ?? null]; };
+        const before = advances();
+        let read = null;
+        try {
+            await L.offerAdvancement(student, "standard");
+            await L.offerAdvancement(student, "standard");
+            const drawn = button();
+            let taken = null;
+            const windows = await withAnsweredWindows(({ choices }) => {
+                taken = choices.find(value => value.startsWith("take:")) ?? null;
+                return taken ? { value: taken } : null;
+            }, () => L.openAdvancementFor(student));
+            const takenId = taken?.slice("take:".length) ?? null;
+            const refusals = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
+                picks: [{ option: "hp" }], offerId: takenId }, player.id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
+            const left = told();
+            read = [drawn, windows.map(w => w.choices.filter(value => value.startsWith("take:")).length), refusals, advances() - before,
+                left.length, left.some(offer => offer.id === takenId), button()];
+        } finally {
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[true, plural("DRPG.Advance.standing", { n: 2 })], [2], ["notOffered"], 0, 1, false,
+            [true, plural("DRPG.Advance.standing", { n: 1 })]]),
+            "the GM's button did not light or say how many offers stand, the menu had no row per offer to take back, or the offer taken back "
+            + "was spent, or took the other with it (the button; take-back rows; the refusal told; advances gained; offers left; the taken one "
+            + "among them; the button drawn again)");
+    }],
+
+    ["an offer row written by 1.2.70 is read as a list of one that stands beside a new offer and is spent by its id", async () => {
+        /*
+         * E10 C6, 1.2.71; audit S03-17. Every row of the GMs' offers store until 1.2.71 is one offer,
+         * `{ kind, at }`; C6 reads it as a list of one under the id `legacy` (level-up.mjs `offerList`),
+         * with no migration step. A 1.2.70 row is written straight into the store for a student a
+         * connected player owns, a Reinforced is offered beside it, and the player spends the old one
+         * by its id. Read: the ids and kinds the owner is sent before and after the new offer, after
+         * the spend, the advances gained and the old row's `kind` field, which the first list written
+         * over it nulls (a GM still holding the old row merges field by field). At the snapshot of C5's
+         * tree (6d5c20d, 09.10.2026) the Reinforced took the old Standard's place.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who spends the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the one written here`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
+        const shown = () => told().map(offer => [offer.id ?? null, offer.kind]);
+        const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
+        const before = advances();
+        let read = null;
+        try {
+            await S.offerStore.patch(student.id, { kind: "standard", at: Date.now() });
+            const old = shown();
+            await L.offerAdvancement(student, "reinforced");
+            const both = shown().map(([, kind]) => kind);
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
+                picks: [{ option: "hp" }], offerId: old[0]?.[0] ?? null }, player.id, { send: () => {} });
+            read = [old, both, shown().map(([, kind]) => kind), advances() - before, (row => row && Object.hasOwn(row, "kind") ? row.kind : "absent")(S.offerStore.get(student.id))];
+        } finally {
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[["legacy", "standard"]], ["standard", "reinforced"], ["reinforced"], 1, null]),
+            "a 1.2.70 offer row was not read as a list of one, was lost to the next offer, could not be spent by its id, or kept its old fields "
+            + "(the old row as sent; kinds after the new offer; kinds after the spend; advances gained; the row's old kind field)");
+    }],
+
+    ["a Level Up for a character nobody plays is not offered and the GM's menu opens the GM's own picker", async () => {
+        /*
+         * E10 C6, 1.2.71; audit S03-17. An offer lights a button on its owner's sheet; one for a
+         * student no player owns was recorded all the same and the GM was told "sent" - nobody would
+         * ever see it. Read: what `offerAdvancement` answers for such a student, whether the GMs'
+         * store holds an offer for them, what the GM is told, the windows the sheet's menu opens
+         * (level-up.mjs `openAdvancementFor`: a Standard, and "the player picks" wherever it is asked)
+         * and the advances its picker wrote. At the snapshot of C5's tree (6d5c20d, 09.10.2026) the
+         * offer was recorded and the menu asked who picks.
+         */
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a student no player owns, whom nobody would see an offer for");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student] = livingStudents().filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it`);
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
+        const before = advances();
+        const said = [];
+        const notes = ui.notifications;
+        const own = { warn: notes.warn, info: notes.info };
+        for (const level of ["warn", "info"]) notes[level] = (message, ...rest) => { said.push(String(message)); return own[level].call(notes, message, ...rest); };
+        let read = null;
+        try {
+            const offered = await L.offerAdvancement(student, "standard");
+            const held = S.offerStore.has(student.id);
+            const windows = await withAnsweredWindows(({ kind, choices }) => kind === "advance" ? [{ option: "hp" }]
+                : { value: choices.includes("player") ? "player" : "standard" }, () => L.openAdvancementFor(student));
+            const nobody = game.i18n.format("DRPG.Advance.nobodyPlays", { name: student.name });
+            read = [offered, held, said.filter(line => line === nobody).length, windows.map(w => w.kind), advances() - before,
+                S.offerStore.has(student.id)];
+        } finally {
+            Object.assign(notes, own);
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([null, false, 2, ["menu", "advance"], 1, false]),
+            "an offer nobody would see was recorded, the GM was not told twice that nobody plays the student, or the menu did not open the GM's "
+            + "own picker (the answer; the store; the GM told; the windows; advances gained; the store after)");
     }],
 
     ["a taken plant stays taken when a stale copy merges", async () => {

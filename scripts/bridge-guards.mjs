@@ -192,6 +192,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
     ["badRequest", /^no such Level Up: /],
+    ["badRequest", /^an offer is given or taken back, nothing else$/],
     ["badRequest", /^".*" does not grant ".*"$/],
     ["badRequest", /^".*" is not a visibility$/],
     ["badRequest", /^not an action for that side$/],

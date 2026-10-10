@@ -597,10 +597,12 @@ export const observeStore = defineGmStore({
 });
 
 /**
- * THE LEVEL UPS ON OFFER (E04 C8; audit S03-11). A row per character, `{ kind, at }`,
- * synced between the GMs; the primary writes it (level-up.mjs `recordOffer`) - an offer
- * or a withdrawal, which is a stamped drop now, where the old store deleted the key and
- * a GM holding it wrote it back. The old offers are claimed on the primary's browser
+ * THE LEVEL UPS ON OFFER (E04 C8; audit S03-11). A row per character, synced between the
+ * GMs; the primary writes it (level-up.mjs `recordOffer`, `dropOffer`) - an offer or a
+ * withdrawal, the last one a stamped drop, where the old store deleted the key and a GM
+ * holding it wrote it back. Since E10 C6 (1.2.71; audit S03-17) the row is a list,
+ * `{ offers: [{ id, kind, extra, deferred, at }] }`, and a row of one `{ kind, at }` - every
+ * row until then - is read as a list of one (level-up.mjs `offerList`). The old offers are claimed on the primary's browser
  * only (the design's row 17): the old key had no tombstones, so a union of every GM's
  * browser would bring back offers taken away; at their `at`, for a character here and a
  * kind that exists. An entry with no `at` is an owner's cached copy, never the store.
@@ -753,7 +755,8 @@ export function offersCombine(held, offered, { cut = 0 } = {}) {
 
 /**
  * AN OWNER'S OFFERS (E04 C8): the Level Ups standing on this user's own characters,
- * `{ actorId: { kind } }`, as the primary GM sent them - a stamp per character (the row's,
+ * `{ actorId: { offers: [{ id, kind, extra }] } }` since E10 C6 (`{ actorId: { kind } }`
+ * before, read as a list of one), as the primary GM sent them - a stamp per character (the row's,
  * a withdrawal's tombstone included), and taken whole only when it is at least as new
  * for every character and newer for one (gm-store.mjs `newerStamps`). An answer from a
  * primary whose browser holds no offer carries stamp 0 and changes nothing: the lit

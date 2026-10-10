@@ -2868,7 +2868,14 @@
       "experienceNeedsName": "A new experience needs a name. That choice was skipped.",
       "nothingToApply": "Nothing was selected, so nothing changed.",
       "unknownKind": "Unknown Level Up type: {kind}.",
-      "failed": "The Level Up could not be saved. See the console."
+      "failed": "The Level Up could not be saved. See the console.",
+      "takeBack": "Take back the offer: {kind}",
+      "takenBack": "The offer to {name} is taken back: {kind}. The button on their sheet goes out.",
+      "nobodyPlays": "Nobody plays {name} - pick for them instead.",
+      "standing": {
+        "one": "{n} Level Up on offer",
+        "other": "{n} Level Ups on offer"
+      }
     },
     "Loot": {
       "take": "Take",

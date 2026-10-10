@@ -3781,13 +3781,15 @@ const REGRESSIONS = [
         ok(/if \(asPlayer\) kind = offer\.kind;/.test(picker),
             "a player's own argument decides which kind they are picking, which is the "
             + "forgery this offer exists to prevent");
-        ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind \}\)/.test(picker),
-            "a player's picks are applied on their own client");
+        // Since E10 C6 the packet names the offer it spends.
+        ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind, offerId: offer\.id \}\)/.test(picker),
+            "a player's picks are applied on their own client, or name no offer");
 
         const applied = bodyOf(level, "export async function applyAdvancement");
         ok(/if \(!game\.user\.isGM\)/.test(applied), "the apply is no longer the GM's alone");
-        ok(/await withdrawOffer\(actor\.id\)/.test(applied),
-            "the offer is not spent by being taken, so it can be taken twice");
+        // The one the picks named, and only that one (E10 C6; audit S03-17).
+        ok(/if \(offerId\) await withdrawOffer\(actor\.id, offerId\)/.test(applied),
+            "the offer is not spent by being taken, so it can be taken twice - or a GM's own Level Up spends the player's");
 
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleShareBulletOrGiveItem(" });
@@ -3800,18 +3802,19 @@ const REGRESSIONS = [
             "the handover's run is not in BRIDGE_ACTIONS, so the GM never hears the picks");
         ok((apply?.guards ?? []).some(guard => guard.factory === "owns" && guard.covers?.includes("actorId")),
             "the packet's character is taken on trust");
-        ok(/pendingAdvance\(actor\)/.test(handler),
-            "the GM applies a Level Up nobody offered");
-        ok(/applyAdvancement\(actor, picks, offer\.kind\)/.test(handler),
-            "the kind comes off the packet rather than off the offer");
-        ok(/picks\.length !== wanted/.test(handler),
+        ok(/standingOffers\(actor\)/.test(handler) && /held\.id === payload\.offerId/.test(handler),
+            "the GM applies a Level Up nobody offered, or one the packet does not name");
+        ok(/applyAdvancement\(actor, picks, offer\.kind, \{ offerId: offer\.id \}\)/.test(handler),
+            "the kind comes off the packet rather than off the offer, or the apply spends another offer");
+        ok(/const wanted = offerPicks\(offer\);/.test(handler) && /picks\.length !== wanted/.test(handler),
             "three picks can be claimed for a standard Level Up");
         ok(/LEVEL_UP_OPTIONS\[p\?\.option\]/.test(handler),
             "a pick may name something that is not an option");
 
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
-        ok(/if \(!game\.user\.isGM && !offer\) return;/.test(button),
+        // E10 C6: a player with nothing on offer has the standing button taken off as well.
+        ok(/if \(!game\.user\.isGM && !offer\) \{\s*standing\?\.remove\(\);\s*return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
     }],
@@ -4704,12 +4707,16 @@ const REGRESSIONS = [
         ok(game.settings.settings.get(`${MODULE_ID}.mineOffers`)?.scope === "client",
             "an owner's copy of the offers is not client-scoped, so it reaches every browser");
 
+        // Since E10 C6 `pendingAdvance` is the oldest of `standingOffers`, which reads the store.
         const pending = bodyOf(level, "export function pendingAdvance(", { until: "\n}" });
-        ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
+        const standing = bodyOf(level, "export function standingOffers(", { until: "\n}" });
+        ok(/standingOffers\(actor\)/.test(pending) && /readOffers\(\)/.test(standing) && !/getFlag/.test(pending + standing),
             "pendingAdvance reads something other than this browser's store");
-        const record = bodyOf(level, "export async function recordOffer(", { until: "export function offersFor(" });
+        const record = bodyOf(level, "export async function recordOffer(", { until: "export async function dropOffer(" });
         ok(/if \(!isPrimaryGm\(\)\) return null;/.test(record),
             "a client other than the primary GM writes the authority");
+        ok(/if \(!isPrimaryGm\(\)\) return false;/.test(bodyOf(level, "export async function dropOffer(", { until: "export function offersFor(" })),
+            "a client other than the primary GM takes an offer off the authority");
 
         const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleAdvancementOffer(" });
         ok(/advancing\.has\(actor\.id\)/.test(handler) && /finally \{\s*advancing\.delete/.test(handler),
@@ -7412,12 +7419,19 @@ const REGRESSIONS = [
          * places the verdict reads them in, `verdictHeld` and `executeSentenced`. Measured on the harness
          * on 09.10.2026 with C5 in the tree: 40 places against 40 rows - 10 PACKET, 5 SOCKET, 4 CHAT,
          * 16 SHEET, 5 STORE.
+         * E10 C6 (1.2.71) added the offer's `op` and `offerId` and the spend's `offerId`, three PACKET
+         * rows, and rewrote the verdicts of the spend's picks and of `offerStore`, whose row is a list
+         * per character now. Measured with the census on the working tree on 09.10.2026: 43 places
+         * against 43 rows - 13 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET, 5 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
-            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged in part: `handleAdvancement` checks the standing offer, the count its kind buys, each option, and `experienceNew`'s name; an `experienceUp` id and a trait are not checked against the sheet (S03-22) - C8 adds the existence checks on the held sheet (`numberHeld`/`actorHeldNow`), refused and told [F7]"],
-            ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 adds `op` and `offerId` beside it [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged in part: `handleAdvancement` checks the offer `offerId` names (C6), the count it buys (`offerPicks`), each option, and `experienceNew`'s name; an `experienceUp` id and a trait are not checked against the sheet (S03-22) - C8 adds the existence checks on the held sheet (`numberHeld`/`actorHeldNow`), refused and told [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (C6): `handleAdvancement` finds it in the character's list as this GM holds it (`standingOffers`), else refused and told (`notOffered`); the picks are that offer's [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 added `op` and `offerId` beside it [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#op", "judged (C6): gmOnly; `as.oneOf(\"add\", \"take\")`, anything else refused by `handleAdvancementOffer` [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#kind", "judged: gmOnly - only a GM hands out a Level Up; the kind is the GM's choice [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#offerId", "judged (C6): gmOnly; a take names an offer standing in that character's list as the primary holds it, else refused [F7]"],
             ["PACKET gm-bridge.mjs#advancement.ask#-", "judged: knownSender + playersOnly; quiet; the answer is addressed to the asker (`replyForMe`) [F7]"],
             ["PACKET gm-bridge.mjs#vote.run#op", "judged: gmOnly (C1) - only a GM opens, counts, restarts or reminds; a step not one of the five reads null and the primary runs nothing (`runVoteOp`), which answers `movedOn` or `notOpen` for a step the world's record has moved past [F3/F6]"],
             ["PACKET gm-bridge.mjs#vote.run#picks", "judged: gmOnly (C1); a number the primary bounds to one name and the students enrolled (`picksFor`), the register's count when it is not a positive integer [F3]"],
@@ -7451,7 +7465,7 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (season, `seasonStartedAt`, `finalTrial`)"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10 `finalTrial` [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
-            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store; C6 makes its row a list per character [F7]"],
+            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; C16 reads `trialQueue.active` on render and on change"]
         ];

@@ -267,7 +267,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const offered = await ag.eval(`return await ${bridge}.requestOfferRecord("${IDS.aiko}", "standard");`, { timeout: 30000 });
     await settle(1500);
     const offer = await gm.eval(offerOf);
-    const withdrawnAnswer = await ag.eval(`return await ${bridge}.requestOfferRecord("${IDS.aiko}", null);`, { timeout: 30000 });
+    // Since E10 C6 an offer is taken back by its id - the one the primary's answer to the offer named.
+    const withdrawnAnswer = await ag.eval(`return await ${bridge}.requestOfferRecord("${IDS.aiko}", null, ${JSON.stringify(offered?.value?.id ?? null)});`, { timeout: 30000 });
     await settle(1500);
     const a7b = { offered, offer, withdrawnAnswer, withdrawn: await gm.eval(offerOf), logged: await refusalsLogged(gm, "advancement.offer") };
     check("A7: an Assistant GM's Level Up offer is recorded by the primary, and withdrawn the same way",

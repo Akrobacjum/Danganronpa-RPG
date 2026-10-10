@@ -2980,7 +2980,16 @@
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
       "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć sprawę z kopii (panel GM-a).",
       "offerTooltip": "{kind} - naciśnij, by wybrać, co bierzesz.",
-      "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie."
+      "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
+      "takeBack": "Cofnij ofertę: {kind}",
+      "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
+      "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
+      "standing": {
+        "one": "{n} oferta Level Up",
+        "few": "{n} oferty Level Up",
+        "many": "{n} ofert Level Up",
+        "other": "{n} oferty Level Up"
+      }
     },
     "Loot": {
       "take": "Weź",
