@@ -7924,6 +7924,24 @@ const REGRESSIONS = [
         }
         ok(!Object.values(lang.en.Vote.resendWarning).some(text => text.includes("Remind")), "the English restart warning still says Remind");
     }],
+    ["R340 - every road to the verdict window in a Final Trial opens the Final Trial's", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; round 2's cor m2. C10 routed the console's verdict button to the Final Trial's
+         * window (R321 reads that line), and `openVerdictDialog` - also `game.drpg.verdictDialog` - still opened the
+         * ordinary verdict in a Final Trial. Read in vote.mjs: the function answers with `openFinalVerdictDialog`
+         * when `inFinalTrial()`, and does so before it reads the trial's record or draws a window. Tier 2 drives
+         * the API: "the verdict's API in a Final Trial opens the Final Trial's window".
+         */
+        const sources = new Map(await otherSources());
+        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
+        const body = fnSource(vote, "openVerdictDialog");
+        const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
+        const record = body.search(/trialProgress\(\)/), drawn = body.search(/DialogV2\.wait\(/);
+        equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
+            "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
+            + "(read: the route there, the record read after it, the window drawn after it)");
+    }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
         /*

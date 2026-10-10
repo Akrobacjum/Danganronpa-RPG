@@ -56,7 +56,8 @@ export function campaignName(clock = getClock()) {
  * function, not a GM at a button - so without `confirmNewTrial` it refuses with a warning and writes
  * nothing; the asking is trial-floor-ui.mjs `confirmNewTrial`, behind Start the Class Trial and Edit
  * campaign. `setClock` itself stays the bare writer every door uses, and is not asked (a GM's own
- * `game.drpg.setClock({ phase })` still opens a trial unasked: E10 C11's note names that road).
+ * `game.drpg.setClock({ phase })` still opens a trial unasked: E10 C11's note names that road) - but it
+ * refuses a trial opened in an Eclipse, for every door (E10 fix r2-G5).
  *
  * @param {string} key
  * @param {{confirmNewTrial?: boolean}} [options]  true: the GM was asked and said yes.
@@ -133,6 +134,18 @@ export async function setClock(patch = {}) {
     if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
         && patch.timeOfDayStartedAt === undefined) {
         next.timeOfDayStartedAt = serverNow();
+    }
+    /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
+       Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
+       trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
+       Objection refused in the dark. Every one of them writes through here, so the check is here once:
+       the whole write is refused, nothing written, and the GM told. Read on the clock as it would be
+       after the write, so a write that ends the Eclipse may open the trial, and tier 2's restore of a
+       clock from before an Eclipse is not refused. Measured in tier 2 "no road opens the trial in an
+       Eclipse" (red at c494855 on every road it drives). */
+    if (trialEdge && next.phase === "classTrial" && next.eclipse === true) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+        return null;
     }
     // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
     // flag set again later by hand must not inherit the last Eclipse's name.

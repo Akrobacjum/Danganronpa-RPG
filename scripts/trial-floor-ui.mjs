@@ -143,8 +143,9 @@ export async function startClassTrial() {
     // the three is this button's: they belong to the phase, and `reconcilePhase`
     // in clock.mjs runs them off the write below - which is what makes the clock
     // editor, `setPhase` and a debate opened outside a trial open one the same
-    // way this does.
-    await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() });
+    // way this does. A null is `setClock` refusing a trial in an Eclipse begun while this button's
+    // windows stood open (E10 fix r2-G5): it told the GM, and no trial is announced.
+    if (await setClock({ phase: "classTrial", timeOfDayStartedAt: serverNow() }) === null) return null;
 
     // The refill is announced rather than done quietly: a rule the table cannot
     // see is a rule the table does not use, and "you have your actions again" is
@@ -174,10 +175,13 @@ export async function startClassTrial() {
  * C4), so Enter keeps the verdict. Answers true when the chapter has no verdict, without asking.
  * Measured on the harness: tier 2 "re-entering the trial after a verdict asks and Cancel keeps the
  * lock" and scenario 63's H; the key itself in Foundry's window is not measured here (LIVE-E10-02's).
+ *
+ * @param {number} [chapter]  the chapter the trial opens in: the clock's, or the one Edit campaign is
+ *   moving the clock to (E10 fix r2-G5; round 2's cor m3 - the record it blanks is that chapter's).
  */
-export async function confirmNewTrial() {
+export async function confirmNewTrial(chapter) {
     const { trialProgress } = await import("./vote.mjs");
-    if (!trialProgress().verdictApplied) return true;
+    if (!trialProgress(chapter).verdictApplied) return true;
     const answer = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Floor.newTrialTitle") },
         classes: ["drpg-panel", "drpg-narrow"],
@@ -1068,10 +1072,10 @@ export async function openVoteDialog() {
            lose the room's votes was to open this screen to see who was still out and
            press Enter.
 
-           "Remind" is what a GM chasing stragglers actually wants and it is right
-           there, so this stays available rather than being taken away: re-sending is a
-           legitimate thing to do to a vote that has gone wrong. It just is not
-           something to do by accident.
+           Send another ballot (`remind`, drawn beside this button while somebody has not
+           answered) is what a GM chasing stragglers actually wants, so this stays available
+           rather than being taken away: re-sending is a legitimate thing to do to a vote
+           that has gone wrong. It just is not something to do by accident.
 
            AND IT ASKS WHERE THIS BROWSER CANNOT COUNT (E10 fix r1-G3; cor F3). `returned` is
            this browser's copy, and the restart drops the rows the primary holds: on a GM whose

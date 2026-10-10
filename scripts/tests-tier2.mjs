@@ -27201,6 +27201,83 @@ const SCENARIOS = [
             + "first submit button and its defaults; the warnings; the yes: answer, phase, verdictApplied, keysCharged, voteClosed)");
     }],
 
+    ["Edit campaign moving back to a chapter with a verdict asks first", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; round 2's cor m3. C11's question at Edit campaign was asked only when the chapter
+         * stayed, but entering the trial blanks the record of the chapter the clock lands on (`reconcilePhase` ->
+         * `resetTrialProgress`), and the record is not rewritten when a chapter ends (no writer of it outside vote.mjs,
+         * read in the code). So a GM moving the clock back to a chapter whose trial has a verdict, and into its trial,
+         * in one Edit campaign, blanked that verdict with no word said - and its verdict could be given again. Driven
+         * from Daily Life: a verdict recorded for the chapter on the clock, the clock moved on a chapter, then Edit
+         * campaign answered with the first chapter and the phase Class Trial, the question answered as Enter answers
+         * it (the first submit button of the drawn window pressed, as the test above presses it). Read: the chapter
+         * moved back, the phase, the record kept, the floor shut; the windows asked; the question's first submit
+         * button and its defaults. Red at c494855 (A1, 10.10.2026): no question, the phase Class Trial, the record blank.
+         */
+        needs(env.dialogs(), "the confirmation's window is drawn and its first button pressed, as Enter presses it");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const titles = { clock: game.i18n.localize("DRPG.Panel.jump"), ask: game.i18n.localize("DRPG.Floor.newTrialTitle") };
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const chapter = Number(clockBefore.chapter);
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const drawn = () => [...foundry.applications.instances.values()]
+            .find(a => a.rendered && a.element && a.options?.window?.title === titles.ask) ?? null;
+        const asked = [], buttons = [];
+        D.wait = async function (cfg) {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? title;
+            asked.push(kind);
+            if (kind === "clock") {
+                const c = getClock();
+                return { campaignName: c.campaignName ?? "", chapter, day: c.day ?? 1, phase: "classTrial",
+                    session: c.session, timeOfDay: c.timeOfDay, reset: false };
+            }
+            if (kind !== "ask") return null;
+            const pending = drawWait.call(this, cfg);
+            if (await until(() => Boolean(drawn()), 8000)) {
+                const element = drawn().element;
+                const first = element.querySelector('button[type="submit"]');
+                buttons.push([first?.dataset?.action ?? null, [...element.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action)]);
+                element.querySelector("form")?.requestSubmit(first);
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            return Promise.race([pending, wait(4000).then(() => "unanswered")]);
+        };
+        let reading = null;
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter,
+                voteClosed: true, verdictApplied: true, keysCharged: true });
+            const record = stableJson(game.settings.get(MODULE_ID, SETTINGS.trialProgress));
+            await setClock({ chapter: chapter + 1 });
+            must(Number(getClock().chapter) === chapter + 1 && !V.trialProgress().verdictApplied,
+                "the clock did not move on a chapter past the verdict - this would measure nothing");
+            await openClockDialog();
+            await settle();
+            reading = [Number(getClock().chapter) === chapter, getClock().phase,
+                stableJson(game.settings.get(MODULE_ID, SETTINGS.trialProgress)) === record, Boolean(floor.trialFloor())];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        equal(stableJson({ reading, asked, buttons }),
+            stableJson({ reading: [true, "dailyLife", true, false], asked: ["clock", "ask"], buttons: [["cancel", ["cancel"]]] }),
+            "Edit campaign moving back to a chapter with a verdict and into its trial did not ask, or Enter confirmed it, or the "
+            + "rest of the window was lost (read: the chapter moved back, the phase, the record kept, the floor open; the windows "
+            + "asked; the question's first submit button and its defaults)");
+    }],
+
     ["the trial does not open in an Eclipse and an open incident asks first", async () => {
         /*
          * E10 C12, 1.2.71; audit S06-18. The harm: Start the Class Trial and Send the ballots checked
@@ -27293,6 +27370,93 @@ const SCENARIOS = [
             "a trial or a vote opened in an Eclipse, or a door went past an open incident unasked, or Enter answered the question, "
             + "or Close the murder did not close it (read per door: its answer, the phase, the vote open, the incident open, and in "
             + "the Eclipse the warnings told; the windows asked; the question's first submit button and its defaults)");
+    }],
+
+    ["no road opens the trial in an Eclipse", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; goal S06-18 (round 2: partial). C12 refused a trial in an Eclipse at Start the Class
+         * Trial and at the vote's open (the test above); Edit campaign's phase select, `game.drpg.setPhase`, a debate
+         * opened outside a trial (`openDebate`, `startFloor`) and `setClock` itself still opened one, with Analyze and
+         * the Objection refused in the dark. Driven from Daily Life with no verdict in the chapter and an Eclipse
+         * running, each road as a GM or a macro takes it: Edit campaign answered with the phase Class Trial and a new
+         * campaign name, the other four called as a macro calls them. First, before the Eclipse, Start the Class Trial
+         * with an Eclipse begun while its window stands open (its own check is passed by then): the write is refused,
+         * and the trial must not be announced. Read per road: the answer and the cards posted (Start), the phase, the
+         * floor open, the "End the Eclipse first" warnings told; and whether Edit campaign applied the rest of its
+         * window. Red at c494855 (A1, 10.10.2026): every road opened the trial and nobody was told.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const V = await import("./vote.mjs");
+        const { setPhase } = await import("./clock.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const jump = game.i18n.localize("DRPG.Panel.jump"), eclipseFirst = game.i18n.localize("DRPG.Floor.eclipseFirst");
+        const startTitle = game.i18n.localize("DRPG.Floor.startTrial");
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const name = `${clockBefore.campaignName ?? ""} (G5)`;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownWarn = ui.notifications.warn;
+        const told = [];
+        D.wait = async cfg => {
+            if (cfg?.window?.title === startTitle) {
+                await setClock({ eclipse: true });
+                return "ok";
+            }
+            if (cfg?.window?.title !== jump) return null;
+            const c = getClock();
+            return { campaignName: name, chapter: Number(c.chapter), day: c.day ?? 1, phase: "classTrial",
+                session: c.session, timeOfDay: c.timeOfDay, reset: false };
+        };
+        ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+        const roads = {
+            clock: () => openClockDialog(),
+            setPhase: () => setPhase("classTrial"),
+            openDebate: () => UI.openDebate(60),
+            startFloor: () => floor.startFloor({}),
+            setClock: () => setClock({ phase: "classTrial" })
+        };
+        const readings = {};
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+            must(!getClock().eclipse, "an Eclipse was already running - Start's own check would refuse first, and this would measure nothing");
+            const cards = game.messages.size;
+            const started = await UI.startClassTrial();
+            await settle();
+            readings.start = [started, game.messages.size - cards, getClock().phase, Boolean(floor.trialFloor()),
+                told.filter(m => m === eclipseFirst).length];
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            if (!getClock().eclipse) await setClock({ eclipse: true });
+            must(getClock().eclipse === true && getClock().phase === "dailyLife", "no Eclipse in Daily Life to open a trial in - this would measure nothing");
+            for (const [road, run] of Object.entries(roads)) {
+                const toldBefore = told.length;
+                await run();
+                await settle();
+                readings[road] = [getClock().phase, Boolean(floor.trialFloor()), told.slice(toldBefore).filter(m => m === eclipseFirst).length];
+                if (floor.trialFloor()) await floor.endFloor();
+                if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            }
+            readings.rest = getClock().campaignName === name;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ eclipse: false });
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        const shut = ["dailyLife", false, 1];
+        equal(stableJson(readings), stableJson({ start: [null, 0, ...shut], clock: shut, setPhase: shut, openDebate: shut, startFloor: shut,
+            setClock: shut, rest: true }),
+            "a road opened the trial in an Eclipse, or announced one it did not open, or did not say why, or Edit campaign dropped the "
+            + "rest of its window (read per road: Start's answer and cards posted, the phase, the floor open, the warnings told; and the "
+            + "campaign name Edit campaign wrote)");
     }],
 
     ["the trial's exits say what happened", async () => {
@@ -31033,6 +31197,75 @@ const SCENARIOS = [
         }
         equal(JSON.stringify([moved, asked.length]), JSON.stringify([true, 1]),
             `the objection that ran out was moved on ${asked.length} times while one write was on its way, or never`);
+    }],
+
+    ["the GM's Now during the heartbeat's write opens one rebuttal", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; round 2's cor m4, goal S06-38's residual. C13 put the heartbeat's transition under one
+         * latch (`advancing`, the test above), and the GM's Now (`advanceFloorNow`, the console's Now) wrote its own
+         * outside it: Now pressed while the heartbeat's write of the rebuttal was on its way read the floor still
+         * "objection" and wrote the rebuttal again, and the heartbeat ticking past zero while Now's write was on its
+         * way did the same - each write restarts the rebuttal's two minutes. Both orders, every write of a rebuttal held
+         * for 2.5 s as the test above holds it: an objection already run out, the heartbeat's write started and Now
+         * pressed inside it; then an objection with a second left, Now pressed and the heartbeat left to tick past zero
+         * inside Now's write. Read per order: the floor moved on, and the rebuttal writes asked for. Red at c494855
+         * (A1, 10.10.2026): two writes in each order.
+         */
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose heartbeat writes the transition - this would measure nothing");
+        const [objector, target] = cast(2);
+        const floorMod = await import("./trial-floor.mjs");
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const asked = { tick: 0, now: 0 };
+        const rebuttal = () => floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.rebuttal;
+        const objection = async startedAt => {
+            await settings.set(MODULE_ID, SETTINGS.trialQueue, {
+                active: true, mode: floorMod.FLOOR_MODES.objection, holderId: objector.id, targetId: target.id,
+                seconds: 180, startedAt
+            });
+            floorMod.renderTrialFloor();
+        };
+        let order = "tick", holding = 0;
+        const readings = {};
+        try {
+            settings.set = async function (namespace, key, value, ...rest) {
+                if (namespace === MODULE_ID && key === SETTINGS.trialQueue && value?.mode === floorMod.FLOOR_MODES.rebuttal) {
+                    asked[order]++;
+                    holding++;
+                    try {
+                        await wait(2500);
+                        return await realSet.call(this, namespace, key, value, ...rest);
+                    } finally {
+                        holding--;
+                    }
+                }
+                return realSet.call(this, namespace, key, value, ...rest);
+            };
+            // The heartbeat's write first, Now pressed inside it.
+            await objection(serverNow() - 90_000);
+            const started = await until(() => holding > 0, 8000);
+            await floorMod.advanceFloorNow();
+            readings.tick = [started, await until(rebuttal, 8000), asked.tick];
+            await until(() => holding === 0, 10000);
+            await floorMod.endFloor();
+            // Now's write first, the heartbeat past zero inside it: the objection's minute has a second left.
+            order = "now";
+            await objection(serverNow() - 59_000);
+            await floorMod.advanceFloorNow();
+            readings.now = [rebuttal(), asked.now];
+        } finally {
+            await until(() => holding === 0, 10000);
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await settle();
+        }
+        equal(stableJson(readings), stableJson({ tick: [true, true, 1], now: [true, 1] }),
+            "the GM's Now and the heartbeat wrote the rebuttal twice between them, or the floor did not move on "
+            + "(read per order: the heartbeat's write started, the floor moved on, the rebuttal writes asked for)");
     }],
 
     ["the primary GM's tab coming back moves an expired objection on at once", async () => {
@@ -42716,6 +42949,48 @@ const SCENARIOS = [
             "in a Final Trial the console's verdict did not open the Final Trial's window, or that verdict left the trial's record without it, named somebody in it, "
             + "or left the flag up (read: the windows opened, the first console's verdict label, the second console's verdict closed, verdictApplied, stage, final, "
             + "the record's names, the flag)");
+    }],
+
+    ["the verdict's API in a Final Trial opens the Final Trial's window", async () => {
+        /* E10 fix r2-G5, 10.10.2026; round 2's cor m2. C10 sent the console's verdict button to the Final Trial's
+           window (the test above), and `game.drpg.verdictDialog` - the same `openVerdictDialog` a macro reaches -
+           still opened the ordinary verdict in a Final Trial: executions, Level Ups, Despair and a rule the guide
+           does not give it, with the Final Trial's flag left up. Set up as the test above (a Mastermind through the
+           store, the flag up, a counted vote), and the API called as a macro calls it; every window is answered as
+           Cancel answers it, so nothing is decided. Read: the windows that opened, the flag, the record's lock.
+           Red at c494855 (A1, 10.10.2026): the ordinary window opened. */
+        const [mastermind] = cast(1);
+        const M = await import("./mastermind.mjs");
+        const V = await import("./vote.mjs");
+        const { mastermindStore } = await import("./gm-stores.mjs");
+        const finalTitle = game.i18n.localize("DRPG.Mastermind.verdictTitle");
+        const verdictTitle = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+        const flagBefore = M.inFinalTrial();
+        const opened = [];
+        D.wait = async cfg => {
+            const title = cfg?.window?.title ?? "";
+            opened.push(title === finalTitle ? "final" : title === verdictTitle ? "ordinary" : title);
+            return null;
+        };
+        let reading = null;
+        try {
+            await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+            await M.setFinalTrial(true);
+            must(M.mastermindActor()?.id === mastermind.id && M.inFinalTrial(), "no Mastermind picked or no Final Trial announced - this would measure nothing");
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ voteClosed: true });
+                await game.drpg.verdictDialog();
+                reading = [opened, M.inFinalTrial(), V.trialProgress().verdictApplied];
+            });
+        } finally {
+            if (kept) Object.defineProperty(D, "wait", kept);
+            else delete D.wait;
+            await M.setFinalTrial(flagBefore);
+        }
+        equal(stableJson(reading), stableJson([["final"], true, false]),
+            "in a Final Trial the verdict's API did not open the Final Trial's window, or it decided something "
+            + "(read: the windows opened, the flag, verdictApplied)");
     }],
 
     ["a reset counts the season and keeps the fog epoch", async () => {
