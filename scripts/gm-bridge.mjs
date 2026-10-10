@@ -1481,10 +1481,16 @@ async function handleBallotAsk(payload, sender) {
     return { reply: await ballotFor(sender) };
 }
 
-/** The run of `floor.now` (E10 fix r2-G6): the primary's own Now, under its heartbeat's latch (trial-floor.mjs `advanceFloorOnPrimary`). */
-async function handleFloorNow() {
-    const { advanceFloorOnPrimary } = await import("./trial-floor.mjs");
-    return { reply: await advanceFloorOnPrimary() };
+/**
+ * The run of `floor.now` (E10 fix r2-G6): the primary's own Now, under its heartbeat's latch (trial-floor.mjs
+ * `advanceFloorOnPrimary`), on the floor the pressing GM saw (r2-G7). A floor that moved on is refused here, so that
+ * GM is told; `advanceFloorOnPrimary` holds the same comparison in the same synchronous step for the local road.
+ */
+async function handleFloorNow(payload) {
+    const { advanceFloorOnPrimary, floorAsSeen } = await import("./trial-floor.mjs");
+    const seen = { mode: payload.mode, startedAt: payload.startedAt };
+    if (!floorAsSeen(seen)) return { refused: "the trial's floor has moved on since that Now was pressed" };
+    return { reply: await advanceFloorOnPrimary(seen) };
 }
 
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
@@ -2182,15 +2188,21 @@ export const BRIDGE_ACTIONS = table({
     /*
      * THE GM'S NOW, RUN ON THE PRIMARY GM (E10 fix r2-G6, 1.2.71). The heartbeat writes the floor's
      * transitions on the primary under one latch (trial-floor.mjs `advancing`), and another GM's Now
-     * wrote the same move on its own browser beside it. A GM's request only, with no field: the
-     * primary moves the floor as it reads it, and a press while its own write is on its way does nothing.
+     * wrote the same move on its own browser beside it. A GM's request only: a press while the
+     * primary's own write is on its way does nothing. It names the floor the pressing GM saw (E10 fix
+     * r2-G7), and the primary moves that floor or nothing: a press that reaches it after the move it
+     * was pressed for had landed ended the rebuttal that move opened.
      */
     [ACTION_FLOOR_NOW]: {
         label: "DRPG.Bridge.what.floor.now",
         guards: [gmOnly("only a GM moves the trial's floor on")],
-        sanitize: pick({}),
+        sanitize: pick({ mode: as.oneOf("objection", "rebuttal"), startedAt: as.num }),
         run: handleFloorNow,
-        answer: "reply"
+        answer: "reply",
+        claims: {
+            mode: "held by handleFloorNow and advanceFloorOnPrimary (trial-floor.mjs floorAsSeen) to the floor the primary holds now; any other is refused as moved on and moves nothing",
+            startedAt: "held by handleFloorNow and advanceFloorOnPrimary (trial-floor.mjs floorAsSeen) to the start of the floor the primary holds now; any other is refused as moved on and moves nothing"
+        }
     },
     /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and

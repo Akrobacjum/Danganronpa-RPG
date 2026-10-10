@@ -52,7 +52,7 @@
 import { MODULE_ID, TRIAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, error, serverNow } from "./utils.mjs";
-import { bridgeRequest } from "./bridge-guards.mjs";
+import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 
 const WIDGET_ID = "drpg-trial-floor";
 let ticker = null;
@@ -493,13 +493,38 @@ export async function advanceFloorNow() {
        it under the latch its heartbeat takes; on the primary it runs here. Measured in scenario 63 X at 616d1e2,
        gm3 pressing Now: while gm2's heartbeat wrote the rebuttal, and with gm2's heartbeat passing zero while it
        was on its way, the rebuttal was written twice, once on each GM; alone, once, on gm3. */
+    /* THE FLOOR IT SAW (E10 fix r2-G7, 1.2.71; the read of round 2's fixes, F1). The primary's latch covers a
+       write on its way and nothing after it: another GM's Now that reached the primary after the move it was
+       pressed for had landed there read the floor that move wrote and moved it on again, so the rebuttal that had
+       just opened was ended. Measured in scenario 63 X2 at c51d2bd, gm3's packet held 3 s: gm2 wrote the
+       objection, the rebuttal and an empty floor, whether its heartbeat or its own Now made the first move. The
+       press carries the floor this GM read, and the primary moves that floor or nothing (`floorAsSeen`); this GM
+       is told when it had moved on. An open debate has no next mode, so it is asked nothing. */
     if (!game.user.isGM) return null;
-    const res = await bridgeRequest("floor.now", {}, { settle: "reply", onPrimary: true, local: () => advanceFloorOnPrimary() });
-    return res.ok ? (res.value ?? null) : null;
+    const floor = trialFloor();
+    if (floor?.mode !== FLOOR_MODES.objection && floor?.mode !== FLOOR_MODES.rebuttal) return null;
+    const seen = { mode: floor.mode, startedAt: floor.startedAt };
+    const res = await bridgeRequest("floor.now", seen, { settle: "reply", onPrimary: true, quiet: true, local: () => advanceFloorOnPrimary(seen) });
+    if (res.ok) return res.value ?? null;
+    // Its own words for a floor that moved on; the bridge's for the rest, which the request would have said itself.
+    if (res.reason === "movedOn") ui.notifications.warn(game.i18n.localize("DRPG.Floor.nowMovedOn"));
+    else sayNotDone("floor.now", res.reason);
+    return null;
 }
 
-/** The GM's Now on the primary GM, for itself or asked by another GM (gm-bridge.mjs `floor.now`): the floor written, or null. */
-export async function advanceFloorOnPrimary() {
+/**
+ * Whether the trial's floor is still the one a GM's Now was pressed on, `seen` = its mode and its start
+ * (E10 fix r2-G7): a floor moved on, ended or given thirty seconds since is another floor.
+ */
+export function floorAsSeen(seen, floor = trialFloor()) {
+    return Boolean(floor) && floor.mode === seen?.mode && floor.startedAt === seen?.startedAt;
+}
+
+/**
+ * The GM's Now on the primary GM, for itself or asked by another GM (gm-bridge.mjs `floor.now`): the floor
+ * written, or null - null too when the floor is no longer the one the GM saw (`seen`, `floorAsSeen`).
+ */
+export async function advanceFloorOnPrimary(seen) {
     /* UNDER THE TICK'S LATCH (E10 fix r2-G5, 1.2.71; round 2's cor m4, goal S06-38's residual). The GM's
        Now wrote its transition outside `advancing`, so Now pressed while the heartbeat's write was on its
        way read the floor still expired and wrote the rebuttal again, and a tick during Now's own write did
@@ -509,7 +534,7 @@ export async function advanceFloorOnPrimary() {
        another GM's Now is asked of this one (above). */
     if (!game.user.isGM || advancing) return null;
     const floor = trialFloor();
-    if (!floor) return null;
+    if (!floorAsSeen(seen, floor)) return null;
 
     advancing = true;
     try {

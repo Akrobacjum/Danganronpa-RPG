@@ -85,7 +85,9 @@
  *      ballots are (`ballotCopyStatus`, the round noted at load).
  *   X  (run after W; fix r2-G6) gm3, a GM that is not the primary, presses Now while gm2's heartbeat writes the
  *      rebuttal, again with a second left so that gm2's heartbeat passes zero while gm3's Now is on its way, and
- *      once with half a minute left: the rebuttal is written once in each, on gm2 (`floor.now`).
+ *      once with half a minute left: the rebuttal is written once in each, on gm2 (`floor.now`). X2 (fix r2-G7):
+ *      gm3's Now held on its way until gm2's heartbeat, or gm2's own Now, has moved the floor on moves nothing more,
+ *      and gm3 is told.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -129,6 +131,9 @@
  * after the main line's V: 54 checks in 32.1 s (one run, the merge's fast set beside two other lanes, 10.10.2026).
  * E10 fix r2-G6 added X1 on the main line (from 616d1e2's 54), gm3 joining a third time: 55 checks in 48.8 s (one run,
  * its fast set beside two other lanes, 10.10.2026).
+ * E10 fix r2-G7 added X2 (from c51d2bd's 55), gm3's Now held 3 s twice: 56 checks in 60.8 s and 59.7 s (its two fast
+ * sets, each beside other lanes, 10.10.2026). Red at c51d2bd: in both crossings gm2 wrote the objection, the rebuttal
+ * and an empty floor, no floor was left, and gm3 was told nothing.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -912,6 +917,68 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("gm3's Now while gm2's heartbeat writes the rebuttal, gm2's heartbeat while gm3's Now writes it, and gm3's Now alone write it once, on gm2 (fix r2-G6)",
         J(nowOrders) === J({ tick: ["objection", true, 1, 0, true], now: ["objection", 1, 0, true], early: ["objection", 1, 0, true] }) && gm3FloorErrors.length === 0,
         J({ nowOrders, gm3FloorErrors }));
+
+    /* E10 fix r2-G7 (1.2.71; the read of round 2's fixes, F1), run after X1 with no write held. The latch covers a write
+       on its way and nothing after it: gm3's Now reaching gm2 after the move it was pressed for had landed there read the
+       floor that move wrote and moved it on again. gm3's `floor.now` packets are held 3 s on their way (a stand-in for the
+       way to the primary, as the reviewer's scenario 93 held them). Two crossings: an objection with half a second left,
+       run out by gm2's heartbeat while gm3's press is held; and one with ten seconds left, gm3 pressing and gm2 pressing
+       its own Now 200 ms later. gm3 presses once its copy shows the objection. Read per crossing: EVERY `trialQueue`
+       write on gm2 from the objection's on (a mode, or "ended" for an empty floor), gm2's floor once both settled, and
+       how often gm3 was told its press found the floor moved on. Red at c51d2bd (10.10.2026): see the bound note. */
+    const crossings = {};
+    try {
+        await gm2.eval(`const settings = game.settings, real = settings.set;
+            globalThis.__floorLog = { writes: [], own: Object.hasOwn(settings, "set"), real };
+            settings.set = async function (namespace, key, value, ...rest) {
+                if (namespace === "${MOD}" && key === "trialQueue") globalThis.__floorLog.writes.push(value?.mode ?? "ended");
+                return real.call(this, namespace, key, value, ...rest);
+            };
+            return true;`);
+        await gm3.eval(`const sock = game.socket, real = sock.emit;
+            globalThis.__nowHold = { own: Object.hasOwn(sock, "emit"), real };
+            sock.emit = function (event, packet, ...rest) {
+                if (packet?.action === "floor.now") {
+                    setTimeout(() => real.call(sock, event, packet, ...rest), 3000);
+                    return true;
+                }
+                return real.call(sock, event, packet, ...rest);
+            };
+            return true;`);
+        const cross = async (back, primaryPresses) => {
+            await gm2.eval(`globalThis.__floorLog.writes = []; return true;`);
+            const opened = await objection(back);
+            const pressed = gm3.eval(`${until} ${F} globalThis.__s63x = globalThis.__notifications.length;
+                const saw = await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.objection, 5000);
+                await F.advanceFloorNow();
+                return saw;`, { timeout: 30000 });
+            if (primaryPresses) {
+                await settle(200);
+                await gm2.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
+            }
+            const saw = await pressed;
+            await settle(1500);
+            const [writes, after] = await gm2.eval(`${F} return [globalThis.__floorLog.writes, F.trialFloor()?.mode ?? null];`);
+            const told = await gm3.eval(`const words = game.i18n.localize("DRPG.Floor.nowMovedOn");
+                return globalThis.__notifications.slice(globalThis.__s63x).filter(n => n.msg === words).length;`);
+            return [opened, saw, writes, after, told];
+        };
+        crossings.tick = await cross(59_500, false);
+        await gm2.eval(`${F} await F.endFloor(); return true;`);
+        await settle(800);
+        crossings.now = await cross(10_000, true);
+    } finally {
+        await gm2.eval(`const h = globalThis.__floorLog; if (h) { if (h.own) game.settings.set = h.real; else delete game.settings.set; }
+            return true;`);
+        await gm3.eval(`const h = globalThis.__nowHold; if (h) { if (h.own) game.socket.emit = h.real; else delete game.socket.emit; }
+            return true;`);
+        await gm2.eval(`${F} await F.endFloor(); return true;`);
+        await settle(500);
+    }
+    const crossErrors = await gm3.eval(`return globalThis.__errors.slice(0, 3).map(e => String(e?.message ?? e).slice(0, 200));`);
+    const once = ["objection", true, ["objection", "rebuttal"], "rebuttal", 1];
+    verdict("gm3's Now reaching gm2 after the move it was pressed for - gm2's heartbeat's, or gm2's own Now's - moves nothing, and gm3 is told (fix r2-G7)",
+        J(crossings) === J({ tick: once, now: once }) && crossErrors.length === 0, J({ crossings, crossErrors }));
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

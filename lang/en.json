@@ -908,6 +908,7 @@
       "newTrialConfirm": "This chapter already has a verdict. Open a new trial? A second verdict means another execution and another round of Level Ups.",
       "newTrialRefused": "This chapter already has a verdict, so the Class Trial was not opened again. A second trial opens from Start the Class Trial, which asks first.",
       "eclipseFirst": "An Eclipse is running, so nothing was opened. End the Eclipse first.",
+      "nowMovedOn": "The floor had already moved on when your End this mode now reached the primary GM, so it changed nothing. Press it again if this mode should still end.",
       "incidentTitle": "An incident is still open",
       "incidentOpen": "A murder incident is still open. Its Blackened go on the register only when it is closed, and the vote and the verdict read the register. Close it now, or go on with it open?",
       "incidentKeep": "Go on with it open",

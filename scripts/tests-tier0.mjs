@@ -8339,6 +8339,12 @@ const REGRESSIONS = [
          * in the code, and the sentence says so), a take-back's latch and its own words (`takeBackOffer`), and both
          * verdict APIs opening the Final Trial's window (`openVerdictDialog`, `applyVerdict`). At the books before
          * it the twelve sentences were missing.
+         * E10 fix r2-G7 (10.10.2026; the read of round 2's fixes, F1 and F2): Now carries the floor its GM saw and
+         * a press that finds it moved on moves nothing and says so (`advanceFloorNow`, `advanceFloorOnPrimary`;
+         * scenario 63 X2), and a second take-back's own words are said where they hold - the primary's and the
+         * asking GM's browsers - and "busy" on any other GM's (the bridge's refusal; tier 2 "a second take-back of
+         * one character while the first is written is told as a take-back" reads that code). At c51d2bd the four
+         * sentences said less, and the second said its words held on every browser.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -8385,8 +8391,11 @@ const REGRESSIONS = [
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
             editAsksChapter: /if \(!\(await confirmNewTrial\(result\.chapter\)\)\) phase = getClock\(\)\.phase;/.test(panel),
-            nowOnPrimary: /bridgeRequest\("floor\.now", \{\}, \{ settle: "reply", onPrimary: true, local: \(\) => advanceFloorOnPrimary\(\) \}\)/
-                .test(fnSource(floorCode, "advanceFloorNow")),
+            nowOnPrimary: /bridgeRequest\("floor\.now", seen, \{ settle: "reply", onPrimary: true, quiet: true, local: \(\) => advanceFloorOnPrimary\(seen\) \}\)/
+                .test(fnSource(floorCode, "advanceFloorNow"))
+                && /if \(!floorAsSeen\(seen, floor\)\) return null;/.test(fnSource(floorCode, "advanceFloorOnPrimary"))
+                && /if \(res\.reason === "movedOn"\) ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.nowMovedOn"\)\);/
+                    .test(fnSource(floorCode, "advanceFloorNow")),
             runnerGap: /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner")),
             takeLatch: /advancing\.add\(actor\.id\);\s*takingBack\.add\(actor\.id\);\s*try \{\s*if \(!await withdrawOffer/.test(fnSource(levelUp, "takeBackOffer"))
                 && /if \(takingBack\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackTaking"/.test(fnSource(levelUp, "takeBackOffer")),
@@ -8416,9 +8425,9 @@ const REGRESSIONS = [
                     unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/],
                     eclipseDoors: [/no other door opens a trial in the dark: Edit campaign keeps the phase, applies the rest of its window and says so, and `game\.drpg\.setPhase` and `game\.drpg\.setClock` refuse the whole move/],
                     editAsksChapter: [/Edit campaign asks the same question when it moves the phase to Class Trial, about the chapter the window moves to/],
-                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time/],
+                    nowOnPrimary: [/\*\*End this mode now\*\* runs on the primary GM's browser whichever GM presses it, so a press while the clock is moving the floor on does not move it a second time, and a press that reaches it after the floor has moved on moves nothing and tells you so\./],
                     runnerGap: [/in the moment the verdict's GM disconnects, the GM who becomes its runner can press Finish the verdict before the first one's last write has landed/],
-                    takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words\./],
+                    takeLatch: [/A player's Level Up picked while a take-back of that offer is being written is refused as busy, and a second take-back of the same character in that time is refused in its own words on the primary GM's browser and on the browser of the GM who asked for the first \(that one read in the code\), and as busy on any other GM's\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` and `game\.drpg\.applyVerdict\(\)` open that window too, so no road gives a Final Trial the ordinary verdict/]
                 },
                 player: {
@@ -8453,9 +8462,9 @@ const REGRESSIONS = [
                     unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/],
                     eclipseDoors: [/żadne inne drzwi nie otwierają rozprawy po ciemku: Edytuj kampanię zostawia fazę, stosuje resztę swojego okna i mówi o tym, a `game\.drpg\.setPhase` i `game\.drpg\.setClock` odmawiają całej zmiany/],
                     editAsksChapter: [/Edytuj kampanię zadaje to samo pytanie, gdy przestawia fazę na Class Trial, i to o rozdział, do którego okno przechodzi/],
-                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz/],
+                    nowOnPrimary: [/\*\*Zakończ ten tryb teraz\*\* wykonuje się w przeglądarce głównego GMa, którykolwiek GM go naciśnie, więc naciśnięcie w chwili, gdy zegar sam przesuwa debatę dalej, nie przesuwa jej drugi raz, a naciśnięcie, które dotrze do głównego GMa, gdy debata już przesunęła się dalej, niczego nie przesuwa i mówi ci o tym\./],
                     runnerGap: [/w chwili, gdy GM werdyktu się rozłącza, GM, który przejmuje jego wykonanie, może nacisnąć Dokończ werdykt, zanim dotrze ostatni zapis pierwszego/],
-                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami\./],
+                    takeLatch: [/Level Up gracza wybrany, gdy cofnięcie tej oferty jest zapisywane, jest odmawiany jako zajęty, a drugie cofnięcie tej samej postaci w tym czasie jest odmawiane własnymi słowami w przeglądarce głównego GMa i w przeglądarce GMa, który poprosił o pierwsze \(to odczytane w kodzie\), a w przeglądarce każdego innego GMa jako zajęte\./],
                     finalApi: [/`game\.drpg\.verdictDialog\(\)` i `game\.drpg\.applyVerdict\(\)` też otwierają to okno, więc żadna droga nie daje Final Trial zwykłego werdyktu/]
                 },
                 player: {

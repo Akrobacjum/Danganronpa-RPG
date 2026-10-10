@@ -346,6 +346,8 @@ export const REASON_PATTERNS = Object.freeze([
     // E10 C2: a ballot, judged by the primary GM (gm-bridge.mjs `vote.cast`, vote.mjs `ballotRefusal`).
     ["badRequest", /^a GM casts no ballot$/],
     ["movedOn", /^the vote has moved on since that ballot was handed out$/],
+    // E10 fix r2-G7: a GM's Now on a floor the primary no longer holds (gm-bridge.mjs `floor.now`, trial-floor.mjs `floorAsSeen`).
+    ["movedOn", /^the trial's floor has moved on since that Now was pressed$/],
     ["notEligible", /^the sender holds no ballot in this vote$/],
     ["sameTwice", /^the ballot names somebody twice$/],
     ["wrongCount", /^the ballot names \d+, the vote asks for \d+$/],

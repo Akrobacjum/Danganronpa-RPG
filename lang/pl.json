@@ -897,6 +897,7 @@
       "newTrialConfirm": "Ten rozdział ma już werdykt. Otworzyć nowy Class Trial? Drugi werdykt to kolejna egzekucja i kolejna runda Level Upów.",
       "newTrialRefused": "Ten rozdział ma już werdykt, więc Class Trial nie został otwarty ponownie. Drugi Class Trial otwiera Zacznij Class Trial, które najpierw pyta.",
       "eclipseFirst": "Trwa Eclipse, więc nic nie zostało otwarte. Najpierw zakończ Eclipse.",
+      "nowMovedOn": "Debata przesunęła się już dalej, zanim twoje Zakończ ten tryb teraz dotarło do głównego GM-a, więc niczego nie zmieniło. Naciśnij je ponownie, jeśli ten tryb wciąż ma się zakończyć.",
       "incidentTitle": "Incydent jest wciąż otwarty",
       "incidentOpen": "Incydent morderstwa jest wciąż otwarty. Jego Blackened trafiają do rejestru dopiero przy zamknięciu, a głosowanie i werdykt czytają rejestr. Zamknąć go teraz czy kontynuować przy otwartym?",
       "incidentKeep": "Kontynuuj przy otwartym",
