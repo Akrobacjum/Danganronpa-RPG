@@ -36172,6 +36172,8 @@ const SCENARIOS = [
         const { killCharacter, publishDeath, discoverBody, isDeceased, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const ROOM = "SUITE E09 G1 a room nobody stands in";
         const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        // And the discovery's stamps (E11 fix r1-G1; early review EARLY-C1-1): a stamp left behind names a cast student.
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         let trace = null, copy = null;
@@ -36203,6 +36205,7 @@ const SCENARIOS = [
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await copy?.drop();
             if (trace) await dropTrace(trace);
         }
@@ -44175,6 +44178,175 @@ const SCENARIOS = [
             + "window, or a yes did not apply (read: the chapter kept, the phase, the name applied, the floor open, the trial "
             + "record kept; the windows asked; each question's first submit button and its defaults; after the yes the chapter "
             + "moved and the phase)");
+    }],
+
+    ["a living convict the verdict executes after End the trial is no body to find", async () => {
+        /*
+         * E11 fix r1-G1, 1.2.73; round 1's cor COR-1 (= early EARLY-C1-2). The trial console offers the
+         * verdict after End the trial (trial-floor-ui.mjs `trialNextStep`), and `executeSentenced` killed a
+         * living convict with the clock's phase, Daily Life by then: the next two students walking past the
+         * body announced it as a body found, gathered the cast and held the chapter (measured by the review
+         * at 0d860df). C1's test above executes only a death the GMs held. A living convict, the right
+         * verdict executing them as the window's `read` gives it, the phase Daily Life as End the trial
+         * leaves it; then the body and two living students stood in a room nobody else is in, one after
+         * another (`maybeBodyFound` on `updateToken`). Read: the executed record's phase, the discovery
+         * cards since the walk, the hold, this chapter's stamps since the walk, the room each token read as
+         * it arrived. The gather is the discovery's, after its stamp (`runDiscovery`): no stamp, no gather.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const [convict, first, second] = cast(3);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, isEclipse, deathRecord, bodiesFoundIn } = await import("./settings.mjs");
+        const { offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const scene = canvas?.scene;
+        const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
+        must(!isDeadForGm(convict), `${convict.name} is dead before the verdict - this would measure nothing`);
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const stamps = () => bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+        // Every token on the scene: a discovery's gather moves the cast.
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => V.applyVerdict({ correct: true, executedIds: [convict.id], blackenedIds: [convict.id] })));
+            await settle();
+            must(isDeceased(convict) && getClock().phase === "dailyLife",
+                "the verdict did not execute the living convict, or the phase is not Daily Life - this would measure nothing");
+            const phase = deathRecord(convict)?.phase ?? null;
+            const before = [cards(), stamps()], stood = [];
+            for (const t of tokens) {
+                await t.update(positionIn(room, t), PLACE);
+                await settle();
+                stood.push(roomOfToken(t));
+            }
+            await wait(600);
+            // `stood` is read as each token arrives, so a walk that never reached the room fails here rather than passing.
+            equal(stableJson([phase, cards() - before[0], Boolean(bodyDiscovery()), stamps() - before[1], stood]),
+                stableJson(["classTrial", 0, false, 0, [room, room, room]]),
+                `a living convict executed after End the trial was discovered as a body, or the walk did not stand the three in ${room} `
+                + "(the executed record's phase, the discovery cards since the walk, the hold, this chapter's stamps since the walk, "
+                + "the room each token read as it arrived)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(convict)) await reviveCharacter(convict, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const a of studentActors()) if (offerStore.has(a.id)) await offerStore.drop(a.id);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["a student revived and killed again in the chapter is found again - once", async () => {
+        /*
+         * E11 fix r1-G1, 1.2.73; early review EARLY-C1-1. A discovery's stamp named a student, not a
+         * death, for the whole chapter, and nothing takes it back when the death is undone
+         * (`reviveCharacter`): a student whose body was found, revived by the GM and killed again in the
+         * same chapter was never found the second time. In Daily Life, the student stood alone in a room
+         * nobody else is in: a death the GMs keep, found by the GM's road (`discoverBody`, named in a room
+         * no region has, so nobody is gathered) and the hold answered; revived, a second death the GMs
+         * keep, then made known by the GM's hand (`publishDeath`), then two living students stood in the
+         * room one after another (the watcher) and the hold answered; revived, a third death, public at
+         * once. Read: after each step, whether the watcher's body rule names the student (chapter.mjs
+         * `bodiesToDiscover` as `checkBodyFound` calls it) - found once, then a body again, then found -
+         * and the walk's discovery cards and the room each walker read as they arrived. Each writer of
+         * a death's record is the last death once: the GMs' row, its publication, the table's flag.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const [victim, first, second] = cast(3);
+        const { killCharacter, publishDeath, discoverBody, reviveCharacter, isDeadForGm, bodiesToDiscover, announcedIn } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const ROOM = "SUITE E11 G1 a room no region has";
+        const scene = canvas?.scene;
+        const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const toFind = () => {
+            const clock = getClock(), epoch = seasonEpoch();
+            return bodiesToDiscover({ actors: [victim], clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow }).includes(victim.id);
+        };
+        // Every token on the scene: the walk's discovery gathers the cast.
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const read = [];
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            await tokens[0].update(positionIn(room, tokens[0]), PLACE);
+            await settle();
+            must(roomOfToken(tokens[0]) === room, `${victim.name} was not stood in ${room} - this would measure nothing`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s first death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene });
+            await settle();
+            await clearBodyDiscovery();
+            read.push(toFind());
+            must(await reviveCharacter(victim, { quiet: true }), `${victim.name} was not revived after the first death`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s second death was not kept by the GMs`);
+            read.push(toFind());
+            must(await publishDeath(victim), `${victim.name}'s second death was not made known`);
+            await settle();
+            read.push(toFind());
+            const before = cards(), stood = [];
+            for (const t of tokens.slice(1)) {
+                await t.update(positionIn(room, t), PLACE);
+                // Read as the move returns: the discovery's gather moves the second walker on (measured 10.10.2026: null after it).
+                stood.push(roomOfToken(t));
+                await settle();
+            }
+            await wait(600);
+            read.push(cards() - before, stood);
+            await clearBodyDiscovery();
+            read.push(toFind());
+            must(await reviveCharacter(victim, { quiet: true }), `${victim.name} was not revived after the second death`);
+            must(await killCharacter(victim, { secret: false, keepBullets: true }), `${victim.name}'s third death was not recorded`);
+            await settle();
+            read.push(toFind());
+            equal(stableJson(read), stableJson([false, true, true, 1, [room, room], false, true]),
+                `a student revived and killed again in the chapter was not a body again, or a found body was one still, or the walk did not stand the two in ${room} `
+                + "(the body rule names them: after the first death's discovery, at the second death kept, made known; "
+                + "the walk's discovery cards, the room each walker read; after the walk; at the third death, public)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

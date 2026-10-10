@@ -2433,13 +2433,13 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1). */
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1) and its `deathId` (fix r1-G1). */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
     return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-        phase: row.phase ?? null, epoch: row.epoch ?? null } : null;
+        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null } : null;
 }
 
 /*

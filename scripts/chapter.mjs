@@ -114,16 +114,21 @@ export function livingStudentsForGm() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
-export async function markDeceased(actor, { record: when = null } = {}) {
+export async function markDeceased(actor, { record: when = null, phase = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
     // A death published after the kill carries the kill's chapter, day and time of day
     // (`publishDeath`), not the moment somebody found the body. And its phase and season
     // (E11 C1, 1.2.73): a death in the Class Trial is an execution, which no walk past the
     // body discovers, and a chapter 1 is only this season's when its epoch says so
-    // (`bodiesToDiscover`).
+    // (`bodiesToDiscover`). `phase` is the caller's when the clock's is not the death's: a
+    // verdict given after End the trial is still the trial's execution (E11 fix r1-G1).
+    // `deathId` names this death and no other, so a discovery's stamp counts for the death it
+    // announced and not for the next one of the same student (`announcedIn`); a random key and
+    // not the time, which would tell every console when a death the GMs kept happened.
     const clock = getClock();
-    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
+    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
+        deathId: foundry.utils.randomID() };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -144,7 +149,7 @@ export async function markDeceased(actor, { record: when = null } = {}) {
     return record;
 }
 
-export async function killCharacter(actor, { keepBullets = false, secret = null } = {}) {
+export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
@@ -181,7 +186,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
     let removed = 0;
     let record;
     if (secretly) {
-        record = await recordSecretDeath(actor, { keepBullets });
+        record = await recordSecretDeath(actor, { keepBullets, phase });
         if (!record) {
             warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
             secretly = false;
@@ -191,7 +196,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         if (!keepBullets) removed = await destroyBullets(actor);
         // The record and the token marker, which the Players window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
-        record = await markDeceased(actor);
+        record = await markDeceased(actor, { phase });
     }
     if (!record) return null;
 
@@ -424,9 +429,10 @@ async function destroyBullets(actor) {
  * record, or null when the row did not take - and the caller then publishes the death as
  * before, since a death lost is worse than one told early.
  */
-async function recordSecretDeath(actor, { keepBullets = false } = {}) {
+async function recordSecretDeath(actor, { keepBullets = false, phase = null } = {}) {
     const clock = getClock();
-    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
+        deathId: foundry.utils.randomID() };
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -498,7 +504,7 @@ export async function publishDeath(actor, { phase = null } = {}) {
        chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
     const record = await markDeceased(actor, {
         record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null }
+            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null }
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
@@ -859,7 +865,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    const { found, victims } = await publishFoundBodies(room, victim, where, { clock, epoch });
+    const { found, victims, deaths } = await publishFoundBodies(room, victim, where, { clock, epoch });
 
     /* AND THE DISCOVERY IS STAMPED, ONCE, UNDER ITS CHAPTER AND SEASON (E11 C1, 1.2.73; audit
        S06-03, decision D8). The hold below is cleared at the next phase change, and it was the
@@ -869,7 +875,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        deaths are the table's, before the gather and the card, so a failure in either leaves the
        bodies known as found. */
     await announceBody({ chapter: clock.chapter, epoch, at: Date.now(), room, sceneId: where?.id ?? null,
-        victimIds: victims, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
+        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
        round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
@@ -982,12 +988,18 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
-    return { found: [...found], victims: [...victims] };
+    /* AND WHICH DEATH EACH OF THEM WAS (E11 fix r1-G1): the stamp names the death it announced
+       (`deathId`), read off the primary's mark in one step once they are published. */
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const deaths = Object.fromEntries([...victims].map(id => game.actors.get(id)).filter(Boolean)
+        .map(body => [body.id, deathRecordFor(flagsHeldNow(body))?.deathId ?? null]));
+    return { found: [...found], victims: [...victims], deaths };
 }
 
 /**
  * THE ONE WRITER OF THE DISCOVERY'S STAMP (E11 C1, 1.2.73; decision D8): `row` is
- * `{ chapter, epoch, at, room, sceneId, victimIds, by, day, timeOfDay }`, filed under its own
+ * `{ chapter, epoch, at, room, sceneId, victimIds, deaths, by, day, timeOfDay }` (`deaths`: each
+ * body's `deathId`, E11 fix r1-G1), filed under its own
  * chapter and season (settings.mjs `recordBodyFound`; tier 0 R349 holds that nothing else calls
  * it). Who walked in is not in it - the GMs' log has it (`checkBodyFound`). E19's channel, E13's
  * trial room and E70 read the stamp through `bodiesFoundIn`, `bodyAnnounced` and
@@ -1006,10 +1018,19 @@ export async function announceBody(row) {
     }
 }
 
-/** The ids of the bodies this chapter's discoveries announced, in the season `epoch` (a test on an id; the GM panel's next line reads it too). */
+/*
+ * THE DEATHS THIS CHAPTER'S DISCOVERIES ANNOUNCED, in the season `epoch`: a test on an id and its
+ * death's record (the GM panel's next line reads it too). A stamp counts only for the death it
+ * stamped (E11 fix r1-G1; early review EARLY-C1-1): C1 read the ids alone, so a student revived
+ * after their body was found and killed again in the same chapter was never found the second time
+ * - nothing takes a stamp back when a death is undone (`reviveCharacter`). A record with no
+ * `deathId` (from before 1.2.73) is matched by its id, as C1 did. Tier 2 "a student revived and
+ * killed again in the chapter is found again - once".
+ */
 export function announcedIn(chapter, epoch) {
-    const ids = new Set(bodiesFoundIn(chapter, epoch).flatMap(row => row?.victimIds ?? []));
-    return id => ids.has(id);
+    const rows = bodiesFoundIn(chapter, epoch);
+    return (id, record = null) => rows.some(row => row?.victimIds?.includes?.(id)
+        && (!record?.deathId || row.deaths?.[id] === record.deathId));
 }
 
 /*
@@ -1018,7 +1039,7 @@ export function announcedIn(chapter, epoch) {
  * this chapter (a record with no chapter is taken as this chapter's, as before) of this season (a
  * record with no `epoch` is taken as this season's), not in the Class Trial - an execution is the
  * trial's own ending, public at once, and no body to find - and not announced by a discovery of
- * this chapter (`announced`, a test on an id). A record from before 1.2.73 says no phase, so it
+ * this chapter (`announced`, a test on an id and the death's record: `announcedIn`). A record from before 1.2.73 says no phase, so it
  * cannot tell an execution from a murder: it counts only while the GMs still hold it, which an
  * execution never is. Measured at 4aad1fd: after End the trial a walk-in discovered Daichi,
  * found before the trial, again (65-season B4), and a verdict executing a death the GMs held
@@ -1032,11 +1053,12 @@ export function announcedIn(chapter, epoch) {
 export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seasonEpoch(), announced = () => false,
     held = actor => actor, pending = id => pendingDeath({ id }) } = {}) {
     return [...new Set([...actors].filter(actor => {
-        if (!actor?.id || announced(actor.id)) return false;
+        if (!actor?.id) return false;
         const view = held(actor);
         if (!view || !deadIn(view, pending) || view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
         const row = pending(actor.id);
         const record = view.getFlag(MODULE_ID, FLAGS.deceased) || row;
+        if (announced(actor.id, record)) return false;
         if ((record?.chapter ?? clock.chapter) !== clock.chapter) return false;
         if ((record?.epoch ?? epoch) !== epoch) return false;
         if (!record?.phase) return Boolean(row);
