@@ -8740,7 +8740,7 @@ const REGRESSIONS = [
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
-            editAsksChapter: /if \(!\(await confirmNewTrial\(result\.chapter\)\)\) phase = getClock\(\)\.phase;/.test(panel),
+            editAsksChapter: /if \(!\(await confirmNewTrial\(Number\(chapter\)\)\)\) phase = getClock\(\)\.phase;/.test(panel),
             nowOnPrimary: /bridgeRequest\("floor\.now", seen, \{ settle: "reply", onPrimary: true, quiet: true, local: \(\) => advanceFloorOnPrimary\(seen\) \}\)/
                 .test(fnSource(floorCode, "advanceFloorNow"))
                 && /if \(!floorAsSeen\(seen, floor\)\) return null;/.test(fnSource(floorCode, "advanceFloorOnPrimary"))

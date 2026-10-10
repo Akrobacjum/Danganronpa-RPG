@@ -1366,6 +1366,43 @@ export async function openPublicRollDialog() {
     return publicRoll(result.formula, { flavor: result.flavor });
 }
 
+/**
+ * WHETHER AN EDIT CAMPAIGN WRITE IS A CORRECTION OF THE HOUR, NOT THE HOUR PASSING (E11 C6, 1.2.73; audit
+ * S01-12, S10-22). A called assembly is held by `runPendingGather` (call-world.mjs) on the next clock write
+ * whose time of day or session differs from the one it was called in, whatever moved them: it cannot tell
+ * the hour turning from a GM putting it back. Edit campaign moving the afternoon back to the morning, or
+ * fixing only the session number, held an assembly called for the evening - the cast teleported and a public
+ * card, from a window meant for typos. So the window calls it off first, as `rewindTimeOfDay` does (clock.mjs,
+ * "THE ASSEMBLY GOES FIRST"), whenever the time of day or the session changes and the day and the time of day
+ * do not move on (or the session goes back). A move on - Day 2's evening to Day 3's morning - is the hour
+ * passing, and the assembly is held as it would be at the panel's next time of day. Measured in tier 2 "Edit
+ * campaign moving the time back calls nobody" and scenario 65's C2.
+ */
+export function correctsTheHour(from, to) {
+    const at = clock => [Number(clock.day ?? 1), TIMES_OF_DAY.indexOf(clock.timeOfDay), Number(clock.session)];
+    const [dayWas, hourWas, sessionWas] = at(from), [day, hour, session] = at(to);
+    if (hour === hourWas && session === sessionWas) return false;
+    const onward = day > dayWas || (day === dayWas && hour > hourWas);
+    return !onward || session < sessionWas;
+}
+
+/* A question Edit campaign asks before a field that does more than correct (E11 C6). Cancel is the first button
+   and the only default, as `confirmNewTrial`'s (trial-floor-ui.mjs): Enter presses the first submit button (E10
+   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. */
+async function confirmCorrection(titleKey, textKey) {
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize(titleKey) },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>`),
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "ok", label: game.i18n.localize(titleKey) }
+        ],
+        rejectClose: false
+    });
+    return answer === "ok";
+}
+
 export async function openClockDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -1502,29 +1539,55 @@ export async function openClockDialog() {
        opened in an Eclipse, which would drop the whole window; here only the phase is kept and the GM
        told, as Cancel keeps it. Measured in tier 2 "Edit campaign moving back to a chapter with a verdict
        asks first" and "no road opens the trial in an Eclipse", both red at c494855. */
+    /* THE CHAPTER NUMBER HERE IS A CORRECTION, AND IT SAYS SO (E11 C6, 1.2.73; audit S10-21). Moving it was
+       a plain write: no reveal, no sweep of the Remnants, no Blackened named, no session or morning - none of
+       what End the chapter does - and nothing told the GM that the chapter had not ended. It asks first,
+       Cancel the default; Cancel keeps the chapter on the clock and applies the rest of the window, as the
+       phase's Cancel below does (the orchestrator's decision of 10.10.2026 on the prep's proposal). Asked
+       before the trial's question, so that question reads the chapter actually written. Measured in tier 2
+       "Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest". */
+    let chapter = result.chapter;
+    if (chapter !== Number(getClock().chapter)
+        && !(await confirmCorrection("DRPG.Clock.chapterCorrectTitle", "DRPG.Clock.chapterCorrect"))) {
+        chapter = getClock().chapter;
+    }
+
+    /* AND ENTERING THE TRIAL FROM HERE IS NOT A CORRECTION (E11 C6; audit S10-22). The phase moved into the
+       Class Trial runs `reconcilePhase`'s entry (clock.mjs): the trial's budget handed out, the chapter's trial
+       record blanked and Monokuma's charge for the Key Remnants nobody found - Despair that no Edit campaign
+       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict. */
     let phase = result.phase;
     if (phase === "classTrial" && getClock().phase !== "classTrial") {
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
             phase = getClock().phase;
+        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit"))) {
+            phase = getClock().phase;
         } else {
             const { confirmNewTrial } = await import("./trial-floor-ui.mjs");
-            if (!(await confirmNewTrial(result.chapter))) phase = getClock().phase;
+            if (!(await confirmNewTrial(Number(chapter)))) phase = getClock().phase;
         }
     }
 
-    await setClock({
+    const patch = {
         campaignName: result.campaignName,
-        chapter: result.chapter,
+        chapter,
         day: result.day,
         phase,
         session: result.session,
         timeOfDay: result.timeOfDay
-    });
+    };
+    // Before the write, as the rewind's: the write's own `onChange` reaches the primary GM's `runPendingGather`
+    // before a line after it would run. See `correctsTheHour`.
+    if (correctsTheHour(getClock(), patch)) {
+        await import("./call-effects.mjs").then(m => m.cancelGather()).catch(err => error("Could not call off the assembly", err));
+    }
+
+    await setClock(patch);
 
     const moved = result.timeOfDay !== before.timeOfDay
         || result.day !== (before.day ?? 1)
-        || result.chapter !== before.chapter;
+        || chapter !== before.chapter;
     if (before.eclipse && moved) {
         ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
     }

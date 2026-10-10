@@ -328,8 +328,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
             && twice.after.chapter === twice.before.chapter && twice.after.session === twice.before.session + 1
             && twice.after.day === twice.before.day + 1 && twice.after.phase === "dailyLife",
         J(twice), { flow: "clock-day" });
+    /* Edit campaign moving the hour back, with an assembly called in the afternoon for the next time of day. Before
+       E11 C6 the correction's clock write was the one `runPendingGather` holds an order on (the time of day differs
+       from the one it was called in), so the cast was gathered from a window for typos; C0's reading was the order
+       gone and the time of day moved. Read: the cards posted after the write that carry Monokuma's banner (an
+       assembly held), the order standing, the called-off cards. */
     const edit = await gm.eval(`${UNTIL} const { setPhase, setClock } = await import("${repoUrl}/scripts/clock.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         const CE = await import("${repoUrl}/scripts/call-effects.mjs");
         const G = await import("${repoUrl}/scripts/gm-panel.mjs");
         await setPhase("dailyLife");
@@ -337,17 +343,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         const view = canvas.scene; canvas.scene = game.scenes.get("${IDS.scene}");
         let order = null;
         try { order = await CE.scheduleGather("Cafeteria"); } finally { canvas.scene = view; }
+        const seen = new Set(game.messages.keys());
+        const posted = text => game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(text)).length;
+        const banner = game.i18n.localize("DRPG.Calls.gatherBanner");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: "Cafeteria" });
         const c = getClock();
         globalThis.__dialogAnswers.push(() => ({ campaignName: c.campaignName ?? "", chapter: c.chapter, day: c.day ?? 1, phase: c.phase,
             session: c.session, timeOfDay: "morning", reset: false }));
         await G.openClockDialog();
-        await until(() => !CE.pendingGather(), 4000);
+        await until(() => posted(banner) > 0, 4000);
         const standing = Boolean(CE.pendingGather());
         if (standing) await CE.cancelGather();
-        return { ordered: order?.timeOfDay ?? null, timeOfDay: getClock().timeOfDay, standing };`, { timeout: 60000 });
-    // Today Edit campaign moving the hour back holds the called assembly. C6: the correction holds nothing.
-    check("C2: Edit campaign moving the time of day back holds the assembly called in the afternoon - today's reading; E11 C6 leaves it standing",
-        edit.ordered === "afternoon" && edit.timeOfDay === "morning" && edit.standing === false, J(edit), { flow: "clock-day" });
+        return { ordered: order?.timeOfDay ?? null, timeOfDay: getClock().timeOfDay, held: posted(banner), standing, calledOff: posted(calledOff) };`, { timeout: 60000 });
+    check("C2: Edit campaign moving the time of day back calls off the assembly called in the afternoon and holds nobody (E11 C6)",
+        edit.ordered === "afternoon" && edit.timeOfDay === "morning" && edit.held === 0 && edit.standing === false && edit.calledOff === 1,
+        J(edit), { flow: "clock-day" });
 
     /* ------------------------------ Q. Q3 (a): a death kept past its chapter ------------------------------ */
     phase("Q: a death kept past its chapter's end and announced in the next reaches no trial", { flow: "murder-incident" });

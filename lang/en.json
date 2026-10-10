@@ -2777,6 +2777,10 @@
       "phase": "Phase",
       "session": "Session",
       "timeOfDay": "Time of day",
+      "chapterCorrectTitle": "Correct the chapter number",
+      "chapterCorrect": "This corrects the chapter number only - no reveal, no sweep, no Blackened. End a chapter with End the chapter. Cancel keeps the chapter and applies the rest.",
+      "trialFromEditTitle": "Open the Class Trial",
+      "trialFromEdit": "This opens the trial's budget and charges for unfound Key Remnants. Cancel keeps the phase and applies the rest.",
       "unknownTime": "Unknown time of day: {key}.",
       "unknownPhase": "Unknown phase: {key}.",
       "actionsRefilled": {

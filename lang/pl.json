@@ -2880,6 +2880,10 @@
       "phase": "Faza",
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
+      "chapterCorrectTitle": "Popraw numer rozdziału",
+      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział. Anuluj zostawia rozdział i zapisuje resztę.",
+      "trialFromEditTitle": "Otwórz Class Trial",
+      "trialFromEdit": "To otwiera budżet Class Trialu i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
       "unknownPhase": "Nieznana faza: {key}.",
       "actionsRefilled": {

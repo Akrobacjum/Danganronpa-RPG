@@ -27393,6 +27393,8 @@ const SCENARIOS = [
          * and its defaults; the warnings told. Last, the confirmation answered yes: a fresh trial,
          * `keysCharged` kept (the Key fee is the chapter's, E09 C7). Red at E10 C10's tree (A1,
          * 10.10.2026): no question, the phase Class Trial and the record blank after the first road.
+         * E11 C6 (1.2.73) put its own question in front of this one at Edit campaign ("This opens the trial's
+         * budget..."): answered yes here, since it is the road to the question this test reads.
          */
         needs(env.dialogs(), "the confirmation's window is drawn and its first button pressed, as Enter presses it");
         const V = await import("./vote.mjs");
@@ -27402,7 +27404,7 @@ const SCENARIOS = [
         const { openClockDialog } = await import("./gm-panel.mjs");
         const D = foundry.applications.api.DialogV2;
         const titles = { start: game.i18n.localize("DRPG.Floor.startTrial"), clock: game.i18n.localize("DRPG.Panel.jump"),
-            ask: game.i18n.localize("DRPG.Floor.newTrialTitle") };
+            ask: game.i18n.localize("DRPG.Floor.newTrialTitle"), trial: game.i18n.localize("DRPG.Clock.trialFromEditTitle") };
         const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const clockBefore = foundry.utils.deepClone(getClock());
         const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
@@ -27416,7 +27418,7 @@ const SCENARIOS = [
             const title = cfg?.window?.title ?? "";
             const kind = Object.keys(titles).find(k => titles[k] === title) ?? title;
             asked.push(kind);
-            if (kind === "start") return "ok";
+            if (kind === "start" || kind === "trial") return "ok";
             if (kind === "clock") {
                 const c = getClock();
                 return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter), day: c.day ?? 1, phase: "classTrial",
@@ -27482,7 +27484,7 @@ const SCENARIOS = [
         equal(stableJson({ readings, asked, buttons, told: toldOnRoads, confirmed }),
             stableJson({
                 readings: { start: [...kept, 0], clock: [...kept, 0], setPhase: [...kept, 1], openDebate: [...kept, 1], startFloor: [...kept, 1] },
-                asked: ["start", "ask", "clock", "ask", "start", "ask"],
+                asked: ["start", "ask", "clock", "trial", "ask", "start", "ask"],
                 buttons: [["cancel", ["cancel"]], ["cancel", ["cancel"]], ["cancel", ["cancel"]]],
                 told: [true, true, true],
                 confirmed: [true, "classTrial", false, true, false]
@@ -27504,13 +27506,16 @@ const SCENARIOS = [
          * it (the first submit button of the drawn window pressed, as the test above presses it). Read: the chapter
          * moved back, the phase, the record kept, the floor shut; the windows asked; the question's first submit
          * button and its defaults. Red at c494855 (A1, 10.10.2026): no question, the phase Class Trial, the record blank.
+         * E11 C6 (1.2.73) asks before Edit campaign moves the chapter and before it opens the trial: both answered
+         * yes here, since they are the road to the question this test reads.
          */
         needs(env.dialogs(), "the confirmation's window is drawn and its first button pressed, as Enter presses it");
         const V = await import("./vote.mjs");
         const floor = await import("./trial-floor.mjs");
         const { openClockDialog } = await import("./gm-panel.mjs");
         const D = foundry.applications.api.DialogV2;
-        const titles = { clock: game.i18n.localize("DRPG.Panel.jump"), ask: game.i18n.localize("DRPG.Floor.newTrialTitle") };
+        const titles = { clock: game.i18n.localize("DRPG.Panel.jump"), ask: game.i18n.localize("DRPG.Floor.newTrialTitle"),
+            chapter: game.i18n.localize("DRPG.Clock.chapterCorrectTitle"), trial: game.i18n.localize("DRPG.Clock.trialFromEditTitle") };
         const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const clockBefore = foundry.utils.deepClone(getClock());
         const chapter = Number(clockBefore.chapter);
@@ -27528,6 +27533,7 @@ const SCENARIOS = [
                 return { campaignName: c.campaignName ?? "", chapter, day: c.day ?? 1, phase: "classTrial",
                     session: c.session, timeOfDay: c.timeOfDay, reset: false };
             }
+            if (kind === "chapter" || kind === "trial") return "ok";
             if (kind !== "ask") return null;
             const pending = drawWait.call(this, cfg);
             if (await until(() => Boolean(drawn()), 8000)) {
@@ -27563,7 +27569,7 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson({ reading, asked, buttons }),
-            stableJson({ reading: [true, "dailyLife", true, false], asked: ["clock", "ask"], buttons: [["cancel", ["cancel"]]] }),
+            stableJson({ reading: [true, "dailyLife", true, false], asked: ["clock", "chapter", "trial", "ask"], buttons: [["cancel", ["cancel"]]] }),
             "Edit campaign moving back to a chapter with a verdict and into its trial did not ask, or Enter confirmed it, or the "
             + "rest of the window was lost (read: the chapter moved back, the phase, the record kept, the floor open; the windows "
             + "asked; the question's first submit button and its defaults)");
@@ -44021,6 +44027,154 @@ const SCENARIOS = [
         equal(stableJson([errors, Array.isArray(ended), after]), stableJson([[failed], true, [0, 1, "classTrial", false]]),
             "a step that threw or a trial that would not close was not named to the GM, or the steps after them did not run "
             + "([the errors shown, the end answered, [sessions on, days on, the phase, the floor open]])");
+    }],
+
+    ["Edit campaign moving the time back calls nobody", async () => {
+        /*
+         * E11 C6, 1.2.73; audit S01-12 and S10-22. The harm: a called assembly is held on the first clock write whose
+         * time of day or session differs from the one it was called in (call-world.mjs `runPendingGather`), and Edit
+         * campaign's write is one, so a GM putting the hour back or fixing only the session number held an assembly
+         * called for the next time of day - the cast teleported and Monokuma's card said so, from a window for typos.
+         * Driven three times from the afternoon, an assembly called each time in a named room of this scene: Edit
+         * campaign with the time of day moved back to the morning, Edit campaign with only the session moved on, and
+         * the clock's rewind (`rewindTimeOfDay`, which called the assembly off before E11 and which C6 does not touch:
+         * the other road to the same harm). Read per road: the cards posted after the write that carry Monokuma's
+         * banner (an assembly held), the order still standing, the called-off cards. Red at C5's tree (A1, 10.10.2026): the time put back and the session alone each held the
+         * assembly ([1, false, 0]: the four students' tokens moved into the room), the rewind called it off.
+         */
+        const CE = await import("./call-effects.mjs");
+        const { rewindTimeOfDay } = await import("./clock.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!getClock().eclipse && !CE.pendingGather(), "an Eclipse or an assembly was already standing - this would measure nothing");
+        const jump = game.i18n.localize("DRPG.Panel.jump");
+        const banner = game.i18n.localize("DRPG.Calls.gatherBanner");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: foundry.utils.escapeHTML(room) });
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        let answer = {};
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== jump) return null;
+            const c = getClock();
+            return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter), day: c.day ?? 1, phase: c.phase,
+                session: c.session, timeOfDay: c.timeOfDay, reset: false, ...answer };
+        };
+        const roads = {
+            back: () => { answer = { timeOfDay: "morning" }; return openClockDialog(); },
+            session: () => { answer = { session: Number(getClock().session) + 1 }; return openClockDialog(); },
+            rewind: () => rewindTimeOfDay()
+        };
+        const readings = {};
+        try {
+            for (const [road, run] of Object.entries(roads)) {
+                await setClock({ timeOfDay: "afternoon" });
+                await settle();
+                must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+                const seen = new Set(game.messages.keys());
+                const posted = text => game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(text)).length;
+                await run();
+                await until(() => posted(banner) > 0, 3000);
+                readings[road] = [posted(banner), Boolean(CE.pendingGather()), posted(calledOff)];
+                if (CE.pendingGather()) await CE.cancelGather();
+            }
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (CE.pendingGather()) await CE.cancelGather();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await settle();
+        }
+        equal(stableJson(readings), stableJson({ back: [0, false, 1], session: [0, false, 1], rewind: [0, false, 1] }),
+            "a correction of the clock held the assembly called for the next time of day, or left it standing, or did not "
+            + "say it was called off (read per road: cards with Monokuma's banner after the write, the order standing, "
+            + "the called-off cards)");
+    }],
+
+    ["Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest", async () => {
+        /*
+         * E11 C6, 1.2.73; audit S10-21 and S10-22. The harm: Edit campaign's chapter field moved the chapter with
+         * none of End the chapter's steps and no word that the chapter had not ended, and its phase select opened
+         * the Class Trial - the trial's budget handed out, the chapter's trial record blanked, Monokuma's charge for
+         * the Key Remnants nobody found (`reconcilePhase`) - with nothing asked when the chapter had no verdict.
+         * Driven from Daily Life with no verdict in the chapter: Edit campaign answered with the next chapter, the
+         * Class Trial and a new campaign name, each question answered as Enter answers it (the first submit button
+         * of the drawn window pressed); then again with both questions answered yes. Read: the chapter kept, the
+         * phase, the name applied, the floor shut, the trial record as it was; the windows asked; each question's
+         * first submit button and its defaults; and after the yes, the chapter moved and the trial open. Red at C5's tree (A1, 10.10.2026): no question asked, the chapter moved, the
+         * Class Trial open and the trial record blanked.
+         */
+        needs(env.dialogs(), "the questions' windows are drawn and their first button pressed, as Enter presses it");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const L = key => game.i18n.localize(key);
+        const titles = { clock: L("DRPG.Panel.jump"), chapter: L("DRPG.Clock.chapterCorrectTitle"),
+            trial: L("DRPG.Clock.trialFromEditTitle"), ask: L("DRPG.Floor.newTrialTitle") };
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const chapter = Number(clockBefore.chapter);
+        const name = `${clockBefore.campaignName ?? ""} (C6)`;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const drawn = title => [...foundry.applications.instances.values()]
+            .find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+        const asked = [], buttons = [];
+        let press = "enter";
+        D.wait = async function (cfg) {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? title;
+            asked.push(kind);
+            if (kind === "clock") {
+                const c = getClock();
+                return { campaignName: name, chapter: chapter + 1, day: c.day ?? 1, phase: "classTrial",
+                    session: c.session, timeOfDay: c.timeOfDay, reset: false };
+            }
+            if (kind !== "chapter" && kind !== "trial") return null;
+            if (press === "yes") return "ok";
+            const pending = drawWait.call(this, cfg);
+            if (await until(() => Boolean(drawn(title)), 8000)) {
+                const element = drawn(title).element;
+                const first = element.querySelector('button[type="submit"]');
+                buttons.push([kind, first?.dataset?.action ?? null, [...element.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action)]);
+                element.querySelector("form")?.requestSubmit(first);
+            }
+            if (await until(() => !drawn(title), 3000) === false) await drawn(title)?.close();
+            return Promise.race([pending, wait(4000).then(() => "unanswered")]);
+        };
+        let kept = null, moved = null;
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            must(!getClock().eclipse, "an Eclipse was running - the trial's question is not asked in one, and this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter, verdictApplied: false });
+            const record = stableJson(game.settings.get(MODULE_ID, SETTINGS.trialProgress));
+            await openClockDialog();
+            await settle();
+            kept = [Number(getClock().chapter) === chapter, getClock().phase, getClock().campaignName === name,
+                Boolean(floor.trialFloor()), stableJson(game.settings.get(MODULE_ID, SETTINGS.trialProgress)) === record];
+            press = "yes";
+            await openClockDialog();
+            await settle();
+            moved = [Number(getClock().chapter) === chapter + 1, getClock().phase];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        equal(stableJson({ kept, asked, buttons, moved }),
+            stableJson({ kept: [true, "dailyLife", true, false, true], asked: ["clock", "chapter", "trial", "clock", "chapter", "trial"],
+                buttons: [["chapter", "cancel", ["cancel"]], ["trial", "cancel", ["cancel"]]], moved: [true, "classTrial"] }),
+            "Edit campaign moved the chapter or opened the trial unasked, or Enter confirmed it, or Cancel lost the rest of the "
+            + "window, or a yes did not apply (read: the chapter kept, the phase, the name applied, the floor open, the trial "
+            + "record kept; the windows asked; each question's first submit button and its defaults; after the yes the chapter "
+            + "moved and the phase)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
