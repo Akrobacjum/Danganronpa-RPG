@@ -19711,6 +19711,118 @@ const SCENARIOS = [
             "Enter in the class's Level Up window does not give what its rows say (the first submit button, the buttons marked default; each row's answer)");
     }],
 
+    ["the vote window says it holds none of the ballots only on a GM that is not the primary and of the vote open when it loaded", async () => {
+        /*
+         * E10 fix r1-G3, 1.2.71; the round-1 review's cor F2. The vote window warns a GM that this browser holds none
+         * of the open vote's ballots - "wait for the primary GM or Start the vote over" - when its copy has none of a
+         * vote opened before it loaded. The primary said it to itself, and "before" was the record's `openedAt`, the
+         * primary's `Date.now()`, against this browser's: two clocks. The harness has one GM, so for the second and
+         * third readings a GM whose id sorts first is put in this browser's list of users - the primary as
+         * `primaryGmId` reads it - and taken out after. A round of the vote no ballot names is opened in the record.
+         * Read, in the window's text: the line on this GM as the primary, of the vote open when it loaded
+         * (`standInOpenAtLoad`), stamped before it; the line on this GM not the primary, of a vote opened after it
+         * loaded but stamped an hour earlier, as a primary whose clock runs an hour behind stamps it; and the line on
+         * this GM not the primary, of the vote open when it loaded - the one case the warning is true.
+         */
+        const V = await import("./vote.mjs");
+        const { openVoteDialog } = await import("./trial-floor-ui.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        must(ballotStore.isHydrated(), "the GMs' store has not loaded here - the window would say that, not this");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const title = game.i18n.localize("DRPG.Vote.openTitle");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const other = { id: "!E10G3otherGM", name: "E10 G3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const round = V.trialProgress().vote.round + 100;
+        const said = async (openedAt, openAtLoad) => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, voteClosed: false,
+                vote: { open: true, round, picks: 1, issued: [], openedAt, closedAt: null } });
+            let content = null;
+            // The window's content is an element (utils.mjs `dialogContent`), its text what the GM reads.
+            D.wait = async cfg => {
+                if (cfg?.window?.title === title) content = typeof cfg.content === "string" ? cfg.content : cfg.content?.textContent ?? "";
+                return null;
+            };
+            const putBack = openAtLoad ? V.standInOpenAtLoad?.(V.trialProgress()) : null;
+            try {
+                await openVoteDialog();
+            } finally {
+                putBack?.();
+            }
+            must(content?.includes(game.i18n.localize("DRPG.Vote.privacyNote")), `the vote window was not drawn - this would measure nothing: ${content}`);
+            return content.includes(game.i18n.format("DRPG.Vote.openNoBallots", { n: round }));
+        };
+        const read = [];
+        try {
+            read.push(await said(0, true));
+            game.users.set(other.id, other);
+            read.push(await said(Date.now() - 60 * 60 * 1000, false));
+            read.push(await said(Date.now() - 60 * 60 * 1000, true));
+        } finally {
+            game.users.delete(other.id);
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        equal(stableJson(read), stableJson([false, false, true]),
+            "the vote window's \"wait for the primary GM\" line was wrong (on the primary, of the vote open when it loaded; on another GM, "
+            + "of a vote opened after it loaded stamped by a clock an hour behind; on another GM, of the vote open when it loaded)");
+    }],
+
+    ["Start the vote over asks first on a GM whose copy of the ballots is not ready", async () => {
+        /*
+         * E10 fix r1-G3, 1.2.71; the round-1 review's cor F3. The vote window's Start the vote over asked first only
+         * when this browser's copy held a ballot of the vote - and the restart drops the ballots the primary holds. On
+         * a GM whose copy had not arrived it counted 0 and the restart ran unasked. The GMs' store stood in as not
+         * loaded here (`isHydrated`), a round no ballot names open in the record, the ballots a restart would hand out
+         * caught before they leave. Read: whether the question was asked, what it said, and the record's round after
+         * the question was answered Cancel and the window closed.
+         */
+        const V = await import("./vote.mjs");
+        const { openVoteDialog } = await import("./trial-floor-ui.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = ["wait", "confirm"].map(key => [key, Object.getOwnPropertyDescriptor(D, key)]);
+        const ownHydrated = Object.hasOwn(ballotStore, "isHydrated") ? ballotStore.isHydrated : null;
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const title = game.i18n.localize("DRPG.Vote.openTitle");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const round = V.trialProgress().vote.round + 100;
+        const asked = [];
+        let windows = 0, after = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, voteClosed: false,
+                vote: { open: true, round, picks: 1, issued: [], openedAt: Date.now(), closedAt: null } });
+            const send = socket.emit;
+            socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, ...rest);
+            };
+            ballotStore.isHydrated = () => false;
+            D.wait = async cfg => (cfg?.window?.title === title && windows++ === 0 ? "open" : null);
+            D.confirm = async cfg => {
+                const form = document.createElement("div");
+                form.innerHTML = String(cfg?.content ?? "");
+                asked.push(form.textContent);
+                return false;
+            };
+            await openVoteDialog();
+            after = V.trialProgress().vote.round;
+        } finally {
+            for (const [key, descriptor] of own) { if (descriptor) Object.defineProperty(D, key, descriptor); else delete D[key]; }
+            if (ownHydrated) ballotStore.isHydrated = ownHydrated; else delete ballotStore.isHydrated;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        equal(stableJson([asked.length, asked.map(text => text.includes(game.i18n.localize("DRPG.Vote.resendUnseen"))), after]),
+            stableJson([1, [true], round]),
+            "Start the vote over on a GM whose copy of the ballots is not ready was not asked first, asked as if it could count them, "
+            + "or ran though Cancel was answered (questions asked; each saying it cannot tell how many; the round after)");
+    }],
+
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
         // `openMurder` that happens WHILE an Eclipse is closing - a Direct
@@ -39089,10 +39201,20 @@ const SCENARIOS = [
         form.innerHTML = content ?? "";
         const disabled = [...form.querySelectorAll('select[name$=".option"] option[value="experienceUp"]')].map(option => option.disabled);
         must(disabled.length === 3, `the picker drew ${disabled.length} select(s) for a Reinforced's three picks - this would measure nothing: ${content}`);
-        equal(stableJson([answered, ...(written ?? []), warned.includes(game.i18n.localize("DRPG.Advance.noExperienceToRaise")), disabled]),
-            stableJson([null, 0, 0, true, [none, none, none]]),
-            "an experience to raise with none named was skipped and the rest of the Level Up written, untold, or the picker offered it where there is none "
-            + "(the picker's answer; advances gained; the Health maximum's rise; the GM told; the option drawn disabled in each select)");
+        equal(stableJson([answered, ...(written ?? []), warned.includes(game.i18n.localize("DRPG.Advance.noExperienceToRaise"))]),
+            stableJson([null, 0, 0, true]),
+            "an experience to raise with none named was skipped and the rest of the Level Up written, or untold "
+            + "(the picker's answer; advances gained; the Health maximum's rise; the GM told)");
+        /* THE PICKER'S HALF NEEDS A STUDENT WITH NO EXPERIENCE (E10 fix r1-G3; the round-1 review's cor F5). At a
+           table `preparedAs` stands in for nothing and the student keeps its own experiences, where the option is
+           rightly enabled: this half expected [none, none, none] and passed on that opposite case, measuring nothing
+           (with `preparedAs` answering null in the harness it passed so at f9be27d - e10run/r1g3m, f5parent). Where
+           the student has an experience it is counted as skipped there now; the refusal above holds either way
+           (level-up.mjs refuses an `experienceUp` that names none, whatever the sheet holds). */
+        if (!none) needs(env.unprepared(), `${student.name} has experiences of its own at this table - `
+            + "the option is drawn disabled only for a student with none");
+        equal(stableJson(disabled), stableJson([true, true, true]),
+            "the picker offered an experience to raise to a student with none (the option drawn disabled in each select)");
     }],
 
     ["a season's starting sheet is stamped as the GMs hold it, not from an effect's bonus or a console's write", async () => {
@@ -39120,12 +39242,13 @@ const SCENARIOS = [
             `${student.name} has no ${trait} or no experience to stamp - this would measure nothing: ${stableJson([at(TRAIT), at(EXP)])}`);
         const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, EXP, STAMP]);
         const [stat, exp] = [at(TRAIT), at(EXP)];
-        let stamped = null;
+        let stamped = null, prepared = null;
         try {
             await inConsoleWindow(student, player(student), { forged: { [EXP]: exp + 2 }, paths: [EXP] }, async () => {
                 const unprepare = preparedAs(student, system => { system.traits[trait].value += 1; });
                 try {
-                    if (unprepare) must(foundry.utils.getProperty(student.system, `traits.${trait}.value`) === stat + 1,
+                    prepared = foundry.utils.getProperty(student.system, `traits.${trait}.value`);
+                    if (unprepare) must(prepared === stat + 1,
                         `the preparation the test stands in for did not take - this would measure nothing: ${stableJson(student.system.traits?.[trait])}`);
                     await initCharacter(student, { resetValues: false, quiet: true });
                 } finally {
@@ -39137,8 +39260,17 @@ const SCENARIOS = [
         } finally {
             await putBack();
         }
-        equal(stableJson(stamped), stableJson([stat, exp]),
-            "the season's starting sheet was stamped with an effect's bonus or a console's write the GMs' audit had not put back (the statistic; the experience)");
+        equal(stableJson(stamped?.[1] ?? null), stableJson(exp),
+            "the season's starting sheet was stamped with a console's write the GMs' audit had not put back (the experience)");
+        /* THE EFFECT'S HALF NEEDS A PREPARED VALUE THAT DIFFERS FROM THE HELD ONE (E10 fix r1-G3; the round-1 review's
+           cor F5). At a table `preparedAs` stands in for nothing, and where no effect adds to the statistic the stamp
+           read the same number either way: this half passed measuring nothing (with `preparedAs` answering null in the
+           harness it passed so at f9be27d - e10run/r1g3m, f5parent). Where no effect adds, it is counted as skipped
+           there now. */
+        if (prepared === stat) needs(env.unprepared(), `${student.name}'s ${trait} is prepared as its sheet holds it at this table `
+            + "(no effect adds to it) - the stamp cannot tell a prepared value from the held one");
+        equal(stableJson(stamped?.[0] ?? null), stableJson(stat),
+            "the season's starting sheet was stamped with an effect's bonus (the statistic)");
     }],
 
     ["a GM's take of Sanity is held to the maximum the GMs hold, not one a console wrote that the audit has not put back", async () => {

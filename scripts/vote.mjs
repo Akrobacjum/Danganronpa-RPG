@@ -74,8 +74,18 @@ const VOTE_STATUS = Object.freeze({
  */
 let voteTurn = Promise.resolve();
 
-/** When this browser loaded the module: a vote opened before then may have ballots it never held (`ballotCopyStatus`). */
-const LOADED_AT = Date.now();
+/*
+ * THE VOTE THAT WAS OPEN WHEN THIS BROWSER'S WORLD LOADED, as `roundKey` names it, or null: its ballots may be on a GM's
+ * browser this one never heard (`ballotCopyStatus`). Marked at `ready` (`registerVote`). Until E10 fix r1-G3 (the
+ * round-1 review's cor F2) it was the module's load time, `Date.now()` here, set against the record's `openedAt`,
+ * `Date.now()` on the primary - two machines' clocks: a vote a primary whose clock ran an hour behind opened after
+ * this browser loaded read as opened before it (the suite's "the vote window says it holds none of the ballots only
+ * on a GM that is not the primary and of the vote open when it loaded", red at f9be27d), and a clock ahead missed the
+ * warning the other way. A round is the world's and reads the same on every browser; `openedAt` is still written,
+ * and nothing reads it since.
+ */
+let openAtLoad = null;
+const roundKey = progress => (progress.vote.open ? `${progress.chapter}:${progress.vote.round}` : null);
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
 const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null });
@@ -194,7 +204,10 @@ export function registerVote() {
        then. One owed to a GM whose world said it had loaded before this browser saw it connect
        waits for `userConnected`, as pre-session-note.mjs's `owedTo` does - which of the two comes
        first on v14 is LIVE-E04-12. */
-    if (game.user.isGM) return;
+    if (game.user.isGM) {
+        openAtLoad = roundKey(trialProgress());
+        return;
+    }
     askForBallot();
     Hooks.on("drpgPrimaryReady", primary => askForBallot(primary));
     Hooks.on("userConnected", (user, connected) => {
@@ -711,18 +724,33 @@ function roundBallots(progress) {
 
 /**
  * What the vote window says of this browser's copy of the ballots (E10 C1; the plan's section
- * 3): "notReady" until the GMs' store holds the other GMs' rows; "none" when it holds no ballot
- * of an open vote that was opened before this browser loaded - its ballots may be on another
- * GM's browser, on none, or not cast yet, and this browser cannot tell which; otherwise null,
- * as on a player's browser and with no vote open.
+ * 3): "notReady" until the GMs' store holds the other GMs' rows; "none" on a GM that is not the
+ * primary when it holds no ballot of the vote that was already open when it loaded - its ballots
+ * may be on another GM's browser, on none, or not cast yet, and this browser cannot tell which;
+ * otherwise null, as on a player's browser and with no vote open. Not "none" on the primary
+ * (E10 fix r1-G3; cor F2): the ballots are recorded there (`recordBallot`), so none there is
+ * none cast yet, and the window's "wait for the primary GM" was the primary told to wait for
+ * itself. A primary that took over from a GM who left with the only copy names every voter as
+ * still out instead (read in the code; no scenario plays it).
  */
 export function ballotCopyStatus() {
     if (!game.user.isGM) return null;
     const progress = trialProgress();
     if (!progress.vote.open) return null;
     if (!ballotStore.isHydrated()) return "notReady";
-    if (!roundBallots(progress).length && (progress.vote.openedAt ?? 0) < LOADED_AT) return "none";
+    if (!roundBallots(progress).length && !isPrimaryGm() && roundKey(progress) === openAtLoad) return "none";
     return null;
+}
+
+/**
+ * THE MARK, STOOD IN FOR BY THE SUITE (E10 fix r1-G3). A test runs in a browser that loaded
+ * before the test opened its vote, so `openAtLoad` reads as the vote `progress` holds until the
+ * function answered is called, which puts the live mark back.
+ */
+export function standInOpenAtLoad(progress) {
+    const live = openAtLoad;
+    openAtLoad = roundKey(progress);
+    return () => { openAtLoad = live; };
 }
 
 /* ==========================================================================
