@@ -340,7 +340,8 @@ async function withdrawOffer(actorId, offerId) {
 /**
  * Characters whose Level Up is being written on this browser - the primary GM's, which judges a
  * player's picks (gm-bridge.mjs `handleAdvancement` takes and lets go of the latch) and every
- * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it).
+ * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it
+ * and hold it from their check to their drop).
  */
 export const advancing = new Set();
 
@@ -361,9 +362,18 @@ export const advancing = new Set();
  * refused on both roads"): with the apply held in the queue, this road answered true and put the
  * Reinforced back, and the Level Up was written as well. Refused now while that character's
  * latch is held, and the GM told; on another GM the primary refuses the bridge's `take` the same
- * way and the bridge tells it. A take holds no latch of its own: its drop is written in the same
- * synchronous step as its check (gm-store.mjs `drop` writes the section before it awaits), so an
- * apply after it finds no offer - read in the code.
+ * way and the bridge tells it.
+ *
+ * AND THE TAKE HOLDS THE LATCH UNTIL ITS DROP (E10 fix r2-G4; the round-2 security review's
+ * S2-1). Round 1 let a take hold none, reading its drop as written in the same synchronous step
+ * as its check. It is not while the primary's offers store waits for the other GMs' copies after
+ * a load (up to `TIMING.gmStoreSyncMs`): `dropOffer` awaits `whenHydrated` first, and a player's
+ * Level Up that arrived in that wait found the offer and no latch, and was written. Measured on
+ * the harness at 7ff93ec (tier 2, "a take-back that waits for the offers store holds a player's
+ * Level Up off on both roads", the store's wait stood in for): on both roads the take answered
+ * taken and the Level Up was written as well (+4, one step of advances), and on this one the
+ * Reinforced went back to the GMs' store. Now this road and the bridge's `take` hold the
+ * character's latch from their check to their drop, so that Level Up is refused as busy.
  */
 export async function takeBackOffer(actor, offerId) {
     if (!game.user.isGM || !actor) return false;
@@ -373,7 +383,12 @@ export async function takeBackOffer(actor, offerId) {
         ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackBusy", { name: actor.name }));
         return false;
     }
-    if (!await withdrawOffer(actor.id, offerId)) return false;
+    advancing.add(actor.id);
+    try {
+        if (!await withdrawOffer(actor.id, offerId)) return false;
+    } finally {
+        advancing.delete(actor.id);
+    }
     if (offer.deferred) {
         const kind = TRIAL.wrong.blackenedLevelUp;
         await deferAdvancement(actor, kind, null, { count: Math.max(1, Math.round(offer.deferred / (LEVEL_UP[kind]?.picks || 1))) });

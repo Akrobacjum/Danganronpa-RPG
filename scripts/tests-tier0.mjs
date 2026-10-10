@@ -7913,8 +7913,36 @@ const REGRESSIONS = [
                 `${code}: a trial key of C15's is missing`);
             const button = l.Vote.remind.split(" (")[0], warning = Object.values(l.Vote.resendWarning);
             ok(warning.length >= 2 && warning.every(text => text.includes(button)), `${code}: the restart warning does not name the button ("${button}") (S06-32)`);
+            /* Every Vote string that tells the GM to use a button names one the vote's window draws (E10 fix r2-G4; the
+               round-2 goal verifier's S06-32: G3's `resendUnseen` said "use Remind" / "użyj Przypomnij" after C15 had
+               renamed the button). The verb is each file's own ("use", "użyj"); at least the restart's three are read. */
+            const flat = (o, at = "") => Object.entries(o).flatMap(([k, v]) => (typeof v === "object" ? flat(v, `${at}${k}.`) : [[`${at}${k}`, v]]));
+            const buttons = [l.Vote.send, l.Vote.tally, l.Vote.sendAgain, button];
+            const named = flat(l.Vote).flatMap(([key, text]) => [...text.matchAll(code === "en" ? /\buse (.+?)(?: instead)?\./g : /\bużyj (.+?)\./g)]
+                .map(m => [key, m[1]]));
+            const strays = named.filter(([, name]) => !buttons.includes(name));
+            ok(named.length >= 3 && named.some(([key]) => key === "resendUnseen") && !strays.length,
+                `${code}: a Vote string names a button the window does not draw (S06-32): ${JSON.stringify(strays)} of ${named.length}`);
         }
         ok(!Object.values(lang.en.Vote.resendWarning).some(text => text.includes("Remind")), "the English restart warning still says Remind");
+    }],
+    ["R340 - every road to the verdict window in a Final Trial opens the Final Trial's", async () => {
+        /*
+         * E10 fix r2-G5, 1.2.71; round 2's cor m2. C10 routed the console's verdict button to the Final Trial's
+         * window (R321 reads that line), and `openVerdictDialog` - also `game.drpg.verdictDialog` - still opened the
+         * ordinary verdict in a Final Trial. Read in vote.mjs: the function answers with `openFinalVerdictDialog`
+         * when `inFinalTrial()`, and does so before it reads the trial's record or draws a window. Tier 2 drives
+         * the API: "the verdict's API in a Final Trial opens the Final Trial's window".
+         */
+        const sources = new Map(await otherSources());
+        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        ok(vote.length > 0, "vote.mjs was not read - this test measured nothing");
+        const body = fnSource(vote, "openVerdictDialog");
+        const route = body.search(/if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/);
+        const record = body.search(/trialProgress\(\)/), drawn = body.search(/DialogV2\.wait\(/);
+        equal(JSON.stringify([route >= 0, record > route, drawn > route]), JSON.stringify([true, true, true]),
+            "openVerdictDialog does not send a Final Trial to the Final Trial's window before it reads the record and draws its own "
+            + "(read: the route there, the record read after it, the window drawn after it)");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

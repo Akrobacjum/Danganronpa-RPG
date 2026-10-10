@@ -107,9 +107,16 @@ const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt
  * `{ stage: "done", final: true }` that names nobody.
  * ========================================================================== */
 
-/** What has happened in THIS chapter's trial. Never throws; never null. */
-export function trialProgress() {
-    const chapter = getClock().chapter;
+/**
+ * What has happened in THIS chapter's trial. Never throws; never null.
+ *
+ * `chapter` names another chapter's (E10 fix r2-G5, 1.2.71; round 2's cor m3): Edit campaign moving
+ * the clock back to a chapter and into its trial in one write blanks THAT chapter's record, so its
+ * question has to read the record of the chapter it is moving to, not the one on the clock.
+ *
+ * @param {number} [chapter]  the clock's when not given.
+ */
+export function trialProgress(chapter = getClock().chapter) {
     /* `keysCharged` IS IN THE BLANK because it is in the record. It was not, so a
        chapter that had charged for its unfound Key Remnants held five fields and a
        fresh one held four - the same record in two shapes, differing in a field whose
@@ -1147,6 +1154,16 @@ export async function openVerdictDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+
+    /* A FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW, ON EVERY ROAD (E10 fix r2-G5, 1.2.71; round
+       2's cor m2). C10 sent the console's button to `openFinalVerdictDialog`, and this function - which is
+       also `game.drpg.verdictDialog` - still opened the ordinary verdict in a Final Trial: executions,
+       Level Ups, Despair and a rule the guide does not give it, with the Final Trial's flag left up
+       (tier 2 "the verdict's API in a Final Trial opens the Final Trial's window", red at c494855). The
+       console keeps its own line, which R321 reads; R340 reads this one. Imported when asked, as the
+       console imports it. */
+    const { inFinalTrial, openFinalVerdictDialog } = await import("./mastermind.mjs");
+    if (inFinalTrial()) return openFinalVerdictDialog();
 
     // ONE VERDICT PER TRIAL (17.09, F2). The trial console kept this button live after
     // the verdict, and nothing here or in `applyVerdict` asked - a second press executed

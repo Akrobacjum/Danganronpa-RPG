@@ -1083,7 +1083,7 @@
         "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
         "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie."
       },
-      "resendUnseen": "Ta przeglądarka nie ma kopii kart tego głosowania od GM-ów, więc nie wie, ile już wróciło - liczy je główny GM. Start od nowa wyrzuca te, które wróciły, i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
+      "resendUnseen": "Ta przeglądarka nie ma kopii kart tego głosowania od GM-ów, więc nie wie, ile już wróciło - liczy je główny GM. Start od nowa wyrzuca te, które wróciły, i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
       "banner": "GŁOSOWANIE OTWARTE",
       "opened": {
         "one": "Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened.",

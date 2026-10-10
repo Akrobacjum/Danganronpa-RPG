@@ -4,8 +4,9 @@
  * 10-murder and 72-canary drive a trial in passing - the ballots on the real road, the verdict by
  * API - and none drives a player who joins after the ballots went out, a GM's reload in the middle
  * of a vote, the verdict's window, a second trial in a chapter, or the Level Ups a correct verdict
- * hands out. This one does, on the seed's GM and three players and two late accounts declared as
- * 61 declares them: `gm2`, a second GM, and `p4`, a player given Daichi before it connects.
+ * hands out. This one does, on the seed's GM and three players and three late accounts declared as
+ * 61 declares them: `gm2`, a second GM, `p4`, a player given Daichi before it connects, and `gm3`, a
+ * third GM (phase W).
  *
  * Every check below is a reading of the code at 1e9871c, written as what happens today; where an
  * E10 commit changes the answer the check's text names it ("C1 flips it"), and that commit
@@ -75,6 +76,13 @@
  *      draws the verdict's window on a count that accused her: it opens on Aiko, not listed " - dead", and
  *      tells gm2 alone whose death that is; the wrong verdict executes her, p1 holds the card naming her
  *      executed and reads her dead, and gm2 holds no row of her death (the owner's Q-E10-2 (a)).
+ *   V  (run after U; fix r2-G3) gm2 kills Daichi where nobody finds the body and gives a wrong verdict naming
+ *      him its Blackened: the rule's window names him to gm2 as a death nobody has found, and p1 holds the
+ *      rule's one card.
+ *   W  (run after V; fix r2-G4, the side line's phase V until the merge) gm3, a GM that is not the
+ *      primary, is connected when gm2 opens a vote and reads its copy of the ballots as not flagged; gm3
+ *      loaded again while that vote is open, with no ballot in, reads "none" - it cannot tell where the
+ *      ballots are (`ballotCopyStatus`, the round noted at load).
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -112,18 +120,24 @@
  * 49 checks in 22.8 and 22.5 s (two runs, 10.10.2026).
  * E10 fix r1-G4 added U1 and U2 on the side line (from C8's 42): 44 checks in 23.8 and 24.0 s (two runs, 10.10.2026).
  * Merged beside C9-C17: 51 checks in 27.8 s (one run, the merge's fast set beside two other lanes, 10.10.2026).
+ * E10 fix r2-G3 added V1 on the main line (from 7ff93ec's 51): 52 checks (its fast set, 10.10.2026).
+ * E10 fix r2-G4 added V1 and V2 on the side line (from 7ff93ec's 51), gm3 joining twice: 53 checks in 32.0 s (one run,
+ * beside a checkpoint's harness run in another lane, 10.10.2026). The merge of the two lines renamed them W1 and W2,
+ * after the main line's V: 54 checks in 32.1 s (one run, the merge's fast set beside two other lanes, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
-    { who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#66aa66", late: true }
+    { who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#66aa66", late: true },
+    // A GM after gm2 in the primary's order (utils.mjs `primaryGmId`), so never the primary while gm2 is connected (W).
+    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true }
 ];
 
 const MOD = "danganronpa-rpg";
 const P4 = "USERP4000000000A";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, connect, disconnect, storageOf, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, connect, disconnect, storageOf, IDS, repoUrl }) {
     const counts = {};
     let current = null;
     const begin = (letter, name) => { phase(`${letter}: ${name}`, { flow: "class-trial" }); current = letter; counts[letter] = 0; };
@@ -774,6 +788,42 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         return cards().length;`, { timeout: 20000 });
     verdict("its rule is asked once, the window names Daichi to gm2 as a death nobody has found, and p1 holds the rule's one card (fix r2-G3)",
         ruled.kept && J(ruled.asked) === J([true]) && ruled.stage === "done" && ruleOnP1 === 1, J({ ruled, ruleOnP1 }));
+
+    /* ------------------------------ W. the round a GM noted at load ------------------------------ */
+
+    /* E10 fix r2-G4 (1.2.71; the round-2 correctness review's m7), run after U (and, since the merge
+       of the two round-2 lines, after the main line's V). A GM that is not the primary
+       flags its copy of the ballots "none" only for the vote that was already open when it loaded (vote.mjs
+       `openAtLoad`, noted in `registerVote`; fix r1-G3): it cannot tell whether that vote's ballots are on another
+       GM's browser, on none, or not cast. The suite runs on one GM, the primary, and never reached it. gm3 joins,
+       gm2 opens a vote with every player's ballot dismissed (their queued answers emptied), and gm3, there at the
+       open, reads null; gm3 then loads again into that open vote and reads "none". Each read waits for the GM
+       stores' hydration and states the ballots gm2 counts, so a ballot in is not read as the mark. */
+    begin("W", "a GM there at the vote's open and one loaded into it read their copy of the ballots apart");
+    await connect("gm3");
+    await settle(1000);
+    const copyOn = async () => ({ ...(await gm3.eval(`${until} ${V} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { isPrimaryGm } = await import("${repoUrl}/scripts/utils.mjs");
+        await until(() => E.gmStoresHydrated(), 10000);
+        return { copy: V.ballotCopyStatus(), open: V.trialProgress().vote?.open ?? null, primary: isPrimaryGm() };`, { timeout: 30000 })),
+    votesIn: await gm2.eval(`${V} return V.votesIn();`) });
+    const beforeOpen = await copyOn();
+    for (const c of [p1, p2, p3, p4]) await c.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    const reopened = await gm2.eval(`return await game.drpg.openVote();`, { timeout: 60000 });
+    await settle(1000);
+    const atOpen = await copyOn();
+    verdict("gm3, a GM that is not the primary, there when gm2 opens a vote and holding no ballot of it, reads its copy as not flagged (fix r2-G4)",
+        beforeOpen.open !== true && beforeOpen.primary === false && reopened > 0 && atOpen.open === true && atOpen.votesIn === 0
+            && atOpen.copy === null, J({ beforeOpen, reopened, atOpen }));
+    await disconnect("gm3");
+    await connect("gm3");
+    await settle(1000);
+    const loaded = await copyOn();
+    const gm3Errors = await gm3.eval(`return globalThis.__errors.slice(0, 3).map(e => String(e?.message ?? e).slice(0, 200));`);
+    verdict("gm3 loaded again while that vote is open, with no ballot in, reads \"none\": it cannot tell where the ballots are (fix r2-G4)",
+        loaded.open === true && loaded.primary === false && loaded.votesIn === 0 && loaded.copy === "none" && gm3Errors.length === 0,
+        J({ loaded, gm3Errors }));
+    await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");
     return { phases: Object.keys(counts) };

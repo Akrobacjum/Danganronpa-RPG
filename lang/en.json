@@ -1086,7 +1086,7 @@
         "one": "One ballot has already come back. Starting over throws it away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead.",
         "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead."
       },
-      "resendUnseen": "This browser does not hold the GMs' copy of this vote's ballots, so it cannot tell how many have come back - the primary GM counts them. Starting over throws away any that have and hands everybody a fresh one. To chase the people who have not answered, use Remind instead.",
+      "resendUnseen": "This browser does not hold the GMs' copy of this vote's ballots, so it cannot tell how many have come back - the primary GM counts them. Starting over throws away any that have and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead.",
       "banner": "THE VOTE IS OPEN",
       "opened": {
         "one": "One ballot is out. Name who you believe is the Blackened.",
