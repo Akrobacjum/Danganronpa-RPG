@@ -475,7 +475,10 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                 // Closed again once it is applied (17.09, F2): a second verdict
                 // executed the dropdown's default, refilled every pool and handed
                 // out a second round of Level Ups.
-                { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
+                // In a Final Trial it is the Final Trial's verdict, and says so
+                // (E10 C10, S06-16): `TRIAL_ACTIONS.verdict` opens that window then.
+                { action: "verdict", label: game.i18n.localize(finalNow
+                    ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"),
                   disabled: !progress.voteClosed || progress.verdictApplied,
                   default: isDefault("verdict") },
                 // Only while a verdict stands stopped halfway: the lock above
@@ -517,7 +520,14 @@ const TRIAL_ACTIONS = {
     debate: () => returnToDebate(),
     extend: () => extendFloor(30),
     vote: () => openVoteDialog(),
+    /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
+       button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the
+       ordinary verdict: executions, Level Ups, Despair and a rule, none of which the guide gives the
+       Final Trial (gm-handbook section 8). The flag is read when the button is pressed, not when the
+       console was drawn, so a flag taken down in between opens the ordinary one. */
     verdict: async () => {
+        const { inFinalTrial, openFinalVerdictDialog } = await import("./mastermind.mjs");
+        if (inFinalTrial()) return openFinalVerdictDialog();
         const { openVerdictDialog } = await import("./vote.mjs");
         await openVerdictDialog();
     },

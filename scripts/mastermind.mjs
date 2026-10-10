@@ -429,9 +429,10 @@ export async function toggleFinalTrialFlag() {
     // flipped, the players saw nothing at all. The one moment the season has
     // been building to arrived in silence.
     //
-    // Starting is public. ENDING is not announced: the flag comes down after
-    // the verdict, which has its own card, and a second "the Final Trial is
-    // over" underneath it would be the module talking to itself.
+    // Starting is public. ENDING is not announced: the flag comes down with
+    // the verdict (`applyFinalVerdict`, since E10 C10; until then only this
+    // button took it down), which has its own card, and a second "the Final
+    // Trial is over" underneath it would be the module talking to itself.
     if (!next) return;
 
     await announce({
@@ -888,6 +889,31 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
             outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
                 : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
         })}</p>`);
+
+    /*
+     * THE TRIAL'S RECORD KNOWS THE FINAL VERDICT, AND THE FLAG COMES DOWN WITH IT (E10 C10,
+     * 1.2.71; audit S06-16). Neither was written: after the Mastermind's verdict the console still
+     * offered the ordinary one as the next step, and "This trial is the Final Trial." stayed on it -
+     * into the next season's first trial as well, since a reset's clock step merged over the flag
+     * (season-setup.mjs `wipeSeason`). Written after the kill and the cards, and before the Level
+     * Ups that waited, whose windows can stay open for minutes: `verdictApplied` closes the
+     * ordinary verdict's button for that time too. The record names nobody - no `executedIds`, no
+     * `correct` - because `trialProgress` is a world setting every client reads and the
+     * Mastermind's identity is kept on GM browsers only (this file's header); the card above says
+     * what the table learns. Its `done` is empty, so the Daily Life panel's "after the verdict"
+     * card, which waits for a chapter verdict's "card" step (events.mjs `afterVerdictCard`), does
+     * not retell a Final Trial as a chapter's verdict (read in the code).
+     */
+    try {
+        const { setTrialProgress } = await import("./vote.mjs");
+        await setTrialProgress({
+            verdictApplied: true,
+            verdict: { stage: "done", final: true, by: game.user.id, at: Date.now(), done: [], failed: [] }
+        });
+        await setFinalTrial(false);
+    } catch (err) {
+        error("Could not record the Final Trial's verdict in the trial's progress", err);
+    }
 
     /*
      * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the

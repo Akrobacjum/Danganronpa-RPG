@@ -40799,6 +40799,120 @@ const SCENARIOS = [
             + "(per window: classes, legends, amber warnings, dim notes, the line for whom, how often the reason is said, the selects' names; then the detail of a forced experience pick)");
     }],
 
+    ["a Final Trial's verdict closes the trial's progress and the flag", async () => {
+        /* E10 C10, 10.10.2026; audit S06-16. In a Final Trial the console's verdict button opened the
+           ordinary verdict - executions, Level Ups, Despair and a rule, none of them the Final Trial's -
+           and the Mastermind's own verdict wrote nothing into the trial's record or the clock: the console
+           went on offering a verdict as the next step and saying "This trial is the Final Trial.". Played
+           as a GM plays it: a Mastermind picked (through the store: the primary tells no player while
+           tier 2 holds the stores, R184), the Final Trial's flag up (set directly: its toggle asks and
+           posts a card), a counted vote, and the console's verdict button pressed. The window that opens
+           is answered as its "not correctly named" button answers (nobody dies), every other window
+           null, and the console that comes back after it is read. Read: which windows opened, the
+           verdict button's label in the first console and whether it is closed in the second, the
+           trial's record, whether that record names anybody, and the flag. Red at the parent's code (this
+           test kept; A1, 10.10.2026): [["console","ordinary","console"],"The verdict",false,false,null,null,[],true]. */
+        const [mastermind, accused] = cast(2);
+        const M = await import("./mastermind.mjs");
+        const V = await import("./vote.mjs");
+        const { mastermindStore } = await import("./gm-stores.mjs");
+        const { manageClassTrial } = await import("./trial-floor-ui.mjs");
+        const finalTitle = game.i18n.localize("DRPG.Mastermind.verdictTitle");
+        const verdictTitle = game.i18n.localize("DRPG.Vote.verdictTitle");
+        const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+        const opened = [], consoles = [];
+        D.wait = async cfg => {
+            if ((cfg?.classes ?? []).includes("drpg-window-trial")) {
+                const button = (cfg.buttons ?? []).find(b => b.action === "verdict");
+                consoles.push({ label: button?.label ?? null, closed: button?.disabled === true });
+                opened.push("console");
+                return consoles.length === 1 ? "verdict" : null;
+            }
+            const title = cfg?.window?.title ?? "";
+            if (title === finalTitle) {
+                opened.push("final");
+                return { correct: false, accusedId: accused.id };
+            }
+            if (title === verdictTitle) opened.push("ordinary");
+            return null;
+        };
+        let reading = null;
+        try {
+            await mastermindStore.patch("record", { actorId: mastermind.id, room: null });
+            await M.setFinalTrial(true);
+            must(M.mastermindActor()?.id === mastermind.id && M.inFinalTrial(), "no Mastermind picked or no Final Trial announced - this would measure nothing");
+            await withVerdictOpen(async () => {
+                await V.setTrialProgress({ voteClosed: true });
+                await manageClassTrial();
+                const progress = V.trialProgress();
+                reading = [opened, consoles[0]?.label ?? null, consoles[1]?.closed ?? null, progress.verdictApplied,
+                    progress.verdict?.stage ?? null, progress.verdict?.final ?? null,
+                    ["executedIds", "correct", "accusedId"].filter(key => key in (progress.verdict ?? {})), M.inFinalTrial()];
+            });
+        } finally {
+            if (kept) Object.defineProperty(D, "wait", kept);
+            else delete D.wait;
+        }
+        equal(stableJson(reading), stableJson([["console", "final", "console"], finalTitle, true, true, "done", true, [], false]),
+            "in a Final Trial the console's verdict did not open the Final Trial's window, or that verdict left the trial's record without it, named somebody in it, "
+            + "or left the flag up (read: the windows opened, the first console's verdict label, the second console's verdict closed, verdictApplied, stage, final, "
+            + "the record's names, the flag)");
+    }],
+
+    ["a reset counts the season and keeps the fog epoch", async () => {
+        /* E10 C10, 10.10.2026; audit S06-16, D12 option 1. A season reset that wipes the clock sent the
+           chapters back to 1 with a patch that named neither the season counter nor the Final Trial's
+           flag: the counter stayed at 1 for ever and a season ended on a Final Trial began its first
+           trial as a Final Trial. The audit's own fix - the step built from DEFAULT_CLOCK - would have
+           lost the cut written before the steps (`resetCutPatch`): the season's epoch and the cuts the
+           stores and the fog's ledger are read under. Through the reset's own window (answered as its
+           Reset button answers, the word typed and only the clock ticked), on the primary GM, after the
+           flag was raised and a closed case's Key count recorded for the chapter the clock is on. Read:
+           the windows asked, what was cleared, the season, the epoch against the cut, every earlier cut
+           kept, the flag, the chapter, and any case row left. The world is put back by tier 2's restore
+           (the clock here too, as the reset tests above put it back). Red at the parent's code (this test
+           kept; A1, 10.10.2026): the season 1 and the flag up, the epoch already the cut's and the case row
+           already gone (E09 fix r1-G3); with the step built from DEFAULT_CLOCK the epoch was not the cut's
+           and the cuts read {}. */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "a season reset is the primary GM's, and this browser is not it - this would measure nothing");
+        const { resetSeason } = await import("./season-setup.mjs");
+        const { setFinalTrial } = await import("./mastermind.mjs");
+        const { recordCaseKeys } = await import("./investigation.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const before = getClock();
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = 0, result = null;
+        D.wait = async cfg => {
+            if (!(cfg?.classes ?? []).includes("drpg-window-season-reset")) return null;
+            asked++;
+            return { word, ticked: ["clock"] };
+        };
+        try {
+            await setFinalTrial(true);
+            await recordCaseKeys(before.chapter, 4);
+            must(getClock().finalTrial === true && Object.keys(keyPlanStore.entries()).some(key => key.endsWith(":case")),
+                "the flag or the case row was not there before the reset - this would measure nothing");
+            result = await resetSeason();
+            await gmStoresIdle();
+        } finally {
+            if (kept) Object.defineProperty(D, "wait", kept);
+            else delete D.wait;
+        }
+        const after = getClock();
+        const at = after.resetCuts?.clock ?? null;
+        try {
+            equal(stableJson([asked, result?.cleared ?? null, after.season, Number.isFinite(at) && after.seasonStartedAt === at,
+                stableJson(after.resetCuts), after.finalTrial, after.chapter, Object.keys(keyPlanStore.entries()).filter(key => key.endsWith(":case"))]),
+            stableJson([1, ["the clock"], (before.season ?? 1) + 1, true, stableJson({ ...(before.resetCuts ?? {}), clock: at }), false, 1, []]),
+            "the reset did not count the season, lost the cut's stamp as the season's epoch or an earlier cut, left the Final Trial's flag up, "
+            + "or kept a closed case's Key count (read: windows, cleared, season, epoch = the cut, the cuts, the flag, the chapter, case rows)");
+        } finally {
+            await setClock(before);
+        }
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

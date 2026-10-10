@@ -1338,6 +1338,18 @@ async function wipeSeason(plan) {
         }
     }
 
+    /*
+     * A PATCH, NOT A NEW CLOCK (E10 C10, 1.2.71; audit S06-16, D12 option 1). The season counter
+     * went nowhere - a patch that does not name `season` keeps 1 for ever - and the Final Trial's
+     * flag rode into the next season's first trial ("This trial is the Final Trial."). Both are named
+     * now. The audit's fix built the step from `{ ...DEFAULT_CLOCK, campaignName, ... }`: that would
+     * have put DEFAULT_CLOCK's `seasonStartedAt: null` and empty `resetCuts` over what the cut above
+     * wrote a moment before (season-exceptions.mjs `resetCutPatch`) - the cuts every store and the
+     * fog's ledger are read under (settings.mjs reads `resetCuts.discovered`) - and a fresh
+     * `Date.now()` is not the cut's stamp, the season's epoch (`seasonEpoch`) the Blackened register,
+     * the stores' compaction and an Eclipse's name read. So `setClock` merges as before, and both
+     * stay the cut's (tier 2, "a reset counts the season and keeps the fog epoch").
+     */
     await step("clock", "the clock", async () => {
         const clock = getClock();
         await setClock({
@@ -1345,7 +1357,9 @@ async function wipeSeason(plan) {
             phase: "dailyLife", eclipse: false, pausedAt: null,
             timeOfDayStartedAt: Date.now(),
             // Kept: the season is new, the campaign is not.
-            campaignName: clock.campaignName
+            campaignName: clock.campaignName,
+            season: (clock.season ?? 1) + 1,
+            finalTrial: false
         });
     });
 

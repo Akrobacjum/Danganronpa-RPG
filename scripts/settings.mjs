@@ -783,6 +783,12 @@ export const DEFAULT_CLOCK = {
     eclipseStartedAt: null,
     /** Free text shown at the top of the HUD, e.g. "Hope's Peak: Drowned Summer". */
     campaignName: "",
+    /**
+     * Which season this is: 1, and one more at every season reset that wipes the
+     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count only:
+     * no other reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch
+     * is `seasonStartedAt`.
+     */
     season: 1,
     chapter: 1,
     session: 1,
