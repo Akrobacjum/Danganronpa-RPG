@@ -1148,6 +1148,7 @@
       "blackenedRuleTitle": "The Blackened's new rule",
       "blackenedRuleIntro": "The Blackened walked out of this trial, and they get one new rule of their choosing with Monokuma's consent. Type what they asked for.",
       "blackenedRuleNote": "Announced to everyone as one of Monokuma's rules. Nothing in the card says who asked for it, and it goes onto every sheet with the others.",
+      "blackenedRuleUnfound": "Dead, and nobody has found the body: {names}. The table does not know of that death, so to the verdict they walked out of this trial: their rule is asked here and their Level Up waits for the class, as a living Blackened's does.",
       "whoNth": "Name {n}",
       "twoBlackened": "This chapter produced {n} Blackened. Name all of them - half an answer is not one.",
       "silent": {

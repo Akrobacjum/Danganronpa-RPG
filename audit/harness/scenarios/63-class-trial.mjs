@@ -739,6 +739,41 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     verdict("its wrong verdict executes Aiko: p1 holds the one card naming her executed and reads her dead, and gm2 holds no row of her death (fix r1-G4)",
         !unseen.hung && unseen.stage === "done" && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
             && J(errorsAfter) === J(errorsBefore), J({ unseen, onP1, errorsBefore, errorsAfter }));
+
+    /* ------------------------------ V. a wrong verdict on a Blackened whose body nobody has found ------------------------------ */
+
+    /* E10 fix r2-G3 (1.2.71; the round-2 security review's S2-2, the owner's Q-E10-2 (a), 10.10.2026). gm2 kills Daichi
+       where nobody finds the body and gives a wrong verdict that executes nobody, Daichi named its Blackened; the rule's
+       window names him to gm2 as a death nobody has found and is answered with a rule. p1 then holds the rule's one
+       card. Before it the wrong verdict read him dead as the GMs hold it: no rule was asked and p1 held no card. */
+    begin("V", "a wrong verdict on a Blackened whose body nobody has found");
+    await mark(p1);
+    const RULE = "S63 V rule";
+    const ruled = await gm2.eval(`${V} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const daichi = game.actors.get("${IDS.daichi}");
+        const kept = Boolean(await C.killCharacter(daichi, { secret: true, keepBullets: true }));
+        await V.setTrialProgress({ verdictApplied: false, verdict: null });
+        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+        const title = ${text("DRPG.Vote.blackenedRuleTitle")};
+        const unfound = game.i18n.format("DRPG.Vote.blackenedRuleUnfound", { names: foundry.utils.escapeHTML(daichi.name) });
+        const asked = [];
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== title) return null;
+            asked.push(String(cfg?.content?.outerHTML ?? cfg?.content ?? "").includes(unfound));
+            return ${J(RULE)};
+        };
+        try {
+            await game.drpg.applyVerdict({ correct: false, executedIds: [], blackenedIds: [daichi.id] });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        return { kept, asked, stage: V.trialProgress().verdict?.stage ?? null };`, { timeout: 60000 });
+    const ruleOnP1 = await p1.eval(`${until} const cards = () => game.messages.filter(m => !globalThis.__s63m.has(m.id) && !m.whisper?.length
+            && String(m.content ?? "").includes(${text("DRPG.Calls.newRuleTitle")}) && String(m.content ?? "").includes(${J(RULE)}));
+        await until(() => cards().length || null, 5000);
+        return cards().length;`, { timeout: 20000 });
+    verdict("its rule is asked once, the window names Daichi to gm2 as a death nobody has found, and p1 holds the rule's one card (fix r2-G3)",
+        ruled.kept && J(ruled.asked) === J([true]) && ruled.stage === "done" && ruleOnP1 === 1, J({ ruled, ruleOnP1 }));
     await disconnect("p4");
     await disconnect("gm2");
     return { phases: Object.keys(counts) };

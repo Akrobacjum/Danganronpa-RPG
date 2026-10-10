@@ -1154,6 +1154,7 @@
       "blackenedRuleTitle": "Nowa zasada Blackened",
       "blackenedRuleIntro": "Blackened wyszedł z tego Class Trial i dostaje jedną nową zasadę własnego wyboru, za zgodą Monokumy. Wpisz, o co poprosił.",
       "blackenedRuleNote": "Ogłaszana wszystkim jako jedna z zasad Monokumy. Nic na karcie nie mówi, kto o nią prosił, i trafia na każdy arkusz razem z pozostałymi.",
+      "blackenedRuleUnfound": "Nie żyje, a nikt nie znalazł ciała: {names}. Stół nie wie o tej śmierci, więc dla werdyktu ta osoba wyszła z tego Class Trial: o jej zasadę pytamy tutaj, a jej Level Up czeka na klasę, tak jak Level Up żywego Blackened.",
       "whoNth": "Nazwisko {n}",
       "twoBlackened": "Ten rozdział wydał {n} Blackened. Wskaż wszystkich - pół odpowiedzi to nie odpowiedź.",
       "silent": {

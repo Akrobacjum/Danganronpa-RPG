@@ -1333,11 +1333,19 @@ function read(dialog, correct, known, dead = new Set()) {
  * from it in exactly one way that matters: nothing in the card says who asked
  * for it. The GM types what the killer told them; the table reads a rule.
  *
+ * A Blackened whose body nobody has found is asked for like a living one (`verdictHeld`), and this
+ * GM's window alone names them (`unfound`), so the GM decides knowing whose death it is (E10 fix r2-G3).
+ *
+ * @param {Actor[]} [unfound] the Blackened dead as the GMs hold it and not yet as the table does.
  * @returns {Promise<boolean>} whether a rule was actually recorded.
  */
-async function askBlackenedRule() {
+async function askBlackenedRule(unfound = []) {
     const DialogV2 = foundry.applications.api.DialogV2;
     let text = "";
+    const unfoundLine = unfound.length
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.blackenedRuleUnfound", {
+            names: unfound.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}</p>`
+        : "";
 
     try {
         const answer = await DialogV2.wait({
@@ -1345,6 +1353,7 @@ async function askBlackenedRule() {
             classes: ["drpg-panel"],
             content: dialogContent(`<form>
                 <p>${game.i18n.localize("DRPG.Vote.blackenedRuleIntro")}</p>
+                ${unfoundLine}
                 <textarea name="rule" rows="3"
                     placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
                 <p class="notes">${game.i18n.localize("DRPG.Vote.blackenedRuleNote")}</p>
@@ -1552,15 +1561,25 @@ async function verdictReading(context) {
  * executed by making that death the table's (`executeSentenced`, fix r1-G4), and does not advance either.
  *
  * The killers of a wrong verdict: EVERY one who is still breathing, not just the first one named, and
- * not one this verdict executes.
+ * not one this verdict executes. ALIVE AS THE TABLE KNOWS IT TOO (E10 fix r2-G3, 1.2.71; the round-2
+ * security review's S2-2, the owner's Q-E10-2 (a)). They were read as the GMs hold them
+ * (`isDeadForGm`), the two lists above as the table does: a wrong verdict whose Blackened had died
+ * where nobody has found the body asked no rule, kept no Reinforced and wrote no rule line, so whether
+ * the table got the rule's card hung on a death nobody had found. They are read as the table knows
+ * them now, and `unfound` names those among them whose death the GMs hold, for the rule's window to
+ * tell this GM alone (`askBlackenedRule`). Their Reinforced waits in the GMs' store as a living
+ * Blackened's does (`verdictOffers`). Measured on the harness (tier 2, "a wrong verdict on a Blackened
+ * whose body nobody has found asks their rule ..."): at 474fa87 no rule window, no waiting Level Up.
  */
 function verdictHeld(record, blackenedIds) {
     const named = new Set(record.executedIds);
     const actors = ids => ids.map(id => game.actors.get(id)).filter(Boolean);
+    const killers = actors(blackenedIds).filter(actor => !named.has(actor.id) && !isDeceased(flagsHeldNow(actor)));
     return {
         sentenced: actors(record.executedIds).filter(actor => !isDeceased(flagsHeldNow(actor))).map(actor => actor.id),
         survivors: studentActors().filter(actor => !named.has(actor.id) && !isDeceased(flagsHeldNow(actor))),
-        killers: actors(blackenedIds).filter(actor => !named.has(actor.id) && !isDeadForGm(flagsHeldNow(actor)))
+        killers,
+        unfound: killers.filter(actor => isDeadForGm(flagsHeldNow(actor)))
     };
 }
 
@@ -1592,13 +1611,20 @@ async function readSentence(context) {
  * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
  * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
  * publish fails the step.
+ *
+ * AN EXECUTION IS PUBLIC (E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5). `killCharacter`
+ * keeps the running incident's victim's death for the GMs unless told otherwise, and C12's "keep" lets
+ * a trial run beside an open incident whose victim is alive: executing that student wrote a death the
+ * GMs held, the card said "executed" and every sheet read them alive. Measured on the harness (tier 2,
+ * "an execution of an open incident's living victim is public"): at 474fa87 the GMs held the row and
+ * the flag was not written.
  */
 async function executeSentenced(context) {
     for (const actor of context.record.executedIds.map(id => game.actors.get(id)).filter(Boolean)) {
         await judgedFor(actor.id);
         const held = flagsHeldNow(actor);
         if (isDeceased(held)) continue;
-        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor);
+        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor, { secret: false });
         if (!died) throw new Error(`${actor.name} could not be executed`);
         context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
@@ -1740,9 +1766,9 @@ async function verdictDespair(context) {
  * Monokuma's rules, which is the whole point of surviving a wrong vote.
  */
 async function verdictRule(context) {
-    const { killers } = await verdictReading(context);
+    const { killers, unfound } = await verdictReading(context);
     if (!TRIAL.wrong.newRule || !killers.length) return;
-    const wrote = await askBlackenedRule();
+    const wrote = await askBlackenedRule(unfound);
     context.lines.push(game.i18n.localize(wrote
         ? "DRPG.Vote.newRuleWritten"
         : "DRPG.Vote.newRule"));

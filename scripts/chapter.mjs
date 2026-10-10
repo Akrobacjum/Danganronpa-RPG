@@ -468,10 +468,14 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * the kill kept them, the flag is written with the kill's own record (its chapter, day and
  * time of day, not the finding's) and the "dead" status with it, the row is dropped - its
  * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
- * Idempotent: a death already public answers its record, a body nobody killed null. Run
- * by the body's discovery (`runDiscovery`) and by a GM's hand - the Players window's
- * "dead" (gm-panel.mjs) - and by nothing else: no trial and no chapter's end publishes a
- * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
+ * Idempotent: its head reads the GMs' row (`deathStore`), so a death already public answers
+ * its record and a body nobody killed null. Run by the body's discovery (`runDiscovery`, through
+ * `publishFoundBodies`), by a GM's hand - the Players window's "dead" (gm-panel.mjs
+ * `applyAliveStates`) and the console's `game.drpg.publishDeath` (api.mjs) - and by a verdict
+ * that executes a student whose death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4:
+ * the GM named them in the verdict's window, which told that GM whose death it is). Nothing
+ * else: no trial and no chapter's end publishes a death on its own (the owner's Q3, 26.09.2026;
+ * callers read with `git grep` on 10.10.2026, E10 fix r2-G3). Last, each loot of the body before this
  * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
  * `payOwedLoot`; E05 fix r2-F0b), and each identified copy of the body's loot trace found
  * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4);
