@@ -26449,6 +26449,216 @@ const SCENARIOS = [
             + "first submit button and its defaults; the warnings; the yes: answer, phase, verdictApplied, keysCharged, voteClosed)");
     }],
 
+    ["the trial does not open in an Eclipse and an open incident asks first", async () => {
+        /*
+         * E10 C12, 1.2.71; audit S06-18. The harm: Start the Class Trial and Send the ballots checked
+         * nothing going in. In an Eclipse the trial opened with Analyze and the Objection refused; past
+         * an incident nobody had closed, the register - written at the close - held none of its
+         * killers, so the ballot asked too few names and the verdict fell back to the lists by hand;
+         * and the End of chapter window ended the chapter over it. The GM panel's Next line said so,
+         * the windows did not. Driven from Daily Life with no verdict in the chapter: first in an
+         * Eclipse (Start, then `openVote` as a macro calls it - refused on the primary), then with an
+         * incident open, through the three windows, the incident's question answered as Enter answers
+         * it (the first submit button of the drawn window pressed, as C11's test presses it); last,
+         * Start answered "Close the murder". Read: each door's answer, the phase, the vote open, the
+         * incident still open; the windows asked in order; the question's first submit button and
+         * defaults; the warnings told. Red at E10 C11's tree (A1, 10.10.2026).
+         */
+        needs(env.dialogs(), "the incident's question is drawn and its first button pressed, as Enter presses it");
+        const V = await import("./vote.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const M = await import("./murder.mjs");
+        const { openChapterEndDialog } = await import("./chapter.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const loc = key => game.i18n.localize(key);
+        const titles = { start: loc("DRPG.Floor.startTrial"), vote: loc("DRPG.Vote.openTitle"), chapter: loc("DRPG.Chapter.endTitle"),
+            ask: loc("DRPG.Floor.incidentTitle") };
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const storedMurder = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const ownWarn = ui.notifications.warn;
+        const drawn = () => [...foundry.applications.instances.values()]
+            .find(a => a.rendered && a.element && a.options?.window?.title === titles.ask) ?? null;
+        const asked = [], buttons = [], told = [];
+        let press = "enter", votes = 0;
+        D.wait = async function (cfg) {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? title;
+            asked.push(kind);
+            if (kind === "start") return "ok";
+            if (kind === "vote") return votes++ % 2 ? null : "open";
+            if (kind !== "ask") return null;
+            const pending = drawWait.call(this, cfg);
+            if (await until(() => Boolean(drawn()), 8000)) {
+                const element = drawn().element;
+                const first = element.querySelector('button[type="submit"]');
+                buttons.push([first?.dataset?.action ?? null, [...element.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action)]);
+                if (press === "enter") element.querySelector("form")?.requestSubmit(first);
+                else element.querySelector(`footer button[data-action="${press}"]`)?.click();
+            }
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            return Promise.race([pending, wait(4000).then(() => "unanswered")]);
+        };
+        ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+        const state = () => [getClock().phase, V.trialProgress().vote?.open === true, Boolean(M.murderState())];
+        const readings = {};
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter,
+                verdictApplied: false, voteClosed: false, vote: { ...V.trialProgress().vote, open: false } });
+            await setClock({ eclipse: true });
+            readings.eclipse = [await UI.startClassTrial(), await V.openVote(), ...state(),
+                told.filter(m => m === loc("DRPG.Floor.eclipseFirst")).length];
+            await setClock({ eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident" });
+            readings.start = [await UI.startClassTrial(), ...state()];
+            readings.vote = [await UI.openVoteDialog(), ...state()];
+            readings.chapter = [await openChapterEndDialog(), ...state()];
+            press = "close";
+            readings.closed = [await UI.startClassTrial(), ...state()];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, storedMurder);
+            await settle();
+        }
+        equal(stableJson({ readings, asked, buttons }),
+            stableJson({
+                readings: { eclipse: [null, null, "dailyLife", false, false, 2], start: [null, "dailyLife", false, true],
+                    vote: [null, "dailyLife", false, true], chapter: [null, "dailyLife", false, true], closed: [true, "classTrial", false, false] },
+                asked: ["start", "ask", "vote", "ask", "vote", "ask", "start", "ask"],
+                buttons: [["cancel", ["cancel"]], ["cancel", ["cancel"]], ["cancel", ["cancel"]], ["cancel", ["cancel"]]]
+            }),
+            "a trial or a vote opened in an Eclipse, or a door went past an open incident unasked, or Enter answered the question, "
+            + "or Close the murder did not close it (read per door: its answer, the phase, the vote open, the incident open, and in "
+            + "the Eclipse the warnings told; the windows asked; the question's first submit button and its defaults)");
+    }],
+
+    ["the trial's exits say what happened", async () => {
+        /*
+         * E10 C12, 1.2.71; audit S06-36. The harm, three roads out of or into a trial that did not say
+         * what they did: a debate opened outside a trial (`game.drpg.openDebate(300)`) remembered the
+         * default 180 s, because entering the trial's phase blanked the record after the length was
+         * written; that debate, and the trial ended as Edit campaign ends it (the phase alone), left
+         * the HUD's elapsed clock running from the time of day before the trial, which only the two
+         * console buttons stamped; and End the trial with the clock's write throwing announced the
+         * trial over and answered true, the debate still running under the card. The throw is made
+         * by the world's settings refusing the clock's key for the one call. Red at E10 C11's tree
+         * (A1, 10.10.2026).
+         */
+        const V = await import("./vote.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const closedText = game.i18n.localize("DRPG.Floor.trialClosed");
+        const cards = () => game.messages.filter(m => String(m.content ?? "").includes(closedText)).length;
+        const old = Date.now() - 3600000;
+        const restarted = () => Number(getClock().timeOfDayStartedAt) > old;
+        let debate = null, edited = null, failed = null;
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+            await setClock({ timeOfDayStartedAt: old });
+            const opened = await UI.openDebate(300);
+            debate = [opened, getClock().phase, Boolean(floor.trialFloor()), V.trialProgress().seconds, restarted()];
+            await setClock({ timeOfDayStartedAt: old });
+            await setClock({ phase: "dailyLife" });
+            edited = [getClock().phase, Boolean(floor.trialFloor()), restarted()];
+            await UI.openDebate(120);
+            const before = cards();
+            const set = game.settings.set;
+            game.settings.set = function (scope, key, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.clock) throw new Error("E10 C12's test: the clock's write refused");
+                return set.call(this, scope, key, ...rest);
+            };
+            let ended;
+            try {
+                ended = await UI.closeTrial();
+            } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            }
+            await settle();
+            failed = [ended, getClock().phase, Boolean(floor.trialFloor()), cards() - before];
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        equal(stableJson({ debate, edited, failed }),
+            stableJson({ debate: [true, "classTrial", true, 300, true], edited: ["dailyLife", false, true], failed: [false, "classTrial", false, 0] }),
+            "a debate opened outside a trial forgot its length or left the elapsed clock running, or a trial ended from the phase "
+            + "left it running, or End the trial with the clock's write refused announced the end or left the debate open "
+            + "(read: openDebate's answer, the phase, the floor, the remembered seconds, the clock restarted; the phase, the floor, "
+            + "the clock restarted; closeTrial's answer, the phase, the floor, the cards announcing the end)");
+    }],
+
+    ["the trial console counts the Blackened register and warns when it is empty after a death", async () => {
+        /*
+         * E10 C12, 1.2.71; audit S06-18. The harm: the register is written when an incident closes and
+         * the vote asks as many names as it holds, and nothing on the GM's console said how many it
+         * held - an empty register in a chapter with a body (an incident nobody closed, or a GM store
+         * this browser was never given) was found when the ballot asked for nobody. Read off the
+         * console's own content (its window answered null, so nothing is drawn): a death this chapter
+         * the GMs keep (`killCharacter`, secret) with the register emptied for the chapter, then one
+         * row naming the killer. The chapter's rows are taken out first and put back. Red at E10
+         * C11's tree (A1, 10.10.2026).
+         */
+        const [victim, killer] = cast(2);
+        const UI = await import("./trial-floor-ui.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { blackenedStore } = await import("./gm-stores.mjs");
+        const { blackenedIds } = await import("./murder.mjs");
+        const { plural } = await import("./utils.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const title = game.i18n.localize("DRPG.Floor.manageTrial");
+        let content = "";
+        D.wait = async cfg => {
+            if (cfg?.window?.title === title) content = cfg.content?.textContent ?? String(cfg.content ?? "");
+            return null;
+        };
+        const empty = game.i18n.localize("DRPG.Floor.registerEmpty");
+        const one = plural("DRPG.Floor.registerCount", { n: 1 });
+        const read = async () => {
+            content = "";
+            await UI.manageClassTrial();
+            return [content.includes(empty), content.includes(one)];
+        };
+        const held = Object.fromEntries(blackenedIds().map(id => [id, foundry.utils.deepClone(blackenedStore.get(id))]));
+        let readings = null;
+        try {
+            if (Object.keys(held).length) await blackenedStore.dropMany(Object.keys(held));
+            ok(await killCharacter(victim, { secret: true, keepBullets: true }), "the secret death was not recorded");
+            const afterDeath = await read();
+            await blackenedStore.patch(killer.id, { chapter: getClock().chapter, epoch: seasonEpoch(), at: Date.now(), victims: [victim.id] });
+            readings = [afterDeath, await read()];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            await reviveCharacter(victim, { quiet: true });
+            await blackenedStore.dropMany([killer.id]);
+            if (Object.keys(held).length) await blackenedStore.patchMany(held);
+            await settle();
+        }
+        equal(stableJson(readings), stableJson([[true, false], [false, true]]),
+            "the trial console did not warn of an empty register in a chapter with a death, or did not count the one row "
+            + "(read twice: the warning shown, the count of one shown)");
+    }],
+
     ["the Event panel's incident card reads the cast, not the world", async () => {
         /*
          * THE PANEL VANISHED THE MOMENT THE OPENING ROLL LANDED (Dawid, 14.09).

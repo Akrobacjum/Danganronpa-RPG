@@ -32,7 +32,7 @@
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isEclipse } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
@@ -61,7 +61,7 @@ export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "c
 /** What `askVote` tells the GM who asked, by the status the primary answered. */
 const VOTE_STATUS = Object.freeze({
     noVoters: "DRPG.Vote.noVoters", nobodyVoted: "DRPG.Vote.nobodyVoted",
-    notOpen: "DRPG.Vote.notOpen", movedOn: "DRPG.Vote.movedOn"
+    notOpen: "DRPG.Vote.notOpen", movedOn: "DRPG.Vote.movedOn", eclipse: "DRPG.Floor.eclipseFirst"
 });
 
 /**
@@ -456,6 +456,14 @@ export async function runVoteOp(op, { picks = 0 } = {}) {
  * picks), so a window drawn over an earlier round of a vote that is open again is not told apart.
  */
 async function voteStep(op, picks) {
+    /* NO BALLOTS IN AN ECLIPSE (E10 C12, 1.2.71; audit S06-18), as no trial opens in one (trial-floor-ui.mjs
+       `startClassTrial`): refused here, on the primary, whichever GM or macro asked, and told to the asker
+       (`VOTE_STATUS.eclipse`). Only a step that hands ballots out; a vote already open is counted and
+       reminded as before. */
+    if ((op === "open" || op === "restart") && isEclipse()) {
+        log(`The vote's "${op}" was asked during an Eclipse; nothing was done.`);
+        return { status: "eclipse" };
+    }
     const progress = trialProgress();
     const { open, round } = progress.vote;
     if (op === "open" ? open : op === "restart" && !open) {

@@ -903,6 +903,15 @@
       "newTrialTitle": "Open a new trial",
       "newTrialConfirm": "This chapter already has a verdict. Open a new trial? A second verdict means another execution and another round of Level Ups.",
       "newTrialRefused": "This chapter already has a verdict, so the Class Trial was not opened again. A second trial opens from Start the Class Trial, which asks first.",
+      "eclipseFirst": "An Eclipse is running, so nothing was opened. End the Eclipse first.",
+      "incidentTitle": "An incident is still open",
+      "incidentOpen": "A murder incident is still open. Its Blackened go on the register only when it is closed, and the vote and the verdict read the register. Close it now, or go on with it open?",
+      "incidentKeep": "Go on with it open",
+      "registerEmpty": "The Blackened register is empty, and a student died this chapter. Was the incident closed? A killer goes on the register when their incident closes.",
+      "registerCount": {
+        "one": "{n} Blackened on this chapter's register.",
+        "other": "{n} Blackened on this chapter's register."
+      },
       "startTrialIntro": "A Class Trial opens in discussion: everybody talks, and evidence goes on the table without taking the floor. The Nonstop Debate is something you open inside it.",
       "startTrialStepPhase": "The campaign moves to Class Trial.",
       "startTrialStepAnnounce": "The trial is announced in chat and the music follows.",

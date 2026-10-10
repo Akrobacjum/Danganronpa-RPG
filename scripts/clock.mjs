@@ -118,7 +118,18 @@ export async function setClock(patch = {}) {
     // reset on one of those three routes would quietly lie on the other two.
     // `patch` wins if a caller sets the stamp itself - that is how a correction
     // can move the clock without pretending the pause never happened.
-    if (patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay
+    //
+    // AND WHEN THE PHASE CROSSES THE TRIAL'S EDGE (E10 C12, 1.2.71; audit S06-36). Start the
+    // Class Trial and End the trial stamped it themselves; the other roads in and out - the
+    // trial ended from Edit campaign, a debate opened outside a trial (`startFloor` ->
+    // `setPhase`), `game.drpg.setPhase` - did not, and the HUD went on counting the time of
+    // day from before the trial, in red. Only a move into or out of the Class Trial: a body
+    // found turns Daily Life into the Investigation in the middle of a time of day, and the
+    // day's summary (day-summary.mjs) is bounded by this stamp. Measured in tier 2 "the trial's
+    // exits say what happened".
+    const trialEdge = patch.phase !== undefined && patch.phase !== before.phase
+        && (patch.phase === "classTrial" || before.phase === "classTrial");
+    if (((patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay) || trialEdge)
         && patch.timeOfDayStartedAt === undefined) {
         next.timeOfDayStartedAt = Date.now();
     }

@@ -892,6 +892,17 @@
       "newTrialTitle": "Otwórz nowy Class Trial",
       "newTrialConfirm": "Ten rozdział ma już werdykt. Otworzyć nowy Class Trial? Drugi werdykt to kolejna egzekucja i kolejna runda Level Upów.",
       "newTrialRefused": "Ten rozdział ma już werdykt, więc Class Trial nie został otwarty ponownie. Drugi Class Trial otwiera Zacznij Class Trial, które najpierw pyta.",
+      "eclipseFirst": "Trwa Eclipse, więc nic nie zostało otwarte. Najpierw zakończ Eclipse.",
+      "incidentTitle": "Incydent jest wciąż otwarty",
+      "incidentOpen": "Incydent morderstwa jest wciąż otwarty. Jego Blackened trafiają do rejestru dopiero przy zamknięciu, a głosowanie i werdykt czytają rejestr. Zamknąć go teraz czy kontynuować przy otwartym?",
+      "incidentKeep": "Kontynuuj przy otwartym",
+      "registerEmpty": "Rejestr Blackened jest pusty, a w tym rozdziale zginął uczeń. Czy incydent został zamknięty? Zabójca trafia do rejestru, gdy jego incydent się zamyka.",
+      "registerCount": {
+        "one": "{n} Blackened w rejestrze tego rozdziału.",
+        "few": "{n} Blackened w rejestrze tego rozdziału.",
+        "many": "{n} Blackened w rejestrze tego rozdziału.",
+        "other": "{n} Blackened w rejestrze tego rozdziału."
+      },
       "startTrialIntro": "Class Trial otwiera się dyskusją: mówią wszyscy, a dowody trafiają na stół bez przejmowania głosu. Nonstop Debate otwierasz w jego trakcie.",
       "startTrialStepPhase": "Kampania przechodzi do Class Trial.",
       "startTrialStepAnnounce": "Class Trial zostaje ogłoszony na czacie, a muzyka podąża za nim.",

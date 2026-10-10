@@ -1360,6 +1360,14 @@ export async function openChapterEndDialog() {
         return null;
     }
 
+    /* AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18): the register takes its
+       killers when it is closed. Since E09 fix r2-G4 the row goes under the chapter the incident
+       opened in, so a late close no longer lands on the next chapter's verdict - but this window ends
+       the chapter, and its trial will not read the register again. trial-floor-ui.mjs
+       `incidentClosedFirst` offers the close, or going on with it open; Cancel ends nothing. */
+    const { incidentClosedFirst } = await import("./trial-floor-ui.mjs");
+    if (!(await incidentClosedFirst())) return null;
+
     // The SAME test the reveal itself applies, or the preview promises work the
     // action will not do - `revealPlan`, since E09 C8 the reveal's own answer.
     //

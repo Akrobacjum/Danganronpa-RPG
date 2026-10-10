@@ -66,8 +66,29 @@ export async function startClassTrial() {
 
     if (getClock().phase === "classTrial") return null;
 
-    const { livingStudents } = await import("./chapter.mjs");
-    if (!livingStudents().length) {
+    /* NOT IN AN ECLIPSE (E10 C12, 1.2.71; audit S06-18). In the dark Analyze and an Objection - the
+       trial's two paid moves - are refused, and the HUD hides the chevron that ends the Eclipse (the
+       audit's reading, not re-measured here), so a trial opened in one sat with its rules switched
+       off. Refused before any window opens, and told. */
+    const { isEclipse, isDeceased } = await import("./settings.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+        return null;
+    }
+
+    /* WHO IS ALIVE, AS THE GMS HOLD THEM (E10 C12; the census's row for this button). The count
+       was `livingStudents()`, off the documents, which a student's owner can write: a `deceased`
+       flag written from a console is put back by the GMs' audit (GM_FLAGS) a server round trip
+       later, and a click inside that window read it. Every write queued on a student is judged
+       first (`judgedFor`), then each is read as the primary holds it (`flagsHeldNow`) in one
+       synchronous pass, as the vote's `eligibleVoters` reads them; on another GM's browser,
+       which keeps no mark, the document's. */
+    const { studentActors } = await import("./monokuma.mjs");
+    const { judgedFor, flagsHeldNow } = await import("./sheet-audit.mjs");
+    const students = studentActors();
+    await judgedFor(...students.map(actor => actor.id));
+    const living = students.filter(actor => !isDeceased(flagsHeldNow(actor)));
+    if (!living.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.nobody"));
         return null;
     }
@@ -92,6 +113,7 @@ export async function startClassTrial() {
     });
 
     if (!result || result === "cancel") return null;
+    if (!(await incidentClosedFirst())) return null;
     if (!(await confirmNewTrial())) return null;
 
     // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
@@ -113,6 +135,7 @@ export async function startClassTrial() {
     // assume they cannot afford. Counted from the living students, because the
     // refill ran inside `setClock` above and hands nothing back to this button.
     const { announce } = await import("./utils.mjs");
+    const { livingStudents } = await import("./chapter.mjs");
     await announce({
         content: `<div class="drpg-card"><h3>${
             game.i18n.localize("DRPG.Floor.startTrial")}</h3><p>${
@@ -151,6 +174,40 @@ export async function confirmNewTrial() {
         rejectClose: false
     });
     return answer === "ok";
+}
+
+/**
+ * AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18), at the three doors that lean on
+ * the Blackened register: Start the Class Trial, the vote window's Send the ballots and the End of
+ * chapter window. The register takes an incident's killers when the incident is closed
+ * (murder-rules.mjs `closeIncident` -> `recordBlackened`, read in the code), so a trial run past an
+ * open one asked for no name or too few and left the verdict to the lists by hand, and a chapter
+ * ended over one closed its trial without its killer (since E09 fix r2-G4 the late row goes under
+ * the incident's own chapter, which no trial reads again). The GM panel's Next line said so; the
+ * windows did not. This offers the close (`endMurder`, as the incident
+ * tracker's Close the murder calls it) and lets the GM go on with it open: a warning, not a refusal.
+ * Cancel is the first button and the only default, so Enter closes nothing and opens nothing (Enter
+ * presses the first submit button, E10 C4's finding). True at once when no incident is open; after a
+ * close, true only when the incident is gone.
+ */
+export async function incidentClosedFirst() {
+    const { murderState, endMurder } = await import("./murder.mjs");
+    if (!murderState()) return true;
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Floor.incidentTitle") },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<p>${game.i18n.localize("DRPG.Floor.incidentOpen")}</p>`),
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "close", label: game.i18n.localize("DRPG.Murder.endMurder") },
+            { action: "keep", label: game.i18n.localize("DRPG.Floor.incidentKeep") }
+        ],
+        rejectClose: false
+    });
+    if (answer === "keep") return true;
+    if (answer !== "close") return false;
+    await endMurder();
+    return !murderState();
 }
 
 /**
@@ -218,10 +275,15 @@ export async function openDebate(options = {}) {
         budget = asked.seconds;
     }
 
-    // Remembered for the next one in this trial, which is what makes the
-    // default above worth having.
+    /* Remembered for the next one in this trial, which is what makes the default above worth
+       having - AFTER the floor opens (E10 C12, 1.2.71; audit S06-36). A debate opened outside a
+       trial moves the phase (`startFloor` -> `setPhase`), and entering the trial blanks its record
+       to the default length (`reconcilePhase` -> `resetTrialProgress`): written first, the length
+       was eaten a moment later, so `game.drpg.openDebate(300)` outside a trial remembered 180 s.
+       And a floor that did not open (`startFloor` answered null: a refused phase) is no debate to
+       remember or to announce. */
+    if (!(await startFloor({ seconds: budget, confirmNewTrial: confirmed }))) return null;
     await setTrialProgress({ seconds: budget });
-    await startFloor({ seconds: budget, confirmNewTrial: confirmed });
 
     const { announce } = await import("./utils.mjs");
     await announce({
@@ -315,9 +377,19 @@ export async function closeTrial() {
         // is what makes ending a trial from the clock editor end it properly too.
         await setClock({ phase: "dailyLife", timeOfDayStartedAt: Date.now() });
     } catch (err) {
-        // The floor is shut either way. A phase that did not move is something
-        // the GM can fix from Edit Campaign; a debate still running is not.
+        /* A WRITE THAT THREW ENDED NOTHING (E10 C12, 1.2.71; audit S06-36). This said "the floor is
+           shut either way" and went on to announce the trial over and answer true - but the floor
+           shuts in `reconcilePhase`, behind the write that threw, so the debate went on running under
+           a card saying Daily Life had resumed. The floor is closed here instead, and the table is
+           told nothing: the phase did not move, which the GM can fix from Edit campaign. False, so
+           a caller (the End of chapter's `endTrial`) knows. */
         error("Could not return the campaign to Daily Life", err);
+        try {
+            await endFloor();
+        } catch (floorErr) {
+            error("Could not close the debate floor after the trial failed to end", floorErr);
+        }
+        return false;
     }
 
     const { announce } = await import("./utils.mjs");
@@ -354,9 +426,11 @@ export async function closeTrial() {
  * opened it. Measured before this: the whole window byte-identical across an
  * Eclipse starting and ending underneath it.
  */
-function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped }) {
+function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, blackenedIds, studentActors,
+    isDeadForGm, deathRecordFor }) {
         const floor = trialFloor();
-        const running = getClock().phase === "classTrial";
+        const { phase, chapter } = getClock();
+        const running = phase === "classTrial";
         const progress = trialProgress();
         return {
             floor, running, progress,
@@ -371,13 +445,21 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
             afterwards: running || progress.voteClosed || progress.verdictApplied,
             // A verdict that stopped halfway (E10 C5, S06-39): the steps it did
             // not finish, named, or null - see `verdictStopped` in vote.mjs.
-            stopped: verdictStopped(progress)
+            stopped: verdictStopped(progress),
+            /* THE BLACKENED REGISTER, COUNTED (E10 C12, 1.2.71; audit S06-18). The register takes a
+               killer when their incident is closed, and the vote asks as many names as it holds, so
+               an empty one in a chapter where somebody died is an incident nobody closed - or a GM
+               store this browser has not been given - and the console says so before the vote does.
+               The whole register (`blackenedIds`), as this GM holds it, and a death as this GM knows
+               it (`isDeadForGm`, a death nobody has found included): a display, the GMs' own. */
+            register: blackenedIds().length,
+            deathThisChapter: studentActors().some(actor => isDeadForGm(actor) && deathRecordFor(actor)?.chapter === chapter)
         };
 }
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
-    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped } = view;
+    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -445,10 +527,15 @@ function trialConsoleHtml(view) {
                     ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
                     : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
 
+        const registerLine = !register && deathThisChapter
+            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.registerEmpty")}</p>`
+            : `<p class="notes">${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
+
         return `<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             <p>${game.i18n.localize(running
                 ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
+            ${registerLine}
             ${finalNow ? `<p class="drpg-warning">${
                 game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : ""}
 
@@ -597,7 +684,12 @@ export async function manageClassTrial() {
     const { inFinalTrial } = await import("./mastermind.mjs");
     const { pendingVoters, voteBar, trialProgress, verdictStopped } = await import("./vote.mjs");
 
-    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped };
+    const { blackenedIds } = await import("./murder.mjs");
+    const { studentActors } = await import("./monokuma.mjs");
+    const { isDeadForGm, deathRecordFor } = await import("./settings.mjs");
+    const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
+    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, blackenedIds, studentActors,
+        isDeadForGm, deathRecordFor };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
@@ -655,8 +747,12 @@ export async function manageClassTrial() {
                  * it leaves, and nothing in the world is written when they do: the
                  * record still says "applying" and only the user list has changed
                  * (`verdictStopped`; E10 C5, read in the code, not measured).
+                 *
+                 * The register and the deaths the GMs keep are GM stores too (`watch.stores`, E09 C3):
+                 * the register's line is redrawn when a row lands in either (E10 C12; read in the
+                 * code, not measured).
                  */
-                watch: { hooks: ["drpgBallotsChanged", "userConnected"] },
+                watch: { hooks: ["drpgBallotsChanged", "userConnected"], stores: [blackenedStore, deathStore] },
                 after: () => {
                     if (reopening || signature() === openedWith) return;
                     reopening = true;
@@ -841,6 +937,9 @@ export async function openVoteDialog() {
     });
 
     if (action === "open") {
+        // An incident still open asks first, as Start the Class Trial does (E10 C12): the ballot
+        // asks as many names as the register holds, and the register is written at its close.
+        if (!(await incidentClosedFirst())) return openVoteDialog();
         /* RE-SENDING IS STARTING OVER, so somebody has to say so out loud.
 
            With a vote running this button starts it over - a new round on the primary
