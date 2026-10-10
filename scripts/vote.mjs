@@ -675,6 +675,17 @@ export function pendingVoters() {
 }
 
 /**
+ * Who Send the ballots would hand one to now, by name (E10 C14, 1.2.71; audit S06-26): the vote window
+ * lists them before the button is pressed, and says that nobody is connected when nobody is. The same
+ * reading as the step's own (`eligibleVoters`), as this GM holds it at the moment - a display: the step
+ * reads it again on the primary, after every write queued on a student is judged. GM only.
+ */
+export function ballotRecipients() {
+    if (!game.user.isGM) return [];
+    return eligibleVoters().map(({ user, actor }) => ({ user, actor, name: actor.name }));
+}
+
+/**
  * THE BAR, WHILE THE VOTE IS OPEN (E10 C3, 1.2.71; the plan's C3): `{ returned, issued, majority }` - the
  * ballots back, out of the base the close will count from (`ballotBase`), and the votes a conviction needs
  * of that base - or null with no vote open, as on a player's browser. A player who joins mid-vote and is

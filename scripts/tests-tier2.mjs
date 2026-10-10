@@ -29516,6 +29516,217 @@ const SCENARIOS = [
         }
     }],
 
+    ["the trial console names the next step in every state of the trial", async () => {
+        /* E10 C14, 1.2.71; audit S06-27 and S13-13. The harm, read at a table: the console's Enter (its
+           default button) opened a debate after the count and after the verdict, and pressed The vote while a
+           debate ran; after End the trial the console said that no trial was running and that the chapter
+           could end, The vote still pressable; its first line said "Open the debate..." in every state, and
+           after the count it said the count twice. And End the trial after a verdict asked as though it
+           ended the chapter. Seven states written to the world - no trial, the discussion, a debate, the
+           ballots out, counted, the verdict in, and the trial ended after it - each read off the console's
+           own `DialogV2.wait` (answered null, so nothing is drawn): the defaults, The vote (absent, closed or
+           open), the lead line, how many sections, and how many lines the last section holds. Then End the
+           trial's question with the verdict in and without one (answered no). The clock, the floor and the
+           trial's record are put back here. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        // A console the test before this one opened may still be closing, and `alreadyOpen` would answer for it.
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), ownConfirm = Object.getOwnPropertyDescriptor(D, "confirm");
+        const consoleTitle = game.i18n.localize("DRPG.Floor.manageTrial"), endTitle = game.i18n.localize("DRPG.Floor.endTrial");
+        const notChapter = game.i18n.localize("DRPG.Floor.endTrialNotChapter");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        let opened = null, asked = null;
+        D.wait = async config => {
+            if (config?.window?.title === consoleTitle) opened = config;
+            return null;
+        };
+        // Any other question (a Key charge on entering the phase) is answered no, and only End the trial's is kept.
+        D.confirm = async config => {
+            if (config?.window?.title === endTitle) asked = String(config?.content ?? "");
+            return false;
+        };
+        const phase = async name => {
+            await setClock({ ...getClock(), phase: name });
+            await settle();
+        };
+        const record = patch => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { chapter: getClock().chapter, ...patch });
+        const vote = open => ({ open, round: 1, picks: 1, issued: [], openedAt: Date.now(), closedAt: open ? null : Date.now() });
+        const read = async () => {
+            opened = null;
+            await UI.manageClassTrial();
+            const buttons = opened?.buttons ?? [];
+            const content = opened?.content;
+            const sections = [...(content?.querySelectorAll?.("h4") ?? [])];
+            const voteButton = buttons.find(b => b.action === "vote");
+            let lines = null;
+            if (sections.length) {
+                lines = 0;
+                for (let el = sections.at(-1).nextElementSibling; el; el = el.nextElementSibling) if (el.tagName === "P") lines++;
+            }
+            return [buttons.filter(b => b.default).map(b => b.action), !voteButton ? "absent" : voteButton.disabled ? "closed" : "open",
+                content?.querySelector?.(".drpg-trial-lead")?.textContent?.trim() ?? null, sections.length, lines];
+        };
+        const endAsks = async () => {
+            asked = null;
+            await UI.endClassTrial();
+            return asked === null ? null : asked.includes(notChapter);
+        };
+        const readings = {};
+        try {
+            await phase("dailyLife");
+            await record({});
+            readings.noTrial = await read();
+            await phase("classTrial");
+            await record({});
+            readings.discussion = await read();
+            readings.endWithoutVerdict = await endAsks();
+            await floorMod.startFloor({ seconds: 180 });
+            await settle();
+            readings.debate = await read();
+            await floorMod.endFloor();
+            await record({ vote: vote(true) });
+            await settle();
+            readings.ballotsOut = await read();
+            await record({ vote: vote(false), voteClosed: true });
+            readings.counted = await read();
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            readings.verdictIn = await read();
+            readings.endAfterVerdict = await endAsks();
+            await phase("dailyLife");
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            readings.ended = await read();
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (ownConfirm) Object.defineProperty(D, "confirm", ownConfirm); else delete D.confirm;
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        const lead = step => game.i18n.localize(`DRPG.Floor.lead.${step}`);
+        equal(stableJson(readings), stableJson({
+            noTrial: [["start"], "absent", lead("start"), 0, null],
+            discussion: [["openDebate"], "open", lead("openDebate"), 3, 2],
+            endWithoutVerdict: false,
+            debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
+            ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
+            counted: [["verdict"], "open", lead("verdict"), 3, 0],
+            verdictIn: [["chapterEnd"], "open", lead("chapterEnd"), 3, 0],
+            endAfterVerdict: true,
+            ended: [["chapterEnd"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
+        }), "the console's default, The vote, its lead line or its sections are not the trial's next step in some state, or End the trial "
+            + "after a verdict does not say the chapter is not ended (read per state: the defaults, The vote absent/closed/open, the lead, "
+            + "the sections, the lines under the last one; End the trial's question naming the chapter)");
+    }],
+
+    ["the vote window opens once and its count waits for ballots", async () => {
+        /* E10 C14, 1.2.71; audit S06-26. The harm, read on the audit's screenshots: a second press opened a
+           second vote window; Close and count looked pressable with no vote open and answered with a toast;
+           and the window never said whom Send would hand a ballot to, nor that nobody was connected - the
+           only word of that was a toast after the press. The window is drawn on this GM, with no vote open,
+           and asked for twice: the windows drawn and the waits asked are counted, its footer read off what
+           it asked for (Close and count closed, Send closed exactly when nobody would be handed one, the
+           defaults) and its status off the screen (the line to send first, and the recipients - worked out
+           here from the users and the students, the way a ballot is handed out - or nobody). Then a vote is
+           opened in the world under it, as by another GM, and the window comes back with Close and count
+           open and the default on it, still one. First of all, the window drawn while nobody is connected
+           as this GM sees it - every player's `active` read as false on this browser alone, for as long as
+           it takes to draw and read it, and given back before anything else: Send closed, the default on
+           Cancel, and the line saying nobody is connected. The trial's record is put back here. */
+        needs(env.dialogs(), "the vote window is read as it is drawn, and a second press meets the one on screen");
+        const UI = await import("./trial-floor-ui.mjs");
+        const V = await import("./vote.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawWait = D.wait;
+        const title = game.i18n.localize("DRPG.Vote.openTitle"), sendFirst = game.i18n.localize("DRPG.Vote.sendFirst");
+        const asked = [];
+        D.wait = function (config) {
+            if (config?.window?.title === title) asked.push(config);
+            return drawWait.call(this, config);
+        };
+        const drawn = () => [...foundry.applications.instances.values()]
+            .filter(app => app.rendered && app.element?.isConnected && app.options?.window?.title === title);
+        const status = () => drawn()[0]?.element?.querySelector(".drpg-vote-status")?.textContent ?? "";
+        const footer = config => {
+            const of = action => (config?.buttons ?? []).find(b => b.action === action);
+            return [of("tally")?.disabled === true, of("open")?.disabled === true,
+                (config?.buttons ?? []).filter(b => b.default).map(b => b.action)];
+        };
+        const seated = new Set(), recipients = [];
+        for (const actor of studentActors()) {
+            if (isDeadForGm(actor)) continue;
+            const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+            if (!user || seated.has(user.id)) continue;
+            seated.add(user.id);
+            recipients.push(`${actor.name} (${user.name})`);
+        }
+        const whoLine = recipients.length
+            ? plural("DRPG.Vote.recipients", { n: recipients.length, who: recipients.join(", ") })
+            : game.i18n.localize("DRPG.Vote.nobodyConnected");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const pending = [];
+        let reading = null, alone = null;
+        try {
+            const blank = V.trialProgress();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...blank, vote: { ...blank.vote, open: false } });
+            await settle();
+            const players = game.users.filter(u => !u.isGM);
+            const own = players.map(u => [u, Object.getOwnPropertyDescriptor(u, "active")]);
+            try {
+                for (const u of players) Object.defineProperty(u, "active", { get: () => false, configurable: true });
+                pending.push(UI.openVoteDialog());
+                await until(() => drawn().length > 0, 6000);
+                alone = [footer(asked.at(-1)), status().includes(game.i18n.localize("DRPG.Vote.nobodyConnected"))];
+            } finally {
+                for (const [u, d] of own) {
+                    if (d) Object.defineProperty(u, "active", d);
+                    else delete u.active;
+                }
+            }
+            for (const app of drawn()) await app.close();
+            await until(() => !drawn().length, 3000);
+            asked.length = 0;
+            pending.push(UI.openVoteDialog());
+            await until(() => drawn().length > 0, 6000);
+            pending.push(UI.openVoteDialog());
+            await settle();
+            const before = [drawn().length, asked.length, footer(asked[0]), status().includes(sendFirst), status().includes(whoLine)];
+            const now = V.trialProgress();
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...now,
+                vote: { ...now.vote, open: true, round: now.vote.round + 1, issued: [], openedAt: Date.now(), closedAt: null } });
+            await until(() => asked.length > before[1] && drawn().length > 0, 6000);
+            await settle();
+            const back = asked.length > before[1] ? asked.at(-1) : null;
+            reading = [alone, before, [drawn().length, footer(back), status().includes(sendFirst)]];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            for (const app of drawn()) await app.close();
+            await Promise.race([Promise.allSettled(pending), wait(3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            await settle();
+        }
+        const none = recipients.length === 0;
+        equal(stableJson(reading), stableJson([
+            [[true, true, ["cancel"]], true],
+            [1, 1, [true, none, none ? ["cancel"] : ["open"]], true, true],
+            [1, [false, none, ["tally"]], false]
+        ]), "the vote window opened twice, offered Close and count with no vote open, did not say whom a ballot goes to (or that "
+            + "nobody is connected), or did not come back with its count open once a vote was (read: windows drawn, waits asked, "
+            + "the footer - Close and count closed, Send closed, the defaults -, the line to send first, the recipients' line; then "
+            + "the windows, the footer and the line again; first, with nobody connected: the footer and the line saying so)");
+    }],
+
     ["+30 seconds on an overrun debate leaves thirty seconds on the clock", async () => {
         /*
          * F9. The overrun is written by hand rather than waited for: three minutes of

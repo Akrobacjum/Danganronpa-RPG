@@ -23,7 +23,8 @@
  *      round 1, one name, the three handed one (C1). p1 casts Botan and is told its vote is in once
  *      the primary has recorded it (C2); p2 and p3 hold their windows open. The GM's vote window,
  *      drawn and left open, says 1 of 3 ballots are back and a conviction needs 2, and every
- *      player's card says three ballots are out, in the plural family's form (C3).
+ *      player's card says three ballots are out, in the plural family's form (C3). Pressed again, the
+ *      window is raised and no second one is drawn (C14).
  *   C  p4 connects after the ballots went out, heard connecting before its world has loaded
  *      (`announceFirst`): it asks the GM for its ballot at load and is handed one, and the record
  *      issues a fourth (C2). The harness's default press dismisses that window, so p4 asks again
@@ -38,7 +39,9 @@
  *   E  p3 dismisses its ballot and is warned; gm2's Close and count counts p1's, p2's and p4's
  *      ballots - Botan 3 of 4 issued, the majority, accused (C2; C1 counted p1's alone, a tie) -
  *      and writes it to the world (C1); every player reads the vote closed, and holds the count's
- *      card: a row per name and the one sentence that the class accuses Botan (C3).
+ *      card: a row per name and the one sentence that the class accuses Botan (C3). The vote
+ *      window's privacy note read against the GMs' store: gm2 keeps who chose whom after the count,
+ *      no player's browser holds a row or the store's setting (C14).
  *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on Botan,
  *      whom E's count accused, under the line naming him with his 3 of 4, and its first option is
  *      "Nobody is executed"; the dead victim is listed with " - dead" and cannot be picked
@@ -63,7 +66,8 @@
  *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
  *      Then (C8) gm2 offers Aiko one more, and p1's pick of an experience Aiko does not have is refused and
- *      told on p1, the offer standing and nothing written; gm2 takes it back.
+ *      told on p1, the offer standing and nothing written; gm2 takes it back. Last (C14), gm2's copy of
+ *      the ballots holds the second vote's rows alone, as the privacy note says.
  *   J  (run between H and I) p4 comes back on a machine whose clock runs a minute fast (`clockSkewMs`:
  *      `Date.now` moves, the server's time does not); gm2 opens a five-minute debate in H's second trial,
  *      and p4's count of its seconds and its Event card's clock read what gm2's read (C13); gm2 closes it.
@@ -100,6 +104,8 @@
  * checks in 18.6 s (one run, 10.10.2026).
  * E10 C13 added J1 and J2, p4 back on a machine a minute fast reading gm2's debate: 46 checks in 23.5 and 20.0 s (two
  * runs, 10.10.2026).
+ * E10 C14 added B6, E5 and I7, the second press on the vote window and its privacy note read against the GMs' store:
+ * 49 checks in 22.8 and 22.5 s (two runs, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -217,6 +223,18 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         return String(card?.content ?? "").includes(game.i18n.format("DRPG.Vote.opened.other", { n: 3 }));`));
     verdict("p1-p3 each hold the vote's card saying three ballots are out, in the counted sentence's form for three (C3: `DRPG.Vote.opened` is a plural family)",
         J(openedCards) === J([true, true, true]), J(openedCards));
+    /* E10 C14 (S06-26): the vote window is one window - pressed again, the one B drew is raised. A second one drawn (the
+       answer to the press never comes back, "drawn") is closed here, so that C reads the window B drew. */
+    const raised = await gm.eval(`${voteWindow}
+        const drawnAll = () => [...foundry.applications.instances.values()]
+            .filter(a => a.rendered && a.element?.isConnected && a.options?.window?.title === ${text("DRPG.Vote.openTitle")});
+        const second = await Promise.race([(await import("${repoUrl}/scripts/trial-floor-ui.mjs")).openVoteDialog(),
+            new Promise(r => setTimeout(() => r("drawn"), 3000))]);
+        const read = { second, windows: drawnAll().length, same: voteWindow()?.id === globalThis.__s63voteId };
+        for (const app of drawnAll()) if (app.id !== globalThis.__s63voteId) await app.close();
+        return read;`, { timeout: 20000 });
+    verdict("pressed again, the vote window B drew is raised and no second one is drawn (C14)",
+        raised.second === null && raised.windows === 1 && raised.same === true, J(raised));
 
     /* ------------------------------ C. a late joiner ------------------------------ */
 
@@ -316,6 +334,23 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
             el.querySelector(".drpg-vote-sentence")?.textContent ?? null];`));
     verdict("p1-p4 each hold the count's card: one row for Botan, no table, and the one sentence that the class accuses Botan, 3 of 4, a majority (C3)",
         J(results) === J(Array(4).fill([1, false, accuses])), J({ results, accuses }));
+    /* E10 C14 (S13-26; round 1's note): the vote window's privacy note against the store it describes. It said the
+       ballots "are counted in memory and are not kept", which stopped being true at C1. Read after the count: gm2's
+       copy of the GMs' store (a row per voter, keyed by the voter, with the names chosen) and the same store's client
+       setting on gm2 and on every player (the key `gm-store.mjs` reads, so that gm2's being there shows the key is the
+       right one); E4 read the totals on the count's card. The note is read in English, by the three things it says. */
+    const STORE = `const { ballotStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        const kept = game.settings.storage.get("client").getItem("${MOD}." + SETTINGS.gmBallots);
+        let rows; try { rows = Object.entries(ballotStore.entries() ?? {}).map(([id, row]) => [id, row?.round ?? null, row?.choice ?? null]).sort(); }
+        catch (err) { rows = "threw: " + err.message; }`;
+    const privacy = { gm2: await gm2.eval(`${STORE} return { rows, kept: kept !== null, note: ${text("DRPG.Vote.privacyNote")} };`), players: [] };
+    for (const c of [p1, p2, p3, p4]) privacy.players.push(await c.eval(`${STORE} return { rows, kept: kept !== null };`));
+    const chose = [IDS.p1, IDS.p2, P4].sort().map(id => [id, 1, [IDS.botan]]);
+    verdict("the vote window's privacy note is true of the GMs' store: gm2 keeps who chose whom after the count, no player's browser holds a row or the store's setting, and the note says so and that the table sees the totals (C14)",
+        J(privacy.gm2.rows) === J(chose) && privacy.gm2.kept === true
+            && J(privacy.players) === J(Array(4).fill({ rows: [], kept: false }))
+            && ["who chose whom", "no player's browser", "the totals"].every(words => privacy.gm2.note.includes(words)), J(privacy));
 
     /* ------------------------------ F. the verdict's window ------------------------------ */
 
@@ -630,6 +665,13 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     verdict("p1's own Level Up picker is a module panel: one pick with no Choice legend, the reason in its intro and no line for whom (C9)",
         J(picked.shown?.classes) === J(["drpg-advance", "drpg-panel"]) && picked.shown?.legends === 0 && picked.shown?.forLine === false
             && picked.shown?.reason?.length > 0 && picked.shown.intro.includes(picked.shown.reason), J({ shown: picked.shown }));
+    /* E10 C14 (S13-26): the privacy note's "until the next vote is opened", against the store - the second vote's open
+       dropped every row of the first (round 1), and its own rows are the ones gm2 keeps now. */
+    const nextVote = await gm2.eval(`const { ballotStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { rounds: [...new Set(Object.values(ballotStore.entries() ?? {}).map(row => row?.round ?? null))].sort(),
+            note: ${text("DRPG.Vote.privacyNote")} };`);
+    verdict("the next vote's open dropped the first vote's rows from gm2's copy - it keeps round 2's alone - as the privacy note says (C14)",
+        J(nextVote.rounds) === J([2]) && nextVote.note.includes("until the next vote is opened"), J(nextVote));
 
     /* ------------------------------ every client clean, every phase measured ------------------------------ */
 

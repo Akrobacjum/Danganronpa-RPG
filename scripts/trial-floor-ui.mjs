@@ -341,10 +341,19 @@ export async function endClassTrial() {
         return null;
     }
 
+    /* AFTER A VERDICT, ENDING THE TRIAL IS NOT ENDING THE CHAPTER (E10 C14, 1.2.71; audit S13-13). The two
+       buttons stood side by side after a verdict, and this one's question named the debate, the trial and Daily
+       Life - nothing about the Truth Bullets' reveal or the next chapter, which only End the chapter does (and it
+       closes the trial itself, its "end the Class Trial" box). A GM who pressed this one and said yes had a
+       finished-looking table and an open chapter. It stays - a trial can end without a verdict - and is never
+       the console's default; once the verdict is in, its question says so. */
+    const { trialProgress } = await import("./vote.mjs");
+    const notChapter = trialProgress().verdictApplied
+        ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}</p>` : "";
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
-        content: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>`,
+        content: `<p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}`,
         rejectClose: false
     });
     if (!confirmed) return null;
@@ -432,7 +441,7 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
         const { phase, chapter } = getClock();
         const running = phase === "classTrial";
         const progress = trialProgress();
-        return {
+        const view = {
             floor, running, progress,
             restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.debate,
             finalNow: inFinalTrial(),
@@ -455,11 +464,53 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
             register: blackenedIds().length,
             deathThisChapter: studentActors().some(actor => isDeadForGm(actor) && deathRecordFor(actor)?.chapter === chapter)
         };
+        view.next = trialNextStep(view);
+        return view;
 }
+
+/*
+ * WHICH BUTTON ENTER PRESSES, AND THE LINE THAT SAYS WHY (E10 C14, 1.2.71; audit S06-27).
+ *
+ * Nine buttons can be on the console at the tensest moment of a session, and each branch used to
+ * declare its own `default: <some condition>` - which is how a window ends up with two defaults in one
+ * state and none in another. So exactly one action is the next step, and it is by construction one that
+ * is present and not disabled.
+ *
+ * The chain before this asked "is there a floor?" before it asked how far the trial had got: with no
+ * debate open it answered Open Debate whatever else was true, so after the count and after the verdict
+ * Enter opened a debate; and with one open it fell through to The vote rather than closing it. Read at a
+ * table (the audit's V10-vote-verdict-03 and V09-trial-console-20). Now a floor is asked about first only
+ * while the trial runs, then the record from its far end back - the verdict, the count, the ballots - and
+ * Open Debate is the step only before any ballot went out. A trial ended with its record standing
+ * ("afterwards" without "running") goes on to its verdict and the chapter's end: those are the steps left,
+ * and Start the Class Trial would ask first in a chapter with a verdict (E10 C11).
+ */
+function trialNextStep({ floor, running, restrictive, progress, afterwards, stopped }) {
+    if (!afterwards) return "start";
+    if (running && restrictive) return "now";
+    if (running && floor) return "closeDebate";
+    if (progress.verdictApplied) return stopped ? "finishVerdict" : "chapterEnd";
+    if (progress.voteClosed) return "verdict";
+    // Only a running trial gets here: `afterwards` without a count or a verdict is `running`.
+    return progress.vote.open ? "vote" : "openDebate";
+}
+
+/** The console's first line, by the next step: what the trial is waiting for, said once. */
+const TRIAL_LEADS = {
+    start: "DRPG.Floor.lead.start",
+    openDebate: "DRPG.Floor.lead.openDebate",
+    closeDebate: "DRPG.Floor.lead.closeDebate",
+    now: "DRPG.Floor.lead.now",
+    vote: "DRPG.Floor.lead.vote",
+    verdict: "DRPG.Floor.lead.verdict",
+    finishVerdict: "DRPG.Floor.lead.finishVerdict",
+    chapterEnd: "DRPG.Floor.lead.chapterEnd"
+};
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
-    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter } = view;
+    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter,
+        next } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -481,8 +532,7 @@ function trialConsoleHtml(view) {
         const target = floorTarget(floor);
 
         const debateLine = !floor
-            ? `<p class="notes">${game.i18n.localize(running
-                ? "DRPG.Floor.inDiscussion" : "DRPG.Floor.noDebate")}</p>`
+            ? `<p class="notes">${game.i18n.localize("DRPG.Floor.inDiscussion")}</p>`
             : floor.mode === FLOOR_MODES.debate
                 ? (over
                     ? `<p class="drpg-warning">${game.i18n.format(
@@ -501,9 +551,10 @@ function trialConsoleHtml(view) {
         // Who has not voted yet, if a vote is open at all. Names only: who has
         // voted is not how they voted, and only the second is the secret the
         // guide keeps. Same read as the vote window's own.
+        // Counted, it says nothing here: the lead line above says so ("The vote is counted. Deliver the
+        // verdict..."), and the two lines together printed the count twice (E10 C14; audit S06-27).
         const voteLine = pending === null
-            ? `<p class="notes">${game.i18n.localize(progress.voteClosed
-                ? "DRPG.Vote.counted" : "DRPG.Vote.notRunning")}</p>`
+            ? (progress.voteClosed ? "" : `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`)
             : pending.length
                 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
                     n: pending.length, who: esc(pending.map(v => v.name).join(", "))
@@ -516,28 +567,44 @@ function trialConsoleHtml(view) {
         // is read in the code, not measured).
         const barLine = bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : "";
 
-        // What the two gated steps are waiting for, said out loud. A disabled
-        // button with no explanation is a bug report. And a verdict that stopped
-        // halfway says where, beside the button that finishes it (E10 C5).
+        // What the verdict's disabled button is waiting for, said out loud: a disabled button with no
+        // explanation is a bug report. Once the vote is counted the lead line names the step, so this
+        // says nothing more - but a verdict that stopped halfway says where, beside the button that
+        // finishes it (E10 C5).
         const gateLine = !progress.voteClosed
             ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
-            : !progress.verdictApplied
-                ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVerdict")}</p>`
-                : stopped
-                    ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
-                    : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
+            : stopped
+                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
+                : "";
 
         const registerLine = !register && deathThisChapter
             ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.registerEmpty")}</p>`
             : `<p class="notes">${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
+        const finalLine = finalNow
+            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : "";
+
+        /* NO TRIAL RUNNING IS ONE LINE (E10 C14, 1.2.71; audit S06-27). The three sections stood under "No
+           Class Trial is running" saying there was no debate and no vote - and, after End the trial, "The
+           verdict is in. The chapter can end." under the sentence that no trial was running, with The vote
+           still pressable. Now the lead says what is left, if anything: the trial ended with its record
+           standing says so first. The register's line stays (E10 C12: it is what to check before a Start),
+           and so does a verdict that stopped, which Finish the verdict below it answers. */
+        const lead = `<p class="drpg-trial-lead">${running || !afterwards ? ""
+            : `${game.i18n.localize("DRPG.Floor.trialEnded")} `}${game.i18n.localize(TRIAL_LEADS[next])}</p>`;
+        if (!running) {
+            return `<div class="drpg-trial-console">
+            ${lead}
+            ${registerLine}
+            ${finalLine}
+            ${stopped ? gateLine : ""}
+        </div>`;
+        }
 
         return `<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
-            <p>${game.i18n.localize(running
-                ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
+            ${lead}
             ${registerLine}
-            ${finalNow ? `<p class="drpg-warning">${
-                game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : ""}
+            ${finalLine}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
@@ -547,7 +614,7 @@ function trialConsoleHtml(view) {
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
             ${voteLine}
             ${barLine}
-            ${afterwards ? gateLine : ""}
+            ${gateLine}
         </div>`;
 }
 
@@ -566,9 +633,11 @@ function trialConsoleHtml(view) {
  * change arriving from somebody else behave the same as one they made.
  */
 function trialSignature(view) {
-    const { floor, running, restrictive, finalNow, progress, afterwards, stopped } = view;
+    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, next } = view;
+        // `next` too (E10 C14): the default is a button's property, so a vote opened by another GM
+        // moves Enter only by drawing the footer again.
         return [running, Boolean(floor), restrictive, finalNow, afterwards,
-            progress.voteClosed, progress.verdictApplied, Boolean(stopped)].join("|");
+            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
@@ -579,7 +648,8 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                 // The debate toggle first: it is the button pressed most
                 // often in a trial, several times in each one.
                 floor
-                    ? { action: "closeDebate", label: game.i18n.localize("DRPG.Floor.closeDebate") }
+                    ? { action: "closeDebate", default: isDefault("closeDebate"),
+                        label: game.i18n.localize("DRPG.Floor.closeDebate") }
                     : { action: "openDebate", default: isDefault("openDebate"),
                         label: game.i18n.localize("DRPG.Floor.openDebate") },
                 // A debate in free discussion has nothing to cut short - it
@@ -595,8 +665,10 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
             : []),
         ...(afterwards
             ? [
+                // Closed while no trial runs (E10 C14, S06-27): after End the trial it stayed
+                // pressable, and Send the ballots would have opened a vote outside a trial.
                 { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"),
-                  default: isDefault("vote") },
+                  disabled: !running, default: isDefault("vote") },
                 // Disabled rather than hidden, so the order of the trial is
                 // visible from the first time this window is opened.
                 // Closed again once it is applied (17.09, F2): a second verdict
@@ -697,22 +769,8 @@ export async function manageClassTrial() {
     const view = read();
     const { floor, running, restrictive, finalNow, progress, afterwards, stopped } = view;
 
-    // WHICH BUTTON ENTER PRESSES, worked out once.
-    //
-    // Nine buttons can be on this window at the tensest moment of a session,
-    // and each branch used to declare its own `default: <some condition>` -
-    // which is how a window ends up with two defaults in one state and none in
-    // another. Named here instead: exactly one action is the next step, and it
-    // is by construction one that is present and not disabled.
-    const defaultAction =
-        !afterwards ? "start"
-            : restrictive ? "now"
-                : (running && !floor) ? "openDebate"
-                    : !progress.voteClosed ? "vote"
-                        : !progress.verdictApplied ? "verdict"
-                            : stopped ? "finishVerdict"
-                                : "chapterEnd";
-    const isDefault = action => defaultAction === action;
+    // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`).
+    const isDefault = action => view.next === action;
 
     const openedWith = signature();
     let reopening = false;
@@ -842,9 +900,12 @@ export async function openVoteDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    /* ONE OF THESE (E10 C14, 1.2.71; audit S06-26): a second press opened a second window, each with its
+       own idea of who was still out - see `alreadyOpen` in live.mjs. */
+    if (alreadyOpen("drpg-window-vote")) return null;
 
-    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress } =
-        await import("./vote.mjs");
+    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress,
+        ballotRecipients } = await import("./vote.mjs");
 
     // Who is still outstanding, while a vote is running.
     //
@@ -869,6 +930,20 @@ export async function openVoteDialog() {
        GM's window shows the copy the GMs' store keeps here: until it has arrived the window says
        so rather than naming every voter as outstanding, and a vote opened before this browser
        loaded, with none of its ballots here, says that the count is the primary's to make. */
+    /* BEFORE THE BALLOTS GO OUT (E10 C14, 1.2.71; audit S06-26). Send with nobody connected said so in a
+       toast that was gone in seconds, and the window never said beforehand who would be handed a card; and
+       Close and count looked pressable with no vote open, and answered with a toast. Now the window names
+       the recipients - `ballotRecipients`, the list Send itself would use, as this GM reads it now - or says
+       that nobody is connected, and Send waits for somebody; Close and count waits for the ballots. */
+    const beforeSend = () => {
+        const recipients = ballotRecipients();
+        const who = recipients.length
+            ? `<p>${plural("DRPG.Vote.recipients", {
+                n: recipients.length, who: esc(recipients.map(r => `${r.name} (${r.user.name})`).join(", "))
+            })}</p>`
+            : `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.nobodyConnected")}</p>`;
+        return `<p class="notes">${game.i18n.localize("DRPG.Vote.sendFirst")}</p>${who}`;
+    };
     const statusHtml = () => {
         const waiting = pendingVoters();
         const copy = ballotCopyStatus();
@@ -880,7 +955,7 @@ export async function openVoteDialog() {
             })}</p>`
             : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
         const status = waiting === null
-            ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`
+            ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>${beforeSend()}`
             : copy === "notReady"
                 ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.storeNotReady")}</p>`
                 : copy === "none"
@@ -892,9 +967,22 @@ export async function openVoteDialog() {
             bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : ""}</div>`;
     };
 
+    /* THE FOOTER IS DRAWN ONCE, so the window opens again when it would change, as the trial console does
+       (`trialSignature`): a vote opened or closed by another GM, the first player connecting, the last
+       ballot coming back. Not on a count or a name changing - the window B of scenario 63 draws stays the
+       same window while a late player raises the bar. */
+    const hasRecipients = () => ballotRecipients().length > 0;
+    const signature = () => {
+        const waiting = pendingVoters();
+        return [waiting !== null, hasRecipients(), Boolean(waiting?.length)].join("|");
+    };
+    const openedWith = signature();
+    const canSend = hasRecipients();
+    let reopening = false;
+
     const action = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.openTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-vote"],
         content: dialogContent(`<div>
             <p>${game.i18n.localize("DRPG.Vote.openIntro")}</p>
             ${statusHtml()}
@@ -919,7 +1007,7 @@ export async function openVoteDialog() {
                Every other `action: "close"` in this module is a literal "Close" whose
                handler returns null anyway, so they behave identically either way. This
                was the only one that had work to do. */
-            { action: "open", default: !running,
+            { action: "open", default: !running && canSend, disabled: !canSend,
               label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") },
             ...(pending?.length
                 ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }]
@@ -927,11 +1015,22 @@ export async function openVoteDialog() {
             // THE DEFAULT ONCE THE BALLOTS ARE OUT, because from that moment it is the
             // only thing left to do here - and because the button it takes the default
             // FROM restarts the vote. Enter must not be the destructive one.
-            { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), default: running },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            // Closed with no vote open (E10 C14, S06-26): there is nothing to count, and the line
+            // above the footer says to send the ballots first.
+            { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), default: running, disabled: !running },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: !running && !canSend }
         ],
         render: (event, dialog) => keepLive(dialog, {
-            region: ".drpg-vote-status", build: statusHtml, watch: { hooks: ["drpgBallotsChanged"] }
+            // Every setting of ours, the world's trial record among them; the ballots, which no setting
+            // reports; and a player connecting, who is a recipient a moment later.
+            region: ".drpg-vote-status", build: statusHtml, watch: { hooks: ["drpgBallotsChanged", "userConnected"] },
+            after: () => {
+                if (reopening || signature() === openedWith) return;
+                reopening = true;
+                dialog.close()
+                    .then(() => openVoteDialog())
+                    .catch(err => error("Could not reopen the vote window", err));
+            }
         }),
         rejectClose: false
     });
