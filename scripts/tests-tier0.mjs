@@ -7443,6 +7443,9 @@ const REGRESSIONS = [
          * 5 CHAT, 20 SHEET, 6 STORE (counted in the source on 10.10.2026).
          * E10 fix r1-G4 (1.2.71) rewrote the verdicts of `openVerdictDialog` and `executeSentenced`: a death nobody
          * has found is not dead to the verdict, and executing that student makes it the table's; no place added or struck.
+         * E10 fix r1-G5 (1.2.71) named in `readTrial`'s verdict the line that keeps its death the GMs' own: its only
+         * caller, `manageClassTrial`, warns a player and returns before it imports or reads anything (read in the
+         * code, 10.10.2026: one call site, `read` in that function); no place added or struck.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7482,7 +7485,7 @@ const REGRESSIONS = [
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
-            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing"],
+            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
             ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
@@ -8282,6 +8285,13 @@ const REGRESSIONS = [
          * loaded and each function to have been cut (`fnSource` fails on a renamed one), so nothing passes
          * on an empty read. Scenario 50's section 6 reads the buttons these sentences name against the
          * labels in lang/.
+         * E10 fix r1-G5 (10.10.2026; round 1's owed list for the side line's G1, G2 and G4) added six
+         * claims to the GM's books: Finish on the primary alone (`finishVerdict`), no second Level Up and
+         * no second card (`verdictCard`, `verdictLevelUps`, the batch's `given`), the one write a GM
+         * leaving can fall between (the batch's `onGiven` after the row's Level Up - read in the code, and
+         * the sentence says so), a take-back refused while the Level Up is written (`takeBackOffer`),
+         * Enter giving what the rows say (`askWhoPicks`), and a body nobody has found made the execution
+         * (`executeSentenced`). At the books before it the twelve sentences were missing.
          */
         const sources = new Map(await otherSources());
         const code = file => {
@@ -8308,7 +8318,17 @@ const REGRESSIONS = [
             secondTrial: cancelFirst.test(fnSource(floorUi, "confirmNewTrial")),
             finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
             season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
-            deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor"))
+            deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor")),
+            finishPrimary: /if \(!isPrimaryGm\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishPrimaryOnly"/
+                .test(fnSource(vote, "finishVerdict")),
+            noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
+                && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
+                && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
+            givenGap: /done\.applied\+\+;\s*if \(entry\.deferred\) await deferredOfferStore\.drop\(actor\.id\);\s*await onGiven\?\.\(actor\);/.test(batch),
+            takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
+                .test(fnSource(levelUp, "takeBackOffer")),
+            enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
+            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced"))
         };
         const SAYS = {
             en: {
@@ -8325,7 +8345,13 @@ const REGRESSIONS = [
                     secondTrial: [/\(\*\*Open a new trial\*\*\) before opening a second trial, Cancel first and the default/],
                     finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the Mastermind window's or the trial console's \*\*Final Trial verdict\*\* \|/],
                     season: [/the season counted one on and the Final Trial flag down/],
-                    deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/]
+                    deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/],
+                    finishPrimary: [/It runs on the primary GM's browser alone - on another GM's it names whom to ask/],
+                    noRepeat: [/it gives no survivor a second Level Up and posts no second card/],
+                    givenGap: [/a GM who leaves between a row's Level Up and the write that records it leaves that one row to be given again \(read in the code, not measured\)/],
+                    takeBackBusy: [/A take-back is refused, and you are told, while that character's Level Up is being written\./],
+                    enterGives: [/\*\*Hand them out\*\* - the first button and the default, so Enter does it - follows the rows/],
+                    unfoundExecuted: [/the window tells you alone whose death it is: executing them makes that death the execution, and the table learns it with the verdict/]
                 },
                 player: {
                     onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
@@ -8350,7 +8376,13 @@ const REGRESSIONS = [
                     secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
                     finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem \*\*Werdykt Final Trial\*\* w oknie Masterminda albo w konsoli Class Trial \|/],
                     season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
-                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/]
+                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/],
+                    finishPrimary: [/Wykonuje się tylko w przeglądarce głównego GMa - w przeglądarce innego GMa mówi, kogo poprosić/],
+                    noRepeat: [/żadnemu ocalałemu nie daje drugiego Level Upa ani nie wysyła drugiej karty/],
+                    givenGap: [/GM, który wyjdzie między Level Upem wiersza a zapisem, który go odnotowuje, zostawia ten jeden wiersz do przyznania jeszcze raz \(odczytane w kodzie, niezmierzone\)/],
+                    takeBackBusy: [/Cofnięcie jest odmawiane, a ty się o tym dowiadujesz, dopóki Level Up tej postaci jest zapisywany\./],
+                    enterGives: [/\*\*Przyznaj\*\* - pierwszy przycisk i domyślny, więc Enter robi to samo - wykonuje wiersze/],
+                    unfoundExecuted: [/okno mówi tylko tobie, czyja to śmierć: stracenie go czyni tę śmierć egzekucją, a stół dowiaduje się o niej z werdyktem/]
                 },
                 player: {
                     onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
