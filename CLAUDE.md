@@ -389,8 +389,11 @@ itself sends for players, and why a test like "was this edit made by a GM"
 (`truth-bullets.mjs`) is only as good as that guard. When a new Daggerheart
 changes the relay, the guard refuses on the GM's client what it does not
 recognise and tells the GM (on a player's client it passes on only the eight
-packet names it has reviewed and drops the rest, because from 2.10.10
-Daggerheart runs a name it has no case for there too). Read its table before a
+packet names it has reviewed, because from 2.10.10 Daggerheart runs a name it
+has no case for there too; its backstop, which stands in when the listener
+cannot be wrapped, cannot hold back a payload that is not an object, which goes
+on to Daggerheart's listener - 2.10.11's fails on one before it writes,
+measured on the copy in scenario 30 part 8). Read its table before a
 Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
 not measured at a table.
 The headless harness runs Daggerheart's real relay, copied verbatim into

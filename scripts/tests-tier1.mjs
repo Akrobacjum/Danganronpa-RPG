@@ -3118,8 +3118,15 @@ const INVARIANTS = [
         equal(JSON.stringify(Object.values(listeners).map(source => unreviewedOf(fingerprintOf([source])))),
             JSON.stringify([[], [], ["default:EVENT_HANDLERS[data.type]?.(data);"], [afterDefault]]), "what the guard itself calls unreviewed on each listener");
         const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
-        ok(fnSource(guard, "ensureWrapped").includes("status.unreviewed = unreviewedOf(status.fingerprint)"),
+        const ensure = fnSource(guard, "ensureWrapped");
+        ok(ensure.includes("status.unreviewed = unreviewedOf(status.fingerprint)"),
             "ensureWrapped decides the state by something other than unreviewedOf");
+        /* AND THE LINE THAT MAKES THAT READING THE STATE (E75 fix r2-G2; review goal round 2, open
+           site 2): the state above is recomputed here, so a change to `ensureWrapped`'s own line
+           read the same until this held it. */
+        ok(ensure.replace(/\s+/g, " ").includes(
+            'status.state = unnamed ? "unnamed" : (!status.fingerprint.length || status.unreviewed.length) ? "changed" : "ok";'),
+            "ensureWrapped calls a listener \"changed\" by something other than an empty fingerprint or an unreviewed entry");
     }],
 
     ["R345 - a player's countdowns from a Daggerheart action are refused by name, as D-b refuses them on the old road", async () => {
@@ -3137,9 +3144,9 @@ const INVARIANTS = [
         const { judgeRelay, plainWhat } = await import("./relay-guard.mjs");
         const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
         const world = { now: () => 1e12 };
-        const judged = payload => {
+        const judged = (payload, on = world) => {
             try {
-                const { verdict, sub, kind, why } = judgeRelay(payload, player, world);
+                const { verdict, sub, kind, why } = judgeRelay(payload, player, on);
                 return { verdict, sub, kind: kind ?? null, why };
             } catch (err) {
                 return { threw: String(err?.message ?? err) };
@@ -3153,8 +3160,8 @@ const INVARIANTS = [
             JSON.stringify({ verdict: "drop", sub: "countdownsFromAction", kind: null, why: "no countdowns" }),
             "the verdict on the same shape with no countdowns in it");
 
-        /* A NAME `String()` CANNOT READ (E75 fix r1-G2; review sec S2): an object whose `toString`
-           is no function, which JSON carries. Until the fix `judgeRelay` threw on it, so the guard
+        /* A NAME `String()` CANNOT READ (E75 fix r1-G2; review sec S2): an object whose conversion to
+           text throws, which JSON carries. Until the fix `judgeRelay` threw on it, so the guard
            logged a failure in place of this refusal and the sender was not told. It is refused by
            name all the same, the name read as "[object Object]"; `plainWhat`, which the console
            lines go through, reads such a value the same way. */
@@ -3165,6 +3172,66 @@ const INVARIANTS = [
         let shown;
         try { shown = plainWhat(unreadable.name); } catch (err) { shown = `threw: ${err?.message ?? err}`; }
         equal(shown, "[object Object]", "what plainWhat makes of a value String() cannot read");
+
+        /* A NUMBER `Number()` CANNOT READ (E75 fix r2-G2; review sec T1, cor F2): the same kind of
+           object, or an array holding one, where a judge reads a number. Until the fix `judgeRelay`
+           threw on each, so on the GM the guard logged its own failure in place of a verdict, and the
+           sender was not told. Each is judged now as a value that is no number: Fear, a resource and
+           an item's charges and count refused by name, a countdown's progress and a save's total
+           dropped. The world is made up, as R133's is. */
+        const unconvertible = JSON.parse('{ "toString": 0 }');
+        const mine = { documentName: "Actor", type: "character", id: "SUITEACTOR0000001", name: "Mine",
+            system: { resources: { hope: { value: 2, max: 6 } } }, testUserPermission: user => user?.id === player.id };
+        const knife = { documentName: "Item", type: "loot", name: "Knife", parent: { documentName: "Actor" }, _source: { flags: {} },
+            system: { quantity: 2, resource: { value: 1 } }, testUserPermission: user => user?.id === player.id };
+        const tick = { name: "Tick", progress: { current: 3, start: 6, type: "actionRoll", looping: "noLooping" } };
+        const numbers = { ...world, doc: uuid => (uuid === "mine" ? mine : uuid === "knife" ? knife : null),
+            countdowns: () => ({ countdowns: { T1: foundry.utils.deepClone(tick) } }), isProject: () => false, levelOf: () => 2,
+            automationOn: () => true, changedAt: () => 0, fear: () => 4, fearSteps: () => 1, fearChangedAt: () => 0,
+            message: id => (id === "M1" ? { id: "M1" } : null), tokenFor: () => ({ actor: mine }), gainRefusal: () => null, itemHeld: () => null };
+        const update = (action, data) => ({ action: "DhGMUpdate", data: { action, ...data } });
+        const asked = {
+            fear: update("DhGMUpdateFear", { data: 5 }),
+            countdown: update("DhGMUpdateCountdowns", { data: { countdowns: { T1: { ...tick, progress: { ...tick.progress, current: 2 } } } } }),
+            save: update("DhGMUpdateSaveMessage", { data: { message: "M1", token: "TOKMINE", result: { roll: { total: 12 } } } }),
+            resource: update("DhGMUpdateDocument", { uuid: "mine", data: { "system.resources.hope.value": 3 } }),
+            charges: update("DhGMUpdateDocument", { uuid: "knife", data: { "system.resource.value": 0 } }),
+            count: update("DhGMUpdateDocument", { uuid: "knife", data: { "system.quantity": 1 } })
+        };
+        const withValue = (packet, path, value) => {
+            const copy = foundry.utils.deepClone(packet);
+            path.slice(0, -1).reduce((at, key) => at[key], copy)[path.at(-1)] = value;
+            return copy;
+        };
+        const unread = {
+            fear: judged(withValue(asked.fear, ["data", "data"], unconvertible), numbers),
+            countdown: judged(withValue(asked.countdown, ["data", "data", "countdowns", "T1", "progress", "current"], unconvertible), numbers),
+            save: judged(withValue(asked.save, ["data", "data", "result", "roll", "total"], unconvertible), numbers),
+            resource: judged(withValue(asked.resource, ["data", "data", "system.resources.hope.value"], [unconvertible]), numbers),
+            charges: judged(withValue(asked.charges, ["data", "data", "system.resource.value"], [unconvertible]), numbers),
+            count: judged(withValue(asked.count, ["data", "data", "system.quantity"], [unconvertible]), numbers)
+        };
+        equal(JSON.stringify(unread), JSON.stringify({
+            fear: { verdict: "refuse", sub: "DhGMUpdateFear", kind: "forged", why: "Fear set to [object Object]" },
+            countdown: { verdict: "drop", sub: "DhGMUpdateCountdowns", kind: null, why: "no change a player could make" },
+            save: { verdict: "drop", sub: "DhGMUpdateSaveMessage", kind: null, why: "a save with no roll in it" },
+            resource: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "hope on Mine set to [object Array]" },
+            charges: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "the charges of Knife set to [object Array]" },
+            count: { verdict: "refuse", sub: "DhGMUpdateDocument", kind: "forged", why: "the quantity of Knife set to [object Array]" }
+        }), "the verdicts on a number Number() cannot read, where each judge reads one");
+        /* And whatever the spelling: every leaf of those packets, of the countdowns from an action and
+           of a new document, replaced in turn by such an object and by an array holding one, must come
+           back a verdict. The leaves are counted, so a list that reads nothing cannot pass. */
+        const packets = [...Object.values(asked), { data: { data: { countdowns: [{ name: "Doom", progress: { start: 4, current: 4 } }] } } },
+            { action: "DhGMCreate", data: { documentType: "Item", data: { name: "Suite item" } } }];
+        const leaves = (value, path = []) => (value && typeof value === "object"
+            ? Object.entries(value).flatMap(([key, inner]) => leaves(inner, [...path, key])) : [path]);
+        const swept = packets.flatMap(packet => leaves(packet).flatMap(path => [unconvertible, [unconvertible]].map(value => {
+            const { verdict, threw } = judged(withValue(packet, path, value), numbers);
+            return ["forward", "own", "refuse", "drop"].includes(verdict) ? null : `${path.join(".")}: ${threw ?? verdict}`;
+        })));
+        equal(swept.length, 2 * 33, "the packet values the sweep replaced");
+        equal(JSON.stringify(swept.filter(Boolean)), "[]", "the packet values of that kind on which judgeRelay throws or gives no verdict");
 
         const near = {
             "an inner action": { data: { action: "SuiteUnknown", data: { countdowns } } },
@@ -3186,10 +3253,22 @@ const INVARIANTS = [
             const recognised = body.indexOf("isCountdownAdd(payload)"), refused = body.indexOf("shapeWarning(");
             ok(recognised > 0 && refused > recognised, `${name} does not recognise the countdown shape before it refuses an unknown name`);
         }
-        /* AND NO TEXT IS READ OFF A PACKET BUT THROUGH `textOf` (fix r1-G2): `String` is left only
-           for a listener's source (`fn`) and Foundry's own values (`game.`). */
+        /* AND NO TEXT IS READ OFF A PACKET BUT THROUGH `textOf` (fix r1-G2): outside `textOf` the word
+           `String` is followed only by `(fn)`, a listener's source, or `(game.`, Foundry's own values. */
         const strays = guard.replace(fnSource(guard, "textOf"), "").match(/\bString\b(?!\((?:fn\)|game\.))[^\n]{0,40}/g) ?? [];
         equal(JSON.stringify(strays), "[]", "the places relay-guard.mjs reads text with String() and not textOf");
+        /* AND NO VALUE OFF A PACKET IS CONVERTED BUT THROUGH `textOf` OR `numberOf` (fix r2-G2; review
+           sec T1, cor F2-F3): in the functions that judge a packet, a name that holds a value read off
+           it - `value`, `data`, `inner`, `next`, `payload`, `theirs`, `sub` - is never the first thing
+           inside `Number(`, `String(` or a template's `${}`, and never either side of a `+`. That list
+           of names and those four forms are what this reads; a value under another name, `.join()`
+           and `.toString()` are not. The verdicts above hold what these forms do at a raw value. */
+        const judges = ["judgeRelay", "judgeDocument", "actorRefusal", "itemRefusal", "partyRefusal", "sceneRefusal", "judgeFear",
+            "judgeCountdowns", "judgeCountdownAdd", "judgeSave"];
+        const held = "(?:value|data|inner|next|payload|theirs|sub)\\b";
+        const raw = new RegExp(`(?:\\b(?:Number|String)\\(|\\$\\{|\\+(?![+=]))\\s*${held}[^\\n]{0,40}|\\b${held}[\\w?.[\\]]*\\s*\\+(?![+=])[^\\n]{0,40}`, "g");
+        const rawReads = judges.flatMap(name => (fnSource(guard, name).match(raw) ?? []).map(hit => `${name}: ${hit}`));
+        equal(JSON.stringify(rawReads), "[]", "the places a judge converts a value off a packet without textOf or numberOf");
     }],
 
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {

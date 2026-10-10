@@ -21,8 +21,9 @@
  * no case for by the packet's inner `data.action`, on whichever client
  * receives it (read in 2.10.11's socket.mjs, 10.10.2026; E75 C2). The
  * backstop (below) can refuse only an object in place: a payload that is not
- * one goes on there, and 2.10.11's listener fails on a string or null before
- * it writes (measured on the copy, scenario 30 part 8; fix r1-G2). On the primary
+ * one goes on, on a player's client and on a GM's alike, and 2.10.11's listener
+ * fails on a string or null before it writes (measured on the copy, scenario 30
+ * part 8; fixes r1-G2 and r2-G2). On the primary
  * GM's client, a request from a player or an Assistant GM is judged against
  * the shapes Daggerheart itself sends for players (`judgeRelay`, the table
  * below), and then passed on narrowed to what was allowed, written by this
@@ -344,14 +345,20 @@ export function disarm(payload) {
 }
 
 function neutralise(payload, senderId) {
-    const action = payload?.action;
+    // A payload that is not an object cannot be disarmed in place, on any client, so it goes on
+    // to Daggerheart's listener - 2.10.11's fails on a string or null before it writes (measured
+    // on the copy, scenario 30 part 8: on a player's client since E75 fix r1-G2, on the GM's since
+    // fix r2-G2). Until r2-G2 the GM's branch below took one for a name "undefined" and warned the
+    // GMs that this client did not run it, while it went on all the same (review sec T2, cor F4).
+    if (!payload || typeof payload !== "object") {
+        debug("Daggerheart relay backstop: a payload that is not an object goes on to Daggerheart's listener; the backstop cannot refuse it in place.");
+        return;
+    }
+    const action = payload.action;
     if (UI_ONLY.has(action)) return;
     if (!game.user?.isGM) {
-        // A player's client refuses what the wrapper there would drop (`onRelay`), where it can:
-        // a payload that is not an object cannot be disarmed in place, so it goes on to
-        // Daggerheart's listener - 2.10.11's fails on a string or null before it writes
-        // (measured on the copy, scenario 30 part 8; E75 fix r1-G2).
-        if (REVIEWED_NAMES.has(action) || !payload || typeof payload !== "object") return;
+        // A player's client refuses what the wrapper there would drop (`onRelay`).
+        if (REVIEWED_NAMES.has(action)) return;
         debug(`Daggerheart relay backstop: "${plainWhat(textOf(action))}" is not a name the guard has reviewed; refused on this client.`);
         disarm(payload);
         return;
@@ -584,8 +591,8 @@ function actorRefusal(doc, flat, sender, world = {}) {
         if (!match) return `"${key}" on ${doc.name}`;
         const resource = doc.system?.resources?.[match[1]];
         if (!resource) return `"${match[1]}", which ${doc.name} does not have`;
-        const number = Number(value);
-        if (!Number.isFinite(number) || number < 0) return `${match[1]} on ${doc.name} set to ${value}`;
+        const number = numberOf(value);
+        if (!Number.isFinite(number) || number < 0) return `${match[1]} on ${doc.name} set to ${textOf(value)}`;
         const max = Number(resource.max);
         if (Number.isFinite(max) && number > max) return `${match[1]} on ${doc.name} set above its maximum`;
     }
@@ -603,13 +610,13 @@ function itemRefusal(doc, flat, sender, world = {}) {
         return `${doc.name}, an item the sender does not hold`;
     }
     for (const [key, value] of Object.entries(flat)) {
-        const number = Number(value);
+        const number = numberOf(value);
         if (key === "system.resource.value") {
-            if (!Number.isFinite(number) || number < 0) return `the charges of ${doc.name} set to ${value}`;
+            if (!Number.isFinite(number) || number < 0) return `the charges of ${doc.name} set to ${textOf(value)}`;
             continue;
         }
         if (key === "system.quantity") {
-            if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${value}`;
+            if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${textOf(value)}`;
             // E29 C4: a module item's count only falls here; what adds one is the GM's. E29 fix r2-H21: it falls
             // from the item as the GMs hold it too (sheet-audit.mjs `itemsHeldNow`), where a write of the sender's
             // own moved the document.
@@ -686,7 +693,7 @@ function partyRefusal(doc, flat, sender, world) {
  */
 function judgeFear(data, sender, world) {
     const sub = SUB.fear;
-    const asked = Number(data?.data);
+    const asked = numberOf(data?.data);
     if (!Number.isFinite(asked)) return refuseAs(sub, "forged", `Fear set to ${textOf(data?.data)}`);
     const fear = world.fear();
     const gap = Math.round(asked) - fear;
@@ -728,8 +735,8 @@ function judgeCountdowns(data, sender, world) {
             created.push(textOf(next?.name ?? id));
             continue;
         }
-        const dCurrent = Number(next?.progress?.current) - Number(now.progress?.current);
-        const dStart = Number(next?.progress?.start) - Number(now.progress?.start);
+        const dCurrent = numberOf(next?.progress?.current) - Number(now.progress?.current);
+        const dStart = numberOf(next?.progress?.start) - Number(now.progress?.start);
         const moved = (Number.isFinite(dCurrent) && dCurrent !== 0) || (Number.isFinite(dStart) && dStart !== 0);
         if (differsBeyondProgress(now, next) && stale(id)) suspicious.push(`the settings of ${now.name ?? id}`);
         if (!moved) continue;
@@ -814,7 +821,7 @@ function judgeSave(data, sender, world) {
     }
     // A save whose dialog was closed: Daggerheart sends the packet anyway, with
     // no roll in it (`rollSave` returned nothing; chatMessage.mjs). Nothing to mark.
-    const total = Number(inner.result?.roll?.total);
+    const total = numberOf(inner.result?.roll?.total);
     if (inner.result?.roll?.total === undefined || inner.result?.roll?.total === null || !Number.isFinite(total)) {
         return dropAs(sub, "a save with no roll in it");
     }
@@ -1022,23 +1029,38 @@ let unknownSaid = false;
 
 /**
  * Text read off a packet, as a string and never a throw (E75 fix r1-G2, 10.10.2026; review
- * sec S2). `String()` of an object whose `toString` is no function - `{"toString": 1}`, which
- * JSON and so a socket carries - throws "Cannot convert object to primitive value" (measured
- * in node, 10.10.2026). Every reading of a packet here sits inside the try of `onRelay` or of
- * the backstop, so such a name failed closed, but as "the guard failed": a player's
- * countdowns from an action were not refused by name, counted or told to the sender (R345,
- * red on that before this helper). So a string is taken as it is; anything else goes through
- * `String`, then `Object.prototype.toString` ("[object Object]"), then "?". Every text this
- * file reads off a packet goes through here; `String(` is left for Foundry's own values and a
- * listener's source (R345 reads the file for it). `Number()` of the same object throws as
- * well; the numbers read off a packet (Fear, a countdown's progress, a save's total, a
- * resource) do not go through here, and still fail closed in that try (read in the code; so
- * on a GM the backstop's own catch stays reachable by a value a socket carries, not run).
+ * sec S2). `String()` of an object whose conversion to text throws, a kind of object JSON and
+ * so a socket carries, throws "Cannot convert object to primitive value" (measured in node,
+ * 10.10.2026). Every reading of a packet here sits inside the try of `onRelay` or of the
+ * backstop, so such a name failed closed, but as "the guard failed": a player's countdowns
+ * from an action were not refused by name, counted or told to the sender (R345, red on that
+ * before this helper). So a string is taken as it is; anything else goes through `String`,
+ * then `Object.prototype.toString` ("[object Object]"), then "?". Every text this file reads
+ * off a packet goes through here, a template's included; `String(` is left for Foundry's own
+ * values and a listener's source (R345 reads the file for both).
  */
 function textOf(value) {
     if (typeof value === "string") return value;
     try { return String(value); } catch { /* the next reading */ }
     try { return Object.prototype.toString.call(value); } catch { return "?"; }
+}
+
+/**
+ * A number read off a packet, and never a throw (E75 fix r2-G2, 10.10.2026; review sec T1,
+ * cor F2). `Number()` of the same kind of object throws as `String()` does, and so does
+ * `Number()` of an array holding one. Until this helper the numbers read off a packet - Fear,
+ * a countdown's progress, a save's total, a resource, an item's charges and count - threw
+ * there, so on the GM such a request was logged as the guard's failure and was not refused by
+ * name, counted or told to the sender (R345, red on each before this helper; in the GM's
+ * backstop it reached the backstop's own catch, read in the code). Such a value now reads as
+ * NaN and is judged as any other value that is not a number: Fear, a resource and an item's
+ * charges and count refused by name, a countdown's progress and a save's total dropped (R345).
+ * The GM's own values (a resource's maximum, a countdown's stored progress) are read with
+ * `Number(` as before.
+ */
+function numberOf(value) {
+    if (typeof value === "number") return value;
+    try { return Number(value); } catch { return NaN; }
 }
 
 /**

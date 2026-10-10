@@ -5144,11 +5144,38 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
          * off again. Each unreviewed packet must come out refused - renamed (and, from C3, its
          * `data` replaced: below), as the backstop refuses on a GM - and each reviewed one as it came.
          * Then (E75 fix r1-G2; review sec S3) a payload that is not an object, a string and null: the
-         * backstop cannot disarm one in place and lets it go on without failing, and the copied relay,
-         * handed it with the recorders on, must fail on it before it writes - the string in the
-         * countdown entry it runs (a rejection nobody awaits, which the harness records and this check
-         * takes back off `__errors`), null at its first line.
+         * backstop cannot disarm one in place and lets it go on without failing (`oddPayloads`), and the
+         * copied relay, handed it with the recorders on, must fail on it before it writes - the string in
+         * the countdown entry it runs (a rejection nobody awaits, which the harness records and this check
+         * takes back off `__errors`), null at its first line. The same is asked of the backstop on the GM
+         * below (fix r2-G2), where it must also say nothing of a name: until that fix the GM's branch took
+         * such a payload for the name "undefined" and warned that the client did not run it, while it went
+         * on (review sec T2, cor F4). The warnings and catches are counted at the console while the
+         * backstop is handed each payload, not off the session log, which stops taking new lines at 60
+         * (utils.mjs SESSION_LOG_CAP) and could make a quiet count of a full one.
          */
+        const oddPayloads = `const R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs");
+            const heard = globalThis.__secUnreviewed, errors = globalThis.__errors;
+            const odd = [];
+            for (const payload of ["${UNREVIEWED}", null]) {
+                const lines = [], warnOf = console.warn, errorOf = console.error;
+                console.warn = (...args) => { lines.push(["warn", args.filter(a => typeof a === "string").join(" ")]); return warnOf.apply(console, args); };
+                console.error = (...args) => { lines.push(["error", args.filter(a => typeof a === "string").join(" ")]); return errorOf.apply(console, args); };
+                try { listener?.("${DH}", payload, "${p1.userId}"); } finally { console.warn = warnOf; console.error = errorOf; }
+                const caught = lines.filter(([, line]) => line.includes("The Daggerheart relay backstop failed")).length;
+                const warned = lines.filter(([, line]) => line.includes("Daggerheart sent")).length;
+                heard.updates.length = 0;
+                heard.adds.length = 0;
+                const before = errors.length;
+                let rejected = false;
+                try { await R.handleSocketEvent(payload); } catch { rejected = true; }
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const fresh = errors.splice(before), unhandled = fresh.filter(e => e.where === "unhandledRejection");
+                errors.push(...fresh.filter(e => !unhandled.includes(e)));
+                odd.push({ caught, warned, writes: heard.updates.length + heard.adds.length, rejected, unhandled: unhandled.length });
+            }`;
+        const oddWentOn = side => side.odd?.length === 2
+            && side.odd.every(o => o.caught === 0 && o.warned === 0 && o.writes === 0 && (o.rejected || o.unhandled === 1));
         const backstop = await p2.eval(`const loose = game.socket.listeners("${DH}").filter(fn => !fn.__drpgRelayGuard).length;
             if (loose) return { loose };
             const G = await import("${repoUrl}/scripts/relay-guard.mjs?drpg-e75-backstop");
@@ -5161,24 +5188,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
                 const out = packets => packets.map(packet => { listener?.("${DH}", packet, "${p1.userId}"); return packet.action ?? null; });
                 const seen = { loose, state: G.relayGuardStatus().state, listener: Boolean(listener),
                     unreviewed: out(${unreviewed}), reviewed: out(reviewed.map(action => ({ action, data: {} }))), names: reviewed };
-                const U = await import("${repoUrl}/scripts/utils.mjs"), R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs");
-                const heard = globalThis.__secUnreviewed, errors = globalThis.__errors;
-                const caught = () => U.sessionFailures().filter(e => e.message.includes("The Daggerheart relay backstop failed"))
-                    .reduce((n, e) => n + (e.count ?? 1), 0);
-                seen.odd = [];
-                for (const payload of ["${UNREVIEWED}", null]) {
-                    const was = caught();
-                    listener?.("${DH}", payload, "${p1.userId}");
-                    heard.updates.length = 0;
-                    heard.adds.length = 0;
-                    const before = errors.length;
-                    let rejected = false;
-                    try { await R.handleSocketEvent(payload); } catch { rejected = true; }
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    const fresh = errors.splice(before), unhandled = fresh.filter(e => e.where === "unhandledRejection");
-                    errors.push(...fresh.filter(e => !unhandled.includes(e)));
-                    seen.odd.push({ caught: caught() - was, writes: heard.updates.length + heard.adds.length, rejected, unhandled: unhandled.length });
-                }
+                ${oddPayloads}
+                seen.odd = odd;
                 return seen;
             } finally {
                 if (listener) game.socket._any.splice(game.socket._any.indexOf(listener), 1);
@@ -5187,8 +5198,22 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             backstop.state === "backstop" && backstop.listener && backstop.unreviewed?.every(action => action === "__drpgRefused")
             && JSON.stringify(backstop.reviewed) === JSON.stringify(backstop.names), JSON.stringify(backstop));
         check("RELAY: the backstop on a player's client lets a payload that is not an object go on, and the copied relay fails on it before it writes",
-            backstop.odd?.length === 2 && backstop.odd.every(o => o.caught === 0 && o.writes === 0 && (o.rejected || o.unhandled === 1)),
-            JSON.stringify(backstop.odd));
+            oddWentOn(backstop), JSON.stringify(backstop.odd));
+        const oddOnGm = await gm.eval(`const loose = game.socket.listeners("${DH}").filter(fn => !fn.__drpgRelayGuard).length;
+            if (loose) return { loose };
+            const G = await import("${repoUrl}/scripts/relay-guard.mjs?drpg-e75-odd");
+            const before = new Set(game.socket._any), ownOnce = Object.prototype.hasOwnProperty.call(Hooks, "once"), once = Hooks.once;
+            Hooks.once = () => 0;
+            try { G.registerRelayGuard(); } finally { if (ownOnce) Hooks.once = once; else delete Hooks.once; }
+            const listener = game.socket._any.find(fn => !before.has(fn));
+            try {
+                ${oddPayloads}
+                return { state: G.relayGuardStatus().state, listener: Boolean(listener), odd };
+            } finally {
+                if (listener) game.socket._any.splice(game.socket._any.indexOf(listener), 1);
+            }`);
+        check("RELAY: the backstop on the GM lets a payload that is not an object go on without a warning of a name nobody sent, and the copied relay fails on it before it writes",
+            oddOnGm.state === "backstop" && oddOnGm.listener && oddWentOn(oddOnGm), JSON.stringify(oddOnGm));
 
         /*
          * WHAT A REFUSED PACKET STILL NAMES (E75 C3, 10.10.2026; census B01-B05). The backstop
@@ -5196,13 +5221,15 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
          * 2.10.10 that listener runs a name it has no case for by the packet's `data.action`. So a
          * refusal disarms `data` as well (relay-guard.mjs `disarm`). One more copy of the guard on
          * p2 and one on the GM (`?drpg-e75-disarm`) stand the backstop up as above: on p2 it is handed the three
-         * packets above, one whose name `String()` cannot read - an object whose `toString` is no
-         * function, which a socket carries (JSON), and which reached the backstop's own catch until
+         * packets above, one whose name `String()` cannot read - an object whose conversion to text
+         * throws, which a socket carries (JSON), and which reached the backstop's own catch until
          * fix r1-G2 (review sec S2) and is now refused by its name like the others - and one whose
          * `action` throws when it is read, which no socket carries, to force that catch, which no run
          * reached before C3; each packet's catches are counted apart. On the GM it is handed the
          * first of the three (fix r1-G2; review cor F2: refused there for its name, before any sender
-         * is asked), a DhGMUpdate, a DhGMCreate and a DhTransferItem from p3, whom the GM's client is made to see
+         * is asked - which the copy's `refused.inactiveSender` reads: three, one for each of p3's packets,
+         * where a GM branch that let the name through to the sender's question counts four; fix r2-G2,
+         * review cor F5), a DhGMUpdate, a DhGMCreate and a DhTransferItem from p3, whom the GM's client is made to see
          * as disconnected while they are handed over (the User's `active`, shadowed on that client's
          * copy alone and put back at once; the world has no player who is not connected): refused
          * for the sender (`noSender`), which says so in the console only. What comes out is handed
@@ -5267,7 +5294,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const none = rows => Array.isArray(rows) && rows.every(([updates, reads]) => updates === 0 && reads === 0);
         check("RELAY: a packet the backstop disarmed reaches no handler of the copied relay",
             [onPlayer, onGm].every(side => side.state === "backstop" && side.listener && none(side.disarmed)) && onPlayer.disarmed.length === 5
-            && onGm.disarmed.length === 4 && onGm.active === true, JSON.stringify({ onPlayer, onGm }));
+            && onGm.disarmed.length === 4 && onGm.active === true && onGm.refused?.inactiveSender === 3, JSON.stringify({ onPlayer, onGm }));
         check("control: the same packets renamed only, as the backstop refused them before E75 C3, reach a handler of the copied relay",
             JSON.stringify(onPlayer.renamed) === JSON.stringify([[1, 0], [0, 1], [0, 1], [1, 0], [1, 0]])
             && JSON.stringify(onGm.renamed) === JSON.stringify([[1, 0], [0, 0], [0, 1], [0, 1]]), JSON.stringify({ player: onPlayer.renamed, gm: onGm.renamed }));
