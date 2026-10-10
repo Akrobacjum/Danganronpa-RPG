@@ -642,9 +642,9 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
 
-Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz.
+Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 
-Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przedstawienie Truth Bulleta staje się **OBJECTION**, wycenionym jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - a gdy zatrzymuje cię tylko cena, dostajesz przycisk *Przedstaw zamiast tego*, za darmo:
+Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przedstawienie Truth Bulleta staje się **OBJECTION** (przycisk Przedstaw na twoim arkuszu zmienia się w Objection, dopóki debata jest otwarta), wycenionym jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - a gdy zatrzymuje cię tylko cena, dostajesz przycisk *Przedstaw zamiast tego*, za darmo:
 
 | Tryb | Kto mówi | Jak długo |
 |---|---|---|
@@ -652,14 +652,14 @@ Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zeg
 | OBJECTION | tylko wnoszący | 60 sekund |
 | Rebuttal | wnoszący i osoba, którą wskazał | 120 sekund, potem głos się zamyka i Class Trial wraca do otwartej dyskusji |
 
-Wskazujesz, komu zaprzeczasz. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie.
+Wskazujesz, komu zaprzeczasz. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie. Gdy wyślesz Objection, dowiadujesz się, że poszło; o tym, czy przejmuje głos, rozstrzyga strona GMa. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
 ### Głosowanie
 
-Każdy żyjący gracz dostaje **kartę do głosowania**. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu; publikowane są tylko sumy.
+Każdy żyjący gracz dostaje **kartę do głosowania** - jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej. Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka. Głosujesz na tego, kto twoim zdaniem jest **Blackened**: możesz głosować na siebie, na Monokumę i na zmarłych. Nikt nie widzi twojego głosu: trafia tylko do przeglądarek GMów, a publikowane są tylko sumy. **Twój głos oddany.** znaczy, że GM go zapisał; *Żaden GM nie ma jeszcze twojego głosu* znaczy, że twoja przeglądarka go trzyma i wyśle, gdy połączy się GM. Zamknij kartę bez głosu, a nic nie zostanie za ciebie policzone - poproś GMa, żeby wysłał ją ponownie.
 
 > [!IMPORTANT]
-> Skazanie wymaga **więcej niż połowy** wydanych kart. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
+> Skazanie wymaga **więcej niż połowy** wydanych kart - dla każdego nazwiska, gdy głosowanie pyta o więcej niż jedno. **Remis liczy się jak błędny głos**, chyba że stół to rozstrzygnie.
 
 | Wynik | Co się dzieje |
 |---|---|
@@ -668,7 +668,11 @@ Każdy żyjący gracz dostaje **kartę do głosowania**. Głosujesz na tego, kto
 
 Rozdział może wydać dwóch Blackened (zdrada zostawia dwa ciała); głosowanie musi wskazać <ins>wszystkich</ins>.
 
+Potem wszyscy widzą jedną kartę, **WERDYKT**: kto został stracony albo że nikt, i czy klasa trafiła - nigdy nie wymienia Blackened, którego klasa nie wskazała. Jeśli to twoja postać, dowiadujesz się o tym także prywatnie.
+
 ### Level Up
+
+GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a przycisk Level Up na twoim arkuszu się zapala: naciśnij go i wybierz. Możesz mieć ich więcej niż jeden, a każdy czeka, aż go wykorzystasz albo GM go cofnie. Wybór, którego twój arkusz nie przyjmie - doświadczenie, którego twoja postać nie ma - jest odrzucany, dowiadujesz się o tym, a Level Up zostaje twój.
 
 | Opcja |
 |---|

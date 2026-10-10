@@ -8256,6 +8256,125 @@ const REGRESSIONS = [
             };
             equal(JSON.stringify(measured), JSON.stringify(expected), `the ${lang} handbooks state numbers the code does not have`);
         }
+    }],
+
+    ["R321 - the handbooks' Class Trial says what the vote, the verdict, the Level Ups and a reset do, in English and in Polish", async () => {
+        /*
+         * E10 C17, 10.10.2026; audit S06-55 and the handbook halves of E10 C1-C16. E10 moved the vote's
+         * state into the world and its ballots into the GMs' store, made a ballot one per person, handed a
+         * late joiner one that raises the bar, opened the verdict window on Cancel and on "Nobody is
+         * executed", put one card in front of every player, gathered the class's Level Ups into one window,
+         * and made a reset count the season on - and the handbooks said "tallied in memory" and "one per
+         * character" for as long as the code said otherwise. Each claim here is a pair: what the code does,
+         * read from its function (`eligibleVoters`, `ballotFor`, `majorityOf`, `openVerdictDialog`,
+         * `postVerdictCard`, `askWhoPicks` and `runAdvancementBatch`, `wipeSeason`, `confirmNewTrial`, the
+         * console's verdict action, `seizeFloor`), and the sentences that say it, one per handbook that
+         * says it. A code fact that changes fails here with its sentences, which then have to be rewritten
+         * with it; a sentence rewritten without the code fails here too. Each book is asserted to have
+         * loaded and each function to have been cut (`fnSource` fails on a renamed one), so nothing passes
+         * on an empty read. Scenario 50's section 6 reads the buttons these sentences name against the
+         * labels in lang/.
+         */
+        const sources = new Map(await otherSources());
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const vote = code("vote.mjs"), levelUp = code("level-up.mjs"), floorUi = code("trial-floor-ui.mjs");
+        const verdict = fnSource(vote, "openVerdictDialog"), batch = fnSource(levelUp, "runAdvancementBatch");
+        const card = fnSource(vote, "postVerdictCard"), wipe = fnSource(code("season-setup.mjs"), "wipeSeason");
+        const cancelFirst = /buttons: \[\s*\{ action: "cancel", [^}]*default: true \}/;
+        const facts = {
+            onePerPerson: [/!u\.isGM/, /if \(!user \|\| seated\.has\(user\.id\)\) continue;/, /!TRIAL\.deadCastBallots/]
+                .every(re => re.test(fnSource(vote, "eligibleVoters"))),
+            inWorld: /setTrialProgress\(\{ vote:/.test(fnSource(vote, "ballotFor")),
+            lateBallot: /issued: \[\.\.\.issued, sender\.id\]/.test(fnSource(vote, "ballotFor")),
+            majority: /return Math\.floor\(issued \/ 2\) \+ 1;/.test(fnSource(vote, "majorityOf")),
+            nobodyFirst: /executedOptions = `<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(verdict),
+            cancelFirst: cancelFirst.test(verdict),
+            verdictCard: [...card.matchAll(/\bannounce\(/g)].length === 1 && /whisperToOwner\(actor,/.test(card) && !/blackened/i.test(card),
+            oneWindow: [...batch.matchAll(/\baskWhoPicks\(/g)].length === 1
+                && /"DRPG\.Advance\.queueTitle"/.test(fnSource(levelUp, "askWhoPicks")),
+            closeWindow: /!who \? \(playable \? "player" : null\)/.test(batch),
+            secondTrial: cancelFirst.test(fnSource(floorUi, "confirmNewTrial")),
+            finalConsole: /if \(inFinalTrial\(\)\) return openFinalVerdictDialog\(\);/.test(floorUi),
+            season: /season: \(clock\.season \?\? 1\) \+ 1,\s*finalTrial: false/.test(wipe),
+            deadObjector: /isDeceased\(await flagsAsHeld\(actor\)\)/.test(fnSource(code("trial.mjs"), "seizeFloor"))
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    onePerPerson: [/one per person: a player with two students gets one ballot, and a student only a GM plays gets none \(the dead do not cast ballots, `deadCastBallots: false`\)/],
+                    inWorld: [/is in the world, so a GM's reload keeps it/],
+                    lateBallot: [/A player who connects while the vote is open is handed a ballot as their browser loads, and it counts among the ballots issued, so it raises the bar/],
+                    majority: [/\*\*more than half of the ballots issued\*\* \(floor of half plus one\)/],
+                    nobodyFirst: [/on its first option, \*\*Nobody is executed\*\*/],
+                    cancelFirst: [/Its buttons are Cancel, \*\*They got it right\*\* and \*\*They got it wrong\*\*, in that order whatever the count said: Cancel is the default, so Enter closes the window and executes nobody\./],
+                    verdictCard: [/every player then sees one card, \*\*THE VERDICT\*\*/, /the executed student's player is also told privately/],
+                    oneWindow: [/The survivors' Level Ups come in one window on your client, \*\*The class's Level Ups\*\*/],
+                    closeWindow: [/closing the window does the same, except that a student nobody plays is then given nothing/],
+                    secondTrial: [/\(\*\*Open a new trial\*\*\) before opening a second trial, Cancel first and the default/],
+                    finalConsole: [/the console's verdict button opens \*\*Final Trial verdict\*\*/, /^\| A final verdict \| given from the Mastermind window's or the trial console's \*\*Final Trial verdict\*\* \|/],
+                    season: [/the season counted one on and the Final Trial flag down/],
+                    deadObjector: [/an Objection posted in a dead student's name is refused on the primary GM's browser/]
+                },
+                player: {
+                    onePerPerson: [/one per person, however many students you play; a student only a GM plays gets none/],
+                    lateBallot: [/If you connect while a vote is open, your ballot comes as your browser loads/],
+                    majority: [/\*\*more than half\*\* of the ballots issued - for each name/],
+                    verdictCard: [/Everyone then sees one card, \*\*THE VERDICT\*\*/, /If it is your character, you are also told privately/],
+                    deadObjector: [/A dead student neither presents evidence nor objects\./]
+                },
+                stale: [/tallied in memory/, /one per character/]
+            },
+            pl: {
+                gm: {
+                    onePerPerson: [/jedną na osobę: gracz z dwoma uczniami dostaje jedną kartę, a uczeń, którego gra tylko GM, nie dostaje żadnej \(zmarli nie głosują, `deadCastBallots: false`\)/],
+                    inWorld: [/jest w świecie, więc przeładowanie GMa go zachowuje/],
+                    lateBallot: [/Gracz, który połączy się w trakcie głosowania, dostaje kartę, gdy wczytuje się jego przeglądarka, i ta karta liczy się do rozesłanych, więc podnosi poprzeczkę/],
+                    majority: [/\*\*więcej niż połowy rozesłanych kart\*\* \(połowa zaokrąglona w dół plus jeden\)/],
+                    nobodyFirst: [/na swojej pierwszej opcji, \*\*Nikt nie zostaje stracony\*\*/],
+                    cancelFirst: [/Przyciski to Anuluj, \*\*Trafili\*\* i \*\*Pomylili się\*\*, w tej kolejności bez względu na wynik: domyślny jest Anuluj, więc Enter zamyka okno i nikt nie ginie\./],
+                    verdictCard: [/każdy gracz widzi potem jedną kartę, \*\*WERDYKT\*\*/, /gracz straconego ucznia dowiaduje się o tym także prywatnie/],
+                    oneWindow: [/Level Upy ocalałych przychodzą w jednym oknie na twoim kliencie, \*\*Level Upy klasy\*\*/],
+                    closeWindow: [/zamknięcie okna robi to samo, tyle że uczeń, którego nikt nie gra, nie dostaje wtedy nic/],
+                    secondTrial: [/\(\*\*Otwórz nowy Class Trial\*\*\), zanim otworzy drugą rozprawę, z Anuluj jako pierwszym i domyślnym przyciskiem/],
+                    finalConsole: [/przycisk werdyktu w konsoli otwiera \*\*Werdykt Final Trial\*\*/, /^\| Werdykt finału \| wydawany przyciskiem \*\*Werdykt Final Trial\*\* w oknie Masterminda albo w konsoli Class Trial \|/],
+                    season: [/licznikiem sezonu o jeden dalej i zdjętą flagą Final Trial/],
+                    deadObjector: [/Objection wniesione w imieniu martwego ucznia jest odrzucane w przeglądarce głównego GMa/]
+                },
+                player: {
+                    onePerPerson: [/jedną na osobę, niezależnie od tego, ilu uczniów grasz; uczeń, którego gra tylko GM, nie dostaje żadnej/],
+                    lateBallot: [/Jeśli połączysz się w trakcie głosowania, twoja karta przychodzi, gdy wczytuje się przeglądarka/],
+                    majority: [/\*\*więcej niż połowy\*\* wydanych kart - dla każdego nazwiska/],
+                    verdictCard: [/Potem wszyscy widzą jedną kartę, \*\*WERDYKT\*\*/, /Jeśli to twoja postać, dowiadujesz się o tym także prywatnie/],
+                    deadObjector: [/Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection\./]
+                },
+                stale: [/liczone w pamięci/, /po jednym na postać/]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks' Class Trial says what the code does not do (each claim: [the code, ...its sentences])`);
+        }
     }]
 ];
 

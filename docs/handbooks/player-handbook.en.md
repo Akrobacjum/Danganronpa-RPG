@@ -642,9 +642,9 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card.
+The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 
-When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION**, priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
+When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION** (the Present button on your sheet turns into Objection while the debate is open), priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
 
 | Mode | Who may speak | How long |
 |---|---|---|
@@ -652,14 +652,14 @@ When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate
 | OBJECTION | the objector alone | 60 seconds |
 | Rebuttal | the objector and the person they named | 120 seconds, then the floor closes and the trial is back to open discussion |
 
-You name who you are contradicting. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software.
+You name who you are contradicting. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software. When you send an Objection you are told it went; the GM's side decides whether it takes the floor. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
 
 ### The vote
 
-Each living player receives a **ballot**. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote; only the totals are published.
+Each living player receives a **ballot** - one per person, however many students you play; a student only a GM plays gets none. If you connect while a vote is open, your ballot comes as your browser loads. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote: it goes to the GMs' browsers alone, and only the totals are published. **Your vote is in.** means a GM has recorded it; *No GM has your vote yet* means your browser keeps it and sends it when a GM connects. Close the ballot without voting and nothing is counted for you - ask the GM to send it again.
 
 > [!IMPORTANT]
-> A conviction needs **more than half** of the ballots issued. **A tie counts as a wrong vote** unless the table settles it.
+> A conviction needs **more than half** of the ballots issued - for each name, when the vote asks for more than one. **A tie counts as a wrong vote** unless the table settles it.
 
 | Outcome | What happens |
 |---|---|
@@ -668,7 +668,11 @@ Each living player receives a **ballot**. Vote for whoever you believe is the **
 
 A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name <ins>all of them</ins>.
 
+Everyone then sees one card, **THE VERDICT**: who was executed, or that nobody was, and whether the class got it right - it never names a Blackened the class missed. If it is your character, you are also told privately.
+
 ### Level Up
+
+The GM decides who picks each Level Up. If it is you, you are told and the Level Up button on your sheet lights up: press it and choose. You can hold more than one, and each waits until you spend it or the GM takes it back. A pick your sheet cannot take - an experience your character does not have - is refused, you are told, and the Level Up stays yours.
 
 | Option |
 |---|

@@ -79,6 +79,11 @@ export const FLOWS = Object.freeze([
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.
     // E10 C2 (1.2.71): a ballot is cast on the bridge (`vote.cast`), and a late joiner asks for theirs (`vote.ask`).
+    // E10 C17 (10.10.2026), measured: one run of 63 (49 checks, 20.9 s) put on the socket from the players
+    // advancement.apply 3 times, advancement.ask 9, vote.ask 5 and vote.cast 6; `vote.run`, `advancement.offer` and
+    // `keys.charge` not once, because the GM who presses them there is the primary and runs them locally. The offer
+    // over the bridge is 33's (an Assistant GM's), the charge 62 P's (gm2 opens the trial; 62 tags it through its
+    // `begin` helper, so it is not listed here). No scenario sends `vote.run` from a second GM: partial until E40.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask"],
             sockets: ["vote.mjs"] },
