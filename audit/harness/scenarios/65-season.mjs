@@ -31,13 +31,13 @@
  *      the death still kept; announced by hand in the next chapter, its Blackened reaches
  *      no trial (`trialBlackenedIds`).
  *   D  Chie's suicide at Stage 6, a Level Up offered to Aiko (p1), a Call armed on Botan
- *      (p2), the Final Trial set, Dorm A Aiko's bedroom with its key, and Aiko's Health,
- *      Sanity and Hope moved off their reset values.
+ *      (p2), the Final Trial set, Dorm A Aiko's bedroom with its key and her stash in it hidden
+ *      (C10), and Aiko's Health, Sanity and Hope moved off their reset values.
  *   R  the reset, every group ticked, answered as 61 answers it: the project tokens the window
  *      counts and those left on every scene (C7: four, none), the offers (E04), the armed
  *      Calls (C10), the Final Trial and the season (E10 C10), the suicide's victim (alive
  *      already, by the cut; C9 keeps it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
- *      key (C10), the stamps of the bodies found (C1: none left), the incident's closes and
+ *      key and her hidden stash (C10: the key handed back, the stash kept and open), the stamps of the bodies found (C1: none left), the incident's closes and
  *      what is left of it, and the errors (C9: none, and no group failed).
  *   F  a reset whose chat deletion throws on the GM: the error naming the two chat groups, the
  *      groups the reset returns as failed, the GMs' report card, and that every other group
@@ -403,7 +403,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         late.ended === true && late.keptAtEnd === true && late.living[0] === late.living[1], J(late), { flow: "murder-incident" });
 
     /* ------------------------------ D. the season to reset ------------------------------ */
-    phase("D: a suicide at Stage 6, an offer, an armed Call, the Final Trial, a bedroom and its key", { flow: "season-reset" });
+    phase("D: a suicide at Stage 6, an offer, an armed Call, the Final Trial, a bedroom, its key and a hidden stash", { flow: "season-reset" });
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
         await C.reviveCharacter(game.actors.get("${IDS.daichi}"), { quiet: true }); return true;`, { timeout: 60000 });
     await mute();
@@ -421,17 +421,22 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         await L.recordOffer(aiko.id, { kind: "standard" });
         const armed = await CE.armCall(botan, { key: "support", kind: "hope", grants: "advantage" });
         await MM.setFinalTrial(true);
-        await game.scenes.get("${IDS.scene}").regions.find(r => r.name === "Dorm A").setFlag("${MOD}", V.VAULT_FLAGS.owner, aiko.id);
+        const dorm = game.scenes.get("${IDS.scene}").regions.find(r => r.name === "Dorm A");
+        await dorm.setFlag("${MOD}", V.VAULT_FLAGS.owner, aiko.id);
+        // E11 C10: Aiko's stash in her bedroom, hidden - the list \`setStash\` writes, written here on the region itself.
+        await dorm.setFlag("${MOD}", V.VAULT_FLAGS.stashes, [{ actorId: aiko.id, concealed: true }]);
         await V.reconcileBedroomKeys({ silent: true });
         await trustedWrite(aiko, { "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2, "system.resources.hope.value": 0 }, { reason: "gmRuling" });
         const r = aiko.system.resources;
         return { offers: L.offerList(S.offerStore.get(aiko.id)).length, armed: Boolean(armed),
             calls: ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"].filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, key: V.keysHeldBy(aiko).has("Dorm A"),
+            stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")),
             sheet: [r.hitPoints.value, r.stress.value, r.hope.value] };`, { timeout: 60000 });
-    check("D1: the season to reset - Chie's suicide at Stage 6 and alive, an offer for Aiko, a Call armed on Botan, the Final Trial, Aiko's key to Dorm A",
+    check("D1: the season to reset - Chie's suicide at Stage 6 and alive, an offer for Aiko, a Call armed on Botan, the Final Trial, Aiko's key to Dorm A and her stash there hidden",
         suicide.stage === "resolution" && suicide.self === true && suicide.dead === false && season.offers === 1 && season.armed && season.calls === 1
-            && season.finalTrial === true && season.season === 1 && season.key === true && J(season.sheet) === J([2, 2, 0]),
+            && season.finalTrial === true && season.season === 1 && season.key === true && J(season.sheet) === J([2, 2, 0])
+            && J(season.stash) === J([{ actorId: IDS.aiko, concealed: true }]),
         J({ suicide, season }), { flow: "season-reset" });
 
     /* ------------------------------ R. the reset ------------------------------ */
@@ -466,7 +471,8 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             offers: ids.reduce((n, id) => n + L.offerList(S.offerStore.get(id)).length, 0),
             calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
-            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"), stamped: [stampedBefore, seasons()],
+            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"),
+            stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")), stamped: [stampedBefore, seasons()],
             failed: result?.failed ?? null, incident: { before: incidentBefore, closes, after: game.drpg.murderState() ?? null },
             reports: reported() - reportsBefore,
             errors: globalThis.__notifications.slice(told).filter(n => n.level === "error").map(n => n.msg) };`;
@@ -482,9 +488,10 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
        reset. E11 C7: the projects step sweeps every project token first, and the window counts them before it asks. */
     check("R2: the reset window counts the four project tokens and the reset leaves none on any scene (E11 C7)",
         reset.counted === 4 && reset.tokens === 0, J(reset), { flow: "season-reset" });
-    // Today `seals` clears the seals and not the armed Call. C10: none left.
-    check("R3: the reset leaves Botan's armed Call - today's reading; E11 C10 unsets it",
-        reset.calls === 1, J(reset), { flow: "season-reset" });
+    /* Before E11 C10 `seals` cleared the seals and left the armed Call: one `pendingCall` after the reset, this
+       check's reading until then. E11 C10: the group's label names "every Call armed for a roll", and none is left. */
+    check("R3: the reset leaves no armed Call - Botan's is unset with the seals (E11 C10)",
+        reset.calls === 0, J(reset), { flow: "season-reset" });
     /* The plan predicted the victim dead at the base (deaths revived before the incident is ended). Measured at
        4aad1fd (10.10.2026): alive - not dead for the GMs, no flag, no row in the death store. Why, measured by an
        E11 C9 probe at 4fcc2b4 (10.10.2026): the reset's cut, written on the clock before any step, takes the cast;
@@ -494,11 +501,20 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
        abandons an incident: nobody killed, ...". It stays as the reading of the world C9 promises. */
     check("R4: the reset leaves the suicide's victim alive - no death for the GMs, no flag, no death row",
         reset.victim?.forGm === false && reset.victim?.flag === false && reset.victim?.row === false, J(reset), { flow: "season-reset" });
-    /* The sheet half the plan gave C10 is already there: Aiko's 2, 2, 0 come back as 0, 0 and the starting
-       Hope 2 (measured at 4aad1fd, 10.10.2026). The key half is not: the reset takes the key with the cast's
-       items and gives none back. C10: a key. */
-    check("R5: the reset gives Aiko Health and Sanity 0 and the starting Hope, and leaves her bedroom without its key - today's reading; E11 C10 gives the key",
-        J(reset.sheet) === J([0, 0, 2]) && reset.key === false, J(reset), { flow: "season-reset" });
+    /* The sheet half the plan gave C10 was there already: Aiko's 2, 2, 0 came back as 0, 0 and the starting
+       Hope 2 (measured at 4aad1fd, 10.10.2026), written then by `advancement`, whose label promises neither.
+       E11 C10 moves those writes to `deaths` and `despair`, whose labels do, so this reading stays as it was;
+       which group writes what is tier 2's "each cast group of the reset takes what its label says off one
+       student and nothing else". The key half was not there: the reset took the key with the cast's items and
+       gave none back (key false, this check's reading before E11 C10). C10: `items` hands it back at once. */
+    check("R5: the reset gives Aiko Health and Sanity 0 and the starting Hope, and her bedroom's key back (E11 C10)",
+        J(reset.sheet) === J([0, 0, 2]) && reset.key === true, J(reset), { flow: "season-reset" });
+    /* Before E11 C10 nothing in the reset touched a stash's concealment (read in the code, 10.10.2026: no step wrote
+       `stashes` or the legacy flag), so a stash hidden in season one stood hidden in season two. E11 C10:
+       `stashesFound`, labelled "every hidden stash open again", opens it; the stash itself, the GM's room
+       setup, is kept. */
+    check("R6: the reset keeps Aiko's stash in Dorm A and opens it (E11 C10)",
+        J(reset.stash) === J([{ actorId: IDS.aiko, concealed: false }]), J(reset), { flow: "season-reset" });
 
     /* ------------------------------ F. a step that fails ------------------------------ */
     phase("F: a reset whose chat deletion throws", { flow: "season-reset" });

@@ -7159,7 +7159,7 @@ const REGRESSIONS = [
             ["utils.mjs", "replaceFlag", "liftNotes"],
             ["utils.mjs", "replaceFlag", "wipeSeason"],
             ["vault.mjs", "forgetStashFound", "setStash"],
-            ["vault.mjs", "forgetAllStashesFound", "wipeSeason"]
+            ["vault.mjs", "forgetAllStashesFound", "wipeStudent"]
         ];
 
         // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
@@ -7491,6 +7491,11 @@ const REGRESSIONS = [
          * code, 10.10.2026: one call site, `read` in that function); no place added or struck.
          * E10 fix r2-G3 (1.2.71) rewrote the verdicts of `verdictHeld` (a wrong verdict's Blackened are dead as the
          * table knows it) and `executeSentenced` (an execution is public); no place added or struck.
+         * E11 C10 (1.2.73) moved the reset's sheet writes - Health, Sanity and Hope, the deaths - out of
+         * `wipeSeason` into `wipeStudent`, one student at a time, so the named declaration and its row
+         * moved with them: `wipeSeason` read nothing of the sheet any more and its row went stale (on the
+         * harness on 10.10.2026: 50 places against 51 rows). With the move, on the harness the same day:
+         * 51 places against 51 rows - 15 PACKET, 5 SOCKET, 5 CHAT, 20 SHEET, 6 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7537,7 +7542,7 @@ const REGRESSIONS = [
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` and `epoch: seasonEpoch()`; it reads nothing new [1b.1 death record]"],
-            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (`season` + 1 and `finalTrial: false`; `seasonStartedAt` and `resetCuts` stay the cut's, `resetCutPatch`)"],
+            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
@@ -7549,7 +7554,7 @@ const REGRESSIONS = [
         const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
-            "season-setup.mjs": ["wipeSeason"], "clock.mjs": ["reconcilePhase"] };
+            "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
@@ -7684,6 +7689,11 @@ const REGRESSIONS = [
          * E11 C3 (1.2.73) added no place either: the gather's camera (call-world.mjs
          * `panToGathered`) reads token ids and this client's canvas, no death, flag or resource;
          * it rewrote the two SOCKET rows of `registerSync`, `gatherEveryone`'s and `bodyFound`'s.
+         * E11 C10 (1.2.73) added one place, `wipeStudent` (SHEET: a cast group's part on one sheet,
+         * out of the reset's `wipeSeason`), and rewrote the rows it reads or writes - `keysHeldBy`
+         * held, the Call rows, `seasonItems`, `wipeSeason`, `grantBedroomKey`: on the harness on
+         * 10.10.2026 this test read 71 places (28 PACKET, 4 SOCKET, 1 CHAT, 30 SHEET, 8 STORE)
+         * against the 71 rows.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7715,8 +7725,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
             ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
             ["PACKET gm-bridge.mjs#token.sendBack#position", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
-            ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). C10 only unsets the flag on every student in the reset's `seals` step and reads nothing [1b.1 pendingCall, 1b.2] (E11 C10)"],
-            ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). C10 only unsets the flag on every student in the reset's `seals` step and reads nothing [1b.1 pendingCall, 1b.2] (E11 C10)"],
+            ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
+            ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
             ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:131) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is the plan's `senderOf(senderId)?.isGM`, and a player's packet pans nobody (65 B1b)"],
@@ -7739,15 +7749,16 @@ const REGRESSIONS = [
             ["SHEET character.mjs#restoreStartingSheet", "OPEN at base (R1, document `getFlag(sheetAtStart)` and `actor.system`; E10 C8's OWED (3) names it): C11 reads `sheetAtStart` and `levelUpExperiences` through `flagsAsHeld` and the experiences through `actorHeldNow`, one read per actor before its one write, and deletes the marked ids (Q1 (a) for an unmarked sheet) [1b.2] (E11 C11)"],
             ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
             ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
-            ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). C10 hands the bedroom keys out again right after (`reconcileBedroomKeys({ silent: true })`) (E11 C10)"],
-            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of `isDeceased` and items to revive and wipe. C9 rewrites it as `RESET_STEPS` (the incident first), C10 adds the value writes (Health, Sanity 0; Hope to `STARTING.hope`) as constants with no read (1b.2: the reset's value supersedes a pending put-back). (E11 C9, C10)"],
+            ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
+            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
+            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. C11 adds a Level Up's experiences to its `advancement` part (E11 C11)"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. C11 records a new experience's id in the GM flag `levelUpExperiences` (added to GM_FLAGS, so a player's write of it is put back) inside the same job. [1b.1, 1b.2] (E11 C11)"],
-            ["SHEET vault.mjs#keysHeldBy", "OPEN at base (R1 presence, document `actor.items`): `grantBedroomKey` asks it before granting; C10 reads `itemsHeldNow(actor)` on a GM so a key a player deleted and the audit is putting back is not granted twice [1b.2] (E11 C10)"],
-            ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above); C10 calls it from the reset by `reconcileBedroomKeys({ silent: true })` (`grantItem`, `gmRuling`), no new road (E11 C10)"],
+            ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks [1b.2]"],
+            ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
             ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, and C12's `sameSeason` reads `epoch` (E11 C12)"],

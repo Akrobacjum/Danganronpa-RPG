@@ -41,7 +41,7 @@ import { listExperiences, initCharacter, needsStartingResources } from "./charac
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
-import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
+import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
@@ -1059,6 +1059,83 @@ export const RESET_STEPS = Object.freeze([
 ]);
 
 /**
+ * THE CAST'S GROUPS, ONE STUDENT AT A TIME (E11 C10, 10.10.2026; audit S06-21, S06-41, S08-32;
+ * D12 option 1). What a cast group takes off one student, under the group's key: the reset's runs
+ * below call it for every student, and tier 2's "each cast group of the reset takes what its label
+ * says off one student and nothing else" calls it for one actor of its own - a reset of a real
+ * world is not the suite's to run, and the cut `wipeSeason` writes first is the whole world's.
+ *
+ * Until C10 three of the window's promises were kept by another tick, or by none. Health, Sanity
+ * and Hope came back only with `advancement` (`initCharacter`'s values), so a table that kept the
+ * advances kept last season's wounds and Hope under a `despair` row that said "every Hope back to
+ * the start" (S06-21). A Call armed for the next roll outlived `seals` and fell on the new season's
+ * first roll, and the bedroom keys went with `items` and came back only at the next load
+ * (S06-41). A stash's hiding place outlived the reset that took everything around it (S08-32).
+ * Each value is the reset's constant, written with no read: it supersedes whatever a put-back
+ * still owes (the plan's 1b.2). The Reroll's last roll is the GMs' store `rerollBookmarks`, cut by
+ * `actions` since E08+E28 C2 (gm-stores.mjs); the actor flag `lastAction` the plan names here is
+ * 1.2.63's, taken off every actor by a migration (action-rolls.mjs `dropRollBookmarks`), so
+ * nothing here writes it.
+ *
+ * @returns {Promise<boolean>} false when it is not a GM's browser, not a character or no cast group.
+ */
+export async function wipeStudent(actor, key) {
+    if (!game.user.isGM || actor?.type !== "character") return false;
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const parts = {
+        // An armed Call is the board's, as a seal is (D12): unset before the clock step, so
+        // nothing armed is spent on a roll of the new season.
+        seals: async () => {
+            if (actor.getFlag(MODULE_ID, FLAGS.pendingCall) !== undefined) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+        },
+        deaths: async () => {
+            const { reviveCharacter } = await import("./chapter.mjs");
+            const { setMonocub } = await import("./monocub.mjs");
+            if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
+            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
+            // Everybody comes back whole, the living too: `reverse` resources, 0 is unharmed.
+            await trustedWrite(actor, { "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 },
+                { reason: "setup" });
+        },
+        items: async () => {
+            const ids = seasonItems(actor).map(i => i.id);
+            if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
+            // The bedroom keys went with the rest; each owner gets theirs back at once (D12).
+            await reconcileBedroomKeys({ silent: true, owners: [actor.id] });
+        },
+        // Restore first, THEN re-initialise: `initCharacter` stamps the starting sheet as it
+        // goes, and stamping before the restore would record the advanced spread as the one to
+        // come back to. The maxima only: the values are `deaths`' and `despair`'s since C10.
+        advancement: async () => {
+            const { restoreStartingSheet } = await import("./character.mjs");
+            await restoreStartingSheet(actor);
+            await initCharacter(actor, { resetValues: false, quiet: true });
+        },
+        // Two stamps keyed to a clock that is about to read session 1, day 1 again: "rested
+        // this session" and "may betray this day". Left standing they refused the first Long
+        // Rest of the new season.
+        actions: async () => {
+            for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {
+                if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
+            }
+        },
+        despair: async () => {
+            await trustedWrite(actor, { "system.resources.hope.value": STARTING.hope }, { reason: "setup" });
+        },
+        // "I have found X's hiding place" was written on the finder and cleared by nothing;
+        // next season the same character opened the same drawer for free. And the hiding
+        // places themselves.
+        stashesFound: async () => {
+            await forgetAllStashesFound([actor]);
+            await unconcealStashes(actor.id);
+        }
+    };
+    if (!parts[key]) return false;
+    await parts[key]();
+    return true;
+}
+
+/**
  * The wipe itself.
  *
  * Each step is guarded on its own. A world where one of these settings was never
@@ -1090,6 +1167,10 @@ async function wipeSeason(plan) {
         return null;
     }
 
+    // A cast group's part on each student's sheet (`wipeStudent`, E11 C10).
+    const everyStudent = async key => {
+        for (const actor of studentActors()) await wipeStudent(actor, key);
+    };
     // World settings that hold nothing but this season's bookkeeping, written whole.
     const emptied = (key, value) => () => game.settings.set(MODULE_ID, key, value);
     // A group stored in several places: each part is tried, so one that throws (a setting an
@@ -1156,6 +1237,7 @@ async function wipeSeason(plan) {
         seals: async () => {
             const { clearSeals } = await import("./call-effects.mjs");
             await clearSeals();
+            await everyStudent("seals");
         },
 
         projects: async () => {
@@ -1169,12 +1251,7 @@ async function wipeSeason(plan) {
         },
 
         deaths: async () => {
-            const { reviveCharacter } = await import("./chapter.mjs");
-            const { setMonocub } = await import("./monocub.mjs");
-            for (const actor of studentActors()) {
-                if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
-                if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
-            }
+            await everyStudent("deaths");
             /* The deaths nobody found (E05 C10): the group's cut, written above, takes the GMs'
                rows on every GM and every player's copy; this drops what this browser holds. */
             const { deathStore } = await import("./gm-stores.mjs");
@@ -1256,12 +1333,7 @@ async function wipeSeason(plan) {
         // into a chat that is being deleted.
         assembly: emptied(SETTINGS.pendingGather, {}),
 
-        items: async () => {
-            for (const actor of studentActors()) {
-                const ids = seasonItems(actor).map(i => i.id);
-                if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
-            }
-        },
+        items: () => everyStudent("items"),
 
         // The most irreversible thing here, and the reason the dialog names the
         // number of advances before the word is typed. The Level Ups on offer go
@@ -1269,16 +1341,7 @@ async function wipeSeason(plan) {
         // withdraws them from every GM's store and every owner's copy - a GM or an
         // owner away now included - and an owner's sheet is drawn again when its
         // copy is cut (gm-stores.mjs `offerCopy`).
-        advancement: async () => {
-            const { restoreStartingSheet } = await import("./character.mjs");
-            for (const actor of studentActors()) {
-                // Restore first, THEN re-initialise: `initCharacter` stamps the
-                // starting sheet as it goes, and stamping before the restore would
-                // record the advanced spread as the one to come back to.
-                await restoreStartingSheet(actor);
-                await initCharacter(actor, { quiet: true });
-            }
-        },
+        advancement: () => everyStudent("advancement"),
 
         /* THE ACTION BUDGET, REFILLED - AFTER the sheet is back.
            -----------------------------------------------------------------------
@@ -1296,19 +1359,13 @@ async function wipeSeason(plan) {
         actions: async () => {
             const { resetAllActions } = await import("./actions.mjs");
             await resetAllActions();
-            // Two stamps keyed to a clock that is about to read session 1, day 1
-            // again: "rested this session" and "may betray this day". Left
-            // standing they refused the first Long Rest of the new season.
-            for (const actor of studentActors()) {
-                for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {
-                    if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
-                }
-            }
+            await everyStudent("actions");
         },
 
         despair: async () => {
             const { zeroAllDespair } = await import("./despair.mjs");
             await zeroAllDespair();
+            await everyStudent("despair");
         },
 
         /* THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08).
@@ -1340,11 +1397,7 @@ async function wipeSeason(plan) {
             }
         },
 
-        // "I have found X's hiding place" was written on the finder and cleared by
-        // nothing; next season the same character opened the same drawer for free.
-        stashesFound: async () => {
-            await forgetAllStashesFound(studentActors());
-        },
+        stashesFound: () => everyStudent("stashesFound"),
 
         // TWO KINDS OF NOTE, TWO GROUPS (R-1). A GM keeping their own pre-session
         // notes is not the same decision as keeping what the cast wrote on their

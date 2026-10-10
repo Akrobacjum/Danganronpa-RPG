@@ -43686,6 +43686,111 @@ const SCENARIOS = [
         }
     }],
 
+    ["each cast group of the reset takes what its label says off one student and nothing else", async () => {
+        /*
+         * E11 C10, 1.2.73; audit S06-21, S06-41, S08-32, D12 option 1; the ledger's V1 and D3. Three of
+         * the window's promises were kept by another tick or by none: Health, Sanity and Hope came back
+         * only with `advancement`, under a `despair` row promising "every Hope back to the start"; an
+         * armed Call outlived `seals` and the bedroom keys went with `items` until the next load; a
+         * hidden stash stayed hidden. Each cast group's part on one sheet is `wipeStudent` since C10, run
+         * here one group at a time on an actor of the test's own, because a reset of a real world is not
+         * the suite's to run (the plan's M10; scenario 65 runs the whole reset headless). The actor is
+         * set up as a season leaves a student - Health 3, Sanity 2, Hope 5, a Call armed, a rest and a
+         * betrayal stamp, a found stash noted, a usable item and the key to its bedroom, its stash there
+         * hidden beside another's hidden one - and each group's change is read against the step before:
+         * the advancement first, so a Hope or a wound it brought back is seen. Then, on a student of the
+         * cast, the key's held read (vault.mjs `keysHeldBy` on a GM): a room written on one of their
+         * items outside the GMs' mark, as a player's console write the audit has not put back yet, is no
+         * key there, so `grantBedroomKey` still makes the real one, once. Red at the parent on its
+         * first check: 2073b49 has no `wipeStudent` (read in the code, 10.10.2026).
+         */
+        const { wipeStudent } = await import("./season-setup.mjs");
+        ok(typeof wipeStudent === "function", "season-setup.mjs has no cast group's part for one student (`wipeStudent`) - a cast group can only be run on the whole world");
+        if (typeof wipeStudent !== "function") return;
+        needs(world.atLeast("scenes", 1), "a bedroom is a region on a scene");
+        const [student] = cast(1);
+        const V = await import("./vault.mjs");
+        const { initCharacter } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const audit = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { gmStoresHydrated } = await import("./gm-store.mjs");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const scene = game.scenes.viewed ?? game.scenes.contents[0];
+        const ROOM = "SUITE E11 C10 a bedroom", OTHER = "SUITE0E11C10OTHR";
+        let actor = null, region = null, made = [];
+        try {
+            [actor] = await Actor.createDocuments([{ name: "SUITE E11 C10 a student", type: "character" }]);
+            await initCharacter(actor, { quiet: true });
+            await trustedWrite(actor, { "system.resources.hitPoints.value": 3, "system.resources.stress.value": 2, "system.resources.hope.value": 5 },
+                { reason: "gmRuling" });
+            await actor.update({ [`flags.${MODULE_ID}`]: { [FLAGS.pendingCall]: [{ key: "support", kind: "hope", grants: "advantage", nonce: "suite-e11-c10" }],
+                [FLAGS.restsTaken]: { short: 1 }, [FLAGS.betrayalWindow]: "suite", [V.VAULT_FLAGS.found]: [`${scene.id}::${ROOM}::${OTHER}`] } });
+            [region] = await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 100, height: 100 }],
+                flags: { [MODULE_ID]: { [V.VAULT_FLAGS.owner]: actor.id,
+                    [V.VAULT_FLAGS.stashes]: [{ actorId: actor.id, concealed: true }, { actorId: OTHER, concealed: true }] } } }]);
+            await actor.createEmbeddedDocuments("Item", [{ name: "SUITE E11 C10 a box", type: "loot",
+                flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: 1 } } }]);
+            await V.grantBedroomKey(actor, ROOM, { silent: true, scene });
+            const keyId = () => actor.items.find(item => V.keyRoomOf(item) === ROOM)?.id ?? null;
+            const firstKey = keyId();
+            const read = () => {
+                const r = actor.system?.resources ?? {}, stashes = scene.regions.get(region.id)?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes) ?? [];
+                return { health: r.hitPoints?.value ?? null, sanity: r.stress?.value ?? null, hope: r.hope?.value ?? null,
+                    armed: actor.getFlag(MODULE_ID, FLAGS.pendingCall) !== undefined,
+                    stamps: [FLAGS.restsTaken, FLAGS.betrayalWindow].filter(flag => actor.getFlag(MODULE_ID, flag) !== undefined).length,
+                    found: actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) !== undefined,
+                    hidden: stashes.filter(entry => entry.concealed).map(entry => entry.actorId === actor.id ? "mine" : "other"), stashes: stashes.length,
+                    items: actor.items.filter(item => !V.keyRoomOf(item)).length, key: [...V.keysHeldBy(actor)].join(), sameKey: keyId() === firstKey };
+            };
+            let before = read();
+            must(before.health === 3 && before.sanity === 2 && before.hope === 5 && before.armed && before.stamps === 2 && before.found
+                && before.hidden.length === 2 && before.items === 1 && before.key === ROOM && firstKey,
+                `the student was not set up as a season leaves one - this would measure nothing: ${stableJson(before)}`);
+            const changes = {};
+            for (const key of ["advancement", "actions", "seals", "deaths", "despair", "stashesFound", "items", "clock"]) {
+                const ran = await wipeStudent(actor, key);
+                await settle();
+                const after = read();
+                changes[key] = [ran, Object.fromEntries(Object.keys(after).filter(field => stableJson(after[field]) !== stableJson(before[field]))
+                    .map(field => [field, after[field]]))];
+                before = after;
+            }
+            equal(stableJson(changes), stableJson({
+                advancement: [true, {}], actions: [true, { stamps: 0 }], seals: [true, { armed: false }],
+                deaths: [true, { health: 0, sanity: 0 }], despair: [true, { hope: STARTING.hope }],
+                stashesFound: [true, { found: false, hidden: ["other"] }], items: [true, { items: 0, sameKey: false }], clock: [false, {}]
+            }), "a cast group took something its label does not say off the student, or left what it says (read per group, in this order: "
+                + "what changed against the step before - Health, Sanity, Hope, the armed Call, the two stamps, the found stash, the hidden stashes, the items, the key)");
+
+            // The held read: a room written on a student's item outside the GMs' mark.
+            must(isPrimaryGm() && gmStoresHydrated() && sheetMarkStore.get(student.id),
+                `this browser keeps no mark of ${student.name} - the key would be read off the document either way, and this would measure nothing`);
+            made = (await student.createEmbeddedDocuments("Item", [{ name: "SUITE E11 C10 a forged key", type: "loot",
+                flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: 1 } } }])).map(item => item.id);
+            await audit.sheetAuditIdle();
+            await student.items.get(made[0]).update({ [`flags.${MODULE_ID}.${V.KEY_FLAG}`]: ROOM }, { [audit.AUDIT_ASIDE]: true });
+            await audit.sheetAuditIdle();
+            must(V.keyRoomOf(student.items.get(made[0])) === ROOM && !sheetMarkStore.get(student.id)?.items?.[made[0]]?.flags?.[MODULE_ID]?.[V.KEY_FLAG],
+                "the room did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+            const held = V.keysHeldBy(student).has(ROOM);
+            const granted = await V.grantBedroomKey(student, ROOM, { silent: true, scene });
+            if (granted) made.push(granted.id);
+            // No idle here: a second grant straight after the first must not make a second key.
+            const again = await V.grantBedroomKey(student, ROOM, { silent: true, scene });
+            if (again) made.push(again.id);
+            equal(stableJson([held, Boolean(granted), Boolean(again)]), stableJson([false, true, false]),
+                "on the GM a room written outside the mark read as a key, so the real one was not made - or the real one was made twice "
+                + "(read: the held keys, the first grant, a second grant at once)");
+        } finally {
+            if (made.length) await student.deleteEmbeddedDocuments("Item", made.filter(id => student.items.has(id)));
+            await audit.sheetAuditIdle();
+            if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            if (actor) await actor.delete();
+        }
+    }],
+
     ["a body found is stamped once per chapter and season", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-03, decision D8; the ledger's D2. The discovery's only memory was

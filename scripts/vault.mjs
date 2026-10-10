@@ -27,6 +27,8 @@ import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROO
     from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
+// Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
+import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
@@ -174,10 +176,22 @@ export function keyRoomOf(item) {
     return item?.getFlag?.(MODULE_ID, KEY_FLAG) ?? null;
 }
 
-/** Every key this character is carrying, as room names. */
+/**
+ * Every key this character is carrying, as room names.
+ *
+ * ON A GM, AS THE GMS HOLD THE ITEMS (E11 C10, 10.10.2026; the plan's 1b.2). `grantBedroomKey` asks
+ * this before it makes a key, and since C10 the season reset asks it for every student straight
+ * after their items went. It read the document: a key's room written by a player's browser on an
+ * item of their own, which the GMs' mark does not hold, read as a key already held, so the real one
+ * was not made. On a GM it reads `itemsHeldNow`: the key's room as the mark holds it on the primary,
+ * the document's everywhere the GMs keep no mark (a GM who is not the primary, a character never
+ * marked). An item the mark does not hold yet reads with no room (sheet-audit.mjs `ITEM_UNHELD`),
+ * so `grantBedroomKey` waits for the student's queued judgements first. A key deleted on the sheet is not on this list in either read: `itemsHeldNow`
+ * walks the document's items. A player's browser reads its own document, as it did.
+ */
 export function keysHeldBy(actor) {
     const rooms = new Set();
-    for (const item of actor?.items ?? []) {
+    for (const item of game.user?.isGM ? itemsHeldNow(actor) : actor?.items ?? []) {
         const room = keyRoomOf(item);
         if (room) rooms.add(room);
     }
@@ -206,6 +220,18 @@ export function mayEnterBedroom(actor, room, scene = workingScene()) {
  */
 export async function grantBedroomKey(actor, room, { silent = false, scene } = {}) {
     if (!game.user.isGM || !actor || !room) return null;
+    /* Every write queued on the student judged first (E11 C10), so a key this GM made a moment ago
+       is in the mark and reads as held. Measured on the harness on 10.10.2026: with nothing else
+       queued on the student the key was in the mark by a second grant made at once without this
+       wait (tier 2 "each cast group of the reset ...", with the wait taken out, still green). The
+       wait is for a queue that holds a player's write before it - the audit judges a student's
+       writes one after another (sheet-audit.mjs `inOrder`); read in the code, not measured. A key
+       a player's browser deleted is not put back by the audit - it is flagged, and an Undo makes
+       it again (read in the code, sheet-audit.mjs `itemFindings`, 10.10.2026) - so it reads as
+       gone and is made again. Nothing the audit judges waits for this (H17): it is reached from
+       Room Setup, the ready sweep, the reset, the GMs' item manager and a key's handover (read in
+       the code, 10.10.2026). */
+    await judgedFor(actor.id);
     if (keysHeldBy(actor).has(room)) return null;
 
     const { grantItem } = await import("./inventory.mjs");
@@ -261,7 +287,7 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
  *
  * @returns {Promise<number>} how many keys had to be made.
  */
-export async function reconcileBedroomKeys({ silent = true } = {}) {
+export async function reconcileBedroomKeys({ silent = true, owners = null } = {}) {
     if (!game.user.isGM) return 0;
 
     let made = 0;
@@ -270,6 +296,8 @@ export async function reconcileBedroomKeys({ silent = true } = {}) {
             if (!region.name) continue;
             const ownerId = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
             if (!ownerId) continue;
+            // `owners`: the season reset's `items` group hands out again only the keys it took (E11 C10).
+            if (owners && !owners.includes(ownerId)) continue;
             const owner = game.actors.get(ownerId);
             if (!owner) continue;
             if (await grantBedroomKey(owner, region.name, { silent, scene })) made++;
@@ -542,6 +570,42 @@ export async function forgetAllStashesFound(actors = game.actors) {
         cleared += 1;
     }
     return cleared;
+}
+
+/**
+ * Every hiding place over this character's stashes taken off, on every scene, the stashes kept
+ * (E11 C10, 10.10.2026; audit S08-32): the season reset's `stashesFound` group, beside the finders'
+ * notes. A hiding place is a stash's `concealed`, which the GM sets in Room Setup (`applyStashMatrix`
+ * through `setStash`), and it outlived the reset that took the projects, the notes of who had found it
+ * and the doors with it - so the new season opened on a drawer nobody had hidden in it yet (read in
+ * the code, 10.10.2026: no step of the reset wrote `stashes` or the legacy flag). A stash itself is the map's, as
+ * a bedroom's owner is: it stays. Every scene and not `regionsByName()`'s, which is the scene the GM
+ * is looking at (ITEM-16); the legacy one-stash flag too, which `stashesOn` still reads where a room
+ * was never edited since the list came in. GM-side.
+ *
+ * @returns {Promise<number>} how many rooms had a hiding place taken off.
+ */
+export async function unconcealStashes(actorId) {
+    if (!game.user.isGM || !actorId) return 0;
+    let rooms = 0;
+    for (const scene of game.scenes ?? []) {
+        for (const region of scene.regions ?? []) {
+            if (!region.name) continue;
+            const stored = region.getFlag(MODULE_ID, VAULT_FLAGS.stashes);
+            const listed = Array.isArray(stored) && stored.some(entry => entry?.actorId === actorId && entry.concealed);
+            const legacy = region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actorId && Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed));
+            if (!listed && !legacy) continue;
+            const update = {};
+            if (listed) {
+                update[`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`] = stored.map(entry =>
+                    entry?.actorId === actorId ? { ...entry, concealed: false } : entry);
+            }
+            if (legacy) update[`flags.${MODULE_ID}.${VAULT_FLAGS.concealed}`] = false;
+            await region.update(update);
+            rooms++;
+        }
+    }
+    return rooms;
 }
 
 /** Has a "build a stash" project made this room's contents hard to find? */
