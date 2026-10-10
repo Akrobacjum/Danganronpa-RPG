@@ -32,7 +32,8 @@
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import {
-    bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
+    bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
+    deadIn, seasonEpoch, bodiesFoundIn, recordBodyFound
 } from "./settings.mjs";
 import {
     TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
@@ -117,9 +118,12 @@ export async function markDeceased(actor, { record: when = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
     // A death published after the kill carries the kill's chapter, day and time of day
-    // (`publishDeath`), not the moment somebody found the body.
+    // (`publishDeath`), not the moment somebody found the body. And its phase and season
+    // (E11 C1, 1.2.73): a death in the Class Trial is an execution, which no walk past the
+    // body discovers, and a chapter 1 is only this season's when its epoch says so
+    // (`bodiesToDiscover`).
     const clock = getClock();
-    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -422,7 +426,7 @@ async function destroyBullets(actor) {
  */
 async function recordSecretDeath(actor, { keepBullets = false } = {}) {
     const clock = getClock();
-    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -482,13 +486,19 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * and the ties to the crime that waited for this death (remnants.mjs `publishTiesFor`; E09 fix
  * r1-G1), whichever road made it known - the discovery, or a GM's hand here.
  */
-export async function publishDeath(actor) {
+export async function publishDeath(actor, { phase = null } = {}) {
     if (!game.user.isGM || !actor) return null;
     const row = deathStore.get(actor.id);
     if (!row) return isDeceased(actor) ? deathRecord(actor) : null;
     const removed = row.keepBullets ? 0 : await destroyBullets(actor);
+    /* THE KILL'S RECORD, AND THE EXECUTION'S PHASE (E11 C1, 1.2.73). A verdict that executes a
+       death the GMs held passes `phase: "classTrial"` (vote.mjs `executeSentenced`): the record
+       keeps the kill's chapter, day and time, and says the death is the execution, so after End
+       the trial two students walking past it do not discover it (`bodiesToDiscover`). Reading this
+       chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
     const record = await markDeceased(actor, {
-        record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null }
+        record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
+            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null }
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
@@ -797,8 +807,11 @@ export function discoverBody(options = {}) {
     return enqueueBodyWork(() => runDiscovery(options));
 }
 
-async function runDiscovery({ room, victim = null, scene = null } = {}) {
+async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
     if (!game.user.isGM || !room) return null;
+    // The chapter and season the discovery happens in, read before anything is awaited: the
+    // stamp is filed under these, whatever the clock reads by the time it is written (E11 C1).
+    const clock = getClock(), epoch = seasonEpoch();
 
     /* THE BODY'S SCENE, NOT THE ONE IN VIEW (E05 fix r2-G3, 27.09.2026; review F6). The
        watcher runs on the primary GM, whatever scene that GM is looking at, and this read the
@@ -827,7 +840,17 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    const found = await publishFoundBodies(room, victim, where);
+    const { found, victims } = await publishFoundBodies(room, victim, where, { clock, epoch });
+
+    /* AND THE DISCOVERY IS STAMPED, ONCE, UNDER ITS CHAPTER AND SEASON (E11 C1, 1.2.73; audit
+       S06-03, decision D8). The hold below is cleared at the next phase change, and it was the
+       only memory of the discovery: after End the trial a walk into the room announced a body
+       found before the trial again (65-season B4: a second card at 4aad1fd). The stamp outlives the
+       hold; the watcher passes over a body it names (`bodiesToDiscover`). Written as soon as the
+       deaths are the table's, before the gather and the card, so a failure in either leaves the
+       bodies known as found. */
+    await announceBody({ chapter: clock.chapter, epoch, at: Date.now(), room, sceneId: where?.id ?? null,
+        victimIds: victims, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
        round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
@@ -884,20 +907,32 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
 
 /**
  * The named victim, and every body kept by the GMs standing in `room` on `scene`, published
- * (`publishDeath`). Answers every body the discovery found - the named victim and every body
- * dead for the GMs in the room, a death the table already knew included - whose killers'
- * cleaning tools it breaks (E32+E07 fix r2-G3; cleanup.mjs `destroyCleaningTools`).
+ * (`publishDeath`). Answers `found`, every body the discovery found - the named victim and every
+ * body dead for the GMs in the room, a death the table already knew included - whose killers'
+ * cleaning tools it breaks (E32+E07 fix r2-G3; cleanup.mjs `destroyCleaningTools`), and
+ * `victims`, the ones this discovery announces: the named victim and the room's bodies still to
+ * discover (`bodiesToDiscover`), which the stamp names (E11 C1).
  */
-async function publishFoundBodies(room, victim, scene) {
+async function publishFoundBodies(room, victim, scene, { clock = getClock(), epoch = seasonEpoch() } = {}) {
     const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
     const found = new Set(victim ? [victim.id] : []);
+    const victims = new Set(victim ? [victim.id] : []);
     try {
         const { roomOfToken } = await import("./movement.mjs");
-        for (const t of scene?.tokens ?? []) {
-            const id = t.actor?.id;
-            if (!id || roomOfToken(t) !== room) continue;
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        /* AS THE GMS HOLD THEM, IN ONE STEP (E11 C1; plan 1b.2, H3). Every death below is read
+           off the primary's mark (`flagsHeldNow`), with nothing awaited between two reads, and
+           before any of them is published: a player's own `deceased` write the audit has not put
+           back yet makes nobody a body. */
+        const students = new Set(studentActors().map(a => a.id));
+        const here = [...(scene?.tokens ?? [])].filter(t => t.actor?.id && roomOfToken(t) === room);
+        const fresh = new Set(bodiesToDiscover({ actors: here.map(t => t.actor).filter(a => students.has(a.id)), clock, epoch,
+            announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow }));
+        for (const t of here) {
+            const id = t.actor.id;
             if (deathStore.has(id)) ids.add(id);
-            if (deathStore.has(id) || isDeadForGm(t.actor)) found.add(id);
+            if (deathStore.has(id) || isDeadForGm(flagsHeldNow(t.actor))) found.add(id);
+            if (fresh.has(id)) victims.add(id);
         }
     } catch (err) {
         error("Could not read which bodies lie in the room of the discovery", err);
@@ -906,7 +941,89 @@ async function publishFoundBodies(room, victim, scene) {
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
-    return [...found];
+    return { found: [...found], victims: [...victims] };
+}
+
+/**
+ * THE ONE WRITER OF THE DISCOVERY'S STAMP (E11 C1, 1.2.73; decision D8): `row` is
+ * `{ chapter, epoch, at, room, sceneId, victimIds, by, day, timeOfDay }`, filed under its own
+ * chapter and season (settings.mjs `recordBodyFound`; tier 0 R349 holds that nothing else calls
+ * it). Who walked in is not in it - the GMs' log has it (`checkBodyFound`). E19's channel, E13's
+ * trial room and E70 read the stamp through `bodiesFoundIn`, `bodyAnnounced` and
+ * `chapterBodyFound`; E67's hook goes here. Answers the stamp, or null when it could not be
+ * written - logged, and the discovery goes on: its deaths are already the table's.
+ */
+export async function announceBody(row) {
+    if (!game.user.isGM || !row) return null;
+    try {
+        const stamp = await recordBodyFound(row);
+        if (stamp) log(`The discovery in ${row.room} is stamped for chapter ${row.chapter}: ${stamp.victimIds.length} bod(ies), by ${row.by}.`);
+        return stamp;
+    } catch (err) {
+        error("Could not stamp the body's discovery", err);
+        return null;
+    }
+}
+
+/** The ids of the bodies this chapter's discoveries announced, in the season `epoch`. */
+function announcedIn(chapter, epoch) {
+    const ids = new Set(bodiesFoundIn(chapter, epoch).flatMap(row => row?.victimIds ?? []));
+    return id => ids.has(id);
+}
+
+/*
+ * THE BODIES TO DISCOVER (E11 C1, 1.2.73; audit S06-03, amend 26.09; tier 0 R347). Of `actors`
+ * (students), the ids of those a walk-in would discover: dead for the GMs, not a Monocub, died in
+ * this chapter (a record with no chapter is taken as this chapter's, as before) of this season (a
+ * record with no `epoch` is taken as this season's), not in the Class Trial - an execution is the
+ * trial's own ending, public at once, and no body to find - and not announced by a discovery of
+ * this chapter (`announced`, a test on an id). A record from before 1.2.73 says no phase, so it
+ * cannot tell an execution from a murder: it counts only while the GMs still hold it, which an
+ * execution never is. Measured at 4aad1fd: after End the trial a walk-in discovered Daichi,
+ * found before the trial, again (65-season B4), and a verdict executing a death the GMs held
+ * left a body the next walk found (tier 2 "a body the verdict executed is not found again").
+ * Pure but for its readers: `held` hands each actor's flags as the GMs hold them (the caller's
+ * `flagsHeldNow`, read in one step) and `pending` an id's death the GMs hold (`pendingDeath`);
+ * tier 0 hands it fakes. "Announced" is this chapter's stamps, not the season's (`bodyAnnounced`):
+ * the record has to be this chapter's anyway, and a student revived and killed again in a later
+ * chapter is a body again there.
+ */
+export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seasonEpoch(), announced = () => false,
+    held = actor => actor, pending = id => pendingDeath({ id }) } = {}) {
+    return [...new Set([...actors].filter(actor => {
+        if (!actor?.id || announced(actor.id)) return false;
+        const view = held(actor);
+        if (!view || !deadIn(view, pending) || view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
+        const row = pending(actor.id);
+        const record = view.getFlag(MODULE_ID, FLAGS.deceased) || row;
+        if ((record?.chapter ?? clock.chapter) !== clock.chapter) return false;
+        if ((record?.epoch ?? epoch) !== epoch) return false;
+        if (!record?.phase) return Boolean(row);
+        return record.phase !== "classTrial";
+    }).map(actor => actor.id))];
+}
+
+/*
+ * THE WITNESSES OF A WALK-IN (E11 C1, 1.2.73; audit S06-14, S13-02; DC7/DX1; tier 0 R348). The
+ * tokens of `tokens` standing in `room` that count toward the two: a student's character
+ * (`students`, which leaves a Monokuma out), not hidden, not one of the `bodies`, and alive for
+ * the GMs - the dead are not witnesses, only a Monocub is. Until 1.2.73 a dead student's token
+ * standing in the room counted, so one living student walking in on a body beside an earlier
+ * victim's was "two witnesses". `held` and `pending` as `bodiesToDiscover` reads them; `roomOf` is
+ * movement.mjs `roomOfToken`.
+ */
+export function witnessesOf({ tokens = [], room = null, bodies = new Set(), students = new Set(), held = actor => actor,
+    pending = id => pendingDeath({ id }), roomOf = () => null } = {}) {
+    return [...tokens].filter(t => {
+        const actor = t.actor;
+        if (!actor || actor.type !== "character") return false;
+        if (t.hidden) return false;
+        if (bodies.has(actor.id)) return false;
+        if (!students.has(actor.id)) return false;            // excludes Monokumas
+        const view = held(actor);
+        if (deadIn(view, pending) && !view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
+        return roomOf(t) === room;
+    });
 }
 
 /**
@@ -926,7 +1043,8 @@ async function publishFoundBodies(room, victim, scene) {
  * toward the two once somebody unconnected to the incident is standing there
  * too: walking back to your own crime scene alongside a witness is still being
  * found there. A Monokuma is not a witness either - see `maybeThirdParty`,
- * same rule - and nor is a hidden token or a second body.
+ * same rule - and nor is a hidden token, a second body or, since E11 C1, the
+ * dead who are not Monocubs (`witnessesOf`).
  *
  * Two is the count, and at least one of the two has to be unconnected to the
  * incident - a room full of nothing but killers and accomplices is not a
@@ -940,16 +1058,27 @@ export function maybeBodyFound(tokenDoc) {
 
 async function checkBodyFound(tokenDoc) {
     if (!game.user.isGM) return null;
+    /* EVERYTHING THIS DECIDES BY IS READ IN ONE STEP (E11 C1, 1.2.73; plan 1b.2, H3 and H17). The
+       modules are fetched first; from the phase below to the witnesses nothing is awaited, so no
+       write is judged between two reads, and the deaths and Monocubs are read off the primary's
+       mark (`flagsHeldNow`) without waiting for the audit - a walk waits on nothing a judgement
+       waits on. */
+    const { isEclipse } = await import("./eclipse.mjs");
+    const { roomOfToken } = await import("./movement.mjs");
+    const { blackenedIds, killerIds, murderState } = await import("./murder.mjs");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+
     // Already in Stage 7, or a body found and waiting on the GM. Both are
     // "this has already been discovered"; the second is the whole of D5.
-    if (getClock().phase === "investigation" || bodyDiscovery()) return null;
+    // And the Class Trial (E11 C1; audit S06-03): the bodies were found before it began.
+    const clock = getClock();
+    if (["investigation", "classTrial"].includes(clock.phase) || bodyDiscovery()) return null;
 
     // The Eclipse is everyone crossing the map with their eyes shut - the guide
     // gives that window to placement, not to the cast stumbling over a body
     // while half of them have not finished moving yet. Without this, two
     // students placing through the same room mid-Eclipse would "discover" a
     // body in the middle of a window nobody has confirmed.
-    const { isEclipse } = await import("./eclipse.mjs");
     if (isEclipse()) return null;
 
     // Everything here compares actor IDs, never actor objects.
@@ -959,20 +1088,18 @@ async function checkBodyFound(tokenDoc) {
     // is false for every unlinked token on the scene, however plainly the person
     // is standing there. Measured: a student in the room with the body was not
     // counted as a witness for exactly this reason.
-    const students = new Set(studentActors().map(a => a.id));
+    const cast = studentActors();
+    const students = new Set(cast.map(a => a.id));
     // A BODY IS THIS CHAPTER'S DEAD, AND NOT A MONOCUB (17.09, BODY-2, BODY-3). A Monocub keeps
     // the deceased flag and walks the board, so standing beside two students announced their
     // own corpse; and a body from an earlier chapter, found and tried long ago, set off a
-    // second discovery the first time two people passed it. The death record carries the
-    // chapter it happened in; a record without one is treated as this chapter's.
-    const chapter = getClock().chapter;
-    const bodies = new Set(studentActors()
-        .filter(a => isDeadForGm(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
-            && (deathRecordFor(a)?.chapter ?? chapter) === chapter)
-        .map(a => a.id));
+    // second discovery the first time two people passed it. Since E11 C1 also not an execution,
+    // not one this chapter's discoveries already announced, and not last season's
+    // (`bodiesToDiscover`).
+    const epoch = seasonEpoch();
+    const bodies = new Set(bodiesToDiscover({ actors: cast, clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow }));
     if (!bodies.size) return null;
 
-    const { roomOfToken } = await import("./movement.mjs");
     const room = roomOfToken(tokenDoc);
     if (!room) return null;
 
@@ -986,17 +1113,10 @@ async function checkBodyFound(tokenDoc) {
        murder is closed, so during the clean-up it was empty: a killer and a partner in crime
        standing by the body were two "witnesses", and the body was discovered in the middle of
        their own Stage 6. The running incident's killers count as involved too. */
-    const { blackenedIds, killerIds, murderState } = await import("./murder.mjs");
     const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
 
-    const witnesses = scene.tokens.filter(t => {
-        const actor = t.actor;
-        if (!actor || actor.type !== "character") return false;
-        if (t.hidden) return false;
-        if (bodies.has(actor.id)) return false;
-        if (!students.has(actor.id)) return false;            // excludes Monokumas
-        return roomOfToken(t) === room;
-    });
+    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`).
+    const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: roomOfToken });
 
     /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
        on a body nobody has found with nobody else there sees it - told privately by the GMs,
@@ -1021,7 +1141,7 @@ async function checkBodyFound(tokenDoc) {
     log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
     // Already inside the queue: straight to the work, not back through `discoverBody`,
     // which would wait behind this very call.
-    return await runDiscovery({ room, victim: bodyHere.actor, scene });
+    return await runDiscovery({ room, victim: bodyHere.actor, scene, by: "witnesses" });
 }
 
 /**

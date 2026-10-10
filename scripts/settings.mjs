@@ -507,6 +507,17 @@ export const SETTINGS = {
      */
     bodyFound: "bodyFound",
     /**
+     * EVERY BODY FOUND THIS SEASON, A STAMP PER DISCOVERY (E11 C1, 1.2.73; audit S06-03, decision
+     * D8): `{ "<epoch>:<chapter>": [{ at, room, sceneId, victimIds, by, day, timeOfDay }] }`, `by`
+     * "witnesses" (two walked in) or "gm" (the GM's form). The hold above is cleared at every
+     * phase change, so nothing remembered that a body had been found once the Investigation
+     * began, and a walk past it after End the trial announced it again. Who walked in is not
+     * here (the GMs' log has it): the bodies named are public by the time this is written.
+     * One writer, chapter.mjs `announceBody` (tier 0 R349); cleared with the hold by the
+     * reset's `bodyFound` group.
+     */
+    bodiesFound: "bodiesFound",
+    /**
      * The murder currently in progress - its WORLD HALF - or `{}`.
      *
      * World-scoped, so every browser holds it (D6: nothing world-scoped is
@@ -1609,6 +1620,15 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.bodyFound)
     });
 
+    // The bodies found this season (E11 C1; the key's note). Public for the reason the hold
+    // is, and nothing redraws on it: its readers ask when they decide.
+    game.settings.register(MODULE_ID, SETTINGS.bodiesFound, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.murderState, {
         scope: "world",
         config: false,
@@ -2411,12 +2431,13 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day and time of day. */
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1). */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
-    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null } : null;
+    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
+        phase: row.phase ?? null, epoch: row.epoch ?? null } : null;
 }
 
 /*
@@ -2538,6 +2559,55 @@ export function setBodyDiscovery({ room = null, victimId = null } = {}) {
         chapter: clock.chapter, day: clock.day ?? 1, timeOfDay: clock.timeOfDay,
         at: Date.now()
     });
+}
+
+/*
+ * THE BODIES FOUND, STAMPED PER CHAPTER AND SEASON (E11 C1, 1.2.73; audit S06-03, S06-14;
+ * decision D8). Keyed `<epoch>:<chapter>`, the epoch `seasonEpoch`'s, so a season's chapter 1
+ * is not the next season's. The hold above answers "is a discovery waiting on the GM"; these
+ * answer "was this body found", which outlives the hold - the watcher reads them so a body
+ * announced once is not announced again (chapter.mjs `bodiesToDiscover`).
+ */
+function bodiesFoundAll() {
+    try {
+        const all = game.settings.get(MODULE_ID, SETTINGS.bodiesFound);
+        return all && typeof all === "object" ? all : {};
+    } catch {
+        return {};
+    }
+}
+
+/** The discoveries of `chapter` in the season `epoch` (this season's by default), oldest first. */
+export function bodiesFoundIn(chapter, epoch = seasonEpoch()) {
+    const rows = bodiesFoundAll()[`${epoch}:${chapter}`];
+    return Array.isArray(rows) ? rows : [];
+}
+
+/** Was this student's body announced by a discovery of this season, in any of its chapters? */
+export function bodyAnnounced(actorId, epoch = seasonEpoch()) {
+    if (!actorId) return false;
+    return Object.entries(bodiesFoundAll()).some(([key, rows]) => key.startsWith(`${epoch}:`)
+        && Array.isArray(rows) && rows.some(row => row?.victimIds?.includes?.(actorId)));
+}
+
+/** Has a body been found in `chapter` of this season? */
+export function chapterBodyFound(chapter, epoch = seasonEpoch()) {
+    return bodiesFoundIn(chapter, epoch).length > 0;
+}
+
+/**
+ * One discovery's stamp, under the chapter and season the discovery began in - the row's own
+ * `chapter` and `epoch`, read before anything was awaited, never the clock's now (tier 2 "a
+ * body found is stamped once per chapter and season"). GM-side; chapter.mjs `announceBody`
+ * is its only caller (tier 0 R349).
+ */
+export async function recordBodyFound({ chapter, epoch, ...row } = {}) {
+    if (!game.user.isGM || !Number.isFinite(chapter)) return null;
+    const key = `${Number.isFinite(epoch) ? epoch : seasonEpoch()}:${chapter}`;
+    const all = bodiesFoundAll();
+    const stamp = { ...row, victimIds: [...new Set(row.victimIds ?? [])] };
+    await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), stamp] });
+    return stamp;
 }
 
 /** The GM has answered. Safe to call when there is nothing to clear. */

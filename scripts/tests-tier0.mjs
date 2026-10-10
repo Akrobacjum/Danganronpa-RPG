@@ -1805,8 +1805,11 @@ const REGRESSIONS = [
         const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
-        ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
-        ok(/deathRecord(?:For)?\(/.test(check), "a body from an earlier chapter counts as a body again");
+        // Since E11 C1 (1.2.73) the body rule is `bodiesToDiscover`, which checkBodyFound asks and R347 holds case by case.
+        const rule = bodyOf(chapter, "export function bodiesToDiscover", { until: "export function witnessesOf" });
+        ok(/bodiesToDiscover\(/.test(check), "checkBodyFound decides what a body is itself again");
+        ok(/FLAGS\.monocub/.test(rule), "a Monocub counts as a body again");
+        ok(/clock\.chapter/.test(rule) && /record\?\.chapter/.test(rule), "a body from an earlier chapter counts as a body again");
         ok(/export function discoverBody[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
@@ -6070,6 +6073,7 @@ const REGRESSIONS = [
             "config.mjs FLAGS flag": "the flag's name, defined",
             "settings.mjs deathRecord flag": "the record, read",
             "settings.mjs isDeceased flag": "the table's fact, read",
+            "chapter.mjs bodiesToDiscover flag": "the body rule reads the record off the primary's mark (E11 C1)",
             "chapter.mjs markDeceased flag": "the one write",
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
@@ -7493,7 +7497,7 @@ const REGRESSIONS = [
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` and `epoch: seasonEpoch()`; it reads nothing new [1b.1 death record]"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (`season` + 1 and `finalTrial: false`; `seasonStartedAt` and `resetCuts` stay the cut's, `resetCutPatch`)"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
@@ -7616,8 +7620,8 @@ const REGRESSIONS = [
          * declaration that reads a chat message's module flags or its speaker's actor; SHEET - one
          * that reads a student's death or Monocub flag, experiences or the starting snapshot,
          * resources, items (bedroom keys) or the Call/action flags, held or off the document, or
-         * is one of the named few (NAMED) whatever it reads; STORE - the seven places the fields
-         * live, each found by its name in its file. A verdict says what judges the place today; a
+         * is one of the named few (NAMED) whatever it reads; STORE - the places the fields live
+         * (seven at 4aad1fd, eight since C1), each found by its name in its file. A verdict says what judges the place today; a
          * row ending "(E11 C<n>)" names the commit that changes it, and that commit rewrites the
          * row with the code. It reads names and text, not data flow: a reader in another file, or
          * reached through a helper this list does not name, is not seen.
@@ -7632,6 +7636,10 @@ const REGRESSIONS = [
          * `handleAdvancement`, `livingStudents`, `killCharacter`, `wipeSeason` and the two offer
          * stores): each table judges them for its own stage, and a commit that changes one
          * rewrites both.
+         * E11 C1 (1.2.73) added three of the PLANNED places - `bodiesFound` (STORE), `witnessesOf`
+         * and `bodiesToDiscover` (SHEET) - and struck `checkBodyFound`'s row, which reads no flag
+         * itself any more: on the harness on 10.10.2026 this test read 70 places (28 PACKET,
+         * 4 SOCKET, 1 CHAT, 29 SHEET, 8 STORE) against the 70 rows.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7676,11 +7684,12 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
             ["SHEET chapter.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
             ["SHEET chapter.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). C1's `announceBody` runs after `publishFoundBodies`, which calls it; its record keeps the row's chapter (Q3 reads it). Since E10 fix r1-G4 (1.2.71) it has a third caller, the verdict's `executeSentenced`, which publishes a death the GMs hold when it executes that student: its record is the kill's, so C1's `phase` is the kill's phase there, not `classTrial`. (E11 C1)"],
+            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\")"],
             ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
             ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishFoundBodies", "OPEN at base (R1, document `isDeadForGm`): the primary publishes the bodies of a room; C1 reads the bodies through `bodiesToDiscover` on the held flags (`actorHeldNow`/`flagsHeldNow`, one synchronous pass, H3) [1b.2] (E11 C1)"],
-            ["SHEET chapter.mjs#checkBodyFound", "OPEN at base (R1, document `isDeadForGm`, `getFlag(monocub)`, `deathRecordFor`): the primary's `updateToken` hook decides who is a body and who a witness; the dead are witnesses today (S06-14). C1: `witnessesOf` + `bodiesToDiscover` read every flag once through `flagsHeldNow` (E10 C2) in one synchronous step after nothing is awaited (H3, H17); the guard adds `classTrial` [1b.2] (E11 C1)"],
+            ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3) [1b.2]"],
+            ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
+            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347) [1b.2]"],
             ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
             ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
             ["SHEET character.mjs#restoreStartingSheet", "OPEN at base (R1, document `getFlag(sheetAtStart)` and `actor.system`; E10 C8's OWED (3) names it): C11 reads `sheetAtStart` and `levelUpExperiences` through `flagsAsHeld` and the experiences through `actorHeldNow`, one read per actor before its one write, and deletes the marked ids (Q1 (a) for an unmarked sheet) [1b.2] (E11 C11)"],
@@ -7695,11 +7704,12 @@ const REGRESSIONS = [
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. C11 records a new experience's id in the GM flag `levelUpExperiences` (added to GM_FLAGS, so a player's write of it is put back) inside the same job. [1b.1, 1b.2] (E11 C11)"],
             ["SHEET vault.mjs#keysHeldBy", "OPEN at base (R1 presence, document `actor.items`): `grantBedroomKey` asks it before granting; C10 reads `itemsHeldNow(actor)` on a GM so a key a player deleted and the audit is putting back is not granted twice [1b.2] (E11 C10)"],
             ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above); C10 calls it from the reset by `reconcileBedroomKeys({ silent: true })` (`grantItem`, `gmRuling`), no new road (E11 C10)"],
-            ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). C1 changes only the discovery it calls (E11 C1)"],
+            ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
-            ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); C1 adds `phase` and `epoch` to what it returns and C12's `sameSeason` reads `epoch` (E11 C1)"],
+            ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, and C12's `sameSeason` reads `epoch` (E11 C12)"],
             ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`). C2 makes its freshness compare chapter, day and time of day; C3's Eclipse refuses while it is set (E11 C2)"],
-            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; C1 adds `phase`/`epoch` to a row, C2's panel line reads a pending row of this chapter and season (GM only) (E11 C1)"],
+            ["STORE settings.mjs#bodiesFound", "not a source: a world setting (`config: false`) only a GM writes (`recordBodyFound`), whose one caller is `announceBody` (R349); cut by the reset's `bodyFound` group (E11 C1)"],
+            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; since E11 C1 a row carries the death's `phase` and `epoch`. C2's panel line reads a pending row of this chapter and season (GM only) (E11 C2)"],
             ["STORE gm-stores.mjs#blackenedStore", "not a source: a GM store; rows keep their chapter and season (E04; tier 2 \"a Blackened of another chapter or season does not count...\", tests-tier2.mjs:36739 at 4aad1fd) - Q3 (a) rests on it; C9's `conclude: false` writes no row (E11 C9)"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
@@ -7722,7 +7732,7 @@ const REGRESSIONS = [
         const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|livingStudentsForGm|deathRecordFor|keysHeldBy)\s*\(|\bactor\.system\b|\bactor\.items\b|\.system\.(?:experiences|resources)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|monocub|pendingCall|lastAction|sheetAtStart)/;
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
-        const STORES = [["settings.mjs", "bodyFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
+        const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
             ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"]];
         const censusOf = (bridge, sources) => {
             const found = [];
@@ -7808,6 +7818,110 @@ const REGRESSIONS = [
             + `against ${SEASON_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a season road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E11 commit that will) and strike the gone one");
+    }],
+
+    ["R347 - the bodies to discover are this chapter's and season's unannounced dead, never an execution", async () => {
+        /*
+         * E11 C1, 1.2.73; audit S06-03, amend 26.09, the ledger's V2 and A26. The watcher's body rule
+         * was "dead for the GMs, not a Monocub, this chapter's": an execution, public at once with
+         * this chapter on its record, was a body, and so was a body a discovery had already
+         * announced once the hold that remembered it was gone - measured at 4aad1fd on 65-season
+         * B4, a second card after End the trial for Daichi (found) and Botan (executed). The rule is
+         * chapter.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the
+         * GMs hold them (`held`) and the GMs' rows (`pending`), so nothing in this browser is read
+         * or written. Twelve students, chapter 2 of season 7: a death kept by the GMs and one public
+         * at once, both in Daily Life; an execution (`classTrial`, as `killCharacter` writes it
+         * during the trial); a death the GMs held, executed (`publishDeath` with the verdict's
+         * `phase`, E10 fix r1-G4); one a discovery of this chapter announced; last season's chapter
+         * 2; last chapter's; a Monocub; a public death from before 1.2.73 (no phase) and a kept
+         * one; a record with no season; the living; and a death on the document the GMs do not
+         * hold (a player's own write the audit has not put back).
+         */
+        const { bodiesToDiscover } = await import("./chapter.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof bodiesToDiscover === "function", "chapter.mjs exports no `bodiesToDiscover` - the watcher has no body rule to test");
+        const here = { chapter: 2, phase: "dailyLife", epoch: 7 };
+        const STUDENTS = {
+            kept: { row: here },
+            public: { flag: here },
+            executed: { flag: { ...here, phase: "classTrial" } },
+            executedHeld: { flag: { chapter: 2, day: 3, timeOfDay: "night", phase: "classTrial", epoch: 7 } },
+            announced: { flag: here },
+            lastSeason: { flag: { ...here, epoch: 6 } },
+            lastChapter: { flag: { ...here, chapter: 1 } },
+            monocub: { flag: here, monocub: true },
+            oldPublic: { flag: { chapter: 2, day: 1, timeOfDay: "night" } },
+            oldKept: { row: { chapter: 2, day: 1, timeOfDay: "night" } },
+            noSeason: { flag: { chapter: 2, phase: "dailyLife" } },
+            living: {},
+            forged: { document: here }
+        };
+        const flagsOf = (deceased, monocub) => (scope, key) => scope !== MODULE_ID ? undefined
+            : key === FLAGS.deceased ? deceased : key === FLAGS.monocub ? monocub : undefined;
+        const actors = Object.entries(STUDENTS).map(([id, s]) => ({ id, getFlag: flagsOf(s.document ?? s.flag ?? null, s.monocub ?? false) }));
+        const held = actor => ({ id: actor.id, getFlag: flagsOf(STUDENTS[actor.id].flag ?? null, STUDENTS[actor.id].monocub ?? false) });
+        const found = bodiesToDiscover({ actors, clock: { chapter: 2, phase: "dailyLife" }, epoch: 7,
+            announced: id => id === "announced", held, pending: id => STUDENTS[id]?.row ?? null });
+        equal(JSON.stringify(found), JSON.stringify(["kept", "public", "oldKept", "noSeason"]),
+            "the watcher's body rule finds an execution, an announced or another season's or chapter's body, a Monocub, an old public death or a death the GMs do not hold, or misses one it should find");
+    }],
+
+    ["R348 - the dead are not witnesses - only a Monocub is", async () => {
+        /*
+         * E11 C1, 1.2.73; audit S06-14 (S13-02 is the same defect); DC7/DX1. The witnesses of a
+         * walk-in were every student's token in the room but a hidden one and a body: a dead student
+         * lying there from an earlier death counted toward the two, so one living student walking in
+         * beside an old body announced a new one. chapter.mjs `witnessesOf`, driven on fake tokens
+         * (`roomOf` reads the token's `room`), flags as the GMs hold them (`held`) and the GMs' rows
+         * (`pending`): the living, a public death, a death the GMs keep, a Monocub, a hidden token,
+         * the body itself, a Monokuma (no student), the living in another room, a token of no
+         * character, and a death on the document the GMs do not hold.
+         */
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof witnessesOf === "function", "chapter.mjs exports no `witnessesOf` - the watcher's witness rule cannot be tested");
+        const dead = { chapter: 2, phase: "dailyLife", epoch: 7 };
+        const PEOPLE = {
+            living: {}, public: { flag: dead }, kept: { row: dead }, monocub: { flag: dead, monocub: true },
+            hidden: { hidden: true }, body: {}, monokuma: { notStudent: true }, elsewhere: { room: "Elsewhere" },
+            npc: { type: "adversary" }, forged: { document: dead }
+        };
+        const flagsOf = (deceased, monocub) => (scope, key) => scope !== MODULE_ID ? undefined
+            : key === FLAGS.deceased ? deceased : key === FLAGS.monocub ? monocub : undefined;
+        const tokens = Object.entries(PEOPLE).map(([id, p]) => ({ id, hidden: Boolean(p.hidden), room: p.room ?? "Gym",
+            actor: { id, type: p.type ?? "character", getFlag: flagsOf(p.document ?? p.flag ?? null, p.monocub ?? false) } }));
+        const students = new Set(Object.keys(PEOPLE).filter(id => !PEOPLE[id].notStudent));
+        const held = actor => ({ id: actor.id, getFlag: flagsOf(PEOPLE[actor.id].flag ?? null, PEOPLE[actor.id].monocub ?? false) });
+        const witnesses = witnessesOf({ tokens, room: "Gym", bodies: new Set(["body"]), students, held,
+            pending: id => PEOPLE[id]?.row ?? null, roomOf: t => t.room });
+        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "monocub", "forged"]),
+            "a dead student who is not a Monocub, a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student or a Monocub does not");
+    }],
+
+    ["R349 - only announceBody writes the stamp of a body found", async () => {
+        /*
+         * E11 C1, 1.2.73; decision D8; the ledger's G2. The stamp `SETTINGS.bodiesFound` is what
+         * the watcher, and later E19's channel, E13's trial room and E70, read to know a body was
+         * found - so it has one writer, settings.mjs `recordBodyFound`, and that has one caller,
+         * chapter.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every
+         * module source but the suite's, comments stripped: each call of `recordBodyFound`, of
+         * `announceBody`, and each `game.settings.set` naming the stamp, by the top-level function
+         * it stands in. A second writer - a GM button stamping a body by hand - is a second place
+         * the stamp's shape and its chapter could be decided, and fails here.
+         */
+        const callers = (name, pattern) => [...sources].flatMap(([file, text]) => {
+            const code = stripComments(text);
+            const tops = [...code.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            return [...code.matchAll(pattern)].map(m => `${file}#${tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)"}`)
+                .filter(where => where !== `${file}#${name}`);
+        });
+        const sources = new Map(await otherSources());
+        must(fnSource(sources.get("settings.mjs"), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
+        equal(JSON.stringify([callers("recordBodyFound", /\brecordBodyFound\s*\(/g), callers("announceBody", /\bannounceBody\s*\(/g),
+            callers("recordBodyFound", /settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.bodiesFound\b/g)]),
+            JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], []]),
+            "the stamp of a body found has a writer besides `announceBody`, or `announceBody` a caller besides `runDiscovery` "
+            + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
@@ -8595,7 +8709,7 @@ const REGRESSIONS = [
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
-            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced")),
+            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor, \{ phase: "classTrial" \}\)/.test(fnSource(vote, "executeSentenced")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),

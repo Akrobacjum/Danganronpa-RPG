@@ -1636,7 +1636,10 @@ async function readSentence(context) {
  * verdict counts them living (`verdictHeld`, `openVerdictDialog`), so the held death is made the
  * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
  * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
- * publish fails the step.
+ * publish fails the step. Published as the trial's (E11 C1, 1.2.73): the record keeps the kill's chapter,
+ * day and time and takes the phase `classTrial`, so the body is an execution and no later walk past it
+ * discovers it (chapter.mjs `bodiesToDiscover`; tier 2 "a body the verdict executed is not found again
+ * after the trial - a death the GMs held included").
  *
  * AN EXECUTION IS PUBLIC (E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5). `killCharacter`
  * keeps the running incident's victim's death for the GMs unless told otherwise, and C12's "keep" lets
@@ -1650,7 +1653,7 @@ async function executeSentenced(context) {
         await judgedFor(actor.id);
         const held = flagsHeldNow(actor);
         if (isDeceased(held)) continue;
-        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor, { secret: false });
+        const died = isDeadForGm(held) ? await publishDeath(actor, { phase: "classTrial" }) : await killCharacter(actor, { secret: false });
         if (!died) throw new Error(`${actor.name} could not be executed`);
         context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)

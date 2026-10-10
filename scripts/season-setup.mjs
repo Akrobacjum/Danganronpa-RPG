@@ -1271,6 +1271,9 @@ async function wipeSeason(plan) {
         ["rules", "Monokuma's standing rules", SETTINGS.killingGameRules, []],
         ["trialProgress", "the trial's progress", SETTINGS.trialProgress, {}],
         ["bodyFound", "the body waiting to be answered", SETTINGS.bodyFound, {}],
+        // And the season's stamps of the bodies found (E11 C1), under the same tick: both say
+        // what this season found, and its chapter 1 is not the next season's.
+        ["bodyFound", "the bodies found this season", SETTINGS.bodiesFound, {}],
         // A standing assembly is stamped with the time of day and session it
         // was called in; the new season's first advance would otherwise find
         // the stamp stale and teleport the whole new cast into last season's

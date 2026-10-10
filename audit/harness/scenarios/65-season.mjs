@@ -18,7 +18,8 @@
  *   B  Chie kills Daichi, kept; Aiko and Botan walk in on the body: one discovery card and the
  *      hold. An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
  *      wrong verdict that executes Botan; a move inside the room after the verdict (already
- *      no card), and a walk in after End the trial: the discovery cards each leaves (C1).
+ *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
+ *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
  *   C  the chapter ended twice from the Investigation with "next chapter" unticked: the
  *      session and the phase (C5). Edit campaign moving the time of day back while an
  *      assembly is called: whether the assembly is held (C6).
@@ -31,7 +32,8 @@
  *   R  the reset, every group ticked, answered as 61 answers it: the project tokens left on
  *      every scene (C7), the offers (E04), the armed Calls (C10), the Final Trial and the
  *      season (E10 C10), the suicide's victim (alive already; C9 must keep it), Aiko's
- *      Health, Sanity and Hope (reset already), her bedroom's key (C10), and the errors.
+ *      Health, Sanity and Hope (reset already), her bedroom's key (C10), the stamps of the
+ *      bodies found (C1: none left), and the errors.
  *   F  a reset whose chat deletion throws on the GM: whether the GM is told, and that every
  *      other group still ran (C9).
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
@@ -125,7 +127,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     const blow = await kill(IDS.chie, IDS.daichi);
     await unmute();
     const found = await gm.eval(`${UNTIL} ${CARDS} const M = await import("${repoUrl}/scripts/movement.mjs");
-        const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
         const room = M.roomOfActor(daichi), before = cards();
         await academy.updateEmbeddedDocuments("Token", ["${IDS.aiko}", "${IDS.botan}"].map(id => {
@@ -134,9 +136,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         }), { teleport: true, movementAction: "displace", animate: false });
         await until(() => bodyDiscovery());
         await new Promise(r => setTimeout(r, 800));
-        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi) };`, { timeout: 60000 });
-    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room",
-        blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room,
+        const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
+        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps };`, { timeout: 60000 });
+    // E11 C1: the discovery is stamped once, by the witnesses, naming the body they found.
+    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him",
+        blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
+            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]),
         J({ blow, found }), { flow: "body-discovery" });
     const eclipse = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
         const { isEclipse, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
@@ -180,14 +185,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         await new Promise(r => setTimeout(r, 1500));
         return { ended, phase: getClock().phase, cards: cards(), hold: Boolean(bodyDiscovery()) };`, { timeout: 60000 });
     const afterEndRoom = await walkTo(IDS.aiko, found.room);
-    const afterEnd = await gm.eval(`${CARDS} const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
-        return { cards: cards(), hold: Boolean(bodyDiscovery()) };`);
-    /* Today, once the trial has ended, Aiko walking in finds the room's two bodies (Daichi, and Botan whom the
-       verdict executed) again: a second card and a new hold (measured 10.10.2026; the plan's "2 or 3"). Ending
-       the trial posts nothing by itself. Aiko's token reads no room afterwards - the walk is charged in Daily
-       Life and put back - but the watcher heard her inside first. C1: still one card. */
-    check("B4: after End the trial, Aiko walking into the room posts a second discovery card and a new hold - today's reading; E11 C1 keeps it at one",
-        ended.ended === true && ended.phase === "dailyLife" && ended.cards === 1 && ended.hold === false && afterEnd.cards === 2 && afterEnd.hold === true,
+    const afterEnd = await gm.eval(`${CARDS} const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        return { cards: cards(), hold: Boolean(bodyDiscovery()), stamps: (bodiesFoundIn?.(getClock().chapter) ?? []).length };`);
+    /* At 4aad1fd (C0, 10.10.2026), once the trial had ended, Aiko walking in set off a second discovery: a second
+       card and a new hold (the plan's "2 or 3"). Ending the trial posts nothing by itself. Aiko's token reads no
+       room afterwards - the walk is charged in Daily Life and put back - but the watcher heard her inside first.
+       E11 C1: still one card, no hold, one stamp. What this reads is Daichi's stamp: with the watcher's
+       `announced` dropped B4 is red, and with the execution's phase test dropped it stays green (both measured
+       10.10.2026), so the executed body is held by R347 and the tier-2 execution test, not here. Whether Botan's
+       token still lies in the room after the verdict was not measured. */
+    check("B4: after End the trial, Aiko walking into the room posts no second discovery card, no new hold and no second stamp",
+        ended.ended === true && ended.phase === "dailyLife" && ended.cards === 1 && ended.hold === false && afterEnd.cards === 1 && afterEnd.hold === false
+            && afterEnd.stamps === 1,
         J({ ended, afterEndRoom, afterEnd }), { flow: "body-discovery" });
     // The cast back for the rest of the season, and the hold the last discovery left taken.
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
@@ -295,7 +304,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         const V = await import("${repoUrl}/scripts/vault.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         ${PROJECT_TOKENS}
         const word = game.i18n.localize("DRPG.Season.resetWord");
-        const told = globalThis.__notifications.length;
+        // The stamps' setting is C1's: before it, reading it throws, so the count is null and R1 fails as a check.
+        const told = globalThis.__notifications.length, seasons = () => { try { return Object.keys(game.settings.get("${MOD}", "bodiesFound") ?? {}).length; } catch { return null; } };
+        const stampedBefore = seasons();
         globalThis.__dialogAnswers.push(() => ({ word, ticked: X.RESET_GROUPS.map(g => g.key) }));
         const result = await R.resetSeason();
         await gmStoresIdle();
@@ -305,12 +316,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
             offers: ids.reduce((n, id) => n + L.offerList(S.offerStore.get(id)).length, 0),
             calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
-            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"),
+            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"), stamped: [stampedBefore, seasons()],
             errors: globalThis.__notifications.slice(told).filter(n => n.level === "error").map(n => n.msg) };`;
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
-    check("R1: after the reset no Level Up is offered, the Final Trial is off and the season is the second, and no error was told",
+    // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
+    check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, and no error was told",
         Array.isArray(reset.cleared) && reset.kept?.length === 0 && reset.offers === 0 && reset.finalTrial === false && reset.season === 2
-            && reset.errors.length === 0, J(reset), { flow: "season-reset" });
+            && reset.stamped[0] > 0 && reset.stamped[1] === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
     // Today `clearAllProjects` clears the countdowns and the meta and removes no token. C7: none left.
     check("R2: the reset leaves the four project tokens on their scenes - today's reading; E11 C7 removes them",
         reset.tokens === 4, J(reset), { flow: "season-reset" });
