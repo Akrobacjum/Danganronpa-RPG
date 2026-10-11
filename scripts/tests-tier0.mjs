@@ -86,7 +86,10 @@ function boundNames(text) {
     for (const m of text.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
     for (const m of text.matchAll(/\b(?:const|let|var)\s*([{[][^=;]{0,400}?[}\]])\s*=/g)) add(m[1]);
     for (const m of text.matchAll(/\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
-    for (const m of text.matchAll(/^\s*(?:async\s+|static\s+|\*\s*)*([A-Za-z_$][\w$]*)\s*\([^()]{0,200}\)\s*\{/gm)) {
+    // `get`/`set` are in the modifiers: `get isVisible() {` declares isVisible, and without them R22 read the
+    // declaration as a call to a name nobody has (fog.mjs RoomDoorControl, E12 C13, 11.10.2026 - the first
+    // getter in the module whose name nothing else in its file binds).
+    for (const m of text.matchAll(/^\s*(?:async\s+|static\s+|get\s+|set\s+|\*\s*)*([A-Za-z_$][\w$]*)\s*\([^()]{0,200}\)\s*\{/gm)) {
         names.add(m[1]);
     }
     // arrow parameters: walk back from every => to its parameter list

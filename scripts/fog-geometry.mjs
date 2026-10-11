@@ -197,6 +197,24 @@ export function inPolygons(polygons, x, y) {
 }
 
 /**
+ * The same question of the flat `[x0, y0, x1, y1, ...]` lists `regionShapes` hands back, by the
+ * even-odd rule, so it is asked without PIXI (E12 C13, 11.10.2026: a door control's sides, fog.mjs
+ * `doorShownTo`). The harness's `PIXI.Polygon#contains` answers false for every point, so
+ * `inPolygons` cannot be read there; this can.
+ */
+export function inFlatPolygons(polygons, x, y) {
+    for (const flat of polygons ?? []) {
+        let inside = false;
+        for (let i = 0, j = flat.length - 2; i < flat.length; j = i, i += 2) {
+            const xi = flat[i], yi = flat[i + 1], xj = flat[j], yj = flat[j + 1];
+            if ((yi > y) !== (yj > y) && x < xi + ((y - yi) * (xj - xi)) / (yj - yi)) inside = !inside;
+        }
+        if (inside) return true;
+    }
+    return false;
+}
+
+/**
  * A polyline resampled at a fixed step, so the smoothing that follows sees
  * evenly spaced points rather than whatever spacing the map was drawn with.
  */

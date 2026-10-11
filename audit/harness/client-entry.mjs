@@ -1001,6 +1001,23 @@ canvas.rendered = new PIXI.Container();
 canvas.rendered.addChild(canvas.primary, canvas.interface);
 canvas.stage.addChild(canvas.rendered);
 
+/* A DOOR CONTROL, AS FAR AS WHETHER IT IS DRAWN (E12 C13, 11.10.2026; audit S07-04). Foundry makes each
+   door's control from `CONFIG.Canvas.doorControlClass` and keeps them in `canvas.controls.doors`; the audit
+   read in its door-control.mjs that `isVisible` answers true at once while the scene's token vision is off,
+   as the room fog leaves every scene with rooms. That answer is the one modelled, on every scene: Foundry's
+   sight test with vision on is not (the harness has no vision), and true is the least this could hide. A
+   scenario adds the controls it asks about itself; no seeded scene has a wall. What a real canvas draws is
+   LIVE-E12-05. */
+class DoorControl extends PIXI.Container {
+    constructor(wall) {
+        super();
+        this.wall = wall;
+        this.visible = false;
+    }
+    get isVisible() { return true; }
+}
+canvas.controls = { doors: new PIXI.Container() };
+
 /* THE FLOOR ON SCREEN AND THE WAY A SCENE IS VIEWED (E12 C0, 11.10.2026; plan-E12 2.1 and 1.x item 7).
    `canvas.level` is the floor this client looks at: the one a view named, while it is a floor of the viewed
    scene, else that scene's lowest (by elevation, the order the owner's item 5 gives the floors), else null - every
@@ -1083,7 +1100,7 @@ const MESSAGE_MODES = {
 globalThis.CONFIG = {
     debug: { hooks: false },
     // Foundry's own selection colours (CONTROLLED is its orange).
-    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
+    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl },
     DH: {
         id: "daggerheart",
         // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,
@@ -1135,7 +1152,8 @@ const CONST = {
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },
     CHAT_MESSAGE_STYLES: { OTHER: 0, OOC: 1, IC: 2, EMOTE: 3 },
     REGION_EVENTS: { TOKEN_ENTER: "tokenEnter", TOKEN_EXIT: "tokenExit", TOKEN_MOVE_IN: "tokenMoveIn", TOKEN_MOVE_OUT: "tokenMoveOut" },
-    KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 }
+    KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 },
+    WALL_DOOR_TYPES: { NONE: 0, DOOR: 1, SECRET: 2 }
 };
 globalThis.CONST = CONST;
 /* v13's roll-mode constant as v14 has it (E33 C11, 07.10.2026): a deprecation. Daggerheart 2.10.5 reads

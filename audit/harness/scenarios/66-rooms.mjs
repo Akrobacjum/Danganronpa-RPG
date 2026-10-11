@@ -33,7 +33,7 @@
  *      and the crossings each was charged (V7, V8, C9); the room pieces p1's fog chooses on each floor, and the floor each
  *      row of the GM's map check names (V6, C10). Then a scene of three floors: the floors the switcher offers p1 and the
  *      GM, where p1's view of a floor not offered goes, and the shading and token verdict on a floor p1's console puts on
- *      screen (Q2, C11).
+ *      screen (Q2, C11); the door controls p1 is shown on each of its floors, and the GM (C13).
  *   H  the room-marking clause of the migration asked for by name over a scene made here, and again after an untick
  *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
@@ -50,7 +50,8 @@
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
  * map check finds an overlap or a doorway (the harness's polygons contain no point), Foundry's own level
- * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
+ * control, and what a canvas draws of a door control (G9 reads the module's class's answer on controls made there) -
+ * LIVE-E12-02/03/05; and the outline a player is shown on walking into a
  * room: the harness's token placeable (client-entry.mjs `_wrap`) has no `isOwner`, so fog.mjs `isMine`
  * reads none of a player's tokens as theirs and their client outlines nothing (read on p1 on 11.10.2026,
  * E12 C2b). What G measures is the shim's model of levels
@@ -77,6 +78,8 @@
  * was running when the first started, whether it still ran was not read.
  * E12 C12 (I1 rewritten; I2-I4 added): 35 checks in 33.4-35.3 s, two runs under the harness lock on 11.10.2026; whether
  * other lanes ran then was not read.
+ * E12 C13 (G9 added): 36 checks in 34.8 s, one run under the harness lock on 11.10.2026, and 33.0-33.9 s in eight runs of
+ * C13's red first and mutants (one or four checks failing); whether other lanes ran then was not read.
  */
 export const layers = ["ci"];
 
@@ -513,6 +516,42 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
             botan: typeof V.tokenShownTo === "function" ? V.tokenShownTo(botan, V.viewerHere()) : "no tokenShownTo" };
         await academy.view();
         return { opened, sent, forced, away: buttons() };`, { timeout: 30000 });
+    /* The door controls of the stack (E12 C13, audit S07-04): three made here from Foundry's class - a door and a secret
+       door inside the Ward's footprint, which is the Study's and the Loft's on the floors above, and a door in no room -
+       read on p1 on each floor (what each control answers, whether the repaint told it so) and on the GM. */
+    const DOORS = `const stack = game.scenes.get("${setS.stack}"), academy = game.scenes.get("${IDS.scene}");
+        const Door = CONFIG.Canvas.doorControlClass, doors = canvas.controls.doors;
+        const made = [[250, 300, 350, 300, 1], [250, 350, 350, 350, CONST.WALL_DOOR_TYPES.SECRET], [3000, 2000, 3100, 2000, 1]]
+            .map(([x0, y0, x1, y1, door]) => doors.addChild(new Door({ document: { c: [x0, y0, x1, y1], door, parent: stack } })));
+        const read = () => ({ level: canvas.level?.id ?? null, shading: F.diagnoseFog().shading,
+            shown: made.map(d => d.isVisible), told: made.every(d => d.visible === d.isVisible) });`;
+    const doorsP = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); ${DOORS}
+        const out = {};
+        try {
+            await stack.view();
+            out.ground = read();
+            canvas.level = "${F3}";
+            F.repaintFog();
+            out.roof = read();
+            canvas.level = "${F2}";
+            F.repaintFog();
+            out.middle = read();
+        } finally {
+            await academy.view();
+            out.away = made.map(d => d.isVisible);
+            for (const d of made) doors.removeChild(d);
+        }
+        return out;`, { timeout: 30000 });
+    const doorsG = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"); ${DOORS}
+        let out;
+        try {
+            await stack.view({ level: "${F2}" });
+            out = read();
+        } finally {
+            for (const d of made) doors.removeChild(d);
+            await academy.view();
+        }
+        return { level: out.level, shown: out.shown };`, { timeout: 30000 });
     const switchG = await gm.eval(`${SWITCHER} const stack = game.scenes.get("${setS.stack}"), academy = game.scenes.get("${IDS.scene}");
         await stack.view({ level: "${F2}" });
         const out = { level: canvas.level?.id ?? null, buttons: buttons() };
@@ -537,6 +576,19 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
        read (the harness renders no texture); the shading `repaintFog` chose is. */
     check("G8: a floor p1's console puts on screen draws the never-visited Study under full fog and hides Botan in it (E12 C11)",
         J(switchP.forced) === J({ level: F2, drawn: ["Study"], shading: { Study: "fog" }, botan: "hide" }), J(switchP.forced));
+    /* Before E12 C13 every door control answered "shown" to p1 on every floor, as Foundry's does with token vision off
+       (client-entry.mjs's `DoorControl`, the audit's reading of Foundry). E12 C13 (audit S07-04; measured on 11.10.2026):
+       p1 is shown the door in the Ward, found (veiled: the harness's placeable reads no token as p1's own, so nothing of
+       p1's is clear, E12 C2b), and the one at the same spot in the Loft p1 found on the Roof; not the one there in the
+       Study never visited on the floor between, not the secret door, not the door in no room; each control was told so by
+       the repaint (`told`). With the academy drawn, the stack's three are answered by Foundry (the rooms p1's fog shaded
+       are another scene's). The GM is shown every door. What a real canvas draws, and whether a hidden control can still
+       be clicked, is LIVE-E12-05. */
+    const doorRead = floor => ({ shown: floor?.shown ?? null, told: floor?.told ?? null });
+    check("G9: p1 is shown the doors of rooms found on the floor drawn, not those of a room never visited, a secret door or a door in no room; the GM all (E12 C13)",
+        J([doorRead(doorsP.ground), doorRead(doorsP.roof), doorRead(doorsP.middle)])
+            === J([{ shown: [true, false, false], told: true }, { shown: [true, false, false], told: true }, { shown: [false, false, false], told: true }])
+            && J(doorsP.away) === J([true, true, true]) && J(doorsG) === J({ level: F2, shown: [true, true, true] }), J({ doorsP, doorsG }));
 
     /* ------------------------------ H. the migration's room clause ------------------------------ */
     phase("H: the room-marking clause asked for by name");

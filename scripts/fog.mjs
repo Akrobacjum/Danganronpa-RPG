@@ -65,7 +65,7 @@ import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
 import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
-import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, piecesAsOne } from "./fog-geometry.mjs";
+import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
     MAX_FOG_TEXTURE, colourOf, lastGlow, DOORWAY_PROBE_IN, DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET,
     DOORWAY_WALL_NEAR, wallAlongEdge, nothingInTheWay, neighbourBeyond, doorwayEdges, outlineColour
@@ -250,6 +250,8 @@ const fadeMs = () => Math.max(ENTER(), 1);
 export function registerFog() {
     // The ledger's socket road and its pull-on-join (D2).
     step("the ledger's road", () => registerLedgerRoad());
+    // At init (module.mjs), before any canvas is drawn and a door control made from the class.
+    step("door controls by the rooms", () => registerDoorControls());
 
     /*
      * EACH STEP GUARDED SEPARATELY, because they used to share one handler and
@@ -1571,6 +1573,13 @@ let readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
 let lastDrawn = null;
 /** How the last repaint shaded each room it drew (`roomShading`), for `diagnoseFog` (E12 C11); null as `lastDrawn` is. */
 let lastShading = null;
+/**
+ * The rooms the last repaint shaded, as a player's door controls ask them (`doorKnown`, E12 C13):
+ * `{ sceneId, size, rooms: [{ shading, polygons }] }` in scene space, or null when it stood down
+ * before shading anything. Kept when a later guard stands down, as `lastShading` is: a texture
+ * that could not be drawn does not make the door of a room never visited one the player knows.
+ */
+let doorRooms = null;
 
 /**
  * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
@@ -2367,6 +2376,93 @@ export function fogRegionsFor(scene, level) {
     return roomPieces(scene).filter(region => onLevel(region, level));
 }
 
+/* --------------------------------------------------------------------------
+ * DOOR CONTROLS BY THE ROOMS (E12 C13, 11.10.2026; plan-E12 C13, audit S07-04).
+ *
+ * The room fog takes Foundry's token vision off every scene with rooms
+ * (`applySceneVisionMode`), and the audit read in Foundry's door-control.mjs that
+ * a door control's `isVisible` answers true at once when token vision is off. The
+ * controls sit in the interface group, above the fog (`mountLayer`'s note), so a
+ * player was shown the icon of every door on the map - the layout of wings they
+ * had never set foot in. Foundry's code is not in this tree: that reading is the
+ * audit's, and LIVE-E12-05 looks at a table.
+ *
+ * A player is shown the control of a door on a room they can see on the floor
+ * drawn - one the fog leaves clear or veiled (`roomShading`), so the same rule on
+ * every floor the switcher shows (plan-E12 3.5). A door is asked on both of its
+ * sides (`doorSides`), a fifth of a square out (`DOORWAY_PROBE_IN`): a wall drawn
+ * with the wall tool sits ON the border of the rooms it divides, so its midpoint
+ * is in both or neither. Either side in such a room shows it - the door out of the
+ * room you are in, onto a corridor that is no room, is shown; the door between two
+ * rooms you have never been in is not. A secret door on a floor the fog shaded
+ * is not shown to a player at all: the audit's claim that Foundry shows those too
+ * did not pass its verification, and hiding one where Foundry already does costs
+ * nothing.
+ *
+ * Presentation only: this answers whether the control is drawn; who may open a
+ * door stays Foundry's. It only hides what Foundry would show (its answer is asked
+ * first), a GM's doors are Foundry's, and where the fog shaded nothing - no room on
+ * the floor, the setting off, the controls of a scene drawn before its first paint -
+ * the answer is Foundry's. R386 reads the rule on plain rooms; scenario 66 G9 reads
+ * the class on controls made on three floors of the harness, whose door control is
+ * a shim of the audit's reading (client-entry.mjs `DoorControl`).
+ * -------------------------------------------------------------------------- */
+
+/**
+ * The two points a door is asked on: `size` (a grid square) times `DOORWAY_PROBE_IN` out from
+ * the middle of the wall `c` = [x0, y0, x1, y1], one on each side; the middle alone for a wall of
+ * no length.
+ */
+export function doorSides(c, size) {
+    const [x0, y0, x1, y1] = c;
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    const length = Math.hypot(x1 - x0, y1 - y0);
+    if (!(length > 0)) return [{ x: mx, y: my }];
+    const out = (size * DOORWAY_PROBE_IN) / length;
+    const nx = -(y1 - y0) * out, ny = (x1 - x0) * out;
+    return [{ x: mx + nx, y: my + ny }, { x: mx - nx, y: my - ny }];
+}
+
+/**
+ * Whether a player is shown a door asked at `points` (`doorSides`), of `rooms` - the room pieces
+ * of the floor drawn, each `{ shading, polygons }` (`roomShading`'s word for its room, its flat
+ * polygons in scene space): when one point lies in a piece that is clear or veiled. A point in
+ * no room is in the fog (the layer's note); so is a point in a room never visited.
+ */
+export function doorShownTo(points, rooms) {
+    return points.some(({ x, y }) => rooms.some(room =>
+        (room.shading === "clear" || room.shading === "veil") && inFlatPolygons(room.polygons, x, y)));
+}
+
+/** A player's answer for a door control Foundry would show: null where the fog shaded nothing for its scene. */
+function doorKnown(wall) {
+    const doc = wall?.document;
+    const c = doc?.c;
+    if (!doorRooms || !doc || doc.parent?.id !== doorRooms.sceneId || !(c?.length >= 4)) return null;
+    if (doc.door === CONST.WALL_DOOR_TYPES?.SECRET) return false;
+    return doorShownTo(doorSides(c, doorRooms.size), doorRooms.rooms);
+}
+
+/** The door controls on this canvas told again whether they are drawn, as Foundry tells them when its vision refreshes. */
+function refreshDoorControls() {
+    if (game.user.isGM) return;
+    for (const control of canvas?.controls?.doors?.children ?? []) {
+        try { control.visible = control.isVisible; } catch (err) { debug("Fog: could not refresh a door control", err); }
+    }
+}
+
+function registerDoorControls() {
+    const Base = CONFIG.Canvas?.doorControlClass;
+    if (typeof Base !== "function") return warn("Fog: Foundry offers no door control class here, so every door control stays shown.");
+    CONFIG.Canvas.doorControlClass = class RoomDoorControl extends Base {
+        get isVisible() {
+            const shown = super.isVisible;
+            if (!shown || game.user.isGM) return shown;
+            return doorKnown(this.wall) ?? shown;
+        }
+    };
+}
+
 export function repaintFog() {
     // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
     scheduleFloorSwitcher();
@@ -2378,6 +2474,7 @@ export function repaintFog() {
         }
         lastDrawn = null;
         lastShading = null;
+        doorRooms = null;
         if (!canvas?.ready) return stand(  "the canvas is not ready yet");
         if (!fogEnabled())  return stand(  "the 'Rooms decide what players can see' setting is off");
 
@@ -2435,6 +2532,8 @@ export function repaintFog() {
         const { mine, discovered, current, opened } = fogSets(scene);
         const shading = roomShading({ regions, current, discovered });
         lastShading = shading;
+        doorRooms = { sceneId: scene.id, size: canvas.grid?.size ?? 100,
+            rooms: regions.map(region => ({ shading: shading[region.name], polygons: regionShapes(region, { x: 0, y: 0 }) })) };
         const ink = colourOf("--drpg-ink", 0x1a1620);
 
         // Nothing to do if the picture would come out the same. The layer has
@@ -2517,6 +2616,9 @@ export function repaintFog() {
         error("Could not repaint the fog of war", err);
         lastFogReason = `threw: ${err?.message ?? err}`;
         return false;
+    } finally {
+        // Every way out, a stand-down included: the doors follow what was shaded, or Foundry (E12 C13).
+        refreshDoorControls();
     }
 }
 

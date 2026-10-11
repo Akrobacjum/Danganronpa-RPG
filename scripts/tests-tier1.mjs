@@ -6473,6 +6473,34 @@ const INVARIANTS = [
             "the room pieces drawn on [the upper floor by id, by the level, the ground floor, every floor]");
         equal(JSON.stringify(typeof R.floorsOf === "function" ? R.floorsOf(scene).map(level => level.name) : "no floorsOf"),
             JSON.stringify(["Ground", "Upper"]), "the scene's floors, lowest first");
+    }],
+
+    ["R386 - a player is shown a door control only on a room the fog leaves clear or veiled, asked on both sides of the door", async () => {
+        /*
+         * E12 C13, 11.10.2026; plan-E12 C13, audit S07-04. The room fog switches token vision off,
+         * and with it off Foundry's door control answers "shown" at once (the audit's reading of
+         * Foundry's door-control.mjs; LIVE-E12-05), so a player saw the icon of every door on the
+         * map - those of wings never visited included. Read on plain objects, so the answer is the
+         * rule's and not a canvas's: four square rooms in a row and one under the third - the Hall
+         * clear (a token of the viewer stands in it), the Library veiled (found), the Gym and the
+         * Pool under fog (never visited), each a flat polygon as `regionShapes` hands it - and doors
+         * asked on their two sides, a fifth of a square out (`doorSides`). Red before C13: there
+         * was no `doorShownTo`, and no class of the module's made the door controls.
+         */
+        const F = await import("./fog.mjs");
+        const square = (x, y) => [[x, y, x + 100, y, x + 100, y + 100, x, y + 100]];
+        const rooms = [{ shading: "clear", polygons: square(0, 0) }, { shading: "veil", polygons: square(100, 0) },
+            { shading: "fog", polygons: square(200, 0) }, { shading: "fog", polygons: square(200, 100) }];
+        const sides = typeof F.doorSides === "function"
+            ? [F.doorSides([100, 200, 300, 200], 100), F.doorSides([100, 0, 100, 100], 100), F.doorSides([5, 5, 5, 5], 100)] : "no doorSides";
+        equal(JSON.stringify(sides), JSON.stringify([[{ x: 200, y: 218 }, { x: 200, y: 182 }], [{ x: 82, y: 50 }, { x: 118, y: 50 }], [{ x: 5, y: 5 }]]),
+            "the points a door is asked on, for [a level wall, an upright one, a wall of no length] on a grid of 100");
+        const doors = [[100, 20, 100, 80], [200, 20, 200, 80], [300, 20, 300, 80], [220, 100, 280, 100], [500, 500, 560, 500], [120, 0, 180, 0]];
+        const shown = typeof F.doorShownTo === "function" && typeof F.doorSides === "function"
+            ? doors.map(c => F.doorShownTo(F.doorSides(c, 100), rooms)) : "no doorShownTo";
+        equal(JSON.stringify(shown), JSON.stringify([true, true, false, false, false, true]),
+            "whether a player is shown the door [Hall-Library, Library-Gym, Gym-outside, Gym-Pool, in no room, Library-outside]");
+        equal(CONFIG.Canvas?.doorControlClass?.name ?? null, "RoomDoorControl", "the class Foundry makes door controls from is the module's");
     }]
 ];
 
