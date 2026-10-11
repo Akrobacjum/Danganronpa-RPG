@@ -3271,8 +3271,9 @@ export async function openCleanupDialog(actor) {
  * ADJACENCY (Dawid, 29.08). `neighbouringRooms` is the same reach a living
  * character walks by, so dragging a corpse cannot cross a building. Where a map
  * measures badly - bounding boxes overlap where rooms do not - the GM's
- * `drpgNeighbours` flag on the region is the override, and it is the same
- * override ordinary movement reads.
+ * Neighbours in Room Setup (`drpgNeighbours` on the room's pieces, counted from
+ * both sides since E12 C14) is the override, and it is the same override
+ * ordinary movement reads.
  *
  * BEDROOMS ARE NEVER A DESTINATION (Dawid, 29.08, new rule). A bedroom belongs
  * to one student, it locks, and the only people who can open it are its owner

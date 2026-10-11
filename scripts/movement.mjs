@@ -57,7 +57,14 @@ export const ROOM_FLAGS = {
      * world carried the locks but not the state they are supposed to return
      * to - which is the kind of split that surfaces two months later.
      */
-    lockedAtStart: "drpgLockedAtStart"
+    lockedAtStart: "drpgLockedAtStart",
+
+    /**
+     * The rooms this room has a door to, by name, comma-separated - the GM's word over the
+     * map's (`neighbouringRooms`). Written from Room Setup's Neighbours column to every piece
+     * of the room since E12 C14; a flag GMs typed by hand before then reads the same.
+     */
+    neighbours: "drpgNeighbours"
 };
 
 /** Last known room per token, so we only react to actual crossings. */
@@ -1772,13 +1779,13 @@ export function allRooms(scene) {
  * Rooms adjacent to this one.
  *
  * Foundry has no notion of rooms being connected, so adjacency is measured
- * geometrically: regions whose bounding boxes are within one grid square of
- * each other count as neighbours. That matches how a map is usually drawn - a
+ * geometrically: regions whose bounding boxes share an edge across a wall's
+ * thickness count as neighbours. That matches how a map is usually drawn - a
  * shared wall - without asking the GM to maintain a separate connection list.
  *
- * The GM can override it per region with a `drpgNeighbours` flag holding a
- * comma-separated list of room names, for rooms that touch but have no door,
- * or doors between rooms that do not touch.
+ * The GM can override it per room with a `drpgNeighbours` flag (`ROOM_FLAGS.neighbours`,
+ * Room Setup's Neighbours column since E12 C14) holding a comma-separated list of room
+ * names, for rooms that touch but have no door, or doors between rooms that do not touch.
  */
 export function neighbouringRooms(scene, room) {
     if (!room || !scene) return [];
@@ -1792,30 +1799,47 @@ export function neighbouringRooms(scene, room) {
     if (!mine.length) return [];
     const names = list => [...new Set(list.map(r => r.name))].sort();
 
-    // Explicit list wins, when the GM has set one - on any piece.
-    const declared = mine.map(r => r.getFlag?.(MODULE_ID, "drpgNeighbours"))
-        .filter(d => typeof d === "string" && d.trim());
-    if (declared.length) {
-        const listed = new Set(declared.flatMap(d => d.split(",").map(s => s.trim()).filter(Boolean)));
-        return names(regions.filter(r => listed.has(r.name)));
+    /*
+     * ONE DOOR, TWO SIDES (E12 C14, audit S07-32). A room's list was read from that room alone:
+     * a Kitchen whose list left out the Storage beside it could not be walked into the Storage,
+     * and the Storage, listing nothing, walked into the Kitchen by its walls - a wall closed from
+     * one side; a door listed in an Attic far away led from the Attic to the Hall and not back.
+     * A pair is now decided by its lists when either room has one: neighbours when either names
+     * the other, and not otherwise, whatever the walls say. A pair where neither room has a list
+     * is the map's (below). A room with a list reads no walls, as before. Lists are read
+     * off every piece of every room (a list on one piece speaks for the room, as before C14).
+     */
+    const lists = new Map();
+    for (const region of regions) {
+        const declared = region.getFlag?.(MODULE_ID, ROOM_FLAGS.neighbours);
+        if (typeof declared !== "string" || !declared.trim()) continue;
+        const listed = lists.get(region.name) ?? new Set();
+        for (const name of declared.split(",").map(s => s.trim()).filter(Boolean)) listed.add(name);
+        lists.set(region.name, listed);
     }
+    const others = regions.filter(r => r.name !== room);
+    const decided = others.filter(r => lists.has(room) || lists.has(r.name));
+    const listed = decided.filter(r => lists.get(room)?.has(r.name) || lists.get(r.name)?.has(room));
+    if (lists.has(room)) return names(listed);
+    const open = others.filter(r => !lists.has(r.name));
 
     // Tolerance for the thickness of a shared wall, and no more. A larger
     // margin bridges rooms that merely lie near each other - at 1.5 squares it
     // treated a room two doors away as adjacent. Measured in THIS scene's grid,
     // not the one on screen.
-    const others = regions.filter(r => r.name !== room);
-    const pad = (scene.grid?.size ?? 100) * 0.35;
+    const grid = scene.grid?.size ?? 100;
+    const pad = grid * 0.35;
     const boxes = mine.map(boundsOf);
 
     // No usable geometry - an unrendered scene, an exotic shape, a region drawn
     // in a way we cannot measure. Treat every other room as reachable rather
     // than telling the player there is nowhere to go: being too permissive is a
     // GM ruling away, being too strict is a dead end. One piece that cannot be
-    // measured is enough: its doors could be anywhere.
+    // measured is enough: its doors could be anywhere. A room whose own list
+    // leaves this one out has said so, and stays out (E12 C14).
     if (boxes.some(box => !box)) {
         debug(`No bounds for a piece of "${room}"; treating all rooms as neighbours.`);
-        return names(others);
+        return names([...listed, ...open]);
     }
 
     // Split by whether each candidate's own geometry could be measured at all.
@@ -1830,17 +1854,17 @@ export function neighbouringRooms(scene, room) {
     // anywhere on the scene, not necessarily near this room - every crossing
     // everywhere silently stopped being checked at all, since both the Eclipse
     // and ordinary movement route through this same list.
-    const unmeasured = others.filter(r => !boundsOf(r));
+    const unmeasured = open.filter(r => !boundsOf(r));
     if (unmeasured.length) {
         debug(`${unmeasured.length} region(s) near "${room}" have no measurable bounds; treating as reachable.`);
     }
 
-    const near = others.filter(r => {
+    const near = open.filter(r => {
         const other = boundsOf(r);
-        return other && boxes.some(box => overlaps(box, other, pad));
+        return other && boxes.some(box => sharesEdge(box, other, pad, grid / 2));
     });
 
-    return names([...near, ...unmeasured]);
+    return names([...listed, ...near, ...unmeasured]);
 }
 
 /**
@@ -1909,9 +1933,21 @@ function fromPoints(flat) {
     return Number.isFinite(minX) ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : null;
 }
 
-function overlaps(a, b, pad) {
-    return !(a.x - pad > b.x + b.w || b.x - pad > a.x + a.w ||
-             a.y - pad > b.y + b.h || b.y - pad > a.y + a.h);
+/*
+ * AN EDGE, NOT A CORNER (E12 C14, audit S07-32). Two boxes are neighbours when, on one axis,
+ * they meet or lie at most a wall's thickness (`pad`) apart, and on the other they run side by
+ * side for at least `edge` - half a square, the audit's measure: a doorway needs a stretch of
+ * shared wall to sit in. Until 1.2.74 the boxes were padded on both axes at once, so two rooms
+ * that met only at a corner, or across one diagonally, were neighbours, while the GM's handbook
+ * says neighbours touch along a shared edge (the suite's tier-2 test "a corner is not a door; a
+ * one-sided override counts both ways" and scenario 66 M2, red on the harness before this commit,
+ * 11.10.2026: a Nook against Dorm A's corner was its neighbour). Boxes that overlap by half a square or more each way are neighbours, as before;
+ * the threshold is the audit's and has not been measured against a GM's maps.
+ */
+function sharesEdge(a, b, pad, edge) {
+    const along = (a0, aLength, b0, bLength) => Math.min(a0 + aLength, b0 + bLength) - Math.max(a0, b0);
+    const x = along(a.x, a.w, b.x, b.w), y = along(a.y, a.h, b.y, b.h);
+    return (x >= -pad && y >= edge) || (y >= -pad && x >= edge);
 }
 
 /**

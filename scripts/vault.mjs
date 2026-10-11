@@ -30,7 +30,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
 import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
-import { locateActor, sceneOfActor, ROOM_FLAGS } from "./movement.mjs";
+import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
@@ -40,7 +40,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes }
@@ -2066,6 +2066,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const COLUMN = {
             owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
             startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
+            neighbours: "DRPG.Vault.neighboursColumn",
             nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
             short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
             desc: "DRPG.Vault.descriptionColumn"
@@ -2103,6 +2104,12 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // line above the table counts. See `sharedRooms`.
             notshared: check("notshared", region?.getFlag(MODULE_ID, VAULT_FLAGS.notShared),
                 game.i18n.localize("DRPG.Vault.notSharedHint")),
+            // The list every piece holds (E12 C14); greyed under it when blank, the rooms the
+            // rules connect this one to now - its walls and the lists that name it.
+            neighbours: `<td><input type="text" name="neighbours:${escRoom}"${named("neighbours")}
+                value="${foundry.utils.escapeHTML(neighboursWritten(pieces))}"
+                placeholder="${foundry.utils.escapeHTML(neighbouringRooms(scene, room).join(", "))}"
+                title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursHint"))}" /></td>`,
             tokens: `<td class="drpg-token-cell" style="text-align:center">
                 <span data-drpg-tokens="${escRoom}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
                 <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
@@ -2169,9 +2176,11 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                 <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
                 <p class="notes" data-drpg-ratio></p>
                 ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
-                    th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn")],
-                    ["isroom", "locked", "startlocked", "notshared"])}
+                    th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn"),
+                    th("DRPG.Vault.neighboursColumn")],
+                    ["isroom", "locked", "startlocked", "notshared", "neighbours"])}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
             `)}
 
             ${panel("search", `
@@ -2236,6 +2245,7 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
         isRoom: roomBox(pick(`isroom:${room}`)),
+        ...neighboursTyped(pick(`neighbours:${room}`), room, rooms),
         description: (pick(`desc:${room}`)?.value ?? "").trim(),
         table: pick(`table:${room}`)?.value ?? "",
         favours: categories
@@ -2508,6 +2518,39 @@ function bedroomClaimedTwice(rowResults) {
 }
 
 /**
+ * A room's Neighbours as its pieces hold them (`ROOM_FLAGS.neighbours`, E12 C14): every piece's
+ * list, each name once, in the order written, joined as the column draws it.
+ */
+function neighboursWritten(pieces) {
+    const names = pieces.flatMap(piece => {
+        const value = piece.getFlag(MODULE_ID, ROOM_FLAGS.neighbours);
+        return typeof value === "string" ? value.split(",").map(name => name.trim()).filter(Boolean) : [];
+    });
+    return [...new Set(names)].join(", ");
+}
+
+/**
+ * A Neighbours cell as Apply writes it (E12 C14): each name typed once, in the order typed, spelt
+ * as the window's row of that name when one matches it without regard to case, never the room's
+ * own; `neighbours` null when the window drew no cell. The names that match no row of this window
+ * (no named region of the scene) come back in `neighboursUnknown`. A room whose name holds a
+ * comma cannot be listed: the list is the flag's comma-separated string, which GMs typed by hand
+ * before this column.
+ */
+function neighboursTyped(cell, room, rooms) {
+    if (!cell) return { neighbours: null, neighboursUnknown: [] };
+    const lower = new Map(rooms.map(name => [name.toLowerCase(), name]));
+    const listed = [], unknown = [];
+    for (const typed of String(cell.value ?? "").split(",").map(name => name.trim()).filter(Boolean)) {
+        const name = rooms.includes(typed) ? typed : lower.get(typed.toLowerCase()) ?? typed;
+        if (name === room || listed.includes(name)) continue;
+        listed.push(name);
+        if (!lower.has(name.toLowerCase())) unknown.push(name);
+    }
+    return { neighbours: listed.join(", "), neighboursUnknown: unknown };
+}
+
+/**
  * The named regions of a scene by name, the last of a name held - Room Setup's own map (E12 C2a).
  * Not `regionsByName`, which holds rooms only: this window is where a region becomes one.
  */
@@ -2550,6 +2593,9 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         // scene is the region's own, so the flag goes where the row was read.
         const roomSettled = row.isRoom === null
             || namedRegions(scene, row.room).every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
+        // Likewise the Neighbours list (E12 C14): every piece holds the list the row says.
+        const neighboursSettled = row.neighbours === null
+            || namedRegions(scene, row.room).every(piece => neighboursWritten([piece]) === row.neighbours);
 
         const same = before.owner === (row.owner || null)
             && before.table === (row.table || null)
@@ -2564,6 +2610,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
             && roomSettled
+            && neighboursSettled
             && before.description === row.description;
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
@@ -2603,6 +2650,18 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
 
         // Nothing announced: whether a region is a room is the GM's map, not news.
         if (!roomSettled) await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
+
+        // Nothing announced: a door on the GM's map is learnt by walking through it. A name no
+        // region of this scene carries is kept as typed and the GM told: it connects nothing,
+        // and the room it names may be drawn after this Apply.
+        if (!neighboursSettled) {
+            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.neighbours}`]:
+                row.neighbours || (forcedDeletion() ?? null) });
+            if (row.neighboursUnknown.length) {
+                ui.notifications.warn(game.i18n.format("DRPG.Vault.neighboursUnknown",
+                    { room: row.room, names: row.neighboursUnknown.join(", ") }));
+            }
+        }
 
         // Written whether or not it changed, because "unset" and "unset but
         // equal to the current lock" are the same thing to `startLocked` and

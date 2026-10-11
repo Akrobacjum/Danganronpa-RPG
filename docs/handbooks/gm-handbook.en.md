@@ -385,13 +385,15 @@ A room is a **named Scene Region a GM has marked as one** (Room Setup > Doors, *
 |---|---|
 | Bedrooms | Whose bedroom each room is (one student, one bedroom). Owning a bedroom locks its door to everyone else and issues the owner a key |
 | Stashes | Who has a stash in which room and whether it is hidden. Click a cell to cycle none / open / hidden. A bedroom gives its owner an open stash automatically; a stash in somebody else's room gives no key to it. A stash with something in it cannot be removed; removing an empty one makes everybody who had located it forget it |
-| Doors | Whether the region is a room at all (**This is a room**; greyed out for a region that cannot be one), which doors are locked now, and which start the season locked (the reset copies the third column over the second), and whether the room has No privacy (see below) |
+| Doors | Whether the region is a room at all (**This is a room**; greyed out for a region that cannot be one), which doors are locked now, and which start the season locked (the reset copies the third column over the second), whether the room has No privacy, and its Neighbours (both below) |
 | Searching | Which RollTable the room draws from (or the global pool), how many search tokens it has left, a "cannot be searched" seal, and which categories the room favours (advantage on a Search aimed at one) or hinders (disadvantage); never both |
 | Rests | Whether a Short Rest and a Long Rest are allowed here |
 | Description | What the room looks like, in your words; shown on the move card when somebody walks in and behind the clock |
 | Fog | The discovery matrix - which rooms each character has already seen on this scene - with Discover all / Hide all, the percentage of the scene that belongs to no room, and the region check |
 
 The **Doors** tab also carries a **No privacy** column: tick it for corridors, stairwells and anywhere nobody can talk privately, and the region stops counting towards the rooms-per-player advice and nothing else.
+
+The **Neighbours** column is where a door overrules the map. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own - a corner is not enough - and every room that lists it; the greyed names in the empty cell are the rooms the rules connect it to now. Type room names separated by commas, and the room is connected to exactly those, both ways: two rooms are connected when either lists the other, and a room beside one with a list cannot walk into it unless one of the two lists the other. Apply writes the list to every piece of the room, and tells you of a name no region on the scene carries, which connects nothing.
 
 Search tokens: **3 per room per time of day** (`ROOMS.searchTokensPerRoom`, editable in settings), restocked on every time-of-day change, one spent per Search.
 

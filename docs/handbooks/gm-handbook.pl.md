@@ -385,13 +385,15 @@ Pokój to **nazwany region sceny, który GM oznaczył jako pokój** (Ustawienia 
 |---|---|
 | Sypialnie | Czyja jest każda sypialnia (jeden uczeń, jedna sypialnia). Posiadanie sypialni zamyka jej drzwi przed innymi i daje właścicielowi klucz |
 | Skrytki | Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknięcie komórki przełącza: brak / otwarta / ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie; skrytka w cudzym pokoju nie daje do niego klucza. Skrytki, w której coś leży, nie da się usunąć; usunięcie pustej sprawia, że zapomina o niej każdy, kto ją znalazł |
-| Drzwi | Czy region w ogóle jest pokojem (**To jest pokój**; wyszarzone dla regionu, który nie może nim być), które drzwi są teraz zamknięte i które zaczynają sezon zamknięte (reset kopiuje trzecią kolumnę na drugą) oraz czy pokój jest oznaczony jako Bez prywatności (patrz niżej) |
+| Drzwi | Czy region w ogóle jest pokojem (**To jest pokój**; wyszarzone dla regionu, który nie może nim być), które drzwi są teraz zamknięte i które zaczynają sezon zamknięte (reset kopiuje trzecią kolumnę na drugą), czy pokój jest oznaczony jako Bez prywatności oraz jego Sąsiedzi (oba niżej) |
 | Przeszukiwanie | Z której tabeli losuje pokój (albo pula globalna), ile ma Search Tokenów, blokada "nie do przeszukania", oraz kategorie, którym sprzyja (przewaga na Search o nie) i które utrudnia (utrudnienie); nigdy obie naraz |
 | Odpoczynki | Czy dozwolony jest Short Rest i Long Rest |
 | Opis | Jak wygląda pokój, twoimi słowami; pokazywany na karcie ruchu przy wejściu i za zegarem |
 | Mgła | Macierz odkryć - które pokoje każda postać już widziała na tej scenie - z Odkryj wszystko / Ukryj wszystko, procentem sceny nienależącym do żadnego pokoju i kontrolą regionów |
 
 Zakładka **Drzwi** ma też kolumnę **Bez prywatności**: zaznacz ją dla korytarzy, klatek schodowych i każdego miejsca, gdzie nikt nie porozmawia na osobności, a region przestaje liczyć się do rady o liczbie pokoi na gracza i nic więcej.
+
+Kolumna **Sąsiedzi** to miejsce, w którym drzwi mają pierwszeństwo przed mapą. Gdy jest pusta, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź - sam narożnik nie wystarczy - i każdy pokój, który go wpisał; wyszarzone nazwy w pustym polu to pokoje, z którymi zasady łączą go teraz. Wpisz nazwy pokoi rozdzielone przecinkami, a pokój będzie połączony dokładnie z nimi, w obie strony: dwa pokoje są połączone, gdy którykolwiek wpisał drugi, a pokój obok pokoju z listą nie wejdzie do niego, dopóki jeden z nich nie wpisze drugiego. Zastosuj zapisuje listę na każdym kawałku pokoju i mówi o nazwie, której nie nosi żaden region sceny - taka nazwa niczego nie łączy.
 
 Search Tokens: **3 na pokój na porę dnia** (`ROOMS.searchTokensPerRoom`, edytowalne w ustawieniach), uzupełniane przy każdej zmianie pory dnia, jeden wydawany na Search.
 

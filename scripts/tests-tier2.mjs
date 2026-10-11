@@ -47964,6 +47964,60 @@ const SCENARIOS = [
                 + "[the incident's third, lawful] after this GM moved it a pixel]");
     }],
 
+    ["a corner is not a door; a one-sided override counts both ways", async () => {
+        /*
+         * E12 C14, 11.10.2026; plan-E12 C14, audit S07-32. `neighbouringRooms` padded both boxes by
+         * a wall's thickness on both axes at once, so two rooms that met at a corner, or across one
+         * diagonally, were neighbours; and a room's Neighbours list (`drpgNeighbours`) was read off
+         * that room alone, so a Kitchen whose list named the Hall led to the Hall with no way back,
+         * and the Storage beside it, listing nothing, walked into it by its walls. Here a plain scene
+         * of the suite's own (no document: nothing is written) holds a Hall with a Study across the
+         * wall above it, a Nook touching its corner and a Closet across that corner; and a Storage
+         * with a Pantry across the wall below it and a Kitchen across the wall beside it, whose list
+         * names the Hall (the Pantry meets the Kitchen across a corner). Read: each room's neighbours,
+         * and whether a living student who is not the Mastermind may cross between them in daily
+         * life with the movement cost on and in an Eclipse that is no free placement - `crossingVerdict`
+         * as the veto and the witness judge ask it, with no price (`pay: false`). The clock and the
+         * setting are put back by restore(). Red before C14 (this test on the harness with the module
+         * of 7906034, 11.10.2026): the Hall's neighbours were the Closet, the Nook and the Study, the
+         * Nook's and the Closet's the Hall, the Storage's the Kitchen and the Pantry; the walks from the
+         * Hall to the Nook and the Closet and from the Storage and the Pantry to the Kitchen were let
+         * through and the one from the Hall to the Kitchen refused, in both. Not asked: a room the lists and the
+         * walls leave with no neighbour (the Nook, the Closet here) walks anywhere, as a room drawn
+         * apart from the rest always has - `crossingRefused` reads no neighbours as a map it cannot read.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        const room = (name, x, y, width, height, flags = {}) => ({ id: `suite-e12-c14-${name}`, name, behaviors: [], levels: new Set(),
+            bounds: { x, y, width, height },
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const scene = { id: "suite-e12-c14-scene", name: "SUITE E12 C14", grid: { size: 100 }, regions: new Set([
+            room("Hall", 1000, 1000, 400, 400), room("Study", 1000, 580, 400, 400), room("Nook", 800, 1400, 200, 200),
+            room("Closet", 1420, 1420, 200, 200), room("Storage", 3000, 0, 400, 400), room("Pantry", 3000, 420, 400, 400),
+            room("Kitchen", 3420, 0, 400, 400, { drpgNeighbours: "Hall" })]) };
+        const NAMES = ["Hall", "Study", "Nook", "Closet", "Storage", "Pantry", "Kitchen"];
+        const WALKS = [["Hall", "Study"], ["Hall", "Nook"], ["Hall", "Closet"], ["Storage", "Kitchen"], ["Pantry", "Kitchen"],
+            ["Hall", "Kitchen"], ["Kitchen", "Hall"]];
+        const walks = () => WALKS.map(([from, to]) => M.crossingVerdict(actor, from, to, scene, null, { pay: false }) === true);
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const neighbours = NAMES.map(name => M.neighbouringRooms(scene, name));
+        const daily = walks();
+        // An Eclipse that places freely asks no adjacency: the clock moves on a time of day only then.
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const OPEN = [true, false, false, false, false, true, true];
+        equal(stableJson([neighbours, daily, eclipse]),
+            stableJson([[["Kitchen", "Study"], ["Hall"], [], [], ["Pantry"], ["Storage"], ["Hall"]], OPEN, OPEN]),
+            `[the neighbours of ${NAMES.join(", ")}; whether ${actor.name} may cross ${WALKS.map(w => w.join(" > ")).join(", ")} in daily life; `
+                + "the same in an Eclipse]");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

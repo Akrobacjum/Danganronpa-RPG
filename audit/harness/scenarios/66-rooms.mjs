@@ -46,6 +46,8 @@
  *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
  *   L  the Storage renamed by the GM, then by p1, then back by the GM: where Daichi's stashed item and Aiko's discovery
  *      follow it, as p1 reads it, and whom the GMs' report reaches (C8).
+ *   M  a Nook drawn against Dorm A's corner, and a Den of two pieces across a wall from the Storage whose Neighbours the GM
+ *      types in Room Setup: what the pieces carry, what the window draws again, and the neighbours the GM and p1 read (C14).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -80,6 +82,8 @@
  * other lanes ran then was not read.
  * E12 C13 (G9 added): 36 checks in 34.8 s, one run under the harness lock on 11.10.2026, and 33.0-33.9 s in eight runs of
  * C13's red first and mutants (one or four checks failing); whether other lanes ran then was not read.
+ * E12 C14 (M1, M2 added): 38 checks in 35.4 s, one run under the harness lock on 11.10.2026, and 34.1-41.1 s in seven runs
+ * of C14's red first and mutants (one or two checks failing); whether other lanes ran then was not read.
  */
 export const layers = ["ci"];
 
@@ -860,4 +864,65 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         afterL.now.region === "66 Pantry" && afterL.now.drawer === "66 Storeroom" && afterL.now.rooms.includes("66 Storeroom")
             && !afterL.now.rooms.includes("66 Pantry") && afterL.now.told === 1 && afterL.back.region === "Storage" && afterL.back.drawer === "Storage",
         J({ setL, afterL }));
+
+    /* ------------------------------ M. the Neighbours column ------------------------------ */
+    phase("M: Room Setup's Neighbours, a corner, and a wall one list closes");
+    /* A Nook drawn against Dorm A's corner and nothing else; a Den in two pieces, the first across a wall from the
+       Storage (20 px, inside the 35 px a 100 px grid allows), the second alone. The GM opens Room Setup and types
+       "hall, 66 Den" into the Den's Neighbours, presses Apply, and opens it again to read the cells it draws; p1 reads
+       the neighbours from its own copy of the scene, where its veto asks them. */
+    const NEIGHBOURS = `const academy = game.scenes.get("${IDS.scene}"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const read = () => ({ dormA: M.neighbouringRooms(academy, "Dorm A").includes("66 Nook"), nook: M.neighbouringRooms(academy, "66 Nook"),
+            hall: M.neighbouringRooms(academy, "Hall").includes("66 Den"), storage: M.neighbouringRooms(academy, "Storage").includes("66 Den"),
+            den: M.neighbouringRooms(academy, "66 Den") });`;
+    const setM = await gm.eval(`${NEIGHBOURS} const V = await import("${repoUrl}/scripts/vault.mjs");
+        canvas.scene = academy;
+        const room = { "${MOD}": { room: true } };
+        const made = await academy.createEmbeddedDocuments("Region", [
+            { name: "66 Nook", shapes: ${rect(800, 800, 300, 300)}, flags: room, behaviors: [] },
+            { name: "66 Den", shapes: ${rect(2820, 1200, 300, 600)}, flags: room, behaviors: [] },
+            { name: "66 Den", shapes: ${rect(3400, 2400, 300, 300)}, flags: room, behaviors: [] }]);
+        globalThis.__s66m = made.map(r => r.id);
+        const cells = form => Object.fromEntries(["66 Den", "Hall"].map(name => {
+            const cell = form.querySelector('[name="neighbours:' + name + '"]');
+            return [name, cell ? { value: cell.value, placeholder: cell.getAttribute("placeholder") } : null];
+        }));
+        const open = typed => {
+            let seen = null;
+            globalThis.__dialogAnswers.push(async config => {
+                const element = document.createElement("dialog"), form = document.createElement("form");
+                if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
+                element.append(form);
+                seen = cells(form);
+                if (typed === null) return null;
+                const cell = form.querySelector('[name="neighbours:66 Den"]');
+                if (cell) cell.value = typed;
+                return (config.buttons ?? []).find(b => b.action === "ok").callback(new globalThis.window.Event("click"), { form }, { element });
+            });
+            return V.openRoomSetupDialog({ tab: "doors" }).then(changed => ({ seen, changed })).finally(() => { globalThis.__dialogAnswers.length = 0; });
+        };
+        const applied = await open("hall, 66 Den");
+        const drawn = await open(null);
+        return { applied, drawn, pieces: made.slice(1).map(r => r.getFlag("${MOD}", M.ROOM_FLAGS?.neighbours ?? "drpgNeighbours") ?? null), read: read() };`, { timeout: 60000 });
+    const seenM = await p1.eval(`${NEIGHBOURS}
+        const den = () => academy.regions.filter(r => r.name === "66 Den").map(r => r.getFlag("${MOD}", "drpgNeighbours") ?? null);
+        const end = Date.now() + 6000;
+        while (!(den().length === 2 && den().every(Boolean)) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { den: den(), read: read() };`, { timeout: 30000 });
+    await gm.eval(`${SCENES} await academy.deleteEmbeddedDocuments("Region", globalThis.__s66m); delete globalThis.__s66m; return true;`, { timeout: 30000 });
+    /* At E12 C13 (read on 11.10.2026 with this phase over that module) Room Setup drew no Neighbours cell and wrote no list
+       (M1 read both cells null and both pieces null), the Nook was Dorm A's neighbour by the corner its box shares, and the
+       Den was the Storage's by their wall and not the Hall's, on the GM and on p1 (M2: Dorm A true, the Nook ["Dorm A"], the
+       Hall false, the Storage true, the Den ["Storage"]). E12 C14 (S07-32): the column is drawn on
+       the Doors tab and written to every piece, the name typed in another case spelt as the row and the room's own dropped;
+       the drawn window shows the list and, under the Hall's empty cell, the rooms its walls and the lists give it; a corner
+       is no edge; and the Den's list counts from both sides - it gives the Hall a door and closes the Storage's wall. */
+    check("M1: Room Setup's Neighbours cell for a Den of two pieces, typed \"hall, 66 Den\", writes \"Hall\" to both and is drawn again with it (E12 C14)",
+        setM.applied.seen?.["66 Den"] !== null && setM.applied.seen?.["66 Den"]?.value === "" && J(setM.pieces) === J(["Hall", "Hall"])
+            && setM.drawn.seen?.["66 Den"]?.value === "Hall" && String(setM.drawn.seen?.Hall?.placeholder ?? "").split(", ").includes("66 Den"),
+        J(setM));
+    check("M2: on the GM and on p1, a Nook at Dorm A's corner is no neighbour, and the Den's list gives the Hall a door and closes the Storage's wall (E12 C14)",
+        [setM.read, seenM.read].every(r => r.dormA === false && J(r.nook) === J([]) && r.hall === true && r.storage === false && J(r.den) === J(["Hall"]))
+            && J(seenM.den) === J(["Hall", "Hall"]),
+        J({ setM: setM.read, seenM }));
 }
