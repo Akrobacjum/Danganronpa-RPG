@@ -304,6 +304,7 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#revealStartingRooms": "draw",
     "fog.mjs#announceRoom": "draw",
     "fog.mjs#playDiscoveryAnimation": "draw",
+    "fog.mjs#floorSwitcher": "draw",
 
     "utils.mjs#workingScene": "window",
     "gm-panel.mjs#nextStep": "window",

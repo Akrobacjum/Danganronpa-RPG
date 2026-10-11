@@ -57,7 +57,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
-    viewedLevel, onLevel, isMoveChange } from "./rooms.mjs";
+    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
@@ -276,6 +276,8 @@ export function registerFog() {
         // under full fog for one frame.
         step("local discovery mirror", () => rememberMine());
         step("first paint", () => repaintFog());
+        // After the paint, so a floor the switcher moves the view to is drawn by the `canvasReady` that move ends in.
+        step("floor switcher", () => floorSwitcher({ arrived: true }));
         // A character who is STANDING in a room nobody here has seen deserves
         // the reveal too. It used to need a step of movement to fire, so the
         // first room of a session - the one you wake up in - was the one room
@@ -1567,6 +1569,8 @@ let readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
  * stands down, since which pieces were chosen is the question that guard's reason raises.
  */
 let lastDrawn = null;
+/** How the last repaint shaded each room it drew (`roomShading`), for `diagnoseFog` (E12 C11); null as `lastDrawn` is. */
+let lastShading = null;
 
 /**
  * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
@@ -1992,6 +1996,7 @@ export function diagnoseFog() {
         // pieces on that floor alone, by name, or null when the fog stood down before choosing.
         floor: viewedLevel()?.name ?? viewedLevel()?.id ?? null,
         lastDrawn,
+        shading: lastShading,
         notRooms: named.filter(r => !regions.includes(r)).map(r => r.name),
         // Counted through the SAME reader the fog draws with, so this cannot
         // report geometry that the drawing code then fails to read. A region
@@ -2316,6 +2321,33 @@ function clearLayerLeftovers(container) {
 }
 
 /**
+ * How the fog draws each room of the pieces it was handed, by name: "clear" where one of the
+ * viewer's tokens stands (`current`), "veil" where they have been (`discovered`) and do not
+ * stand, "fog" where they have never been. A room both current and discovered is clear.
+ *
+ * ANOTHER FLOOR IS DRAWN BY THE SAME RULE (E12 C11, 11.10.2026; plan-E12 3.5, the owner's answer
+ * Q2 (b) of 09.10: "literally the same as within one floor"). Nothing here asks a floor: the
+ * pieces are the floor's on screen (`fogRegionsFor`), the two sets are by room name on the scene
+ * (`fogSets`: the rooms the viewer's tokens stand in on any floor, and the discovery record one
+ * floor already reads), so a room found on the floor above is veiled there exactly as a room
+ * found on the floor the token stands on, a room never visited stays under full fog on every
+ * floor, and a room stood in is clear on every floor its pieces reach. Viewing another floor reads
+ * nothing one floor does not. Taken out of `buildFogTexture`, which draws what this answers, so
+ * the answer can be read without a canvas: tier 2 "a room on another floor looks as it does on
+ * yours" compares it on two floors, and scenario 66 G8 reads it (`diagnoseFog().shading`) on a
+ * floor a player's console put on screen.
+ */
+export function roomShading({ regions, current, discovered }) {
+    const shading = {};
+    for (const region of regions) {
+        const room = region?.name;
+        if (!room) continue;
+        shading[room] = current.has(room) ? "clear" : (discovered.has(room) ? "veil" : "fog");
+    }
+    return shading;
+}
+
+/**
  * The room pieces the fog draws on `level` of `scene`: every room piece (rooms.mjs `roomPieces`)
  * on that floor (rooms.mjs `onLevel`), a piece on no floor in particular on every one; null is
  * every floor, a scene of one.
@@ -2336,6 +2368,8 @@ export function fogRegionsFor(scene, level) {
 }
 
 export function repaintFog() {
+    // What the switcher offers moves with what this repaint answers to: a room found, a token on another floor.
+    scheduleFloorSwitcher();
     try {
         if (dissolveBusy) {
             // Redrawn the moment the transition finishes - see `dissolveBusy`.
@@ -2343,6 +2377,7 @@ export function repaintFog() {
             return false;
         }
         lastDrawn = null;
+        lastShading = null;
         if (!canvas?.ready) return stand(  "the canvas is not ready yet");
         if (!fogEnabled())  return stand(  "the 'Rooms decide what players can see' setting is off");
 
@@ -2398,6 +2433,8 @@ export function repaintFog() {
         }
 
         const { mine, discovered, current, opened } = fogSets(scene);
+        const shading = roomShading({ regions, current, discovered });
+        lastShading = shading;
         const ink = colourOf("--drpg-ink", 0x1a1620);
 
         // Nothing to do if the picture would come out the same. The layer has
@@ -2422,7 +2459,7 @@ export function repaintFog() {
             return true;
         }
 
-        const built = buildFogTexture({ regions, current, discovered, rect, ink });
+        const built = buildFogTexture({ regions, shading, rect, ink });
         if (!built) return stand("the fog texture could not be rendered");
 
         // SECOND GUARD: the room you are standing in really did get cleared.
@@ -2436,7 +2473,7 @@ export function repaintFog() {
            class has found on the scene and a player's is where their tokens stand, and a room with
            no piece on the floor on screen has nothing here to clear - read in the code; the
            harness renders no fog texture, so no paint reaches this guard headless. */
-        const clearHere = Array.from(current).filter(room => regions.some(r => r.name === room));
+        const clearHere = Object.keys(shading).filter(room => shading[room] === "clear");
         if (clearHere.length && !built.cleared) {
             for (const t of [built.texture, built.maskTexture]) if (t && !t.destroyed) t.destroy(true);
             return stand(`you are standing in "${clearHere[0]}", but the fog could not `
@@ -2505,9 +2542,12 @@ function stand(reason) {
  * show nothing, and an exception on the way up would land in `repaintFog`'s
  * outer catch with a container that may already be half rebuilt.
  *
+ * What each room comes out as is `roomShading`'s answer, drawn here and decided nowhere else
+ * (E12 C11): this function only paints it.
+ *
  * @returns {{texture: PIXI.RenderTexture, fogged: number, veiled: number, cleared: number}|null}
  */
-function buildFogTexture({ regions, current, discovered, rect, ink }) {
+function buildFogTexture({ regions, shading, rect, ink }) {
     const renderer = canvas?.app?.renderer;
     if (!renderer) return null;
 
@@ -2554,7 +2594,7 @@ function buildFogTexture({ regions, current, discovered, rect, ink }) {
         //    the fog, which leaves the veil. Erasing at partial alpha
         //    multiplies what is underneath rather than replacing it, so this
         //    is genuinely "ink at VEIL_ALPHA" and not an approximation of it.
-        const visited = regions.filter(r => !current.has(r.name) && discovered.has(r.name));
+        const visited = regions.filter(r => shading[r.name] === "veil");
         let veiled = 0;
         if (visited.length) {
             const veil = new PIXI.Graphics();
@@ -2576,7 +2616,7 @@ function buildFogTexture({ regions, current, discovered, rect, ink }) {
         clear.beginFill(0xffffff, 1);
         let cleared = 0;
         for (const region of regions) {
-            if (!current.has(region.name)) continue;
+            if (shading[region.name] !== "clear") continue;
             if (traceRegionPathsAt(clear, region, origin)) cleared++;
         }
 
@@ -2626,7 +2666,7 @@ function buildFogTexture({ regions, current, discovered, rect, ink }) {
         base.tint = 0xffffff;
         renderer.render(scratch, { renderTexture: maskTexture, clear: true });
 
-        const fogged = regions.filter(r => !current.has(r.name) && !discovered.has(r.name)).length;
+        const fogged = regions.filter(r => shading[r.name] === "fog").length;
         return { texture, maskTexture, fogged, veiled, cleared };
     } catch (err) {
         error("Could not build the fog texture", err);
@@ -2634,6 +2674,161 @@ function buildFogTexture({ regions, current, discovered, rect, ink }) {
         return null;
     } finally {
         scratch.destroy({ children: true });
+    }
+}
+
+/* ==========================================================================
+ * THE FLOOR SWITCHER (E12 C11, 11.10.2026; plan-E12 C11, the spike's option A)
+ * --------------------------------------------------------------------------
+ * Foundry v14 draws one floor at a time (`canvas.level`) and, by the spike's reading of its
+ * typings (S/spike-iso, not run), offers a player the floors where they observe a token. The
+ * owner's answer Q2 (b) of 09.10 lets a player look at a floor holding a room they have found,
+ * and item 4 at one where they have no token: this offers exactly that - the floors of the
+ * player's own tokens on the scene on screen and every floor holding a piece of a room they have
+ * found there, lowest first (item 5) - and a GM or the Mastermind every floor. It is a
+ * convenience, not the protection: what a floor shows is `roomShading` and visibility.mjs
+ * `tokenShownTo`, the rule of one floor, so a floor put on screen any other way (Foundry's own
+ * control, a console) is drawn by the same rule - under full fog, with nobody else's token,
+ * where nothing was found (scenario 66 G8).
+ *
+ * WHAT WAS NOT READ. The call that views a floor is `Scene#view({ level })` as the harness
+ * models it (lib/shim.mjs); that v14 takes a level there, that a switch is a full `canvas.draw`
+ * (the spike's reading, every `canvasReady` handler again) and whether v14 lets a player view a
+ * floor where they observe no token with token vision off are LIVE-E12-02. Should it refuse,
+ * the plan's named fallback is to override the protected `SceneManager#_getAvailableLevels` to
+ * return this offer; it is not written, since nothing here can show it is needed. A view sent to
+ * a floor that does not arrive there is not sent again (`floorSentTo`) and says so.
+ * ========================================================================== */
+
+const FLOORS_ID = "drpg-floors";
+
+/** The floor a `canvasReady` last sent this browser to, "sceneId|levelId": one try each, see above. */
+let floorSentTo = null;
+let floorSwitcherQueued = false;
+
+/**
+ * The floors offered on `scene`, by level id, lowest first (rooms.mjs `floorsOf`). None on a
+ * scene that is not a place (rooms.mjs `isPlaceScene`: E13's hall is never asked about the
+ * school's floors) or has fewer than two floors; every floor for `viewer.everyFloor`; else the
+ * floors of the viewer's own tokens on THIS scene - read off `scene.tokens`, not `locateActor`,
+ * which answers for one token on whichever place scene it finds - and every floor holding a piece
+ * of a room in `viewer.discovered` (a piece on no floor in particular is on each, `onLevel`).
+ */
+export function floorOffer(scene, viewer) {
+    const floors = floorsOf(scene);
+    if (floors.length < 2 || !isPlaceScene(scene)) return [];
+    if (viewer.everyFloor) return floors.map(floor => floor.id);
+    const offered = new Set();
+    for (const tokenDoc of scene.tokens ?? []) {
+        const level = viewer.owns(tokenDoc) ? levelOf(tokenDoc) : null;
+        if (level !== null) offered.add(level?.id ?? level);
+    }
+    for (const region of roomPieces(scene)) {
+        if (!viewer.discovered.has(region.name)) continue;
+        for (const floor of floors) if (onLevel(region, floor.id)) offered.add(floor.id);
+    }
+    return floors.filter(floor => offered.has(floor.id)).map(floor => floor.id);
+}
+
+/**
+ * This browser's viewer for `floorOffer`: a GM or the Mastermind is offered every floor; a player
+ * their own characters' tokens and the rooms they have found on `scene` - `myDiscoveredRooms`,
+ * the record the fog of one floor already draws from, so the offer reads nothing new.
+ */
+export function floorViewer(scene) {
+    const everyFloor = Boolean(game.user?.isGM) || iAmTheMastermind();
+    return {
+        everyFloor,
+        owns: tokenDoc => Boolean(tokenDoc?.isOwner) && tokenDoc.actor?.type === "character",
+        discovered: everyFloor ? new Set() : myDiscoveredRooms(scene)
+    };
+}
+
+/** Where a view resting on a floor not offered goes: the lowest offered floor holding one of the viewer's own tokens on `scene`, else the lowest offered, else null. */
+export function defaultFloor(scene, viewer, offer = floorOffer(scene, viewer)) {
+    const own = new Set();
+    for (const tokenDoc of scene?.tokens ?? []) {
+        const level = viewer.owns(tokenDoc) ? levelOf(tokenDoc) : null;
+        if (level !== null) own.add(level?.id ?? level);
+    }
+    return offer.find(id => own.has(id)) ?? offer[0] ?? null;
+}
+
+/**
+ * Draw the switcher for the scene on screen and, on `canvasReady` (`arrived`), move a view
+ * resting on a floor not offered to `defaultFloor`. Nothing else re-views, and never to another
+ * scene: E13's scene switch compares scenes and this only floors of the scene already viewed
+ * (plan-E12 6.1), so the two do not fight.
+ */
+export async function floorSwitcher({ arrived = false } = {}) {
+    try {
+        const scene = viewedScene();
+        const viewer = scene ? floorViewer(scene) : null;
+        const offer = scene ? floorOffer(scene, viewer) : [];
+        const level = viewedLevel();
+        const here = level?.id ?? level ?? null;
+        if (arrived && offer.length && !offer.includes(here)) {
+            const to = defaultFloor(scene, viewer, offer);
+            if (floorSentTo !== `${scene.id}|${to}`) {
+                floorSentTo = `${scene.id}|${to}`;
+                await scene.view({ level: to });
+                return;
+            }
+            warn(`Fog: the view rests on a floor the switcher does not offer, and asking for "${to}" did not move it (LIVE-E12-02).`);
+        } else if (arrived) {
+            floorSentTo = null;
+        }
+        renderFloorSwitcher(scene, offer, here);
+    } catch (err) {
+        error("Could not draw the floor switcher", err);
+    }
+}
+
+/** One redraw of the switcher for a burst of repaints (a drag repaints at every step); it never re-views. The 100 ms is a choice, not a reading. */
+function scheduleFloorSwitcher() {
+    if (floorSwitcherQueued) return;
+    floorSwitcherQueued = true;
+    setTimeout(() => {
+        floorSwitcherQueued = false;
+        floorSwitcher();
+    }, 100);
+}
+
+/**
+ * One button per offered floor, the floor on screen pressed, beside the campaign HUD (hud.mjs
+ * keeps its element between renders, so a sibling survives them) or on the page; none when
+ * nothing is offered. How it looks under either theme, and that the curtain cuts no pane for it
+ * (glass.mjs `BLOCKS` does not name it), are the live check's, not measured here.
+ */
+function renderFloorSwitcher(scene, offer, here) {
+    const old = document.getElementById(FLOORS_ID);
+    if (!scene || !offer.length) {
+        old?.remove();
+        return;
+    }
+    const floors = floorsOf(scene);
+    const nav = old ?? document.createElement("nav");
+    nav.id = FLOORS_ID;
+    nav.setAttribute("aria-label", game.i18n.localize("DRPG.Fog.floors"));
+    nav.dataset.tooltip = game.i18n.localize("DRPG.Fog.floorsHint");
+    nav.replaceChildren(...offer.map(id => {
+        const index = floors.findIndex(floor => floor.id === id);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.drpgLevel = id;
+        button.textContent = floors[index]?.name || game.i18n.format("DRPG.Fog.floorUnnamed", { n: index + 1 });
+        button.setAttribute("aria-pressed", String(id === here));
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            Promise.resolve(scene.view({ level: id })).catch(err => error("Could not view that floor", err));
+        });
+        return button;
+    }));
+    const hud = document.getElementById("drpg-hud");
+    if (hud?.parentElement) {
+        if (nav.previousElementSibling !== hud) hud.after(nav);
+    } else if (!nav.isConnected) {
+        document.body.append(nav);
     }
 }
 

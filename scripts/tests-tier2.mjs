@@ -47748,6 +47748,95 @@ const SCENARIOS = [
             "[what the send-back wrote to a token that climbed from the Lab to the Attic with nothing to pay with, what the GM was told]");
     }],
 
+    ["a room on another floor looks as it does on yours", async () => {
+        /*
+         * E12 C11, 11.10.2026; plan-E12 3.5, the owner's answer Q2 (b) of 09.10. A scene of two floors in
+         * plain objects, as Foundry v14 draws one (C9's test above): a Hall under a Landing, an Attic and a
+         * Vault upstairs. The player has found the Hall, the Landing and the Attic and never been in the
+         * Vault; two other students stand upstairs, one in the Attic and one in the Vault. The upper floor is
+         * read twice - with the player's token on it, in the Landing, and with the token downstairs in the
+         * Hall - each time as the fog and the token rule read it: the rooms the token stands in (`roomOfToken`,
+         * as fog.mjs `myCurrentRooms` names them), the pieces drawn on that floor (`fogRegionsFor`), the
+         * shading of each (`roomShading`) and the verdict on each other token (visibility.mjs `tokenShownTo`).
+         * The Attic and the Vault must read the same from either floor: the Attic under the veil and the
+         * Vault under full fog, both students hidden. Red before C11 by absence (neither function existed);
+         * the mutants that veil or clear a found room only when the viewer stands on its floor are what
+         * show this measures something. Scenario 66 G8 reads the same on a floor a player's console put on
+         * screen, through the real fog.
+         */
+        const F = await import("./fog.mjs");
+        const V = await import("./visibility.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels) => ({ id: name, name, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e12-c11", grid: { size: 100 }, levels: [{ id: L2, name: "Upper", elevation: 10 }, { id: L1, name: "Ground", elevation: 0 }],
+            regions: new Set([region("Hall", 0, [L1]), region("Landing", 0, [L2]), region("Attic", 500, [L2]), region("Vault", 1000, [L2])]) };
+        const token = (x, level) => ({ x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, actor: { type: "character" } });
+        const others = [token(600, L2), token(1100, L2)];
+        const discovered = new Set(["Hall", "Landing", "Attic"]);
+        const upstairs = mine => {
+            const current = new Set([roomOfToken(mine)].filter(Boolean));
+            const viewer = { gm: false, eclipse: false, enforcing: true, rooms: current, lair: null, owns: doc => doc === mine };
+            const shading = F.roomShading({ regions: F.fogRegionsFor(scene, L2), current, discovered });
+            return { current: [...current], shading, others: others.map(doc => V.tokenShownTo(doc, viewer)) };
+        };
+        const seen = read => stableJson([read.shading.Attic, read.shading.Vault, read.others]);
+        let read = "no roomShading or no tokenShownTo";
+        if (typeof F.roomShading === "function" && typeof V.tokenShownTo === "function") {
+            const on = upstairs(token(100, L2)), below = upstairs(token(100, L1));
+            read = [seen(on), seen(below), on.current, on.shading.Landing, below.current, below.shading.Landing];
+        }
+        equal(stableJson(read),
+            stableJson([stableJson(["veil", "fog", ["hide", "hide"]]), stableJson(["veil", "fog", ["hide", "hide"]]), ["Landing"], "clear", ["Hall"], "veil"]),
+            "[the upper floor read with the token upstairs, then downstairs - each as [the found Attic's shading, the never-visited "
+                + "Vault's, the verdicts on a student in each]; the room the token stands in upstairs and the Landing's shading there; "
+                + "the same downstairs]");
+    }],
+
+    ["the switcher offers your floor and floors you have discovered, in floor order", async () => {
+        /*
+         * E12 C11, 11.10.2026; plan-E12 C11, the owner's items 4 and 5 of 09.10. A scene of three floors in
+         * plain objects, listed out of order (the top floor first) - a Ward on the ground floor, a Study on
+         * the first, a Loft on the second - with the player's token in the Ward and the Loft found. Read:
+         * the floors `floorOffer` gives the player, a viewer offered every floor (the GM's and the
+         * Mastermind's branch), this browser's own viewer (`floorViewer`, a GM here, so the same branch -
+         * whether `iAmTheMastermind` reaches it is the setting's, not read here), the floor a view
+         * resting elsewhere is sent to (`defaultFloor`); the player with no token on the scene; and the
+         * same floors on a scene with no room (E13's hall) and on a scene of one floor. The player's token is
+         * read off the scene's own tokens: this scene is in no world list, so a reading through
+         * `locateActor` finds none. Red before C11 by absence (no `floorOffer`); its mutants offer every
+         * floor, the scene's own order and the token through `locateActor`'s road. Whether v14 lets a
+         * player view a floor where they observe no token is LIVE-E12-02; scenario 66 G6 and G7 read the
+         * buttons and the move back on a player's browser.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const F1 = "SUITEFLOORONE000", F2 = "SUITEFLOORTWO000", F3 = "SUITEFLOORTHREE0";
+        const region = (name, levels, room = true) => ({ id: name, name, levels: new Set(levels), behaviors: [],
+            bounds: { x: 0, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= 0 && point.x <= 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const levels = [{ id: F3, name: "Second", elevation: 20 }, { id: F1, name: "Ground", elevation: 0 }, { id: F2, name: "First", elevation: 10 }];
+        const mine = { id: "suite-e12-c11-mine", x: 100, y: 100, width: 1, height: 1, level: F1, actor: { type: "character" } };
+        const scene = { id: "suite-e12-c11-stack", grid: { size: 100 }, levels, tokens: [mine],
+            regions: new Set([region("Ward", [F1]), region("Study", [F2]), region("Loft", [F3])]) };
+        mine.parent = scene;
+        const player = { everyFloor: false, owns: doc => doc === mine, discovered: new Set(["Loft"]) };
+        const stranger = { everyFloor: false, owns: () => false, discovered: new Set(["Loft"]) };
+        const every = { everyFloor: true, owns: () => false, discovered: new Set() };
+        const hall = { ...scene, id: "suite-e12-c11-hall", regions: new Set([region("Stage", [F1], false)]) };
+        const flat = { ...scene, id: "suite-e12-c11-flat", levels: [levels[1]] };
+        const read = typeof F.floorOffer === "function" ? [F.floorOffer(scene, player), F.defaultFloor(scene, player), F.floorOffer(scene, every),
+            F.floorOffer(scene, F.floorViewer(scene)), F.floorOffer(scene, stranger), F.defaultFloor(scene, stranger),
+            F.floorOffer(hall, every), F.floorOffer(flat, every)] : "no floorOffer";
+        equal(stableJson(read), stableJson([[F1, F3], F1, [F1, F2, F3], [F1, F2, F3], [F3], F3, [], []]),
+            "[the floors offered to a player standing on the ground floor who found the Loft, and the floor a view resting elsewhere is sent "
+                + "to; offered to a GM or the Mastermind; to this browser's own viewer (a GM); to a player with no token here, and their default; "
+                + "on a scene with no room; on a scene of one floor]");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

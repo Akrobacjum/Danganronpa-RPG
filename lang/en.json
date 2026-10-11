@@ -3675,6 +3675,9 @@
       "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
       "noRoomScenes": "No scene has rooms (named Regions a GM marked as rooms), so no scene uses room-based visibility.",
       "checksScenes": "Scenes and rooms",
+      "floors": "Floors",
+      "floorUnnamed": "Floor {n}",
+      "floorsHint": "The floors you can look at: the ones your character stands on and the ones holding a room you have found. A room you have never been in stays under the fog on every floor.",
       "notRooms": {
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"

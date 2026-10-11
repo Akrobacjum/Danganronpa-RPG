@@ -1026,6 +1026,34 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     margin: 0 0 4px;
 }
 
+/* THE FLOOR SWITCHER (E12 C11): one button per floor this browser may look at
+   (fog.mjs `floorSwitcher`), placed right after the clock. The clock's order, so
+   the two stay together above the launcher and the tools; how it looks at a table
+   under either theme was not seen - the harness draws no layout (LIVE-E12-02). */
+#ui-left-column-1 > #drpg-floors {
+    order: -1;
+}
+
+#drpg-floors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 4px;
+    pointer-events: auto;
+}
+
+#drpg-floors > button {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 2px 8px;
+    font-size: var(--font-size-13, 0.82rem);
+}
+
+#drpg-floors > button[aria-pressed="true"] {
+    border-color: var(--drpg-bone);
+    font-weight: 600;
+}
+
 #drpg-hud > *,
 #drpg-hud .drpg-hud-time {
     pointer-events: auto;

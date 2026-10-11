@@ -31,7 +31,9 @@
  *      both): the room of a token on the lower floor; a player's level-only move into the locked Vault
  *      and the actions it costs; a climb from the Lab into the Attic and one inside the Stairwell,
  *      and the crossings each was charged (V7, V8, C9); the room pieces p1's fog chooses on each floor, and the floor each
- *      row of the GM's map check names (V6, C10).
+ *      row of the GM's map check names (V6, C10). Then a scene of three floors: the floors the switcher offers p1 and the
+ *      GM, where p1's view of a floor not offered goes, and the shading and token verdict on a floor p1's console puts on
+ *      screen (Q2, C11).
  *   H  the room-marking clause of the migration asked for by name over a scene made here, and again after an untick
  *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
@@ -43,7 +45,8 @@
  *   L  the Storage renamed by the GM, then by p1, then back by the GM: where Daichi's stashed item and Aiko's discovery
  *      follow it, as p1 reads it, and whom the GMs' report reaches (C8).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
- * `repaintFog` chose (`diagnoseFog().lastDrawn`), since the harness renders no fog texture -, whether the
+ * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
+ * no fog texture -, whether the
  * map check finds an overlap or a doorway (the harness's polygons contain no point), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
  * room: the harness's token placeable (client-entry.mjs `_wrap`) has no `isOwner`, so fog.mjs `isMine`
@@ -68,6 +71,8 @@
  * 25.1-27.9 s in two with C9's code taken back (24 passed); whether other lanes ran then was not read.
  * E12 C10 (G4, G5 added): 29 checks in 28.5 s, one run under lane A's lock on 11.10.2026; whether other lanes ran then
  * was not read.
+ * E12 C11 (G6-G8 added): 32 checks in 27.2-28.5 s, two runs under the harness lock on 11.10.2026; another lane's scenario 30
+ * was running when the first started, whether it still ran was not read.
  */
 export const layers = ["ci"];
 
@@ -75,6 +80,8 @@ const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 /* The two floors of G's scene, by id; the ids are this file's, any 16 characters would do. */
 const L1 = "LEVELGROUND00000", L2 = "LEVELUPPER000000";
+/* The two floors G's stack adds above L1 (E12 C11). */
+const F2 = "LEVELMIDDLE00000", F3 = "LEVELROOF0000000";
 
 export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
     const SCENES = `const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");`;
@@ -466,6 +473,66 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
        not measured here: the harness's polygons contain no point (E12 C2b), so no overlap and no doorway is found. */
     check("G5: the GM's map check on the tower names the floor of every row and checks the Stairwell on each floor (E12 C10)",
         J(checkG.rows) === J(["Attic@Upper", "Corridor@Ground", "Lab@Ground", "Stairwell@Ground", "Stairwell@Upper", "Vault@Upper"]), J(checkG));
+
+    /* A scene of three floors, listed out of order and the middle one unnamed (E12 C11): Aiko stands in the Ward on the
+       ground floor and has found the Loft on the top one; Botan stands in the Study between them. What p1's browser and
+       the GM's offer on it, where p1's view of a floor not offered goes, and what p1's fog and token rule make of that floor
+       when p1's console puts it on screen anyway. */
+    const setS = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const stack = await Scene.create({ name: "66 Stack", width: 4000, height: 3000, grid: { size: 100 }, active: false,
+            levels: [{ id: "${F3}", name: "Roof", elevation: 20 }, { id: "${L1}", name: "Ground", elevation: 0 }, { id: "${F2}", name: "", elevation: 10 }] });
+        await stack.createEmbeddedDocuments("Region", [
+            { name: "Ward", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "Study", shapes: ${rect(200, 200)}, levels: ["${F2}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "Loft", shapes: ${rect(200, 200)}, levels: ["${F3}"], flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        const token = (name, actorId, level) => ({ name, actorId, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false, flags: {},
+            texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level });
+        const [, botan] = await stack.createEmbeddedDocuments("Token", [token("Aiko", "${IDS.aiko}", "${L1}"), token("Botan", "${IDS.botan}", "${F2}")]);
+        await F.setDiscovery(stack, { actorId: "${IDS.aiko}", rooms: ["Loft"], value: true });
+        return { stack: stack.id, botan: botan.id };`, { timeout: 30000 });
+    await settle(800);
+    const SWITCHER = `const buttons = () => [...document.querySelectorAll("#drpg-floors button")]
+        .map(b => [b.dataset.drpgLevel, b.textContent, b.getAttribute("aria-pressed")]);`;
+    const switchP = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"), V = await import("${repoUrl}/scripts/visibility.mjs");
+        ${SWITCHER} const stack = game.scenes.get("${setS.stack}"), academy = game.scenes.get("${IDS.scene}");
+        // Until the Loft's discovery reaches p1 (5 s at most); before C11 there is nothing to ask, and G6-G8 read no switcher.
+        const offered = () => typeof F.floorOffer === "function" && F.floorOffer(stack, F.floorViewer(stack)).includes("${F3}");
+        for (let i = 0; i < 50 && !offered(); i++) await new Promise(r => setTimeout(r, 100));
+        await stack.view();
+        const opened = { level: canvas.level?.id ?? null, buttons: buttons() };
+        await stack.view({ level: "${F2}" });
+        const sent = { level: canvas.level?.id ?? null, buttons: buttons() };
+        canvas.level = "${F2}";
+        F.repaintFog();
+        const d = F.diagnoseFog(), botan = stack.tokens.get("${setS.botan}");
+        const forced = { level: canvas.level?.id ?? null, drawn: d.lastDrawn?.pieces ?? null, shading: d.shading ?? null,
+            botan: typeof V.tokenShownTo === "function" ? V.tokenShownTo(botan, V.viewerHere()) : "no tokenShownTo" };
+        await academy.view();
+        return { opened, sent, forced, away: buttons() };`, { timeout: 30000 });
+    const switchG = await gm.eval(`${SWITCHER} const stack = game.scenes.get("${setS.stack}"), academy = game.scenes.get("${IDS.scene}");
+        await stack.view({ level: "${F2}" });
+        const out = { level: canvas.level?.id ?? null, buttons: buttons() };
+        await academy.view();
+        out.away = buttons();
+        const F = await import("${repoUrl}/scripts/fog.mjs");
+        await F.setDiscovery(stack, { actorId: "${IDS.aiko}", rooms: [], value: false });
+        await stack.delete();
+        return out;`, { timeout: 30000 });
+    /* Before E12 C11 nothing offered a floor (Foundry's own level control only, not in the harness). E12 C11 (the owner's
+       items 4 and 5): p1 is offered the floor Aiko stands on and the floor of the Loft she found, lowest first, and not
+       Botan's; the GM every floor, the unnamed one by its place; on the academy, a scene of one floor, nothing. */
+    check("G6: the floor switcher offers p1 Aiko's floor and the Loft's, lowest first, and the GM every floor; none on a scene of one floor (E12 C11)",
+        J(switchP.opened) === J({ level: L1, buttons: [[L1, "Ground", "true"], [F3, "Roof", "false"]] }) && J(switchP.away) === J([])
+            && J(switchG) === J({ level: F2, buttons: [[L1, "Ground", "false"], [F2, "Floor 2", "true"], [F3, "Roof", "false"]], away: [] }),
+        J({ switchP, switchG }));
+    /* E12 C11: a view arriving on a floor the switcher does not offer p1 goes to the floor Aiko stands on, once. */
+    check("G7: p1's view of Botan's floor, which p1 is not offered, is sent back to Aiko's floor (E12 C11)",
+        J(switchP.sent) === J({ level: L1, buttons: [[L1, "Ground", "true"], [F3, "Roof", "false"]] }), J(switchP.sent));
+    /* The other road (E12 C11, the owner's answer Q2 b): a floor p1's console puts on screen without a view is drawn by the
+       rule of one floor - the Study, never visited, under full fog, and Botan in it hidden. Whether the fog is drawn is not
+       read (the harness renders no texture); the shading `repaintFog` chose is. */
+    check("G8: a floor p1's console puts on screen draws the never-visited Study under full fog and hides Botan in it (E12 C11)",
+        J(switchP.forced) === J({ level: F2, drawn: ["Study"], shading: { Study: "fog" }, botan: "hide" }), J(switchP.forced));
 
     /* ------------------------------ H. the migration's room clause ------------------------------ */
     phase("H: the room-marking clause asked for by name");

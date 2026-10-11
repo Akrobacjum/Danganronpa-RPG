@@ -3855,6 +3855,9 @@
       "scenesFailed": "Nie udało się przełączyć tych scen na widoczność opartą na pokojach: {scenes}",
       "noRoomScenes": "Żadna scena nie ma pokoi (nazwanych regionów, które GM oznaczył jako pokoje), więc żadna nie używa widoczności opartej na pokojach.",
       "checksScenes": "Sceny i pokoje",
+      "floors": "Piętra",
+      "floorUnnamed": "Piętro {n}",
+      "floorsHint": "Piętra, które możesz oglądać: te, na których stoi twoja postać, i te, na których jest odkryty przez ciebie pokój. Pokój, w którym twoja postać nigdy nie była, na każdym piętrze pozostaje pod mgłą.",
       "notRooms": {
         "one": "{n} nazwany region nie jest pokojem",
         "few": "{n} nazwane regiony nie są pokojami",

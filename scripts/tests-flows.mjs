@@ -139,6 +139,8 @@ export const FLOWS = Object.freeze([
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
+    // E12 C11 (11.10.2026): G offers a player their own floor and the floors of rooms they found, sends a view of any
+    // other floor back, and shades a floor a console put on screen by the rule of one floor.
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
