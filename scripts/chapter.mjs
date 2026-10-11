@@ -905,7 +905,21 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    const { found, victims, deaths } = await publishFoundBodies(room, victim, where, { clock, epoch });
+    const { found, victims, deaths, unpublished } = await publishFoundBodies(room, victim, where, { clock, epoch });
+
+    /* ONLY A PUBLISHED DEATH IS NAMED (E11 fix r2-H1, 1.2.73; round 1's residue R3). A death whose
+       publication failed is still the GMs' alone (`publishFoundBodies` leaves it out of the stamp,
+       E11 fix r1-G2), but the card below named the victim to every client and the hold, a world
+       setting, carried their id. The card names a victim the discovery announces, or nobody; the
+       hold likewise; and the GMs are told whose death could not be made known. Tier 2 "a body whose
+       publication failed is named neither on the chat card nor in the hold and the GMs are told
+       whose it is". */
+    const named = victim && victims.includes(victim.id) ? victim : null;
+    for (const id of unpublished) {
+        const body = game.actors.get(id);
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.bodyNotPublished", {
+            name: foundry.utils.escapeHTML(body?.name ?? id) })}</p>`);
+    }
 
     /* AND THE DISCOVERY IS STAMPED, ONCE, UNDER ITS CHAPTER AND SEASON (E11 C1, 1.2.73; audit
        S06-03, decision D8). The hold below is cleared at the next phase change, and it was the
@@ -940,9 +954,9 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${
                 game.i18n.localize("DRPG.Chapter.bodyBanner")}</div>
-            <p>${victim
+            <p>${named
                 ? game.i18n.format("DRPG.Chapter.bodyFoundNamed", {
-                    name: foundry.utils.escapeHTML(victim.name),
+                    name: foundry.utils.escapeHTML(named.name),
                     room: foundry.utils.escapeHTML(room)
                 })
                 : game.i18n.format("DRPG.Chapter.bodyFound", {
@@ -962,7 +976,7 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
      * already at `investigation` - the card has nothing else to read, since
      * `endMurder` wipes `murderState` before the GM presses anything.
      */
-    await setBodyDiscovery({ room, victimId: victim?.id ?? null });
+    await setBodyDiscovery({ room, victimId: named?.id ?? null });
 
     ui.notifications.info(game.i18n.format("DRPG.Chapter.bodyDone", { room }));
     log(`Body discovered in ${room}: ${moved} token(s) gathered.`);
@@ -999,20 +1013,36 @@ function askPromotion(where) {
  * body dead for the GMs in the room, a death the table already knew included - whose killers'
  * cleaning tools it breaks (E32+E07 fix r2-G3; cleanup.mjs `destroyCleaningTools`), and
  * `victims`, the ones this discovery announces: the named victim and the room's bodies still to
- * discover (`bodiesToDiscover`), which the stamp names (E11 C1).
+ * discover (`bodiesToDiscover`), which the stamp names (E11 C1), with `deaths`, each one's
+ * `deathId`. A death whose publication failed is in none of them and in `unpublished` (E11 fix
+ * r2-H1): the table does not know of it, and a broken pair of gloves would tell it.
  */
 async function publishFoundBodies(room, victim, scene, { clock = getClock(), epoch = seasonEpoch() } = {}) {
     const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
     const found = new Set(victim ? [victim.id] : []);
     const victims = new Set(victim ? [victim.id] : []);
+    const { roomOfToken } = await import("./movement.mjs");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    /* WHICH DEATH EACH BODY IS, READ BEFORE ANY IS PUBLISHED (E11 fix r2-H1, 1.2.73; round 2's cor
+       COR2-1). The stamp names each body's `deathId` (E11 fix r1-G1), and this read it off the
+       primary's mark after the publications - but a GM's own write reaches the mark only when its
+       judgement comes up on that student's queue (sheet-audit.mjs `inOrder`), and nothing waited
+       for it: behind a slow judgement on the same student (measured with a player's write whose
+       judgement was held at its write of the mark) the read found no death, the stamp named none,
+       and once the hold was answered the same body was found again. The record is the one
+       `bodiesToDiscover` matched, read in the same step as the room below: the GMs' row for a death
+       they keep, whose `deathId` `publishDeath` copies onto the flag, and the flag for one already
+       public. Tier 2 "a kept body's discovery names its death and is not found again with its Truth
+       Bullets deleted or its player's write waiting". */
+    const deathIdOf = actor => deathRecordFor(flagsHeldNow(actor))?.deathId ?? null;
+    const deaths = new Map(victim ? [[victim.id, deathIdOf(victim)]] : []);
     try {
-        const { roomOfToken } = await import("./movement.mjs");
-        const { flagsHeldNow } = await import("./sheet-audit.mjs");
         /* AS THE GMS HOLD THEM, IN ONE STEP (E11 C1; plan 1b.2, H3). Every death below is read
-           off the primary's mark (`flagsHeldNow`), with nothing awaited between two reads, and
-           before any of them is published: a player's own `deceased` write the audit has not put
-           back yet makes nobody a body. That holds because a discovery runs on the primary GM
-           only (`discoveryHere`, E11 fix r1-G2): on another GM this reader reads the document. */
+           off the primary's mark (`flagsHeldNow`), with nothing awaited between two reads (the
+           named victim's death included, above), and before any of them is published: a player's
+           own `deceased` write the audit has not put back yet makes nobody a body. That holds
+           because a discovery runs on the primary GM only (`discoveryHere`, E11 fix r1-G2): on
+           another GM this reader reads the document. */
         const students = new Set(studentActors().map(a => a.id));
         const here = [...(scene?.tokens ?? [])].filter(t => t.actor?.id && roomOfToken(t) === room);
         const fresh = new Set(bodiesToDiscover({ actors: here.map(t => t.actor).filter(a => students.has(a.id)), clock, epoch,
@@ -1021,7 +1051,9 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
             const id = t.actor.id;
             if (deathStore.has(id)) ids.add(id);
             if (deathStore.has(id) || isDeadForGm(flagsHeldNow(t.actor))) found.add(id);
-            if (fresh.has(id)) victims.add(id);
+            if (!fresh.has(id)) continue;
+            victims.add(id);
+            if (!deaths.has(id)) deaths.set(id, deathIdOf(t.actor));
         }
     } catch (err) {
         error("Could not read which bodies lie in the room of the discovery", err);
@@ -1035,13 +1067,13 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
        world-readable and the Investigation card draws it, so a body it named here was a death the
        table did not know of, and read as announced for the rest of the chapter. Tier 2 "a body
        whose publication failed is neither stamped as found nor drawn on the card". */
-    for (const id of [...victims]) if (deathStore.has(id)) victims.delete(id);
-    /* AND WHICH DEATH EACH OF THEM WAS (E11 fix r1-G1): the stamp names the death it announced
-       (`deathId`), read off the primary's mark in one step once they are published. */
-    const { flagsHeldNow } = await import("./sheet-audit.mjs");
-    const deaths = Object.fromEntries([...victims].map(id => game.actors.get(id)).filter(Boolean)
-        .map(body => [body.id, deathRecordFor(flagsHeldNow(body))?.deathId ?? null]));
-    return { found: [...found], victims: [...victims], deaths };
+    const unpublished = [...ids].filter(id => deathStore.has(id));
+    for (const id of unpublished) {
+        victims.delete(id);
+        found.delete(id);
+    }
+    return { found: [...found], victims: [...victims], unpublished,
+        deaths: Object.fromEntries([...victims].filter(id => game.actors.has(id)).map(id => [id, deaths.get(id) ?? null])) };
 }
 
 /**

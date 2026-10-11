@@ -872,8 +872,14 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
     const executed = correct && !dead;
 
+    /* THE FINAL TRIAL'S EXECUTION IS NO BODY TO FIND (E11 fix r2-H1, 1.2.73; round 2's goal V2a,
+       S06-03). The verdict can be given after End the trial, and the death was recorded with the
+       clock's phase, Daily Life by then: two students walking past the Mastermind announced a body
+       found and held the game (seen by round 2's probe at bc20730). The trial's phase, as a chapter
+       verdict's execution passes it (vote.mjs `executeSentenced`, E11 fix r1-G1). Tier 2 "the Final
+       Trial's verdict given after End the trial is no body to find". */
     if (executed) {
-        await killCharacter(mastermind);
+        await killCharacter(mastermind, { phase: "classTrial" });
     }
 
     await announce({
