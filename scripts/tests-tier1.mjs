@@ -6443,6 +6443,36 @@ const INVARIANTS = [
             ? [{ level: L2 }, { x: 1 }, { elevation: 5 }, { hidden: true }, {}].map(changes => R.isMoveChange(changes)) : "no isMoveChange";
         equal(JSON.stringify(moves), JSON.stringify([true, true, true, false, false]),
             "whether a change of [the level alone, x, the elevation, `hidden`, nothing] is a move");
+    }],
+
+    ["R385 - the fog draws the room pieces of the floor it is asked for, a piece on no floor in particular on each, and a scene's floors lowest first", async () => {
+        /*
+         * E12 C10, 11.10.2026; plan-E12 C10 and 2.3 (V6), audit S07-45, stage-E12 verify "Levels: a
+         * scene of two floors, the fog draws only the token's floor". Until 1.2.74 `repaintFog` drew
+         * every room piece of the scene on screen whatever the floor, so the Attic's fog lay over the
+         * Lab under it. Read on a scene of plain objects, so the answer is the reader's and not a
+         * world's: a Lab on the ground floor, an Attic and a Vault on the upper one, a Stairwell on
+         * no floor in particular (every floor), and a Closet on the upper floor that is no room. The
+         * floor is asked by its id and by the level itself, as `canvas.level` hands it; null is every
+         * floor. The floors are listed in the wrong order on purpose: `checkRegions` walks them
+         * through rooms.mjs `floorsOf`, lowest first (the owner's item 5). Red before C10: there was
+         * no `fogRegionsFor` to ask, and `repaintFog` drew `roomPieces(scene)`.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const piece = (name, levels, room = true) => ({ id: `${name}Id`, name, behaviors: [], levels: new Set(levels),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const upper = { id: L2, name: "Upper", elevation: 10 }, ground = { id: L1, name: "Ground", elevation: 0 };
+        const scene = { levels: [upper, ground], regions: new Set([piece("Lab", [L1]), piece("Attic", [L2]), piece("Vault", [L2]),
+            piece("Stairwell", []), piece("Closet", [L2], false)]) };
+        const drawn = level => (typeof F.fogRegionsFor === "function" ? F.fogRegionsFor(scene, level).map(r => r.id).sort() : "no fogRegionsFor");
+        equal(JSON.stringify([drawn(L2), drawn(upper), drawn(L1), drawn(null)]),
+            JSON.stringify([["AtticId", "StairwellId", "VaultId"], ["AtticId", "StairwellId", "VaultId"], ["LabId", "StairwellId"],
+                ["AtticId", "LabId", "StairwellId", "VaultId"]]),
+            "the room pieces drawn on [the upper floor by id, by the level, the ground floor, every floor]");
+        equal(JSON.stringify(typeof R.floorsOf === "function" ? R.floorsOf(scene).map(level => level.name) : "no floorsOf"),
+            JSON.stringify(["Ground", "Upper"]), "the scene's floors, lowest first");
     }]
 ];
 

@@ -242,6 +242,16 @@ export function onLevel(region, level) {
     return region.levels.has(level?.id ?? level);
 }
 
+/**
+ * A scene's floors, lowest first - by `elevation`, the order the owner's item 5 of 09.10 gives
+ * them - or none on a scene that names no floor (every scene before v14). `elevation` as a
+ * number is the harness's model of a level (lib/shim.mjs `LevelList`); what v14's level keeps
+ * there was not read (LIVE-E12-02).
+ */
+export function floorsOf(scene) {
+    return [...(scene?.levels ?? [])].sort((a, b) => (a?.elevation ?? 0) - (b?.elevation ?? 0));
+}
+
 /*
  * THE CAMERA (E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15). The scene a browser has on
  * screen is a fact about that browser, and a rule judged on it answers differently on two
@@ -253,8 +263,9 @@ export function onLevel(region, level) {
  * (`locateActor`, movement.mjs `sceneOfActor`), a trace's (remnants.mjs `sceneOfRemnant`), a
  * room name's (`sceneOfRoom`), or the one the caller names.
  *
- * The camera is read through `viewedScene()` and `viewedLevel()` (the level is LIVE-E12-02/03:
- * nothing reads it yet), and only from a function `CAMERA_READERS` lists - keyed
+ * The camera is read through `viewedScene()` and `viewedLevel()` (the level since E12 C10: the
+ * floor the fog, the outline and the reveal draw; what v14 holds there is LIVE-E12-02/03), and
+ * only from a function `CAMERA_READERS` lists - keyed
  * "file#top-level declaration", the whole of a class being one - with what it is:
  *   definition  the two readers themselves;
  *   draw        paints, pans or animates this browser's canvas;

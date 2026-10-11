@@ -866,7 +866,9 @@ function fadeLabel(label) {
     watchdog(fading, OUTLINE_MS + 1500, dropLabel);
 }
 
-export function flashOutline(fx, region, rect) {
+/* `level` is the floor drawn (E12 C10): the doorways it glows open onto rooms on that floor only
+   (fog-doorways.mjs `doorwayEdges`), and a redraw for a theme change keeps it. */
+export function flashOutline(fx, region, rect, level = null) {
     if (!fx || fx.destroyed) return;
 
     // Whatever was outlined before, take it down - see `fadeRoomOutline`.
@@ -893,7 +895,7 @@ export function flashOutline(fx, region, rect) {
     group.eventMode = "none";
 
     // Measured once; the outline skips these and the glow marks them.
-    const edges = doorwayEdges(region);
+    const edges = doorwayEdges(region, level);
 
     const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
@@ -952,7 +954,7 @@ export function flashOutline(fx, region, rect) {
            pixel-art stroke stayed. Two different borders, each in the wrong theme, which is
            exactly what Dawid described on 07.09. The three arguments are kept so the outline
            can simply be drawn again. */
-        glass, fx, region, rect,
+        glass, fx, region, rect, level,
         /*
          * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
          *
@@ -1122,7 +1124,7 @@ export function recolourRoomOutline() {
        than re-tinted. Everything else on this path is still one computed-style read. */
     const glassNow = glassOn();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
-        flashOutline(standing.fx, standing.region, standing.rect);
+        flashOutline(standing.fx, standing.region, standing.rect, standing.level);
         return;
     }
 

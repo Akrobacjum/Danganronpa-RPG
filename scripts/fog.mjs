@@ -57,7 +57,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
-    isMoveChange } from "./rooms.mjs";
+    viewedLevel, onLevel, isMoveChange } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
@@ -551,7 +551,7 @@ function prepareRoomScene(scene, userId) {
  */
 let regionRepaint = 0;
 function repaintRoomScene(scene) {
-    if (readableCache.sceneId === scene.id) readableCache = { sceneId: null, count: -1, readable: 0 };
+    if (readableCache.sceneId === scene.id) readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
     if (viewedScene()?.id !== scene.id) return false;
     lastPaintSignature = "";
     clearTimeout(regionRepaint);
@@ -1559,8 +1559,14 @@ let fogTexture = null;
  * covered.
  */
 let lastPaintSignature = "";
-/** The "can any region be read as a polygon" answer, per scene and region count (MAP-13). */
-let readableCache = { sceneId: null, count: -1, readable: 0 };
+/** The "can any region be read as a polygon" answer, per scene, floor and region count (MAP-13; the floor since E12 C10). */
+let readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
+/**
+ * What the last repaint chose to draw from - the scene, the floor and the room pieces by name -
+ * for `diagnoseFog` (E12 C10); null when it stood down before choosing. Kept when a later guard
+ * stands down, since which pieces were chosen is the question that guard's reason raises.
+ */
+let lastDrawn = null;
 
 /**
  * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
@@ -1982,6 +1988,10 @@ export function diagnoseFog() {
         sceneGlobalLight: scene?.environment?.globalLight?.enabled ?? null,
         namedRegions: named.length,
         roomPieces: regions.length,
+        // The floor on screen and what the last repaint chose to draw from (E12 C10): the room
+        // pieces on that floor alone, by name, or null when the fog stood down before choosing.
+        floor: viewedLevel()?.name ?? viewedLevel()?.id ?? null,
+        lastDrawn,
         notRooms: named.filter(r => !regions.includes(r)).map(r => r.name),
         // Counted through the SAME reader the fog draws with, so this cannot
         // report geometry that the drawing code then fails to read. A region
@@ -2059,8 +2069,9 @@ export function diagnoseFog() {
  */
 export function doorwayReport() {
     const scene = canvas?.scene;
+    const level = viewedLevel();
     const room = Array.from(myCurrentRooms())[0];
-    const region = room ? roomShapeOn(scene, room) : null;
+    const region = room ? roomShapeOn(scene, room, level) : null;
 
     if (!region) {
         console.log(`${MODULE_ID} | doorwayReport: you are not standing in a room.`);
@@ -2071,15 +2082,15 @@ export function doorwayReport() {
     const back = grid * DOORWAY_PROBE_IN;
     const reach = grid * DOORWAY_PROBE_OUT;
 
-    // The rooms beyond, as `doorwayEdges` reads them: other rooms' pieces, never this room's own.
+    // The rooms beyond, as `doorwayEdges` reads them: other rooms' pieces on the floor on screen, never this room's own.
     const others = [];
     for (const other of roomPieces(scene)) {
-        if (other.name === room) continue;
+        if (other.name === room || !onLevel(other, level)) continue;
         others.push({ name: other.name, polys: regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)) });
     }
 
     const rows = [];
-    for (const edge of doorwayEdges(region)) {
+    for (const edge of doorwayEdges(region, level)) {
         const mid = 0.5;
         const mx = edge.ax + edge.dx * mid;
         const my = edge.ay + edge.dy * mid;
@@ -2304,6 +2315,26 @@ function clearLayerLeftovers(container) {
     }
 }
 
+/**
+ * The room pieces the fog draws on `level` of `scene`: every room piece (rooms.mjs `roomPieces`)
+ * on that floor (rooms.mjs `onLevel`), a piece on no floor in particular on every one; null is
+ * every floor, a scene of one.
+ *
+ * ONE FLOOR AT A TIME (E12 C10, 11.10.2026; plan-E12 C10, audit S07-45, stage-E12 verify
+ * "Levels: a scene of two floors, the fog draws only the token's floor"). Until 1.2.74 the fog
+ * drew every room of the scene on screen, and since it draws by taking fog away (the layer's
+ * note), a room found or stood in on one floor veiled or cleared its footprint on every floor:
+ * whatever lay under the Attic showed through on the ground floor, found or not (read in the
+ * code; the harness renders no fog texture). The discovery record stays per room (a name on a
+ * scene): a room drawn on two floors is found once and comes clear on each floor it is drawn on.
+ * R385 reads this on plain objects; scenario 66 G4 reads what `repaintFog` drew on the
+ * harness's two floors (`diagnoseFog().lastDrawn`). Which floor v14 shows a player is C11's
+ * and LIVE-E12-02.
+ */
+export function fogRegionsFor(scene, level) {
+    return roomPieces(scene).filter(region => onLevel(region, level));
+}
+
 export function repaintFog() {
     try {
         if (dissolveBusy) {
@@ -2311,6 +2342,7 @@ export function repaintFog() {
             repaintQueued = true;
             return false;
         }
+        lastDrawn = null;
         if (!canvas?.ready) return stand(  "the canvas is not ready yet");
         if (!fogEnabled())  return stand(  "the 'Rooms decide what players can see' setting is off");
 
@@ -2321,13 +2353,20 @@ export function repaintFog() {
         // name, so two pieces of a room come clear together. A named region that is no room -
         // a Teleport, a player's area, one a GM never marked - is floor of no room, as the
         // space between rooms is; until 1.2.74 it was cleared as a room of its own name.
-        const regions = roomPieces(scene);
+        // And only the pieces on the floor on screen (`fogRegionsFor`, E12 C10).
+        const level = viewedLevel();
+        const regions = fogRegionsFor(scene, level);
+        const floorKey = level?.id ?? level ?? null;
         if (!regions.length) {
             // No rooms drawn at all: nothing to gate visibility on. Leave the
             // canvas as Foundry would show it rather than fogging a scene the
             // GM has not built rooms into yet.
+            if (sceneHoldsRooms(scene)) {
+                return stand(`the floor on screen ("${level?.name ?? floorKey}") has no room, so there is nothing to fog`);
+            }
             return stand("this scene has no room (a named Region a GM marked one), so there is nothing to fog");
         }
+        lastDrawn = { scene: scene.name, floor: level?.name ?? floorKey, pieces: regions.map(r => r.name).sort() };
 
         const dims = canvas.dimensions;
         const rect = dims?.rect ?? { x: 0, y: 0, width: dims?.width ?? 0, height: dims?.height ?? 0 };
@@ -2346,11 +2385,11 @@ export function repaintFog() {
         // map (MAP-13): the pass walks every polygon of every region, and the
         // answer only changes when the scene or its region count does.
         let readable;
-        if (readableCache.sceneId === scene.id && readableCache.count === regions.length) {
+        if (readableCache.sceneId === scene.id && readableCache.level === floorKey && readableCache.count === regions.length) {
             readable = readableCache.readable;
         } else {
             readable = regions.filter(r => regionShapes(r, rect).length).length;
-            readableCache = { sceneId: scene.id, count: regions.length, readable };
+            readableCache = { sceneId: scene.id, level: floorKey, count: regions.length, readable };
         }
         if (!readable) {
             warn("Fog: no room geometry could be read on this scene, so nothing was fogged. "
@@ -2366,6 +2405,7 @@ export function repaintFog() {
         // skipped on the strength of a signature describing a hidden layer.
         const signature = [
             scene.id,
+            floorKey ?? "-",
             isEclipse() ? "eclipse" : "-",
             regions.length,
             Array.from(current).sort().join(","),
@@ -2392,9 +2432,14 @@ export function repaintFog() {
         // clearing failed", because both produce a full texture - so it is
         // asked directly, and a failure throws the texture away instead of
         // putting it on screen.
-        if (current.size && !built.cleared) {
+        /* Asked of the rooms current on THIS floor (E12 C10): a GM's `current` is every room the
+           class has found on the scene and a player's is where their tokens stand, and a room with
+           no piece on the floor on screen has nothing here to clear - read in the code; the
+           harness renders no fog texture, so no paint reaches this guard headless. */
+        const clearHere = Array.from(current).filter(room => regions.some(r => r.name === room));
+        if (clearHere.length && !built.cleared) {
             for (const t of [built.texture, built.maskTexture]) if (t && !t.destroyed) t.destroy(true);
-            return stand(`you are standing in "${Array.from(current)[0]}", but the fog could not `
+            return stand(`you are standing in "${clearHere[0]}", but the fog could not `
                 + "clear it, so it stood down rather than black the map out");
         }
 
@@ -2429,7 +2474,7 @@ export function repaintFog() {
 
         lastPaintSignature = signature;
         lastFogReason = `painted: ${built.fogged} fogged, ${built.veiled} veiled, `
-            + `${current.size} clear`;
+            + `${clearHere.length} clear`;
         return true;
     } catch (err) {
         error("Could not repaint the fog of war", err);
@@ -2443,7 +2488,7 @@ function stand(reason) {
     lastFogReason = reason;
     lastPaintSignature = "";
     lastLedgerSeen = null;
-    readableCache = { sceneId: null, count: -1, readable: 0 };
+    readableCache = { sceneId: null, level: null, count: -1, readable: 0 };
     hideLayer();
     disarmRendererFailsafe();
     return false;
@@ -3280,11 +3325,12 @@ function announceRoom(room) {
     const scene = canvas?.scene;
     if (!fx || !scene) return;
 
-    const region = roomShapeOn(scene, room);
+    const level = viewedLevel();
+    const region = roomShapeOn(scene, room, level);
     if (!region) return;
 
     const dims = canvas.dimensions;
-    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 });
+    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level);
 }
 
 /**
@@ -3296,10 +3342,12 @@ function announceRoom(room) {
  * could be outlined as one. Tier 2 "the fog draws a two-piece room from both pieces and
  * seeds it on a scene off screen" reads the shape; what a player's client then draws on
  * walking in is not read headless (the harness's token placeable has no `isOwner`, so
- * `isMine` finds no player's token - 11.10.2026).
+ * `isMine` finds no player's token - 11.10.2026). `level` (E12 C10) keeps the pieces on the
+ * floor drawn: a room on two floors is outlined and revealed round the floor on screen, and is
+ * no shape at all on a floor it is not drawn on. Null is every piece, as before.
  */
-export function roomShapeOn(scene, room) {
-    return piecesAsOne(roomRegions(scene, room));
+export function roomShapeOn(scene, room, level = null) {
+    return piecesAsOne(roomRegions(scene, room).filter(region => onLevel(region, level)));
 }
 
 /** The container transient effects live in - never emptied by a repaint. */
@@ -3328,7 +3376,8 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const scene = canvas?.scene;
     if (!fx || !scene) return;
 
-    const region = roomShapeOn(scene, room);
+    const level = viewedLevel();
+    const region = roomShapeOn(scene, room, level);
     if (!region) return;
 
     const dims = canvas.dimensions;
@@ -3339,7 +3388,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     // No measurable shape, no renderer, or a viewer who has asked for no
     // motion: the room is already clear underneath, so just name it.
     if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect);
+        flashOutline(fx, region, rect, level);
         return;
     }
 
@@ -3403,7 +3452,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
     if (!L) {
-        flashOutline(fx, region, rect);
+        flashOutline(fx, region, rect, level);
         return;
     }
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
@@ -3437,7 +3486,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     // The outline and the name run WITH the lines, not after them: one gesture
     // in one colour rather than three things taking turns.
-    flashOutline(fx, region, rect);
+    flashOutline(fx, region, rect, level);
 
     const state = { t: 0 };
     const done = () => destroyRevealLayers(L, stains);

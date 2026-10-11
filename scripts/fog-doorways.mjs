@@ -30,7 +30,7 @@
  */
 
 import { debug } from "./utils.mjs";
-import { roomPieces } from "./rooms.mjs";
+import { roomPieces, onLevel } from "./rooms.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline
 } from "./fog-geometry.mjs";
@@ -484,8 +484,14 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * a player's area drawn against a wall opened a doorway into it, and a room drawn in two
  * pieces opened one into itself. `region` may be a room of several pieces handed as one
  * (fog-geometry.mjs `piecesAsOne`); none of its pieces is another room.
+ *
+ * ON ONE FLOOR (E12 C10, 11.10.2026; plan-E12 C10, audit S07-45). `level` is the floor the
+ * caller draws or checks: only a room with a piece on it (rooms.mjs `onLevel`) is beyond, so the
+ * Lab's border does not open onto the Attic drawn above it. Null is every floor, as before
+ * 1.2.74. `region` is the caller's to cut to that floor (fog.mjs `roomShapeOn`). Which doorway
+ * edges open is not measured headless (the harness's polygons contain no point - E12 C2b).
  */
-export function doorwayEdges(region) {
+export function doorwayEdges(region, level = null) {
     try {
         const scene = region?.parent ?? canvas?.scene;
         if (!scene) return [];
@@ -504,7 +510,7 @@ export function doorwayEdges(region) {
 
         const others = [];
         for (const other of roomPieces(scene)) {
-            if (other.name === region.name) continue;
+            if (other.name === region.name || !onLevel(other, level)) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
         }
 

@@ -30,7 +30,8 @@
  *   G  a two-floor scene built here (Lab under Attic, Corridor under a locked Vault, a Stairwell on
  *      both): the room of a token on the lower floor; a player's level-only move into the locked Vault
  *      and the actions it costs; a climb from the Lab into the Attic and one inside the Stairwell,
- *      and the crossings each was charged (V7, V8, C9).
+ *      and the crossings each was charged (V7, V8, C9); the room pieces p1's fog chooses on each floor, and the floor each
+ *      row of the GM's map check names (V6, C10).
  *   H  the room-marking clause of the migration asked for by name over a scene made here, and again after an untick
  *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
@@ -41,8 +42,9 @@
  *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
  *   L  the Storage renamed by the GM, then by p1, then back by the GM: where Daichi's stashed item and Aiko's discovery
  *      follow it, as p1 reads it, and whom the GMs' report reaches (C8).
- * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
- * is the first reader the harness can call; until then G records no fog), Foundry's own level
+ * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
+ * `repaintFog` chose (`diagnoseFog().lastDrawn`), since the harness renders no fog texture -, whether the
+ * map check finds an overlap or a doorway (the harness's polygons contain no point), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
  * room: the harness's token placeable (client-entry.mjs `_wrap`) has no `isOwner`, so fog.mjs `isMine`
  * reads none of a player's tokens as theirs and their client outlines nothing (read on p1 on 11.10.2026,
@@ -64,6 +66,8 @@
  * was not read.
  * E12 C9 (G1, G2 rewritten; G3 added): 27 checks in 25.1-27.0 s, two runs under the harness lock on 11.10.2026, and
  * 25.1-27.9 s in two with C9's code taken back (24 passed); whether other lanes ran then was not read.
+ * E12 C10 (G4, G5 added): 29 checks in 28.5 s, one run under lane A's lock on 11.10.2026; whether other lanes ran then
+ * was not read.
  */
 export const layers = ["ci"];
 
@@ -406,6 +410,23 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
     await settle(500);
     const well = await p1.eval(CLIMB, { timeout: 30000 });
     await settle(500);
+    /* The fog p1 would draw on each floor of the tower, and the map check a GM runs there (E12 C10). The harness renders
+       no fog texture (`repaintFog` stands down at "could not be rendered", read on 11.10.2026), so what is read is the
+       choice the paint made before that: `diagnoseFog().lastDrawn`. */
+    const fogG = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
+        const read = level => { game._viewScene(tower, { level }); F.repaintFog(); const d = F.diagnoseFog();
+            return { level: canvas.level?.id ?? null, floor: d.floor ?? null, drawn: d.lastDrawn ?? null,
+                chosen: typeof F.fogRegionsFor === "function" ? F.fogRegionsFor(tower, canvas.level).map(r => r.name).sort() : "no fogRegionsFor" }; };
+        const out = { upper: read("${L2}"), ground: read("${L1}") };
+        game._viewScene(academy);
+        return out;`, { timeout: 30000 });
+    const checkG = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
+        await tower.view();
+        const rows = F.checkRegions().map(r => r.room + "@" + (r.floor ?? "-"));
+        await academy.view();
+        return { rows: [...new Set(rows)].sort(), count: rows.length };`, { timeout: 30000 });
     const endG = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const tower = game.scenes.get("${towerId}"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66g, t = tower.tokens.get(was.token);
         const out = { level: t?.level ?? null, room: M.roomOfToken(t) };
@@ -433,6 +454,18 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         J(up.crossed) === J([["Lab", "Attic"]]) && up.level === L2 && up.threw === null
             && J(well.crossed) === J([]) && well.level === L2 && J(endG) === J({ level: L2, room: "Stairwell" }),
         J({ up, well, endG }));
+    /* At 180df61 (and to E12 C9) `repaintFog` drew every room piece of the scene on screen, whatever the floor - read in the
+       code; `diagnoseFog` named no choice. E12 C10 (V6): the pieces on the floor on screen, the Stairwell on both. */
+    const pieces = (floor, names) => J({ scene: "66 Tower", floor, pieces: names });
+    check("G4: p1's fog on the tower draws the upper floor's rooms on the upper floor and the ground floor's on the ground floor (E12 C10)",
+        J(fogG.upper.drawn) === pieces("Upper", ["Attic", "Stairwell", "Vault"]) && J(fogG.upper.chosen) === J(["Attic", "Stairwell", "Vault"])
+            && J(fogG.ground.drawn) === pieces("Ground", ["Corridor", "Lab", "Stairwell"]) && J(fogG.ground.chosen) === J(["Corridor", "Lab", "Stairwell"])
+            && fogG.upper.level === L2 && fogG.upper.floor === "Upper" && fogG.ground.floor === "Ground", J(fogG));
+    /* At 180df61 `checkRegions` checked the tower as one floor and its rows named none. E12 C10: each floor apart, every row
+       naming its floor, the Stairwell (on both) checked on each. Whether the Lab and the Attic stacked read as an overlap is
+       not measured here: the harness's polygons contain no point (E12 C2b), so no overlap and no doorway is found. */
+    check("G5: the GM's map check on the tower names the floor of every row and checks the Stairwell on each floor (E12 C10)",
+        J(checkG.rows) === J(["Attic@Upper", "Corridor@Ground", "Lab@Ground", "Stairwell@Ground", "Stairwell@Upper", "Vault@Upper"]), J(checkG));
 
     /* ------------------------------ H. the migration's room clause ------------------------------ */
     phase("H: the room-marking clause asked for by name");
