@@ -1687,6 +1687,7 @@
         "other": "{name} has {n} things in the stash in {room} - take them out before removing it."
       },
       "manageTitle": "Room setup",
+      "manageTitleOn": "Room setup - {scene}",
       "manageIntro": "Everything a room is, one kind of fact per tab. Apply saves every tab at once, whichever one is showing.",
       "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
       "bedroomsIntro": "Whose bedroom each room is, and whether the stash in it is hidden. One student, one bedroom.",
@@ -1705,9 +1706,9 @@
       "noRooms": "This scene has no room regions yet.",
       "noneSet": "No bedrooms have been assigned yet.",
       "twoRooms": "{name} cannot have two bedrooms ({a} and {b}). Pick one.",
-      "saved": {
-        "one": "Updated {n} room.",
-        "other": "Updated {n} rooms."
+      "appliedOn": {
+        "one": "{count} room changed on {scene}.",
+        "other": "{count} rooms changed on {scene}."
       },
       "tabBedrooms": "Bedrooms",
       "tabDoors": "Doors",

@@ -9481,6 +9481,68 @@ const REGRESSIONS = [
         equal(JSON.stringify(found), JSON.stringify([]),
             "a fog file lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read; "
             + "fog-diagnostics `roomsToCheck`, while it is declared, is let through)");
+    }],
+
+    ["R119 - Room Setup writes to the scene it was opened on: every read and write it makes is handed that scene, Apply's included", async () => {
+        /*
+         * E12 C4, 11.10.2026; plan-E12 V2, V10 and G3, audit S08-16; the A5 project's reserved R119,
+         * here because a tier-2 test carries no number (tools/registry.mjs) - the tier-2 "Room Setup
+         * writes to the scene it was opened on, whatever scene is on screen when Apply is pressed"
+         * reads the writes themselves. `openRoomSetupDialog` read the camera's
+         * scene once, when it opened, and drew the table from it; Apply then handed the rows
+         * `workingScene()` again and the stash cells and a new owner's stash went to `setStash`'s own
+         * default, so a GM who looked at another map before pressing Apply wrote this table onto that
+         * map's rooms of the same names (scenario 66 B1 and that tier-2 test read the harm). This keeps the
+         * shape the fix gave it: in `openRoomSetupDialog` and in every function of vault.mjs it hands
+         * a scene to, each call to a function that takes a scene (a parameter named `scene` or
+         * `sceneId`, in vault, rest, fog, fog-diagnostics, rooms or search-tokens) names `scene` among
+         * its arguments; `workingScene()` is called once among them all, in `openRoomSetupDialog`; and
+         * none reads `canvas`. It reads text, comments and strings blanked: an argument that only names
+         * `scene` (`scene: other`) passes, and a reader reached through a function that takes no scene
+         * is not seen - the tier-2 test reads where the writes land. The same rule run by a node script
+         * on C4's tree before the fix of these two (11.10.2026) found two more, both drawing the table:
+         * `roomCells` read `isConcealed(room)` and `roomDescription(room)` off the camera - the same
+         * scene while the window opens, and C4 hands them the scene too.
+         * The reader is run first on a fixture of one call without the scene and one with it.
+         */
+        const argsAt = (text, open) => {
+            let depth = 0;
+            for (let i = open; i < text.length; i++) {
+                if (text[i] === "(") depth++;
+                else if (text[i] === ")" && --depth === 0) return text.slice(open + 1, i);
+            }
+            return null;
+        };
+        const plain = text => stripStrings(stripComments(text));
+        const declared = /^(?:export )?(?:async )?function (\w+)\(|^ +static (?:async )?(\w+)\(/gm;
+        const sceneTaking = texts => new Set(texts.flatMap(text => [...plain(text).matchAll(declared)]
+            .filter(m => /\bscene(?:Id)?\b/.test(argsAt(plain(text), m.index + m[0].length - 1) ?? ""))
+            .map(m => m[1] ?? m[2])));
+        const unscened = (fn, body, names) => [...body.matchAll(/(?<![\w$])(\w+)\(/g)]
+            .filter(m => names.has(m[1]) && !/\bscene\b/.test(argsAt(body, m.index + m[0].length - 1) ?? ""))
+            .map(m => `${fn}:${m[1]}@${body.slice(0, m.index).split("\n").length}`);
+        const FIXTURE = 'function w(room, scene = workingScene()) {}\nfunction f(scene) {\n    w("a(");\n    w("b", scene);\n}\n';
+        const fixNames = sceneTaking([FIXTURE]);
+        equal(JSON.stringify(unscened("f", topLevelFunction(plain(FIXTURE), "f"), fixNames)), JSON.stringify(["f:w@2"]),
+            "the reader does not find the call without the scene in its fixture, or finds the one that hands it on");
+        const sources = await moduleSources();
+        const FILES = ["vault.mjs", "rest.mjs", "fog.mjs", "fog-diagnostics.mjs", "rooms.mjs", "search-tokens.mjs"];
+        must(FILES.every(file => sources.get(file)?.length), "the six files are among the module's sources - this would measure nothing");
+        const names = sceneTaking(FILES.map(file => sources.get(file)));
+        const vault = plain(sources.get("vault.mjs"));
+        const open = fnSource(vault, "openRoomSetupDialog");
+        const handed = [...new Set([...open.matchAll(/(?<![\w$.])(\w+)\(/g)].map(m => m[1])
+            .filter(name => names.has(name) && topLevelFunction(vault, name) !== null))];
+        must(["applyRoomRows", "applyStashMatrix", "seedOwnerStashes"].every(name => handed.includes(name)),
+            `Room Setup no longer hands its scene to the three writers of its Apply (it hands it to ${handed.join(", ") || "nothing"}) - this would measure nothing`);
+        const bodies = [["openRoomSetupDialog", open], ...handed.map(name => [name, fnSource(vault, name)])];
+        const found = bodies.flatMap(([fn, body]) => unscened(fn, body, names));
+        const camera = bodies.flatMap(([fn, body]) => [
+            ...[...body.matchAll(/\bworkingScene\(/g)].map(() => `${fn}:workingScene`),
+            ...[...body.matchAll(/\bcanvas\b/g)].map(() => `${fn}:canvas`)]);
+        equal(JSON.stringify([found, camera]), JSON.stringify([[], ["openRoomSetupDialog:workingScene"]]),
+            `a call in Room Setup that takes a scene is not handed the window's (function:callee@line), or the camera is read `
+            + `other than once where the window opens (function:read); read over ${bodies.map(([fn]) => fn).join(", ")}`);
     }]
 ];
 

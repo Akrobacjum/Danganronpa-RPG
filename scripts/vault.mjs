@@ -2012,7 +2012,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
                 type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
-            concealed: check("concealed", isConcealed(room)),
+            concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
             locked: check("locked", region?.getFlag(MODULE_ID, ROOM_FLAGS.locked)),
@@ -2046,7 +2046,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // stylesheet - so the prose wraps instead of stretching the window.
             description: `<td><textarea name="desc:${escRoom}" rows="5"${named("desc")}
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
-                >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
+                >${foundry.utils.escapeHTML(roomDescription(room, scene))}</textarea></td>`
         };
     });
 }
@@ -2436,12 +2436,12 @@ function namedByName(scene) {
 }
 
 /**
- * Write every row that differs from its region. Answers how many changed and whose bedroom moved.
+ * Write every row that differs from its region. Answers the rooms it changed and whose bedroom moved.
  * Every write lands on every region of the row's name (E12 C2a, `updateRoom`): one write to the
  * piece `regionsByName` held left a Kitchen of two pieces locked on one of them (66 D1).
  */
 async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
-    let changed = 0;
+    const changed = new Set();
     // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
     // on inline because the seeding below has to run after the stash matrix has
     // been written, or it would seed into a list it is about to overwrite.
@@ -2545,7 +2545,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             }
         }
 
-        changed++;
+        changed.add(row.room);
     }
     return { changed, ownerMoved };
 }
@@ -2561,7 +2561,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
  * snaps back on the next open because the form is redrawn from the flags.
  */
 async function applyStashMatrix(stashes, scene) {
-    let changed = 0;
+    const changed = new Set();
     for (const [room, wanted] of Object.entries(stashes)) {
         const current = stashesIn(room, scene);
         const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
@@ -2577,15 +2577,15 @@ async function applyStashMatrix(stashes, scene) {
                 keep.set(entry.actorId, entry);      // refused: leave it alone
                 continue;
             }
-            await setStash(room, entry.actorId, { present: false });
-            changed++;
+            await setStash(room, entry.actorId, { present: false, scene });
+            changed.add(room);
         }
 
         for (const entry of keep.values()) {
             const was = current.find(e => e.actorId === entry.actorId);
             if (was && was.concealed === entry.concealed) continue;
-            await setStash(room, entry.actorId, { concealed: entry.concealed });
-            changed++;
+            await setStash(room, entry.actorId, { concealed: entry.concealed, scene });
+            changed.add(room);
         }
     }
     return changed;
@@ -2605,11 +2605,11 @@ async function applyStashMatrix(stashes, scene) {
  * owner's stash keeps it hidden.
  */
 async function seedOwnerStashes(ownerMoved, scene) {
-    let changed = 0;
+    const changed = new Set();
     for (const { room, owner } of ownerMoved) {
         if (stashIn(room, owner, scene)) continue;
-        await setStash(room, owner, { concealed: false });
-        changed++;
+        await setStash(room, owner, { concealed: false, scene });
+        changed.add(room);
     }
     return changed;
 }
@@ -2627,9 +2627,19 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         return null;
     }
 
-    // Alphabetical, because a GM opens this looking for ONE room by name. The
-    // order regions come in is the order somebody happened to draw the map,
-    // which is nobody's mental model of the building.
+    /*
+     * THE SCENE THIS WINDOW WAS OPENED ON, AND NO OTHER (E12 C4, R119; audit S08-16).
+     *
+     * Read once, here, and handed to every read and every write below, Apply's included. Until
+     * 1.2.74 the rows were written to the scene on screen when Apply was pressed (`regionsByName()`
+     * read the camera inside them, and since E12 C2a the call below handed it `workingScene()`), and
+     * the Stashes tab's cells and the stash a new bedroom owner is given went to `setStash`'s own
+     * default, the camera too: a GM who opened this on the dorms, looked at the gym while deciding,
+     * and pressed Apply wrote the dorms' table onto the gym's rooms of the same names (scenario 66
+     * B1 read the lock on the Annex's Gym before this commit). The title names the scene, so the GM can see which
+     * map the table is. Rooms are still listed alphabetically: a GM opens this looking for ONE
+     * room by name, and the order regions were drawn in is nobody's mental model of the building.
+     */
     const scene = workingScene();
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
     if (!rooms.length) {
@@ -2679,7 +2689,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const initial = ROOM_SETUP_TABS.some(([key]) => key === tab) ? tab : "bedrooms";
 
     const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
+        window: { title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }) },
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on - full width, a scrolling
         // window-content and sane select sizing. Without it this dialog asked
@@ -2763,17 +2773,19 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     await applyDiscoveryChanges(scene, result.fogChanges ?? []);
 
-    // The scene on screen when Apply is pressed, as `regionsByName()` read it inside the rows
-    // until E12 C2a made the scene a parameter; C4 (R119) hands in the one this window opened on.
+    /* ROOMS CHANGED, NOT WRITES MADE (E12 C4, audit S08-16). The count added one per row written,
+       one per stash cell and one per stash a new owner was given: one room locked, given a stash and
+       given to an owner in one Apply counted 3 (the tier-2 "Room Setup writes to the scene it was
+       opened on ...", before this commit, 11.10.2026). It is now the rooms any of the three touched. */
     const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults,
-        { REST_FLAGS, setRestRoom, scene: workingScene() });
-    let changed = rowsChanged;
+        { REST_FLAGS, setRestRoom, scene });
+    const changed = new Set(rowsChanged);
 
     if (result.stashes && typeof result.stashes === "object") {
-        changed += await applyStashMatrix(result.stashes, scene);
+        for (const room of await applyStashMatrix(result.stashes, scene)) changed.add(room);
     }
 
-    changed += await seedOwnerStashes(ownerMoved, scene);
+    for (const room of await seedOwnerStashes(ownerMoved, scene)) changed.add(room);
 
     // AFTER the loop, and outside it: keys are issued by sweeping every owned
     // room, not by noticing an owner change. See `reconcileBedroomKeys` for why
@@ -2782,8 +2794,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     // on your sheet is news, and the sweep only writes when one was missing.
     await reconcileBedroomKeys({ silent: false });
 
-    ui.notifications.info(plural("DRPG.Vault.saved", { n: changed }));
-    return changed;
+    ui.notifications.info(plural("DRPG.Vault.appliedOn", { count: changed.size, scene: scene?.name ?? "" }, "count"));
+    return changed.size;
 }
 
 /** GM: look inside anybody's stash, and pull things out of it. */

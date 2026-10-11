@@ -1730,6 +1730,7 @@
         "other": "{name} ma {n} rzeczy w skrytce w: {room} - wyjmij je, zanim usuniesz skrytkę."
       },
       "manageTitle": "Ustawienia pokoi",
+      "manageTitleOn": "Ustawienia pokoi - {scene}",
       "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
       "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej jest ukryta. Jeden uczeń, jedna sypialnia.",
@@ -1748,11 +1749,11 @@
       "noRooms": "Ta scena nie ma jeszcze regionów pokoi.",
       "noneSet": "Nie przypisano jeszcze żadnych sypialni.",
       "twoRooms": "{name} nie może mieć dwóch sypialni ({a} i {b}). Wybierz jedną.",
-      "saved": {
-        "one": "Zaktualizowano {n} pokój.",
-        "few": "Zaktualizowano {n} pokoje.",
-        "many": "Zaktualizowano {n} pokoi.",
-        "other": "Zaktualizowano {n} pokoi."
+      "appliedOn": {
+        "one": "Zmieniono {count} pokój na scenie {scene}.",
+        "few": "Zmieniono {count} pokoje na scenie {scene}.",
+        "many": "Zmieniono {count} pokoi na scenie {scene}.",
+        "other": "Zmieniono {count} pokoi na scenie {scene}."
       },
       "tabBedrooms": "Sypialnie",
       "tabDoors": "Drzwi",

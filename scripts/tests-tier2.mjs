@@ -47147,6 +47147,93 @@ const SCENARIOS = [
             `${finder.name}'s notes about ${owner.name}'s stash in "${here.room}" after it was taken away on ${here.scene.name} (this scene's, the other scene's)`);
     }],
 
+    ["Room Setup writes to the scene it was opened on, whatever scene is on screen when Apply is pressed", async () => {
+        /*
+         * E12 C4, 11.10.2026; plan-E12 V2, audit S08-16; the A5 project's R119, whose number the
+         * tier-0 guard carries (a tier-2 test is named, not numbered: tools/registry.mjs). Room Setup read the
+         * scene on screen when it opened and drew its table from it, but Apply wrote the rows to the
+         * scene on screen when it was pressed, and the Stashes tab's cells and the stash a new
+         * bedroom owner is given to `setStash`'s default, the camera again; and Apply counted one
+         * "room" per write. Here two scenes of the suite's own each hold a room of one name. The
+         * window is opened viewing the first, its form answered as a GM answers it - the room locked,
+         * a stash for one student, the room given to another as a bedroom - and the second scene is
+         * viewed before the Apply button's own callback runs. Read: whether the title names the scene
+         * opened on, the lock, the stashes and the owner on each scene, and the count Apply answers.
+         * Red before C4: everything landed on the scene viewed at Apply and the count was 3. In a
+         * GM-store world of the suite's own (`withGmStoreWorld`), as the C3 tests that view a scene of
+         * their own; the bedroom key Apply's sweep hands the owner is taken back here. Measured on
+         * the harness: what `Scene#view` does at a table beyond the camera is not read here, and the
+         * window is answered without being drawn (its `render` hook does not run); its content reached
+         * `wait` as an element on the harness (read 11.10.2026), so a string and an element are both read.
+         */
+        const [stasher, owner] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE R119 Gym", NAMES = ["SUITE E12 C4 opened on", "SUITE E12 C4 on screen at Apply"];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === ROOM).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c4-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            try {
+                for (const name of NAMES) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                const [opened, other] = scenes;
+                await opened.view();
+                await settle();
+                let title = null;
+                D.wait = async cfg => {
+                    title = cfg?.window?.title ?? null;
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [lock, stash, bedroom] = [field(`locked:${ROOM}`), field(`stash:${ROOM}:${stasher.id}`), field(`owner:${ROOM}`)];
+                    must(lock && stash && bedroom, `Room Setup drew no lock, stash cell or owner for "${ROOM}" (${JSON.stringify([Boolean(lock), Boolean(stash), Boolean(bedroom)])}) - the answer would change nothing`);
+                    lock.checked = true;
+                    stash.value = "open";
+                    bedroom.value = owner.id;
+                    await other.view();
+                    await settle();
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const answered = await V.openRoomSetupDialog();
+                await settle();
+                const piece = scene => scene.regions.find(r => r.name === ROOM);
+                reading = [
+                    title === game.i18n.format("DRPG.Vault.manageTitleOn", { scene: opened.name }),
+                    scenes.map(scene => Boolean(piece(scene)?.getFlag(MODULE_ID, ROOM_FLAGS.locked))),
+                    scenes.map(scene => V.stashesIn(ROOM, scene).map(entry => entry.actorId).sort()),
+                    scenes.map(scene => V.vaultOwnerOf(ROOM, scene)),
+                    answered
+                ];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                for (const actor of [stasher, owner]) {
+                    const keys = keyFor(actor);
+                    if (keys.length) await actor.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([true, [true, false], [[owner.id, stasher.id].sort(), []], [owner.id, null], 1]),
+            `Room Setup opened on a scene of the suite's own and applied viewing another: the title names the first, then on each scene the lock, `
+            + `the stashes (${stasher.name}'s cell, ${owner.name}'s as the new owner) and the owner, and the rooms Apply says it changed`);
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

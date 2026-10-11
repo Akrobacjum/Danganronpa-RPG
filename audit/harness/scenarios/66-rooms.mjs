@@ -51,7 +51,8 @@
  * `timeoutMs` of its own. E12 C1 (C2, D3, H rewritten as H1-H2, J1-J2): 20 checks in 15.9 s, one run alone under the
  * lock on 11.10.2026. E12 C2a (C1, D1, D2 rewritten; G's tower regions marked rooms): 20 checks in 15.6 s, one run alone
  * under the lock on 11.10.2026. E12 C2b (C3 added): 21 checks in 16.2 s, one run alone under the lock on 11.10.2026.
- * E12 C3 (F1, F2 rewritten): 21 checks in 15.9 s, one run alone under the lock on 11.10.2026.
+ * E12 C3 (F1, F2 rewritten): 21 checks in 15.9 s, one run alone under the lock on 11.10.2026. E12 C4 (B1 rewritten): 21
+ * checks in 16.1 s, one run alone under the lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -74,7 +75,7 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
             if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
             element.append(form);
             const box = form.querySelector('[name="locked:' + room + '"]');
-            seen = { box: Boolean(box), was: box?.checked ?? null };
+            seen = { box: Boolean(box), was: box?.checked ?? null, title: config.window?.title ?? null };
             if (box) box.checked = true;
             move();
             return ok.callback(new globalThis.window.Event("click"), { form }, { element });
@@ -150,14 +151,18 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const floorGym = academy.regions.find(r => r.name === "Gym");
         let answer = null;
         try { answer = await roomSetup("Gym", () => { canvas.scene = annex; }); } finally { canvas.scene = academy; }
-        const out = { ...answer, floor: locked(floorGym), annex: locked(annexGym) };
+        const out = { ...answer, floor: locked(floorGym), annex: locked(annexGym), name: academy.name,
+            told: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: academy.name }) };
         if (locked(floorGym)) await floorGym.setFlag("${MOD}", ROOM_FLAGS.locked, false);
         await annexGym.delete();
         return out;`, { timeout: 60000 });
-    /* At 180df61 `applyRoomRows` finds each row's region with `regionsByName()`, the scene the camera shows when Apply
-       is pressed: the Floor 1 window's lock lands on the Annex's Gym. E12 C4 (V2, R119): the scene it was opened on. */
-    check("B1: Room Setup opened on Floor 1 and applied with the camera on the Annex locks the Annex's Gym, not Floor 1's (E12 C4)",
-        setB.seen?.box === true && setB.seen?.was === false && setB.annex === true && setB.floor === false, J(setB));
+    /* At 180df61 `applyRoomRows` found each row's region with `regionsByName()`, the scene the camera shows when Apply
+       is pressed, and until E12 C4 the window handed it `workingScene()`: the Floor 1 window's lock landed on the Annex's
+       Gym (B1 read annex true, floor false). E12 C4 (V2, R119): every write goes to the scene the window was opened on,
+       its title names that scene, and Apply answers the rooms it changed - one. */
+    check("B1: Room Setup opened on Floor 1 and applied with the camera on the Annex locks Floor 1's Gym, not the Annex's, and says it changed one room (E12 C4)",
+        setB.seen?.box === true && setB.seen?.was === false && setB.floor === true && setB.annex === false && setB.changed === 1
+            && setB.seen?.title === setB.told && setB.told.includes(setB.name), J(setB));
 
     /* ------------------------------ C. a Teleport region ------------------------------ */
     phase("C: a region with a Teleport behaviour");
