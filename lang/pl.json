@@ -3884,7 +3884,8 @@
         "many": "Pominięto {n} regionów bez nazwy: pokój musi mieć nazwę.",
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
-      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM."
+      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
+      "pieceSplit": "Region „{name}” na scenie {scene} był jednym z kilku kawałków pokoju {room}, dopóki nie zmieniono mu nazwy. To, co niósł dla tego pokoju ({carried}), zostało z niego zdjęte: zatrzymują to pozostałe kawałki pokoju {room}, a „{name}” zaczyna bez niczego z tego."
     },
     "Migrate": {
       "gmOnly": "Tylko GM może uruchomić migrację danych.",

@@ -31,6 +31,7 @@ import { registerDespair } from "./despair.mjs";
 import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
 import { registerMovement } from "./movement.mjs";
+import { registerRoomPieces } from "./vault.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
@@ -176,6 +177,7 @@ Hooks.once("init", () => {
     safely("the GMs' audit of a sheet", registerSheetAudit);
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
+    safely("a piece renamed out of a room", registerRoomPieces);
     safely("the projects tray", registerProjectsUi);
     safely("projects on the map", registerProjectsMap);
     safely("inventory limits", registerInventoryLimits);

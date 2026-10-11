@@ -46875,7 +46875,7 @@ const SCENARIOS = [
          * scene of its own: a Kitchen drawn in two pieces far apart, a Hall against piece 1, a Pantry
          * against piece 2 and, below piece 2, a Lift marked a room that carries a Teleport. Read: the
          * owner Room Setup's `setVaultRoom` writes, on each piece, and whether a stranger may enter;
-         * the lock and the seal set on piece 2 alone, through the veto's and the search's readers; the
+         * the lock set on piece 1 and the seal on piece 2, through the veto's and the search's readers; the
          * room at the centre of piece 2 and of the Lift; the neighbours of the Kitchen and of the
          * Pantry; the scene's rooms. Red before C2a on its first check: movement.mjs exports no
          * `isLocked`.
@@ -46898,7 +46898,10 @@ const SCENARIOS = [
             const [one, two] = await scene.createEmbeddedDocuments("Region", [room(K, 0), room(K, 2000), room("SUITE Hall", 420),
                 room("SUITE Pantry", 2420), room("SUITE Lift", 2000, 420, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
             await V.setVaultRoom(K, { owner: owner.id, scene });
-            await two.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            // The lock on one piece and the seal on the other (E12 fix r1-G1; review EARLY-C2a-3): both on
+            // piece 2, the last, passed a reader that took the last region of a name.
+            await one.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
+            await two.update({ [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
             read = [[one, two].map(piece => piece.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) === owner.id), V.mayEnterBedroom(stranger, K, scene),
                 M.isLocked(scene, K), SearchTokens.sealed(K, scene), at(scene, 2200, 200), at(scene, 2200, 620),
                 M.neighbouringRooms(scene, K), M.neighbouringRooms(scene, "SUITE Pantry"), M.allRooms(scene)];
@@ -46907,7 +46910,7 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[true, true], false, true, true, K, null, ["SUITE Hall", "SUITE Pantry"], [K],
             ["SUITE Hall", K, "SUITE Pantry"]]),
-            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked and sealed by piece 2's flags, "
+            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked by piece 1's flag and sealed by piece 2's, "
             + "the room at piece 2 and at the Lift, the Kitchen's neighbours, the Pantry's, the scene's rooms])");
     }],
 
@@ -47479,6 +47482,196 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([expected, expected]),
             `${student.name}'s open stashes in "${here.room}" (owners' ids) and the Search odds' situational step for "${category}", `
             + "with the camera on their scene and then on a scene of the suite's own that holds a room of the same name");
+    }],
+
+    ["a room's piece drawn and marked after the room was set up reads and writes as the room and a passage of its name takes none of it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-1, EARLY-C2a-1, goal-r1 N2 and the security review's
+         * note on `setRoomFlag`. E12 C2a made every writer write every region of a room's name, while every
+         * rule reader but the owner, the lock and the seal read the LAST room piece (`regionsByName`). The
+         * review measured on b5baaf5 what a second piece drawn and marked after a Kitchen was set up does:
+         * its stash, its bedroom, its rest, its table gone (`stashesIn` 1 -> 0, `roomAllows(long)` true ->
+         * false, `sharedRooms` [] -> [Kitchen]), and the next stash edit wrote the new piece's empty list
+         * over the old one; a Teleport of the name took the room mark and the stash list with the rest.
+         * Here, on a scene of the suite's own that nobody views: a Kitchen set up in one piece through the
+         * module's writers (a bedroom, its owner's stash, a long rest, a table, a favour, a hindrance, a
+         * description), then a second piece and a Teleport of the same name drawn, the name marked a room
+         * through Room Setup's writer of the mark, and another student given a stash there. Read: every
+         * room reader before and after the mark, the stashes after the edit, and the flags the Teleport
+         * carries. Red before this commit on the readers after the mark.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const [favoured, hindered] = Object.keys(ITEM_CATEGORIES).filter(key => key !== "truthBullet");
+        must(favoured && hindered && owner && other, "two students and two categories - this would measure nothing");
+        const K = "SUITE r1-G1 Kitchen", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const read = scene => [V.stashesIn(K, scene).map(entry => entry.actorId), V.stashRoomsFor(owner, scene).map(entry => entry.room),
+            V.primaryStashRoom(owner, scene), V.vaultRoomOwnedBy(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
+            V.roomDescription(K, scene), V.roomFavours(K, scene), V.roomHinders(K, scene), Rest.roomAllows(K, "long", scene),
+            Rest.restRooms("long", scene), V.sharedRooms(scene), V.allVaults(scene).map(entry => [entry.room, entry.owner?.id, entry.bedroom])];
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece drawn later", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", favours: [favoured], hinders: [hindered], description: "SUITE r1-G1 tiles", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            const before = read(scene);
+            const [, lift] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(2000), behaviors: [] },
+                { name: K, shapes: box(1000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] }]);
+            await R.setRoomFlag(scene, K, R.ROOM_FLAG, true);
+            const marked = read(scene);
+            await V.setStash(K, other.id, { concealed: false, scene });
+            reading = [before, marked, V.stashesIn(K, scene).map(entry => entry.actorId).sort(),
+                Object.keys(scene.regions.get(lift.id)?.flags?.[MODULE_ID] ?? {}), R.roomRegions(scene, K).length];
+        } finally {
+            await scene?.delete();
+        }
+        const set = [[owner.id], [K], K, K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
+        equal(stableJson(reading), stableJson([set, set, [owner.id, other.id].sort(), [], 2]),
+            `a Kitchen set up in one piece, then a second piece and a Teleport of its name drawn and the name marked a room ([every room reader before the mark: `
+            + "the stashes, the owner's stash rooms, primary stash room and bedroom, the bedroom's owner, the table, the description, the favours, the hindrances, "
+            + "a long rest, the long-rest rooms, the shared rooms, every stash; the same after the mark; the stashes after another student's was added; "
+            + "the Teleport's flags; the room's pieces])");
+    }],
+
+    ["Room Setup shows a room of several pieces as one and writes only the pieces that can be rooms and counts only the rooms it wrote", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 EARLY-C2a-1, EARLY-C2a-2 and EARLY-C4-1. Room Setup read
+         * each row off the LAST region of its name and wrote the row to every region of it, so with a
+         * Teleport of a bedroom's name drawn last, a GM who ticked one box and pressed Apply wrote the
+         * Teleport's empty owner over the bedroom's; it showed a room locked on one piece and sealed on
+         * another as neither, while the rules read it both; and it counted a room changed for a stash cell
+         * of a name no room carries, where nothing was written. Here, on a scene of the suite's own viewed
+         * for the window: a Kitchen set up in one piece (a bedroom, its owner's stash, a long rest, locked),
+         * a second piece marked and sealed, a Teleport of the name last, and a Teleport "Closet" alone. The
+         * window is answered as the C4 test answers it: read the Kitchen's owner, long rest, lock, seal and
+         * owner's stash cell, tick its short rest, give another student an open stash in the Closet, Apply.
+         * Read: the cells, the owner on each piece and through the reader, the short rest, what each
+         * Teleport carries, and the count Apply answers. Red before this commit on the cells. In a GM-store
+         * world of the suite's own, as the C4 test; the bedroom key Apply's sweep hands the owner is taken
+         * back here.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const { SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const home = canvas?.scene ?? null;
+        const K = "SUITE r1-G1 Kitchen", CLOSET = "SUITE r1-G1 Closet", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === K).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g1-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: "SUITE E12 fix r1-G1 Room Setup", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const [one] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await V.setVaultRoom(K, { owner: owner.id, scene });
+                await Rest.setRestRoom(K, { long: true, scene });
+                await V.setStash(K, owner.id, { concealed: false, scene });
+                await one.update({ [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: true });
+                const [two, lift, closet] = await scene.createEmbeddedDocuments("Region", [
+                    { name: K, shapes: box(2000), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [SEARCH_FLAGS.sealed]: true } }, behaviors: [] },
+                    { name: K, shapes: box(1000), behaviors: up }, { name: CLOSET, shapes: box(3000), behaviors: up }]);
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - Room Setup would open on another");
+                let cells = null;
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [bedroom, long, lock, seal, stash, short, closetStash] = [`owner:${K}`, `long:${K}`, `locked:${K}`, `nosearch:${K}`,
+                        `stash:${K}:${owner.id}`, `short:${K}`, `stash:${CLOSET}:${other.id}`].map(field);
+                    must(bedroom && long && lock && seal && stash && short && closetStash, `Room Setup drew no owner, rest, lock, seal or stash cell for "${K}" or no stash cell for "${CLOSET}" - the answer would change nothing`);
+                    cells = [bedroom.value, long.checked, lock.checked, seal.checked, stash.value];
+                    short.checked = true;
+                    closetStash.value = "open";
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const answered = await V.openRoomSetupDialog();
+                await settle();
+                const flagsOf = region => Object.keys(scene.regions.get(region.id)?.flags?.[MODULE_ID] ?? {}).sort();
+                reading = [cells, [one, two].map(piece => scene.regions.get(piece.id)?.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) ?? null),
+                    V.vaultOwnerOf(K, scene), Rest.roomAllows(K, "short", scene), Rest.roomAllows(K, "long", scene), flagsOf(lift), flagsOf(closet), answered];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                const keys = keyFor(owner);
+                if (keys.length) await owner.deleteEmbeddedDocuments("Item", keys);
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[owner.id, true, true, true, "open"], [owner.id, owner.id], owner.id, true, true, [], [], 1]),
+            `Room Setup over a Kitchen of two pieces with a Teleport of its name last, and a Teleport "Closet" alone ([the Kitchen's cells: owner, long rest, `
+            + "locked, sealed, the owner's stash; the owner on each piece after Apply; the owner through the reader; a short and a long rest; the flags "
+            + "on the Kitchen's Teleport and on the Closet; the rooms Apply says it changed])");
+    }],
+
+    ["a piece renamed out of a room of several takes none of the room with it and the GMs are told while a room's only piece renamed keeps it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-3. Every room writer writes every piece of the
+         * name, so each piece carries a whole copy of the room; the review measured on b5baaf5 that
+         * renaming one piece of a two-piece Kitchen to "Pantry" left `vaultOwnerOf("Pantry")` the
+         * Kitchen's owner (a second bedroom, shut to the rest, and a key at the next Apply). A GM's
+         * rename of such a piece now takes the room's flags off it in the same update (vault.mjs
+         * `clearSplitPiece`, in `preUpdateRegion`) and the GMs are told; a room's only piece renamed is
+         * the room's own rename, E12 C8's, and keeps them. Here, on a scene of the suite's own that
+         * nobody views: a Kitchen of two marked pieces set up through the module's writers (a bedroom,
+         * its owner's stash, a long rest, a table) and locked and sealed on both, and a Den of one piece
+         * with the same owner's stash. One Kitchen piece is renamed Pantry, the Den renamed Study.
+         * Read: the Pantry's owner, stashes, rest, table, lock and seal and whether it is a room; the
+         * Kitchen's owner, stashes, rest and lock; the Study's stashes; and the GM whispers that name
+         * the Pantry. Red before this commit on the Pantry's owner.
+         */
+        const [owner] = cast(1);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const Rest = await import("./rest.mjs");
+        const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const K = "SUITE r1-G1 Kitchen", P = "SUITE r1-G1 Pantry", DEN = "SUITE r1-G1 Den", STUDY = "SUITE r1-G1 Study";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const from = game.messages.size;
+        const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(P)).length;
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece renamed", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [one, two, den] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: mark, behaviors: [] },
+                { name: K, shapes: box(2000), flags: mark, behaviors: [] }, { name: DEN, shapes: box(3000), flags: mark, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            await V.setStash(DEN, owner.id, { concealed: false, scene });
+            for (const piece of [one, two]) await piece.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            must(V.vaultOwnerOf(K, scene) === owner.id && V.stashesIn(DEN, scene).length === 1, "the Kitchen has no owner or the Den no stash before the renames - this would measure nothing");
+            await two.update({ name: P });
+            await den.update({ name: STUDY });
+            await until(() => told() > 0);
+            reading = [V.vaultOwnerOf(P, scene), V.stashesIn(P, scene).length, Rest.roomAllows(P, "long", scene), V.roomTable(P, scene),
+                M.isLocked(scene, P), SearchTokens.sealed(P, scene), R.isRoom(scene.regions.get(two.id)),
+                V.vaultOwnerOf(K, scene), V.stashesIn(K, scene).length, Rest.roomAllows(K, "long", scene), M.isLocked(scene, K),
+                V.stashesIn(STUDY, scene).length, told()];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1]),
+            "a piece of a two-piece Kitchen renamed Pantry, and a one-piece Den renamed Study ([the Pantry's owner, stashes, long rest, table, lock, seal, "
+            + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry])");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

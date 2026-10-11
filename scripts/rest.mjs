@@ -18,12 +18,13 @@ import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { locateActor, roomsKnownToMe } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
-// One room map for the whole module (audit C3): `regionsByName`, rooms only and on the
-// scene it is handed (E12 C2a). The scene is the caller's, with no default (E12 C6): a rest
-// is judged on the scene the character stands on, Room Setup writes the scene it shows.
-// Until 1.2.74 these three defaulted to `workingScene()`, the camera.
-import { regionsByName } from "./vault.mjs";
-import { namedRegions } from "./rooms.mjs";
+// One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
+// handed (E12 C2a). The scene is the caller's, with no default (E12 C6): a rest is judged on
+// the scene the character stands on, Room Setup writes the scene it shows. Until 1.2.74 these
+// three defaulted to `workingScene()`, the camera. A room of several pieces allows a rest when
+// any piece does (E12 fix r1-G1, 11.10.2026): until then `regionsByName` from vault.mjs read
+// the last piece, and a piece drawn and marked after the room was set up took its rest away.
+import { flagOver, piecesByName, roomFlag, writablePieces } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -40,15 +41,13 @@ export const REST_FLAGS = {
 /** Does this room allow the given kind of rest? */
 export function roomAllows(room, kind, scene) {
     if (!room) return false;
-    const region = regionsByName(scene).get(room);
-    if (!region) return false;
-    return Boolean(region.getFlag(MODULE_ID, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short));
+    return Boolean(roomFlag(scene, room, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short));
 }
 
 /** Rooms on this scene flagged for a kind of rest. */
 export function restRooms(kind, scene) {
-    return Array.from(regionsByName(scene).entries())
-        .filter(([, region]) => region.getFlag(MODULE_ID, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short))
+    return Array.from(piecesByName(scene).entries())
+        .filter(([, pieces]) => flagOver(pieces, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short))
         .map(([name]) => name)
         .sort();
 }
@@ -75,13 +74,14 @@ export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe
 }
 
 /**
- * Mark or unmark a room. GM only. Every region of the name on the scene is written (E12 C2a),
- * a room's or not: Room Setup, which calls this, is where a named region is made a room.
+ * Mark or unmark a room. GM only. Every region of the name on the scene that can be a room is
+ * written (E12 C2a; `writablePieces` since E12 fix r1-G1, never a Teleport's), marked or not:
+ * Room Setup, which calls this, is where a named region is made a room.
  */
 export async function setRestRoom(roomName, { short = null, long = null, scene = null } = {}) {
     if (!game.user.isGM) return null;
 
-    const pieces = namedRegions(scene, roomName);
+    const pieces = writablePieces(scene, roomName);
     const region = pieces.at(-1);
     if (!region) return null;
 

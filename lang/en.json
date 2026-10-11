@@ -3698,7 +3698,8 @@
         "one": "{n} region without a name was left alone: a room needs a name.",
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
-      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it."
+      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
+      "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",

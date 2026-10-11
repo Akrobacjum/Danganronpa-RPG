@@ -16,7 +16,9 @@
  *
  * A ROOM IS A NAME ON A SCENE. Two regions of one name are two pieces of one room:
  * `roomRegions(scene, name)` returns every piece, `roomFlag` reads a flag as OR over them,
- * `setRoomFlag` writes it to every region of the name. E12 C1 adds the predicate and its
+ * `setRoomFlag` writes it to every region of the name that can be a room (`writablePieces`;
+ * E12 fix r1-G1, 11.10.2026: until then a Teleport of the name took the mark too, which
+ * `canBeRoom` refused to read and nobody had decided). E12 C1 adds the predicate and its
  * writers; the readers that still take `filter(r => r.name)` move onto it in C2a and C2b, so
  * in this commit the flag changes what Room Setup and Season setup show and nothing a rule
  * decides.
@@ -125,21 +127,68 @@ export function roomNames(scene) {
 
 /** A flag of the room `name`, read as OR over its pieces: the first piece that carries one answers. */
 export function roomFlag(scene, name, key) {
-    for (const piece of roomRegions(scene, name)) {
+    return flagOver(roomRegions(scene, name), key);
+}
+
+/*
+ * ONE ROOM OF MANY PIECES, READ AS ONE (E12 fix r1-G1, 11.10.2026; review round 1 CR1-1,
+ * EARLY-C2a-1, goal-r1 N2). E12 C2a wrote a room's flags to every piece of its name, but the rule
+ * readers in vault.mjs and rest.mjs kept reading the LAST room piece (`regionsByName`). A Kitchen
+ * set up in one piece therefore lost its stash, its bedroom, its rest and its table the moment a GM
+ * drew a second piece and ticked it a room - measured by the review on b5baaf5: `stashesIn` 1 -> 0,
+ * `roomAllows(long)` true -> false, `sharedRooms` [] -> [Kitchen] - and the next stash edit wrote
+ * the empty piece's list over the old one. Every reader now answers from all the pieces: a value
+ * from the first piece that carries one (`flagOver`, what `roomFlag` always did for the owner, the
+ * lock and the seal), a list as the union of every piece's (`listOver`), a walker over a scene's
+ * rooms from `piecesByName`, which groups them in one pass.
+ */
+
+/** `roomFlag` over pieces in hand: the first value that is not false, empty or absent answers; else null. */
+export function flagOver(pieces, key) {
+    for (const piece of pieces) {
         const value = piece.getFlag(MODULE_ID, key);
-        if (value !== undefined && value !== null && value !== false) return value;
+        if (value !== undefined && value !== null && value !== false && value !== "") return value;
     }
     return null;
 }
 
+/** A list flag over pieces in hand, as one list: every piece's entries, each once, in the pieces' order. */
+export function listOver(pieces, key) {
+    return [...new Set(pieces.flatMap(piece => {
+        const list = piece.getFlag(MODULE_ID, key);
+        return Array.isArray(list) ? list : [];
+    }))];
+}
+
+/** The room pieces of this scene by name, in one pass: each name where its first piece is, with every piece of it. */
+export function piecesByName(scene) {
+    const map = new Map();
+    for (const piece of roomPieces(scene)) {
+        if (!map.has(piece.name)) map.set(piece.name, []);
+        map.get(piece.name).push(piece);
+    }
+    return map;
+}
+
 /**
- * Write a flag on every region of the name `name` on this scene, rooms or not - the room flag
- * itself is written this way, to regions that are not rooms yet. A GM's write; one update of
- * the scene's regions.
+ * The regions of the name `name` on this scene that a GM's room write lands on: every one that can
+ * be a room (`canBeRoom`), marked or not - Room Setup is where a named region becomes a room, so a
+ * piece not yet marked is written with the rest and carries the room when it is. Never a Teleport's
+ * or a region a player drew (E12 fix r1-G1).
+ */
+export function writablePieces(scene, name) {
+    const players = playerRegionIds();
+    return namedRegions(scene, name).filter(r => canBeRoom(r, players));
+}
+
+/**
+ * Write a flag on every region of the name `name` on this scene that can be a room, marked or
+ * not (`writablePieces`) - the room flag itself is written this way, to regions that are not
+ * rooms yet. A GM's write; one update of the scene's regions.
  */
 export async function setRoomFlag(scene, name, key, value) {
     if (!game.user?.isGM || !scene) return 0;
-    const pieces = namedRegions(scene, name).filter(r => r.getFlag(MODULE_ID, key) !== value);
+    const pieces = writablePieces(scene, name).filter(r => r.getFlag(MODULE_ID, key) !== value);
     if (!pieces.length) return 0;
     await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, [`flags.${MODULE_ID}.${key}`]: value })));
     return pieces.length;
