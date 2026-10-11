@@ -32,14 +32,17 @@
  *      no trial (`trialBlackenedIds`).
  *   D  Chie's suicide at Stage 6, a Level Up offered to Aiko (p1), a Call armed on Botan
  *      (p2), the Final Trial set, Dorm A Aiko's bedroom with its key and her stash in it hidden
- *      (C10), and Aiko's Health, Sanity and Hope moved off their reset values.
+ *      (C10), and Aiko's Health, Sanity and Hope moved off their reset values. Aiko's starting sheet stamped,
+ *      an experience the GM writes after it and one her Level Up adds; Botan's starting sheet as 1.2.72
+ *      stamped one with no experience, and an experience written since (C11).
  *   R  the reset, every group ticked, answered as 61 answers it: the project tokens the window
  *      counts and those left on every scene (C7: four, none), the offers (E04), the armed
  *      Calls (C10), the Final Trial and the season (E10 C10), the suicide's victim (alive
  *      already, by the cut; C9 keeps it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
  *      key and her hidden stash (C10: the key handed back, the stash kept and open), the stamps of the bodies found (C1: none left), the incident's closes and
  *      what is left of it, and the errors (C9: none, and no group failed); what the window offers for the
- *      cast's tokens and that its first choice moves nobody (C10b).
+ *      cast's tokens and that its first choice moves nobody (C10b); Aiko's and Botan's experiences and the
+ *      card naming what was left (C11: the Level Up's gone, the GM's kept, Botan's two named).
  *   F  a reset whose chat deletion throws on the GM: the error naming the two chat groups, the
  *      groups the reset returns as failed, the GMs' report card, and that every other group
  *      still ran (C9).
@@ -65,7 +68,8 @@
  * states no `timeoutMs` of its own. The plan's 480 s was 61's. E11 C10b (10.10.2026): the file as C10
  * left it, 25 checks, took 35.0 s in one run; with P, 30 checks took 41.6-42.5 s in the eight runs that
  * went through every phase (two green, five mutants, one at the parent), 45.6 s with the boot in the
- * one timed - still no `timeoutMs`.
+ * one timed - still no `timeoutMs`. E11 C11 (11.10.2026): 31 checks, 47.5 s, 57.1 s with the boot, in one
+ * run beside other trees' harnesses on the same machine - still none.
  */
 export const layers = ["ci"];
 // The second GM of G3 (E11 C8), as 61 declares its own.
@@ -425,6 +429,17 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         const V = await import("${repoUrl}/scripts/vault.mjs"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        /* E11 C11: Aiko's starting sheet stamped as 1.2.73 stamps it, an experience the GM writes by hand after it and
+           one a Level Up adds (with her day-one experience raised); Botan's stamped as 1.2.72 stamped a sheet with no
+           experience - no \`levelUpsMarked\` - and an entry made since, written down nowhere. */
+        const C = await import("${repoUrl}/scripts/character.mjs");
+        const named = (actor, name) => Object.keys(actor._source.system.experiences).find(id => actor._source.system.experiences[id]?.name === name);
+        await C.initCharacter(aiko, { quiet: true });
+        await trustedWrite(aiko, { [\`system.experiences.\${foundry.utils.randomID()}\`]: { name: "65 the GM's", value: 1, description: "", core: false } }, { reason: "gmRuling" });
+        const levelUp = await L.applyAdvancement(aiko, [{ option: "experienceNew", name: "65 a Level Up's" }, { option: "experienceUp", experience: named(aiko, "Star Pupil") }]);
+        await botan.setFlag("${MOD}", "sheetAtStart", { traits: Object.fromEntries(Object.entries(botan._source.system.traits).map(([k, t]) => [k, t.value])), experiences: {}, at: 1 });
+        await trustedWrite(botan, { [\`system.experiences.\${foundry.utils.randomID()}\`]: { name: "65 Botan's of 1.2.72", value: 2, description: "", core: false } }, { reason: "gmRuling" });
+        const recorded = (aiko.getFlag("${MOD}", "levelUpExperiences") ?? []).map(id => aiko._source.system.experiences[id]?.name ?? id);
         await L.recordOffer(aiko.id, { kind: "standard" });
         const armed = await CE.armCall(botan, { key: "support", kind: "hope", grants: "advantage" });
         await MM.setFinalTrial(true);
@@ -439,7 +454,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             calls: ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"].filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, key: V.keysHeldBy(aiko).has("Dorm A"),
             stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")),
-            sheet: [r.hitPoints.value, r.stress.value, r.hope.value] };`, { timeout: 60000 });
+            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], levelUp: Array.isArray(levelUp), recorded };`, { timeout: 60000 });
     check("D1: the season to reset - Chie's suicide at Stage 6 and alive, an offer for Aiko, a Call armed on Botan, the Final Trial, Aiko's key to Dorm A and her stash there hidden",
         suicide.stage === "resolution" && suicide.self === true && suicide.dead === false && season.offers === 1 && season.armed && season.calls === 1
             && season.finalTrial === true && season.season === 1 && season.key === true && J(season.sheet) === J([2, 2, 0])
@@ -479,6 +494,11 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         const reported = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.title"))).length;
         const castCards = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.titleCast"))).length;
         const castCardsBefore = castCards();
+        // E11 C11: the cards naming the experiences the reset left, their words; each student's experiences as \`name=value\`.
+        const leftCards = () => game.messages.map(m => String(contentOf(m))).filter(c => c.includes(game.i18n.localize("DRPG.Season.reportCard.titleLeft")));
+        const leftCardsBefore = leftCards().length;
+        const experiences = id => Object.values(game.actors.get(id)._source.system.experiences ?? {}).filter(e => typeof e?.value === "number")
+            .map(e => \`\${e.name}=\${e.value}\`).sort();
         const reportsBefore = reported(), incidentBefore = game.drpg.murderState()?.active ?? false;
         let result;
         try { result = await R.resetSeason(); } finally { Hooks.off("drpgIncidentClosed", closed); }
@@ -495,7 +515,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             reports: reported() - reportsBefore,
             errors: globalThis.__notifications.slice(told).filter(n => n.level === "error").map(n => n.msg),
             castAnswer, stayed: result?.stayed ?? null, at: { before: atBefore, after: at() }, castCards: castCards() - castCardsBefore,
-            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").map(n => n.msg) };`;
+            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").map(n => n.msg),
+            experiences: { aiko: experiences("${IDS.aiko}"), botan: experiences("${IDS.botan}"), listed: aiko.getFlag("${MOD}", "levelUpExperiences") ?? null },
+            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore) };`;
     const RESET = resetRun();
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
@@ -541,6 +563,19 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
     check("R7: the reset window offers where the cast goes and starts on \"they stay\"; answered so, no student's token moves and the report names nobody (E11 C10b)",
         reset.castAnswer?.to === "stay" && J(reset.at.after) === J(reset.at.before) && Object.values(reset.at.before).every(Boolean)
             && J(reset.stayed) === "[]" && reset.castCards === 0 && reset.warned.length === 0, J(reset), { flow: "season-reset" });
+    /* Before E11 C11 the reset put back the values of the experiences a season began with and kept every other entry
+       (character.mjs \`restoreStartingSheet\`): Aiko's Level Up's experience stood in season two, and nothing was named.
+       C11: what a Level Up added goes and the GM's own stays (\`levelUpExperiences\`, the list \`applyAdvancement\`
+       writes); Botan's starting sheet, stamped before anything was written down and holding no experience, cannot tell
+       the two apart, so both of his stay and one card to the GMs names them (the owner's Q1 (a)), without a toast. */
+    const leftCard = reset.leftCards?.[0] ?? "";
+    check("R8: the reset takes the experience Aiko's Level Up added and keeps the GM's, puts her day-one one back, and names on one card the two it cannot tell apart on Botan's sheet (E11 C11)",
+        season.levelUp === true && J(season.recorded) === J(["65 a Level Up's"])
+            && J(reset.experiences.aiko) === J(["65 the GM's=1", "Star Pupil=2"]) && reset.experiences.listed === null
+            && J(reset.experiences.botan) === J(["65 Botan's of 1.2.72=2", "Night Owl=2"])
+            && J(reset.left) === J([{ name: "Botan Kage", experiences: ["Night Owl", "65 Botan's of 1.2.72"] }])
+            && reset.leftCards.length === 1 && ["Botan Kage", "Night Owl", "65 Botan"].every(word => leftCard.includes(word)) && !leftCard.includes("Aiko"),
+        J({ season, reset: { experiences: reset.experiences, left: reset.left, leftCards: reset.leftCards } }), { flow: "season-reset" });
 
     /* ------------------------------ F. a step that fails ------------------------------ */
     phase("F: a reset whose chat deletion throws", { flow: "season-reset" });

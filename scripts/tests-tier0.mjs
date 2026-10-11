@@ -7700,13 +7700,17 @@ const REGRESSIONS = [
          * the reset moves the cast's tokens): on the harness on 10.10.2026 this test passed - no place
          * without a row, no row without a place - against 72 rows (28 PACKET, 4 SOCKET, 1 CHAT,
          * 31 SHEET, 8 STORE, counted in the source); at the parent, with the row, it read the row stale.
+         * E11 C11 (1.2.73) added no place: the rule of which experiences go (character.mjs
+         * `seasonExperiences`) is a pure function over what the restore hands it; it rewrote the rows of
+         * `restoreStartingSheet` (OPEN at the base, held now), `applyAdvancement`, `wipeStudent` and the
+         * two `advancement.apply` packets.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
          */
         const SEASON_CENSUS = [
-            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns (E28). C11 adds a GM-side write after the Level Up is written - the new experience's id into the GM flag `levelUpExperiences` - and no new claim. [1b.1 Level Up experiences] (E11 C11)"],
-            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (E10 C8): checked against the standing offer on the held sheet (`numberHeld`); an `experienceNew` is the only pick C11 records. (E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns (E28). Since E11 C11 the GM's Level Up writes the new experience's id into the GM flag `levelUpExperiences` in its one write, and takes no new claim (R355). [1b.1 Level Up experiences] (E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (E10 C8): checked against the standing offer on the held sheet (`numberHeld`); an `experienceNew` is the only pick written down (`levelUpExperiences`, E11 C11)"],
             ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (E10 C6): must name a standing offer of that character, else refused and told; E11 reads nothing from it"],
             ["PACKET gm-bridge.mjs#vault.findStash#actorId", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
             ["PACKET gm-bridge.mjs#vault.findStash#total", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
@@ -7752,18 +7756,18 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
             ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
             ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
-            ["SHEET character.mjs#restoreStartingSheet", "OPEN at base (R1, document `getFlag(sheetAtStart)` and `actor.system`; E10 C8's OWED (3) names it): C11 reads `sheetAtStart` and `levelUpExperiences` through `flagsAsHeld` and the experiences through `actorHeldNow`, one read per actor before its one write, and deletes the marked ids (Q1 (a) for an unmarked sheet) [1b.2] (E11 C11)"],
+            ["SHEET character.mjs#restoreStartingSheet", "held (E11 C11; E10 C8's owed (3)): `sheetAtStart`, `levelUpExperiences` and the advances through `flagsHeldNow` and the experiences through `numberHeld`, in one `meansWrite` job before its one write - `flagsAsHeld`'s wait is the job's start; deletes a Level Up's experiences (`seasonExperiences`; Q1 (a) for a starting sheet stamped before 1.2.73). R355 [1b.2]"],
             ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
             ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
             ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
-            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. C11 adds a Level Up's experiences to its `advancement` part (E11 C11)"],
+            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
             ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
-            ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. C11 records a new experience's id in the GM flag `levelUpExperiences` (added to GM_FLAGS, so a player's write of it is put back) inside the same job. [1b.1, 1b.2] (E11 C11)"],
+            ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
             ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks [1b.2]"],
             ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls"],
@@ -8102,6 +8106,43 @@ const REGRESSIONS = [
             "reportCard.titleCast", "reportCard.stayed"]) {
             ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
         }
+    }],
+
+    ["R355 - a Level Up's experience is written down in the write that adds it, as a GM's flag, and the reset reads it as the GMs hold it", async () => {
+        /*
+         * E11 C11, 1.2.73; audit S03-21, D12 option 1, the owner's Q1 (a); the plan's 1b.2 and E10 C8's owed (3).
+         * Until 1.2.73 the season reset restored the values of the experiences the season began with and kept every
+         * other entry, so a Level Up's experience outlived its season. Read in the source here, because a reset is not
+         * the suite's to run (the plan's M10): `applyAdvancement` adds a new experience's id to `levelUpExperiences` in
+         * its one write, from the list as the GMs hold it; the flag is one of the GM's flags the audit puts back; and
+         * `restoreStartingSheet` reads the starting sheet, the list, the advances and the experiences in one job of
+         * the student's queue as the GMs hold them, never off the document, and deletes what `seasonExperiences`
+         * says goes. What the reset takes is tier 2's "a reset takes a Level Up's experience and keeps the GM's";
+         * the put-back and the held read are its "a player's write of the Level Up's experiences is put back and
+         * the reset reads the list the GMs hold"; the whole reset is scenario 65's R8.
+         */
+        const sources = new Map(await otherSources());
+        const apply = fnSource(stripComments(sources.get("level-up.mjs") ?? ""), "applyAdvancement");
+        const character = stripComments(sources.get("character.mjs") ?? "");
+        const restore = fnSource(character, "restoreStartingSheet");
+        const audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        ok(apply.length > 1000 && restore.length > 500,
+            "applyAdvancement or restoreStartingSheet is cut short - the reads below would measure nothing");
+        const job = apply.search(/\bmeansWrite\(actor,/), listRead = apply.search(/flagsHeldNow\(actor\)\.getFlag\(MODULE_ID, FLAGS\.levelUpExperiences\)/);
+        const listWritten = apply.search(/update\[`flags\.\$\{MODULE_ID\}\.\$\{FLAGS\.levelUpExperiences\}`\] =/), write = apply.search(/\btrustedWrite\(actor, update/);
+        ok(job > 0 && job < listRead && listRead < listWritten && listWritten < write && (apply.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "a Level Up does not write its new experiences down in its one write, from the list the GMs hold (S03-21)");
+        ok(/const GM_FLAGS = \[[^\]]*"levelUpExperiences"/.test(audit), "the list of a Level Up's experiences is not a GM's flag - a player's write of it stands");
+        ok(/\bmeansWrite\(actor,/.test(restore) && /flagsHeldNow\(actor\)/.test(restore) && /numberHeld\(actor, "system\.experiences"\)/.test(restore)
+            && !/\bactor\.(?:getFlag|system|setFlag)\b/.test(restore) && (restore.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "the reset's restore reads the starting sheet, the list or the experiences off the document, or writes more than once (1b.2)");
+        // Read after the rest: before 1.2.73 there was no such rule, and `fnSource` throws for a function it cannot find.
+        ok(fnSource(character, "seasonExperiences").length > 200 && /seasonExperiences\(held, snapshot, recorded\)/.test(restore)
+            && /system\.experiences\.\$\{id\}`\] = forcedDeletion\(\)/.test(restore),
+            "the reset's restore does not delete the experiences that go with the season");
+        ok(/levelUpsMarked: true/.test(fnSource(character, "stampStartingSheet")),
+            "the season's starting sheet does not say that its Level Ups are written down - a reset would treat it as made before 1.2.73");
+        for (const key of ["reportCard.titleLeft", "reportCard.experiences"]) ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {

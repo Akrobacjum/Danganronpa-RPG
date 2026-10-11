@@ -150,9 +150,12 @@ import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 
-/** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
-const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "lootTrace", "swungWeapon",
-    "betrayalWindow", "monokuma"].map(key => FLAGS[key]);
+/**
+ * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
+ * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
+ */
+const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
+    "swungWeapon", "betrayalWindow", "monokuma"].map(key => FLAGS[key]);
 
 /**
  * What the GMs hold of a student's means (C4): each with the direction its price moves

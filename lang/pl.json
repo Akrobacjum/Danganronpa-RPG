@@ -3712,7 +3712,9 @@
         "done": "Wyczyszczone: {groups}.",
         "kept": "Zostawione, bo odznaczone: {groups}.",
         "titleCast": "Dokąd trafiła obsada po resecie sezonu",
-        "stayed": "Zostali na miejscu: {names}."
+        "stayed": "Zostali na miejscu: {names}.",
+        "titleLeft": "Co reset sezonu zostawił na kartach",
+        "experiences": "Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez MG, i nie ma w niej żadnego: {list}."
       },
       "section": {
         "case": "Sprawa",

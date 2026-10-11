@@ -38725,6 +38725,8 @@ const SCENARIOS = [
         } finally {
             await student.update(was);
         }
+        // The restore's answer since E11 C11 also names the experiences it took and kept: read here are the two it had.
+        if (read?.[0]) read[0] = { restored: read[0].restored, advances: read[0].advances };
         equal(stableJson(read), stableJson([{ restored: true, advances: 2 }, true, -1, 0,
             STARTING.hp, STARTING.stress, 0, 0, STARTING.hope, -1, true]),
             "a GM's season reset no longer puts the stamped spread back, clears the advances, writes the starting resources or stamps the spread again");
@@ -43864,6 +43866,134 @@ const SCENARIOS = [
             }
             if (actors.length) await Actor.deleteDocuments(actors.map(actor => actor.id));
         }
+    }],
+    ["a reset takes a Level Up's experience and keeps the GM's", async () => {
+        /*
+         * E11 C11, 1.2.73; audit S03-21, D12 option 1, the owner's Q1 (a); the ledger's Q1. The season reset put
+         * back the values of the experiences a season began with and kept every other entry (character.mjs
+         * `restoreStartingSheet`, read at 4aad1fd), so an experience a Level Up added outlived the season it was
+         * earned in. Run here with no reset (the plan's M10), on an actor of the test's own, through the reset's
+         * part for one sheet (season-setup.mjs `wipeStudent`) and the restore itself. Three sheets in turn:
+         * (a) one stamped by this version - an experience it began with and raised by the Level Up, one the GM
+         * wrote by hand, one the Level Up added; (b) a starting sheet stamped before 1.2.73 (no `levelUpsMarked`)
+         * holding the first experience - with an entry made then, nothing written down; (c) the same with no
+         * experience in it. Read: each sheet's experiences after, the list written down, and what the reset is
+         * told to name.
+         */
+        const { wipeStudent } = await import("./season-setup.mjs");
+        const { initCharacter, restoreStartingSheet } = await import("./character.mjs");
+        const { applyAdvancement } = await import("./level-up.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const LUX = `flags.${MODULE_ID}.${FLAGS.levelUpExperiences}`;
+        const entry = (name, value) => ({ name, value, description: "", core: false });
+        const sheet = actor => Object.values(actor._source.system?.experiences ?? {}).filter(e => typeof e?.value === "number")
+            .map(e => `${e.name}=${e.value}`).sort();
+        const [DAY_ONE, GMS, OLD] = [0, 1, 2].map(() => foundry.utils.randomID());
+        // A starting sheet as 1.2.72 stamped it: no word of Level Ups, `experiences` as given.
+        const stampedBefore = async (actor, experiences) => {
+            await actor.unsetFlag(MODULE_ID, FLAGS.sheetAtStart);
+            await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits: {}, experiences, at: 1 });
+        };
+        let actor = null;
+        const read = {};
+        try {
+            [actor] = await Actor.createDocuments([{ name: "SUITE E11 C11 a student", type: "character" }]);
+            await trustedWrite(actor, { [`system.experiences.${DAY_ONE}`]: entry("SUITE day one", 2) }, { reason: "gmRuling" });
+            await initCharacter(actor, { quiet: true });
+            await trustedWrite(actor, { [`system.experiences.${GMS}`]: entry("SUITE the GM's", 1) }, { reason: "gmRuling" });
+            const summary = await applyAdvancement(actor, [{ option: "experienceNew", name: "SUITE a Level Up's" }, { option: "experienceUp", experience: DAY_ONE }]);
+            must(Array.isArray(summary) && sheet(actor).length === 3,
+                `the Level Up was not written - this would measure nothing: ${stableJson([summary, sheet(actor)])}`);
+            const added = Object.keys(actor._source.system.experiences).filter(id => ![DAY_ONE, GMS].includes(id));
+            read.recorded = stableJson(actor.getFlag(MODULE_ID, FLAGS.levelUpExperiences) ?? null) === stableJson(added);
+            const left = [];
+            read.a = [await wipeStudent(actor, "advancement", { left }), sheet(actor), foundry.utils.getProperty(actor._source, LUX) ?? null, left];
+
+            await trustedWrite(actor, { [`system.experiences.${GMS}`]: entry("SUITE the GM's", 1), [`system.experiences.${OLD}`]: entry("SUITE a Level Up of 1.2.72", 2) },
+                { reason: "gmRuling" });
+            await stampedBefore(actor, { [DAY_ONE]: 2 });
+            const b = await restoreStartingSheet(actor);
+            read.b = [sheet(actor), [...(b?.removed ?? [])].sort(), b?.left ?? null];
+
+            await trustedWrite(actor, { [`system.experiences.${OLD}`]: entry("SUITE a Level Up of 1.2.72", 2) }, { reason: "gmRuling" });
+            await stampedBefore(actor, {});
+            const leftC = [];
+            await wipeStudent(actor, "advancement", { left: leftC });
+            read.c = [sheet(actor), leftC.map(row => [row.name, [...row.experiences].sort()])];
+        } finally {
+            if (actor) await actor.delete();
+        }
+        equal(stableJson(read), stableJson({
+            recorded: true,
+            a: [true, ["SUITE day one=2", "SUITE the GM's=1"], null, []],
+            b: [["SUITE day one=2"], ["SUITE a Level Up of 1.2.72", "SUITE the GM's"], []],
+            c: [["SUITE a Level Up of 1.2.72=2", "SUITE day one=2"], [["SUITE E11 C11 a student", ["SUITE a Level Up of 1.2.72", "SUITE day one"]]]]
+        }), "the reset kept a Level Up's experience, took the GM's, did not put the day-one value back, or did not name what it could not tell apart "
+            + "(read: the Level Up's id written down; per sheet the experiences after, the list left, what went and what the report is told)");
+    }],
+
+    ["a player's write of the Level Up's experiences is put back and the reset reads the list the GMs hold", async () => {
+        /*
+         * E11 C11, 1.2.73; the ledger's Q1, the plan's 1b.1 and 1b.2. The list of a Level Up's experiences is what
+         * the reset deletes: a player who emptied it on their own sheet would keep them, so it is a GM's flag the
+         * audit puts back (sheet-audit.mjs `GM_FLAGS`), and the reset reads it as the GMs hold it - until the
+         * put-back lands, and for good where it fails, the document holds the player's empty list. On a student
+         * of the cast with a player: a Level Up's experience and its list written as `applyAdvancement` writes
+         * them, the starting sheet stamped as the sheet stands. The player empties the list (`asPlayerWrite`);
+         * then again with the put-back refused by a hook of this GM's, as scenario 30 refuses one, and the
+         * reset's restore runs in that window. Read: the verdicts, the list on the sheet each time, what the
+         * restore took and whether the experience is left.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { restoreStartingSheet } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { gmStoresHydrated } = await import("./gm-store.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const LUX = `flags.${MODULE_ID}.${FLAGS.levelUpExperiences}`, STAMP = `flags.${MODULE_ID}.${FLAGS.sheetAtStart}`;
+        const ADV = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const EXP = foundry.utils.randomID(), NAME = "SUITE E11 C11 a Level Up's";
+        must(isPrimaryGm() && gmStoresHydrated() && sheetMarkStore.get(student.id),
+            `this browser keeps no mark of ${student.name} - the list would be read off the document either way, and this would measure nothing`);
+        const putBack = sheetAsFound(student, [LUX, STAMP, ADV]);
+        const listed = () => stableJson(foundry.utils.getProperty(student._source, LUX) ?? null);
+        const read = {};
+        try {
+            const traits = Object.fromEntries(Object.entries(student._source.system?.traits ?? {}).map(([key, t]) => [key, t?.value ?? 0]));
+            const experiences = Object.fromEntries(Object.entries(student._source.system?.experiences ?? {})
+                .filter(([, e]) => typeof e?.value === "number").map(([id, e]) => [id, e.value]));
+            await trustedWrite(student, { [`system.experiences.${EXP}`]: { name: NAME, value: 2, description: "", core: false }, [LUX]: [EXP],
+                [STAMP]: replaced({ traits, experiences, at: 1, levelUpsMarked: true }) }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            const first = await asPlayerWrite(student, { [LUX]: [] }, player(student));
+            await sheetAuditIdle();
+            read.putBack = [first?.verdict ?? null, listed()];
+            const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === student.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            try {
+                const second = await asPlayerWrite(student, { [LUX]: [] }, player(student));
+                await sheetAuditIdle();
+                read.window = [second?.verdict ?? null, listed()];
+                const restored = await restoreStartingSheet(student);
+                await sheetAuditIdle();
+                read.reset = [restored?.removed ?? null, Object.hasOwn(student._source.system?.experiences ?? {}, EXP)];
+            } finally {
+                Hooks.off("preUpdateActor", veto);
+                await sheetAuditIdle();
+            }
+        } finally {
+            if (Object.hasOwn(student._source.system?.experiences ?? {}, EXP)) {
+                await trustedWrite(student, { [`system.experiences.${EXP}`]: forcedDeletion() }, { reason: "gmRuling" });
+            }
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ putBack: ["putBack", stableJson([EXP])], window: ["putBack", "[]"], reset: [[NAME], false] }),
+            "a player's emptied list of a Level Up's experiences stood, or the reset read the document's and kept the experience "
+            + "(read: the verdict and the list on the sheet after the put-back, the same with the put-back refused, what the restore took and whether the experience is left)");
     }],
 
     ["a body found is stamped once per chapter and season", async () => {

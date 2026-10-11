@@ -3521,7 +3521,9 @@
         "done": "Cleared: {groups}.",
         "kept": "Kept, as unticked: {groups}.",
         "titleCast": "Where the cast went after the season reset",
-        "stayed": "Stayed where they were: {names}."
+        "stayed": "Stayed where they were: {names}.",
+        "titleLeft": "What the season reset left on the sheets",
+        "experiences": "Experiences left on the sheets - their starting sheet was written before the module told a Level Up's experience from the GM's, and holds none: {list}."
       },
       "section": {
         "case": "The case",

@@ -1130,9 +1130,13 @@ export const RESET_CHOICES = Object.freeze(["placeCast"]);
  * 1.2.63's, taken off every actor by a migration (action-rolls.mjs `dropRollBookmarks`), so
  * nothing here writes it.
  *
+ * `left`, when given, collects what the `advancement` part could not tell apart (E11 C11): a
+ * student's experiences a Level Up may have added before 1.2.73 wrote them down, kept on the
+ * sheet, as `{ name, experiences }` - the reset's report names them (the owner's Q1 (a)).
+ *
  * @returns {Promise<boolean>} false when it is not a GM's browser, not a character or no cast group.
  */
-export async function wipeStudent(actor, key) {
+export async function wipeStudent(actor, key, { left = null } = {}) {
     if (!game.user.isGM || actor?.type !== "character") return false;
     const { trustedWrite } = await import("./resource-guard.mjs");
     const parts = {
@@ -1159,9 +1163,11 @@ export async function wipeStudent(actor, key) {
         // Restore first, THEN re-initialise: `initCharacter` stamps the starting sheet as it
         // goes, and stamping before the restore would record the advanced spread as the one to
         // come back to. The maxima only: the values are `deaths`' and `despair`'s since C10.
+        // A Level Up's experiences go in the restore since E11 C11 (character.mjs `seasonExperiences`).
         advancement: async () => {
             const { restoreStartingSheet } = await import("./character.mjs");
-            await restoreStartingSheet(actor);
+            const restored = await restoreStartingSheet(actor);
+            if (restored?.left?.length && Array.isArray(left)) left.push({ name: actor.name, experiences: restored.left });
             await initCharacter(actor, { resetValues: false, quiet: true });
         },
         // Two stamps keyed to a clock that is about to read session 1, day 1 again: "rested
@@ -1265,6 +1271,8 @@ async function wipeSeason(plan) {
     const failed = [];
     // The students `placeCast` could not move (E11 C10b): the report names them.
     const stayed = [];
+    // The experiences `advancement` kept because nothing told a Level Up's from the GM's (E11 C11): named likewise.
+    const left = [];
 
     /*
      * THE CUT FIRST, AND OUTSIDE EVERY STEP (E04 C10; the design's 2.10, D12 option 1).
@@ -1287,7 +1295,7 @@ async function wipeSeason(plan) {
 
     // A cast group's part on each student's sheet (`wipeStudent`, E11 C10).
     const everyStudent = async key => {
-        for (const actor of studentActors()) await wipeStudent(actor, key);
+        for (const actor of studentActors()) await wipeStudent(actor, key, { left });
     };
     // World settings that hold nothing but this season's bookkeeping, written whole.
     const emptied = (key, value) => () => game.settings.set(MODULE_ID, key, value);
@@ -1654,19 +1662,26 @@ async function wipeSeason(plan) {
             : game.i18n.localize("DRPG.Season.resetDone"));
     }
     if (stayedLine) ui.notifications.warn(stayedLine);
-    if (failed.length || stayedLine) {
+    /* The experiences left in place (E11 C11; the owner's Q1 (a), the plan's 3.4): a starting sheet stamped before
+       1.2.73 with no experience in it cannot tell a Level Up's from the GM's, so they stay and the GMs read whose and
+       which on the card - on the card only: they are a question for the GM's next look at the sheets, not news. */
+    const leftLine = left.length ? game.i18n.format("DRPG.Season.reportCard.experiences",
+        { list: left.map(entry => `${entry.name}: ${entry.experiences.join(", ")}`).join("; ") }) : "";
+    if (leftLine) log(`Season reset: ${leftLine}`);
+    if (failed.length || stayedLine || leftLine) {
         try {
             const line = (key, keys) => keys.length
                 ? `<p>${esc(game.i18n.format(`DRPG.Season.reportCard.${key}`, { groups: names(keys) }))}</p>` : "";
             // The card says the reset did not finish only when it did not; one that finished and left
-            // somebody standing has a title of its own.
-            const title = failed.length ? "DRPG.Season.reportCard.title" : "DRPG.Season.reportCard.titleCast";
+            // somebody standing has a title of its own, and one that left experiences on a sheet another.
+            const title = failed.length ? "DRPG.Season.reportCard.title"
+                : leftLine ? "DRPG.Season.reportCard.titleLeft" : "DRPG.Season.reportCard.titleCast";
             await whisperToGms(`<h3>${esc(game.i18n.localize(title))}</h3>
                 ${failed.length ? `${line("failed", failed)}${line("done", done)}${line("kept", kept)}` : ""}${
-                stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}`);
+                stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}${leftLine ? `<p>${esc(leftLine)}</p>` : ""}`);
         } catch (err) {
             error("Season reset: could not post its report", err);
         }
     }
-    return { cleared: done, kept, failed, stayed };
+    return { cleared: done, kept, failed, stayed, left };
 }
