@@ -14,9 +14,13 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
-import { bodyDiscovery } from "./settings.mjs";
-import { keyPlanStatus } from "./investigation.mjs";
-import { caseMark, caseWarning, healthLine } from "./gm-stores.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
+import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
+import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
+import { roomOfToken } from "./movement.mjs";
+import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
+import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -315,6 +319,16 @@ const EXTRA_ACTIONS = {
         key: "startInvestigation",
         run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
     },
+    // The GM's own announcement, for the Next line's body nobody has found yet (E11 C2).
+    bodyDialog: {
+        key: "bodyDialog",
+        run: () => import("./chapter.mjs").then(m => m.openBodyDiscoveryDialog())
+    },
+    // The autopsy, for the Next line once the Investigation is on (E11 fix r1-G4).
+    autopsy: {
+        key: "autopsy",
+        run: () => import("./gm-items.mjs").then(m => m.issueAutopsyDialog())
+    },
     // The trial console, for the Next line once the Investigation is done.
     trial: {
         key: "trial",
@@ -470,13 +484,17 @@ export async function openGmPanel() {
  * Every input to both answers is either a flag on an actor (actions left, the
  * free Move, dead or a Monocub) or one of this module's world settings (the
  * clock, the incident, the Eclipse, the trial's floor and progress), which is
- * exactly what `keepLive` listens to.
+ * exactly what `keepLive` listens to. Since E11 fix r1-G4 the next line also reads
+ * the students' items (an autopsy issued), the Key Remnants' tokens and the case's
+ * Key count in the Key plan's store (`keysToPlace`), so the standing block watches
+ * those three as well (tier 0 R19 asks the items of a window that reads bullets;
+ * the redraw on a token or a store row is read in the code, not measured).
  */
 function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-standing",
         build: () => buildPanelContent(),
-        watch: { actors: true }
+        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore] }
     });
 
     keepLive(dialog, {
@@ -1075,7 +1093,7 @@ async function toggleEclipse() {
  *
  * @returns {{text: string, action: string|null}}
  */
-function nextStep(clock) {
+export function nextStep(clock) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -1146,11 +1164,39 @@ function nextStep(clock) {
        and the room, since `endMurder` wipes the incident before any of this), but the game is
        not waiting on anybody - and a "Do it" that calls `setPhase("investigation")` when the
        phase is already investigation is a button that does nothing. */
-    if (bodyDiscovery() && clock.phase !== "investigation") {
+    const holding = bodyDiscovery() && clock.phase !== "investigation";
+
+    /* WHAT COMES AFTER THE ANNOUNCEMENT (E11 fix r1-G4; audit S13-14). The issue's harm runs on past
+       the body: the after-incident window lists the Key Remnants still to place and the autopsy, and
+       once it was dismissed this line said only "start the Investigation" and then "check what has
+       been found" - nothing of four Key Remnants not on the map or an autopsy nobody had issued. Both
+       come now in the handbook's order ("Place the remaining Key Remnants", then "Body found: ...
+       start the Investigation ... Issue the autopsy"), each with the window that does it: the Key
+       Remnants from the moment the body is announced, until the case's count (`caseKeyCount`)
+       stands on the map; the autopsy once the Investigation is on, until a student holds one of this
+       chapter. Only after an announcement - the hold, or an Investigation with a discovery since the
+       chapter's last trial (`bodyFoundSinceTrial`) - because both are about a body (tier 2 "after a
+       body is announced the GM's next line names the Key Remnants to place and then the autopsy";
+       65-season B1). */
+    const announced = holding || (clock.phase === "investigation" && Boolean(bodyFoundSinceTrial(clock)));
+    if (announced) {
+        let keys = 0;
+        try {
+            keys = keysToPlace(clock.chapter);
+        } catch {
+            keys = 0;
+        }
+        if (keys > 0) return { text: plural("DRPG.Panel.nextKeysToPlace", { n: keys }), action: "investigation" };
+    }
+
+    if (holding) {
         return { text: game.i18n.localize("DRPG.Panel.nextBodyFound"), action: "startInvestigation" };
     }
 
     if (clock.phase === "investigation") {
+        if (announced && !autopsyIssued(clock.chapter)) {
+            return { text: game.i18n.localize("DRPG.Panel.nextAutopsy"), action: "autopsy" };
+        }
         // Once every planned Key Remnant has been found the one step that ends
         // the phase is the trial (CORE-19); the line used to describe the
         // Investigation for the whole of it.
@@ -1166,6 +1212,39 @@ function nextStep(clock) {
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
     }
 
+    /* A BODY NOBODY HAS FOUND YET (E11 C2, 1.2.73; audit S13-14). Once the incident closed, the
+       one guide through a murder was the window that closes it: dismissed, this line went back to
+       counting actions while the victim lay unannounced, and nothing told a new GM the case was
+       waiting on a discovery (tier 2 "the GM's next line names a body nobody has found yet";
+       65-season B0). The bodies are the watcher's own (`bodiesToDiscover`, with the deaths the GMs
+       hold and the flags as the GMs hold them, `flagsHeldNow`), so the line names the bodies the
+       watcher would take: this chapter's and season's, not an execution, not announced by a
+       discovery of this chapter. Only here, in Daily Life with no hold and no Eclipse, because
+       those are when a walk-in can find it (`checkBodyFound`). A walk-in also needs the body's
+       token on the walk's scene, not hidden and in a room, which C2's line did not ask: a hidden or
+       token-less body was told "Two witnesses find it", which cannot happen (E11 fix r1-G3; early
+       review EARLY-C2-3). So the line reads the body's tokens on every scene: one a witness could
+       find on the scene this GM is viewing names its room; one only on another scene gets the line
+       without the room; none, the line without the witnesses (tier 2 "the GM's next line tells a
+       hidden body to be announced by hand"). */
+    const waiting = bodyWaiting(clock);
+    if (waiting) {
+        let findable = [];
+        try {
+            findable = (game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.filter?.(t =>
+                t.actor?.id === waiting.id && !t.hidden && roomOfToken(t)) ?? []);
+        } catch { /* a scene not readable here: no witness road the line can name */ }
+        const here = findable.find(t => t.parent?.id === canvas?.scene?.id);
+        const room = here ? roomOfToken(here) : null;
+        return {
+            // Escaped: a room's name is the scene author's, and the panel is drawn with `innerHTML`.
+            text: room
+                ? game.i18n.format("DRPG.Panel.nextBodyWaiting", { room: esc(room) })
+                : game.i18n.localize(findable.length ? "DRPG.Panel.nextBodyWaitingNoRoom" : "DRPG.Panel.nextBodyWaitingUnseen"),
+            action: "bodyDialog"
+        };
+    }
+
     // Daily Life. The one number that decides whether the time of day is over.
     // The boundary between two times of day IS the Eclipse (`startEclipse`
     // refills, `endEclipse` advances), so that is what the line suggests; the
@@ -1175,6 +1254,31 @@ function nextStep(clock) {
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
         : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
+}
+
+/** The first body a walk-in would discover now, as the watcher picks them (`bodiesToDiscover`), or null. GM-side. */
+function bodyWaiting(clock) {
+    const epoch = seasonEpoch();
+    const [id] = bodiesToDiscover({ actors: studentActors(), clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow });
+    return id ? game.actors.get(id) ?? null : null;
+}
+
+/**
+ * Whether a student holds an Autopsy Truth Bullet of `chapter`, by the GMs' answer keys (`secretOf`: the
+ * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
+ * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
+ * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
+ * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
+ * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
+ * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
+ * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
+ */
+function autopsyIssued(chapter) {
+    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
+        if (!isTruthBullet(item)) return false;
+        const secret = secretOf(actor.items.get(item.id)?.uuid);
+        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
+    }));
 }
 
 /** Current standing: where the clock is and what everyone has left. */
@@ -1328,6 +1432,50 @@ export async function openPublicRollDialog() {
     return publicRoll(result.formula, { flavor: result.flavor });
 }
 
+/**
+ * WHETHER AN EDIT CAMPAIGN WRITE IS A CORRECTION OF THE HOUR, NOT THE HOUR PASSING (E11 C6, 1.2.73; audit
+ * S01-12, S10-22). A called assembly is held by `runPendingGather` (call-world.mjs) on the next clock write
+ * whose time of day or session differs from the one it was called in, whatever moved them: it cannot tell
+ * the hour turning from a GM putting it back. Edit campaign moving the afternoon back to the morning, or
+ * fixing only the session number, held an assembly called for the evening - the cast teleported and a public
+ * card, from a window meant for typos. So the window calls it off first, as `rewindTimeOfDay` does (clock.mjs,
+ * "THE ASSEMBLY GOES FIRST"), whenever the time of day or the session changes and the day and the time of day
+ * do not move on (or the session goes back). A move on - Day 2's evening to Day 3's morning - is the hour
+ * passing, and the assembly is held as it would be at the panel's next time of day. Measured in tier 2 "Edit
+ * campaign moving the time back calls nobody" and scenario 65's C2.
+ *
+ * A NEW DAY AT THE SAME HOUR IS NOT THE HOUR PASSING (E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-1). C6 counted
+ * any later day as a move on, so Day 3's morning in session 5 corrected to Day 4's morning in session 6 held the
+ * assembly - the session differs, which is all `runPendingGather` compares - and the cast was moved by a typo
+ * fix: the tier-2 test's "day and session" road read the assembly held with the code before this (11.10.2026).
+ * The hour passing changes the time of day, so a move on now needs one; its "onward" road (Night to the next
+ * day's morning, the session on) is the hour passing and still holds the order.
+ */
+export function correctsTheHour(from, to) {
+    const at = clock => [Number(clock.day ?? 1), TIMES_OF_DAY.indexOf(clock.timeOfDay), Number(clock.session)];
+    const [dayWas, hourWas, sessionWas] = at(from), [day, hour, session] = at(to);
+    if (hour === hourWas && session === sessionWas) return false;
+    const onward = hour !== hourWas && (day > dayWas || (day === dayWas && hour > hourWas));
+    return !onward || session < sessionWas;
+}
+
+/* A question Edit campaign asks before a field that does more than correct (E11 C6). Cancel is the first button
+   and the only default, as `confirmNewTrial`'s (trial-floor-ui.mjs): Enter presses the first submit button (E10
+   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. */
+async function confirmCorrection(titleKey, textKey) {
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize(titleKey) },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>`),
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "ok", label: game.i18n.localize(titleKey) }
+        ],
+        rejectClose: false
+    });
+    return answer === "ok";
+}
+
 export async function openClockDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -1464,29 +1612,66 @@ export async function openClockDialog() {
        opened in an Eclipse, which would drop the whole window; here only the phase is kept and the GM
        told, as Cancel keeps it. Measured in tier 2 "Edit campaign moving back to a chapter with a verdict
        asks first" and "no road opens the trial in an Eclipse", both red at c494855. */
+    /* THE CHAPTER NUMBER HERE IS A CORRECTION, AND IT SAYS SO (E11 C6, 1.2.73; audit S10-21). Moving it was
+       a plain write: no reveal, no sweep of the Remnants, no Blackened named, no session or morning - none of
+       what End the chapter does - and nothing told the GM that the chapter had not ended. It asks first,
+       Cancel the default; Cancel keeps the chapter on the clock and applies the rest of the window, as the
+       phase's Cancel below does (the orchestrator's decision of 10.10.2026 on the prep's proposal). Asked
+       before the trial's question, so that question reads the chapter actually written. Measured in tier 2
+       "Edit campaign asks before it changes the chapter or opens the trial and Cancel applies the rest". */
+    let chapter = result.chapter;
+    if (chapter !== Number(getClock().chapter)
+        && !(await confirmCorrection("DRPG.Clock.chapterCorrectTitle", "DRPG.Clock.chapterCorrect"))) {
+        chapter = getClock().chapter;
+    }
+
+    /* AND ENTERING THE TRIAL FROM HERE IS NOT A CORRECTION (E11 C6; audit S10-22). The phase moved into the
+       Class Trial runs `reconcilePhase`'s entry (clock.mjs): the trial's budget handed out, the chapter's trial
+       record blanked and Monokuma's charge for the Key Remnants nobody found - Despair that no Edit campaign
+       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict. */
     let phase = result.phase;
     if (phase === "classTrial" && getClock().phase !== "classTrial") {
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
             phase = getClock().phase;
+        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit"))) {
+            phase = getClock().phase;
         } else {
             const { confirmNewTrial } = await import("./trial-floor-ui.mjs");
-            if (!(await confirmNewTrial(result.chapter))) phase = getClock().phase;
+            if (!(await confirmNewTrial(Number(chapter)))) phase = getClock().phase;
         }
     }
 
-    await setClock({
+    /* AND AGAIN JUST BEFORE THE WRITE (E11 fix r1-G5; round 1's EARLY-C6-3). The Eclipse above was read before
+       the two questions, which wait for the GM; an Eclipse started meanwhile made `setClock` refuse the whole
+       write after the assembly had been called off - the order gone, the rest of the window dropped (tier 2 "an
+       Eclipse begun during Edit campaign's trial question keeps the rest of the window" read the time of day
+       and the name unwritten with the code before this, 11.10.2026). Read again here, with nothing awaited
+       between it and the write: the phase is kept and the GM told, as above. */
+    if (phase === "classTrial" && getClock().phase !== "classTrial" && isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+        phase = getClock().phase;
+    }
+
+    const patch = {
         campaignName: result.campaignName,
-        chapter: result.chapter,
+        chapter,
         day: result.day,
         phase,
         session: result.session,
         timeOfDay: result.timeOfDay
-    });
+    };
+    // Before the write, as the rewind's: the write's own `onChange` reaches the primary GM's `runPendingGather`
+    // before a line after it would run. See `correctsTheHour`.
+    if (correctsTheHour(getClock(), patch)) {
+        await import("./call-effects.mjs").then(m => m.cancelGather()).catch(err => error("Could not call off the assembly", err));
+    }
+
+    await setClock(patch);
 
     const moved = result.timeOfDay !== before.timeOfDay
         || result.day !== (before.day ?? 1)
-        || result.chapter !== before.chapter;
+        || chapter !== before.chapter;
     if (before.eclipse && moved) {
         ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
     }

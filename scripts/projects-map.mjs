@@ -33,8 +33,9 @@
 import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
 import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret }
     from "./projects.mjs";
+import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
 import { boundsOf } from "./movement.mjs";
-import { log, error, whisperToGms, esc } from "./utils.mjs";
+import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
@@ -47,6 +48,15 @@ const isoOn = () => Boolean(game.modules?.get(ISO_MODULE)?.active);
 
 /** The one flag a project token carries. Everything else is looked up. */
 export const PROJECT_TOKEN_FLAG = "projectId";
+
+/* The option every deletion of a project token by the module passes (E11 C8), so the
+   `deleteToken` hook below tells them from a GM's own Delete: a project the module took
+   off the map is not a project a GM wants kept off it. That the option is what keeps them
+   apart is not measured: with it dropped from `removeProjectToken` the suite's "deleted by
+   hand" test still passed (10.10.2026), because the hook's mark was then overwritten by
+   `removeProjectToken`'s own `setProjectMeta`, read before the mark landed - a lost update
+   that hid the harm, not a guarantee. */
+const MODULE_REMOVAL = "drpgProjectRemoval";
 
 /** Is this token document one of ours, and which project is it? */
 export function projectIdOf(tokenDoc) {
@@ -253,7 +263,7 @@ export async function removeProjectToken(countdownId) {
     try {
         const scene = game.scenes?.get(ref.sceneId);
         if (scene?.tokens?.get(ref.tokenId)) {
-            await scene.deleteEmbeddedDocuments("Token", [ref.tokenId]);
+            await scene.deleteEmbeddedDocuments("Token", [ref.tokenId], { [MODULE_REMOVAL]: true });
         }
     } catch (err) {
         error(`Could not take the project ${countdownId} off the map`, err);
@@ -263,6 +273,126 @@ export async function removeProjectToken(countdownId) {
        without one, and a stale id would stop it ever being placed again. */
     await setProjectMeta(countdownId, { tokenId: null, tokenScene: null });
     return true;
+}
+
+/* ---- tokens no project owns ----------------------------------------------------
+   E11 C7, 1.2.73; audit S06-23, S07-27, S09-21; the ask A2. The season reset cleared the
+   countdowns and the metadata and removed no token: measured in scenario 65 at 4aad1fd
+   (10.10.2026), the four project tokens of a played season - two projects, a duplicate and
+   an orphan - all stood on their scenes after the reset, and p1 read the orphan's id as a
+   project it knew (`knowsProject`, now false for an id with no countdown). A token is found by
+   what it is, not by what the metadata says of it: the metadata is exactly what a reset, a
+   deletion or Daggerheart's own countdown window leaves behind, so the tokens' own flag is
+   the only record that is still there afterwards. */
+
+/** Every project token on these scenes: one carrying a project's id, or a copy of the shared actor carrying none. */
+export function projectTokensOn(scenes = game.scenes) {
+    const base = findProjectActor()?.id ?? null;
+    const found = [];
+    for (const scene of scenes ?? []) {
+        for (const token of scene?.tokens ?? []) {
+            const id = projectIdOf(token);
+            const projectId = typeof id === "string" && id ? id : null;
+            if (!projectId && !(base && token.actorId === base)) continue;
+            found.push({ sceneId: scene.id, tokenId: token.id, projectId });
+        }
+    }
+    return found;
+}
+
+/**
+ * WHICH OF THESE TOKENS GO, AND WHICH ARE A LIVE PROJECT'S SPARE (E11 C7; the plan's 3.2).
+ * Pure over what it is handed: `tokens` as `projectTokensOn` lists them, `liveIds` the
+ * projects that exist, `refOf(id)` the `{ sceneId, tokenId }` a project's metadata names.
+ * A token whose id is not live, or that carries none, is an orphan - nobody's project, so
+ * nobody's to see (D12: always removed). More than one token for one live project are
+ * duplicates: the one its metadata names is kept (the first found when it names none of
+ * them), and the others are listed and never removed - a GM may have placed one by hand
+ * on purpose, and which of two copies is the mistake is not this function's to guess.
+ * @returns {{ orphans: object[], duplicates: object[] }} duplicates: the spare tokens alone
+ */
+export function projectTokenPlan(tokens, liveIds, refOf = () => null) {
+    const live = new Set(liveIds ?? []);
+    const orphans = [], byProject = new Map();
+    for (const token of tokens ?? []) {
+        if (!token?.projectId || !live.has(token.projectId)) { orphans.push(token); continue; }
+        if (!byProject.has(token.projectId)) byProject.set(token.projectId, []);
+        byProject.get(token.projectId).push(token);
+    }
+    const duplicates = [];
+    for (const [projectId, own] of byProject) {
+        if (own.length < 2) continue;
+        const ref = refOf(projectId);
+        const kept = own.find(t => ref && t.sceneId === ref.sceneId && t.tokenId === ref.tokenId) ?? own[0];
+        duplicates.push(...own.filter(t => t !== kept));
+    }
+    return { orphans, duplicates };
+}
+
+/**
+ * Remove the orphans among the project tokens on `scenes`, scene by scene. GM only. `live`
+ * is the projects that exist (every countdown, unless the caller knows better - the reset
+ * passes none, a deletion passes none for its own id); `only`, when given, limits the
+ * sweep to the tokens of those ids, so deleting one project touches nothing of another.
+ * A live project's duplicates are told to the GM and kept (`warnProjectDuplicates`).
+ * @returns {Promise<{ removed: number, duplicates: object[] }>}
+ */
+export function sweepProjectTokens(options = {}) {
+    /* ONE SWEEP AT A TIME (E11 C8). From 1.2.73 the primary sweeps at every scene draw and
+       once more in the migration, and at the first ready after the upgrade both start
+       together (`runMigrationOnLoad` and the sync deferred to `ready`): two sweeps that list
+       the same orphan before either has deleted it ask Foundry twice to delete one token.
+       Queued, the second lists what the first left. Read, not measured at a table. Since E11 fix
+       r2-H5 the sync waits for the load's pass (`syncProjectTokens`), so those two no longer
+       meet at that ready; the queue still orders a pass begun by hand beside a scene draw. */
+    const run = sweepQueue.then(() => sweepOnce(options));
+    sweepQueue = run.catch(() => null);
+    return run;
+}
+let sweepQueue = Promise.resolve();
+
+async function sweepOnce({ live = allProjects().map(p => p.id), scenes = game.scenes, only = null } = {}) {
+    if (!game.user.isGM) return { removed: 0, duplicates: [] };
+    const limit = only ? new Set(only) : null;
+    const tokens = projectTokensOn(scenes).filter(t => !limit || limit.has(t.projectId));
+    const { orphans, duplicates } = projectTokenPlan(tokens, live, tokenRefOf);
+    let removed = 0;
+    for (const scene of scenes ?? []) {
+        const ids = orphans.filter(t => t.sceneId === scene.id && scene.tokens?.get(t.tokenId)).map(t => t.tokenId);
+        if (!ids.length) continue;
+        // Counted by what is gone afterwards, not by what the call returns: the harness's shim returns
+        // an empty list from every deletion, and the first run counted 0 for an orphan it had removed.
+        try {
+            await scene.deleteEmbeddedDocuments("Token", ids, { [MODULE_REMOVAL]: true });
+        } catch (err) {
+            error(`Could not take ${ids.length} project token(s) without a project off ${scene.name}`, err);
+        }
+        removed += ids.filter(id => !scene.tokens?.get(id)).length;
+    }
+    if (removed) log(`Project tokens: ${removed} without a project removed.`);
+    if (duplicates.length) warnProjectDuplicates(duplicates);
+    return { removed, duplicates };
+}
+
+/**
+ * Tell the GM which live projects stand on the map more than once, and where: one
+ * notification for the lot, naming each project and the scenes its spare tokens are on.
+ * Removes nothing (D12). The GM's alone - a project's name is the countdown's, which a
+ * player may not be in on.
+ * @returns {string|null} what was told
+ */
+export function warnProjectDuplicates(duplicates) {
+    if (!game.user.isGM || !duplicates?.length) return null;
+    const names = new Map(allProjects().map(p => [p.id, p.name]));
+    const where = new Map();
+    for (const { projectId, sceneId } of duplicates) {
+        if (!where.has(projectId)) where.set(projectId, new Set());
+        where.get(projectId).add(game.scenes?.get(sceneId)?.name ?? sceneId);
+    }
+    const list = [...where].map(([id, scenes]) => `${names.get(id) ?? id} (${[...scenes].join(", ")})`).join("; ");
+    const told = plural("DRPG.Project.duplicates", { n: duplicates.length, list });
+    ui.notifications?.warn(told);
+    return told;
 }
 
 /**
@@ -308,11 +438,20 @@ export async function refreshProjectToken(countdownId) {
  *
  * Only the room changes. Who may work on it, whether it is secret and who can
  * see it are untouched: this is a fact about where, not about whom.
+ *
+ * ON THE PRIMARY, AND ONLY FOR THE PROJECT'S OWN TOKEN (E11 C8, 1.2.73; the plan's 3.2).
+ * `updateToken` fires on every GM's browser and every GM ran this; the primary alone now
+ * does, as it alone keeps the map (`syncProjectTokens`). That a second GM's run did harm is
+ * not measured: scenario 65 G3 at 80ba2a5 (10.10.2026), a second GM dragging, counted one
+ * write of the metadata and one whisper on the primary either way. What was measured: any
+ * token carrying a project's id moved its project - at 80ba2a5 a spare copy's drag moved the
+ * project to the Cafeteria and an orphan's drag wrote a metadata row for a countdown that
+ * does not exist (the suite's "dragging a project's spare copy" test). `projectOwning` answers both.
  */
 async function onProjectTokenMoved(tokenDoc, changes) {
-    if (!game.user.isGM) return;
+    if (!isPrimaryGm()) return;
     if (changes?.x === undefined && changes?.y === undefined) return;
-    const id = projectIdOf(tokenDoc);
+    const id = projectOwning(tokenDoc);
     if (!id) return;
 
     const { roomAt } = await import("./movement.mjs");
@@ -335,15 +474,68 @@ async function onProjectTokenMoved(tokenDoc, changes) {
     log(`Project ${id} moved from ${was ?? "nowhere"} to ${landedIn} by its token.`);
 }
 
+/**
+ * THE LIVE PROJECT WHOSE OWN TOKEN THIS IS, or null (E11 C8). A token of no project, of a
+ * project whose countdown is gone (an orphan), or a copy other than the one the project's
+ * metadata names (a spare) is nobody's map token: its move moves nothing and its deletion
+ * hides nothing. Pure over the two readers it is handed, so the suite drives it with fakes.
+ */
+export function projectOwning(tokenDoc, { isLive = id => Boolean(rawCountdown(id)), refOf = tokenRefOf } = {}) {
+    const id = projectIdOf(tokenDoc);
+    if (typeof id !== "string" || !id || !isLive(id)) return null;
+    const ref = refOf(id);
+    return ref && ref.tokenId === tokenDoc.id && ref.sceneId === tokenDoc.parent?.id ? id : null;
+}
+
+/* Hand deletions still being written down, by project: the sync waits for them (as the
+   Remnants' tombstones are held until written, remnants.mjs `tombstoning`). */
+const hiding = new Map();
+
+/**
+ * A GM DELETED A PROJECT'S TOKEN, SO THE PROJECT STAYS OFF THE MAP (E11 C8, 1.2.73; audit
+ * S09-47). The sync put every project with a room back on the map at the next scene draw,
+ * so a token a GM deleted came back (scenario 65 G1 at 80ba2a5, 10.10.2026: the Annex's
+ * project's token, deleted by hand, stood on the Annex again after one `canvasReady`). The primary marks the
+ * project `mapHidden` and forgets the token; the sync skips a hidden project, and the
+ * manager's "Show on the map" clears the mark. The module's own deletions pass
+ * `MODULE_REMOVAL` (and the reset's `drpgReset`) and are not a GM's choice. Deleting one of
+ * two copies of a project hides nothing: the other becomes the project's token - the
+ * duplicates' warning tells the GM to delete the spare by hand, and which copy goes is theirs.
+ */
+function onProjectTokenDeleted(tokenDoc, options) {
+    if (options?.[MODULE_REMOVAL] || options?.drpgReset || !isPrimaryGm()) return;
+    const id = projectOwning(tokenDoc);
+    if (!id) return;
+    const other = projectTokensOn(game.scenes).find(t => t.projectId === id && t.tokenId !== tokenDoc.id);
+    const patch = other
+        ? { tokenId: other.tokenId, tokenScene: other.sceneId }
+        : { mapHidden: true, tokenId: null, tokenScene: null };
+    const done = setProjectMeta(id, patch)
+        .then(() => log(other ? `Project ${id}: its other token stands for it now.` : `Project ${id} kept off the map: its token was deleted by hand.`))
+        .catch(err => error(`Could not keep the project ${id} off the map`, err))
+        .finally(() => { if (hiding.get(id) === done) hiding.delete(id); });
+    hiding.set(id, done);
+}
+
+/** The manager's "Show on the map": a project a GM deleted from the map goes back on it. GM only. */
+export async function showProjectOnMap(countdownId) {
+    if (!game.user.isGM || !rawCountdown(countdownId)) return null;
+    await setProjectMeta(countdownId, { mapHidden: false });
+    /* On this GM's scene when its room is there; otherwise the primary's next draw of the
+       scene that holds the room places it, as for any project the map has not met yet. */
+    return placeProjectToken(countdownId);
+}
+
 let syncWaitingForReady = false;
 
 /**
- * Bring the map into line with the projects. GM only.
+ * Bring the map into line with the projects. The primary GM's.
  *
  * Called on `canvasReady` rather than only at creation, because a project can
- * gain a room long after it was made, a scene can be swapped, and a GM can
- * delete a token by hand - and in all three the tray and the map would
- * otherwise disagree until somebody reloaded.
+ * gain a room long after it was made, a scene can be swapped, and a token can
+ * go missing - and in all three the tray and the map would otherwise disagree
+ * until somebody reloaded. A token a GM deleted by hand is not missing: its
+ * project is kept off the map (`onProjectTokenDeleted`, E11 C8).
  */
 export async function syncProjectTokens() {
     /* `canvasReady` OUTRUNS `ready` AT BOOT (22.09), and a world setting may not be written
@@ -362,16 +554,41 @@ export async function syncProjectTokens() {
         }
         return 0;
     }
-    if (!game.user.isGM || !canvas?.scene) return 0;
+    /* ON THE PRIMARY ALONE (E11 C8, 1.2.73; audit S09-47). Every GM's scene draw ran this,
+       so a GM other than the primary placed the tokens of projects the map was missing
+       (scenario 65 G3 at 80ba2a5, 10.10.2026: the second GM's draw placed one), and two
+       GMs drawing at once could each place one - a duplicate the map then keeps. That race
+       is read, not measured. */
+    if (!isPrimaryGm() || !canvas?.scene) return 0;
+    /* AFTER THE LOAD'S MIGRATION (E11 fix r2-H5, 1.2.73; the round-2 review's COR2-5). At the
+       first ready after the upgrade the migration's clause `sweepOldProjectTokens` is the sweep
+       that tells the GM how many tokens of gone projects it removed; this sync, deferred from the
+       boot's scene draw to the same ready, swept them first and said so to the console alone.
+       Measured on the harness with Foundry's boot order replayed on the primary (the scene drawn
+       before ready, then the module's ready, then the deferred sync; scenario 65 V2, 11.10.2026):
+       one orphan, removed by the sync, the clause's report null and no toast - from a world
+       stamped 1.2.66 (that one clause pending) and from one stamped 1.2.60 (24 pending) alike.
+       The sync now waits for the pass this load started; with none running it waits for nothing. */
+    await (await import("./migrate.mjs")).migrationOnLoad();
     // The base actor's own housekeeping (ownership, the hammer), when there is one to keep.
     if (findProjectActor()) await ensureProjectActor();
+    await Promise.allSettled([...hiding.values()]);
 
-    let touched = 0;
+    /* EVERY SCENE, NOT THE ONE DRAWN (E11 C8; the plan's 3.2 said "for that scene"). A spare
+       is a second token of one project, and the two may stand on different scenes (65 G1's
+       duplicate stands on the Annex, its project's token in the Academy): a sweep of the
+       drawn scene alone sees one token of that project and nothing to warn of.
+       Listing the tokens of every scene is a walk over documents the browser already holds. */
+    const { removed } = await sweepProjectTokens();
+    let touched = removed;
     for (const project of allProjects() ?? []) {
+        if (metaFor(project.id).mapHidden) continue;
         const ref = tokenRefOf(project.id);
         const live = projectTokenOf(project.id);
 
-        // A reference pointing at a token somebody deleted by hand.
+        // A reference pointing at a token that went without a `deleteToken` the primary heard
+        // (a scene deleted, if Foundry fires none for its tokens - not measured): forgotten,
+        // and placed again below.
         if (ref && !live) {
             await setProjectMeta(project.id, { tokenId: null, tokenScene: null });
             touched++;
@@ -509,6 +726,7 @@ export function registerProjectsMap() {
         onProjectTokenMoved(tokenDoc, changes)
             .catch(err => error("Could not move a project with its token", err));
     });
+    Hooks.on("deleteToken", (tokenDoc, options) => onProjectTokenDeleted(tokenDoc, options));
     // One hook, as the trace's card has it: ApplicationV2 fires a render hook for
     // every class in the chain, and the concrete sheet as well would run this twice.
     Hooks.on("renderActorSheetV2", (app, element) => {

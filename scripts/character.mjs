@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, FLAGS, STARTING, TRAITS, TRAIT_ARRAY } from "./config.mjs";
-import { log, plural } from "./utils.mjs";
+import { log, plural, forcedDeletion } from "./utils.mjs";
 import { moduleLanguage } from "./settings.mjs";
 
 /**
@@ -157,8 +157,29 @@ async function stampStartingSheet(actor) {
             experiences[id] = entry?.value ?? 0;
         }
 
-        await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits, experiences, at: Date.now() });
+        // `levelUpsMarked`: from this stamp on a Level Up's experiences are written down (E11 C11; `restoreStartingSheet`).
+        await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits, experiences, at: Date.now(), levelUpsMarked: true });
     });
+}
+
+/*
+ * WHICH EXPERIENCES GO WITH THE SEASON (E11 C11, 1.2.73; audit S03-21, D12 option 1; the owner's Q1 (a) of
+ * 09.10.2026). `held` is the sheet's experiences as the GMs hold them, `snapshot` the season's starting sheet and
+ * `recorded` the ids `applyAdvancement` wrote down (`FLAGS.levelUpExperiences`). An entry counts when it has a value
+ * (a player's entry the audit put back is left empty in the mark: level-up.mjs, read on 10.10.2026). A Level Up's
+ * experience goes; one the GM wrote by hand stays. A starting sheet stamped before 1.2.73 has no `levelUpsMarked`,
+ * and its season's Level Ups were written down nowhere: then every entry not in the snapshot goes, where the
+ * snapshot holds any (Q1 (a), the GM's own additions with them - nothing tells the two apart); with an empty one
+ * nothing tells a GM's entry from a Level Up's, so they stay and the reset's report names them (`left`). A sheet
+ * never stamped (`initCharacter` never ran) loses only what was written down.
+ */
+function seasonExperiences(held, snapshot, recorded) {
+    const live = Object.keys(held ?? {}).filter(id => typeof held[id]?.value === "number");
+    const levelUps = new Set(Array.isArray(recorded) ? recorded : []);
+    const started = Object.keys(snapshot?.experiences ?? {});
+    if (!snapshot?.traits || snapshot.levelUpsMarked === true) return { drop: live.filter(id => levelUps.has(id)), left: [] };
+    if (started.length) return { drop: live.filter(id => levelUps.has(id) || !started.includes(id)), left: [] };
+    return { drop: live.filter(id => levelUps.has(id)), left: live.filter(id => !levelUps.has(id)) };
 }
 
 /**
@@ -168,45 +189,63 @@ async function stampStartingSheet(actor) {
  * existed then, and clears the advance counter - those three move together, and
  * clearing one without the others is what leaves a sheet arguing with itself.
  *
- * Experiences ADDED by an advance keep their names and whatever value they
- * hold. An experience is a sentence about who somebody is, which puts it on the
- * far side of the line this reset draws - the same side as the portrait and the
- * Ultimate. Their values are not restored because there is nothing to restore
- * them to; they did not exist on day one.
+ * Experiences ADDED by a Level Up go with the season since E11 C11 (1.2.73; D12
+ * option 1) - `seasonExperiences` says which. Until then they kept their names and
+ * whatever value they held, as a sentence about who somebody is, and a season's
+ * advance outlived the season (audit S03-21). One the GM wrote on the sheet by hand
+ * stays, with whatever value it holds: there is nothing to restore it to.
  *
  * A character never run through `initCharacter` has no record, and gets no
- * silent guess: the caller is told nothing was restored and says so in the log.
+ * silent guess: the answer's `restored` is false, and only the advance counter and
+ * a Level Up's experiences written down go.
+ *
+ * @returns {Promise<{restored: boolean, advances: number, removed: string[], left: string[]}|null>}
+ *   `removed` and `left` are experiences' names: what went, and what stayed that a
+ *   Level Up may have added (the reset's report names those).
  */
 export async function restoreStartingSheet(actor) {
-    // A GM's, before any write - the advance counter below is the first (E29 C2; see `initCharacter`).
+    // A GM's, before any write (E29 C2; see `initCharacter`).
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
     if (!actor || actor.type !== "character") return null;
 
-    const snapshot = actor.getFlag(MODULE_ID, FLAGS.sheetAtStart);
-    const hadAdvances = Number(actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0);
-    await actor.setFlag(MODULE_ID, FLAGS.advances, 0);
+    /* AS THE GMS HOLD IT, IN ONE WRITE (E11 C11, 1.2.73; the plan's 1b.2, E10 C8's owed (3)). The snapshot, the
+       advances and the experiences were read off the document, where a player's write the audit has not put back
+       yet stands on the primary - an unset list of a Level Up's experiences kept them all - and the advance counter
+       was a write of its own before the rest. Now everything is read as `stampStartingSheet` reads it, in one job
+       of the student's queue (`meansWrite`): the flags as the GMs hold them (`flagsHeldNow` - `flagsAsHeld` without
+       a wait, which the job's start has made: every write heard on the student is judged by then) and the
+       experiences as the sheet holds them (`numberHeld`); then one write, through the one road, named `setup` -
+       not for the resource guard, which strips a player's trait writes on the player's own browser, and this runs
+       on a GM's. The job awaits nothing but that write. */
+    const { meansWrite, numberHeld, flagsHeldNow } = await import("./sheet-audit.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    return meansWrite(actor, async () => {
+        const flags = flagsHeldNow(actor);
+        const snapshot = flags.getFlag(MODULE_ID, FLAGS.sheetAtStart);
+        const recorded = flags.getFlag(MODULE_ID, FLAGS.levelUpExperiences);
+        const hadAdvances = Number(flags.getFlag(MODULE_ID, FLAGS.advances) ?? 0);
+        const held = numberHeld(actor, "system.experiences") ?? {};
+        const { drop, left } = seasonExperiences(held, snapshot, recorded);
 
-    if (!snapshot?.traits) return { restored: false, advances: hadAdvances };
-
-    const update = {};
-    for (const [key, value] of Object.entries(snapshot.traits)) {
-        update[`system.traits.${key}.value`] = value;
-    }
-    for (const [id, value] of Object.entries(snapshot.experiences ?? {})) {
-        if (actor.system?.experiences?.[id]) update[`system.experiences.${id}.value`] = value;
-    }
-
-    if (Object.keys(update).length) {
-        // The one road, named `setup`. Not for the resource guard: it strips a
-        // player's trait writes on the player's own browser, and this runs on a GM's.
-        const { trustedWrite } = await import("./resource-guard.mjs");
+        const update = { [`flags.${MODULE_ID}.${FLAGS.advances}`]: 0 };
+        if (snapshot?.traits) {
+            for (const [key, value] of Object.entries(snapshot.traits)) {
+                update[`system.traits.${key}.value`] = value;
+            }
+            for (const [id, value] of Object.entries(snapshot.experiences ?? {})) {
+                if (held[id] && !drop.includes(id)) update[`system.experiences.${id}.value`] = value;
+            }
+        }
+        for (const id of drop) update[`system.experiences.${id}`] = forcedDeletion() ?? null;
+        if (recorded !== undefined) update[`flags.${MODULE_ID}.${FLAGS.levelUpExperiences}`] = forcedDeletion() ?? null;
         await trustedWrite(actor, update, { reason: "setup" });
-    }
 
-    return { restored: true, advances: hadAdvances };
+        const name = id => String(held[id]?.name || id);
+        return { restored: Boolean(snapshot?.traits), advances: hadAdvances, removed: drop.map(name), left: left.map(name) };
+    });
 }
 
 /** Effective max of a resource, accounting for Daggerheart's nullable max. */

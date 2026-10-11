@@ -1,0 +1,1353 @@
+/**
+ * The chapter, the body's discovery and the season reset, as they are today (E11 C0,
+ * 10.10.2026; audit S06-58, the plan's section 2.1).
+ *
+ * The suite's reset tests read the source (R50 and the cut-first check in tests-tier0.mjs):
+ * nothing drove a reset through a world holding a season and read what was left. This plays
+ * a season on the seeded GM and players and reads only the world's state, through public
+ * functions and documents, so a rewrite of the reset's or the chapter end's steps (E11 C5,
+ * C9; E42's `runSteps`) leaves it as it is. The reset lives here and not in the in-Foundry
+ * suite because a reset in a GM's real world destroys it.
+ *
+ * Every reading is asserted at its value at 4aad1fd (1.2.72), measured on this harness, and
+ * its check names the E11 commit that changes it; that commit rewrites the check with the
+ * code. A reading no E11 commit changes is green today and stays so.
+ *   A  two scenes with rooms (the Annex gains one), a project on each, a duplicate of the
+ *      first's token on the Annex and an orphan (a project token whose id has no countdown):
+ *      four project tokens; whether p1 knows the orphan (C7: it does not).
+ *   B  Chie kills Daichi, kept, and the incident is closed: the GM panel's next line (C2); Aiko
+ *      and Botan walk in on the body: one discovery card, the hold and the line on it; the gather
+ *      that follows, on Aiko's, Botan's and the GM's browsers, and a gather packet a player sends
+ *      (C3). The announcing window's note, the GM's Prep question after the card and the toast (C4).
+ *      An Eclipse asked for during the hold (C3). Investigation, the Class Trial and a
+ *      wrong verdict that executes Botan; a move inside the room after the verdict (already
+ *      no card), and a walk in after End the trial: the discovery cards each leaves, and the
+ *      discovery's stamp (C1: one row, by the witnesses, naming Daichi).
+ *   C  two End of chapter windows opened on one clock in the Investigation, "next chapter"
+ *      unticked, the first pressed after the second's end: the refusal, the session, the day
+ *      and the phase (C5). Edit campaign moving the time of day back while an
+ *      assembly is called: whether the assembly is held (C6).
+ *   Q  Q3 (a): Botan kills Daichi, kept; the incident is closed and the chapter ended with
+ *      the death still kept; announced by hand in the next chapter, its Blackened reaches
+ *      no trial (`trialBlackenedIds`).
+ *   D  Chie's suicide at Stage 6, a Level Up offered to Aiko (p1), a Call armed on Botan
+ *      (p2), the Final Trial set, Dorm A Aiko's bedroom with its key and her stash in it hidden
+ *      (C10), and Aiko's Health, Sanity and Hope moved off their reset values. Aiko's starting sheet stamped,
+ *      an experience the GM writes after it and one her Level Up adds; Botan's starting sheet as 1.2.72
+ *      stamped one with no experience, and an experience written since (C11).
+ *   R  the reset, every group ticked, answered as 61 answers it: the project tokens the window
+ *      counts and those left on every scene (C7: four, none), the offers (E04), the armed
+ *      Calls (C10), the Final Trial and the season (E10 C10), the suicide's victim (alive
+ *      already, by the cut; C9 keeps it), Aiko's Health, Sanity and Hope (reset already), her bedroom's
+ *      key and her hidden stash (C10: the key handed back, the stash kept and open), the stamps of the bodies found (C1: none left), the incident's closes and
+ *      what is left of it, and the errors (C9: none, and no group failed); what the window offers for the
+ *      cast's tokens and that its first choice moves nobody (C10b); Aiko's and Botan's experiences and the
+ *      card naming what was left (C11: the Level Up's gone, the GM's kept, Botan's two named).
+ *   F  a reset whose chat deletion throws on the GM: the error naming the two chat groups, the
+ *      groups the reset returns as failed, the GMs' report card, and that every other group
+ *      still ran (C9).
+ *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
+ *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves, and
+ *      the manager's "Show on the map" (C8). Then a second GM (`gm2`, late, its id sorting
+ *      after the seed GM's, so the seed GM stays the primary) draws a scene where a project
+ *      has no token yet and drags that project's token: who places it and what the drag
+ *      writes (C8: the primary alone). Last, the upgrade's pass over a world holding an orphan (C8).
+ *   P  where the cast goes (C10b): each student in a room of their own, Daichi killed and kept, bedrooms
+ *      on both maps and the GM looking at the Annex; a reset sending everyone to their bedrooms, one
+ *      sending everyone to the Cafeteria, and the step on a second GM's browser.
+ *   S  last season's chapter 1 (C12): in chapter 1 a Key Remnant, a Final Truth, a Faint Prep trace and a motive, a
+ *      reset of the clock alone, then a Key Remnant and a Faint Prep trace of the new season: the Final Truth placed,
+ *      the motive in force, the Faint Prep question, the End of chapter window's Key count, a death's tie, the chapter's end.
+ *   W  the End of chapter window (C13): a Truth Bullet with no answer key on Aiko, the window opened and cancelled - the
+ *      reveal box and its count against what the reveal would do, and whether the warning names who holds the bullet.
+ *   H  a second GM (`gm2`, a late account whose id sorts after the seeded GM's, so the seeded
+ *      GM stays the primary) ends the chapter while the primary's end runs, held in its first
+ *      step until the primary's move has landed - the interleaving round 1's COR-2 named and
+ *      did not run; then opens its End of chapter window (E11 fix r1-G5).
+ *   K  last season's chapter 1 again (E11 fix r2-H2): in chapter 1 a case of one Key Remnant, that Key Remnant copied by
+ *      Aiko off the plan, an autopsy issued to her and Botan marked a crime witness, then a reset of the clock alone and
+ *      a case of one Key Remnant in the new season's chapter 1: the Keys still to place, the off-plan count, the Key fee, the GM panel's next line and the mark, before and after.
+ *   T  a Class Trial opened under the End of chapter window (E11 fix r2-H3): the primary GM draws the window outside a
+ *      trial, the second GM (at the table since H) opens a trial while it stands, then the primary answers it with the
+ *      next session and the next morning - the box as drawn, what the end did, the clock and the GMs' whisper.
+ *   U  the reset on the primary from its first step to its report (E11 fix r2-H4): four resets of the clock alone that
+ *      send the cast to one room - the Hall, with the players' cameras read; the word typed in lower case; a returning
+ *      GM (`gm0`, its id sorting before the seeded GM's) connecting while the window stands; and the same GM connecting
+ *      after the reset's cut is written, before its first step (the deaths', since E11 fix r2-J1).
+ *   V  the close and the first load (E11 fix r2-H5): Chie's suicide at Stage 6 again and a reset of the incident group alone
+ *      with that group's cut held back on the GM, so the close reads the whole incident - who dies of it and who is told;
+ *      then a world stamped before 1.2.73's clause holding an orphan, loaded in Foundry's boot order (the scene drawn
+ *      before `ready`): who sweeps the orphan and whether the GM is told how many went; and the fog's failures of the run.
+ *   J  what round 2's fixes left open (E11 fix r2-J1): an End of chapter answered in the Investigation, held in its Faint
+ *      Remnants' step while the second GM opens a Class Trial - what the end did and what it told; a reset that moves the
+ *      cast while the chat cannot be deleted - the report card's lines; a cast's step that throws on the primary - its
+ *      words; the reset window drawn for a world whose only remembered exception was the cast's sheet notes; and a chapter
+ *      ended from its own Class Trial with the next morning - whether its trial step's move stops it.
+ * Not readable headless (the plan's section 5): what a player's canvas hides of a project
+ * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
+ * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
+ * so B1b reads the call each browser makes and where it points, and B2 reads the chevron's
+ * `aria-disabled` and its words (E11 C3). The GM panel's next line is read off the panel's content as it is drawn
+ * (E11 C2, `NEXT` below), not off a window on screen.
+ *
+ * Its bound (the plan's M4, set from C0's first readings): its 17 checks took 20.2-21.6 s
+ * in seven runs alone on 10.10.2026 (20.7 s for this file as committed, the rest drafts and
+ * mutants), about 25 s with the boot - a twelfth of run-all's shared five minutes, so it
+ * states no `timeoutMs` of its own. The plan's 480 s was 61's. E11 C10b (10.10.2026): the file as C10
+ * left it, 25 checks, took 35.0 s in one run; with P, 30 checks took 41.6-42.5 s in the eight runs that
+ * went through every phase (two green, five mutants, one at the parent), 45.6 s with the boot in the
+ * one timed - still no `timeoutMs`. E11 C11 (11.10.2026): 31 checks, 47.5 s, 57.1 s with the boot, in one
+ * run beside other trees' harnesses on the same machine - still none. E11 C12 (11.10.2026): with S, 32 checks took
+ * 42.6-43.5 s in five runs beside other trees' harnesses (one green, one with a draft's misread tie, three
+ * mutants) - still none. E11 C13 (11.10.2026): with W, 33 checks took 43.3 s in one run - still none.
+ * On the side fix line, with H (E11 fix r1-G5, a fifth
+ * client booted) its 23 checks took 34.7 s in a2's fast set on 11.10.2026, beside two other
+ * lanes - still none of its own. Merged (11.10.2026), G to W then H: 35 checks took 52.8 s in the
+ * merge's fast set beside two other lanes - still none. E11 fix r2-H4 (11.10.2026): with U and its sixth client (gm0),
+ * 41 checks took 57.9 s in one run - still none. E11 fix r2-H5 (11.10.2026): with V, 44 checks took 61.9 s and 63.7 s
+ * in two runs under the harness lock, 71.8-79.6 s in a2's mutant lanes beside each other (two a2 runs) - still none.
+ */
+export const layers = ["ci"];
+// The second GM of G3 (E11 C8) and of H (E11 fix r1-G5), as 61 declares its own: its id sorts after the
+// seeded GM's (USERGM0000000000), so the seeded GM stays the primary while it is at the table.
+export const accounts = [
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    /* U's returning GM (E11 fix r2-H4), as 15 and 19 declare theirs: its id sorts BEFORE the seeded GM's, so its
+       arrival makes it the primary - the turn round 2's sec S4 named, which gm2 cannot make. */
+    { who: "gm0", id: "USERGA0000000000", name: "Returning GM", role: 4, character: null, color: "#aa0000", late: true }
+];
+
+const MOD = "danganronpa-rpg";
+const J = value => JSON.stringify(value);
+
+export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
+    const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
+    const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
+    const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
+    /* The GM panel's next line as the panel draws it (E11 C2): `openGmPanel` with its window answered at
+       once and its content kept - [the line, its button's action], or null when it draws none. */
+    const NEXT = `const nextLine = async () => { const D = foundry.applications.api.DialogV2, wait = Object.getOwnPropertyDescriptor(D, "wait"); let panel = null;
+        D.wait = async config => { if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content; return null; };
+        try { await (await import("${repoUrl}/scripts/gm-panel.mjs")).openGmPanel(); } finally { if (wait) Object.defineProperty(D, "wait", wait); else delete D.wait; }
+        const next = panel?.querySelector?.(".drpg-gmp-next");
+        return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null, next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null; };`;
+    const players = [p1, p2, p3].filter(Boolean);
+    /* An incident is driven from the GM's client, as 10-murder drives it: the killer's player
+       answering the opening roll it is sent would race the GM's own answer below. The
+       players' module sockets are put aside for the incident and handed back after it. */
+    const mute = () => Promise.all(players.map(c => c.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`)));
+    const unmute = () => Promise.all(players.map(c => c.eval(`(game.socket._handlers.get("module.${MOD}") ?? []).push(...(globalThis.__mutedSocket ?? [])); globalThis.__mutedSocket = []; return true;`)));
+    const kill = (killer, victim) => gm.eval(`const academy = game.scenes.get("${IDS.scene}");
+        if (canvas.scene?.id !== academy.id) canvas.scene = academy;
+        await game.drpg.openMurder({ killerId: "${killer}", victimId: "${victim}", openingTrait: "body" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await game.drpg.passTurn();
+        await game.drpg.resolveCrisisAction({ actorId: "${killer}", key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        await new Promise(r => setTimeout(r, 1700));
+        const victim = game.actors.get("${victim}");
+        return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(victim), flag: game.drpg.isDeceased(victim) };`, { timeout: 60000 });
+    /* A walk into a room: the token is placed inside it (or nudged within it when it already
+       stands there), which is what the discovery's watcher hears (`updateToken` on the primary).
+       A step of 50 px was tried first (09.10.2026) and left Aiko outside the room after the step
+       back, so the step names the room rather than a distance. */
+    const walkTo = (actorId, room) => gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), t = academy.tokens.find(x => x.actorId === "${actorId}");
+        const spot = M.positionIn(${J(room)}, t);
+        if (spot.x === t.x && spot.y === t.y) spot.x += 10;
+        await t.update(spot, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 1500));
+        return M.roomOfToken(t);`, { timeout: 30000 });
+
+    /* ------------------------------ A. the board ------------------------------ */
+    phase("A: two scenes, a project on each, a duplicate and an orphan", { flow: "season-reset" });
+    const ORPHAN = "E11C0ORPHAN00001";
+    /* The board waits for the migration this load started (E11 C8): the harness's world is unstamped, so every clause runs,
+       and from 1.2.73 one of them sweeps the project tokens of no project over every scene. It finished during A in the first
+       run (10.10.2026) and took the orphan planted here - R2 counted three - so without the wait which board R reads would
+       be a race. */
+    const setA = await gm.eval(`await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad();
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        await annex.createEmbeddedDocuments("Region", [{ name: "Annex Hall", shapes: [{ type: "rectangle", x: 200, y: 200, width: 600, height: 600 }],
+            flags: {}, behaviors: [] }]);
+        const view = canvas.scene;
+        canvas.scene = academy;
+        const one = await P.createProject({ name: "E11 C0 65 the Cafeteria's project", target: 6, room: "Cafeteria" });
+        canvas.scene = annex;
+        let two = null;
+        try { two = await P.createProject({ name: "E11 C0 65 the Annex's project", target: 6, room: "Annex Hall" }); }
+        finally { canvas.scene = view; }
+        const first = PM.projectTokenOf(one?.id);
+        const like = (t, x, projectId) => ({ name: t.name, actorId: t.actorId, actorLink: false, x, y: t.y, width: t.width, height: t.height,
+            texture: { src: t.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId } } });
+        if (first) {
+            await annex.createEmbeddedDocuments("Token", [like(first, 300, one.id)]);
+            await academy.createEmbeddedDocuments("Token", [like(first, first.x + 100, "${ORPHAN}")]);
+        }
+        return { one: one?.id ?? null, two: two?.id ?? null, first: first ? { scene: first.parent.id, id: first.id } : null,
+            second: (() => { const t = PM.projectTokenOf(two?.id); return t ? { scene: t.parent.id, id: t.id } : null; })(),
+            tokens: projectTokens() };`, { timeout: 60000 });
+    await settle(500);
+    const knowsA = await p1.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { orphan: P.knowsProject("${ORPHAN}"), countdowns: P.allProjects().map(p => p.id).includes("${ORPHAN}") };`);
+    check("A1: two projects, each with its token on its own scene, a duplicate of the first on the Annex and an orphan on the Academy: four project tokens",
+        Boolean(setA.one) && Boolean(setA.two) && setA.first?.scene === IDS.scene && setA.second?.scene === IDS.annex && setA.tokens.length === 4
+            && setA.tokens.filter(t => t.project === setA.one).length === 2 && setA.tokens.some(t => t.project === ORPHAN && t.scene === IDS.scene),
+        J(setA), { flow: "season-reset" });
+    /* At 4aad1fd p1 read the orphan as a project it knew (projects-secrecy.mjs `isSecret` reads a missing countdown as
+       public, and `roomOf` a missing row as no room). E11 C7: an id with no countdown is nobody's project. */
+    check("A2: p1 does not know the orphan's project, which has no countdown (E11 C7)",
+        knowsA.orphan === false && knowsA.countdowns === false, J(knowsA), { flow: "season-reset" });
+
+    /* ------------------------------ B. the discovery ------------------------------ */
+    phase("B: a body found by two, the hold, the trial and its verdict", { flow: "body-discovery" });
+    await mute();
+    const blow = await kill(IDS.chie, IDS.daichi);
+    await unmute();
+    const waiting = await gm.eval(`${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const open = Boolean(game.drpg.murderState()?.active);
+        await game.drpg.endMurder({ reason: "closed", followUp: false });
+        const room = M.roomOfActor(game.actors.get("${IDS.daichi}"));
+        return { open, closed: !game.drpg.murderState(), room, line: await nextLine(), text: game.i18n.format("DRPG.Panel.nextBodyWaiting", { room }) };`, { timeout: 60000 });
+    /* E11 C2 (audit S13-14): with the incident closed and nobody yet in the room, the line names the body the GMs
+       keep and offers the GM's own announcement. At a220f0f it counted the actions left. The incident is closed
+       here rather than after the discovery, as a GM closes it before anybody finds the body. */
+    check("B0: the incident closed with Daichi's death kept, the GM's next line says a body is waiting in his room and offers the announcement",
+        waiting.open === true && waiting.closed === true && Boolean(waiting.room) && J(waiting.line) === J([waiting.text, "bodyDialog"]),
+        J(waiting), { flow: "body-discovery" });
+    /* E11 C3: every browser's camera calls, kept from here on (the harness canvas's own `animatePan` does nothing). */
+    const PANS = `if (!globalThis.__pans) { globalThis.__pans = []; const pan = canvas.animatePan;
+        canvas.animatePan = async function (view) { globalThis.__pans.push({ x: view?.x ?? null, y: view?.y ?? null }); return pan.call(this, view); }; } return true;`;
+    await Promise.all([gm, p1, p2].map(client => client.eval(PANS)));
+    /* E11 C4: the GM's Prep question and toasts, kept from here to B1c. Before any trace is placed, the
+       announcing window's note in Daily Life (answered "cancel"); then two Faint Prep traces, this chapter's
+       and another's, and the GM's window answered as it is asked - the cards on the table then, its title,
+       what it lists - with nothing ticked. Every other window goes to the harness's own answer. */
+    const asking = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const D = foundry.applications.api.DialogV2, wait = D.wait;
+        const parse = config => { const el = document.createElement("div");
+            if (typeof config?.content === "string") el.innerHTML = config.content; else if (config?.content) el.append(config.content.cloneNode(true));
+            return el; };
+        let note = null;
+        D.wait = async function (config) { const el = parse(config);
+            if (el.querySelector('select[name="room"]')) { note = el.querySelector(".notes")?.textContent?.trim() ?? null; return "cancel"; }
+            return wait.call(this, config); };
+        try { await C.openBodyDiscoveryDialog(); } finally { D.wait = wait; }
+        const chapter = getClock().chapter, academy = game.scenes.get("${IDS.scene}");
+        const place = (chapter, subject) => R.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, x: 0, y: 0, scene: academy, chapter, subject });
+        const mine = await place(chapter, "65 C4 this chapter"), old = await place(chapter + 1, "65 C4 another chapter");
+        globalThis.__c4 = { traces: [mine?.id ?? null, old?.id ?? null], asked: null, told: [], wait, info: ui.notifications.info };
+        D.wait = async function (config) { const el = parse(config);
+            if (!el.querySelector('input[name="promote"]')) return wait.call(this, config);
+            globalThis.__c4.asked ??= { cards: game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length, title: config.window?.title ?? null,
+                listed: [...el.querySelectorAll("label")].map(l => l.textContent ?? "") };
+            return []; };
+        ui.notifications.info = function (message, ...rest) { globalThis.__c4.told.push(String(message)); return globalThis.__c4.info.call(this, message, ...rest); };
+        return { note, bodyNote: game.i18n.localize("DRPG.Chapter.bodyNote"), placed: Boolean(mine && old), phase: getClock().phase };`, { timeout: 60000 });
+    const found = await gm.eval(`${UNTIL} ${CARDS} ${NEXT} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
+        const room = M.roomOfActor(daichi), before = cards();
+        await academy.updateEmbeddedDocuments("Token", ["${IDS.aiko}", "${IDS.botan}"].map(id => {
+            const t = academy.tokens.find(x => x.actorId === id);
+            return { _id: t.id, ...M.positionIn(room, t) };
+        }), { teleport: true, movementAction: "displace", animate: false });
+        await until(() => bodyDiscovery());
+        await new Promise(r => setTimeout(r, 800));
+        const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
+        const R = await import("${repoUrl}/scripts/remnants.mjs"), { caseKeyCount } = await import("${repoUrl}/scripts/investigation.mjs");
+        const keyCase = caseKeyCount(getClock().chapter), keysOnMap = game.scenes.contents.flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.type === "key").length;
+        const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps, keyCase, keysOnMap,
+            line: await nextLine(), keysLine: [plural("DRPG.Panel.nextKeysToPlace", { n: (keyCase ?? 0) - keysOnMap }), "investigation"] };`, { timeout: 60000 });
+    /* E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold;
+       E11 fix r1-G4 (audit S13-14): the case's Key Remnants, none on the map yet, before "start the Investigation" - at 09e01b7
+       the line said "A body has been found. Start the Investigation when the room is ready." with the case's Keys unplaced. */
+    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold names the case's Key Remnants still to place",
+        blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
+            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }])
+            && found.keyCase > 0 && found.keysOnMap === 0 && J(found.line) === J(found.keysLine),
+        J({ blow, found }), { flow: "body-discovery" });
+    const asked = await gm.eval(`${UNTIL} await until(() => globalThis.__c4?.asked, 6000);
+        const c4 = globalThis.__c4, D = foundry.applications.api.DialogV2;
+        D.wait = c4.wait; ui.notifications.info = c4.info;
+        for (const id of c4.traces) { const t = id ? game.scenes.get("${IDS.scene}").tokens.get(id) : null;
+            if (t) { try { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(t); } catch { /* nothing filed */ } await t.delete(); } }
+        return { asked: c4.asked, told: c4.told, title: game.i18n.format("DRPG.Chapter.promoteTitle", { room: ${J(found.room)} }),
+            done: game.i18n.format("DRPG.Chapter.bodyDone", { room: ${J(found.room)} }) };`, { timeout: 60000 });
+    /* E11 C4 (audit S06-44, S13-27). At 2dd4fb9 the GM was asked about Prep traces before the card was on the table
+       (no card yet when asked), under a title without the room, about every chapter's Faint Prep; the toast counted
+       tokens and "traces made permanent"; and the window's note promised the Prep traces to a world with none.
+       Now the card is up when the question comes, headed by the room, listing this chapter's trace alone, the toast
+       says where everyone was brought, and the note before any trace is the Daily Life sentence alone. */
+    check("B1c: the GM is asked about Prep traces after the card, under the body's room, about this chapter's alone; the toast names the room; the note names no traces when there are none",
+        asking.placed === true && asking.phase === "dailyLife" && asking.note === asking.bodyNote && asked.asked?.cards === 1 && asked.asked?.title === asked.title
+            && asked.asked.listed.some(t => t.includes("65 C4 this chapter")) && !asked.asked.listed.some(t => t.includes("65 C4 another chapter"))
+            && asked.told.includes(asked.done),
+        J({ asking, asked }), { flow: "body-discovery" });
+    const PANNED = actorId => `${UNTIL} await until(() => globalThis.__pans.length > 0, 4000);
+        const t = canvas.scene?.tokens.find(x => x.actorId === "${actorId}");
+        return { pans: globalThis.__pans, at: t ? { x: t.center.x, y: t.center.y } : null, scene: canvas.scene?.id ?? null };`;
+    const pannedP1 = await p1.eval(PANNED(IDS.aiko)), pannedP2 = await p2.eval(PANNED(IDS.botan));
+    const pannedGm = await gm.eval(`return { pans: globalThis.__pans };`);
+    await p1.eval(`const t = game.scenes.get("${IDS.scene}").tokens.find(x => x.actorId === "${IDS.botan}");
+        game.socket.emit("module.${MOD}", { action: "sync", kind: "gather", data: { room: ${J(found.room)}, scene: "${IDS.scene}", tokenIds: [t.id] } });
+        return true;`);
+    await settle(1500);
+    const forged = await p2.eval(`return globalThis.__pans.length;`);
+    /* E11 C3 (audit S06-07): the discovery's gather moved the cast and told no screen - at 9e97646 no browser
+       made a camera call. Each player's browser pans to its own student's token where it now stands, the GM's
+       (no student of its own) does not, and the same packet sent by a player is not applied (sync.mjs
+       `registerSync` takes a packet only from a GM). */
+    const at = panned => J(panned.pans) === J([panned.at]);
+    check("B1b: the gather after the discovery pans Aiko's and Botan's players to their own tokens and not the GM; a gather packet a player sends pans nobody",
+        at(pannedP1) && at(pannedP2) && pannedP1.scene === IDS.scene && pannedGm.pans.length === 0 && forged === pannedP2.pans.length,
+        J({ pannedP1, pannedP2, pannedGm, forged }), { flow: "body-discovery" });
+    const eclipse = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const { isEclipse, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const held = Boolean(bodyDiscovery()), first = game.i18n.localize("DRPG.Eclipse.bodyFirst"), told = [], warn = ui.notifications.warn;
+        ui.notifications.warn = function (message, ...rest) { told.push(String(message)); return warn.call(this, message, ...rest); };
+        let answered;
+        try { answered = await E.startEclipse(); } finally { ui.notifications.warn = warn; }
+        const on = isEclipse();
+        if (on) await E.endEclipse({ advance: false });
+        const chevron = document.querySelector('#drpg-hud .drpg-hud-button[aria-disabled="true"]');
+        return { held, answered: answered ?? null, on, told: told.includes(first), chevron: chevron?.dataset?.tooltip === first, off: !isEclipse() };`, { timeout: 60000 });
+    /* At C0 (4aad1fd) the Eclipse opened during the hold. E11 C3 (audit S06-05): refused, the GM told why, and
+       the HUD's chevron dimmed with the same words. */
+    check("B2: an Eclipse asked for during the hold is refused, the GM told why, and the HUD's Eclipse chevron is dimmed with the same words",
+        eclipse.held === true && eclipse.answered === null && eclipse.on === false && eclipse.told === true && eclipse.chevron === true && eclipse.off === true,
+        J(eclipse), { flow: "body-discovery" });
+    const trial = await gm.eval(`${CARDS} const { setPhase } = await import("${repoUrl}/scripts/clock.mjs");
+        const { getClock, bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const I = await import("${repoUrl}/scripts/incident-store.mjs");
+        await setPhase("investigation");
+        const investigation = { phase: getClock().phase, hold: Boolean(bodyDiscovery()) };
+        globalThis.__dialogAnswers.push("ok");
+        const { startClassTrial } = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
+        const started = await startClassTrial();
+        const known = I.trialBlackenedIds();
+        await game.drpg.applyVerdict({ correct: false, executedIds: ["${IDS.botan}"], blackenedIds: ["${IDS.chie}"] });
+        await new Promise(r => setTimeout(r, 800));
+        return { investigation, started, phase: getClock().phase, known, botan: game.drpg.isDeceased(game.actors.get("${IDS.botan}")), cards: cards() };`, { timeout: 90000 });
+    const afterVerdictRoom = await walkTo(IDS.chie, found.room);
+    const afterVerdict = await gm.eval(`${CARDS} const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        return { cards: cards(), hold: Boolean(bodyDiscovery()) };`);
+    /* The plan predicted a second card here (base 2). Measured at 4aad1fd (10.10.2026): 1. Chie moves inside
+       the Gym, where both bodies lie, during the Class Trial; `checkBodyFound` admits only the Investigation or
+       a hold, and the hold went when the phase changed. So this is already C1's reading, kept as a guard
+       rather than a flip; the flip is B4's. */
+    check("B3: after a wrong verdict executes Botan, a move inside the room during the trial posts no second discovery card",
+        trial.investigation.phase === "investigation" && trial.started === true && trial.phase === "classTrial" && J(trial.known) === J([IDS.chie])
+            && trial.botan === true && trial.cards === 1 && afterVerdictRoom === found.room && afterVerdict.cards === 1 && afterVerdict.hold === false,
+        J({ trial, afterVerdictRoom, afterVerdict }), { flow: "body-discovery" });
+    const ended = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        globalThis.__dialogAnswers.push(true);
+        const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
+        ${CARDS} const { bodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        const ended = await UI.endClassTrial();
+        await new Promise(r => setTimeout(r, 1500));
+        return { ended, phase: getClock().phase, cards: cards(), hold: Boolean(bodyDiscovery()) };`, { timeout: 60000 });
+    const afterEndRoom = await walkTo(IDS.aiko, found.room);
+    const afterEnd = await gm.eval(`${CARDS} const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        return { cards: cards(), hold: Boolean(bodyDiscovery()), stamps: (bodiesFoundIn?.(getClock().chapter) ?? []).length };`);
+    /* At 4aad1fd (C0, 10.10.2026), once the trial had ended, Aiko walking in set off a second discovery: a second
+       card and a new hold (the plan's "2 or 3"). Ending the trial posts nothing by itself. Aiko's token reads no
+       room afterwards - the walk is charged in Daily Life and put back - but the watcher heard her inside first.
+       E11 C1: still one card, no hold, one stamp. What this reads is Daichi's stamp: with the watcher's
+       `announced` dropped B4 is red, and with the execution's phase test dropped it stays green (both measured
+       10.10.2026), so the executed body is held by R347 and the tier-2 execution test, not here. Whether Botan's
+       token still lies in the room after the verdict was not measured. */
+    check("B4: after End the trial, Aiko walking into the room posts no second discovery card, no new hold and no second stamp",
+        ended.ended === true && ended.phase === "dailyLife" && ended.cards === 1 && ended.hold === false && afterEnd.cards === 1 && afterEnd.hold === false
+            && afterEnd.stamps === 1,
+        J({ ended, afterEndRoom, afterEnd }), { flow: "body-discovery" });
+    // The cast back for the rest of the season, and the hold the last discovery left taken.
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { clearBodyDiscovery } = await import("${repoUrl}/scripts/settings.mjs");
+        for (const id of ["${IDS.botan}", "${IDS.daichi}"]) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        await clearBodyDiscovery();
+        return true;`, { timeout: 60000 });
+
+    /* ------------------------------ C. the chapter's end and Edit campaign ------------------------------ */
+    phase("C: the chapter ended twice from the Investigation, and Edit campaign with an assembly called", { flow: "clock-day" });
+    /* Two End of chapter windows open on the same clock, as two GMs' would be: the one opened first is
+       pressed last, after the other's end has run (its answer opens and answers the second window
+       before it answers itself). Before E11 C5 the window sent the chapter read when Do it was pressed
+       and nothing compared the session, so both ran: two sessions on, and still the Investigation. */
+    const twice = await gm.eval(`const { setPhase } = await import("${repoUrl}/scripts/clock.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        await setPhase("investigation");
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase });
+        const before = mark();
+        const twiceText = game.i18n.format("DRPG.Chapter.endTwice", before);
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const told = () => game.messages.filter(m => String(contentOf(m)).includes(twiceText)).length;
+        const answer = () => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true });
+        const ends = {};
+        globalThis.__dialogAnswers.push(async () => {
+            globalThis.__dialogAnswers.push(answer);
+            ends.second = Boolean(await C.openChapterEndDialog());
+            return answer();
+        });
+        ends.first = Boolean(await C.openChapterEndDialog());
+        return { before, ends, after: mark(), told: told() };`, { timeout: 60000 });
+    check("C1: two End of chapter windows opened on the same clock in the Investigation, next chapter unticked: the one pressed second is refused and told, one session and one day on, and Daily Life (E11 C5)",
+        twice.before.phase === "investigation" && twice.ends.second === true && twice.ends.first === false && twice.told === 1
+            && twice.after.chapter === twice.before.chapter && twice.after.session === twice.before.session + 1
+            && twice.after.day === twice.before.day + 1 && twice.after.phase === "dailyLife",
+        J(twice), { flow: "clock-day" });
+    /* Edit campaign moving the hour back, with an assembly called in the afternoon for the next time of day. Before
+       E11 C6 the correction's clock write was the one `runPendingGather` holds an order on (the time of day differs
+       from the one it was called in), so the cast was gathered from a window for typos; C0's reading was the order
+       gone and the time of day moved. Read: the cards posted after the write that carry Monokuma's banner (an
+       assembly held), the order standing, the called-off cards. */
+    const edit = await gm.eval(`${UNTIL} const { setPhase, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const CE = await import("${repoUrl}/scripts/call-effects.mjs");
+        const G = await import("${repoUrl}/scripts/gm-panel.mjs");
+        await setPhase("dailyLife");
+        await setClock({ timeOfDay: "afternoon" });
+        const view = canvas.scene; canvas.scene = game.scenes.get("${IDS.scene}");
+        let order = null;
+        try { order = await CE.scheduleGather("Cafeteria"); } finally { canvas.scene = view; }
+        const seen = new Set(game.messages.keys());
+        const posted = text => game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(text)).length;
+        const banner = game.i18n.localize("DRPG.Calls.gatherBanner");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: "Cafeteria" });
+        const c = getClock();
+        globalThis.__dialogAnswers.push(() => ({ campaignName: c.campaignName ?? "", chapter: c.chapter, day: c.day ?? 1, phase: c.phase,
+            session: c.session, timeOfDay: "morning", reset: false }));
+        await G.openClockDialog();
+        await until(() => posted(banner) > 0, 4000);
+        const standing = Boolean(CE.pendingGather());
+        if (standing) await CE.cancelGather();
+        return { ordered: order?.timeOfDay ?? null, timeOfDay: getClock().timeOfDay, held: posted(banner), standing, calledOff: posted(calledOff) };`, { timeout: 60000 });
+    check("C2: Edit campaign moving the time of day back calls off the assembly called in the afternoon and holds nobody (E11 C6)",
+        edit.ordered === "afternoon" && edit.timeOfDay === "morning" && edit.held === 0 && edit.standing === false && edit.calledOff === 1,
+        J(edit), { flow: "clock-day" });
+
+    /* ------------------------------ Q. Q3 (a): a death kept past its chapter ------------------------------ */
+    phase("Q: a death kept past its chapter's end and announced in the next reaches no trial", { flow: "murder-incident" });
+    await mute();
+    const keptBlow = await kill(IDS.botan, IDS.daichi);
+    await unmute();
+    const late = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs"); const I = await import("${repoUrl}/scripts/incident-store.mjs");
+        const daichi = game.actors.get("${IDS.daichi}");
+        await game.drpg.endMurder({ reason: "closed", followUp: false });
+        const from = getClock().chapter, register = I.blackenedIds(), livingBefore = C.livingStudents().length;
+        globalThis.__dialogAnswers.push(() => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: true, nextSession: true, nextMorning: true }));
+        const ended = Boolean(await C.openChapterEndDialog());
+        const keptAtEnd = game.drpg.isDeadForGm(daichi) && !game.drpg.isDeceased(daichi);
+        const living = [livingBefore, C.livingStudents().length];
+        await C.publishDeath(daichi);
+        return { from, to: getClock().chapter, ended, register, keptAtEnd, living, announced: game.drpg.isDeceased(daichi), trial: I.trialBlackenedIds() };`, { timeout: 60000 });
+    // Q3 (a), the owner's answer of 09.10.2026: today's code already does this (anchors.md section 2 (6), read in the code); this measures it.
+    check("Q1: Botan's kill of Daichi, kept through the chapter's end and announced in the next chapter, puts no Blackened before that chapter's trial",
+        keptBlow.dead === true && keptBlow.flag === false && late.register.includes(IDS.botan) && late.ended === true && late.to === late.from + 1
+            && late.keptAtEnd === true && late.announced === true && J(late.trial) === J([]),
+        J({ keptBlow, late }), { flow: "murder-incident" });
+    /* The amendment of 26.09.2026: the chapter's end neither reveals a death the GMs hold (Q1's `keptAtEnd`) nor
+       counts it - the living the table reads (`livingStudents`, the published flag) are as many after the end
+       as before it (E11 C5; green before it too, measured 10.10.2026: no step of the end touches a death). */
+    check("Q2: the chapter's end leaves the living count the table reads as it was, with Daichi's death still kept",
+        late.ended === true && late.keptAtEnd === true && late.living[0] === late.living[1], J(late), { flow: "murder-incident" });
+
+    /* ------------------------------ D. the season to reset ------------------------------ */
+    phase("D: a suicide at Stage 6, an offer, an armed Call, the Final Trial, a bedroom, its key and a hidden stash", { flow: "season-reset" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        await C.reviveCharacter(game.actors.get("${IDS.daichi}"), { quiet: true }); return true;`, { timeout: 60000 });
+    await mute();
+    const suicide = await gm.eval(`await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.chie}", openingTrait: "body" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await new Promise(r => setTimeout(r, 800));
+        const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, self: s?.selfInflicted ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")) };`, { timeout: 60000 });
+    await unmute();
+    const season = await gm.eval(`const L = await import("${repoUrl}/scripts/level-up.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const CE = await import("${repoUrl}/scripts/call-effects.mjs"); const MM = await import("${repoUrl}/scripts/mastermind.mjs");
+        const V = await import("${repoUrl}/scripts/vault.mjs"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        /* E11 C11: Aiko's starting sheet stamped as 1.2.73 stamps it, an experience the GM writes by hand after it and
+           one a Level Up adds (with her day-one experience raised); Botan's stamped as 1.2.72 stamped a sheet with no
+           experience - no \`levelUpsMarked\` - and an entry made since, written down nowhere. */
+        const C = await import("${repoUrl}/scripts/character.mjs");
+        const named = (actor, name) => Object.keys(actor._source.system.experiences).find(id => actor._source.system.experiences[id]?.name === name);
+        await C.initCharacter(aiko, { quiet: true });
+        await trustedWrite(aiko, { [\`system.experiences.\${foundry.utils.randomID()}\`]: { name: "65 the GM's", value: 1, description: "", core: false } }, { reason: "gmRuling" });
+        const levelUp = await L.applyAdvancement(aiko, [{ option: "experienceNew", name: "65 a Level Up's" }, { option: "experienceUp", experience: named(aiko, "Star Pupil") }]);
+        await botan.setFlag("${MOD}", "sheetAtStart", { traits: Object.fromEntries(Object.entries(botan._source.system.traits).map(([k, t]) => [k, t.value])), experiences: {}, at: 1 });
+        await trustedWrite(botan, { [\`system.experiences.\${foundry.utils.randomID()}\`]: { name: "65 Botan's of 1.2.72", value: 2, description: "", core: false } }, { reason: "gmRuling" });
+        const recorded = (aiko.getFlag("${MOD}", "levelUpExperiences") ?? []).map(id => aiko._source.system.experiences[id]?.name ?? id);
+        await L.recordOffer(aiko.id, { kind: "standard" });
+        const armed = await CE.armCall(botan, { key: "support", kind: "hope", grants: "advantage" });
+        await MM.setFinalTrial(true);
+        const dorm = game.scenes.get("${IDS.scene}").regions.find(r => r.name === "Dorm A");
+        await dorm.setFlag("${MOD}", V.VAULT_FLAGS.owner, aiko.id);
+        // E11 C10: Aiko's stash in her bedroom, hidden - the list \`setStash\` writes, written here on the region itself.
+        await dorm.setFlag("${MOD}", V.VAULT_FLAGS.stashes, [{ actorId: aiko.id, concealed: true }]);
+        await V.reconcileBedroomKeys({ silent: true });
+        await trustedWrite(aiko, { "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2, "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+        const r = aiko.system.resources;
+        return { offers: L.offerList(S.offerStore.get(aiko.id)).length, armed: Boolean(armed),
+            calls: ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"].filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
+            finalTrial: getClock().finalTrial, season: getClock().season ?? null, key: V.keysHeldBy(aiko).has("Dorm A"),
+            stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")),
+            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], levelUp: Array.isArray(levelUp), recorded };`, { timeout: 60000 });
+    check("D1: the season to reset - Chie's suicide at Stage 6 and alive, an offer for Aiko, a Call armed on Botan, the Final Trial, Aiko's key to Dorm A and her stash there hidden",
+        suicide.stage === "resolution" && suicide.self === true && suicide.dead === false && season.offers === 1 && season.armed && season.calls === 1
+            && season.finalTrial === true && season.season === 1 && season.key === true && J(season.sheet) === J([2, 2, 0])
+            && J(season.stash) === J([{ actorId: IDS.aiko, concealed: true }]),
+        J({ suicide, season }), { flow: "season-reset" });
+
+    /* ------------------------------ R. the reset ------------------------------ */
+    phase("R: the season reset, every group ticked", { flow: "season-reset" });
+    /* The reset as 61 answers it, with the ticks and the cast's choice handed in (E11 C10b): `cast` is an expression over
+       `c`, the window's content, so R and F answer what the window offers at first and P picks a room off its list. */
+    const CAST_CHECKED = `({ to: c?.querySelector?.('[name="castTo"]:checked')?.value ?? null })`;
+    /* E11 fix r2-H4: `typed` is the word answered (an expression over \`word\`), and `answer` code the window's answer
+       awaits before it answers (U holds the window open with it); `seasonBefore` is the season the reset found. */
+    const resetRun = ({ ticked = "X.RESET_GROUPS.map(g => g.key)", cast = CAST_CHECKED, typed = "word", answer = "" } = {}) => `const R = await import("${repoUrl}/scripts/season-setup.mjs");
+        const X = await import("${repoUrl}/scripts/season-exceptions.mjs");
+        const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const V = await import("${repoUrl}/scripts/vault.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        ${PROJECT_TOKENS}
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        // Where each student's token stands on the Academy (E11 C10b): [x, y, room].
+        const cast = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"];
+        const at = () => Object.fromEntries(cast.map(id => { const t = game.scenes.get("${IDS.scene}").tokens.find(x => x.actorId === id);
+            return [id, t ? [t.x, t.y, M.roomOfToken(t)] : null]; }));
+        const atBefore = at();
+        // The stamps' setting is C1's: before it, reading it throws, so the count is null and R1 fails as a check.
+        const told = globalThis.__notifications.length, seasons = () => { try { return Object.keys(game.settings.get("${MOD}", "bodiesFound") ?? {}).length; } catch { return null; } };
+        const stampedBefore = seasons();
+        // The window's own count of the project tokens (E11 C7, \`resetTally\`), read off the content it was opened with -
+        // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
+        let counted = null, closes = 0, castAnswer = null;
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+        globalThis.__dialogAnswers.push(${answer ? "async " : ""}config => { const c = config?.content; ${answer}
+            const line = /(\\d+) project tokens? on the maps/.exec(typeof c === "string" ? c : c?.textContent ?? "");
+            counted = line ? Number(line[1]) : null; castAnswer = ${cast}; return { word: ${typed}, ticked: ${ticked}, cast: castAnswer }; });
+        // The report is a whisper: its words are this GM's to read through secret.mjs, the document holding a stub.
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const reported = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.title"))).length;
+        const castCards = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.titleCast"))).length;
+        const castCardsBefore = castCards();
+        // E11 C11: the cards naming the experiences the reset left, their words; each student's experiences as \`name=value\`.
+        const leftCards = () => game.messages.map(m => String(contentOf(m))).filter(c => c.includes(game.i18n.localize("DRPG.Season.reportCard.titleLeft")));
+        const leftCardsBefore = leftCards().length;
+        const experiences = id => Object.values(game.actors.get(id)._source.system.experiences ?? {}).filter(e => typeof e?.value === "number")
+            .map(e => \`\${e.name}=\${e.value}\`).sort();
+        const reportsBefore = reported(), incidentBefore = game.drpg.murderState()?.active ?? false, seasonBefore = getClock().season ?? null;
+        let result;
+        try { result = await R.resetSeason(); } finally { Hooks.off("drpgIncidentClosed", closed); }
+        await gmStoresIdle();
+        await new Promise(r => setTimeout(r, 800));
+        const ids = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"], aiko = game.actors.get("${IDS.aiko}"), r = aiko.system.resources;
+        const read = { cleared: result?.cleared ?? null, kept: result?.kept ?? null, tokens: projectTokens().length, counted,
+            offers: ids.reduce((n, id) => n + L.offerList(S.offerStore.get(id)).length, 0),
+            calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
+            finalTrial: getClock().finalTrial, season: getClock().season ?? null, seasonBefore, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
+            sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"),
+            stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")), stamped: [stampedBefore, seasons()],
+            failed: result?.failed ?? null, incident: { before: incidentBefore, closes, after: game.drpg.murderState() ?? null },
+            reports: reported() - reportsBefore,
+            errors: globalThis.__notifications.slice(told).filter(n => n.level === "error").map(n => n.msg),
+            castAnswer, stayed: result?.stayed ?? null, at: { before: atBefore, after: at() }, castCards: castCards() - castCardsBefore,
+            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").map(n => n.msg),
+            experiences: { aiko: experiences("${IDS.aiko}"), botan: experiences("${IDS.botan}"), listed: aiko.getFlag("${MOD}", "levelUpExperiences") ?? null },
+            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore), notRun: result?.notRun ?? null };`;
+    const RESET = resetRun();
+    const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
+    // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
+    // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
+    // E11 fix r2-H4: 28 groups - the cast's sheet notes went (a Daggerheart character has no notes field to clear).
+    check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
+        Array.isArray(reset.cleared) && reset.cleared.length === 28 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+            && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
+            && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
+            && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
+    /* At 4aad1fd `clearAllProjects` cleared the countdowns and the meta and removed no token: all four stood after the
+       reset. E11 C7: the projects step sweeps every project token first, and the window counts them before it asks. */
+    check("R2: the reset window counts the four project tokens and the reset leaves none on any scene (E11 C7)",
+        reset.counted === 4 && reset.tokens === 0, J(reset), { flow: "season-reset" });
+    /* Before E11 C10 `seals` cleared the seals and left the armed Call: one `pendingCall` after the reset, this
+       check's reading until then. E11 C10: the group's label names "every Call armed for a roll", and none is left. */
+    check("R3: the reset leaves no armed Call - Botan's is unset with the seals (E11 C10)",
+        reset.calls === 0, J(reset), { flow: "season-reset" });
+    /* The plan predicted the victim dead at the base (deaths revived before the incident is ended). Measured at
+       4aad1fd (10.10.2026): alive - not dead for the GMs, no flag, no row in the death store. Why, measured by an
+       E11 C9 probe at 4fcc2b4 (10.10.2026): the reset's cut, written on the clock before any step, takes the cast;
+       as the clock's write landed the incident read active with no victim and not self-inflicted, so the close
+       that followed had nobody to kill, in whatever order the steps ran. So this reading cannot see the order: C9's
+       incident-first is held by R50 (RESET_STEPS, as data) and the close's `conclude: false` by tier 2 "a reset
+       abandons an incident: nobody killed, ...". It stays as the reading of the world C9 promises. */
+    check("R4: the reset leaves the suicide's victim alive - no death for the GMs, no flag, no death row",
+        reset.victim?.forGm === false && reset.victim?.flag === false && reset.victim?.row === false, J(reset), { flow: "season-reset" });
+    /* The sheet half the plan gave C10 was there already: Aiko's 2, 2, 0 came back as 0, 0 and the starting
+       Hope 2 (measured at 4aad1fd, 10.10.2026), written then by `advancement`, whose label promises neither.
+       E11 C10 moves those writes to `deaths` and `despair`, whose labels do, so this reading stays as it was;
+       which group writes what is tier 2's "each cast group of the reset takes what its label says off one
+       student and nothing else". The key half was not there: the reset took the key with the cast's items and
+       gave none back (key false, this check's reading before E11 C10). C10: `items` hands it back at once. */
+    check("R5: the reset gives Aiko Health and Sanity 0 and the starting Hope, and her bedroom's key back (E11 C10)",
+        J(reset.sheet) === J([0, 0, 2]) && reset.key === true, J(reset), { flow: "season-reset" });
+    /* Before E11 C10 nothing in the reset touched a stash's concealment (read in the code, 10.10.2026: no step wrote
+       `stashes` or the legacy flag), so a stash hidden in season one stood hidden in season two. E11 C10:
+       `stashesFound`, labelled "every hidden stash open again", opens it; the stash itself, the GM's room
+       setup, is kept. */
+    check("R6: the reset keeps Aiko's stash in Dorm A and opens it (E11 C10)",
+        J(reset.stash) === J([{ actorId: IDS.aiko, concealed: false }]), J(reset), { flow: "season-reset" });
+    /* Before E11 C10b the window offered no choice of where the cast goes (castAnswer.to null: no such field) and no reset
+       moved a token. C10b: the window opens on "they stay", and a reset answered so moves nobody and names nobody. */
+    check("R7: the reset window offers where the cast goes and starts on \"they stay\"; answered so, no student's token moves and the report names nobody (E11 C10b)",
+        reset.castAnswer?.to === "stay" && J(reset.at.after) === J(reset.at.before) && Object.values(reset.at.before).every(Boolean)
+            && J(reset.stayed) === "[]" && reset.castCards === 0 && reset.warned.length === 0, J(reset), { flow: "season-reset" });
+    /* Before E11 C11 the reset put back the values of the experiences a season began with and kept every other entry
+       (character.mjs \`restoreStartingSheet\`): Aiko's Level Up's experience stood in season two, and nothing was named.
+       C11: what a Level Up added goes and the GM's own stays (\`levelUpExperiences\`, the list \`applyAdvancement\`
+       writes); Botan's starting sheet, stamped before anything was written down and holding no experience, cannot tell
+       the two apart, so both of his stay and one card to the GMs names them (the owner's Q1 (a)), without a toast. */
+    const leftCard = reset.leftCards?.[0] ?? "";
+    check("R8: the reset takes the experience Aiko's Level Up added and keeps the GM's, puts her day-one one back, and names on one card the two it cannot tell apart on Botan's sheet (E11 C11)",
+        season.levelUp === true && J(season.recorded) === J(["65 a Level Up's"])
+            && J(reset.experiences.aiko) === J(["65 the GM's=1", "Star Pupil=2"]) && reset.experiences.listed === null
+            && J(reset.experiences.botan) === J(["65 Botan's of 1.2.72=2", "Night Owl=2"])
+            && J(reset.left) === J([{ name: "Botan Kage", experiences: ["Night Owl", "65 Botan's of 1.2.72"] }])
+            && reset.leftCards.length === 1 && ["Botan Kage", "Night Owl", "65 Botan"].every(word => leftCard.includes(word)) && !leftCard.includes("Aiko"),
+        J({ season, reset: { experiences: reset.experiences, left: reset.left, leftCards: reset.leftCards } }), { flow: "season-reset" });
+
+    /* ------------------------------ F. a step that fails ------------------------------ */
+    phase("F: a reset whose chat deletion throws", { flow: "season-reset" });
+    const failing = await gm.eval(`await ChatMessage.create({ content: "E11 C0 65 F: a card for the reset to delete", flags: { "${MOD}": { drpgMessage: true } } });
+        const deleting = ChatMessage.deleteDocuments;
+        const asked = { n: 0, size: game.messages.size };
+        ChatMessage.deleteDocuments = async () => { asked.n++; throw new Error("E11 C0 65: the chat cannot be deleted"); };
+        await (await import("${repoUrl}/scripts/clock.mjs")).setClock({ finalTrial: true });
+        try { ${RESET} return { ...read, asked }; } finally { ChatMessage.deleteDocuments = deleting; }`, { timeout: 120000 });
+    /* At 4fcc2b4 a step that threw was logged on the console and no error was told (measured 10.10.2026: with a module
+       card in the chat the stub was asked twice, once per chat group, both fell out of `cleared`, and the GM read
+       "The season has been reset"). E11 C9: one error notification names both chat groups by their labels, the result
+       returns them as failed, and the GMs get one card saying what failed, what went and what was kept; every other
+       group still ran, the second reset counted the season and turned the Final Trial off again. */
+    const chatLabels = await gm.eval(`return ["cards", "chatRest"].map(key => game.i18n.localize(\`DRPG.Season.group.\${key}\`));`);
+    check("F1: with the chat's deletion throwing, every other group still runs, the two chat groups are returned as failed and the GM is told by an error naming them and a report card (E11 C9)",
+        failing.asked.n === 2 && J(failing.failed) === J(["cards", "chatRest"]) && failing.cleared.length === reset.cleared.length - 2
+            && !failing.cleared.some(key => ["cards", "chatRest"].includes(key)) && failing.reports === 1
+            && failing.errors.length === 1 && chatLabels.every(label => failing.errors[0].includes(label))
+            && failing.season === 3 && failing.finalTrial === false && failing.offers === 0,
+        J({ failing, reset: reset.cleared, chatLabels }), { flow: "season-reset" });
+
+    /* ------------------------------ G. a world already reset ------------------------------ */
+    phase("G: a world already reset - an orphan, a duplicate and a token deleted by hand, and the canvas drawn again", { flow: "season-reset" });
+    const ORPHAN_G = "E11C0ORPHAN00002";
+    const swept = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        for (const t of projectTokens()) await game.scenes.get(t.scene).tokens.get(t.id)?.delete();
+        const view = canvas.scene;
+        canvas.scene = academy;
+        const three = await P.createProject({ name: "E11 C0 65 G the Cafeteria's project", target: 6, room: "Cafeteria" });
+        canvas.scene = annex;
+        let four = null;
+        try { four = await P.createProject({ name: "E11 C0 65 G the Annex's project", target: 6, room: "Annex Hall" }); }
+        finally { canvas.scene = view; }
+        const first = PM.projectTokenOf(three?.id), byHand = PM.projectTokenOf(four?.id);
+        const like = (t, x, projectId) => ({ name: t.name, actorId: t.actorId, actorLink: false, x, y: t.y, width: t.width, height: t.height,
+            texture: { src: t.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId } } });
+        if (first) {
+            await annex.createEmbeddedDocuments("Token", [like(first, 300, three.id)]);
+            await academy.createEmbeddedDocuments("Token", [like(first, first.x + 100, "${ORPHAN_G}")]);
+        }
+        const deleted = Boolean(byHand);
+        await byHand?.delete();
+        const planted = projectTokens();
+        const told = globalThis.__notifications.length;
+        canvas.scene = annex;
+        try {
+            Hooks.callAll("canvasReady", canvas);
+            await new Promise(r => setTimeout(r, 2000));
+        } finally { canvas.scene = view; }
+        const after = projectTokens();
+        const read = { three: three?.id ?? null, four: four?.id ?? null, deleted, planted: planted.length,
+            orphan: after.some(t => t.project === "${ORPHAN_G}"), duplicates: after.filter(t => t.project === three?.id).length,
+            back: after.some(t => t.project === four?.id), warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").length };
+        canvas.scene = annex;
+        try { await PM.showProjectOnMap?.(four?.id); } finally { canvas.scene = view; }
+        return { ...read, shown: projectTokens().filter(t => t.project === four?.id).length };`, { timeout: 60000 });
+    /* At 80ba2a5 (10.10.2026) the primary's sync kept the orphan (orphan true), warned of no duplicate (warned 0) and put the token a GM deleted back (back true). E11 C8: the
+       orphan gone, the duplicate kept and warned of once, the deleted token left deleted - and back from the manager's "Show on the map". */
+    check("G1: the canvas drawn again removes the orphan, keeps the duplicate and warns of it, and leaves the token deleted by hand deleted (E11 C8)",
+        Boolean(swept.three) && Boolean(swept.four) && swept.deleted && swept.planted === 3 && swept.orphan === false && swept.duplicates === 2
+            && swept.back === false && swept.warned === 1, J(swept), { flow: "season-reset" });
+    check("G2: Show on the map puts back the token of a project a GM deleted from the map (E11 C8)",
+        swept.back === false && swept.shown === 1, J(swept), { flow: "season-reset" });
+
+    /* G3 (E11 C8). With a second GM at the table, a scene drawn on its browser where a project has no token yet, and a drag of
+       that project's token there. At 80ba2a5 (10.10.2026) the second GM's draw placed the token (second.placed 1); the
+       drag wrote the metadata once and whispered once there too, so those two readings guard
+       the primary-only move rather than prove it. The project's room is the Gym, created while the GM looks at the
+       Annex, so nothing is placed until a draw of the Academy. */
+    await connect("gm2");
+    const IMPORTS = `const P = await import("${repoUrl}/scripts/projects.mjs"); const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        const U = await import("${repoUrl}/scripts/utils.mjs"); ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        const draw = async scene => { const view = canvas.scene; canvas.scene = scene;
+            try { Hooks.callAll("canvasReady", canvas); await new Promise(r => setTimeout(r, 2000)); } finally { canvas.scene = view; } };`;
+    let g3 = null;
+    try {
+        const made = await gm.eval(`${IMPORTS} const view = canvas.scene; canvas.scene = annex;
+            let five = null;
+            try { five = await P.createProject({ name: "E11 C8 65 G3 the Gym's project", target: 6, room: "Gym" }); } finally { canvas.scene = view; }
+            return { five: five?.id ?? null, tokens: projectTokens().filter(t => t.project === five?.id).length };`, { timeout: 30000 });
+        const second = await gm2.eval(`${IMPORTS} await draw(academy);
+            return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length };`, { timeout: 30000 });
+        const first = await gm.eval(`${IMPORTS} await draw(academy);
+            globalThis.__g3Messages = game.messages.map(m => m.id);
+            globalThis.__g3Writes = 0;
+            globalThis.__g3WritesFn = s => { if (s?.key === "${MOD}.projectMeta") globalThis.__g3Writes++; };
+            Hooks.on("updateSetting", globalThis.__g3WritesFn);
+            const own = PM.projectTokenOf("${made.five}");
+            return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length, token: own?.id ?? null };`, { timeout: 30000 });
+        /* E11 fix r2-H5 (the round-2 reviews' open item 2: the move hook's primary-only gate had no kill - the counts on
+           the primary came out the same without it). What the second GM's own browser writes and whispers while its drag
+           lands: its writes of the metadata (`game.settings.set` counted there) and the whispers it authors. */
+        const dragged = await gm2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+            const t = game.scenes.get("${IDS.scene}").tokens.get(${J(first.token)});
+            const was = new Set(game.messages.map(m => m.id)), set = game.settings.set;
+            let writes = 0;
+            game.settings.set = async function (...args) { if (args[0] === "${MOD}" && args[1] === "projectMeta") writes++; return set.apply(this, args); };
+            try {
+                if (t) await t.update(M.positionIn("Cafeteria", t), { teleport: true, movementAction: "displace", animate: false });
+                await new Promise(r => setTimeout(r, 2000));
+            } finally { game.settings.set = set; }
+            return { writes, whispers: game.messages.filter(m => !was.has(m.id) && (m.author?.id ?? m._source?.author) === game.user.id).length };`, { timeout: 30000 });
+        const moved = await gm.eval(`${IMPORTS} const was = new Set(globalThis.__g3Messages ?? []);
+            Hooks.off("updateSetting", globalThis.__g3WritesFn);
+            return { room: P.roomOf("${made.five}"), writes: globalThis.__g3Writes,
+                whispers: game.messages.filter(m => !was.has(m.id)).length };`, { timeout: 30000 });
+        g3 = { made, second, first, dragged, moved };
+    } finally {
+        await gm.eval(`if (globalThis.__g3WritesFn) Hooks.off("updateSetting", globalThis.__g3WritesFn);
+            const P = await import("${repoUrl}/scripts/projects.mjs");
+            for (const p of P.allProjects().filter(p => p.name === "E11 C8 65 G3 the Gym's project")) await P.deleteProject(p.id);
+            return true;`, { timeout: 30000 });
+        await disconnect("gm2");
+    }
+    check("G3: a second GM's scene draw places no project token and its drag moves the project with one write of the metadata and one whisper, both the primary's; the primary's draw places it (E11 C8, fix r2-H5)",
+        Boolean(g3?.made.five) && g3.made.tokens === 0 && g3.second.primary === false && g3.second.placed === 0 && g3.first.primary === true
+            && g3.first.placed === 1 && g3.moved.room === "Cafeteria" && g3.moved.writes === 1
+            && g3.moved.whispers === 1 && g3.dragged.writes === 0 && g3.dragged.whispers === 0, J(g3), { flow: "season-reset" });
+
+    /* G4 (E11 C8). The upgrade's pass on a world an earlier season left a project token of no project in: the clause
+       `sweepOldProjectTokens`, run alone as `migrate1_2_0` runs it at the first ready after 1.2.73. It removes the orphan, keeps
+       G1's live spare and tells the GM how many went. At 80ba2a5 there is no such clause and the orphan stays. */
+    const ORPHAN_G4 = "E11C8ORPHAN00004";
+    const upgraded = await gm.eval(`const M = await import("${repoUrl}/scripts/migrate.mjs"); ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}");
+        const t = projectTokens().map(t => game.scenes.get(t.scene).tokens.get(t.id)).find(Boolean);
+        if (t) await academy.createEmbeddedDocuments("Token", [{ name: t.name, actorId: t.actorId, actorLink: false, x: 200, y: t.y,
+            width: t.width, height: t.height, texture: { src: t.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId: "${ORPHAN_G4}" } } }]);
+        const planted = projectTokens().filter(t => t.project === "${ORPHAN_G4}").length;
+        const spares = projectTokens().filter(t => t.project === ${J(swept.three)}).length;
+        const told = globalThis.__notifications.length;
+        const report = await M.migrate1_2_0({ force: true, quiet: true, only: ["sweepOldProjectTokens"] });
+        return { planted, spares, clause: report?.clauses?.sweepOldProjectTokens ?? null,
+            orphan: projectTokens().some(t => t.project === "${ORPHAN_G4}"), kept: projectTokens().filter(t => t.project === ${J(swept.three)}).length,
+            told: globalThis.__notifications.slice(told).filter(n => n.level === "info" && /no longer exist/.test(n.msg)).length };`, { timeout: 60000 });
+    check("G4: the upgrade's pass removes a project token of no project, keeps a live project's spare and tells the GM once (E11 C8)",
+        upgraded.planted === 1 && upgraded.spares === 2 && upgraded.clause?.removed === 1 && upgraded.orphan === false && upgraded.kept === 2
+            && upgraded.told === 1, J(upgraded), { flow: "season-reset" });
+
+    /* ------------------------------ P. where the cast goes ------------------------------ */
+    phase("P: a reset that sends the cast to their bedrooms, then to one room, with the GM looking at the Annex", { flow: "season-reset" });
+    /* E11 C10b. Each student stands in a room of their own on the Academy; Dorm A is Aiko's (D), Dorm B is Daichi's, the Annex
+       Hall is Chie's - a bedroom on another map than her token - and Botan has none. Daichi is killed and kept, so the GMs hold
+       his death and the table does not. The GM looks at the Annex, so a reader of the map on screen finds Chie's bedroom alone.
+       Each reset ticks only the clock: `deaths` unticked leaves Daichi dead through it. */
+    const ROOM_OF = { [IDS.aiko]: "Cafeteria", [IDS.botan]: "Hall", [IDS.chie]: "Storage", [IDS.daichi]: "Gym" };
+    const placedP = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const V = await import("${repoUrl}/scripts/vault.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        for (const [id, room] of Object.entries(${J(ROOM_OF)})) {
+            const t = academy.tokens.find(x => x.actorId === id);
+            await t.update(M.positionIn(room, t), { teleport: true, movementAction: "displace", animate: false });
+        }
+        await academy.regions.find(r => r.name === "Dorm B").setFlag("${MOD}", V.VAULT_FLAGS.owner, "${IDS.daichi}");
+        await annex.regions.find(r => r.name === "Annex Hall").setFlag("${MOD}", V.VAULT_FLAGS.owner, "${IDS.chie}");
+        const daichi = game.actors.get("${IDS.daichi}");
+        await (await import("${repoUrl}/scripts/chapter.mjs")).killCharacter(daichi, { secret: true, keepBullets: true });
+        await new Promise(r => setTimeout(r, 1000));
+        return { rooms: Object.fromEntries(Object.keys(${J(ROOM_OF)}).map(id => [id, M.roomOfToken(academy.tokens.find(x => x.actorId === id))])),
+            bedrooms: V.allBedroomsAnywhere().map(b => [b.room, b.owner?.id ?? null, b.scene?.id ?? null]).sort(),
+            held: game.drpg.isDeadForGm(daichi), flag: game.drpg.isDeceased(daichi) };`, { timeout: 60000 });
+    check("P0: the cast stands in four rooms, the bedrooms are Aiko's Dorm A, Daichi's Dorm B and Chie's Annex Hall, and Daichi's death is the GMs' alone (E11 C10b)",
+        J(placedP.rooms) === J(ROOM_OF) && placedP.held === true && placedP.flag === false
+            && J(placedP.bedrooms) === J([["Annex Hall", IDS.chie, IDS.annex], ["Dorm A", IDS.aiko, IDS.scene], ["Dorm B", IDS.daichi, IDS.scene]]),
+        J(placedP), { flow: "season-reset" });
+    const onAnnex = body => `const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}"), view = canvas.scene;
+        canvas.scene = annex;
+        try { ${body} } finally { canvas.scene = view; }`;
+    const names = await gm.eval(`return Object.fromEntries(${J([IDS.aiko, IDS.botan, IDS.chie, IDS.daichi])}.map(id => [id, game.actors.get(id).name]));`);
+    const toBedrooms = await gm.eval(onAnnex(`${resetRun({ ticked: J(["clock"]), cast: J({ to: "bedroom" }) })} return { ...read, view: canvas.scene?.id ?? null };`), { timeout: 120000 });
+    const room = (read, id) => read.at.after[id]?.[2] ?? null;
+    const still = (read, ...ids) => ids.every(id => J(read.at.after[id]) === J(read.at.before[id]));
+    /* Before C10b the window's answer had no `cast` the reset read: nobody moved, `stayed` was undefined (null here). */
+    check("P1: \"each to their own bedroom\" moves Aiko into Dorm A; Botan (no bedroom) and Chie (her bedroom on the Annex) stay and are named on a card and in a warning; Daichi's body stays and is not named (E11 C10b)",
+        toBedrooms.view === IDS.annex && J(toBedrooms.cleared) === J(["placeCast", "clock"]) && J(toBedrooms.failed) === "[]"
+            && room(toBedrooms, IDS.aiko) === "Dorm A" && still(toBedrooms, IDS.botan, IDS.chie, IDS.daichi)
+            && J([...(toBedrooms.stayed ?? [])].sort()) === J([IDS.botan, IDS.chie].sort()) && toBedrooms.castCards === 1 && toBedrooms.reports === 0
+            && toBedrooms.warned.length === 1 && [names[IDS.botan], names[IDS.chie]].every(n => toBedrooms.warned[0].includes(n))
+            && !toBedrooms.warned[0].includes(names[IDS.daichi]) && toBedrooms.errors.length === 0,
+        J({ toBedrooms, names }), { flow: "season-reset" });
+    const pickRoom = room => `(() => { const o = [...(c?.querySelectorAll?.('[name="castPoint"] option') ?? [])].find(o => o.textContent.trim() === "Academy - Floor 1: ${room}");
+        const [scene, region] = String(o?.value ?? "").split("."); return { to: "point", scene, region }; })()`;
+    const PICK = pickRoom("Cafeteria");
+    const toPoint = await gm.eval(onAnnex(`${resetRun({ ticked: J(["clock"]), cast: PICK })} return read;`), { timeout: 120000 });
+    check("P2: \"everyone to one room\", the Cafeteria picked off the window's list, moves Aiko, Botan and Chie there; Daichi's body stays, and nobody is named (E11 C10b)",
+        J(toPoint.castAnswer) === J({ to: "point", scene: IDS.scene, region: "REGCAFE000000000" }) && J(toPoint.failed) === "[]"
+            && [IDS.aiko, IDS.botan, IDS.chie].every(id => room(toPoint, id) === "Cafeteria") && still(toPoint, IDS.daichi)
+            && J(toPoint.stayed) === "[]" && toPoint.castCards === 0 && toPoint.warned.length === 0,
+        J(toPoint), { flow: "season-reset" });
+    /* P3: the step on a second GM's browser. `placeCast` itself, as the reset's step calls it there: nothing moves. */
+    await connect("gm2");
+    let second = null;
+    try {
+        second = await gm2.eval(`const R = await import("${repoUrl}/scripts/season-setup.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+            const academy = game.scenes.get("${IDS.scene}"), at = () => academy.tokens.filter(t => ${J([IDS.aiko, IDS.botan, IDS.chie])}.includes(t.actorId)).map(t => [t.x, t.y]);
+            const before = at(), result = await R.placeCast?.({ to: "point", scene: "${IDS.scene}", region: "REGDORMB00000000" });
+            await new Promise(r => setTimeout(r, 1000));
+            return { primary: U.isPrimaryGm(), result, same: JSON.stringify(at()) === JSON.stringify(before) };`, { timeout: 30000 });
+    } finally {
+        await disconnect("gm2");
+    }
+    check("P3: on a second GM's browser the cast's step moves nobody (E11 C10b)",
+        second?.primary === false && second.result === null && second.same === true, J(second), { flow: "season-reset" });
+
+    phase("S: last season's chapter 1 after a reset that keeps the traces and the motive", { flow: "season-reset" });
+    /* E11 C12. P's resets leave the clock in chapter 1. Placed there: a Key Remnant, a Final Truth, a Faint Prep trace and a
+       motive; then a reset of the clock alone, so they stay and the chapters start again at 1; then a Key Remnant and a Faint
+       Prep trace of the new season. Read before and after: the Final Truth placed, the motive in force, which of these Faint
+       Prep traces a discovery asks about, the count on the End of chapter window's Key Remnants box (answered Cancel), what
+       a death's tie in chapter 1 ties, what the chapter's end takes, and which Key Remnants stand. Before C12 the new
+       season's chapter 1 read every one of last season's as its own. */
+    const SEASON = `const R = await import("${repoUrl}/scripts/remnants.mjs"); const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const MM = await import("${repoUrl}/scripts/mastermind.mjs"); const RU = await import("${repoUrl}/scripts/rules.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const academy = game.scenes.get("${IDS.scene}");
+        const place = async (type, faint = false) => (await R.placeRemnant({ type, visibility: "evident", faint, tiedToCrime: null, x: 0, y: 0,
+            sceneId: academy.id, chapter: getClock().chapter, note: "65 S " + type }))?.id ?? null;
+        const boxCount = async () => { let n = null; globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            const m = /Key Remnants off the map \\((\\d+)\\)/.exec(typeof c === "string" ? c : c?.textContent ?? ""); n = m ? Number(m[1]) : null; return null; });
+            await C.openChapterEndDialog(); return n; };
+        const ours = ids => C.faintPrepCandidates().map(c => ids.indexOf(c.token.id)).filter(i => i >= 0).sort();
+        const reading = async ids => ({ chapter: getClock().chapter, final: MM.finalTruthPlacedThisChapter(), motive: RU.motive()?.text ?? null,
+            offered: ours(ids), box: await boxCount() });`;
+    const seasonBefore = await gm.eval(`${SEASON}
+        const ids = [await place("key"), await place("final"), await place("prep", true)];
+        await RU.setMotive({ text: "65 S last season's motive", timesOfDay: 3 });
+        await gmStoresIdle();
+        globalThis.__seasonS = ids;
+        return { ids, ...(await reading(ids)) };`, { timeout: 60000 });
+    const seasonReset = await gm.eval(`${resetRun({ ticked: J(["clock"]) })} return { cleared: read.cleared, failed: read.failed };`, { timeout: 120000 });
+    const seasonAfter = await gm.eval(`${SEASON}
+        const ids = [...globalThis.__seasonS, await place("key"), await place("prep", true)];
+        await gmStoresIdle();
+        const read = await reading(ids);
+        await R.tieChapterTraces(1);
+        await gmStoresIdle();
+        const tied = [ids[2], ids[4]].map(id => { const d = R.remnantData(academy.tokens.get(id)); return d ? d.tiedToCrime : "gone"; });
+        const taken = await C.clearChapterKeyRemnants(1);
+        return { ...read, tied, taken, standing: [ids[0], ids[3]].map(id => Boolean(academy.tokens.get(id))) };`, { timeout: 60000 });
+    check("S1: after a reset of the clock alone, last season's chapter 1 is not this one - its Final Truth is not placed, its motive not in force, its Faint Prep trace not offered nor tied, and the chapter's end counts and takes only this season's Key Remnant (E11 C12)",
+        seasonBefore.ids.every(Boolean) && seasonBefore.chapter === 1 && seasonBefore.final === true && seasonBefore.motive === "65 S last season's motive"
+            && J(seasonBefore.offered) === "[2]" && seasonBefore.box >= 1
+            && J(seasonReset.cleared) === J(["clock"]) && J(seasonReset.failed) === "[]"
+            && seasonAfter.chapter === 1 && seasonAfter.final === false && seasonAfter.motive === null && J(seasonAfter.offered) === "[4]"
+            && seasonAfter.box === 1 && J(seasonAfter.tied) === J([null, true]) && seasonAfter.taken === 1 && J(seasonAfter.standing) === J([true, false]),
+        J({ seasonBefore, seasonReset, seasonAfter }), { flow: "season-reset" });
+
+    phase("W: the End of chapter window over a Truth Bullet nobody can reveal", { flow: "clock-day" });
+    /* E11 C13 (audit S13-06). A Truth Bullet the GM makes on Aiko with no answer key - what the window's warning counts:
+       not analysed, no real type recorded - and the End of chapter window opened over it and answered Cancel. Read: the
+       reveal box (ticked, disabled) and the count on it, against what the reveal would do (`revealPlan`), and whether the
+       warning names Aiko. Before C13 the box was ticked whatever it counted, and the warning said how many and not whose. */
+    const endWindow = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const [made] = await aiko.createEmbeddedDocuments("Item", [{ name: "65 W a bullet with no answer key", type: "loot",
+            flags: { "${MOD}": { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+        try {
+            const plan = C.revealPlan();
+            let seen = null;
+            globalThis.__dialogAnswers.push(config => {
+                const c = config?.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+                const box = div?.querySelector?.('input[name="reveal"]');
+                seen = { checked: box?.checked ?? null, disabled: box?.disabled ?? null,
+                    label: box?.closest("label")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+                    warning: (div?.querySelector?.("[data-drpg-typeless]") ?? div?.querySelector?.(".drpg-warning"))?.textContent ?? null };
+                return null; });
+            await C.openChapterEndDialog();
+            return { hidden: plan.reveal.length, typeless: plan.typeless, name: aiko.name, seen };
+        } finally { await made?.delete(); }`, { timeout: 60000 });
+    const offered = Number(/\((\d+)/.exec(endWindow.seen?.label ?? "")?.[1] ?? NaN);
+    check("W1: the End of chapter window offers the reveal only when there is something to reveal, counts what the reveal would do, and names who holds the bullet it cannot touch (E11 C13)",
+        endWindow.seen !== null && endWindow.typeless >= 1 && offered === endWindow.hidden
+            && endWindow.seen.checked === (endWindow.hidden > 0) && endWindow.seen.disabled === (endWindow.hidden === 0)
+            && String(endWindow.seen.warning ?? "").includes(endWindow.name), J({ endWindow, offered }), { flow: "clock-day" });
+
+    /* ------------------------------ H. two GMs end one chapter ------------------------------ */
+    phase("H: a second GM ends the chapter while the primary's end runs, then opens its window", { flow: "clock-day" });
+    await connect("gm2");
+    await settle(500);
+    const MARK = `const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1 });`;
+    const opened = await gm.eval(`${MARK} return mark();`);
+    /* The second GM's Do it on a window opened on the same clock, before the primary's: its end is started and
+       held in its first step until the primary's move has reached this browser, as a second GM's end whose
+       guard was passed before that move landed. With the code before E11 fix r1-G5 it then counted the session
+       again (session 1 to 3, measured 11.10.2026; the day moved once, both mornings having read day 1). */
+    await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const first = C.CHAPTER_END_STEPS[0], run = first.run, opened = ${J(opened)};
+        first.run = async args => { await until(() => getClock().session !== opened.session, 8000); return run(args); };
+        globalThis.__h = { restore: () => { first.run = run; }, told: globalThis.__notifications.length,
+            end: C.applyChapterEnd({ nextSession: true, nextMorning: true, opened }) };
+        return true;`, { timeout: 30000 });
+    const primary = await gm.eval(`${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const ended = await C.applyChapterEnd({ nextSession: true, nextMorning: true, opened: ${J(opened)} });
+        return { ended: Boolean(ended), after: mark() };`, { timeout: 60000 });
+    const secondGm = await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { primaryGmId } = await import("${repoUrl}/scripts/utils.mjs");
+        const ended = await globalThis.__h.end.catch(err => "threw: " + err?.message);
+        globalThis.__h.restore();
+        const refusal = game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
+        const warned = globalThis.__notifications.slice(globalThis.__h.told).filter(n => n.level === "warn" && n.msg === refusal).length;
+        await until(() => JSON.stringify(mark()) === ${J(J(primary.after))}, 4000);
+        const atEnd = mark();
+        const told = globalThis.__notifications.length, asked = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push(() => null);
+        const window = await C.openChapterEndDialog();
+        globalThis.__dialogAnswers.length = 0;
+        return { ended: ended === null ? null : String(ended), warned, atEnd, window: window ?? null,
+            asked: globalThis.__dialogLog.slice(asked).map(d => d.title),
+            windowWarned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === refusal).length };`, { timeout: 60000 });
+    const after = await gm.eval(`${UNTIL} ${MARK} await new Promise(r => setTimeout(r, 500)); return mark();`, { timeout: 30000 });
+    check("H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is, and the chapter's end counts one session and one day (E11 fix r1-G5)",
+        primary.ended === true && secondGm.ended === null && secondGm.warned === 1
+            && after.chapter === opened.chapter && after.session === opened.session + 1 && after.day === opened.day + 1
+            && J(primary.after) === J(after) && J(secondGm.atEnd) === J(after), J({ opened, primary, second: secondGm, after }), { flow: "clock-day" });
+    check("H2: the second GM's End of chapter window is refused before anything is asked, and told whose the end is (E11 fix r1-G5)",
+        secondGm.window === null && J(secondGm.asked) === J([]) && secondGm.windowWarned === 1, J(secondGm), { flow: "clock-day" });
+
+    /* ------------------- K. last season's Key Remnants, autopsy and crime witness ------------------- */
+    phase("K: last season's chapter 1 after a reset that keeps the Remnants, the Truth Bullets and the Monocubs", { flow: "season-reset" });
+    /* E11 fix r2-H2 (round 2's cor COR2-2, sec S2, goal S06-42; round 1's res R6). In chapter 1: a case of one Key Remnant,
+       that Key Remnant placed off the plan and copied by Aiko, an autopsy issued to Aiko, Botan marked a crime witness and a
+       discovery stamped; then a reset of the clock alone, which drops the case's row (`keepOnlyKeyPlanChapter`), and in the
+       new season a case of one Key Remnant in chapter 1 and a discovery stamped. Read before and after,
+       through the GM panel's `nextStep` in an Investigation since that discovery: the Keys still to place, whether the
+       off-plan count finds Aiko's copy, the Key fee's found count, the line, Botan's mark; then a Key Remnant of the new
+       season placed, and the line. Before the fix the new chapter 1 counted last season's Key Remnant as placed and found
+       and its autopsy as issued, and Botan stayed marked. */
+    const KSEASON = `const R = await import("${repoUrl}/scripts/remnants.mjs"); const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const GP = await import("${repoUrl}/scripts/gm-panel.mjs"); const MC = await import("${repoUrl}/scripts/monocub.mjs");
+        const SET = await import("${repoUrl}/scripts/settings.mjs"); const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { judgedFor } = await import("${repoUrl}/scripts/sheet-audit.mjs"); const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        const place = async note => (await R.placeRemnant({ type: "key", visibility: "evident", faint: false, tiedToCrime: null, x: 0, y: 0,
+            sceneId: academy.id, chapter: SET.getClock().chapter, note }))?.id ?? null;
+        const stamp = () => SET.recordBodyFound({ chapter: SET.getClock().chapter, at: Date.now(), by: "gm", victimIds: [] });
+        const line = () => { const s = GP.nextStep({ ...SET.getClock(), phase: "investigation", trialEndedAt: 0 }); return [s?.text ?? null, s?.action ?? null]; };
+        const reading = async key => { await gmStoresIdle(); await judgedFor(aiko.id); const chapter = SET.getClock().chapter;
+            return { chapter, toPlace: I.keysToPlace(chapter), offPlan: I.keyPlanStatus().offPlan.some(r => r.tokenId === key),
+                fee: (await I.keyFeeOf(chapter))?.found ?? null, line: line(), silenced: MC.isCrimeSilenced(botan) }; };`;
+    const keptBefore = await gm.eval(`${KSEASON} const TB = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const chapter = SET.getClock().chapter;
+        await I.recordCaseKeys(chapter, 1);
+        const key = await place("65 K last season's Key Remnant");
+        const copy = await TB.createTruthBullet(aiko, { name: "65 K a Key copy", realType: "key", remnantId: key, sceneId: academy.id });
+        const autopsy = await TB.issueAutopsy([aiko], { name: "65 K autopsy" });
+        await MC.setSilenced(botan, true);
+        await stamp();
+        globalThis.__k = key;
+        return { key: Boolean(key), copy: Boolean(copy), autopsy, ...(await reading(key)) };`, { timeout: 60000 });
+    const keptReset = await gm.eval(`${resetRun({ ticked: J(["clock"]) })} return { cleared: read.cleared, failed: read.failed };`, { timeout: 120000 });
+    const keptAfter = await gm.eval(`${KSEASON}
+        await I.recordCaseKeys(SET.getClock().chapter, 1);
+        await stamp();
+        const read = await reading(globalThis.__k);
+        await place("65 K this season's Key Remnant");
+        await gmStoresIdle();
+        return { ...read, ownKeyLine: line(), keysLine: [plural("DRPG.Panel.nextKeysToPlace", { n: 1 }), "investigation"],
+            autopsyLine: [game.i18n.localize("DRPG.Panel.nextAutopsy"), "autopsy"] };`, { timeout: 60000 });
+    check("K1: after a reset of the clock alone, last season's chapter 1 is not this one - its Key Remnant is not placed nor found off the plan nor paid for, its autopsy not issued, its crime witness not marked (E11 fix r2-H2)",
+        keptBefore.key && keptBefore.copy && keptBefore.autopsy === 1 && keptBefore.chapter === 1 && keptBefore.toPlace === 0
+            && keptBefore.offPlan === true && keptBefore.fee >= 1 && keptBefore.line[1] !== "autopsy" && keptBefore.silenced === true
+            && J(keptReset.cleared) === J(["clock"]) && J(keptReset.failed) === "[]"
+            && keptAfter.chapter === 1 && keptAfter.toPlace === 1 && keptAfter.offPlan === false && keptAfter.fee === keptBefore.fee - 1
+            && J(keptAfter.line) === J(keptAfter.keysLine) && keptAfter.silenced === false && J(keptAfter.ownKeyLine) === J(keptAfter.autopsyLine),
+        J({ keptBefore, keptReset, keptAfter }), { flow: "season-reset" });
+
+    /* ------------------- T. a Class Trial opened under the End of chapter window ------------------- */
+    phase("T: a second GM opens a Class Trial while the primary's End of chapter window stands", { flow: "clock-day" });
+    /* E11 fix r2-H3 (round 2's sec S3). The primary GM draws the End of chapter window outside a trial, where "Close the
+       trial" is drawn disabled; while it stands the second GM opens a Class Trial, as its trial console's debate does
+       (`startFloor`); then the primary answers the window with the next session and the next morning. Read: the box as
+       drawn, what the end answered, the session, the day and the phase against the window's, and the GMs' whisper
+       naming the moved phase. Before the fix the end compared no phase, and the session and the morning went on over the
+       trial nobody could close from that window. */
+    const drawnT = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        globalThis.__t = { drawn: null };
+        globalThis.__dialogAnswers.push(async config => {
+            const c = config?.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+            const box = div?.querySelector?.('input[name="endTrial"]');
+            globalThis.__t.drawn = { title: config?.window?.title ?? null, checked: box?.checked ?? null, disabled: box?.disabled ?? null,
+                session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase };
+            await until(() => getClock().phase === "classTrial", 8000);
+            return { reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
+        });
+        globalThis.__t.end = C.openChapterEndDialog();
+        return Boolean(await until(() => globalThis.__t.drawn, 8000));`, { timeout: 30000 });
+    const trialT = await gm2.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const floor = await F.startFloor({ confirmNewTrial: true });
+        return { floor: Boolean(floor), phase: getClock().phase };`, { timeout: 30000 });
+    const endT = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const ended = await globalThis.__t.end.catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const drawn = globalThis.__t.drawn;
+        const words = game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(drawn?.phase), now: phaseLabel("classTrial") });
+        const read = { drawn, ended: ended ?? null, after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            told: game.messages.filter(m => String(contentOf(m)).includes(words)).length, title: game.i18n.localize("DRPG.Chapter.endTitle") };
+        await (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).closeTrial();
+        return read;`, { timeout: 60000 });
+    const drawn = endT.drawn ?? {};
+    check("T1: a Class Trial a second GM opens while the primary's End of chapter window stands is not ended over - the window's end does nothing and the GMs are told the phase moved (E11 fix r2-H3)",
+        drawnT === true && drawn.title === endT.title && drawn.checked === false && drawn.disabled === true && drawn.phase !== "classTrial"
+            && trialT.phase === "classTrial" && endT.ended === null
+            && J(endT.after) === J({ session: drawn.session, day: drawn.day, phase: "classTrial" }) && endT.told === 1,
+        J({ drawnT, trialT, endT }), { flow: "clock-day" });
+
+    /* ------------------- U. the reset on the primary from its first step to its report ------------------- */
+    phase("U: resets of the clock that send the cast to one room - a camera, a word in lower case, a primary lost under the window and after the cut", { flow: "season-reset" });
+    /* E11 fix r2-H4 (round 2's sec S4 and COR2-8, the goal's census K4 and S06-49 (b)). Before the fix: U0's players kept
+       their cameras where they were (placeCast sent no pan); U3's "reset" reset the season (a case-blind compare under
+       "type RESET exactly"); U1's reset, asked on the primary before its window, ran on after the returning GM had made
+       another browser the primary; and U2's cast step answered null there and was filed done, with nobody named. */
+    const GM0 = { id: "USERGA0000000000", name: "Returning GM" };
+    const sinceBefore = await Promise.all([p1, p2, gm].map(client => client.eval(`return globalThis.__pans?.length ?? 0;`)));
+    const toHall = await gm.eval(`${resetRun({ ticked: J(["clock"]), cast: pickRoom("Hall") })} return read;`, { timeout: 120000 });
+    const PANNED_SINCE = (actorId, n) => `${UNTIL} await until(() => (globalThis.__pans?.length ?? 0) > ${n}, 4000);
+        const t = canvas.scene?.tokens.find(x => x.actorId === "${actorId}");
+        return { pans: (globalThis.__pans ?? []).slice(${n}), at: t ? { x: t.center.x, y: t.center.y } : null, scene: canvas.scene?.id ?? null };`;
+    const hallP1 = await p1.eval(PANNED_SINCE(IDS.aiko, sinceBefore[0])), hallP2 = await p2.eval(PANNED_SINCE(IDS.botan, sinceBefore[1]));
+    const hallGm = await gm.eval(`return (globalThis.__pans?.length ?? 0) - ${sinceBefore[2]};`);
+    check("U0: a reset that sends the cast to the Hall pans Aiko's and Botan's players to their own tokens there, and not the GM (E11 fix r2-H4)",
+        J(toHall.failed) === "[]" && J(toHall.cleared) === J(["placeCast", "clock"]) && [IDS.aiko, IDS.botan].every(id => room(toHall, id) === "Hall")
+            && J(hallP1.pans) === J([hallP1.at]) && J(hallP2.pans) === J([hallP2.at]) && hallP1.scene === IDS.scene && hallP2.scene === IDS.scene && hallGm === 0,
+        J({ toHall: { cleared: toHall.cleared, failed: toHall.failed, at: toHall.at.after }, hallP1, hallP2, hallGm }), { flow: "season-reset" });
+
+    const lowered = await gm.eval(`${resetRun({ ticked: J(["clock"]), typed: "word.toLowerCase()" })} return read;`, { timeout: 120000 });
+    const WORDS = await gm.eval(`const word = game.i18n.localize("DRPG.Season.resetWord");
+        return { mistyped: game.i18n.format("DRPG.Season.resetMistyped", { word }), primary: game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: ${J(GM0.name)} }),
+            failed: game.i18n.format("DRPG.Season.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") }),
+            failedCast: game.i18n.localize("DRPG.Season.failedCast"), word };`);
+    check("U3: the word typed in lower case resets nothing and the GM is told to type it exactly (E11 fix r2-H4)",
+        WORDS.word !== WORDS.word.toLowerCase() && lowered.cleared === null && lowered.season === lowered.seasonBefore && lowered.warned.includes(WORDS.mistyped)
+            && lowered.reports === 0,
+        J({ lowered: { cleared: lowered.cleared, season: [lowered.seasonBefore, lowered.season], warned: lowered.warned }, WORDS }), { flow: "season-reset" });
+
+    /* U1: the window drawn on the primary, held open until this browser reads another GM as the primary; meanwhile the
+       returning GM connects. The answer then picks the Storage room. */
+    const U = `${UNTIL} const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const pendingU1 = gm.eval(`${U} globalThis.__u = { drawn: false };
+        ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Storage"),
+            answer: "globalThis.__u.drawn = true; await until(() => U.primaryGmId() !== game.user.id, 15000);" })}
+        return { ...read, primaryThen: U.primaryGmId() };`, { timeout: 120000 });
+    const drawnU1 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.drawn, 15000));`, { timeout: 30000 });
+    let windowU1 = null;
+    await connect("gm0");
+    try {
+        windowU1 = await pendingU1;
+    } finally {
+        await disconnect("gm0");
+    }
+    check("U1: a GM with a lower id arriving while the reset window stands makes the reset refuse, with the primary's words naming that GM, and nothing moves or goes (E11 fix r2-H4)",
+        drawnU1 === true && windowU1?.primaryThen === GM0.id && windowU1.cleared === null && windowU1.season === windowU1.seasonBefore
+            && windowU1.warned.includes(WORDS.primary) && still(windowU1, IDS.aiko, IDS.botan, IDS.chie) && windowU1.reports === 0 && windowU1.castCards === 0,
+        J({ drawnU1, windowU1: windowU1 && { primaryThen: windowU1.primaryThen, cleared: windowU1.cleared, failed: windowU1.failed,
+            season: [windowU1.seasonBefore, windowU1.season], warned: windowU1.warned, at: windowU1.at } }), { flow: "season-reset" });
+
+    /* U2: the same GM connecting after the window closed: the reset's first clock write (the cut) is held until this browser
+       reads the returning GM as the primary, and then the steps run - the deaths' first (E11 fix r2-J1: ticked with the
+       clock, so the step whose other branch drops this browser's rows is the one a primacy lost after the cut meets). */
+    await gm.eval(`${UNTIL} const U = await import("${repoUrl}/scripts/utils.mjs"); await until(() => U.isPrimaryGm(), 15000); return true;`, { timeout: 30000 });
+    const pendingU2 = gm.eval(`${U} const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const set = game.settings.set;
+        globalThis.__u = { held: false, put: () => { game.settings.set = set; } };
+        ${resetRun({ ticked: J(["deaths", "clock"]), cast: pickRoom("Storage"),
+            answer: `game.settings.set = async function (...args) { const out = await set.apply(this, args);
+                if (!globalThis.__u.held && args[1] === KEYS.clock) { globalThis.__u.held = true; globalThis.__u.put();
+                    await until(() => U.primaryGmId() !== game.user.id, 15000); }
+                return out; };` })}
+        globalThis.__u.put();
+        // E11 fix r2-H6: the report card's words for the cast's step - its own, not "Not cleared: Where the cast's tokens go".
+        // Escaped as the card writes them (esc): "cast's" is "cast&#x27;s" there, and the bare words would match nothing.
+        const cards = words => game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length;
+        // E11 fix r2-J1: the steps not run, as the error and the card name them (X is resetRun's season-exceptions.mjs).
+        const notRunNames = [X.groupLabel("deaths"), game.i18n.localize("DRPG.Season.resetCastTitle"), X.groupLabel("clock")].join("; ");
+        return { ...read, primaryThen: U.primaryGmId(), castCards: cards(game.i18n.localize("DRPG.Season.failedCast")),
+            notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })),
+            stoppedWords: game.i18n.format("DRPG.Season.stoppedPrimary", { name: ${J(GM0.name)}, groups: notRunNames }),
+            notRunCards: cards(game.i18n.format("DRPG.Season.reportCard.notRun", { groups: notRunNames })) };`, { timeout: 120000 });
+    const heldU2 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.held, 15000));`, { timeout: 30000 });
+    let cutU2 = null;
+    await connect("gm0");
+    try {
+        cutU2 = await pendingU2;
+    } finally {
+        await disconnect("gm0");
+    }
+    /* E11 fix r2-H4 made this check: the cast's step answered null off the primary and was filed done, with nobody named;
+       r2-H6 gave its failure the cast's own words. E11 fix r2-J1 (r2-H4's open road, the orchestrator's ruling of
+       11.10.2026): the primary is asked before every step, so the reset stops at its first step after the cut - the
+       deaths, the cast and the clock do not run, the season is not counted, and the error and the card name the three
+       with the primary GM. Before this the deaths and the clock were cleared on a browser that was no longer the primary,
+       and the cast's step failed. The cast's own words for a failed move are read in J3, on a road that still reaches them. */
+    check("U2: a GM with a lower id arriving after the reset's cut stops the reset there - the deaths, the cast and the clock are not run, the season is not counted, and the error and the report name what did not run and the primary GM (E11 fix r2-H4, r2-J1)",
+        heldU2 === true && cutU2?.primaryThen === GM0.id && J(cutU2.cleared) === "[]" && J(cutU2.failed) === "[]"
+            && J(cutU2.notRun) === J(["deaths", "placeCast", "clock"])
+            && cutU2.errors.length === 1 && cutU2.errors[0].includes(cutU2.stoppedWords) && cutU2.castCards === 0 && cutU2.notCleared === 0
+            && cutU2.reports === 1 && cutU2.notRunCards === 1 && cutU2.season === cutU2.seasonBefore
+            && still(cutU2, IDS.aiko, IDS.botan, IDS.chie),
+        J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, notRun: cutU2.notRun, errors: cutU2.errors,
+            castCards: cutU2.castCards, notCleared: cutU2.notCleared, reports: cutU2.reports, notRunCards: cutU2.notRunCards,
+            season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
+
+    phase("V: a reset's close of a running incident the cut does not reach, and the first load of 1.2.73 in Foundry's boot order", { flow: "season-reset" });
+    /* V1 (E11 fix r2-H5; the round-2 reviews' open item 3: C9's mutant m7, the reset's close concluding the incident,
+       was killed by R50's source read alone). R4 cannot see the close's own answer: the reset's cut, written on the
+       clock first, takes the incident's cast on this browser before the close reads it. Here the cut of the incident
+       group is held back on this GM - the clock write keeps the incident's earlier cut - so the close reads the whole
+       incident: Chie's suicide at Stage 6, as in D, and a reset of the incident group alone. Abandoned, nobody dies of
+       it and nobody is told it is over. */
+    await mute();
+    const suicideV = await gm.eval(`await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.chie}", openingTrait: "body" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await new Promise(r => setTimeout(r, 800));
+        const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, self: s?.selfInflicted ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")) };`, { timeout: 60000 });
+    await unmute();
+    const closedYou = await gm.eval(`return game.i18n.localize("DRPG.Murder.closedYou");`);
+    const abandoned = await gm.eval(`const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf: wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const closedBefore = game.messages.filter(m => String(wordsOf(m)).includes(${J(closedYou)})).length;
+        const set = game.settings.set, held = (await import("${repoUrl}/scripts/settings.mjs")).getClock?.()?.resetCuts?.incident;
+        globalThis.__v = { held: false, put: () => { game.settings.set = set; } };
+        game.settings.set = async function (...args) {
+            const cuts = args[1] === KEYS.clock ? args[2]?.resetCuts : null;
+            if (cuts && "incident" in cuts) {
+                globalThis.__v.held = true;
+                const resetCuts = { ...cuts };
+                if (held === undefined) delete resetCuts.incident; else resetCuts.incident = held;
+                args[2] = { ...args[2], resetCuts };
+                globalThis.__v.put();
+            }
+            return set.apply(this, args);
+        };
+        try {
+            ${resetRun({ ticked: J(["incident"]) })}
+            return { ...read, held: globalThis.__v.held, cards: game.messages.filter(m => String(wordsOf(m)).includes(${J(closedYou)})).length - closedBefore };
+        } finally { globalThis.__v.put(); }`, { timeout: 120000 });
+    check("V1: a reset whose cut does not reach the running incident abandons it - Chie's suicide at Stage 6 kills nobody and nobody is told the incident is over (E11 fix r2-H5)",
+        suicideV.stage === "resolution" && suicideV.self === true && suicideV.dead === false && abandoned.held === true
+            && J(abandoned.failed) === "[]" && abandoned.incident.before === true && abandoned.incident.closes === 1 && abandoned.incident.after === null
+            && abandoned.victim?.forGm === false && abandoned.victim?.flag === false && abandoned.victim?.row === false && abandoned.cards === 0,
+        J({ suicideV, abandoned: { held: abandoned.held, cleared: abandoned.cleared, failed: abandoned.failed, incident: abandoned.incident,
+            victim: abandoned.victim, cards: abandoned.cards, errors: abandoned.errors } }), { flow: "season-reset" });
+
+    /* V2 (E11 fix r2-H5; the round-2 correctness review's COR2-5). Foundry draws the scene before `ready` at boot, and
+       the harness's own boot does it the other way round, so the order is replayed here on the primary: a world stamped
+       1.2.66 (only 1.2.73's clause pending, as for a world last loaded on 1.2.72 once the manifest says 1.2.73 - this
+       tree's says 1.2.72) holding a project token of no project, the scene drawn while the game is not ready (the
+       project sync defers itself to `ready`), then the module's `ready` - the load's migration - and the deferred
+       listeners after it, in the order Foundry calls them. The game stays not ready for half a second after the draw, as
+       Foundry's boot leaves time between the two: without it a sync that did not defer itself (the fix's mutant m7)
+       still found the load's pass started by the time its first await came back, and the check passed. Measured at
+       4d89b53 (11.10.2026, scratch probe): the sync swept the orphan first and logged it; the clause found nothing and
+       the GM was told nothing. */
+    const ORPHAN_V = "E11H5ORPHAN00001";
+    const booted = await gm.eval(`${UNTIL} const P = await import("${repoUrl}/scripts/projects.mjs"); const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        const Mi = await import("${repoUrl}/scripts/migrate.mjs"); const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), view = canvas.scene;
+        let made = null;
+        canvas.scene = academy;
+        try { made = await P.createProject({ name: "E11 r2-H5 65 V2 a project to copy", target: 6, room: "Cafeteria" }); } finally { canvas.scene = view; }
+        const own = PM.projectTokenOf(made?.id);
+        if (own) await academy.createEmbeddedDocuments("Token", [{ name: own.name, actorId: own.actorId, actorLink: false, x: 200, y: own.y,
+            width: own.width, height: own.height, texture: { src: own.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId: "${ORPHAN_V}" } } }]);
+        const planted = projectTokens().filter(t => t.project === "${ORPHAN_V}").length;
+        await game.settings.set("${MOD}", KEYS.migratedVersion, "1.2.66");
+        const told = globalThis.__notifications.length;
+        const before = new Set((Hooks.events.ready ?? []).map(e => e.fn));
+        game.ready = false;
+        try {
+            Hooks.callAll("canvasReady", canvas);
+            await new Promise(r => setTimeout(r, 500));
+        } finally { game.ready = true; }
+        const deferred = (Hooks.events.ready ?? []).filter(e => !before.has(e.fn)).map(e => e.fn);
+        Mi.runMigrationOnLoad();
+        for (const fn of deferred) { Hooks.off("ready", fn); fn(); }
+        const report = await Mi.migrationOnLoad();
+        await until(() => !projectTokens().some(t => t.project === "${ORPHAN_V}"));
+        await new Promise(r => setTimeout(r, 1500));
+        const read = { made: Boolean(made), planted, deferred: deferred.filter(fn => /syncProjectTokens/.test(String(fn))).length, clause: report?.clauses?.sweepOldProjectTokens ?? null,
+            orphan: projectTokens().some(t => t.project === "${ORPHAN_V}"),
+            told: globalThis.__notifications.slice(told).filter(n => n.level === "info" && /no longer exist/.test(n.msg)).length };
+        if (made) await P.deleteProject(made.id);
+        return read;`, { timeout: 60000 });
+    check("V2: at the first load of 1.2.73 in Foundry's boot order the upgrade's pass removes the project token of no project and tells the GM how many went (E11 fix r2-H5)",
+        booted.made && booted.planted === 1 && booted.deferred === 1 && booted.clause?.removed === 1 && booted.orphan === false && booted.told === 1,
+        J(booted), { flow: "season-reset" });
+
+    /* V3 (E11 fix r2-H5; the round-2 goal review saw five Fog "reveal on arrival" TypeErrors in this scenario's log at
+       bc20730, four on gm2 and one on gm, every check green). The harness's shim, not the fog: it set `canvas.rendered`
+       to `true` where Foundry has the canvas group the fog mounts its layer in, and behind that its Container had no
+       `setChildIndex` and its `foundry.canvas.animation` no `CanvasAnimation` (client-entry.mjs). Read off each client
+       still at the table, from the session's failure log the GM panel shows (utils.mjs `sessionFailures`, one row per
+       message with its count); gm2 and gm0 have left. */
+    const fogFailures = await Promise.all([gm, ...players].map(client => client.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(row => /reveal on arrival/.test(row.message)).reduce((n, row) => n + row.count, 0);`)));
+    check("V3: no client at the table logged a Fog \"reveal on arrival\" failure this session (E11 fix r2-H5)",
+        fogFailures.every(n => n === 0), J({ gm: fogFailures[0], players: fogFailures.slice(1) }), { flow: "season-reset" });
+
+    /* ------------------- J. what round 2's fixes left open ------------------- */
+    phase("J: a trial opened while the chapter's end runs, the reset card's cast line, a cast step that throws, a memory of the sheet notes alone, an end from the trial", { flow: "clock-day" });
+    /* J1 (E11 fix r2-J1 (a); r2-H3's open road). H3's guard compares the window's phase once, before the steps; the reveal,
+       the sweep, the Remnants and the tools await documents after it. Here the primary answers its End of chapter window in
+       the Investigation with the next session and the next morning, its Faint Remnants' step is held until the second GM
+       (at the table since H) has opened a Class Trial, and the end goes on. Read: what the end answered, the session, the
+       day and the phase against the clock it began on, and the GMs' whisper naming what did not run. */
+    const heldJ = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        await setClock({ phase: "investigation" });
+        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint"), run = faint.run;
+        // The notifications counted from here: the end warns as it stops, before the read below starts.
+        globalThis.__j = { held: false, told: globalThis.__notifications.length, before: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase } };
+        faint.run = async (...args) => { globalThis.__j.held = true; await until(() => getClock().phase === "classTrial", 15000); return run(...args); };
+        globalThis.__dialogAnswers.push(async () => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true }));
+        globalThis.__j.end = C.openChapterEndDialog().finally(() => { faint.run = run; });
+        return Boolean(await until(() => globalThis.__j.held, 15000));`, { timeout: 30000 });
+    const trialJ = await gm2.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const floor = await F.startFloor({ confirmNewTrial: true });
+        return { floor: Boolean(floor), phase: getClock().phase };`, { timeout: 30000 });
+    const endJ = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const told = globalThis.__j.told;
+        const ended = await globalThis.__j.end.catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const steps = ["clock", "morning"].map(key => game.i18n.localize(\`DRPG.Chapter.step.\${key}\`)).join(", ");
+        const words = game.i18n.format("DRPG.Chapter.endStopped", { opened: phaseLabel("investigation"), now: phaseLabel("classTrial"), steps });
+        const read = { before: globalThis.__j.before, ended: ended ?? null, after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            told: game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length,
+            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === words).length };
+        await (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).closeTrial();
+        return read;`, { timeout: 60000 });
+    check("J1: a Class Trial a second GM opens while the primary's End of chapter runs stops the end before its clock - the session, the day and the trial's phase stand, and the GMs are told which steps did not run (E11 fix r2-J1)",
+        heldJ === true && trialJ.phase === "classTrial" && endJ.before.phase === "investigation" && endJ.ended === null
+            && J(endJ.after) === J({ session: endJ.before.session, day: endJ.before.day, phase: "classTrial" }) && endJ.told === 1 && endJ.warned === 1,
+        J({ heldJ, trialJ, endJ }), { flow: "clock-day" });
+
+    /* J2 (E11 fix r2-J1 (d); r2-H6's doubt). A reset of the chat's cards and the clock, the cast sent to the Storage room and
+       the chat's deletion throwing, as F throws it, so the card is posted: its "Cleared:" line and the cast's own. */
+    const cardJ = await gm.eval(`const deleting = ChatMessage.deleteDocuments;
+        ChatMessage.deleteDocuments = async () => { throw new Error("E11 fix r2-J1 65 J2: the chat cannot be deleted"); };
+        try { ${resetRun({ ticked: J(["cards", "clock"]), cast: pickRoom("Storage") })}
+            const E = foundry.utils.escapeHTML, title = E(game.i18n.localize("DRPG.Season.reportCard.title"));
+            const card = game.messages.map(m => String(contentOf(m))).filter(c => c.includes(title)).at(-1) ?? "";
+            return { ...read, card, hasTitle: card.includes(E(game.i18n.localize("DRPG.Season.resetCastTitle"))),
+                doneLine: card.includes(E(game.i18n.format("DRPG.Season.reportCard.done", { groups: X.groupLabel("clock") }))),
+                castLine: card.includes(E(game.i18n.format("DRPG.Season.reportCard.cast",
+                    { where: game.i18n.localize("DRPG.Season.resetCastPoint") + " Academy - Floor 1: Storage" }))) };
+        } finally { ChatMessage.deleteDocuments = deleting; }`, { timeout: 120000 });
+    check("J2: a reset that moved the cast and did not finish says where the tokens went on a line of its own, and its \"Cleared:\" line names the groups alone (E11 fix r2-J1)",
+        J(cardJ.failed) === J(["cards"]) && J(cardJ.cleared) === J(["placeCast", "clock"]) && cardJ.reports === 1
+            && cardJ.doneLine === true && cardJ.castLine === true && cardJ.hasTitle === false && room(cardJ, IDS.aiko) === "Storage",
+        J({ cardJ: { cleared: cardJ.cleared, failed: cardJ.failed, reports: cardJ.reports, doneLine: cardJ.doneLine, castLine: cardJ.castLine,
+            hasTitle: cardJ.hasTitle, card: cardJ.card, at: cardJ.at.after } }), { flow: "season-reset" });
+
+    /* J3 (E11 fix r2-J1; r2-H6's words, read in U2 until r2-J1 stopped that road before the cast's step). The cast's step
+       failing on the primary: the Hall's teleport and the scene's own token update both throwing, as a write the server
+       refuses would. The error and the card carry the cast's words - move the tokens by hand - and not the groups'. */
+    const castJ = await gm.eval(`const { contentOf: seen } = await import("${repoUrl}/scripts/secret.mjs");
+        const castCount = () => game.messages.filter(m => String(seen(m)).includes(foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.failedCast")))).length;
+        const castBefore = castCount(), academy = game.scenes.get("${IDS.scene}"), hall = [...academy.regions].find(r => r.name === "Hall");
+        const own = [[hall, "teleportTokens"], [academy, "updateEmbeddedDocuments"]].map(([doc, name]) => [doc, name, Object.getOwnPropertyDescriptor(doc, name)]);
+        hall.teleportTokens = async () => { throw new Error("E11 fix r2-J1 65 J3: the region cannot teleport"); };
+        academy.updateEmbeddedDocuments = async () => { throw new Error("E11 fix r2-J1 65 J3: the tokens cannot move"); };
+        try { ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Hall") })}
+            const cards = words => game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length;
+            // The cards this reset posted with the cast's words - U2's road posted one too before E11 fix r2-J1.
+            return { ...read, castCards: castCount() - castBefore,
+                notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })) };
+        } finally { for (const [doc, name, desc] of own) { if (desc) Object.defineProperty(doc, name, desc); else delete doc[name]; } }`, { timeout: 120000 });
+    check("J3: a cast's step that throws on the primary is filed failed; its error and its report say to move the tokens by hand, not to run the reset again (E11 fix r2-H6, r2-J1)",
+        J(castJ.cleared) === J(["clock"]) && J(castJ.failed) === J(["placeCast"]) && castJ.errors.length === 1 && castJ.errors[0].includes(WORDS.failedCast)
+            && !castJ.errors[0].includes(WORDS.failed) && castJ.castCards === 1 && castJ.notCleared === 0 && castJ.reports === 1
+            && castJ.season === castJ.seasonBefore + 1 && still(castJ, IDS.aiko, IDS.botan, IDS.chie),
+        J({ castJ: { cleared: castJ.cleared, failed: castJ.failed, errors: castJ.errors, castCards: castJ.castCards, notCleared: castJ.notCleared,
+            reports: castJ.reports, season: [castJ.seasonBefore, castJ.season], at: castJ.at } }), { flow: "season-reset" });
+
+    /* J4 (E11 fix r2-J1 (c); r2-H4's open item, a measurement). A world whose only remembered exception was the cast's
+       sheet notes, a group r2-H4 removed: the window drawn and cancelled. Its GM last chose every group but that one,
+       so every group that still exists should be drawn ticked. */
+    const memoryJ = await gm.eval(`const R = await import("${repoUrl}/scripts/season-setup.mjs"); const X = await import("${repoUrl}/scripts/season-exceptions.mjs");
+        const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const before = game.settings.get("${MOD}", KEYS.seasonExceptions);
+        let boxes = null, remembered = null;
+        await game.settings.set("${MOD}", KEYS.seasonExceptions, ["sheetNotes"]);
+        globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            boxes = [...(c?.querySelectorAll?.('.drpg-reset-groups input[type="checkbox"]') ?? [])].map(box => [box.name.slice("wipe.".length), box.checked]);
+            return "cancel"; });
+        try { remembered = X.rememberedExceptions(); await R.resetSeason(); } finally { await game.settings.set("${MOD}", KEYS.seasonExceptions, before); }
+        return { boxes, groups: X.RESET_GROUPS.map(g => g.key), remembered: { keys: [...remembered.keys], dropped: remembered.dropped } };`, { timeout: 60000 });
+    check("J4: a world whose only remembered exception was the cast's sheet notes is offered every group that still exists ticked, as its GM last chose them (E11 fix r2-J1, a measurement)",
+        J((memoryJ.boxes ?? []).map(([key]) => key)) === J(memoryJ.groups) && (memoryJ.boxes ?? []).every(([, checked]) => checked === true)
+            && J(memoryJ.remembered) === J({ keys: [], dropped: 1 }),
+        J(memoryJ), { flow: "season-reset" });
+
+    /* J5 (E11 fix r2-J1 (a), the other side of J1). The end's own trial step moves the phase too - it closes the trial into
+       Daily Life - and the steps after it must read that as the end's own move, not a GM's. A Class Trial opened by the
+       primary and ended with the trial, the next session and the next morning: read what the end answered, the session,
+       the day and the phase against the clock it began on, and any whisper saying the end stopped. */
+    const trialEndJ = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        await F.startFloor({ confirmNewTrial: true });
+        const before = { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase };
+        const opened = { chapter: getClock().chapter, session: before.session, day: before.day };
+        const words = game.i18n.format("DRPG.Chapter.endStopped", { opened: phaseLabel("classTrial"), now: phaseLabel("dailyLife"),
+            steps: game.i18n.localize("DRPG.Chapter.step.morning") });
+        const ended = await C.applyChapterEnd({ endTrial: true, nextSession: true, nextMorning: true, opened }).catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const read = { before, ended: typeof ended === "string" ? ended : Boolean(ended), after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            floor: Boolean(F.trialFloor()), told: game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length };
+        if (F.trialFloor()) await F.endFloor();
+        return read;`, { timeout: 60000 });
+    check("J5: a chapter ended from its Class Trial with the trial, the next session and the next morning closes the trial and opens the morning - its own trial step's move does not stop it (E11 fix r2-J1)",
+        trialEndJ.before.phase === "classTrial" && trialEndJ.ended === true && trialEndJ.floor === false && trialEndJ.told === 0
+            && J(trialEndJ.after) === J({ session: trialEndJ.before.session + 1, day: trialEndJ.before.day + 1, phase: "dailyLife" }),
+        J(trialEndJ), { flow: "clock-day" });
+}

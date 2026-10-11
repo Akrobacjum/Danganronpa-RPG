@@ -1740,7 +1740,9 @@ const REGRESSIONS = [
         ok(/export async function closeTrial\s*\(/.test(ui),
             "trial-floor-ui.mjs no longer exports `closeTrial`, so nothing but its own "
             + "button can put the room back into Daily Life");
-        ok(/name="endTrial"/.test(chapter),
+        /* E11 C13 (11.10.2026): the window's form is `chapterEndForm`, whose `box(name, n)` helper writes the
+           `<input name=...>` once for every box, so the box is named at its call and not in a literal. */
+        ok(/name="endTrial"/.test(chapter) || /\bbox\("endTrial"/.test(chapter),
             "the End of chapter screen has lost the checkbox that offers to close the "
             + "trial, so the step below can only be reached from the console");
         ok(/trialProgressChapter/.test(panel),
@@ -1805,8 +1807,11 @@ const REGRESSIONS = [
         const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
-        ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
-        ok(/deathRecord(?:For)?\(/.test(check), "a body from an earlier chapter counts as a body again");
+        // Since E11 C1 (1.2.73) the body rule is `bodiesToDiscover`, which checkBodyFound asks and R347 holds case by case.
+        const rule = bodyOf(chapter, "export function bodiesToDiscover", { until: "export function witnessesOf" });
+        ok(/bodiesToDiscover\(/.test(check), "checkBodyFound decides what a body is itself again");
+        ok(/FLAGS\.monocub/.test(rule), "a Monocub counts as a body again");
+        ok(/clock\.chapter/.test(rule) && /record\?\.chapter/.test(rule), "a body from an earlier chapter counts as a body again");
         ok(/export function discoverBody[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
@@ -2524,19 +2529,59 @@ const REGRESSIONS = [
             .map(m => ({ key: m[1], section: m[2] }));
         ok(groups.length >= 20, `only ${groups.length} reset groups - the table lost rows`);
 
+        /*
+         * THE ORDER IS DATA (E11 C9, 10.10.2026; audit S06-15, S06-58). Until C9 the steps were
+         * read out of the wipe's source by two regexes, and the order was nobody's: `deaths`
+         * ran before `incident`, so the close that ran last could write about a crime into the
+         * season that had just been cleared. `RESET_STEPS` is the order now, read as the value
+         * it is - every group once, the incident first, the clock last, the Calls before the
+         * clock and the chat after every step that could post a card.
+         */
         const setup = stripComments(sources.get("season-setup.mjs") ?? "");
         const wipe = bodyOf(setup, "async function wipeSeason");
-        const named = new Set([
-            ...[...wipe.matchAll(/await step\("(\w+)"/g)].map(m => m[1]),
-            ...[...wipe.matchAll(/\["(\w+)", "[^"]+", SETTINGS\./g)].map(m => m[1])
-        ]);
-
+        const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
+        ok(Array.isArray(RESET_STEPS), "season-setup.mjs does not export the reset's order as RESET_STEPS");
+        const steps = RESET_STEPS ?? [];
+        equal(new Set(steps).size, steps.length, "a group runs twice in RESET_STEPS");
         for (const { key } of groups) {
-            ok(named.has(key), `the reset has no step for the group "${key}", so its tick does nothing`);
+            ok(steps.includes(key), `the reset has no step for the group "${key}", so its tick does nothing`);
         }
-        for (const key of named) {
-            ok(groups.some(group => group.key === key),
+        // A step the window asks for by a choice, not a tick (E11 C10b, `placeCast`): its choice's
+        // "stay" is the exception, so it is held to the choices and not to the groups.
+        for (const key of steps) {
+            ok(groups.some(group => group.key === key) || (RESET_CHOICES ?? []).includes(key),
                 `the reset clears "${key}" and no group offers it, so it cannot be excepted`);
+        }
+        equal(steps[0], "incident", "the reset clears something before it abandons the incident, which could write about it");
+        equal(steps.at(-1), "clock", "the clock is not the reset's last step, so a later one runs on last season's clock");
+        const at = key => steps.indexOf(key);
+        for (const key of steps.filter(key => !["cards", "chatRest", "clock"].includes(key))) {
+            ok(at(key) < at("cards") && at(key) < at("chatRest"),
+                `the chat is cleared before "${key}", so a card that step posts outlives the reset`);
+        }
+
+        /*
+         * Each key's run is a member of `runs` in wipeSeason, and that half is still read from
+         * the source: the runs close over the plan and this browser's stores, so they are not
+         * a value a test can import without running a reset. A key with no run throws at its
+         * step and is reported as failed; this says so before a GM ever meets it.
+         */
+        const runs = bodyOf(wipe, "const runs = {", { until: "\n    };" });
+        const ran = new Set([...runs.matchAll(/^ {8}(\w+): /gm)].map(m => m[1]));
+        ok(ran.size >= 20, `only ${ran.size} runs read in wipeSeason - the source was not read`);
+        for (const key of steps) ok(ran.has(key), `the group "${key}" is in RESET_STEPS and wipeSeason has no run for it`);
+        for (const key of ran) ok(steps.includes(key), `wipeSeason has a run for "${key}" that no step asks for`);
+        ok(/for \(const key of RESET_STEPS\) await step\(key\)/.test(wipe),
+            "wipeSeason does not walk RESET_STEPS in order");
+        /* And the incident's run abandons it (S06-15): read in the source too, because no world can show it -
+           the cut, written first, takes the cast before the close reads it (65 R4's note), so a reset that
+           concluded the incident would kill and register nobody in any scenario. Tier 2 "a reset abandons an
+           incident: ..." holds what `conclude: false` does; this holds that the reset passes it. */
+        ok(/endMurder\(\{[^}]*\bconclude: false\b[^}]*\}\)/.test(bodyOf(runs, "incident:", { until: "seals:" })),
+            "the reset's incident step concludes the incident it should abandon (endMurder without conclude: false)");
+        // A step that fails is told (S06-49's report, the plan's 3.4): the line and the card.
+        for (const key of ["DRPG.Season.failed", "DRPG.Season.failedCast", "DRPG.Season.reportCard.title", "DRPG.Season.reportCard.failed"]) {
+            ok(game.i18n.has(key), `${key} is missing`);
         }
 
         // Every row says something in both languages the window speaks: its own
@@ -3303,7 +3348,8 @@ const REGRESSIONS = [
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
-        ok(/await markDeceased\(actor\)/.test(kill),
+        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's).
+        ok(/await markDeceased\(actor(?:, \{ phase \})?\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
@@ -5950,7 +5996,8 @@ const REGRESSIONS = [
          * run one body, `liftIntoCast`) write the key; and every field a write in
          * murder-rules.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
-         * The season reset writes `{}` through its table (season-setup.mjs). The reader is
+         * The season reset writes `{}` (season-setup.mjs: through a table until E11 C9, from its
+         * `incident` run's second part since; an empty write has no field to split). The reader is
          * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
          * `active` and `stage`: the fight's twelve fields are the cast's (`INCIDENT_FIGHT`),
          * so a write naming one still lands on a side - the cast's - and this reads the same.
@@ -5977,7 +6024,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast", "season-setup.mjs wipeSeason"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {
@@ -6070,6 +6117,7 @@ const REGRESSIONS = [
             "config.mjs FLAGS flag": "the flag's name, defined",
             "settings.mjs deathRecord flag": "the record, read",
             "settings.mjs isDeceased flag": "the table's fact, read",
+            "chapter.mjs bodiesToDiscover flag": "the body rule reads the record off the primary's mark (E11 C1)",
             "chapter.mjs markDeceased flag": "the one write",
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
@@ -7116,7 +7164,7 @@ const REGRESSIONS = [
             ["utils.mjs", "replaceFlag", "liftNotes"],
             ["utils.mjs", "replaceFlag", "wipeSeason"],
             ["vault.mjs", "forgetStashFound", "setStash"],
-            ["vault.mjs", "forgetAllStashesFound", "wipeSeason"]
+            ["vault.mjs", "forgetAllStashesFound", "wipeStudent"]
         ];
 
         // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
@@ -7277,6 +7325,7 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
+            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
@@ -7448,6 +7497,17 @@ const REGRESSIONS = [
          * code, 10.10.2026: one call site, `read` in that function); no place added or struck.
          * E10 fix r2-G3 (1.2.71) rewrote the verdicts of `verdictHeld` (a wrong verdict's Blackened are dead as the
          * table knows it) and `executeSentenced` (an execution is public); no place added or struck.
+         * E11 C10 (1.2.73) moved the reset's sheet writes - Health, Sanity and Hope, the deaths - out of
+         * `wipeSeason` into `wipeStudent`, one student at a time, so the named declaration and its row
+         * moved with them: `wipeSeason` read nothing of the sheet any more and its row went stale (on the
+         * harness on 10.10.2026: 50 places against 51 rows). With the move, on the harness the same day:
+         * 51 places against 51 rows - 15 PACKET, 5 SOCKET, 5 CHAT, 20 SHEET, 6 STORE.
+         * E11 fix r1-G2 (1.2.73) added events.mjs `bodyCard`, which reads the deaths of the bodies it draws
+         * since (R346 judges it for the season). Measured on the harness on 10.10.2026 on that line (from
+         * 0d860df): 52 places against 52 rows - 15 PACKET, 5 SOCKET, 5 CHAT, 21 SHEET, 6 STORE.
+         * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's `wipeStudent` and
+         * fix r1-G2's `bodyCard` - 52 rows counted in the source on 11.10.2026 (15 PACKET, 5 SOCKET,
+         * 5 CHAT, 21 SHEET, 6 STORE), and this test passed against them on the merged tree.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7473,13 +7533,14 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
+            ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
-            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3) [1b.2]"],
+            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
@@ -7487,14 +7548,14 @@ const REGRESSIONS = [
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
-            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
+            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
             ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
-            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (`season` + 1 and `finalTrial: false`; `seasonStartedAt` and `resetCuts` stay the cut's, `resetCutPatch`)"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
+            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
@@ -7506,7 +7567,7 @@ const REGRESSIONS = [
         const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
-            "season-setup.mjs": ["wipeSeason"], "clock.mjs": ["reconcilePhase"] };
+            "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
@@ -7599,6 +7660,557 @@ const REGRESSIONS = [
             + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a trial road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E10 commit that will) and strike the gone one");
+    }],
+
+    ["R346 - a season road has a census row, and every row judges a road", async () => {
+        /*
+         * E11 C0, 10.10.2026; R311's twin for the chapter, the body's discovery and the season
+         * reset. E11 moves the discovery, the hold, the project tokens and the reset's cast groups
+         * off what a player's browser can write, and this test keeps the list of the places that
+         * read it closed: a new one fails until it has a row and a verdict, a row whose place is
+         * gone fails until it is struck. Five kinds, read live as R311 reads them: PACKET - every
+         * field of a BRIDGE_ACTIONS declaration whose action is the Level Up's apply, a Call's
+         * arming, a token's send-back, a project row or a stash's search (ROADS); SOCKET - every
+         * raw socket handler the season's files register, and, new here, an arrow registered
+         * inline (sync.mjs `registerSync`, which C3's gather broadcast rides), whose declaration
+         * is then the handler; gm-bridge.mjs's own are E28's and are not rows; CHAT - a top-level
+         * declaration that reads a chat message's module flags or its speaker's actor; SHEET - one
+         * that reads a student's death or Monocub flag, experiences or the starting snapshot,
+         * resources, items (bedroom keys) or the Call/action flags, held or off the document, or
+         * is one of the named few (NAMED) whatever it reads; STORE - the places the fields live
+         * (seven at 4aad1fd, eight since C1), each found by its name in its file. A verdict says what judges the place today; a
+         * row ending "(E11 C<n>)" names the commit that changes it, and that commit rewrites the
+         * row with the code. It reads names and text, not data flow: a reader in another file, or
+         * reached through a helper this list does not name, is not seen.
+         * Measured 10.10.2026 at 4aad1fd (1.2.72): the SOCKET, CHAT, SHEET and STORE keys of this
+         * reader (run in Node on the tree's files) and of the parse-only census kept with the E11
+         * plan outside the repository were the same 40 - 4 SOCKET, 1 CHAT, 28 SHEET, 7 STORE -
+         * and the census's 28 PACKET rows are the rest of the 68 below; on the harness the same
+         * day this test read 68 places against the 68 rows (28 PACKET). Its 5 PLANNED rows (places
+         * E11's commits will add: `bodiesFound`, `witnessesOf`, `bodiesToDiscover`, `RESET_STEPS`,
+         * `placeCast`) are left to the commits that add them. Eleven rows are R311's too (the
+         * three `advancement.apply` fields, `applyAdvancement`, `stampStartingSheet`,
+         * `handleAdvancement`, `livingStudents`, `killCharacter`, `wipeSeason` and the two offer
+         * stores): each table judges them for its own stage, and a commit that changes one
+         * rewrites both.
+         * E11 C1 (1.2.73) added three of the PLANNED places - `bodiesFound` (STORE), `witnessesOf`
+         * and `bodiesToDiscover` (SHEET) - and struck `checkBodyFound`'s row, which reads no flag
+         * itself any more: on the harness on 10.10.2026 this test read 70 places (28 PACKET,
+         * 4 SOCKET, 1 CHAT, 29 SHEET, 8 STORE) against the 70 rows.
+         * E11 C2 (1.2.73) added no place: the GM panel's next line reads the deaths through
+         * `bodiesToDiscover` (a helper this list names), and it rewrote the three rows that say so.
+         * E11 C3 (1.2.73) added no place either: the gather's camera (call-world.mjs
+         * `panToGathered`) reads token ids and this client's canvas, no death, flag or resource;
+         * it rewrote the two SOCKET rows of `registerSync`, `gatherEveryone`'s and `bodyFound`'s.
+         * E11 C10 (1.2.73) added one place, `wipeStudent` (SHEET: a cast group's part on one sheet,
+         * out of the reset's `wipeSeason`), and rewrote the rows it reads or writes - `keysHeldBy`
+         * held, the Call rows, `seasonItems`, `wipeSeason`, `grantBedroomKey`: on the harness on
+         * 10.10.2026 this test read 71 places (28 PACKET, 4 SOCKET, 1 CHAT, 30 SHEET, 8 STORE)
+         * against the 71 rows.
+         * E11 C10b (1.2.73) added the PLANNED place `placeCast` (SHEET: who is dead, read before
+         * the reset moves the cast's tokens): on the harness on 10.10.2026 this test passed - no place
+         * without a row, no row without a place - against 72 rows (28 PACKET, 4 SOCKET, 1 CHAT,
+         * 31 SHEET, 8 STORE, counted in the source); at the parent, with the row, it read the row stale.
+         * E11 C11 (1.2.73) added no place: the rule of which experiences go (character.mjs
+         * `seasonExperiences`) is a pure function over what the restore hands it; it rewrote the rows of
+         * `restoreStartingSheet` (OPEN at the base, held now), `applyAdvancement`, `wipeStudent` and the
+         * two `advancement.apply` packets.
+         * E11 fix r1-G2 (1.2.73) added two places: events.mjs `bodyCard` (named above), which reads
+         * the deaths of the bodies it draws since, and chapter.mjs `announcedAlready`, the death
+         * record the GM's announcement and its window compare with this chapter's stamps; on the
+         * harness on 10.10.2026 this test read 72 places (28 PACKET, 4 SOCKET, 1 CHAT, 31 SHEET,
+         * 8 STORE) against the 72 rows.
+         * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's and C10b's two
+         * places and fix r1-G2's two - 74 rows counted in the source on 11.10.2026 (28 PACKET, 4 SOCKET,
+         * 1 CHAT, 33 SHEET, 8 STORE), and this test passed against them on the merged tree.
+         * E11 fix r2-J1 (1.2.73) added one place, chapter.mjs `runDiscovery` (SHEET): it now awaits
+         * `judgedFor` of the named victim and reads `flagsHeldNow` itself, so the reader sees it; the test
+         * failed on it in the fast set of 11.10.2026 (e11run/r2j1: `unclassified` held exactly that one
+         * place) and passed once the row was in.
+         * The reader is run first on a fixture with a packet of each family and of none, an inline
+         * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
+         * without a row, a declaration of a named file that is not named, a store and a stale row.
+         */
+        const SEASON_CENSUS = [
+            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns (E28). Since E11 C11 the GM's Level Up writes the new experience's id into the GM flag `levelUpExperiences` in its one write, and takes no new claim (R355). [1b.1 Level Up experiences] (E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (E10 C8): checked against the standing offer on the held sheet (`numberHeld`); an `experienceNew` is the only pick written down (`levelUpExperiences`, E11 C11)"],
+            ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (E10 C6): must name a standing offer of that character, else refused and told; E11 reads nothing from it"],
+            ["PACKET gm-bridge.mjs#vault.findStash#actorId", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#total", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#isCritical", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#vault.findStash#rollId", "out of scope: judged on the primary (knownSender + owns, the Analyze roll by `rollRefusal`); it writes `stashesFound`, which C10's reset group clears together with the concealment flag (a region flag, a GM document) [1b.1 stash]"],
+            ["PACKET gm-bridge.mjs#project.progress#countdownId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#actorId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#rollId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#relief", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.progress#bonus", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.share#countdownId", "out of scope: judged on the primary (`guardShare*`: you share only what you can see). C7's `knowsProject` orphan branch (no countdown -> false) makes an orphan's id unshareable on the player's side too; the bridge's judgement is unchanged [1b.1 knowsProject] (E11 C7)"],
+            ["PACKET gm-bridge.mjs#project.share#targetUserId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#rollId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#penalty", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#targetId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#repairId", "out of scope: a project bridge row judged on the primary (E28/E08+E28); it writes Countdowns/`projectMeta`, never a token. E11's project work is the token sweep (C7) and the primary-only move (C8) [1b.1 projectMeta]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#position", "out of scope (Q5 (a), the owner 09.10): a witness's position is judged on the mover's browser (movement.mjs:1084); whether it is legal is E12's. E11 C1 reads positions on the primary in the `updateToken` hook as they land [1b.1 token position]"],
+            ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
+            ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
+            ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
+            ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it (and since E11 fix r2-H4 the reset's `placeCast` sends it too, 65 U0): `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
+            ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
+            ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
+            ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
+            ["SHEET chapter.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new; fix r1-G1 a `phase` the caller passes (a chapter verdict's; since fix r2-H1 the Final Trial's too) and a random `deathId`, which a discovery's stamp names. [1b.1 death record] (E11 C1)"],
+            ["SHEET chapter.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
+            ["SHEET chapter.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
+            ["SHEET chapter.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
+            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\"); since E11 fix r1-G1 it keeps the row's `deathId` too"],
+            ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
+            ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
+            ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3), with each one's `deathId` for the stamp (E11 fix r1-G1; read in that pass, before any is published, since fix r2-H1 - read after, it waited for no judgement of the publication's own write). On the primary because a discovery runs there only (`discoverBody` refuses on any other GM, E11 fix r1-G2), and the stamp names only the bodies whose publication took; since fix r2-H1 so do the card, the hold and the cleaning tools the discovery breaks [1b.2]"],
+            ["SHEET chapter.mjs#runDiscovery", "judged (E11 fix r2-J1): on the primary, the one browser a discovery runs on (`discoveryHere`); a named victim the mark holds no death for is waited for (`judgedFor`) before any read, then `announcedAlready` and the stamp read the death as the GMs hold it (`flagsHeldNow`); the walk-in road names only a body the mark already holds dead [1b.2]"],
+            ["SHEET chapter.mjs#announcedAlready", "judged (E11 fix r1-G2): the death's record (`deathRecordFor`) of the flags it is handed - `runDiscovery` and `openBodyDiscoveryDialog` hand it `flagsHeldNow`, on the primary, the one browser a discovery runs on (`discoveryHere`) - against this chapter's stamps (`announcedIn`) [1b.2]"],
+            ["SHEET events.mjs#bodyCard", "judged (E11 fix r1-G2): the card draws only the bodies of the stamp or the hold that are dead as the GMs hold them (`isDeceased` of `flagsHeldNow`: the primary's mark there, the document on every other browser, which is what the table knows) [1b.2]"],
+            ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
+            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps, each counted for the death it names - `deathId`, E11 fix r1-G1) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
+            ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
+            ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
+            ["SHEET character.mjs#restoreStartingSheet", "held (E11 C11; E10 C8's owed (3)): `sheetAtStart`, `levelUpExperiences` and the advances through `flagsHeldNow` and the experiences through `numberHeld`, in one `meansWrite` job before its one write - `flagsAsHeld`'s wait is the job's start; deletes a Level Up's experiences (`seasonExperiences`; Q1 (a) for a starting sheet stamped before 1.2.73). R355 [1b.2]"],
+            ["SHEET season-setup.mjs#hasOpeningItem", "out of scope: Season Setup's opening items (GM window); no E11 commit changes it"],
+            ["SHEET season-setup.mjs#despairSplitCounts", "out of scope: Season Setup's Despair split (GM window, `isDeadForGm`); no E11 commit changes it"],
+            ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
+            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
+            ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
+            ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
+            ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
+            ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
+            ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
+            ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
+            ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
+            ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks [1b.2]"],
+            ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
+            ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
+            ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
+            ["SHEET settings.mjs#deathRecordFor", "out of scope: the GM's record (flag or `deaths` row); since E11 C1 it answers the row's `phase` and `epoch` too, since fix r1-G1 its `deathId` (the death a discovery's stamp names, `announcedIn`), and C12's `sameSeason` reads `epoch` (E11 C12)"],
+            ["STORE settings.mjs#bodyFound", "not a source: a world setting only a GM writes (`setBodyDiscovery`); since E11 C2 its freshness compares the chapter, the day and the time of day (`holdFreshAt`, R350). since E11 C3 `startEclipse` refuses while it is set"],
+            ["STORE settings.mjs#bodiesFound", "not a source: a world setting (`config: false`) only a GM writes (`recordBodyFound`), whose one caller is `announceBody` (R349); cut by the reset's `bodyFound` group (E11 C1)"],
+            ["STORE gm-stores.mjs#deathStore", "not a source: a GM store; since E11 C1 a row carries the death's `phase` and `epoch`, and since E11 C2 the GM panel's next line reads a pending row of this chapter and season through `bodiesToDiscover` (a GM's browser only)"],
+            ["STORE gm-stores.mjs#blackenedStore", "not a source: a GM store; rows keep their chapter and season (E04; tier 2 \"a Blackened of another chapter or season does not count...\", tests-tier2.mjs:36739 at 4aad1fd) - Q3 (a) rests on it; C9's `conclude: false` writes no row (E11 C9)"],
+            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
+            ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
+            ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
+            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"]
+        ];
+        const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
+        const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
+        const NAMED = { "gm-bridge.mjs": ["handleAdvancement"], "level-up.mjs": ["applyAdvancement"],
+            "vault.mjs": ["keysHeldBy", "grantBedroomKey", "reconcileBedroomKeys", "setStash", "allBedroomsAnywhere"], "events.mjs": ["bodyCard"],
+            "gm-panel.mjs": ["nextStep", "openClockDialog"], "clock.mjs": ["setClock", "reconcilePhase", "setPhase"],
+            "murder-rules.mjs": ["endMurder", "closeIncident", "registerMurder"], "visibility.mjs": ["applyToProjectToken", "applyToToken"],
+            "sync.mjs": ["registerSync"], "mastermind.mjs": ["finalTruthPlacedThisChapter"], "settings.mjs": ["bodyDiscoveryFresh", "deathRecordFor"] };
+        // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
+        const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
+        const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub)\b/,
+            /system\.experiences\b|\bsheetAtStart\b|\blevelUpExperiences\b/, /system\.resources\b|hitPoints|resources\.(?:hope|stress)\b/,
+            /\bkeysHeldBy\(|\bitemsHeldNow\(|\bactor\.items\b/, /FLAGS\.(?:pendingCall|lastAction)\b/];
+        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|itemsHeldNow|meansHeld|heldMark)\s*\(/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|livingStudentsForGm|deathRecordFor|keysHeldBy)\s*\(|\bactor\.system\b|\bactor\.items\b|\.system\.(?:experiences|resources)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|monocub|pendingCall|lastAction|sheetAtStart)/;
+        const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                for (const field of fields.length ? fields : ["-"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            const tops = [];
+            for (const file of [...FILES, ...Object.keys(NAMED)]) {
+                if (!files.has(file)) continue;
+                const code = blankComments(files.get(file));
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                at.forEach((top, i) => {
+                    if (!top.name) return;
+                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
+                });
+            }
+            const handlers = new Set();
+            for (const top of tops) {
+                if (!/game\.socket\.on\(/.test(top.text)) continue;
+                for (const m of top.text.matchAll(/game\.socket\.on\(\s*[\w.]+\s*,\s*([A-Za-z_]\w*)\s*\)/g)) handlers.add(`${top.file}#${m[1]}`);
+                for (const m of top.text.matchAll(/return\s+([A-Za-z_]\w*)\(\s*payload/g)) handlers.add(`${top.file}#${m[1]}`);
+                // An arrow registered inline (sync.mjs `registerSync`): the declaration that registers it is the handler.
+                if (/game\.socket\.on\(\s*[\w.]+\s*,\s*(?:async\s*)?\(/.test(top.text)) handlers.add(`${top.file}#${top.name}`);
+            }
+            for (const handler of handlers) {
+                const [file, name] = handler.split("#");
+                // The bridge's own sockets are E28's (R1b and the bridge's tables).
+                if (file === "gm-bridge.mjs") continue;
+                const top = tops.find(t => t.file === file && t.name === name);
+                // A handler this reader cannot find is a key no row can hold.
+                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
+            }
+            for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
+            for (const top of tops) {
+                if (top.file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name)) continue;
+                // A table or a constant reads no sheet.
+                if (top.binding && !/=>|function/.test(top.text)) continue;
+                if (!SHEET.some(re => re.test(top.text))) continue;
+                if (HELD.test(top.text) || RAW.test(top.text) || NAMED[top.file]?.includes(top.name)) found.push(`SHEET ${top.file}#${top.name}`);
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["PACKET", "SOCKET", "CHAT", "SHEET", "STORE"];
+
+        const planted = censusOf({
+            "project.planted": { sanitize: { fields: { countdownId: "id" } } },
+            "vote.planted": { sanitize: { fields: { choice: "id" } } }
+        }, [
+            ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"],
+            ["chapter.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
+                + "function unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"
+                + "const forged = msg => msg.getFlag(MODULE_ID, \"bodyFound\");\n"],
+            ["vault.mjs", "export function notNamed(actor) {\n    return keysHeldBy(actor);\n}\n"],
+            ["gm-stores.mjs", "export const offerStore = defineGmStore({});\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#project.planted#countdownId", "SOCKET sync.mjs#registerSync#room",
+            "CHAT chapter.mjs#forged", "SHEET chapter.mjs#judged", "STORE gm-stores.mjs#offerStore"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#project.planted#countdownId", ""], ["SOCKET sync.mjs#registerSync#room", ""],
+            ["SHEET chapter.mjs#judged", ""], ["SHEET chapter.mjs#gone", ""], ["STORE gm-stores.mjs#offerStore", ""]])),
+            JSON.stringify({ unclassified: ["CHAT chapter.mjs#forged"], stale: ["SHEET chapter.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(KINDS.every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, SEASON_CENSUS);
+        log(`R346: the census read ${found.length} place(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${SEASON_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a season road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E11 commit that will) and strike the gone one");
+    }],
+
+    ["R347 - the bodies to discover are this chapter's and season's unannounced dead, never an execution", async () => {
+        /*
+         * E11 C1, 1.2.73; audit S06-03, amend 26.09, the ledger's V2 and A26. The watcher's body rule
+         * was "dead for the GMs, not a Monocub, this chapter's": an execution, public at once with
+         * this chapter on its record, was a body, and so was a body a discovery had already
+         * announced once the hold that remembered it was gone - measured at 4aad1fd on 65-season
+         * B4, a second card after End the trial for Daichi (found) and Botan (executed). The rule is
+         * chapter.mjs `bodiesToDiscover`, driven here on fakes: each student hands its flags as the
+         * GMs hold them (`held`) and the GMs' rows (`pending`), so nothing in this browser is read
+         * or written. Twelve students, chapter 2 of season 7: a death kept by the GMs and one public
+         * at once, both in Daily Life; an execution (`classTrial`, as `killCharacter` writes it
+         * during the trial); a death the GMs held, executed (`publishDeath` with the verdict's
+         * `phase`, E10 fix r1-G4); one a discovery of this chapter announced; last season's chapter
+         * 2; last chapter's; a Monocub; a public death from before 1.2.73 (no phase) and a kept
+         * one; a record with no season; the living; and a death on the document the GMs do not
+         * hold (a player's own write the audit has not put back).
+         */
+        const { bodiesToDiscover } = await import("./chapter.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof bodiesToDiscover === "function", "chapter.mjs exports no `bodiesToDiscover` - the watcher has no body rule to test");
+        const here = { chapter: 2, phase: "dailyLife", epoch: 7 };
+        const STUDENTS = {
+            kept: { row: here },
+            public: { flag: here },
+            executed: { flag: { ...here, phase: "classTrial" } },
+            executedHeld: { flag: { chapter: 2, day: 3, timeOfDay: "night", phase: "classTrial", epoch: 7 } },
+            announced: { flag: here },
+            lastSeason: { flag: { ...here, epoch: 6 } },
+            lastChapter: { flag: { ...here, chapter: 1 } },
+            monocub: { flag: here, monocub: true },
+            oldPublic: { flag: { chapter: 2, day: 1, timeOfDay: "night" } },
+            oldKept: { row: { chapter: 2, day: 1, timeOfDay: "night" } },
+            noSeason: { flag: { chapter: 2, phase: "dailyLife" } },
+            living: {},
+            forged: { document: here }
+        };
+        const flagsOf = (deceased, monocub) => (scope, key) => scope !== MODULE_ID ? undefined
+            : key === FLAGS.deceased ? deceased : key === FLAGS.monocub ? monocub : undefined;
+        const actors = Object.entries(STUDENTS).map(([id, s]) => ({ id, getFlag: flagsOf(s.document ?? s.flag ?? null, s.monocub ?? false) }));
+        const held = actor => ({ id: actor.id, getFlag: flagsOf(STUDENTS[actor.id].flag ?? null, STUDENTS[actor.id].monocub ?? false) });
+        const found = bodiesToDiscover({ actors, clock: { chapter: 2, phase: "dailyLife" }, epoch: 7,
+            announced: id => id === "announced", held, pending: id => STUDENTS[id]?.row ?? null });
+        equal(JSON.stringify(found), JSON.stringify(["kept", "public", "oldKept", "noSeason"]),
+            "the watcher's body rule finds an execution, an announced or another season's or chapter's body, a Monocub, an old public death or a death the GMs do not hold, or misses one it should find");
+    }],
+
+    ["R348 - the dead are not witnesses - only a Monocub is", async () => {
+        /*
+         * E11 C1, 1.2.73; audit S06-14 (S13-02 is the same defect); DC7/DX1. The witnesses of a
+         * walk-in were every student's token in the room but a hidden one and a body: a dead student
+         * lying there from an earlier death counted toward the two, so one living student walking in
+         * beside an old body announced a new one. chapter.mjs `witnessesOf`, driven on fake tokens
+         * (`roomOf` reads the token's `room`), flags as the GMs hold them (`held`) and the GMs' rows
+         * (`pending`): the living, a public death, a death the GMs keep, a Monocub, a hidden token,
+         * the body itself, a Monokuma (no student), the living in another room, a token of no
+         * character, and a death on the document the GMs do not hold.
+         */
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { FLAGS } = await import("./config.mjs");
+        ok(typeof witnessesOf === "function", "chapter.mjs exports no `witnessesOf` - the watcher's witness rule cannot be tested");
+        const dead = { chapter: 2, phase: "dailyLife", epoch: 7 };
+        const PEOPLE = {
+            living: {}, public: { flag: dead }, kept: { row: dead }, monocub: { flag: dead, monocub: true },
+            hidden: { hidden: true }, body: {}, monokuma: { notStudent: true }, elsewhere: { room: "Elsewhere" },
+            npc: { type: "adversary" }, forged: { document: dead }
+        };
+        const flagsOf = (deceased, monocub) => (scope, key) => scope !== MODULE_ID ? undefined
+            : key === FLAGS.deceased ? deceased : key === FLAGS.monocub ? monocub : undefined;
+        const tokens = Object.entries(PEOPLE).map(([id, p]) => ({ id, hidden: Boolean(p.hidden), room: p.room ?? "Gym",
+            actor: { id, type: p.type ?? "character", getFlag: flagsOf(p.document ?? p.flag ?? null, p.monocub ?? false) } }));
+        const students = new Set(Object.keys(PEOPLE).filter(id => !PEOPLE[id].notStudent));
+        const held = actor => ({ id: actor.id, getFlag: flagsOf(PEOPLE[actor.id].flag ?? null, PEOPLE[actor.id].monocub ?? false) });
+        const witnesses = witnessesOf({ tokens, room: "Gym", bodies: new Set(["body"]), students, held,
+            pending: id => PEOPLE[id]?.row ?? null, roomOf: t => t.room });
+        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "monocub", "forged"]),
+            "a dead student who is not a Monocub, a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student or a Monocub does not");
+    }],
+
+    ["R349 - only announceBody writes the stamp of a body found", async () => {
+        /*
+         * E11 C1, 1.2.73; decision D8; the ledger's G2. The stamp `SETTINGS.bodiesFound` is what
+         * the watcher, and later E19's channel, E13's trial room and E70, read to know a body was
+         * found - so it has one writer, settings.mjs `recordBodyFound`, and that has one caller,
+         * chapter.mjs `announceBody`, which `runDiscovery` calls once per discovery. Read in every
+         * module source but the suite's, comments stripped: each call of `recordBodyFound`, of
+         * `announceBody`, and each `game.settings.set` naming the stamp, by the top-level function
+         * it stands in. A second writer - a GM button stamping a body by hand - is a second place
+         * the stamp's shape and its chapter could be decided, and fails here.
+         */
+        const callers = (name, pattern) => [...sources].flatMap(([file, text]) => {
+            const code = stripComments(text);
+            const tops = [...code.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            return [...code.matchAll(pattern)].map(m => `${file}#${tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)"}`)
+                .filter(where => where !== `${file}#${name}`);
+        });
+        const sources = new Map(await otherSources());
+        must(fnSource(sources.get("settings.mjs"), "recordBodyFound"), "settings.mjs declares no recordBodyFound");
+        equal(JSON.stringify([callers("recordBodyFound", /\brecordBodyFound\s*\(/g), callers("announceBody", /\bannounceBody\s*\(/g),
+            callers("recordBodyFound", /settings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.bodiesFound\b/g)]),
+            JSON.stringify([["chapter.mjs#announceBody"], ["chapter.mjs#runDiscovery"], []]),
+            "the stamp of a body found has a writer besides `announceBody`, or `announceBody` a caller besides `runDiscovery` "
+            + "(the callers of recordBodyFound, of announceBody, and the other writes of SETTINGS.bodiesFound)");
+    }],
+
+    ["R350 - a hold is loud only in the hour, the day and the chapter its body was found in", async () => {
+        /*
+         * E11 C2, 1.2.73; audit S01-29; the ledger's G-b. settings.mjs `holdFreshAt`, which
+         * `bodyDiscoveryFresh` asks for the music's silence and the body card's pulse. It read the
+         * time of day alone, so a body found on a morning, with the GM staying in Daily Life (D5),
+         * was "just found" again on every later morning. Driven on fakes, nothing read or written:
+         * a hold of chapter 2, day 3, the morning, against the clock of its own hour, of the next
+         * day's morning, of the next chapter's day 3 morning and of its own day's noon; a hold
+         * written without a day against day 1 and day 2; and no hold.
+         */
+        const { holdFreshAt } = await import("./settings.mjs");
+        ok(typeof holdFreshAt === "function", "settings.mjs exports no `holdFreshAt` - the hold's freshness has no rule to test");
+        const hold = { room: "Gym", victimId: "victim", chapter: 2, day: 3, timeOfDay: "morning", at: 1 };
+        const at = (chapter, day, timeOfDay) => ({ chapter, day, timeOfDay, phase: "dailyLife" });
+        const noDay = { ...hold, day: undefined };
+        const read = [[hold, at(2, 3, "morning")], [hold, at(2, 4, "morning")], [hold, at(3, 3, "morning")], [hold, at(2, 3, "noon")],
+            [noDay, at(2, 1, "morning")], [noDay, at(2, 2, "morning")], [null, at(2, 3, "morning")]].map(([h, clock]) => holdFreshAt(h, clock));
+        equal(JSON.stringify(read), JSON.stringify([true, false, false, false, true, false, false]),
+            "a hold read as fresh outside the hour, day and chapter it was written in, or not in them (per clock: its own hour, the next day's, "
+            + "the next chapter's, its own noon; without a day on day 1 and day 2; no hold)");
+    }],
+
+    ["R351 - a project token plan: a token of no live project goes, a live project's spare is listed and kept", async () => {
+        /*
+         * E11 C7, 1.2.73; audit S06-23, S07-27, S09-21; the ask A2, the plan's 3.2, the ledger's D1.
+         * projects-map.mjs `projectTokenPlan`, by which `sweepProjectTokens` decides what the reset
+         * and a deletion take off the maps. Until 1.2.73 nothing decided it: the reset left every
+         * project token standing and a deletion left every one its metadata did not name. Driven on
+         * fakes, nothing read or written: a live project's token its metadata names and a spare of
+         * it on another scene, a token of a deleted project, a copy of the shared actor carrying no
+         * id, a live project with one token, and a live project with two tokens its metadata names
+         * neither of (the first found is kept); then the same tokens with no project live, as the
+         * reset hands them over.
+         */
+        const { projectTokenPlan } = await import("./projects-map.mjs");
+        ok(typeof projectTokenPlan === "function", "projects-map.mjs exports no `projectTokenPlan` - nothing decides which project tokens go");
+        const t = (sceneId, tokenId, projectId) => ({ sceneId, tokenId, projectId });
+        const tokens = [t("B", "spare", "live"), t("A", "named", "live"), t("A", "gone", "deleted"), t("A", "bare", null),
+            t("B", "alone", "solo"), t("A", "first", "stale"), t("B", "second", "stale")];
+        const refs = { live: { sceneId: "A", tokenId: "named" }, solo: { sceneId: "B", tokenId: "alone" }, stale: { sceneId: "C", tokenId: "moved" } };
+        const ids = list => list.map(token => token.tokenId).sort();
+        const plan = projectTokenPlan(tokens, ["live", "solo", "stale"], id => refs[id] ?? null);
+        const reset = projectTokenPlan(tokens, [], id => refs[id] ?? null);
+        equal(JSON.stringify([ids(plan.orphans), ids(plan.duplicates), reset.orphans.length, reset.duplicates.length]),
+            JSON.stringify([["bare", "gone"], ["second", "spare"], 7, 0]),
+            "the plan removes a live project's token or keeps one of no live project, or keeps the wrong one of two (read: the orphans, the spares, "
+            + "and with no project live the orphans' count and the spares')");
+    }],
+
+    ["R352 - a project's own token: only the token a live project's metadata names moves the project or keeps it off the map", async () => {
+        /*
+         * E11 C8, 1.2.73; audit S09-47; the ask A2, the plan's 3.2, the ledger's D1. projects-map.mjs
+         * `projectOwning`, which the primary's `updateToken` and `deleteToken` hooks ask before a drag
+         * moves a project or a Delete keeps it off the map. Until 1.2.73 any token carrying a project's
+         * id did both: an orphan's drag wrote a metadata row for a countdown that does not exist, and a
+         * spare's drag moved the project away from the token its metadata names. Driven on fakes,
+         * nothing read or written: the named token, a spare on the same scene, a token with the named
+         * id on another scene, a token of a deleted project whose row still names it (nothing in the
+         * module drops the row of a countdown deleted in Daggerheart's own window - read), a token
+         * with no id, and a live project's token whose metadata names no token.
+         */
+        const { projectOwning } = await import("./projects-map.mjs");
+        ok(typeof projectOwning === "function", "projects-map.mjs exports no `projectOwning` - nothing tells a project's own token from a copy");
+        const token = (id, sceneId, projectId) => ({ id, parent: { id: sceneId }, getFlag: (scope, key) => (key === "projectId" ? projectId : undefined) });
+        const refs = { live: { sceneId: "A", tokenId: "named" }, deleted: { sceneId: "A", tokenId: "gone" } };
+        const readers = { isLive: id => id === "live" || id === "unplaced", refOf: id => refs[id] ?? null };
+        const read = [token("named", "A", "live"), token("spare", "A", "live"), token("named", "B", "live"), token("gone", "A", "deleted"),
+            token("plain", "A", undefined), token("loose", "A", "unplaced")].map(t => projectOwning(t, readers));
+        equal(JSON.stringify(read), JSON.stringify(["live", null, null, null, null, null]),
+            "a token other than the one a live project's metadata names was read as the project's own, or that one was not (read: the named "
+            + "token, a spare, the named id on another scene, a deleted project's still named, no id, a live project naming no token)");
+    }],
+
+    ["R354 - the cast's tokens go where the GM chose, after the cast's groups, by every map's bedrooms and never by the map on the GM's screen", async () => {
+        /*
+         * E11 C10b, 1.2.73; the owner's Q2 (09.10.2026: the GM chooses - (a) they stay, (b) each to their
+         * own bedroom, (c) a start point - and 10.10.2026: a token on another map stays and is named), the
+         * ledger's Q2. Until 1.2.73 a reset left every token where last season did, and asked nothing.
+         * Read here, because a reset is not the suite's to run (the plan's M10): the step's place in
+         * `RESET_STEPS` - after every cast group, so a death the reset clears is cleared before it asks
+         * who is dead, and before the chat - and that it is a choice's step, not a group's; that
+         * `placeCast` finds a bedroom through `allBedroomsAnywhere`, never `allBedrooms()`, whose default
+         * is the scene on this GM's screen (ITEM-16), nor reads that scene itself; that it reads the dead
+         * off the primary's mark and runs on the primary GM only; that the window offers the three, (a)
+         * checked, and hands the answer to the plan; and the words. What the moves do is tier 2's "the
+         * cast goes where the GM chose" and scenario 65's P.
+         */
+        const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
+        const steps = RESET_STEPS ?? [];
+        const at = key => steps.indexOf(key);
+        ok(at("placeCast") >= 0, "the reset has no step that places the cast");
+        ok((RESET_CHOICES ?? []).includes("placeCast"), "placing the cast is not one of the window's choices, so a tick would gate it");
+        for (const key of ["deaths", "items", "advancement", "actions", "despair", "stashesFound"]) {
+            ok(at(key) < at("placeCast"), `the cast is placed before the group "${key}" has run`);
+        }
+        for (const key of ["preNotes", "cards", "chatRest", "clock"]) {
+            ok(at("placeCast") < at(key), `the cast is placed after "${key}"`);
+        }
+
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        const place = fnSource(setup, "placeCast");
+        ok(/allBedroomsAnywhere\(\)/.test(place), "placeCast does not read the bedrooms of every scene");
+        ok(!/\ballBedrooms\(|\bworkingScene\(|\bcanvas\??\.scene\b/.test(place),
+            "placeCast reads the scene on this GM's screen - a GM looking at another map would send nobody to bed (ITEM-16)");
+        ok(/if \(!isPrimaryGm\(\)\) return null;/.test(place), "placeCast moves tokens on a browser that is not the primary GM's");
+        ok(/flagsHeldNow\(actor\)/.test(place), "placeCast reads who is dead off the document instead of the primary's mark");
+        const reset = fnSource(setup, "resetSeason");
+        ok(/castFieldset\(\)/.test(reset) && /cast: castChoiceIn\(/.test(reset) && /cast: typed\.cast/.test(reset),
+            "the reset window does not ask where the cast goes, or does not hand the answer to the plan");
+        const fieldset = fnSource(setup, "castFieldset");
+        ok(/value === "stay" \? " checked"/.test(fieldset), "the window's default is not (a), the cast where it stands");
+        for (const value of ["stay", "bedroom", "point"]) ok(fieldset.includes(`choice("${value}"`), `the window does not offer "${value}"`);
+        for (const key of ["resetCastTitle", "resetCastNote", "resetCastStay", "resetCastBedroom", "resetCastPoint", "resetCastNoRooms",
+            "reportCard.titleCast", "reportCard.stayed"]) {
+            ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
+        }
+    }],
+
+    ["R355 - a Level Up's experience is written down in the write that adds it, as a GM's flag, and the reset reads it as the GMs hold it", async () => {
+        /*
+         * E11 C11, 1.2.73; audit S03-21, D12 option 1, the owner's Q1 (a); the plan's 1b.2 and E10 C8's owed (3).
+         * Until 1.2.73 the season reset restored the values of the experiences the season began with and kept every
+         * other entry, so a Level Up's experience outlived its season. Read in the source here, because a reset is not
+         * the suite's to run (the plan's M10): `applyAdvancement` adds a new experience's id to `levelUpExperiences` in
+         * its one write, from the list as the GMs hold it; the flag is one of the GM's flags the audit puts back; and
+         * `restoreStartingSheet` reads the starting sheet, the list, the advances and the experiences in one job of
+         * the student's queue as the GMs hold them, never off the document, and deletes what `seasonExperiences`
+         * says goes. What the reset takes is tier 2's "a reset takes a Level Up's experience and keeps the GM's";
+         * the put-back and the held read are its "a player's write of the Level Up's experiences is put back and
+         * the reset reads the list the GMs hold"; the whole reset is scenario 65's R8.
+         */
+        const sources = new Map(await otherSources());
+        const apply = fnSource(stripComments(sources.get("level-up.mjs") ?? ""), "applyAdvancement");
+        const character = stripComments(sources.get("character.mjs") ?? "");
+        const restore = fnSource(character, "restoreStartingSheet");
+        const audit = stripComments(sources.get("sheet-audit.mjs") ?? "");
+        ok(apply.length > 1000 && restore.length > 500,
+            "applyAdvancement or restoreStartingSheet is cut short - the reads below would measure nothing");
+        const job = apply.search(/\bmeansWrite\(actor,/), listRead = apply.search(/flagsHeldNow\(actor\)\.getFlag\(MODULE_ID, FLAGS\.levelUpExperiences\)/);
+        const listWritten = apply.search(/update\[`flags\.\$\{MODULE_ID\}\.\$\{FLAGS\.levelUpExperiences\}`\] =/), write = apply.search(/\btrustedWrite\(actor, update/);
+        ok(job > 0 && job < listRead && listRead < listWritten && listWritten < write && (apply.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "a Level Up does not write its new experiences down in its one write, from the list the GMs hold (S03-21)");
+        ok(/const GM_FLAGS = \[[^\]]*"levelUpExperiences"/.test(audit), "the list of a Level Up's experiences is not a GM's flag - a player's write of it stands");
+        ok(/\bmeansWrite\(actor,/.test(restore) && /flagsHeldNow\(actor\)/.test(restore) && /numberHeld\(actor, "system\.experiences"\)/.test(restore)
+            && !/\bactor\.(?:getFlag|system|setFlag)\b/.test(restore) && (restore.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "the reset's restore reads the starting sheet, the list or the experiences off the document, or writes more than once (1b.2)");
+        // Read after the rest: before 1.2.73 there was no such rule, and `fnSource` throws for a function it cannot find.
+        ok(fnSource(character, "seasonExperiences").length > 200 && /seasonExperiences\(held, snapshot, recorded\)/.test(restore)
+            && /system\.experiences\.\$\{id\}`\] = forcedDeletion\(\)/.test(restore),
+            "the reset's restore does not delete the experiences that go with the season");
+        ok(/levelUpsMarked: true/.test(fnSource(character, "stampStartingSheet")),
+            "the season's starting sheet does not say that its Level Ups are written down - a reset would treat it as made before 1.2.73");
+        for (const key of ["reportCard.titleLeft", "reportCard.experiences"]) ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
+    }],
+
+    ["R356 - a chapter-stamped trace or motive names its season, and every reader of this chapter's records asks it", async () => {
+        /*
+         * E11 C12, 1.2.73; audit S06-42 (its rest: E11 C1 stamped the bodies found, E10 C10 counts the seasons); the
+         * ledger's D2 and the early review of C4. A reset sends the clock back to chapter 1 and keeps what the GM left
+         * unticked, and the traces and the motive named only their chapter, so the new season's chapter 1 read last
+         * season's as its own. The guard on the promise, in the source: the two writers stamp the season beside the
+         * chapter, a trace put back under its id keeps its own, and each of the seven readers that asks "this chapter"
+         * of a trace or the motive asks `sameSeason` as well - and the trial console's "a student died this chapter",
+         * of a death record, which carries its season since E11 C1 (the census row of `deathRecordFor` names C12 for
+         * it). What the readers answer is tier 2's "last season's chapter is not this one" and scenario 65's S (a real
+         * reset of the clock alone, in chapter 1); the planner's leftover count, a clean-up's copy and the console's
+         * line are read here only.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(src);
+        ok(chapter.length > 1000 && remnants.length > 1000 && investigation.length > 1000 && rules.length > 1000 && mastermind.length > 1000,
+            "a source file did not load - the reads below would measure nothing");
+        const readers = [
+            ["chapter.mjs faintPrepCandidates", fnSource(chapter, "faintPrepCandidates"), /\(data\.chapter \?\? chapter\) !== chapter \|\| !sameSeason\(data\)/],
+            ["chapter.mjs clearChapterKeyRemnants", fnSource(chapter, "clearChapterKeyRemnants"), /info\.chapter === chapter && sameSeason\(info\)/],
+            ["chapter.mjs openChapterEndDialog", fnSource(chapter, "openChapterEndDialog"), /info\.chapter === endingChapter && sameSeason\(info\)\) keyable\+\+/],
+            ["remnants.mjs tieChapterTraces", fnSource(remnants, "tieChapterTraces"), /data\.chapter !== chapter \|\| !sameSeason\(data\)/],
+            ["mastermind.mjs finalTruthPlacedThisChapter", fnSource(mastermind, "finalTruthPlacedThisChapter"), /data\.chapter === chapter && sameSeason\(data\)/],
+            ["rules.mjs motive", fnSource(rules, "motive"), /stored\.chapter !== getClock\(\)\.chapter \|\| !sameSeason\(stored\)/],
+            ["investigation.mjs the leftover Key Remnants", investigation, /r\.data\.chapter !== plan\.chapter \|\| !sameSeason\(r\.data\)/],
+            ["trial-floor-ui.mjs readTrial", fnSource(src("trial-floor-ui.mjs"), "readTrial"), /record\?\.chapter === chapter && sameSeason\(record\)/]
+        ];
+        const blind = readers.filter(([, body, asks]) => !asks.test(body)).map(([name]) => name);
+        equal(blind.join(", "), "", "a reader of this chapter's traces, motive or deaths takes last season's chapter of the same number for this one (S06-42)");
+        const place = fnSource(remnants, "placeRemnant");
+        ok(/epoch: keepId && Number\.isFinite\(data\.epoch\) \? data\.epoch : seasonEpoch\(\)/.test(place),
+            "a trace's ledger row does not name its season, or takes it off the packet rather than only for a trace put back under its id");
+        ok(/epoch: entry\.epoch \?\? null/.test(fnSource(remnants, "remnantData")) && /epoch: d\.epoch \?\? null/.test(fnSource(src("cleanup.mjs"), "recreationDataFor")),
+            "the GM's reading of a trace, or a clean-up's copy of one, drops its season - a trace put back is this season's");
+        ok(/chapter: getClock\(\)\.chapter,\s*epoch: seasonEpoch\(\)/.test(fnSource(rules, "setMotive")), "the motive does not name its season");
+        // Read last: before 1.2.73 there was no such reader, and `fnSource` throws for a function it cannot find.
+        const same = fnSource(src("settings.mjs"), "sameSeason");
+        ok(/return record\.epoch === epoch/.test(same) && /record\.placedAt \?\? record\.at/.test(same),
+            "settings.mjs `sameSeason` does not compare the season, or a record from before 1.2.73 by its own stamp");
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {
@@ -8386,11 +8998,11 @@ const REGRESSIONS = [
             takeBackBusy: /if \(advancing\.has\(actor\.id\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Advance\.takeBackBusy"/
                 .test(fnSource(levelUp, "takeBackOffer")),
             enterGives: /buttons: \[\s*\{ action: "give", [^}]*default: true,/.test(fnSource(levelUp, "askWhoPicks")),
-            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor\)/.test(fnSource(vote, "executeSentenced")),
+            unfoundExecuted: /isDeadForGm\(held\) \? await publishDeath\(actor, \{ phase: "classTrial" \}\)/.test(fnSource(vote, "executeSentenced")),
             eclipseDoors: /if \(trialEdge && next\.phase === "classTrial" && next\.eclipse === true\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*return null;/
                 .test(fnSource(code("clock.mjs"), "setClock"))
                 && /if \(isEclipse\(\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Floor\.eclipseFirst"\)\);\s*phase = getClock\(\)\.phase;/.test(panel),
-            editAsksChapter: /if \(!\(await confirmNewTrial\(result\.chapter\)\)\) phase = getClock\(\)\.phase;/.test(panel),
+            editAsksChapter: /if \(!\(await confirmNewTrial\(Number\(chapter\)\)\)\) phase = getClock\(\)\.phase;/.test(panel),
             nowOnPrimary: /bridgeRequest\("floor\.now", seen, \{ settle: "reply", onPrimary: true, quiet: true, local: \(\) => advanceFloorOnPrimary\(seen\) \}\)/
                 .test(fnSource(floorCode, "advanceFloorNow"))
                 && /if \(!floorAsSeen\(seen, floor\)\) return null;/.test(fnSource(floorCode, "advanceFloorOnPrimary"))
@@ -8498,6 +9110,95 @@ const REGRESSIONS = [
             equal(JSON.stringify(measured), JSON.stringify(expected),
                 `the ${lang} handbooks' Class Trial says what the code does not do (each claim: [the code, ...its sentences])`);
         }
+    }],
+
+    ["R375 - the hold's words say the Investigation has not started, and not that anything stopped", async () => {
+        /*
+         * E11 fix r1-G3; goal S03-28 (a test gap); the owner's Q4 as corrected (09.10.2026): the
+         * actions are not held after a body's discovery, only during the Class Trial, so the players'
+         * line under the hold (`DRPG.Events.bodyHoldMeta`, events.mjs's body card) says only that the
+         * Investigation has not started. Until E11 C3 it read "Everything has stopped. Nobody is
+         * searching yet." beside action tiles that still worked, and nothing read the words after
+         * C3 changed them: an edit could bring them back. Read off both language files as they ship:
+         * each says the Investigation has not started, and neither says that everything, the actions
+         * or the searching stopped.
+         */
+        const meta = {};
+        for (const code of ["en", "pl"]) {
+            meta[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Events?.bodyHoldMeta ?? null);
+        }
+        const says = { en: /Investigation has not started/, pl: /Investigation jeszcze nie trwa/ };
+        const stopped = { en: /stop|halt|frozen|everything|nobody|action/i, pl: /stanę|zatrzym|wstrzym|wszystk|nikt|akcj/i };
+        const read = Object.fromEntries(["en", "pl"].map(code =>
+            [code, [typeof meta[code] === "string", says[code].test(meta[code] ?? ""), stopped[code].test(meta[code] ?? "")]]));
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, false], pl: [true, true, false] }),
+            "the hold's words are missing, do not say the Investigation has not started, or say that the game, the actions or the "
+            + "searching stopped (per language: [the line, says not started, says stopped])");
+    }],
+
+    ["R376 - the Key Remnants still to place, the off-plan finds, the Key fee, the autopsy and the crime-witness mark are this season's chapter's", async () => {
+        /*
+         * E11 fix r2-H2, 1.2.73; round 2's cor COR2-2, sec S2 and goal S06-42, round 1's res R6. C12 gave
+         * `sameSeason` to seven readers of a trace or the motive (R356); the side line's Key line (r1-G4)
+         * and three older readers asked the chapter alone, so after a reset that kept the Remnants, the
+         * Truth Bullets or the Monocubs, the new chapter 1 read last season's as its own: its Key
+         * Remnants as placed and found, its autopsy as issued, its crime witness as marked. The guard
+         * on the promise, in the source: each of the five readers asks `sameSeason`, and the two
+         * writers whose records had no season - the autopsy's answer key and the crime-witness mark -
+         * write one. What the readers answer is tier 2's "this season's chapter reads none of last
+         * season's Key Remnants nor its autopsy nor its silence" and scenario 65's K (a real reset of the clock
+         * alone).
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const [investigation, panel, bullets, monocub] = ["investigation.mjs", "gm-panel.mjs", "truth-bullets.mjs", "monocub.mjs"].map(src);
+        ok(investigation.length > 1000 && panel.length > 1000 && bullets.length > 1000 && monocub.length > 1000,
+            "a source file did not load - the reads below would measure nothing");
+        const readers = [
+            ["investigation.mjs keysToPlace", fnSource(investigation, "keysToPlace"), /=== Number\(chapter\) && sameSeason\(r\.data\)\)\.length/],
+            ["investigation.mjs keyPlanStatus's off-plan count", fnSource(investigation, "keyPlanStatus"), /\(r\.data\?\.chapter \?\? chapter\) === chapter && sameSeason\(r\.data\)/],
+            ["investigation.mjs keyFeeOf", fnSource(investigation, "keyFeeOf"), /trace \? \(sameSeason\(trace\) \? trace\.chapter \?\? now : null\)/],
+            ["gm-panel.mjs autopsyIssued", fnSource(panel, "autopsyIssued"), /Number\(secret\.chapter\) === Number\(chapter\) && sameSeason\(secret\)/],
+            ["monocub.mjs isCrimeSilenced", fnSource(monocub, "isCrimeSilenced"), /record\.chapter === getClock\(\)\.chapter && sameSeason\(record\)/]
+        ];
+        const blind = readers.filter(([, body, asks]) => !asks.test(body)).map(([name]) => name);
+        equal(blind.join(", "), "", "a reader of this chapter's Key Remnants, autopsy or crime-witness mark takes last season's chapter of the same number for this one");
+        const writers = [
+            ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
+                && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
+            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "shareBullet"))],
+            ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
+        ];
+        equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
+            "the autopsy's answer key or the crime-witness mark does not name its season");
+    }],
+
+    ["R377 - the reset is the primary GM's when its window closes, takes its word exactly, names a cast it could not place and pans each player to their token", async () => {
+        /*
+         * E11 fix r2-H4, 1.2.73; round 2's sec S4 and COR2-8, the goal's census K4 and D3 / S06-49 (b). Until
+         * then `resetSeason` asked `isPrimaryGm()` once, before its window: a GM with a lower id arriving while
+         * the window stood made another browser the primary, `placeCast` answered null there, and its step
+         * filed that as done with nobody named. The window said "type RESET exactly" over a case-blind
+         * compare. And the cast's tokens moved with no camera told, which C3 had closed for the gather. The
+         * guard on the promise, in the source: the primary asked again after the window and before the plan,
+         * the typed word compared as it is, the cast's step throwing on a null answer, and `placeCast` sending
+         * the gather's pan after its moves. What they do at a table of five browsers is scenario 65's U.
+         */
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        ok(setup.length > 1000, "season-setup.mjs did not load - the reads below would measure nothing");
+        const reset = fnSource(setup, "resetSeason");
+        const window = reset.indexOf("DialogV2.wait("), plan = reset.indexOf("planFrom(typed.ticked)");
+        const asked = [...reset.matchAll(/if \(!isPrimaryGm\(\)\) \{/g)].map(hit => hit.index);
+        ok(window > 0 && plan > window && asked.some(at => at > window && at < plan),
+            "the reset does not ask again, between its window and its plan, whether this browser is still the primary GM's");
+        ok(/if \(typed\.word !== word\)/.test(reset) && !/toLowerCase|toUpperCase|localeCompare/.test(reset),
+            "the reset compares the typed word case-blind under \"type it exactly\"");
+        const wipe = fnSource(setup, "wipeSeason");
+        const step = /placeCast: async \(\) => \{([^}]*)\}/.exec(wipe)?.[1] ?? "";
+        ok(/if \(!placed\) throw/.test(step), "the cast's step files a placeCast that moved nobody off the primary as done");
+        const place = fnSource(setup, "placeCast");
+        const moved = place.indexOf("await teleportInto("), told = place.indexOf("broadcast(SYNC.gather,");
+        ok(moved > 0 && told > moved, "placeCast moves the cast's tokens and tells no camera where they went (the gather's SYNC.gather)");
     }]
 ];
 

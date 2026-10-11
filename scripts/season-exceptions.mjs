@@ -12,8 +12,9 @@
  *
  * ONE ROW PER STEP, and that is the invariant a test holds: a step nobody named
  * here would be ungated, and the GM's tick would silently not apply to it. The
- * order is the order the wipe runs in, so the window reads like what is about to
- * happen rather than like a settings page.
+ * order here is the window's, by section; the order the wipe runs in is
+ * season-setup.mjs `RESET_STEPS` since E11 C9 (the incident first), and R50 holds the
+ * two lists to the same keys.
  *
  * THE EXCEPTIONS ARE REMEMBERED, AND THEY COME BACK UNTICKED (Dawid, 18.09:
  * "Okno resetu ma pamietac wyjatki, ale pozwalac je odznaczyc. Domyslnie
@@ -28,9 +29,9 @@ import { SETTINGS } from "./settings.mjs";
 import { debug } from "./utils.mjs";
 
 /**
- * The five parts of a season, in the order the wipe clears them.
+ * The five parts of a season, in the order the window shows them.
  *
- * Sections are for the window only - a list of twenty-six ticks with no headings
+ * Sections are for the window only - a list of twenty-eight ticks with no headings
  * is a list nobody reads to the end.
  */
 export const RESET_SECTIONS = ["case", "cast", "board", "log", "world"];
@@ -58,7 +59,15 @@ export const RESET_GROUPS = [
     { key: "advancement", section: "cast" },
     { key: "actions", section: "cast" },
     { key: "preNotes", section: "cast" },
-    { key: "sheetNotes", section: "cast" },
+    /* "The notes the cast wrote on their own sheets" (`sheetNotes`) went in E11 fix r2-H4 (goal D3 /
+       S06-49; the plan's 3.3, "if the system's schema confirms"): it cleared `system.notes` and
+       `system.biography.notes`, and a Daggerheart character has neither - its `biography` holds
+       `background`, `connections` and `characteristics` and nothing else, read in character.mjs:80-88
+       of Daggerheart's tag 2.6.5 (c2984980, the version module.json verifies) and the same in 2.10.5 -
+       so the tick wiped nothing and its count read 0 at every table. A table that unticked it loses
+       that remembered exception: `rememberedExceptions` drops a key it no longer knows, and the window
+       says so only beside another remembered one (`resetForgotten` under `resetRemembered`; read in
+       the code). */
     /* 1.2.47 added this step ("I have found X's hiding place" was cleared by
        nothing) after this table was written, and the merge brought the step
        without the row. `step` runs only what the plan names, so until the row

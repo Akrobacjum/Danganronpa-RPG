@@ -17,7 +17,7 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, isDeceased, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
@@ -148,6 +148,28 @@ export async function startEclipse() {
     if (!game.user.isGM) return null;
     if (isEclipse()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.already"));
+        return null;
+    }
+
+    /*
+     * NOT OVER A BODY NOBODY HAS ANSWERED (E11 C3, 1.2.73; audit S06-05). A body found holds the
+     * game until the Investigation starts (`bodyDiscovery`, whose record lasts until the phase
+     * moves - D5's rule, clock.mjs `setClock`), and a discovery is refused during an Eclipse (chapter.mjs `runDiscovery`) -
+     * but this was the other way round and nothing refused it: an Eclipse opened over the hold
+     * refilled every budget and moved the clock with the hold still standing, and the players
+     * read that a body had been found and "Drag your token" at once. Refused here, the one place
+     * the module opens an Eclipse (the only `setClock({ eclipse: true })` outside the tests, read
+     * 10.10.2026), which the HUD's chevron, the GM panel's "Do it" and the API's `startEclipse`
+     * all reach; the HUD also dims its chevron with the same words. Tier 2 "during the hold the Eclipse is refused
+     * and a Search is not"; scenario 65 B2.
+     * The hold is the record AND a phase that is not the Investigation, as the GM panel and the
+     * body card read it: a GM who moves the phase first and announces the body second writes the
+     * record with Stage 7 already running, and C3 read the record alone, so every Eclipse of that
+     * Investigation was refused with "start the Investigation first" (E11 fix r1-G3; early review
+     * EARLY-C3-1; tier 2 "a body announced in the Investigation holds no Eclipse").
+     */
+    if (bodyDiscovery() && getClock().phase !== "investigation") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyFirst"));
         return null;
     }
 

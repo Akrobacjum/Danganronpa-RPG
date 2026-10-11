@@ -499,13 +499,26 @@ export const SETTINGS = {
      * BE starting the investigation: `discoverBody` moved the phase, and Stage 7
      * began whether or not the table was ready for it. It is a holding state
      * now - the card stands, the music stops, Daily Life carries on - until the
-     * GM either starts the Investigation or moves the clock on.
+     * phase moves (the GM starts the Investigation). Moving the clock on ends
+     * only its noise: the music and the card's pulse belong to the hour, day and
+     * chapter it was found in (`bodyDiscoveryFresh`, E11 C2).
      *
      * World-scoped and public on purpose, like the assembly: the discovery is
      * announced in chat to everybody, so there is nothing in here that is not
      * already on screen. Cleared in `setClock`; see the note there.
      */
     bodyFound: "bodyFound",
+    /**
+     * EVERY BODY FOUND THIS SEASON, A STAMP PER DISCOVERY (E11 C1, 1.2.73; audit S06-03, decision
+     * D8): `{ "<epoch>:<chapter>": [{ at, room, sceneId, victimIds, by, day, timeOfDay }] }`, `by`
+     * "witnesses" (two walked in) or "gm" (the GM's form). The hold above is cleared at every
+     * phase change, so nothing remembered that a body had been found once the Investigation
+     * began, and a walk past it after End the trial announced it again. Who walked in is not
+     * here (the GMs' log has it): the bodies named are public by the time this is written.
+     * One writer, chapter.mjs `announceBody` (tier 0 R349); cleared with the hold by the
+     * reset's `bodyFound` group.
+     */
+    bodiesFound: "bodiesFound",
     /**
      * The murder currently in progress - its WORLD HALF - or `{}`.
      *
@@ -811,6 +824,12 @@ export const DEFAULT_CLOCK = {
      * it - Eclipse, panel, or a rewind.
      */
     timeOfDayStartedAt: null,
+    /**
+     * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
+     * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
+     * (`bodyFoundSinceTrial`) so a chapter's second Investigation is not the first trial's body.
+     */
+    trialEndedAt: null,
     /**
      * When the game was paused, as `Date.now()`, or `null` while it runs. The
      * elapsed timer freezes here, and `timeOfDayStartedAt` is pushed forward by
@@ -1609,6 +1628,15 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.bodyFound)
     });
 
+    // The bodies found this season (E11 C1; the key's note). Public for the reason the hold
+    // is, and nothing redraws on it: its readers ask when they decide.
+    game.settings.register(MODULE_ID, SETTINGS.bodiesFound, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.murderState, {
         scope: "world",
         config: false,
@@ -2190,6 +2218,35 @@ export function seasonEpoch() {
     }
 }
 
+/**
+ * Was a chapter-stamped record written in the season now running? (E11 C12, 1.2.73; audit S06-42.)
+ * A reset sends the clock back to chapter 1 and may keep what the GM left unticked - the traces,
+ * the motive - so "chapter 1" alone named last season's chapter 1 as well: its Key Remnants were
+ * counted and taken off the map at the new chapter 1's end, its Final Truth read as placed, its
+ * motive was in force, and its Faint Prep traces were offered at the new season's first discovery.
+ * The writers stamp `epoch: seasonEpoch()` beside `chapter` (remnants.mjs `placeRemnant`, rules.mjs
+ * `setMotive`; a death's record since E11 C1; the autopsy's answer key, truth-bullets.mjs
+ * `createTruthBullet`, and the crime-witness mark, monocub.mjs `setSilenced`, since E11 fix r2-H2), and the
+ * readers of those records that ask "this chapter" ask this as well (tier 0 R356 and R376 hold them).
+ * Not every reader of a chapter asks it: the trial's progress and ballots, a betrayal offer and the
+ * Key plan's rows live in groups of their own and are read by their chapter, and a Truth Bullet's
+ * analysis lock and a Key copy's answer key carry no season (round 2's census of these readers, in
+ * E11 fix r2-H2's handoff).
+ *
+ * A record from before 1.2.73 carries no epoch. Its own real-time stamp answers instead - a trace's
+ * `placedAt`, the motive's `at` - against the season's start: an older one is last season's, and
+ * one with neither compares by chapter, as before. The two stamps are two clocks (`placedAt` and
+ * `at` are the writing GM's `Date.now()`, `seasonStartedAt` the GM store's, the server's time where
+ * Foundry gives it), so a record written within their difference of a reset is the one this can
+ * misjudge. Read in the code; the difference between them has not been measured at a table.
+ */
+export function sameSeason(record, epoch = seasonEpoch()) {
+    if (!record) return false;
+    if (record.epoch !== undefined && record.epoch !== null) return record.epoch === epoch;
+    const at = Number(record.placedAt ?? record.at);
+    return !(epoch > 0 && Number.isFinite(at) && at > 0 && at < epoch);
+}
+
 export function incidentParticipants() {
     const cast = incidentCast();
     return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
@@ -2411,12 +2468,13 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day and time of day. */
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1) and its `deathId` (fix r1-G1). */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
-    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null } : null;
+    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
+        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null } : null;
 }
 
 /*
@@ -2522,12 +2580,26 @@ export function bodyDiscovery() {
  * token watch re-announcing the same corpse (`maybeBodyFound`) and what ends the
  * killer's fresh-scene discount (`freshSceneBonus`), and neither of those is
  * undone by the hour turning. What the hour DOES end is the noise - the silence
- * and the pulsing card. Stamped with the time of day it was written in, which is
- * the same question `pendingGather` above it asks of its own stamp.
+ * and the pulsing card. Stamped with the chapter, the day and the time of day it
+ * was written in (`holdFreshAt`).
  */
 export function bodyDiscoveryFresh() {
     const record = bodyDiscovery();
-    return record && record.timeOfDay === getClock().timeOfDay ? record : null;
+    return record && holdFreshAt(record, getClock()) ? record : null;
+}
+
+/**
+ * The hour a hold is loud in: the one it was written in, of the same day and
+ * chapter (E11 C2, 1.2.73; audit S01-29; tier 0 R350). Until 1.2.73 this read
+ * the time of day alone, so a body found on a morning, with the GM staying in
+ * Daily Life (D5 lets them), silenced the music and pulsed the card again on
+ * every later morning, as if it had just been found (tier 2 "the body card stays
+ * through the Investigation and not into the next day"). A record without a
+ * `day` is day 1's, as `setBodyDiscovery` writes it. Pure.
+ */
+export function holdFreshAt(record, clock) {
+    return Boolean(record && clock) && record.chapter === clock.chapter
+        && (record.day ?? 1) === (clock.day ?? 1) && record.timeOfDay === clock.timeOfDay;
 }
 
 /** Record a discovery the GM has still to answer. GM-side. */
@@ -2538,6 +2610,70 @@ export function setBodyDiscovery({ room = null, victimId = null } = {}) {
         chapter: clock.chapter, day: clock.day ?? 1, timeOfDay: clock.timeOfDay,
         at: Date.now()
     });
+}
+
+/*
+ * THE BODIES FOUND, STAMPED PER CHAPTER AND SEASON (E11 C1, 1.2.73; audit S06-03, S06-14;
+ * decision D8). Keyed `<epoch>:<chapter>`, the epoch `seasonEpoch`'s, so a season's chapter 1
+ * is not the next season's. The hold above answers "is a discovery waiting on the GM"; these
+ * answer "was this body found", which outlives the hold - the watcher reads them so a body
+ * announced once is not announced again (chapter.mjs `bodiesToDiscover`).
+ */
+function bodiesFoundAll() {
+    try {
+        const all = game.settings.get(MODULE_ID, SETTINGS.bodiesFound);
+        return all && typeof all === "object" ? all : {};
+    } catch {
+        return {};
+    }
+}
+
+/** The discoveries of `chapter` in the season `epoch` (this season's by default), oldest first. */
+export function bodiesFoundIn(chapter, epoch = seasonEpoch()) {
+    const rows = bodiesFoundAll()[`${epoch}:${chapter}`];
+    return Array.isArray(rows) ? rows : [];
+}
+
+/** Was this student's body announced by a discovery of this season, in any of its chapters? */
+export function bodyAnnounced(actorId, epoch = seasonEpoch()) {
+    if (!actorId) return false;
+    return Object.entries(bodiesFoundAll()).some(([key, rows]) => key.startsWith(`${epoch}:`)
+        && Array.isArray(rows) && rows.some(row => row?.victimIds?.includes?.(actorId)));
+}
+
+/** Has a body been found in `chapter` of this season? */
+export function chapterBodyFound(chapter, epoch = seasonEpoch()) {
+    return bodiesFoundIn(chapter, epoch).length > 0;
+}
+
+/**
+ * The latest discovery of the clock's chapter made since its last Class Trial ended, or null:
+ * the body the case now open is about (E11 fix r1-G3; early review EARLY-C2-1, goal K1). The
+ * chapter's last stamp alone named the first trial's body in a second Investigation of the same
+ * chapter, which the GM can open with no new discovery (Edit campaign, `setPhase`). Both stamps
+ * are `serverNow()` (a discovery's `at`, chapter.mjs `runDiscovery`; `clock.trialEndedAt`,
+ * `setClock`), so two GMs' machines compare on one clock. A stamp without `at` counts as before
+ * any trial: none is written without one. Tier 2 "a chapter's second Investigation reads its own
+ * body on the card and in a discard".
+ */
+export function bodyFoundSinceTrial(clock = getClock(), epoch = seasonEpoch()) {
+    const stamp = bodiesFoundIn(clock?.chapter, epoch).at(-1) ?? null;
+    return stamp && (Number(stamp.at) || 0) > (Number(clock?.trialEndedAt) || 0) ? stamp : null;
+}
+
+/**
+ * One discovery's stamp, under the chapter and season the discovery began in - the row's own
+ * `chapter` and `epoch`, read before anything was awaited, never the clock's now (tier 2 "a
+ * body found is stamped once per chapter and season"). GM-side; chapter.mjs `announceBody`
+ * is its only caller (tier 0 R349).
+ */
+export async function recordBodyFound({ chapter, epoch, ...row } = {}) {
+    if (!game.user.isGM || !Number.isFinite(chapter)) return null;
+    const key = `${Number.isFinite(epoch) ? epoch : seasonEpoch()}:${chapter}`;
+    const all = bodiesFoundAll();
+    const stamp = { ...row, victimIds: [...new Set(row.victimIds ?? [])] };
+    await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), stamp] });
+    return stamp;
 }
 
 /** The GM has answered. Safe to call when there is nothing to clear. */

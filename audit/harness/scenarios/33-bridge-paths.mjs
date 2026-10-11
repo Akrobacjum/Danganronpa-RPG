@@ -607,11 +607,32 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await clearFailures(gm);
         const n = await noticeCount(p1);
         mark = await refusedCount(p1);
-        const sent = await p1.eval(`const answer = await ${bridge}.requestSendBack(canvas.scene.id, "TOKAIKO000000000", { x: ${home.x}, y: ${home.y} });
-            return { answer, at: Date.now() };`, { timeout: 30000 });
+        /* WHETHER IT HAD ANSWERED IS READ AS THE MESSAGE IS SAID (E11 fix k4, 11.10.2026; e11run/k4b4b). Until
+           this fix B4b compared the message's `at` with a `Date.now()` taken in this eval after the `await`, and
+           k4 (c954c64) went red on it with the module's order right. The waiter answers on the GM's "got it" and
+           says the refusal on the packet after it; when p1 reads both packets in one read of its socket, both
+           handlers run before this `await` resumes, so the stamp lands after the message - 34-282 microseconds
+           after it in the 104 sends of 200 that were read so (4 of 100 plain sends, and all 100 with p1's loop
+           held 15 ms after the send; k4b4b/b4-repeat.mjs), and red whenever a millisecond ended in between (4 of
+           those last 100). At the message the request's promise had settled in all 200. So p1's warn records, as
+           it is called, whether that promise is still pending: `util.inspect` reads a native promise's state at
+           once, where a `then` would run only after both handlers (read in the code, not timed). */
+        const sent = await p1.eval(`const { inspect } = await import("node:util");
+            const B = ${bridge};
+            let asked = null;
+            const warn = ui.notifications.warn;
+            globalThis.__e31Warn = warn;
+            globalThis.__e31AnsweredAtNotice = [];
+            ui.notifications.warn = function (...args) {
+                globalThis.__e31AnsweredAtNotice.push(asked !== null && !inspect(asked).includes("<pending>"));
+                return warn.apply(this, args);
+            };
+            asked = B.requestSendBack(canvas.scene.id, "TOKAIKO000000000", { x: ${home.x}, y: ${home.y} });
+            return { answer: await asked };`, { timeout: 30000 });
         await settle(2000);
         const b4 = {
-            sent, thrown: await gm.eval(`return globalThis.__e31Thrown.sendBack;`),
+            sent, answeredAtNotice: await p1.eval(`return globalThis.__e31AnsweredAtNotice;`),
+            thrown: await gm.eval(`return globalThis.__e31Thrown.sendBack;`),
             token: await gm.eval(`const t = canvas.scene.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y };`),
             logged: await refusalsLogged(gm, "token.sendBack"),
             told: (await refusedSince(p1, mark)).filter(t => t.what === "token.sendBack").length,
@@ -625,8 +646,11 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         // Green since E31 C5: the one wait answers the "got it", and says the refusal after it once.
         check("B4b: the send-back had answered as accepted before the one message, which says it failed on the GM's client",
             b4.thrown >= 1 && b4.sent.answer?.ok === true && b4.sent.answer?.pending === true && b4.said.length === 1
-            && b4.said[0].at >= b4.sent.at && !b4.failed.startsWith("DRPG.") && b4.said[0].msg.includes(b4.failed), JSON.stringify(b4));
+            && b4.answeredAtNotice.length === 1 && b4.answeredAtNotice[0] === true
+            && !b4.failed.startsWith("DRPG.") && b4.said[0].msg.includes(b4.failed), JSON.stringify(b4));
     } finally {
+        await p1.eval(`if (globalThis.__e31Warn) ui.notifications.warn = globalThis.__e31Warn;
+            delete globalThis.__e31Warn; delete globalThis.__e31AnsweredAtNotice; return true;`);
         await gm.eval(`const t = canvas.scene.tokens.get("TOKAIKO000000000"); delete t.update;
             await t.update({ x: ${home.x}, y: ${home.y} }); return true;`);
         await settle(600);

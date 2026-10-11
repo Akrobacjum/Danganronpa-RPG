@@ -449,7 +449,7 @@ export async function closeTrial() {
  * Eclipse starting and ending underneath it.
  */
 function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
-    studentActors, isDeadForGm, deathRecordFor }) {
+    studentActors, isDeadForGm, deathRecordFor, sameSeason }) {
         const floor = trialFloor();
         const { phase, chapter } = getClock();
         const running = phase === "classTrial";
@@ -477,7 +477,13 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
                The whole register (`blackenedIds`), as this GM holds it, and a death as this GM knows
                it (`isDeadForGm`, a death nobody has found included): a display, the GMs' own. */
             register: blackenedIds().length,
-            deathThisChapter: studentActors().some(actor => isDeadForGm(actor) && deathRecordFor(actor)?.chapter === chapter)
+            // Of this season too (E11 C12): a reset that keeps the deaths starts the clock at chapter 1 again,
+            // and last season's chapter-1 death read as this chapter's, an incident nobody closed.
+            deathThisChapter: studentActors().some(actor => {
+                if (!isDeadForGm(actor)) return false;
+                const record = deathRecordFor(actor);
+                return record?.chapter === chapter && sameSeason(record);
+            })
         };
         view.next = trialNextStep(view);
         return view;
@@ -794,10 +800,10 @@ export async function manageClassTrial() {
 
     const { blackenedIds } = await import("./murder.mjs");
     const { studentActors } = await import("./monokuma.mjs");
-    const { isDeadForGm, deathRecordFor } = await import("./settings.mjs");
+    const { isDeadForGm, deathRecordFor, sameSeason } = await import("./settings.mjs");
     const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
     const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
-        studentActors, isDeadForGm, deathRecordFor };
+        studentActors, isDeadForGm, deathRecordFor, sameSeason };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());

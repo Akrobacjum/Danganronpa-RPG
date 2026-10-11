@@ -487,7 +487,7 @@
       "elapsedUnknown": "nie zaczęto",
       "elapsedTooltip": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}.",
       "bodyFound": "Znaleziono ciało",
-      "bodyFoundTooltip": "Znaleziono ciało i nikt jeszcze nie szuka. Gra czeka, aż GM rozpocznie Investigation.",
+      "bodyFoundTooltip": "Znaleziono ciało, a Investigation jeszcze nie trwa: rozpoczyna je GM.",
       "stillToAct": "Zostały akcje",
       "stillToActTooltip": "Uczniowie, którym zostały akcje. Lista po lewej pokazuje, którzy.",
       "stillPlacing": "Jeszcze się ustawiają",
@@ -687,10 +687,10 @@
       "critPrompt": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
       "critNothingMore": "Nic więcej do dodania",
       "analyseBulletHint": {
-        "one": "Ustal, czym naprawdę jest twój jedyny niezidentyfikowany Truth Bullet.",
-        "few": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
-        "many": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
-        "other": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów."
+        "one": "Ustal, czym naprawdę jest twój jedyny nieprzeanalizowany Truth Bullet.",
+        "few": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+        "many": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+        "other": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów."
       },
       "askHintHint": "Brak dowodów w ręku - poproś GM-a, by cię gdzieś skierował.",
       "findStash": "Znajdź ukrytą skrytkę",
@@ -857,7 +857,7 @@
       "started": "Final Trial się rozpoczął.",
       "ended": "Flaga Final Trial zdjęta.",
       "finalTruthPlaced": "Final Truth Remnant został już umieszczony w tym rozdziale.",
-      "finalTruthReminder": "W tym rozdziale nie ma jeszcze Final Truth Remnant. Jeden na rozdział, wskazujący Masterminda - postaw go zwykłymi narzędziami do Remnantów, typ „Final Truth Remnant”.",
+      "finalTruthReminder": "W tym rozdziale nie ma Final Truth Remnant. Dodaj go poniżej - wskazuje Masterminda.",
       "verdictTitle": "Werdykt Final Trial",
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
@@ -881,8 +881,8 @@
       "finalAnnounce": "To ostatni. Na stole leży wszystko, co wam powiedziano o tym miejscu - i ten, kto wam to mówił.",
       "finalRemnantsTitle": "Final Truth Remnants",
       "finalRemnantsNote": "Remnanty, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
-      "noFinals": "Jeszcze nic nie postawiono.",
-      "finalAddNote": "Zostaw pokój pusty, by niczego nie zmieniać. Remnant staje na scenie, na którą patrzysz, gdzieś wewnątrz pokoju.",
+      "finalPickRoom": "Wybierz pokój, by go postawić",
+      "finalAddNote": "Zapisz stawia go na scenie, na którą patrzysz, gdzieś wewnątrz wybranego pokoju. Bez wybranego pokoju Zapisz niczego nie stawia.",
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Floor": {
@@ -970,7 +970,7 @@
       "bodySubRoom": "{victim}, w: {room}",
       "bodyMeta": "Investigation otwarte",
       "bodyMetaGm": "Znaleziono {found} z {total} Key Remnants",
-      "bodyHoldMeta": "Wszystko stanęło. Nikt jeszcze nie szuka.",
+      "bodyHoldMeta": "Ciało zostało znalezione. Investigation jeszcze nie trwa.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
         "safeword": "Stop",
@@ -1801,7 +1801,6 @@
       "notSharedNote": "„To nie pokój” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
     },
     "Chapter": {
-      "alreadyEnded": "Rozdział {n} został już zakończony przez innego GM-a. Nic nie wykonano dwa razy.",
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "keepBullets": "Zachowaj ich Truth Bullets (śmierć spoza killing game)",
@@ -1842,20 +1841,27 @@
       "whereBody": "Który pokój?",
       "whoseBody": "Czyje ciało? (opcjonalne)",
       "unnamedVictim": "Nie podawaj nazwiska",
+      "victimAnnounced": "{name} (ogłoszone w tym rozdziale)",
+      "bodyAnnouncedAlready": "Ciało postaci {name} zostało już ogłoszone w tym rozdziale, więc niczego nie ogłoszono ponownie. Aby ogłosić inne ciało w tym pokoju, nie podawaj nazwiska.",
+      "bodyPrimaryOnly": "Ciało ogłasza tylko główny GM, {name}, żeby o tym, które ciała znalazł stół, decydowała jedna przeglądarka. Poproś o to GM-a {name} albo ogłoś, gdy będziesz jedynym połączonym GM-em.",
+      "bodyNotPublished": "Nie udało się ujawnić stołowi śmierci postaci {name}, więc odkrycie jej nie wymienia, a ta śmierć jest wciąż znana tylko GM-om. Ujawnij ją w oknie graczy.",
       "noRooms": "Ta scena nie ma regionów pokoi, do których dałoby się kogokolwiek zwołać.",
-      "bodyNote": "Wzywa wszystkich na miejsce i zatrzymuje tam grę: faza zostaje Daily Life, a muzyka milknie, dopóki nie rozpoczniesz Investigation (zmiana pory dnia kończy tylko ciszę). Najpierw pokazuje wątpliwe ślady Prep, byś mógł powiedzieć, które należą do tego morderstwa.",
+      "bodyNote": "Wszyscy zostają wezwani na miejsce. Faza się nie zmienia, dopóki nie rozpoczniesz Investigation.",
+      "bodyNoteLater": "Wszyscy zostają wezwani na miejsce. Faza się nie zmienia.",
+      "bodyNoteTraces": "Potem zobaczysz pytanie, które ślady zostawione, gdy ktoś zbierał narzędzia, należą do tego morderstwa.",
       "announce": "Ogłoś",
       "bodyBanner": "ZNALEZIONO CIAŁO",
       "bodyFound": "Znaleziono ciało w: {room}.",
       "bodyFoundNamed": "{name} znaleziony martwy w: {room}.",
-      "bodyCalled": "Wszyscy wezwani na miejsce. Nikt jeszcze nie szuka.",
-      "bodyDone": {
-        "one": "{moved} przeniesionych na miejsce, {promoted} ślad utrwalony.",
-        "few": "{moved} przeniesionych na miejsce, {promoted} ślady utrwalone.",
-        "many": "{moved} przeniesionych na miejsce, {promoted} śladów utrwalonych.",
-        "other": "{moved} przeniesionych na miejsce, {promoted} śladów utrwalonych."
+      "bodyCalled": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",
+      "bodyDone": "Wszystkich sprowadzono na miejsce: {room}.",
+      "promoted": {
+        "one": "{n} ślad liczy się teraz jako dowód tego morderstwa.",
+        "few": "{n} ślady liczą się teraz jako dowody tego morderstwa.",
+        "many": "{n} śladów liczy się teraz jako dowody tego morderstwa.",
+        "other": "{n} śladu liczy się teraz jako dowód tego morderstwa."
       },
-      "promoteTitle": "Które ślady należą do tego morderstwa?",
+      "promoteTitle": "Ciało znalezione: {room}",
       "promoteIntro": "Te ślady Prep zostały, gdy ktoś zbierał narzędzia. Większość nic nie znaczy. Zaznacz te, które należą do tego zabójstwa.",
       "promoteNote": "Zaznaczone ślady przestają być wątpliwe: liczą się jako dowody powiązane ze zbrodnią, a czyszczenie Faint ich nie zabierze. Resztę zostaw, a pozostaną Faint.",
       "promoteConfirm": "Te należą do niego",
@@ -1878,10 +1884,10 @@
       "optNextMorning": "Otwórz następny rozdział rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami",
       "moved": "Zegar wskazuje teraz rozdział {chapter}, sesję {session}.",
       "typeless": {
-        "one": "1 Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie. Ustaw go w Daj / zabierz przedmioty.",
-        "few": "{n} Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty.",
-        "many": "{n} Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty.",
-        "other": "{n} Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty."
+        "one": "1 nieprzeanalizowany Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie - ma go {who}. Zabierz go i daj taki z jego typem w Daj / zabierz przedmioty.",
+        "few": "{n} nieprzeanalizowane Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty.",
+        "many": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty.",
+        "other": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty."
       },
       "optSweep": "Zbierz Truth Bullets ({n} zniknie, Faint i Final zostają)",
       "optFaint": "Wyczyść Faint Remnants ({n} zniknie)",
@@ -1904,9 +1910,27 @@
         "many": "Zdjęto z mapy {n} Key Remnants.",
         "other": "Zdjęto z mapy {n} Key Remnants."
       },
-      "optEndTrial": "Zamknij Class Trial i przywróć salę do Daily Life",
+      "optEndTrial": "Zamknij Class Trial i przywróć wszystkich do Daily Life",
+      "finalTruthMissing": "W tym rozdziale nie postawiono Final Truth Remnant. Jeden na rozdział wskazuje Masterminda: postaw go w Sprawa > Investigation, w zakładce Final Truth Remnants.",
       "doneEndTrial": "Class Trial zamknięty; kampania wraca do Daily Life.",
-      "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami."
+      "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
+      "doneInvestigationOver": "Investigation zakończone; kampania wraca do Daily Life.",
+      "endTwice": "To okno końca rozdziału otwarto przy rozdziale {chapter}, sesji {session}, dniu {day}, a rozdział, sesja lub dzień na zegarze od tego czasu się zmieniły - przez inny koniec rozdziału, przez edycję kampanii albo przez porę dnia przechodzącą w nowy dzień. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
+      "endPhaseMoved": "To okno końca rozdziału otwarto w fazie {opened}, a zegar od tego czasu pokazuje {now} - faza zmieniła się po otwarciu okna, więc to, co okno proponowało zamknąć, nie jest tym, co trwa teraz. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
+      "endPrimaryOnly": "Rozdział kończy tylko główny GM, {name}, żeby jedna przeglądarka policzyła go raz. Poproś o to GM-a {name} albo zakończ go, gdy będziesz jedynym połączonym GM-em.",
+      "endFailed": "Koniec rozdziału nie dobiegł końca: {steps}. Cała reszta została wykonana - dokończ to ręcznie, zamiast kończyć rozdział jeszcze raz.",
+      "endStopped": "Faza zmieniła się z {opened} na {now}, gdy rozdział się kończył, więc nie wykonano: {steps}. To, co się wykonało, zostaje - resztę dokończ ręcznie, gdy stół będzie na to gotowy, zamiast kończyć rozdział jeszcze raz.",
+      "step": {
+        "reveal": "ujawnianie Truth Bullets",
+        "sweep": "zbieranie Truth Bullets",
+        "faint": "czyszczenie Faint Remnants",
+        "keys": "zdejmowanie Key Remnants z mapy",
+        "tools": "opróżnianie zużytych Cleaning Tools",
+        "clock": "przesuwanie zegara",
+        "trial": "zamykanie Class Trial",
+        "morning": "otwieranie następnego ranka",
+        "hold": "zamykanie odkrycia ciała"
+      }
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",
@@ -2388,6 +2412,7 @@
     },
     "Eclipse": {
       "already": "Eclipse już trwa.",
+      "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
       "announce": {
         "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
         "few": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
@@ -2496,6 +2521,19 @@
       "changeImage": "Kliknij, by zmienić obrazek projektu",
       "tokenName": "Coś w robocie",
       "tokenMoved": "<strong>{project}</strong> należy teraz do pomieszczenia <strong>{to}</strong> - jego token został tam przeniesiony z: {from}.",
+      "showOnMap": "Pokaż na mapie",
+      "sweptOld": {
+        "one": "{n} token projektu, którego już nie ma, stał na mapie i został usunięty.",
+        "few": "{n} tokeny projektów, których już nie ma, stały na mapie i zostały usunięte.",
+        "many": "{n} tokenów projektów, których już nie ma, stało na mapie i zostało usuniętych.",
+        "other": "{n} tokenów projektów, których już nie ma, stało na mapie i zostało usuniętych."
+      },
+      "duplicates": {
+        "one": "Projekt stoi na mapie dwa razy: {list}. Token, na który wskazuje projekt, zostaje, a zapasowy stoi dalej - usuń go ręcznie, jeśli to pomyłka.",
+        "few": "{n} zapasowe tokeny projektów stoją obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki.",
+        "many": "{n} zapasowych tokenów projektów stoi obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki.",
+        "other": "{n} zapasowych tokenów projektów stoi obok tych, na które wskazują ich projekty: {list}. Nic nie zostało usunięte - usuń je ręcznie, jeśli to pomyłki."
+      },
       "glyphLabel": "Ikona w zasobniku",
       "glyphDefault": "Domyślna (klepsydra)",
       "glyphNote": "W motywie Stained Glass zasobnik projektów rysuje to zamiast obrazka, w kolorze interfejsu. Obrazek używany jest wszędzie indziej.",
@@ -2863,6 +2901,10 @@
       "phase": "Faza",
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
+      "chapterCorrectTitle": "Popraw numer rozdziału",
+      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział. Anuluj zostawia rozdział i zapisuje resztę.",
+      "trialFromEditTitle": "Otwórz Class Trial",
+      "trialFromEdit": "To otwiera budżet Class Trialu i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
       "unknownPhase": "Nieznana faza: {key}.",
       "actionsRefilled": {
@@ -2887,6 +2929,16 @@
       "nextNoFloor": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
       "nextFloor": "Debata otwarta - {mode}.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
+      "nextKeysToPlace": {
+        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnants okna Investigation.",
+        "few": "{n} Key Remnants tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
+        "many": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
+        "other": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation."
+      },
+      "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
+      "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
+      "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
+      "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego żeton jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",
       "nextInvestigation": "Investigation. Sprawdź, co znaleziono, a co wciąż czeka.",
       "nextStillActing": {
         "one": "{n} uczeń ma jeszcze akcje do wydania.",
@@ -3569,6 +3621,12 @@
         "many": "{n} projektów",
         "other": "{n} projektów"
       },
+      "resetProjectTokens": {
+        "one": "{n} token projektu na mapach",
+        "few": "{n} tokeny projektów na mapach",
+        "many": "{n} tokenów projektów na mapach",
+        "other": "{n} tokenów projektów na mapach"
+      },
       "resetRemnants": {
         "one": "{n} Remnant na mapach",
         "few": "{n} Remnants na mapach",
@@ -3605,15 +3663,13 @@
         "many": "{n} kart napisanych przez ten moduł i każdy wątek komunikatora",
         "other": "{n} kart napisanych przez ten moduł i każdy wątek komunikatora"
       },
-      "resetNotes": {
-        "one": "{n} notatka: przed sesją i na arkuszach",
-        "few": "{n} notatki: przed sesją i na arkuszach",
-        "many": "{n} notatek: przed sesją i na arkuszach",
-        "other": "{n} notatek: przed sesją i na arkuszach"
+      "resetPreNotes": {
+        "one": "{n} notatka przed sesją napisana przez GM-a",
+        "few": "{n} notatki przed sesją napisane przez GM-ów",
+        "many": "{n} notatek przed sesją napisanych przez GM-ów",
+        "other": "{n} notatek przed sesją napisanych przez GM-ów"
       },
       "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
-      "resetDoors": "każde drzwi do stanu z otwarcia sezonu",
-      "resetState": "incydent, Mastermind, kolejka Class Trial, Search Tokens, każdy obowiązujący Despair Call, zasady killing game, zwołane zgromadzenie, a zegar z powrotem na rozdział 1, dzień 1, rano",
       "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
       "resetWord": "RESET",
@@ -3634,6 +3690,12 @@
       },
       "resetGroupsTitle": "Co znika, a co zostaje",
       "resetGroupsNote": "Odznacz wszystko, czego ten reset ma nie ruszać. Wybór zostaje zapamiętany na następny reset i wraca odznaczony - zaznacz ponownie, a zniknie.",
+      "resetCastTitle": "Dokąd trafiają żetony obsady",
+      "resetCastNote": "Żeton przenosi się tylko na mapie, na której narysowano jego pokój. Uczeń bez sypialni albo bez żetonu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Wybór nie jest zapamiętywany: każdy reset zaczyna od pierwszej opcji.",
+      "resetCastStay": "Zostają tam, gdzie stoją",
+      "resetCastBedroom": "Każdy uczeń do własnej sypialni, przypisanej w Ustawieniach pokoi",
+      "resetCastPoint": "Wszyscy do jednego pokoju:",
+      "resetCastNoRooms": "Żadna mapa nie ma jeszcze nazwanego pokoju",
       "resetRemembered": {
         "one": "Z ostatniego resetu zapamiętano 1 wyjątek - poniżej jest odznaczony.",
         "few": "Z ostatniego resetu zapamiętano {n} wyjątki - poniżej są odznaczone.",
@@ -3653,6 +3715,21 @@
         "many": "Sezon zresetowany. {n} wyjątków pozostało bez zmian.",
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
+      "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
+      "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
+      "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
+      "reportCard": {
+        "title": "Reset sezonu się nie dokończył",
+        "failed": "Niewyczyszczone: {groups}.",
+        "done": "Wyczyszczone: {groups}.",
+        "kept": "Zostawione, bo odznaczone: {groups}.",
+        "notRun": "Niewykonane, bo główny GM zmienił się w trakcie resetu: {groups}.",
+        "cast": "Żetony obsady, zgodnie z wyborem - {where}.",
+        "titleCast": "Dokąd trafiła obsada po resecie sezonu",
+        "stayed": "Zostali na miejscu: {names}.",
+        "titleLeft": "Co reset sezonu zostawił na kartach",
+        "experiences": "Doświadczenia zostawione na kartach - ich karta startowa została zapisana, zanim moduł odróżniał doświadczenie z awansu od dopisanego przez MG, i nie ma w niej żadnego: {list}."
+      },
       "section": {
         "case": "Sprawa",
         "cast": "Obsada",
@@ -3663,23 +3740,22 @@
       "group": {
         "remnants": "Remnants na mapach i to, czym każdy z nich naprawdę był",
         "bullets": "Truth Bullets w pakietach obsady",
-        "incident": "Incydent, Blackened i każde morderstwo zgłoszone w ciemności",
+        "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
         "keyPlan": "Plan Key Remnants",
         "searchTokens": "Search Tokens wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
-        "bodyFound": "Znalezione ciało, które czeka na odpowiedź",
-        "deaths": "Śmierci i Monocuby - zmarli wracają",
-        "items": "Co nosi obsada",
-        "advancement": "Level Upy - z powrotem do startowego arkusza",
-        "actions": "Budżet akcji odnowiony, a odpoczynki i okno zdrady każdego ucznia wyczyszczone",
+        "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
+        "deaths": "Śmierci i Monocuby - zmarli wracają, a Health i Sanity każdego ucznia są znów pełne",
+        "items": "Co nosi obsada - klucz do każdej sypialni od razu wraca do jej właściciela",
+        "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza, i doświadczenia, które dodał Level Up",
+        "actions": "Budżet akcji odnowiony, a odpoczynki każdego ucznia wyczyszczone",
         "preNotes": "Notatki przed sesją dla GM-ów",
-        "sheetNotes": "Notatki, które obsada zapisała na własnych arkuszach",
-        "stashesFound": "Skrytki, które każdy uczeń już znalazł",
+        "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",
-        "seals": "Wciąż obowiązujące Despair Calls",
+        "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",
         "doors": "Zamknięte drzwi, z powrotem do stanu z otwarcia sezonu",

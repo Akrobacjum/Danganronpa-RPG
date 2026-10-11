@@ -101,6 +101,11 @@ export function tokenRefOf(countdownId) {
  */
 export function knowsProject(countdownId, user = game.user) {
     if (user?.isGM) return true;
+    /* AN ID WITH NO COUNTDOWN IS NOBODY'S PROJECT (E11 C7, 1.2.73; audit S09-21; the ask A2). Asked
+       before the ownership: `isSecret` reads a missing countdown as public and `roomOf` a missing
+       row as no room, so the token a reset or a deletion left behind was "known" to every player -
+       scenario 65 read it true on p1 at 4aad1fd (10.10.2026). A GM's answer is the line above. */
+    if (!rawCountdown(countdownId)) return false;
     if (!canSee(countdownId, user)) return false;
     // In on a secret one: you are one of the people who made it.
     if (isSecret(countdownId)) return true;
@@ -1096,8 +1101,11 @@ export async function deleteProject(countdownId) {
        marker standing in a room for a project that no longer exists, and
        nothing left pointing at it to clean it up. */
     try {
-        const { removeProjectToken } = await import("./projects-map.mjs");
+        const { removeProjectToken, sweepProjectTokens } = await import("./projects-map.mjs");
         await removeProjectToken(countdownId);
+        /* And every other token of it (E11 C7): any token of this project but the one its metadata
+           names stood on after the deletion, an orphan every player knew (the suite's orphan test). */
+        await sweepProjectTokens({ live: [], only: [countdownId] });
     } catch (err) {
         error("Could not take the deleted project off the map", err);
     }
@@ -1163,6 +1171,20 @@ export async function clearAllProjects() {
 
     const data = game.settings.get(DH, COUNTDOWNS);
     const gone = Object.keys(data?.countdowns ?? {}).length;
+
+    /* THE TOKENS FIRST (E11 C7, 1.2.73; audit S06-23, S07-27; the ask A2). This cleared the
+       countdowns and the metadata and left every project token standing: scenario 65 counted the
+       four of a played season - two projects, a duplicate, an orphan - still on their scenes after
+       the reset at 4aad1fd (10.10.2026). `live: []`: after a reset no project exists, so every
+       project token on every scene is an orphan, the base actor's copies without an id included.
+       First, as `deleteProject` takes its token before its row, so no moment holds a token whose
+       project is gone; the sweep reads the tokens' own flags, so the order changes nothing it finds. */
+    try {
+        const { sweepProjectTokens } = await import("./projects-map.mjs");
+        await sweepProjectTokens({ live: [] });
+    } catch (err) {
+        error("Could not take the season's project tokens off the maps", err);
+    }
 
     // Spread the rest of Daggerheart's own setting back, exactly as
     // `deleteProject` does - `countdowns` is one key inside it, not all of it.

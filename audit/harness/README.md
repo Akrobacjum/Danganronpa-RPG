@@ -110,6 +110,7 @@ belongs to.
 | 61 | scenarios/61-gmstore-case.mjs | ci | exists | E04 | the GM store with a second GM: a late empty browser, backup and restore, tombstones, the reset's cuts |
 | 62 | scenarios/62-investigation.mjs | ci | exists | E09 | the investigation with a second GM: three traces (A), a focused Observe any GM picks from a card (O), an Analyze read on the player (N), a reshape ruled once on the primary that leaves the copies already held (T), the GMs' verdicts reaching the copies (V), the dashboard's Save under a reshape (D), the Key fee with and without a planner Save and on the primary (K, P), the chapter end's sweep and reveal (E), and the words: a missed Analyze of a Final and the handbooks' labels (L) |
 | 63 | scenarios/63-class-trial.mjs | ci | exists | E10 | the Class Trial with a second GM and a late player: Start on every player (A), the ballots (B), a player who joins after them (C), the GM's reload in the vote (D), the count (E), the verdict's window (F), a wrong verdict while a forged death waits for the audit (G), a second trial in the chapter (H), a correct verdict's Level Ups and a pick through the bridge (I) - each check today's reading, naming the E10 commit that changes it |
+| 65 | scenarios/65-season.mjs | ci | exists | E11 | the chapter, the body's discovery and the season reset as they are today: two scenes with projects, a duplicate and an orphan token (A), a body found by two, the hold, an Eclipse during it, the trial and a wrong verdict (B), the chapter ended twice and the time moved back past a called assembly (C), a death kept past its chapter and announced in the next (Q), a season played (D), the reset (R), a reset whose chat deletion throws (F), the canvas drawn again on a world already reset (G) - each check today's reading, naming the E11 commit that changes it |
 | 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
@@ -239,6 +240,17 @@ makes a critical certain, no rally die), and every roll at a table.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).
+- **The fog's texture is never built** (E11 fix r2-J1). The shim's
+  `canvas.app.renderer` is a screen size and a view, with no `render()`, so
+  every fog redraw logs the module's own "Could not build the fog texture"
+  (`renderer.render is not a function`, fog.mjs `buildFogTexture`'s catch):
+  counted in the fast set's logs of 90c1692 (e11run/r2h6, 11.10.2026), 9 at
+  the boot of the four clients, 220 in all of 65-season, 185 in 30-security,
+  111 in 40-flow. It is left an error, not stubbed: a `render()` that drew
+  nothing would let a fog check pass by measuring nothing (CLAUDE.md), and the
+  catch is what a table whose renderer failed would log. The fog's checks read
+  its ledgers, its regions and its listeners, never pixels; 65-season V3 counts
+  a different message (the fog's "reveal on arrival").
 - **CSS** (E30, `lib/css.mjs`). The six stylesheets are attached as one inline
   sheet of `@import ... layer(modules)` in module.json's order, served from the
   checkout (nothing else loads: any other address is a 404), and a client whose

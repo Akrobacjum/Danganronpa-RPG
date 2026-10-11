@@ -155,7 +155,7 @@ async function writeGather(record) {
     if (!game.user.isGM) return null;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.pendingGather, record ?? {});
-        return record ?? null;
+        return true;
     } catch (err) {
         error("Could not write the pending assembly", err);
         return null;
@@ -231,7 +231,12 @@ export async function cancelGather() {
     const order = pendingGather();
     if (!order) return null;
 
-    await writeGather(null);
+    /* CALLED OFF ONLY WHEN IT IS (E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3). `writeGather` answered null for a
+       cleared order whether the write landed or threw, and this posted "called off" either way: the order stood,
+       held at the next time of day, after the table had been told it was off (tier 2 "an assembly whose calling
+       off was not written is not announced as called off" read the card posted with the code before this,
+       11.10.2026). The failed write is logged by `writeGather`; the order stands and nothing is announced. */
+    if (!(await writeGather(null))) return null;
 
     await announce({
         flags: { [MODULE_ID]: {
@@ -369,14 +374,75 @@ export async function gatherEveryone(room, onScene = null) {
 
     // Nobody is billed for this: the move is made by a GM client, and
     // movement.mjs exempts GM-initiated moves outright.
+    let moved;
+    try {
+        await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
+        moved = tokens.length;
+    } catch (err) {
+        error("Region teleport failed; falling back to a direct placement", err);
+        const { REVERT } = await import("./movement.mjs");
+        moved = await fallbackGather(scene, region, tokens, REVERT);
+    }
+
+    /* AND EVERY CAMERA GOES WITH ITS TOKEN (E11 C3, 1.2.73; audit S06-07). The tokens were moved
+       and nothing told the screens: a player's HUD named the room of the body while the view
+       stayed on the room they had left, now empty, and in an Eclipse the notice said "Drag your
+       token" with no token on screen. `pan: false` above is the teleport's own camera, which
+       would move only this GM's. Told after the moves, so a client that pans finds its token
+       where it now stands; each client pans to its own (`panToGathered`). Lazily, as the rest:
+       this file imports only config.mjs, settings.mjs and utils.mjs statically (the header).
+       Tier 2 "the gather tells each client where its token went"; scenario 65 B1b. */
+    const { broadcast, SYNC } = await import("./sync.mjs");
+    broadcast(SYNC.gather, { room, scene: scene.id, tokenIds: tokens.map(t => t.id) });
+    return moved;
+}
+
+/**
+ * Tokens of one scene into one of its rooms, for the season reset's choice of where the cast goes
+ * (season-setup.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
+ * and `fallbackGather` when the region cannot - handed the room's box as movement.mjs `boundsOf`
+ * reads it. The gather hands it none and the fallback reads `region.object?.bounds ?? region.bounds`:
+ * a region on a scene nobody's canvas draws has no placeable, and where the document has no `bounds`
+ * either the ring lands round the scene's centre. Measured in the headless harness, whose regions
+ * have neither and no `teleportTokens`: with no box handed in (10.10.2026, a mutant of this line),
+ * tier 2's "the cast goes where the GM chose" read its tokens at 2120,1500 and 2085,1585 - the ring
+ * round 2000,1500 of a 4000 by 3000 scene, outside both rooms. Whether Foundry's region document
+ * answers `bounds`, and whether its `teleportTokens` takes these options, is not measured here. The
+ * gather is left as it is (its scenarios read where its fallback puts the cast); this caller is not.
+ * Answers how many were placed.
+ */
+export async function teleportInto(scene, region, tokens) {
     try {
         await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
         return tokens.length;
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);
-        const { REVERT } = await import("./movement.mjs");
-        return fallbackGather(scene, region, tokens, REVERT);
+        const { REVERT, boundsOf } = await import("./movement.mjs");
+        return fallbackGather(scene, region, tokens, REVERT, boundsOf(region));
     }
+}
+
+/**
+ * Pan this client's camera to its own token among the ones a gather moved (`SYNC.gather`,
+ * sync.mjs; E11 C3, 1.2.73). Answers the token's id, or null when there is nothing to pan to:
+ * no drawn canvas, another scene on screen, or none of the tokens this user's own student
+ * (`ownStudent`: a GM with no assigned student has none, so the GM's camera stays where the GM
+ * put it). It reads the packet's ids and this client's canvas and writes nothing; the packet is
+ * applied only from a GM (sync.mjs `registerSync`). The headless harness has a canvas whose
+ * `animatePan` does nothing, so scenario 65 reads the call and not a camera; whether the token's
+ * new position reaches a player's canvas before this packet does at a real table is not
+ * measured: both go through the server from the same GM, and the position's write is sent first.
+ */
+export async function panToGathered({ scene, tokenIds } = {}) {
+    if (!canvas?.ready || !scene || canvas.scene?.id !== scene || !Array.isArray(tokenIds)) return null;
+    const { ownStudent } = await import("./monokuma.mjs");
+    const mine = ownStudent();
+    if (!mine) return null;
+    const token = tokenIds.map(id => canvas.tokens?.get(id)).find(t => t?.actor?.id === mine.id);
+    const centre = token?.center;
+    if (!centre) return null;
+    await canvas.animatePan({ x: centre.x, y: centre.y });
+    return token.id;
 }
 
 /**
@@ -391,8 +457,8 @@ export async function gatherEveryone(room, onScene = null) {
  * that does not hold them, the client backend rejected the update, and the order
  * - already cleared, its six Despair spent - moved nobody and told nobody.
  */
-async function fallbackGather(scene, region, tokens, REVERT) {
-    const bounds = region.object?.bounds ?? region.bounds;
+async function fallbackGather(scene, region, tokens, REVERT, box = null) {
+    const bounds = box ? { x: box.x, y: box.y, width: box.w, height: box.h } : region.object?.bounds ?? region.bounds;
     const centre = bounds
         ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
         : { x: scene.width / 2, y: scene.height / 2 };

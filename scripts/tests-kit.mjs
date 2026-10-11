@@ -15,6 +15,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
+import { isPrimaryGm } from "./utils.mjs";
 import {
     stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
@@ -494,6 +495,10 @@ const env = Object.freeze({
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
     unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
+    /* The primary GM (E11 fix r2-H1, 1.2.73; round 1's residue R4): the one browser the discovery, the watcher and the
+       GMs' audit run on. Which GM that is is a fact about this browser at this table, so a test of those roads run from a
+       second GM skips instead of failing; the harness's GM is the primary, so nothing skips for it there. */
+    primaryGm: () => probe("env.primaryGm", isPrimaryGm(), "this browser is not the primary GM"),
     /* jsdom answers every element's fontFamily with the words "depends on user agent" (the
        note in "the theme speaks two faces" has the story); a browser names a face. */
     fonts: () => {

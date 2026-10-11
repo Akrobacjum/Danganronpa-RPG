@@ -1636,7 +1636,15 @@ async function readSentence(context) {
  * verdict counts them living (`verdictHeld`, `openVerdictDialog`), so the held death is made the
  * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
  * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
- * publish fails the step.
+ * publish fails the step. Published as the trial's (E11 C1, 1.2.73): the record keeps the kill's chapter,
+ * day and time and takes the phase `classTrial`, so the body is an execution and no later walk past it
+ * discovers it (chapter.mjs `bodiesToDiscover`; tier 2 "a body the verdict executed is not found again
+ * after the trial - a death the GMs held included"). A living convict is killed with the same phase
+ * (E11 fix r1-G1; round 1's cor COR-1): the console offers the verdict after End the trial
+ * (trial-floor-ui.mjs `trialNextStep`), and the kill took the clock's Daily Life, so the next walk-in
+ * announced the executed student as a body found, gathered the cast and held the chapter (measured by
+ * the review at 0d860df; tier 2 "a living convict the verdict executes after End the trial is no body
+ * to find").
  *
  * AN EXECUTION IS PUBLIC (E10 fix r2-G3, 1.2.71; the round-2 correctness review's m5). `killCharacter`
  * keeps the running incident's victim's death for the GMs unless told otherwise, and C12's "keep" lets
@@ -1650,7 +1658,7 @@ async function executeSentenced(context) {
         await judgedFor(actor.id);
         const held = flagsHeldNow(actor);
         if (isDeceased(held)) continue;
-        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor, { secret: false });
+        const died = isDeadForGm(held) ? await publishDeath(actor, { phase: "classTrial" }) : await killCharacter(actor, { secret: false, phase: "classTrial" });
         if (!died) throw new Error(`${actor.name} could not be executed`);
         context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)

@@ -509,7 +509,7 @@
       "elapsedUnknown": "not started",
       "elapsedTooltip": "How long this time of day has run. Amber at {first} minutes, red at {second}.",
       "bodyFound": "Body found",
-      "bodyFoundTooltip": "A body has been found and nobody is searching yet. The game waits for the GM to start the Investigation.",
+      "bodyFoundTooltip": "A body has been found, and the Investigation has not started yet: the GM starts it.",
       "stillToAct": "Still to act",
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
       "stillPlacing": "Still placing",
@@ -700,8 +700,8 @@
       "critPrompt": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
       "critNothingMore": "Nothing more to add",
       "analyseBulletHint": {
-        "one": "Work out what your one unidentified Truth Bullet really is.",
-        "other": "Work out what one of your {n} unidentified Truth Bullets really is."
+        "one": "Work out what your one Truth Bullet not analysed yet really is.",
+        "other": "Work out what one of your {n} Truth Bullets not analysed yet really is."
       },
       "askHintHint": "No evidence in hand - ask the GM to point you somewhere instead.",
       "findStash": "Locate a hidden stash",
@@ -868,7 +868,7 @@
       "started": "The Final Trial has begun.",
       "ended": "The Final Trial flag is cleared.",
       "finalTruthPlaced": "A Final Truth Remnant has already been placed this chapter.",
-      "finalTruthReminder": "No Final Truth Remnant this chapter yet. One a chapter, pointing at the Mastermind - drop it with the ordinary Remnant tools, type “Final Truth Remnant”.",
+      "finalTruthReminder": "No Final Truth Remnant this chapter. Add one below - it points at the Mastermind.",
       "verdictTitle": "Final Trial verdict",
       "verdictIntro": "Only you know whether the vote named the Mastermind. Say who was accused and pick the outcome.",
       "alreadyDeadNote": "The Mastermind died earlier this season. The same rule applies whoever was accused: reveal the truth, execute nobody new.",
@@ -892,8 +892,8 @@
       "finalAnnounce": "This is the last one. Everything you have been told about this place is on the table, and so is whoever has been telling it to you.",
       "finalRemnantsTitle": "Final Truth Remnants",
       "finalRemnantsNote": "The Remnants the endgame turns on. Their type reinforces them, so nobody can clean one away.",
-      "noFinals": "None placed yet.",
-      "finalAddNote": "Leave the room empty to change nothing. The Remnant is placed on the scene you are looking at, somewhere inside the room.",
+      "finalPickRoom": "Pick a room to place it",
+      "finalAddNote": "Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.",
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
     "Floor": {
@@ -977,7 +977,7 @@
       "bodySubRoom": "{victim}, in the {room}",
       "bodyMeta": "The investigation is open",
       "bodyMetaGm": "{found} of {total} Key Remnants found",
-      "bodyHoldMeta": "Everything has stopped. Nobody is searching yet.",
+      "bodyHoldMeta": "The body has been found. The Investigation has not started yet.",
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
         "safeword": "Stop",
@@ -1756,7 +1756,6 @@
       "notSharedNote": "“Not a room” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
     },
     "Chapter": {
-      "alreadyEnded": "Chapter {n} was already ended by another GM. Nothing was done twice.",
       "deathTitle": "A character dies",
       "whoDied": "Who died?",
       "keepBullets": "Keep their Truth Bullets (not a killing-game death)",
@@ -1793,18 +1792,25 @@
       "whereBody": "Which room?",
       "whoseBody": "Whose body? (optional)",
       "unnamedVictim": "Do not name them",
+      "victimAnnounced": "{name} (announced this chapter)",
+      "bodyAnnouncedAlready": "{name}'s body was already announced in this chapter, so nothing was announced again. To announce another body in that room, leave the body unnamed.",
+      "bodyPrimaryOnly": "Only the primary GM, {name}, can announce a body, so that one browser decides which bodies the table has found. Ask {name}, or announce it when you are the only GM connected.",
+      "bodyNotPublished": "{name}'s death could not be made known to the table, so the discovery does not name them and the death is still the GMs' alone. Make it known in the Players window.",
       "noRooms": "This scene has no room regions to gather anyone into.",
-      "bodyNote": "Calls everyone to the scene and holds the game there: the phase stays Daily Life and the music stops until you start the Investigation (moving the time of day ends only the silence). First it offers you the doubtful Prep traces, so you can say which belong to this murder.",
+      "bodyNote": "Everyone is called to the room. The phase does not change until you start the Investigation.",
+      "bodyNoteLater": "Everyone is called to the room. The phase does not change.",
+      "bodyNoteTraces": "Then you are asked which traces left while somebody gathered tools belong to this murder.",
       "announce": "Announce it",
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
-      "bodyCalled": "Everyone is called to the scene. Nobody is searching yet.",
-      "bodyDone": {
-        "one": "{moved} moved to the scene, {promoted} trace made permanent.",
-        "other": "{moved} moved to the scene, {promoted} traces made permanent."
+      "bodyCalled": "Everyone is called to the scene. The Investigation has not started yet.",
+      "bodyDone": "Everyone was brought to {room}.",
+      "promoted": {
+        "one": "{n} trace now counts as evidence of this murder.",
+        "other": "{n} traces now count as evidence of this murder."
       },
-      "promoteTitle": "Which traces belong to this murder?",
+      "promoteTitle": "Body found in {room}",
       "promoteIntro": "These Prep traces were left while somebody gathered tools. Most mean nothing. Tick the ones that belong to this killing.",
       "promoteNote": "Ticked traces stop being doubtful: they count as evidence tied to the crime, and a Faint clear will not take them. Leave the rest and they stay Faint.",
       "promoteConfirm": "These belong to it",
@@ -1825,8 +1831,8 @@
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
-        "one": "1 Truth Bullet has no real type recorded, so revealing cannot touch it. Set it from Give / take items.",
-        "other": "{n} Truth Bullets have no real type recorded, so revealing cannot touch them. Set them from Give / take items."
+        "one": "1 Truth Bullet not analysed has no real type recorded, so revealing cannot touch it - {who} holds it. Take it, and give one with its type from Give / take items.",
+        "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Take them, and give ones with their types from Give / take items."
       },
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",
@@ -1834,9 +1840,27 @@
       "doneSweep": { "one": "Collected {n} Truth Bullet.", "other": "Collected {n} Truth Bullets." },
       "doneFaint": { "one": "Cleared {n} Faint Remnant.", "other": "Cleared {n} Faint Remnants." },
       "doneKeys": { "one": "Took {n} Key Remnant off the map.", "other": "Took {n} Key Remnants off the map." },
-      "optEndTrial": "Close the trial and put the room back into Daily Life",
+      "optEndTrial": "Close the trial and return everyone to Daily Life",
+      "finalTruthMissing": "No Final Truth Remnant was placed this chapter. One a chapter points at the Mastermind: place it from The case > Investigation, on the Final Truth Remnants tab.",
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
-      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled."
+      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
+      "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
+      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
+      "endPhaseMoved": "This End of chapter window was opened in {opened}, and the clock has read {now} since - the phase changed after the window was drawn, so what it offered to close is not what is sitting now. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
+      "endPrimaryOnly": "Only the primary GM, {name}, can end the chapter, so that one browser counts it once. Ask {name}, or end it when you are the only GM connected.",
+      "endFailed": "The end of the chapter did not finish: {steps}. Everything else was done - finish those by hand rather than ending the chapter again.",
+      "endStopped": "The phase changed from {opened} to {now} while the chapter was ending, so these did not run: {steps}. What ran stays done - finish the rest by hand when the table is ready for it, rather than ending the chapter again.",
+      "step": {
+        "reveal": "revealing the Truth Bullets",
+        "sweep": "collecting the Truth Bullets",
+        "faint": "clearing the Faint Remnants",
+        "keys": "taking the Key Remnants off the map",
+        "tools": "emptying the used Cleaning Tools",
+        "clock": "moving the clock",
+        "trial": "closing the trial",
+        "morning": "opening the next morning",
+        "hold": "clearing the body's discovery"
+      }
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -2302,6 +2326,7 @@
     },
     "Eclipse": {
       "already": "An Eclipse is already running.",
+      "bodyFirst": "A body has been found - start the Investigation first.",
       "announce": {
         "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
         "other": "Lights out. Place your token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
@@ -2419,6 +2444,15 @@
       "changeImage": "Click to change this project's image",
       "tokenName": "Work in progress",
       "tokenMoved": "<strong>{project}</strong> now belongs to <strong>{to}</strong> - its token was moved there from {from}.",
+      "showOnMap": "Show on the map",
+      "sweptOld": {
+        "one": "{n} project token was left on the map by a project that no longer exists, and has been removed.",
+        "other": "{n} project tokens were left on the map by projects that no longer exist, and have been removed."
+      },
+      "duplicates": {
+        "one": "A project stands on the map twice: {list}. The token the project points at is kept and the spare one is left where it is - delete it by hand if it is a mistake.",
+        "other": "{n} spare project tokens stand beside the ones their projects point at: {list}. Nothing was removed - delete them by hand if they are mistakes."
+      },
       "glyphLabel": "Tray icon",
       "glyphDefault": "Default (hourglass)",
       "glyphNote": "Under the Stained Glass theme the Projects tray draws this instead of the image, in the interface's colour. The image is used everywhere else.",
@@ -2760,6 +2794,10 @@
       "phase": "Phase",
       "session": "Session",
       "timeOfDay": "Time of day",
+      "chapterCorrectTitle": "Correct the chapter number",
+      "chapterCorrect": "This corrects the chapter number only - no reveal, no sweep, no Blackened. End a chapter with End the chapter. Cancel keeps the chapter and applies the rest.",
+      "trialFromEditTitle": "Open the Class Trial",
+      "trialFromEdit": "This opens the trial's budget and charges for unfound Key Remnants. Cancel keeps the phase and applies the rest.",
       "unknownTime": "Unknown time of day: {key}.",
       "unknownPhase": "Unknown phase: {key}.",
       "actionsRefilled": {
@@ -2781,6 +2819,14 @@
       "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
       "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
+      "nextKeysToPlace": {
+        "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
+        "other": "{n} Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab."
+      },
+      "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
+      "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",
@@ -3423,6 +3469,10 @@
         "one": "{n} project",
         "other": "{n} projects"
       },
+      "resetProjectTokens": {
+        "one": "{n} project token on the maps",
+        "other": "{n} project tokens on the maps"
+      },
       "resetRemnants": {
         "one": "{n} Remnant on the maps",
         "other": "{n} Remnants on the maps"
@@ -3447,16 +3497,20 @@
         "one": "{n} card this module wrote, and every messenger thread",
         "other": "{n} cards this module wrote, and every messenger thread"
       },
-      "resetNotes": {
-        "one": "{n} note: before the session, and on the sheets",
-        "other": "{n} notes: before the session, and on the sheets"
+      "resetPreNotes": {
+        "one": "{n} pre-session note a GM wrote",
+        "other": "{n} pre-session notes the GMs wrote"
       },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
-      "resetDoors": "every door back to how the season opened",
-      "resetState": "the incident, the Mastermind, the trial queue, the search tokens, every Despair Call still in force, and the clock back to Chapter 1, Day 1, Morning",
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
       "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
+      "resetCastTitle": "Where the cast's tokens go",
+      "resetCastNote": "A token moves only on the map its room is drawn on. A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Not remembered: every reset starts from the first choice.",
+      "resetCastStay": "They stay where they stand",
+      "resetCastBedroom": "Each student to their own bedroom, as Room Setup assigns it",
+      "resetCastPoint": "Everyone to one room:",
+      "resetCastNoRooms": "No map has a named room yet",
       "resetRemembered": {
         "one": "1 exception is remembered from the last reset and is unticked below.",
         "other": "{n} exceptions are remembered from the last reset and are unticked below."
@@ -3470,6 +3524,21 @@
         "one": "The season has been reset, with 1 exception left as it was.",
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
+      "failed": "The reset did not finish: {groups}. Everything else went. Run the reset again with only those ticked.",
+      "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
+      "stoppedPrimary": "The reset stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
+      "reportCard": {
+        "title": "The season reset did not finish",
+        "failed": "Not cleared: {groups}.",
+        "done": "Cleared: {groups}.",
+        "kept": "Kept, as unticked: {groups}.",
+        "notRun": "Not run, because the primary GM changed while the reset ran: {groups}.",
+        "cast": "The cast's tokens, as chosen - {where}.",
+        "titleCast": "Where the cast went after the season reset",
+        "stayed": "Stayed where they were: {names}.",
+        "titleLeft": "What the season reset left on the sheets",
+        "experiences": "Experiences left on the sheets - their starting sheet was written before the module told a Level Up's experience from the GM's, and holds none: {list}."
+      },
       "section": {
         "case": "The case",
         "cast": "The cast",
@@ -3480,23 +3549,22 @@
       "group": {
         "remnants": "Remnants on the maps, and what each one really was",
         "bullets": "Truth Bullets in the cast's packs",
-        "incident": "The incident, the Blackened and any murder declared in the dark",
+        "incident": "The incident, the Blackened, a betrayal still on offer and any murder declared in the dark",
         "trialFloor": "The trial floor",
         "trialProgress": "The trial's progress and its vote",
         "keyPlan": "The Key Remnant plan",
         "searchTokens": "Search tokens spent in each room",
         "discovered": "Which rooms have been discovered",
-        "bodyFound": "The body waiting to be answered",
-        "deaths": "Deaths and Monocubs - the dead come back",
-        "items": "What the cast is carrying",
-        "advancement": "Advancement - back to the starting sheet",
-        "actions": "The action budget refilled, and each student's rests and betrayal window cleared",
+        "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
+        "deaths": "Deaths and Monocubs - the dead come back, and every student's Health and Sanity whole again",
+        "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
+        "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
+        "actions": "The action budget refilled, and each student's rests cleared",
         "preNotes": "The GMs' pre-session notes",
-        "sheetNotes": "The notes the cast wrote on their own sheets",
-        "stashesFound": "The stashes each student has already found",
+        "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs and their countdowns",
         "mastermind": "The Mastermind",
-        "seals": "Despair Calls still in force",
+        "seals": "Despair Calls still in force, and every Call armed for a roll",
         "motive": "The motive",
         "rules": "Monokuma's standing rules",
         "doors": "Locked doors, back to how the season opened",

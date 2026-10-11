@@ -27,7 +27,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, myMastermindLair } from "./settings.mjs";
+import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
@@ -755,13 +755,17 @@ export async function placeFinalRemnant({ room, visibility = "evident", note = "
     return token;
 }
 
-/** Has a Final Truth Remnant been placed this chapter, on any scene? */
+/**
+ * Has a Final Truth Remnant been placed this chapter, on any scene? This season's chapter (E11 C12,
+ * 1.2.73; audit S06-42): after a reset that kept the traces, last season's Final Truth of the same
+ * chapter read as placed, and the Case window stopped warning that this one had none.
+ */
 export function finalTruthPlacedThisChapter() {
     const chapter = getClock().chapter;
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
-            if (data?.type === "final" && data.chapter === chapter) return true;
+            if (data?.type === "final" && data.chapter === chapter && sameSeason(data)) return true;
         }
     }
     return false;
@@ -868,8 +872,14 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
     const executed = correct && !dead;
 
+    /* THE FINAL TRIAL'S EXECUTION IS NO BODY TO FIND (E11 fix r2-H1, 1.2.73; round 2's goal V2a,
+       S06-03). The verdict can be given after End the trial, and the death was recorded with the
+       clock's phase, Daily Life by then: two students walking past the Mastermind announced a body
+       found and held the game (seen by round 2's probe at bc20730). The trial's phase, as a chapter
+       verdict's execution passes it (vote.mjs `executeSentenced`, E11 fix r1-G1). Tier 2 "the Final
+       Trial's verdict given after End the trial is no body to find". */
     if (executed) {
-        await killCharacter(mastermind);
+        await killCharacter(mastermind, { phase: "classTrial" });
     }
 
     await announce({

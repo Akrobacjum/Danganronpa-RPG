@@ -872,7 +872,15 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // Health and +1 to a statistic over a class's 5 hit points and a pick of +1 wrote 12 and 2 for 7 and 1. Each
         // now rises from the sheet's value as the GMs hold it (`numberHeld`).
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
+        const { meansWrite, numberHeld, flagsHeldNow } = await import("./sheet-audit.mjs");
+        //
+        // A NEW EXPERIENCE IS WRITTEN DOWN AS A LEVEL UP'S (E11 C11, 1.2.73; audit S03-21, D12 option 1). The
+        // season reset put back the values of the experiences the season began with and kept every other
+        // entry, so a Level Up's experience outlived the season it was earned in. Its id now goes into the GM
+        // flag `levelUpExperiences` in this same write, added to the list as the GMs hold it (`flagsHeldNow`:
+        // this job starts once every write heard on the student has been judged, so it is `flagsAsHeld`
+        // without a wait that would be this queue's own); the reset deletes those entries
+        // (character.mjs `restoreStartingSheet`) and keeps an experience the GM wrote by hand.
         //
         // THE EXPERIENCE RAISED IS ONE THE GMS HOLD (E10 C8, 1.2.71; audit S03-22), read in the same job as the
         // numbers: one a player's console wrote on the sheet that the audit had not put back yet took this GM's
@@ -890,6 +898,12 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             }
             for (const [id, delta] of Object.entries(experienceDeltas)) {
                 update[`system.experiences.${id}.value`] = from(`system.experiences.${id}.value`) + delta;
+            }
+            const added = Object.keys(newExperiences);
+            if (added.length) {
+                const recorded = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.levelUpExperiences);
+                update[`flags.${MODULE_ID}.${FLAGS.levelUpExperiences}`] =
+                    [...new Set([...(Array.isArray(recorded) ? recorded.filter(id => typeof id === "string") : []), ...added])];
             }
             const taken = from(`flags.${MODULE_ID}.${FLAGS.advances}`) + 1;
             update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;

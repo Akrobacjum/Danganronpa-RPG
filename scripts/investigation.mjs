@@ -26,7 +26,7 @@
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
-import { SETTINGS, isEclipse } from "./settings.mjs";
+import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
@@ -342,6 +342,24 @@ export function caseKeyCount(chapter = getClock().chapter) {
     return own ? live.keyRemnants : null;
 }
 
+/**
+ * How many of a chapter's case's Key Remnants are not on the map yet (E11 fix r1-G4; audit S13-14): the
+ * case's count (`caseKeyCount`) less the chapter's Key Remnants standing on any scene, the plan's and any
+ * placed off it, an unstamped one read as this chapter's as `keyPlanStatus` reads it - or 0 with no case.
+ * What the GM panel's next line asks for after a body is announced (gm-panel.mjs `nextStep`).
+ * This season's only (E11 fix r2-H2; round 2's cor COR2-2, sec S2): a reset that leaves the Remnants
+ * standing sends the clock back to chapter 1, and last season's chapter-1 Key Remnants were counted
+ * as placed, so the new chapter 1's line asked for fewer Keys than stood on no map, or for none
+ * (tier 2 "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence";
+ * scenario 65's K, through a real reset).
+ */
+export function keysToPlace(chapter = getClock().chapter) {
+    const count = caseKeyCount(chapter);
+    if (!Number.isFinite(count)) return 0;
+    const placed = placedKeyRemnants().filter(r => Number(r.data?.chapter ?? chapter) === Number(chapter) && sameSeason(r.data)).length;
+    return Math.max(0, count - placed);
+}
+
 /** Every Key Remnant currently on the map, across every scene. */
 function placedKeyRemnants() {
     const out = [];
@@ -422,13 +440,16 @@ export function keyPlanStatus() {
      * though five had reached the trial.
      *
      * This chapter's only: `deathRecord`-style dating, the same rule the body
-     * discovery uses, so last chapter's leftovers cannot pay for this one.
+     * discovery uses, so last chapter's leftovers cannot pay for this one. And
+     * this season's (E11 fix r2-H2; cor COR2-2): a reset that leaves the Remnants
+     * and the Truth Bullets starts again at chapter 1, and last season's chapter-1
+     * Key Remnant with a finder was counted here as found this chapter.
      */
     const planned = new Set(plan.entries.map(e => e.tokenId).filter(Boolean));
     const chapter = getClock().chapter;
     const offPlan = placedKeys
         .filter(r => !planned.has(r.token.id)
-            && (r.data?.chapter ?? chapter) === chapter
+            && (r.data?.chapter ?? chapter) === chapter && sameSeason(r.data)
             && (finders.get(r.token.id)?.size ?? 0) > 0)
         .map(r => ({
             tokenId: r.token.id,
@@ -471,7 +492,12 @@ export function keyPlanStatus() {
  *          rewritten to the clock's chapter, or removed - an unstamped copy read as the
  *          clock's - it made an earlier chapter's Key one found in this chapter. A copy
  *          whose answer key names no chapter, made before that fix, is found in none once
- *          its trace is gone.
+ *          its trace is gone. A trace's row of another season finds nothing in this one
+ *          (`sameSeason`; E11 fix r2-H2, round 2's sec S2): a reset that leaves the Remnants
+ *          and the Truth Bullets starts again at chapter 1, and last season's chapter-1 Key
+ *          copies were counted as found in it. The answer key itself names no season, so
+ *          after a reset that wipes the Remnants and keeps the Truth Bullets a copy is still
+ *          read by its chapter alone (read in the code, not closed here).
  *   held   copies the GMs hold whose answer key this browser lacks: the count would come out
  *          short, so the charge holds (E04, `bulletsWithoutAnswer`'s rule on the GMs' items).
  *
@@ -507,7 +533,7 @@ export async function keyFeeOf(chapter = getClock().chapter) {
             }
             if (secret.realType !== "key" || !secret.remnantId || !living.has(actor.id)) continue;
             const trace = remnantStore.get(`${secret.sceneId}.${secret.remnantId}`);
-            const foundIn = trace ? trace.chapter ?? now : secret.chapter ?? null;
+            const foundIn = trace ? (sameSeason(trace) ? trace.chapter ?? now : null) : secret.chapter ?? null;
             if (foundIn !== null && Number(foundIn) === now) found.add(secret.remnantId);
         }
     }
@@ -1884,17 +1910,29 @@ function caseKeyPanel({ plan, status, placed, limit }) {
                "0 of 5 found" can be true of the plan and false of the map at the same
                time. Counted off the map rather than the plan, which is the only place
                the answer is. A counted sentence since E09 C14 (audit S05-35): "Key Remnant(s)"
-               read wrong in both languages, and Polish took the wrong case of the number. */
+               read wrong in both languages, and Polish took the wrong case of the number.
+               Last season's clue of the same chapter is a leftover too (E11 C12, `sameSeason`). */
             const old = placed.filter(r => r.data.chapter != null
-                && r.data.chapter !== plan.chapter).length;
+                && (r.data.chapter !== plan.chapter || !sameSeason(r.data))).length;
             return old ? `<p class="notes drpg-warning">${
                 plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
         })()}
     </div>`;
 }
 
-/** The Final Key Remnant tab: what is placed, who has it, and the form to plant one. */
-function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
+/**
+ * The Final Key Remnant tab: what is placed, who has it, and the form to plant one.
+ *
+ * ONE EMPTY STATE, AND A FORM THAT SAYS WHAT IT DOES (E11 C13, 1.2.73; audit S13-08; tier 1 R358). With nothing
+ * placed the tab said "None placed yet.", then a box telling the GM to drop a Final Truth Remnant "with the ordinary
+ * Remnant tools", with this tab's own form right under it, then "Leave the room empty to change nothing" over a Room
+ * field whose empty option read "-": three ways in and the GM could not tell which was meant. Now an empty list says
+ * nothing of its own and the reminder is the one empty state, pointing at the form below. The plan asked for a Room
+ * field with no empty option; it keeps one, named for what it does: the form rides the dashboard's one Save
+ * (`placeFinalFromDashboard` runs on any Save whose `finalRoom` is set, read in the code), so a field that always
+ * held a room would place a Final on every Save of a trace or a Key row. Exported for R358.
+ */
+export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
     return `<div data-drpg-panel="final" style="display:none">
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
         ${(() => {
@@ -1916,14 +1954,14 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
                             ? esc(who.join(", "))
                             : `<em>${game.i18n.localize("DRPG.Investigation.finalNobody")}</em>`}</span>
                 </li>`; }).join("")}</ul>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
+                : "";
         })()}
         <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
             finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
                 : "DRPG.Mastermind.finalTruthReminder")}</p>
         <label>${game.i18n.localize("DRPG.Investigation.room")}
             <select name="finalRoom">
-                <option value="">-</option>
+                <option value="">${esc(game.i18n.localize("DRPG.Mastermind.finalPickRoom"))}</option>
                 ${roomOptions}
             </select></label>
         <label>${game.i18n.localize("DRPG.Investigation.visibility")}

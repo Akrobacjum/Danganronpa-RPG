@@ -3271,6 +3271,48 @@ const INVARIANTS = [
         equal(JSON.stringify(rawReads), "[]", "the places a judge converts a value off a packet without textOf or numberOf");
     }],
 
+    ["R353 - the reset window lists only the ticked groups", async () => {
+        /*
+         * E11 C9, 10.10.2026; audit S06-49. The "This goes" list above the ticks was twelve
+         * hand-written lines that went whatever was ticked - one of them five groups at once,
+         * half the groups on none - so a GM who unticked the incident still read "the incident"
+         * among what goes. `resetGoesHtml(plan, tally)` draws it from RESET_GROUPS: one row per
+         * group, `data-group` its key, a group the plan keeps struck through and
+         * `aria-disabled`, the projects row counting the project tokens on the maps. Pure:
+         * a plan and a made-up tally in, markup out; nothing in the world is read or written.
+         */
+        const S = await import("./season-setup.mjs");
+        ok(typeof S.resetGoesHtml === "function", "season-setup.mjs draws no \"This goes\" list from the ticks (resetGoesHtml)");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const { plural } = await import("./utils.mjs");
+        const keys = RESET_GROUPS.map(group => group.key);
+        const ticked = keys.filter(key => !["incident", "advancement", "chatRest"].includes(key));
+        const tally = { projects: 2, projectTokens: 4, remnants: 3, bullets: 1, dead: 1, items: 5, advances: 2,
+            preNotes: 1, cards: 7, chat: 9, despair: 1 };
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(ticked), tally);
+        const rows = [...host.querySelectorAll("li[data-group]")];
+        equal(JSON.stringify(rows.map(row => row.dataset.group)), JSON.stringify(keys),
+            "the list's rows are not RESET_GROUPS' keys, one each, in the window's order");
+        const struck = row => Boolean(row.querySelector("s")) && row.getAttribute("aria-disabled") === "true";
+        const kept = rows.filter(struck).map(row => row.dataset.group);
+        equal(JSON.stringify(kept), JSON.stringify(["incident", "advancement", "chatRest"]),
+            "the groups the plan keeps are not the rows struck through and aria-disabled");
+        ok(rows.filter(row => ticked.includes(row.dataset.group))
+            .every(row => !row.querySelector("s") && !row.hasAttribute("aria-disabled")),
+            "a ticked group's row is struck through or disabled");
+        const projects = host.querySelector('li[data-group="projects"]')?.textContent ?? "";
+        ok(projects.includes(plural("DRPG.Season.resetProjectTokens", { n: 4 })),
+            `the projects row does not count the project tokens on the maps: "${projects.trim()}"`);
+        const label = host.querySelector('li[data-group="incident"]')?.textContent ?? "";
+        ok(label.includes(game.i18n.localize("DRPG.Season.group.incident")), "a row does not carry its tick's label");
+        // Nothing ticked: every row struck. Everything ticked: none.
+        host.innerHTML = S.resetGoesHtml(planFrom([]), tally);
+        ok([...host.querySelectorAll("li[data-group]")].every(struck), "with nothing ticked a row still reads as going");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), tally);
+        equal(host.querySelectorAll("li[data-group] s, li[aria-disabled]").length, 0, "with everything ticked a row reads as kept");
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
@@ -6226,6 +6268,93 @@ const INVARIANTS = [
         ]), "the count convicts a name short of the majority, calls a tie among names that carried the room a missing "
             + "majority, takes one name for two, or accuses somebody with nobody's ballot (each: the counts, "
             + "noMajority, tied, the accused, the majority)");
+    }],
+
+    ["R357 - the chapter end counts one thing once: a reveal with nothing to reveal is not offered, and the bullets it cannot touch are named by who holds them", async () => {
+        /*
+         * E11 C13, 11.10.2026; audit S13-06, the ledger's G-c (its C13 half). The audit's End of chapter window
+         * offered "Reveal ... (0 still unidentified)" ticked, over "2 Truth Bullets have no real type recorded",
+         * while the Investigation dashboard read "NOT ANALYSED 2": three numbers, and the GM could not tell
+         * whether pressing Do it would reveal anything, nor where the two were. Read on the window's form
+         * (chapter.mjs `chapterEndForm`, from counts this test chooses), twice: nothing to reveal and two bullets
+         * with no type, held by two characters; three to reveal and none without a type. Each reading is the
+         * reveal box [ticked, disabled], whether the warning names both holders, whether it says the dashboard's
+         * own term (`DRPG.Investigation.unidentified`, lower case; the count of 2 picks the Polish form that
+         * term is), and whether the box's label carries the count. The world's half - `revealPlan` naming a
+         * real holder, and the window counting what the reveal does - is scenario 65's W1.
+         */
+        const C = await import("./chapter.mjs");
+        ok(typeof C.chapterEndForm === "function",
+            "chapter.mjs has no chapterEndForm: the End of chapter window's form is not built from its counts");
+        const term = game.i18n.localize("DRPG.Investigation.unidentified").toLowerCase();
+        const read = counts => {
+            const div = document.createElement("div");
+            div.innerHTML = C.chapterEndForm({ chapter: 2, session: 7, day: 4, ...counts });
+            const input = div.querySelector('input[name="reveal"]');
+            const warning = (div.querySelector("[data-drpg-typeless]")?.textContent ?? "").toLowerCase();
+            return [input?.checked ?? null, input?.disabled ?? null,
+                warning.includes("suite aiko") && warning.includes("suite botan"), warning.includes(term),
+                new RegExp(`\\b${counts.hidden}\\b`).test(input?.closest("label")?.textContent ?? "")];
+        };
+        equal(JSON.stringify([read({ hidden: 0, typeless: 2, holders: ["Suite Aiko", "Suite Botan"] }), read({ hidden: 3 })]),
+            JSON.stringify([[false, true, true, true, true], [true, false, false, false, true]]),
+            "the End of chapter window offers a reveal with nothing to reveal, or keeps one it has, or its warning "
+            + "does not say whose bullets they are or in the dashboard's term (each: the reveal box ticked, disabled, "
+            + "both holders named, the term, the count on the box)");
+    }],
+
+    ["R358 - the Final Truth tab has one empty state, and its Room field says what picking a room does", async () => {
+        /*
+         * E11 C13, 11.10.2026; audit S13-08. With nothing placed the tab said "None placed yet.", then told the
+         * GM to drop one "with the ordinary Remnant tools", with its own form under it, and then "Leave the room
+         * empty to change nothing" over a Room field whose empty option read "-". Read on the tab's markup
+         * (investigation.mjs `caseFinalPanel`) with no Final Truth Remnant anywhere and none this chapter: the
+         * notes that are neither the tab's intro nor the form's own line (the empty states), and the Room
+         * field's empty option, which stays (the form rides the dashboard's one Save; see `caseFinalPanel`) and
+         * must say what picking does.
+         */
+        const I = await import("./investigation.mjs");
+        ok(typeof I.caseFinalPanel === "function", "investigation.mjs does not export caseFinalPanel, so it cannot be read");
+        const div = document.createElement("div");
+        div.innerHTML = I.caseFinalPanel({ roomOptions: `<option value="Suite room">Suite room</option>`, visOptions: "",
+            finalRemnants: () => [], finalTruthPlacedThisChapter: () => false });
+        const own = ["DRPG.Mastermind.finalRemnantsNote", "DRPG.Mastermind.finalAddNote"].map(key => game.i18n.localize(key));
+        const empty = [...div.querySelectorAll("p.notes")].map(p => p.textContent.trim()).filter(text => !own.includes(text));
+        const blank = div.querySelector('select[name="finalRoom"] option[value=""]');
+        equal(JSON.stringify([empty, (blank?.textContent ?? "").trim()]),
+            JSON.stringify([[game.i18n.localize("DRPG.Mastermind.finalTruthReminder")],
+                game.i18n.localize("DRPG.Mastermind.finalPickRoom")]),
+            "the empty Final Truth tab says more than one thing about being empty, or its Room field's empty option "
+            + "does not say what picking a room does (the empty states, then the empty option's words)");
+    }],
+
+    ["R378 - the reset window offers no group a Daggerheart character cannot hold, and its actions row promises no betrayal window, in English and in Polish", async () => {
+        /*
+         * E11 fix r2-H4, 1.2.73; the goal's D3 / S06-49 (a) and (c), the plan's 3.3. The cast's "notes they
+         * wrote on their own sheets" cleared `system.notes` and `system.biography.notes`, which a Daggerheart
+         * character does not have (character.mjs:80-88 at Daggerheart's tag 2.6.5, the version module.json
+         * verifies: `biography` is background, connections and characteristics), so the tick wiped nothing.
+         * And the actions row ended "and betrayal window cleared": the offer is the cast's record since
+         * CASE-04 and goes with the incident group, so with the incident unticked the row promised what
+         * stayed. Read: the groups, the reset's source for the two paths, and both lang files for the two
+         * labels and the retired keys.
+         */
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const wrong = [];
+        if (RESET_GROUPS.some(group => group.key === "sheetNotes")) wrong.push("the window still offers the cast's sheet notes");
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        if (setup.length < 1000) wrong.push("season-setup.mjs did not load");
+        if (/system\.notes|biography\.notes/.test(setup)) wrong.push("the reset still clears a notes field a Daggerheart character does not have");
+        const betrayal = { en: /betray/i, pl: /zdrad/i };
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+            const actions = flat["DRPG.Season.group.actions"], incident = flat["DRPG.Season.group.incident"];
+            if (typeof actions !== "string" || betrayal[lang].test(actions)) wrong.push(`${lang} actions: "${actions}" promises the betrayal window`);
+            if (typeof incident !== "string" || !betrayal[lang].test(incident)) wrong.push(`${lang} incident: "${incident}" does not name the betrayal offer it clears`);
+            for (const key of Object.keys(flat).filter(key => /^DRPG\.Season\.(group\.sheetNotes|resetSheetNotes)/.test(key))) wrong.push(`${lang} ${key} is left`);
+        }
+        equal(JSON.stringify(wrong), "[]", "the reset window's groups and labels against what the reset clears");
     }]
 ];
 
@@ -6268,7 +6397,11 @@ const LITERAL_KEYS = [
         "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall", "levelData", "scars"]
         .map(kind => `DRPG.Audit.field.${kind}`),
     // cleanup.mjs names a Stage 6 roll's band on the GMs' copy `DRPG.Action.duality.<band>` (E09 C14): the three bands.
-    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`)
+    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`),
+    // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
+    ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
+    // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
+    ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`)
 ];
 
 export { INVARIANTS };

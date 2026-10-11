@@ -153,6 +153,14 @@ export const FLAGS = {
      * is a character whose sheet disagrees with itself.
      */
     sheetAtStart: "sheetAtStart",
+    /**
+     * Character: the ids of the experiences a Level Up added this season (E11 C11,
+     * 1.2.73; audit S03-21, D12 option 1). Written by `applyAdvancement` in the
+     * write that adds them, read and cleared only by the season reset
+     * (`restoreStartingSheet`), which deletes those entries. A GM's flag: a
+     * player's write of it is put back (sheet-audit.mjs `GM_FLAGS`).
+     */
+    levelUpExperiences: "levelUpExperiences",
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**

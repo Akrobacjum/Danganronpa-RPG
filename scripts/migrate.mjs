@@ -944,6 +944,29 @@ const CLAUSES = [
             const report = await liftIncidentFight();
             return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
+    },
+    {
+        key: "sweepOldProjectTokens",
+        since: "1.2.73",
+        /*
+         * THE PROJECT TOKENS EARLIER SEASONS LEFT (E11 C8, 1.2.73; the ask A2, LIVE-E11-06). Until
+         * 1.2.73 the season reset removed no project token, nor did a countdown deleted in
+         * Daggerheart's own window, so a world reset before it holds tokens of projects that no
+         * longer exist. Once, on the primary, over every scene: `sweepProjectTokens` removes the
+         * tokens of no live project and only tells the GM of a live project's spare copies (D12).
+         * The primary's scene draw sweeps too from 1.2.73; this pass is the one that runs when the
+         * primary's canvas is off and the one that tells the GM how many went - at the load that
+         * runs it the draw's sync waits for it (projects-map.mjs `syncProjectTokens`, E11 fix r2-H5;
+         * before that the sync swept first and the count reached only the console, scenario 65 V2).
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };
+            const { sweepProjectTokens } = await import("./projects-map.mjs");
+            const { removed } = await sweepProjectTokens();
+            if (!removed) return null;
+            ui.notifications?.info(plural("DRPG.Project.sweptOld", { n: removed }));
+            return { removed };
+        }
     }
 ];
 

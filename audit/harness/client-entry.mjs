@@ -930,7 +930,6 @@ classes.ChatMessage.prototype.renderHTML = async function renderHTML() {
 const tokenWrappers = new Map();
 const canvas = {
     ready: false,
-    rendered: false,
     scene: null,
     initialized: true,
     stage: new PIXI.Container(),
@@ -989,6 +988,18 @@ const canvas = {
 };
 globalThis.canvas = canvas;
 game.canvas = canvas;
+/* `canvas.rendered` IS A GROUP, NOT A FLAG (E11 fix r2-H5, 11.10.2026; the round-2 goal review's five Fog
+   "reveal on arrival" TypeErrors in 65's log). Foundry's `canvas.rendered` is the canvas group that holds
+   `canvas.primary` and `canvas.interface`, and the fog mounts its layer there, just below the interface
+   (fog.mjs `mountLayer`, `canvas?.rendered ?? canvas?.stage`). This shim set it to `true` at boot, so the
+   mount read `true.children` and threw - "Cannot read properties of undefined (reading 'indexOf')" in
+   `placeLayer`, under `revealStartingRooms` (scenario 65 at bc20730: five, four on gm2 and one on gm).
+   Nothing in scripts/ reads it as a flag (git grep, 11.10.2026). Mounted, the reveal went further and met
+   two more gaps of the shim's: a Container without `setChildIndex` (lib/shim.mjs) and no `CanvasAnimation`
+   (below, `foundry.canvas.animation`). */
+canvas.rendered = new PIXI.Container();
+canvas.rendered.addChild(canvas.primary, canvas.interface);
+canvas.stage.addChild(canvas.rendered);
 
 // Foundry's WorldCollection getters the mock's plain Collection lacks.
 Object.defineProperty(game.scenes, "active", { get: () => game.scenes.find(s => s._source.active) });
@@ -1161,7 +1172,19 @@ globalThis.foundry = {
     canvas: {
         // Foundry's drag rectangle, with its orange written in, as core has it.
         layers: { ControlsLayer: class ControlsLayer { drawSelect({ x, y, width, height }) { this.select.clear().lineStyle(3, 0xFF9829, 0.9).drawRect(x, y, width, height); } } },
-        animation: { animateLinear: async () => {} },
+        /* `CanvasAnimation.animate` ends at once: every attribute at its `to`, one tick, true - what Foundry's
+           answers when an animation completes. Headless there is no ticker to run it on, and the fog's reveal
+           (fog-reveal.mjs, fog.mjs) reached it once its layer could mount (E11 fix r2-H5, 11.10.2026). */
+        animation: {
+            animateLinear: async () => {},
+            CanvasAnimation: {
+                animate: async (attributes, { ontick } = {}) => {
+                    for (const { parent, attribute, to } of attributes) parent[attribute] = to;
+                    ontick?.(0, { attributes });
+                    return true;
+                }
+            }
+        },
         /* The group whose `createScrollingText` no-scrolling-text.mjs wraps. Headless it draws
            nothing and answers null, what the real one answers when it declines to draw. */
         groups: { InterfaceCanvasGroup: class InterfaceCanvasGroup { createScrollingText() { return null; } } },
@@ -1538,7 +1561,6 @@ async function boot() {
         game.ready = true;
         hooks.callAll("ready");
         canvas.ready = true;
-        canvas.rendered = true;
         hooks.callAll("canvasReady", canvas);
         // give not-awaited ready tasks a beat
         await new Promise(r => setTimeout(r, 250));

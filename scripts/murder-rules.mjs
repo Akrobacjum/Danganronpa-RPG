@@ -3178,7 +3178,7 @@ async function crowdedOut(actor) {
     return endMurder({ reason: "crowded", followUp: false });
 }
 
-export async function endMurder({ reason = "closed", followUp = true } = {}) {
+export async function endMurder({ reason = "closed", followUp = true, conclude = true } = {}) {
     if (!game.user.isGM) return null;
 
     /*
@@ -3195,7 +3195,7 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     if (key !== null && closing.has(key)) return null;
     if (key !== null) closing.add(key);
     try {
-        return await closeIncident(state, { reason, followUp });
+        return await closeIncident(state, { reason, followUp, conclude });
     } finally {
         if (key !== null) closing.delete(key);
     }
@@ -3207,104 +3207,120 @@ const closing = new Set();
 /**
  * Close the murder out.
  *
- * The tools the incident consumed are destroyed on the way out - the crime tool
- * that was swung and the cleaning tool that was used on the scene. Dynamic
+ * The tools the incident consumed are destroyed on the way out (in its conclusion) - the
+ * crime tool that was swung and the cleaning tool that was used on the scene. Dynamic
  * import, because cleanup.mjs reads the incident state from murder.mjs, which
  * re-exports this file, and a static pair of imports both ways is a cycle for no
  * gain.
  */
-async function closeIncident(state, { reason, followUp }) {
+async function closeIncident(state, { reason, followUp, conclude = true }) {
     /*
-     * A SELF-INFLICTED DEATH IS RECORDED HERE, NOT AT STAGE 4.
-     *
-     * Every other route to a corpse has a moment the engine owns - a Finishing
-     * Blow, the victim running out - and kills them there. This one does not:
-     * Stage 6 for a self-inflicted death IS the arrangements made before dying,
-     * and `cleanupBlocker` hands the clean-up screen to whoever the state calls
-     * the killer. Killing them the instant Stage 4 succeeded would have meant a
-     * corpse rolling to scrub its own scene and spending Sanity it no longer
-     * has.
-     *
-     * So the GM closing the incident is what makes it true, which is also the
-     * beat they close it on. Before `recordBlackened`, so the register and the
-     * death cannot disagree, and guarded on the stage: a Stage 4 that failed
-     * closes through here too, and nobody died in that one. (`leftABody` reads
-     * `endedBy`, which only the Stage 4 that went through writes.)
+     * A RESET ABANDONS AN INCIDENT; IT DOES NOT CONCLUDE ONE (E11 C9, 10.10.2026; audit S06-15,
+     * the plan's 3.1). `conclude: false` is the season reset's alone (season-setup.mjs, the
+     * `incident` step): it skips what a close says about the crime - the self-inflicted death,
+     * the fight's ties, the Blackened register, the killer's broken tool, the case's Key
+     * count and the participants' card - and keeps what ends the incident: the wipe, the hook,
+     * the traces leaving the next incident's map, the tracker and the Stage 4 invitation. Until
+     * then the reset's close ran them all. That a suicide at Stage 6 lived through a reset at
+     * 4fcc2b4 was the reset's cut, written first: it takes the cast before the close reads it
+     * (measured 10.10.2026 by a probe: as the cut's clock write landed the incident read active,
+     * with no victim and not self-inflicted, and the reset's one close killed nobody). This holds
+     * the close to the same answer without leaning on that. Every other caller concludes, as
+     * before (tier 2 "a reset abandons an incident: nobody killed, no register, ...").
      */
-    if (state?.selfInflicted && state.stage === "resolution") {
-        try {
-            const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
-            const actor = game.actors.get(state.victimId);
-            if (actor && !isDeadForGm(actor)) await killCharacter(actor);
-        } catch (err) {
-            error("Could not record a self-inflicted death when the incident closed", err);
-        }
-    }
-
-    /* WHAT THE FIGHT TIED AND NO DEATH TOOK OVER (E09 fix r1-G1, 08.10.2026; the round-1 reviews'
-       cor F1). A weapon swung in the fight ties its traces in the ledger and the copies wait
-       (remnants.mjs `tieWaitNow`); a death the GMs keep takes the wait over (chapter.mjs
-       `incidentVictimDied`) and one made public sends it. What is still on the fight here - a
-       victim who lived, or one revived - goes to the copies at the close (tier 2 "a fight's tie
-       with no death reaches the copies at the fight's close"); 1.2.70 sent it sooner, at the
-       swing. The self-inflicted death above is kept, as any victim's is, and `killCharacter`
-       awaits `incidentVictimDied`, so its share is taken over before this line - read in the
-       code, not measured: no test reads a copy across the close of a self-inflicted incident. */
-    try {
-        await publishTiesFor(fightKey(state));
-    } catch (err) {
-        error("Could not send the fight's ties to the copied bullets", err);
-    }
-
-    // Before the state is wiped - it is the only place the killer's identity
-    // exists once this function returns.
-    try {
-        await recordBlackened(state);
-    } catch (err) {
-        error("Could not record who the Blackened was", err);
-    }
-    /* EVERY KILLER'S SWING, AND ONLY AFTER STAGE 6 (E32+E07 C12, 02.10.2026; audit S04-17,
-       S05-23). This broke the first killer's tools at every close: a failed opening, a trap, a
-       GM's early close broke the knife in the killer's hand though nothing was swung, and an
-       accomplice's own knife, swung in the fight, stayed whole. Stage 6 is where the crime tool
-       is used up (CLEANUP.destroysTools), and each killer's is the one their swing wrote down. */
-    if (state?.stage === "resolution") {
-        for (const id of killerIds(state)) {
-            const killer = game.actors.get(id);
-            if (!killer) continue;
+    if (conclude) {
+        /*
+         * A SELF-INFLICTED DEATH IS RECORDED HERE, NOT AT STAGE 4.
+         *
+         * Every other route to a corpse has a moment the engine owns - a Finishing
+         * Blow, the victim running out - and kills them there. This one does not:
+         * Stage 6 for a self-inflicted death IS the arrangements made before dying,
+         * and `cleanupBlocker` hands the clean-up screen to whoever the state calls
+         * the killer. Killing them the instant Stage 4 succeeded would have meant a
+         * corpse rolling to scrub its own scene and spending Sanity it no longer
+         * has.
+         *
+         * So the GM closing the incident is what makes it true, which is also the
+         * beat they close it on. Before `recordBlackened`, so the register and the
+         * death cannot disagree, and guarded on the stage: a Stage 4 that failed
+         * closes through here too, and nobody died in that one. (`leftABody` reads
+         * `endedBy`, which only the Stage 4 that went through writes.)
+         */
+        if (state?.selfInflicted && state.stage === "resolution") {
             try {
-                const { endResolution } = await import("./cleanup.mjs");
-                await endResolution(killer);
+                const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
+                const actor = game.actors.get(state.victimId);
+                if (actor && !isDeadForGm(actor)) await killCharacter(actor);
             } catch (err) {
-                error("Could not destroy the tools the incident used", err);
+                error("Could not record a self-inflicted death when the incident closed", err);
             }
         }
-    }
 
-    /* THE CASE'S KEY COUNT, BEFORE THE WIPE TAKES IT (E09 C6, 08.10.2026; audit S05-17). The
-       opening roll's count of Key Remnants lived in the state alone: the checklist below said
-       "3 Key Remnants still to place", and the planner, opened after the close, had no limit
-       and let the GM plan five. Kept in the Key Remnant plan's store (investigation.mjs
-       `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body (`leftABody`) - a
-       failed opening or a fight crowded out has no case to plan. Under the chapter the
-       incident opened in since E09 fix r1-G3 (the round-1 goal review's G3b): under the
-       clock's until then, so a case closed once the clock had moved on was the next chapter's
-       case, its planner's limit and its trial's bar (tier 2, "a case closed after the clock
-       left its chapter ..."). An incident opened before that fix names no chapter: the
-       clock's, as before. A dynamic import, because investigation.mjs reaches this file
-       through its static imports. */
-    if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
+        /* WHAT THE FIGHT TIED AND NO DEATH TOOK OVER (E09 fix r1-G1, 08.10.2026; the round-1 reviews'
+           cor F1). A weapon swung in the fight ties its traces in the ledger and the copies wait
+           (remnants.mjs `tieWaitNow`); a death the GMs keep takes the wait over (chapter.mjs
+           `incidentVictimDied`) and one made public sends it. What is still on the fight here - a
+           victim who lived, or one revived - goes to the copies at the close (tier 2 "a fight's tie
+           with no death reaches the copies at the fight's close"); 1.2.70 sent it sooner, at the
+           swing. The self-inflicted death above is kept, as any victim's is, and `killCharacter`
+           awaits `incidentVictimDied`, so its share is taken over before this line - read in the
+           code, not measured: no test reads a copy across the close of a self-inflicted incident. */
         try {
-            const { recordCaseKeys } = await import("./investigation.mjs");
-            await recordCaseKeys(state.chapter ?? getClock()?.chapter, state.keyRemnants);
+            await publishTiesFor(fightKey(state));
         } catch (err) {
-            error("Could not keep the case's Key Remnant count", err);
+            error("Could not send the fight's ties to the copied bullets", err);
+        }
+
+        // Before the state is wiped - it is the only place the killer's identity
+        // exists once this function returns.
+        try {
+            await recordBlackened(state);
+        } catch (err) {
+            error("Could not record who the Blackened was", err);
+        }
+        /* EVERY KILLER'S SWING, AND ONLY AFTER STAGE 6 (E32+E07 C12, 02.10.2026; audit S04-17,
+           S05-23). This broke the first killer's tools at every close: a failed opening, a trap, a
+           GM's early close broke the knife in the killer's hand though nothing was swung, and an
+           accomplice's own knife, swung in the fight, stayed whole. Stage 6 is where the crime tool
+           is used up (CLEANUP.destroysTools), and each killer's is the one their swing wrote down. */
+        if (state?.stage === "resolution") {
+            for (const id of killerIds(state)) {
+                const killer = game.actors.get(id);
+                if (!killer) continue;
+                try {
+                    const { endResolution } = await import("./cleanup.mjs");
+                    await endResolution(killer);
+                } catch (err) {
+                    error("Could not destroy the tools the incident used", err);
+                }
+            }
+        }
+
+        /* THE CASE'S KEY COUNT, BEFORE THE WIPE TAKES IT (E09 C6, 08.10.2026; audit S05-17). The
+           opening roll's count of Key Remnants lived in the state alone: the checklist below said
+           "3 Key Remnants still to place", and the planner, opened after the close, had no limit
+           and let the GM plan five. Kept in the Key Remnant plan's store (investigation.mjs
+           `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body (`leftABody`) - a
+           failed opening or a fight crowded out has no case to plan. Under the chapter the
+           incident opened in since E09 fix r1-G3 (the round-1 goal review's G3b): under the
+           clock's until then, so a case closed once the clock had moved on was the next chapter's
+           case, its planner's limit and its trial's bar (tier 2, "a case closed after the clock
+           left its chapter ..."). An incident opened before that fix names no chapter: the
+           clock's, as before. A dynamic import, because investigation.mjs reaches this file
+           through its static imports. */
+        if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
+            try {
+                const { recordCaseKeys } = await import("./investigation.mjs");
+                await recordCaseKeys(state.chapter ?? getClock()?.chapter, state.keyRemnants);
+            } catch (err) {
+                error("Could not keep the case's Key Remnant count", err);
+            }
         }
     }
 
     // Both halves, and the participants' copies with them: an incident that is
     // over must not leave its cast sitting on anybody's client. The swing memo
-    // goes with it - `endResolution` above was the one thing that read it.
+    // goes with it - `endResolution` (the conclusion above) was the one thing that read it.
     //
     // THE BETRAYAL DOES NOT (D18): the offer lasts until the end of the day,
     // which is longer than the incident, so it is the one field the reset keeps
@@ -3327,8 +3343,8 @@ async function closeIncident(state, { reason, followUp }) {
        it at the table. */
     if (state?.active) Hooks.callAll("drpgIncidentClosed", { reason });
 
-    // Before the checklist below, which waits on the GM's answer.
-    if (state?.active) {
+    // Before the checklist below, which waits on the GM's answer. Not for a reset (`conclude`).
+    if (state?.active && conclude) {
         try {
             await tellIncidentClosed(state);
         } catch (err) {

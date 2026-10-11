@@ -55,7 +55,13 @@ export const SYNC = {
      * two of its three effects invisible until something else happened to
      * redraw them.
      */
-    overflow: "overflow"
+    overflow: "overflow",
+    /**
+     * The cast was gathered into one room: `{ room, scene, tokenIds }`, the tokens moved
+     * (call-world.mjs `gatherEveryone`). Each client pans its camera to its own token among
+     * them (`panToGathered`); nothing is written (E11 C3).
+     */
+    gather: "gather"
 };
 
 /**
@@ -431,6 +437,10 @@ function refresh(kind, data = {}) {
                changes. */
             run("projectTray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
             run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
+            break;
+
+        case SYNC.gather:
+            run("camera", () => import("./call-world.mjs").then(m => m.panToGathered(data)));
             break;
 
         default:

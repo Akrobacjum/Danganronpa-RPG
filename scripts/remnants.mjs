@@ -18,7 +18,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
-import { SETTINGS, isDeceased, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
@@ -524,6 +524,11 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
                 // been the murder weapon.
                 itemIdentity,
                 sourceActor, sourceName, room, chapter, day, timeOfDay,
+                // AND THE SEASON (E11 C12, 1.2.73; audit S06-42): `chapter` alone named last season's
+                // chapter of the same number after a reset that kept the traces (settings.mjs
+                // `sameSeason`). A trace put back under its id (`keepId`, GM-side only) keeps the
+                // season it was left in; anything else is this season's, a packet's word unread.
+                epoch: keepId && Number.isFinite(data.epoch) ? data.epoch : seasonEpoch(),
                 // Kept for the GM's own screens, which used to read it off the
                 // token's name - see `label` above.
                 label,
@@ -1655,6 +1660,8 @@ export function remnantData(tokenDoc) {
         itemIdentity: entry.itemIdentity ?? null,
         room: entry.room,
         chapter: entry.chapter,
+        // The season the chapter is of (`placeRemnant`, E11 C12); null for a trace placed before 1.2.73.
+        epoch: entry.epoch ?? null,
         day: entry.day,
         timeOfDay: entry.timeOfDay,
         // WHEN THE LEDGER LAST WROTE IT. The chapter, day and time of day are
@@ -1990,7 +1997,9 @@ export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
-            if (!data || data.tiedToCrime !== null || data.chapter !== chapter) continue;
+            // This season's chapter (E11 C12): a reset that kept the traces left last season's
+            // chapter of the same number undecided, and a death in the new one tied them.
+            if (!data || data.tiedToCrime !== null || data.chapter !== chapter || !sameSeason(data)) continue;
             tokens.push(token);
         }
     }

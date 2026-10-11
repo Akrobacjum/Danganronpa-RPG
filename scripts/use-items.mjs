@@ -38,7 +38,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // Only to answer "is there a murder to be tidying up after" - see
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
-import { bodyDiscovery } from "./settings.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial } from "./settings.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -746,6 +746,15 @@ async function consume(item, { reason, held = item }) {
  * everybody, whoever is throwing what away. Either fact is enough; the clock's
  * phase is neither, because Daily Life continues after a body is found.
  *
+ * AND THE BODY STAYS FOUND AFTER THE HOLD (E11 fix r1-G3; goal K1). Both facts are gone once the
+ * Investigation starts - the incident closed, the hold cleared by the phase - so a broken thing
+ * thrown away during that Investigation or the trial was filed as preparation. The third fact is
+ * the chapter's discovery stamp made since its last Class Trial ended (settings.mjs
+ * `bodyFoundSinceTrial`): through the Investigation and the trial it says "after"; once that
+ * trial has ended, a discard is preparation again, for a murder that has not happened. Nothing
+ * refuses a discard in either phase (`discardBroken` reads no phase; read in the code). Tier 2
+ * "a chapter's second Investigation reads its own body on the card and in a discard".
+ *
  * Both reads are wrapped: a world mid-migration, or a client that has not been
  * told the murder state yet, must leave a trace rather than throw.
  *
@@ -759,7 +768,7 @@ export async function discardRemnantType() {
         if (murderState()?.active) return BROKEN_ITEMS.remnantTypeAfter;
     } catch { /* no incident readable: fall through to the body */ }
     try {
-        if (bodyDiscovery()) return BROKEN_ITEMS.remnantTypeAfter;
+        if (bodyDiscovery() || bodyFoundSinceTrial()) return BROKEN_ITEMS.remnantTypeAfter;
     } catch { /* nor a discovery: it is preparation as far as anyone can tell */ }
     return BROKEN_ITEMS.remnantTypeBefore;
 }

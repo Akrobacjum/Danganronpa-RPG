@@ -3,16 +3,16 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.72"
+    "version": "1.2.73"
   },
-  "commit": "e8a46bb22d6c897faf974ef40304e2d3c73accbc",
+  "commit": "be642b6ef2caeff00ca64e61ceb424af923110ff",
   "bound": {
-    "scripts": "2bcb2a4a1a67d85ff476b7e782b382f96aa0bcd0",
-    "styles": "5854396896802b0a9bc58743bacbc16b57863df7",
-    "lang": "7c6bc2290c3649aa52598ad1d2a2754d89061963",
+    "scripts": "f8800026d12a95add457f92d409d91279804290c",
+    "styles": "094a2a5045ab6a47972a0a35c35f01386755cf46",
+    "lang": "3cbb0eb441a5c8997743cd5c4e95b82731688c9f",
     "fonts": "285990edcaa5a47a91f00390ecf70c59630da540",
     "icons": "61fff800a2dc045b02f681d4aa217e43110eab84",
-    "module.json": "c6c8d493214fd8d7085b68bb86d3896cc8fe85ba",
+    "module.json": "d0718f3604df269e2cc9a633707be7b5876368b0",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "1990fd1ad45cf2b35898e92ef399abee1d4f9316",
     "audit/live": "964f9698c1ed29fbea0619e999b29db08ba184e0",
@@ -21,8 +21,8 @@
     "audit/harness/scenarios/60-ledger.mjs": "873190ececfea53e4e784788ccc1287ed53581ad",
     "audit/harness/scenarios/83-roll-integrity.mjs": "2121847903ff916ca48ae99195e2d63cfc6ba1e1"
   },
-  "startedAt": "2026-10-10T16:41:05.579Z",
-  "finishedAt": "2026-10-10T16:41:05.709Z",
+  "startedAt": "2026-10-11T08:50:38.460Z",
+  "finishedAt": "2026-10-11T08:50:38.579Z",
   "host": {
     "node": "v22.22.2",
     "platform": "linux-x64",
@@ -105,6 +105,6 @@
     "notRun": 6
   },
   "verdict": "incomplete",
-  "digest": "sha256:4e8e0fc54745b64dd973eed50dcb6f73551b48218a427ca0cf79a66b0069d047",
+  "digest": "sha256:27533314914ba454466f17284ae2bcdd1083e8a48a4de699576be45776875b7e",
   "hmac": null
 }
