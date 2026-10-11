@@ -3500,10 +3500,6 @@
         "one": "{n} pre-session note a GM wrote",
         "other": "{n} pre-session notes the GMs wrote"
       },
-      "resetSheetNotes": {
-        "one": "{n} sheet with notes written on it",
-        "other": "{n} sheets with notes written on them"
-      },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
@@ -3558,9 +3554,8 @@
         "deaths": "Deaths and Monocubs - the dead come back, and every student's Health and Sanity whole again",
         "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
         "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
-        "actions": "The action budget refilled, and each student's rests and betrayal window cleared",
+        "actions": "The action budget refilled, and each student's rests cleared",
         "preNotes": "The GMs' pre-session notes",
-        "sheetNotes": "The notes the cast wrote on their own sheets",
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs and their countdowns",
         "mastermind": "The Mastermind",

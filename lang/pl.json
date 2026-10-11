@@ -3668,12 +3668,6 @@
         "many": "{n} notatek przed sesją napisanych przez GM-ów",
         "other": "{n} notatek przed sesją napisanych przez GM-ów"
       },
-      "resetSheetNotes": {
-        "one": "{n} arkusz z zapisanymi notatkami",
-        "few": "{n} arkusze z zapisanymi notatkami",
-        "many": "{n} arkuszy z zapisanymi notatkami",
-        "other": "{n} arkuszy z zapisanymi notatkami"
-      },
       "resetPools": "każda pula Despair do zera ({n} niepustych) i każdy Hope z powrotem do {hope}",
       "resetKeeps": "To zostaje: obsada z imionami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum i nazwa kampanii.",
       "resetType": "Wpisz {word}, by potwierdzić",
@@ -3751,9 +3745,8 @@
         "deaths": "Śmierci i Monocuby - zmarli wracają, a Health i Sanity każdego ucznia są znów pełne",
         "items": "Co nosi obsada - klucz do każdej sypialni od razu wraca do jej właściciela",
         "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza, i doświadczenia, które dodał Level Up",
-        "actions": "Budżet akcji odnowiony, a odpoczynki i okno zdrady każdego ucznia wyczyszczone",
+        "actions": "Budżet akcji odnowiony, a odpoczynki każdego ucznia wyczyszczone",
         "preNotes": "Notatki przed sesją dla GM-ów",
-        "sheetNotes": "Notatki, które obsada zapisała na własnych arkuszach",
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",

@@ -3288,7 +3288,7 @@ const INVARIANTS = [
         const keys = RESET_GROUPS.map(group => group.key);
         const ticked = keys.filter(key => !["incident", "advancement", "chatRest"].includes(key));
         const tally = { projects: 2, projectTokens: 4, remnants: 3, bullets: 1, dead: 1, items: 5, advances: 2,
-            preNotes: 1, sheetNotes: 2, cards: 7, chat: 9, despair: 1 };
+            preNotes: 1, cards: 7, chat: 9, despair: 1 };
         const host = document.createElement("div");
         host.innerHTML = S.resetGoesHtml(planFrom(ticked), tally);
         const rows = [...host.querySelectorAll("li[data-group]")];
@@ -6326,6 +6326,35 @@ const INVARIANTS = [
                 game.i18n.localize("DRPG.Mastermind.finalPickRoom")]),
             "the empty Final Truth tab says more than one thing about being empty, or its Room field's empty option "
             + "does not say what picking a room does (the empty states, then the empty option's words)");
+    }],
+
+    ["R378 - the reset window offers no group a Daggerheart character cannot hold, and its actions row promises no betrayal window, in English and in Polish", async () => {
+        /*
+         * E11 fix r2-H4, 1.2.73; the goal's D3 / S06-49 (a) and (c), the plan's 3.3. The cast's "notes they
+         * wrote on their own sheets" cleared `system.notes` and `system.biography.notes`, which a Daggerheart
+         * character does not have (character.mjs:80-88 at Daggerheart's tag 2.6.5, the version module.json
+         * verifies: `biography` is background, connections and characteristics), so the tick wiped nothing.
+         * And the actions row ended "and betrayal window cleared": the offer is the cast's record since
+         * CASE-04 and goes with the incident group, so with the incident unticked the row promised what
+         * stayed. Read: the groups, the reset's source for the two paths, and both lang files for the two
+         * labels and the retired keys.
+         */
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const wrong = [];
+        if (RESET_GROUPS.some(group => group.key === "sheetNotes")) wrong.push("the window still offers the cast's sheet notes");
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        if (setup.length < 1000) wrong.push("season-setup.mjs did not load");
+        if (/system\.notes|biography\.notes/.test(setup)) wrong.push("the reset still clears a notes field a Daggerheart character does not have");
+        const betrayal = { en: /betray/i, pl: /zdrad/i };
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+            const actions = flat["DRPG.Season.group.actions"], incident = flat["DRPG.Season.group.incident"];
+            if (typeof actions !== "string" || betrayal[lang].test(actions)) wrong.push(`${lang} actions: "${actions}" promises the betrayal window`);
+            if (typeof incident !== "string" || !betrayal[lang].test(incident)) wrong.push(`${lang} incident: "${incident}" does not name the betrayal offer it clears`);
+            for (const key of Object.keys(flat).filter(key => /^DRPG\.Season\.(group\.sheetNotes|resetSheetNotes)/.test(key))) wrong.push(`${lang} ${key} is left`);
+        }
+        equal(JSON.stringify(wrong), "[]", "the reset window's groups and labels against what the reset clears");
     }]
 ];
 

@@ -70,6 +70,10 @@
  *   T  a Class Trial opened under the End of chapter window (E11 fix r2-H3): the primary GM draws the window outside a
  *      trial, the second GM (at the table since H) opens a trial while it stands, then the primary answers it with the
  *      next session and the next morning - the box as drawn, what the end did, the clock and the GMs' whisper.
+ *   U  the reset on the primary from its first step to its report (E11 fix r2-H4): four resets of the clock alone that
+ *      send the cast to one room - the Hall, with the players' cameras read; the word typed in lower case; a returning
+ *      GM (`gm0`, its id sorting before the seeded GM's) connecting while the window stands; and the same GM connecting
+ *      after the reset's cut is written, before the cast's step.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -90,19 +94,23 @@
  * On the side fix line, with H (E11 fix r1-G5, a fifth
  * client booted) its 23 checks took 34.7 s in a2's fast set on 11.10.2026, beside two other
  * lanes - still none of its own. Merged (11.10.2026), G to W then H: 35 checks took 52.8 s in the
- * merge's fast set beside two other lanes - still none.
+ * merge's fast set beside two other lanes - still none. E11 fix r2-H4 (11.10.2026): with U and its sixth client (gm0),
+ * 41 checks took 57.9 s in one run - still none.
  */
 export const layers = ["ci"];
 // The second GM of G3 (E11 C8) and of H (E11 fix r1-G5), as 61 declares its own: its id sorts after the
 // seeded GM's (USERGM0000000000), so the seeded GM stays the primary while it is at the table.
 export const accounts = [
-    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    /* U's returning GM (E11 fix r2-H4), as 15 and 19 declare theirs: its id sorts BEFORE the seeded GM's, so its
+       arrival makes it the primary - the turn round 2's sec S4 named, which gm2 cannot make. */
+    { who: "gm0", id: "USERGA0000000000", name: "Returning GM", role: 4, character: null, color: "#aa0000", late: true }
 ];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
     const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
     const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
@@ -494,7 +502,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
     /* The reset as 61 answers it, with the ticks and the cast's choice handed in (E11 C10b): `cast` is an expression over
        `c`, the window's content, so R and F answer what the window offers at first and P picks a room off its list. */
     const CAST_CHECKED = `({ to: c?.querySelector?.('[name="castTo"]:checked')?.value ?? null })`;
-    const resetRun = ({ ticked = "X.RESET_GROUPS.map(g => g.key)", cast = CAST_CHECKED } = {}) => `const R = await import("${repoUrl}/scripts/season-setup.mjs");
+    /* E11 fix r2-H4: `typed` is the word answered (an expression over \`word\`), and `answer` code the window's answer
+       awaits before it answers (U holds the window open with it); `seasonBefore` is the season the reset found. */
+    const resetRun = ({ ticked = "X.RESET_GROUPS.map(g => g.key)", cast = CAST_CHECKED, typed = "word", answer = "" } = {}) => `const R = await import("${repoUrl}/scripts/season-setup.mjs");
         const X = await import("${repoUrl}/scripts/season-exceptions.mjs");
         const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const L = await import("${repoUrl}/scripts/level-up.mjs");
@@ -514,9 +524,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         // an element (\`dialogContent\`), not a string: read as a string it was "[object ...]" and the count null.
         let counted = null, closes = 0, castAnswer = null;
         const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
-        globalThis.__dialogAnswers.push(config => { const c = config?.content;
+        globalThis.__dialogAnswers.push(${answer ? "async " : ""}config => { const c = config?.content; ${answer}
             const line = /(\\d+) project tokens? on the maps/.exec(typeof c === "string" ? c : c?.textContent ?? "");
-            counted = line ? Number(line[1]) : null; castAnswer = ${cast}; return { word, ticked: ${ticked}, cast: castAnswer }; });
+            counted = line ? Number(line[1]) : null; castAnswer = ${cast}; return { word: ${typed}, ticked: ${ticked}, cast: castAnswer }; });
         // The report is a whisper: its words are this GM's to read through secret.mjs, the document holding a stub.
         const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         const reported = () => game.messages.filter(m => String(contentOf(m)).includes(game.i18n.localize("DRPG.Season.reportCard.title"))).length;
@@ -527,7 +537,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         const leftCardsBefore = leftCards().length;
         const experiences = id => Object.values(game.actors.get(id)._source.system.experiences ?? {}).filter(e => typeof e?.value === "number")
             .map(e => \`\${e.name}=\${e.value}\`).sort();
-        const reportsBefore = reported(), incidentBefore = game.drpg.murderState()?.active ?? false;
+        const reportsBefore = reported(), incidentBefore = game.drpg.murderState()?.active ?? false, seasonBefore = getClock().season ?? null;
         let result;
         try { result = await R.resetSeason(); } finally { Hooks.off("drpgIncidentClosed", closed); }
         await gmStoresIdle();
@@ -536,7 +546,7 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         const read = { cleared: result?.cleared ?? null, kept: result?.kept ?? null, tokens: projectTokens().length, counted,
             offers: ids.reduce((n, id) => n + L.offerList(S.offerStore.get(id)).length, 0),
             calls: ids.filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
-            finalTrial: getClock().finalTrial, season: getClock().season ?? null, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
+            finalTrial: getClock().finalTrial, season: getClock().season ?? null, seasonBefore, victim: { forGm: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")), flag: game.drpg.isDeceased(game.actors.get("${IDS.chie}")), row: S.deathStore.has("${IDS.chie}") },
             sheet: [r.hitPoints.value, r.stress.value, r.hope.value], key: V.keysHeldBy(aiko).has("Dorm A"),
             stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")), stamped: [stampedBefore, seasons()],
             failed: result?.failed ?? null, incident: { before: incidentBefore, closes, after: game.drpg.murderState() ?? null },
@@ -550,8 +560,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
     // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
+    // E11 fix r2-H4: 28 groups - the cast's sheet notes went (a Daggerheart character has no notes field to clear).
     check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
-        Array.isArray(reset.cleared) && reset.cleared.length === 29 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+        Array.isArray(reset.cleared) && reset.cleared.length === 28 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
             && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
             && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
             && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
@@ -780,8 +791,9 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             && toBedrooms.warned.length === 1 && [names[IDS.botan], names[IDS.chie]].every(n => toBedrooms.warned[0].includes(n))
             && !toBedrooms.warned[0].includes(names[IDS.daichi]) && toBedrooms.errors.length === 0,
         J({ toBedrooms, names }), { flow: "season-reset" });
-    const PICK = `(() => { const o = [...(c?.querySelectorAll?.('[name="castPoint"] option') ?? [])].find(o => o.textContent.trim() === "Academy - Floor 1: Cafeteria");
+    const pickRoom = room => `(() => { const o = [...(c?.querySelectorAll?.('[name="castPoint"] option') ?? [])].find(o => o.textContent.trim() === "Academy - Floor 1: ${room}");
         const [scene, region] = String(o?.value ?? "").split("."); return { to: "point", scene, region }; })()`;
+    const PICK = pickRoom("Cafeteria");
     const toPoint = await gm.eval(onAnnex(`${resetRun({ ticked: J(["clock"]), cast: PICK })} return read;`), { timeout: 120000 });
     check("P2: \"everyone to one room\", the Cafeteria picked off the window's list, moves Aiko, Botan and Chie there; Daichi's body stays, and nobody is named (E11 C10b)",
         J(toPoint.castAnswer) === J({ to: "point", scene: IDS.scene, region: "REGCAFE000000000" }) && J(toPoint.failed) === "[]"
@@ -1007,4 +1019,81 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             && trialT.phase === "classTrial" && endT.ended === null
             && J(endT.after) === J({ session: drawn.session, day: drawn.day, phase: "classTrial" }) && endT.told === 1,
         J({ drawnT, trialT, endT }), { flow: "clock-day" });
+
+    /* ------------------- U. the reset on the primary from its first step to its report ------------------- */
+    phase("U: resets of the clock that send the cast to one room - a camera, a word in lower case, a primary lost under the window and after the cut", { flow: "season-reset" });
+    /* E11 fix r2-H4 (round 2's sec S4 and COR2-8, the goal's census K4 and S06-49 (b)). Before the fix: U0's players kept
+       their cameras where they were (placeCast sent no pan); U3's "reset" reset the season (a case-blind compare under
+       "type RESET exactly"); U1's reset, asked on the primary before its window, ran on after the returning GM had made
+       another browser the primary; and U2's cast step answered null there and was filed done, with nobody named. */
+    const GM0 = { id: "USERGA0000000000", name: "Returning GM" };
+    const sinceBefore = await Promise.all([p1, p2, gm].map(client => client.eval(`return globalThis.__pans?.length ?? 0;`)));
+    const toHall = await gm.eval(`${resetRun({ ticked: J(["clock"]), cast: pickRoom("Hall") })} return read;`, { timeout: 120000 });
+    const PANNED_SINCE = (actorId, n) => `${UNTIL} await until(() => (globalThis.__pans?.length ?? 0) > ${n}, 4000);
+        const t = canvas.scene?.tokens.find(x => x.actorId === "${actorId}");
+        return { pans: (globalThis.__pans ?? []).slice(${n}), at: t ? { x: t.center.x, y: t.center.y } : null, scene: canvas.scene?.id ?? null };`;
+    const hallP1 = await p1.eval(PANNED_SINCE(IDS.aiko, sinceBefore[0])), hallP2 = await p2.eval(PANNED_SINCE(IDS.botan, sinceBefore[1]));
+    const hallGm = await gm.eval(`return (globalThis.__pans?.length ?? 0) - ${sinceBefore[2]};`);
+    check("U0: a reset that sends the cast to the Hall pans Aiko's and Botan's players to their own tokens there, and not the GM (E11 fix r2-H4)",
+        J(toHall.failed) === "[]" && J(toHall.cleared) === J(["placeCast", "clock"]) && [IDS.aiko, IDS.botan].every(id => room(toHall, id) === "Hall")
+            && J(hallP1.pans) === J([hallP1.at]) && J(hallP2.pans) === J([hallP2.at]) && hallP1.scene === IDS.scene && hallP2.scene === IDS.scene && hallGm === 0,
+        J({ toHall: { cleared: toHall.cleared, failed: toHall.failed, at: toHall.at.after }, hallP1, hallP2, hallGm }), { flow: "season-reset" });
+
+    const lowered = await gm.eval(`${resetRun({ ticked: J(["clock"]), typed: "word.toLowerCase()" })} return read;`, { timeout: 120000 });
+    const WORDS = await gm.eval(`const word = game.i18n.localize("DRPG.Season.resetWord");
+        return { mistyped: game.i18n.format("DRPG.Season.resetMistyped", { word }), primary: game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: ${J(GM0.name)} }),
+            failed: game.i18n.format("DRPG.Season.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") }), word };`);
+    check("U3: the word typed in lower case resets nothing and the GM is told to type it exactly (E11 fix r2-H4)",
+        WORDS.word !== WORDS.word.toLowerCase() && lowered.cleared === null && lowered.season === lowered.seasonBefore && lowered.warned.includes(WORDS.mistyped)
+            && lowered.reports === 0,
+        J({ lowered: { cleared: lowered.cleared, season: [lowered.seasonBefore, lowered.season], warned: lowered.warned }, WORDS }), { flow: "season-reset" });
+
+    /* U1: the window drawn on the primary, held open until this browser reads another GM as the primary; meanwhile the
+       returning GM connects. The answer then picks the Storage room. */
+    const U = `${UNTIL} const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const pendingU1 = gm.eval(`${U} globalThis.__u = { drawn: false };
+        ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Storage"),
+            answer: "globalThis.__u.drawn = true; await until(() => U.primaryGmId() !== game.user.id, 15000);" })}
+        return { ...read, primaryThen: U.primaryGmId() };`, { timeout: 120000 });
+    const drawnU1 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.drawn, 15000));`, { timeout: 30000 });
+    let windowU1 = null;
+    await connect("gm0");
+    try {
+        windowU1 = await pendingU1;
+    } finally {
+        await disconnect("gm0");
+    }
+    check("U1: a GM with a lower id arriving while the reset window stands makes the reset refuse, with the primary's words naming that GM, and nothing moves or goes (E11 fix r2-H4)",
+        drawnU1 === true && windowU1?.primaryThen === GM0.id && windowU1.cleared === null && windowU1.season === windowU1.seasonBefore
+            && windowU1.warned.includes(WORDS.primary) && still(windowU1, IDS.aiko, IDS.botan, IDS.chie) && windowU1.reports === 0 && windowU1.castCards === 0,
+        J({ drawnU1, windowU1: windowU1 && { primaryThen: windowU1.primaryThen, cleared: windowU1.cleared, failed: windowU1.failed,
+            season: [windowU1.seasonBefore, windowU1.season], warned: windowU1.warned, at: windowU1.at } }), { flow: "season-reset" });
+
+    /* U2: the same GM connecting after the window closed: the reset's first clock write (the cut) is held until this browser
+       reads the returning GM as the primary, and then the steps run - the cast's next. */
+    await gm.eval(`${UNTIL} const U = await import("${repoUrl}/scripts/utils.mjs"); await until(() => U.isPrimaryGm(), 15000); return true;`, { timeout: 30000 });
+    const pendingU2 = gm.eval(`${U} const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const set = game.settings.set;
+        globalThis.__u = { held: false, put: () => { game.settings.set = set; } };
+        ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Storage"),
+            answer: `game.settings.set = async function (...args) { const out = await set.apply(this, args);
+                if (!globalThis.__u.held && args[1] === KEYS.clock) { globalThis.__u.held = true; globalThis.__u.put();
+                    await until(() => U.primaryGmId() !== game.user.id, 15000); }
+                return out; };` })}
+        globalThis.__u.put();
+        return { ...read, primaryThen: U.primaryGmId() };`, { timeout: 120000 });
+    const heldU2 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.held, 15000));`, { timeout: 30000 });
+    let cutU2 = null;
+    await connect("gm0");
+    try {
+        cutU2 = await pendingU2;
+    } finally {
+        await disconnect("gm0");
+    }
+    check("U2: a GM with a lower id arriving after the reset's cut leaves the cast unplaced, and the reset files that step failed and names it in its error and its report (E11 fix r2-H4)",
+        heldU2 === true && cutU2?.primaryThen === GM0.id && J(cutU2.cleared) === J(["clock"]) && J(cutU2.failed) === J(["placeCast"])
+            && cutU2.errors.includes(WORDS.failed) && cutU2.reports === 1 && cutU2.season === cutU2.seasonBefore + 1
+            && still(cutU2, IDS.aiko, IDS.botan, IDS.chie),
+        J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, errors: cutU2.errors,
+            reports: cutU2.reports, season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
 }

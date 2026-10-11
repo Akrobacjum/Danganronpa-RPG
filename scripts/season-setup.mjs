@@ -765,28 +765,6 @@ function moduleMessages() {
         m.getFlag(MODULE_ID, MESSAGE_FLAG) || cardFlag(m, MESSENGER_FLAGS.thread));
 }
 
-/**
- * The free-text note on a character sheet, wherever this system keeps it.
- *
- * NOT the biography. Pronouns, age, faith and connections are who somebody is -
- * the same side of the line as the name, the portrait and the Ultimate, all of
- * which this reset leaves alone. A note is what got written down during the
- * season that just ended.
- *
- * Both paths are probed because the field has moved between Daggerheart
- * versions, and a path that is not there simply is not written.
- */
-const NOTE_PATHS = ["system.notes", "system.biography.notes"];
-
-function writtenNotes(actor) {
-    const found = {};
-    for (const path of NOTE_PATHS) {
-        const current = foundry.utils.getProperty(actor, path);
-        if (typeof current === "string" && current.trim()) found[path] = "";
-    }
-    return found;
-}
-
 /** What a reset would destroy, counted now rather than described in general. */
 function resetTally() {
     const remnants = game.scenes.reduce((n, scene) =>
@@ -812,10 +790,10 @@ function resetTally() {
     const items = students.reduce((n, a) => n + seasonItems(a).length, 0);
     const advances = students.reduce((n, a) =>
         n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
-    // Two groups, two counts (E11 C9): until then one number added the GMs' notes to the
-    // cast's, under a line that went whichever box was ticked.
+    // The GMs' notes alone (E11 C9): until then one number added the cast's sheet notes to
+    // them, under a line that went whichever box was ticked. The cast's count went with its
+    // group (E11 fix r2-H4, season-exceptions.mjs `RESET_GROUPS`).
     const preNotes = game.users.filter(u => hasNote(u.id)).length;
-    const sheetNotes = students.filter(a => Object.keys(writtenNotes(a)).length).length;
 
     const cards = moduleMessages().length;
     const chat = game.messages.size;
@@ -828,7 +806,7 @@ function resetTally() {
         despair = 0;
     }
 
-    return { projects, projectTokens, remnants, bullets, dead, items, advances, preNotes, sheetNotes, cards, chat, despair };
+    return { projects, projectTokens, remnants, bullets, dead, items, advances, preNotes, cards, chat, despair };
 }
 
 /** The counts `resetTally` has for a group, as the lines under its row. */
@@ -843,7 +821,6 @@ const GOES_DETAIL = {
     items: tally => [plural("DRPG.Season.resetItems", { n: tally.items })],
     advancement: tally => [plural("DRPG.Season.resetAdvances", { n: tally.advances })],
     preNotes: tally => [plural("DRPG.Season.resetPreNotes", { n: tally.preNotes })],
-    sheetNotes: tally => [plural("DRPG.Season.resetSheetNotes", { n: tally.sheetNotes })],
     cards: tally => [plural("DRPG.Season.resetCards", { n: tally.cards })],
     despair: tally => [game.i18n.format("DRPG.Season.resetPools", { n: tally.despair, hope: STARTING.hope })]
 };
@@ -1044,8 +1021,23 @@ export async function resetSeason() {
     });
 
     if (!typed || typed === "cancel" || !typed.word) return null;
-    if (typed.word.toLowerCase() !== word.toLowerCase()) {
+    /* EXACTLY, AS THE WINDOW SAYS (E11 fix r2-H4; goal D3 / S06-49). Until then the word was compared
+       case-blind under "type {word} exactly", so "reset" wiped a season. A destructive confirm takes the
+       word as the window prints it; only the spaces around it are trimmed (the button's callback). */
+    if (typed.word !== word) {
         ui.notifications.warn(game.i18n.format("DRPG.Season.resetMistyped", { word }));
+        return null;
+    }
+    /* STILL THE PRIMARY WHEN THE WINDOW CLOSES (E11 fix r2-H4; round 2's sec S4 and COR2-8). The check
+       above runs before the window, which can stand for minutes: a GM with a lower id (or a full GM,
+       when an assistant opened it) arriving meanwhile made another browser the primary, and the reset
+       ran here anyway - the cast's step moved nobody and named nobody (and, read in the code, the
+       deaths step dropped this browser's rows instead of clearing the store). Asked again, with the
+       same words, before anything is written. Scenario 65 U1 (the returning GM connecting while the
+       window stands). */
+    if (!isPrimaryGm()) {
+        const name = game.users.get(primaryGmId())?.name ?? "?";
+        ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
         return null;
     }
 
@@ -1104,7 +1096,7 @@ export const RESET_STEPS = Object.freeze([
     "keyPlan", "eclipseMoves", "motive", "rules", "assembly",
     "items", "advancement", "actions", "despair", "overflow", "doors", "stashesFound",
     "placeCast",
-    "preNotes", "sheetNotes", "cards", "chatRest",
+    "preNotes", "cards", "chatRest",
     "clock"
 ]);
 
@@ -1170,9 +1162,12 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
             if (restored?.left?.length && Array.isArray(left)) left.push({ name: actor.name, experiences: restored.left });
             await initCharacter(actor, { resetValues: false, quiet: true });
         },
-        // Two stamps keyed to a clock that is about to read session 1, day 1 again: "rested
-        // this session" and "may betray this day". Left standing they refused the first Long
-        // Rest of the new season.
+        // A stamp keyed to a clock that is about to read session 1, day 1 again: "rested this
+        // session". Left standing it refused the first Long Rest of the new season. The other
+        // flag is the betrayal offer's shape before CASE-04, which only the upgrade's lift
+        // (incident-store.mjs) reads or unsets now, and a world it could not lift keeps; the offer
+        // itself is the cast's record and goes with the incident group (`clearBetrayalOffer`), which
+        // is why this group's label no longer promises the betrayal window (E11 fix r2-H4, S06-49).
         actions: async () => {
             for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {
                 if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
@@ -1212,11 +1207,16 @@ export async function wipeStudent(actor, key, { left = null } = {}) {
  * first scene's (read in the code); that student stays and is named.
  *
  * The moves are the gather's (`teleportInto`), made by a GM, which movement.mjs does not bill.
+ * AND EACH CAMERA GOES WITH ITS TOKEN, as the gather's does (E11 fix r2-H4; goal census K4, the
+ * class of S06-07 that C3 closed for the gather): until then a player whose token the reset moved
+ * kept looking at the room it had left. After each room's moves, `SYNC.gather` names the room, its
+ * scene and the tokens moved there; each client pans to its own (call-world.mjs `panToGathered`),
+ * and the packet is applied only from a GM (sync.mjs `registerSync`). Scenario 65 U0.
  * Called by the reset's step on the primary GM, and by tier 2's "the cast goes where the GM chose"
  * with three students of its own.
  *
  * @returns {Promise<{moved: string[], stayed: string[]}|null>} the actor ids; null on any browser
- *   but the primary GM's, which moves nothing.
+ *   but the primary GM's, which moves nothing - and which the reset's step files as failed.
  */
 export async function placeCast(choice, actors = studentActors()) {
     if (!isPrimaryGm()) return null;
@@ -1253,7 +1253,11 @@ export async function placeCast(choice, actors = studentActors()) {
         batches.get(key).tokens.push(...tokens);
         placed.moved.push(actor.id);
     }
-    for (const { scene, region, tokens } of batches.values()) await teleportInto(scene, region, tokens);
+    const { broadcast, SYNC } = await import("./sync.mjs");
+    for (const { scene, region, tokens } of batches.values()) {
+        await teleportInto(scene, region, tokens);
+        broadcast(SYNC.gather, { room: region.name, scene: scene.id, tokenIds: tokens.map(t => t.id) });
+    }
     return placed;
 }
 
@@ -1540,13 +1544,6 @@ async function wipeSeason(plan) {
             }
         },
 
-        sheetNotes: async () => {
-            for (const actor of studentActors()) {
-                const cleared = writtenNotes(actor);
-                if (Object.keys(cleared).length) await actor.update(cleared);
-            }
-        },
-
         cards: async () => {
             await deleteMessages(moduleMessages().map(m => m.id));
         },
@@ -1558,6 +1555,16 @@ async function wipeSeason(plan) {
         // R-1 it is asked for as a group like every other.
         chatRest: async () => {
             await deleteMessages(game.messages.map(m => m.id));
+        },
+
+        /* A cast that could not be placed is a failed step (E11 fix r2-H4; sec S4, COR2-8): `placeCast`
+           answers null off the primary - a GM with a lower id arrived after the window closed - and
+           until then the step read that as "nobody stayed", was filed done and named nobody, while the
+           GM had picked a place. Thrown, the report names it with the failed groups. 65 U2. */
+        placeCast: async () => {
+            const placed = await placeCast(plan.cast);
+            if (!placed) throw new Error("the cast was not placed: this browser is no longer the primary GM's");
+            stayed.push(...placed.stayed);
         },
 
         /*
@@ -1573,10 +1580,6 @@ async function wipeSeason(plan) {
          * stay the cut's (tier 2, "a reset counts the season and keeps the fog epoch"). The clock is
          * kept out of the settings written whole, campaign name kept, because the name belongs to the table.
          */
-        placeCast: async () => {
-            stayed.push(...((await placeCast(plan.cast))?.stayed ?? []));
-        },
-
         clock: async () => {
             const clock = getClock();
             await setClock({

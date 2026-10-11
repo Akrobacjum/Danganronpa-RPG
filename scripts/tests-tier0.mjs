@@ -7758,7 +7758,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
             ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
-            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it (and since E11 fix r2-H4 the reset's `placeCast` sends it too, 65 U0): `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
             ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
             ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
@@ -7783,7 +7783,7 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
-            ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road"],
+            ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
@@ -8106,7 +8106,7 @@ const REGRESSIONS = [
         for (const key of ["deaths", "items", "advancement", "actions", "despair", "stashesFound"]) {
             ok(at(key) < at("placeCast"), `the cast is placed before the group "${key}" has run`);
         }
-        for (const key of ["preNotes", "sheetNotes", "cards", "chatRest", "clock"]) {
+        for (const key of ["preNotes", "cards", "chatRest", "clock"]) {
             ok(at("placeCast") < at(key), `the cast is placed after "${key}"`);
         }
 
@@ -9166,6 +9166,34 @@ const REGRESSIONS = [
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
             "the autopsy's answer key or the crime-witness mark does not name its season");
+    }],
+
+    ["R377 - the reset is the primary GM's when its window closes, takes its word exactly, names a cast it could not place and pans each player to their token", async () => {
+        /*
+         * E11 fix r2-H4, 1.2.73; round 2's sec S4 and COR2-8, the goal's census K4 and D3 / S06-49 (b). Until
+         * then `resetSeason` asked `isPrimaryGm()` once, before its window: a GM with a lower id arriving while
+         * the window stood made another browser the primary, `placeCast` answered null there, and its step
+         * filed that as done with nobody named. The window said "type RESET exactly" over a case-blind
+         * compare. And the cast's tokens moved with no camera told, which C3 had closed for the gather. The
+         * guard on the promise, in the source: the primary asked again after the window and before the plan,
+         * the typed word compared as it is, the cast's step throwing on a null answer, and `placeCast` sending
+         * the gather's pan after its moves. What they do at a table of five browsers is scenario 65's U.
+         */
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        ok(setup.length > 1000, "season-setup.mjs did not load - the reads below would measure nothing");
+        const reset = fnSource(setup, "resetSeason");
+        const window = reset.indexOf("DialogV2.wait("), plan = reset.indexOf("planFrom(typed.ticked)");
+        const asked = [...reset.matchAll(/if \(!isPrimaryGm\(\)\) \{/g)].map(hit => hit.index);
+        ok(window > 0 && plan > window && asked.some(at => at > window && at < plan),
+            "the reset does not ask again, between its window and its plan, whether this browser is still the primary GM's");
+        ok(/if \(typed\.word !== word\)/.test(reset) && !/toLowerCase|toUpperCase|localeCompare/.test(reset),
+            "the reset compares the typed word case-blind under \"type it exactly\"");
+        const wipe = fnSource(setup, "wipeSeason");
+        const step = /placeCast: async \(\) => \{([^}]*)\}/.exec(wipe)?.[1] ?? "";
+        ok(/if \(!placed\) throw/.test(step), "the cast's step files a placeCast that moved nobody off the primary as done");
+        const place = fnSource(setup, "placeCast");
+        const moved = place.indexOf("await teleportInto("), told = place.indexOf("broadcast(SYNC.gather,");
+        ok(moved > 0 && told > moved, "placeCast moves the cast's tokens and tells no camera where they went (the gather's SYNC.gather)");
     }]
 ];
 
