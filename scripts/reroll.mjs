@@ -1269,7 +1269,8 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         }
     } else if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
-        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null });
+        const { sceneOfActor } = await import("./movement.mjs");
+        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null, scene: sceneOfActor(actor) });
         if (drawn?.name) {
             drawnName = drawn.name;
             const { grantItem } = await import("./inventory.mjs");
@@ -1822,7 +1823,7 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         const doc = placed?.document ?? placed;
         if (traceFeedback(gate, doc)) done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
         return doc?.id
-            ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? canvas?.scene?.id ?? null }
+            ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? null }
             : {};
     }
 
@@ -1864,10 +1865,10 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
  * the console. A trace that is gone is not asked about; the retune finds nothing, as before.
  */
 async function traceKept(actor, bookmark, { removal, total }) {
-    const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? canvas?.scene;
+    const { remnantData, remnantGmEdited, sceneOfRemnant } = await import("./remnants.mjs");
+    const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? sceneOfRemnant(bookmark.remnantId);
     const token = scene?.tokens?.get(bookmark.remnantId) ?? null;
     if (!token) return false;
-    const { remnantData, remnantGmEdited } = await import("./remnants.mjs");
     const { removalRefusal } = await import("./bridge-guards.mjs");
     const data = remnantData(token);
     let copied = false;

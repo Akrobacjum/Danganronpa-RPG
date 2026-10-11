@@ -24,7 +24,7 @@
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, OVERFLOW } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
-import { dialogContent, error, workingScene, esc} from "./utils.mjs";
+import { dialogContent, error, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
@@ -115,8 +115,11 @@ async function roomBlock() {
     const actor = subjectActor();
     if (!actor) return section(t("DRPG.Explain.room.title"), [esc(t("DRPG.Explain.room.noActor"))]);
 
-    const { roomOfActor } = await import("./movement.mjs");
-    const room = roomOfActor(actor);
+    // The room and its scene where the reader's character stands (E12 C6): the description
+    // and the tokens were read on the scene on screen until 1.2.74.
+    const { locateActor } = await import("./movement.mjs");
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
     if (!room) {
         return section(t("DRPG.Explain.room.title"), [esc(t("DRPG.Hud.roomNowhere"))]);
     }
@@ -127,14 +130,14 @@ async function roomBlock() {
     // Description tab in Room Setup. Escaped: it is typed prose, and it is
     // shown to everybody.
     const { roomDescription } = await import("./vault.mjs");
-    const description = roomDescription(room);
+    const description = roomDescription(room, place.scene);
     if (description) {
         lines.push(`<em class="drpg-explain-prose">${esc(description)}</em>`);
     }
 
     const { SearchTokens } = await import("./search-tokens.mjs");
     lines.push(esc(t("DRPG.Explain.room.tokens", {
-        left: SearchTokens.left(room, workingScene()), max: SearchTokens.max
+        left: SearchTokens.left(room, place.scene), max: SearchTokens.max
     })));
 
     // Whether there is something to work on here - never WHAT. The HUD makes

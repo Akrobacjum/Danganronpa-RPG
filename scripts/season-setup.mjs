@@ -130,11 +130,11 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The shared-rooms-per-player line under the room count step. */
-function roomCountLine(roster) {
+/** The shared-rooms-per-player line under the room count step, for the scene the step counts. */
+function roomCountLine(roster, scene) {
     return `<div class="notes">${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Season.roomCountLine", {
-            rooms: sharedRooms().length,
+            rooms: sharedRooms(scene).length,
             players: roster.length,
             want: roomsWantedFor(roster.length)
         }))}</div>`;
@@ -310,9 +310,9 @@ function steps() {
              * two answers Room Setup's own line prints, so the two screens can
              * no longer disagree about one map.
              */
-            done: sharedRooms().length >= roomsWantedFor(roster.length),
+            done: sharedRooms(workingScene()).length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => roomCountLine(roster)
+            extra: () => roomCountLine(roster, workingScene())
         },
         {
             key: "rooms",

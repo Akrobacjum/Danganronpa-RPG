@@ -2752,7 +2752,7 @@ async function undoLastCleanup(actor, tokenId) {
     // invented name on it - a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
-            const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
+            const { retuneRemnant, setRemnantPublic, sceneOfRemnant } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
             const from = receipt.transformed.from;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
@@ -2763,7 +2763,7 @@ async function undoLastCleanup(actor, tokenId) {
             // empty payload is what `defaultPublic` rebuilds from.
             const back = receipt.transformed.publicFrom;
             const scene = receipt.transformed.sceneId
-                ? game.scenes.get(receipt.transformed.sceneId) : canvas?.scene;
+                ? game.scenes.get(receipt.transformed.sceneId) : sceneOfRemnant(receipt.transformed.id);
             const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
             if (tokenDoc) {
                 // The ledger alone (E09 C9): the reshape left the copies already held as they

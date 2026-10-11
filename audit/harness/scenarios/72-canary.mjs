@@ -63,7 +63,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     /* A trace, not an incident's: hidden, and its note and subject for the GM's ledger only. */
     const trace = { note: canary.marker("remnant.note"), subject: canary.marker("remnant.subject") };
-    const traceId = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Gym", type: "prep", visibility: "obvious",
+    const traceId = await gm.eval(`const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Gym", type: "prep", visibility: "obvious",
             note: "${trace.note}", subject: "${trace.subject}" });
         return t?.id ?? null;`, { timeout: 60000 });
     check("gm: a trace is placed, its token on the GM's scene", Boolean(traceId), String(traceId));
@@ -133,7 +133,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        only as the GM names it. */
     const publicName = canary.marker("remnant.publicName", { allowed: ["gm", "p1"] });
     const foundTrace = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
-        const t = await game.drpg.placeRemnant({ room: "Gym", type: "prep", visibility: "obvious" });
+        const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Gym", type: "prep", visibility: "obvious" });
         if (!t) return null;
         await game.drpg.revealRemnant(t);
         await R.setRemnantPublic(t, { name: "${publicName}" });
@@ -406,7 +406,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     /* AN INCIDENT'S TRACE (E05 C14, 27.09.2026; audit S05-42). The GM leaves one in Dorm B while the
        incident runs: D11 creates it un-hidden and marked as the incident's, for its cast to draw. It is
        read again once the incident has closed (phase undiscovered). */
-    const incidentTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace" });
+    const incidentTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace" });
         return t ? { id: t.id, scene: t.parent?.id ?? null, hidden: t.hidden, marked: t.getFlag("${MOD}", "fromIncident") ?? null } : null;`, { timeout: 60000 });
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
     /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
@@ -470,7 +470,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        has, and 72 had no Stage 6 action: Chie, alone in Dorm B with the body, erases a trace the
        GM leaves there for her, thrown on p3's client with forced dice - a success with Hope, which
        asks no question. Read here: her roll came back, and the GM's ruling took the trace away. */
-    const sixTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "subtle", note: "72: Stage 6's trace" });
+    const sixTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Dorm B", type: "incident", visibility: "subtle", note: "72: Stage 6's trace" });
         return t ? { id: t.id, scene: t.parent?.id ?? null } : null;`, { timeout: 60000 });
     const sixRoll = await p3.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
         globalThis.__forceRoll = { hope: 11, fear: 2 };
@@ -492,7 +492,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        canvas; what p1's and p2's copies of the token say is read here. And a trace of the incident type
        placed now, with none running, is created hidden and unmarked. Red on the C13 tree: both un-hidden
        and marked. */
-    const lateTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace, after the close" });
+    const lateTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace, after the close" });
         return t?.id ?? null;`, { timeout: 60000 });
     await settle(600);
     const tracesOn = c => c.eval(`const scene = game.scenes.get("${incidentTrace?.scene ?? "none"}");
@@ -552,7 +552,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     /* discovery: a Faint Prep trace is left in Dorm B; Aiko and Daichi walk in, the second
        witness sets the discovery off, and the GM's promotion dialog ticks every trace it lists. */
     phase("discovery");
-    const prep = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "prep", visibility: "obvious", faint: true, note: "72: a Faint Prep trace" });
+    const prep = await gm.eval(`const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: "Dorm B", type: "prep", visibility: "obvious", faint: true, note: "72: a Faint Prep trace" });
         globalThis.__promoted = null;
         globalThis.__dialogAnswers.push(async function promote(cfg) {
             if (cfg.window?.title !== game.i18n.format("DRPG.Chapter.promoteTitle", { room: "Dorm B" })) { globalThis.__dialogAnswers.unshift(promote); return null; }

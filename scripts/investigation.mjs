@@ -1078,7 +1078,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
  *   (audit A6). The card carries the player's scene; `openKeyRemnantHere`
  *   passes it through.
  */
-async function createKeyRemnant(row, scene = workingScene()) {
+async function createKeyRemnant(row, scene) {
     const region = roomRegions(scene, row.createIn)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: row.createIn }));

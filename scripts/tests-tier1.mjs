@@ -207,9 +207,9 @@ const INVARIANTS = [
         needs(world.atLeast("stashedItems"), "an orphan is a stashed item whose stash has gone");
         for (const actor of game.actors.filter(a => a.type === "character")) {
             for (const item of vaultContents(actor)) {
-                const room = stashRoomOfItem(item, actor);
+                const room = stashRoomOfItem(item, actor, canvas?.scene);
                 ok(room, `"${item.name}" on ${actor.name} is stashed nowhere`);
-                ok(stashIn(room, actor.id),
+                ok(stashIn(room, actor.id, canvas?.scene),
                     `"${item.name}" on ${actor.name} names the stash in "${room}", which does not exist`);
             }
         }
@@ -220,7 +220,7 @@ const INVARIANTS = [
         // list of ghosts is what makes the Stashes tab draw a column for nobody
         // and `openStashesHere` offer a drawer that cannot be opened.
         needs(world.atLeast("stashes"), "a stash to hold to its owner");
-        for (const entry of allVaults()) {
+        for (const entry of allVaults(canvas?.scene)) {
             ok(entry.owner, `a stash in "${entry.room}" belongs to no actor that exists`);
         }
     }],
@@ -1070,12 +1070,12 @@ const INVARIANTS = [
         const { stashRoomsFor, stashIn, stashesIn } = await import("./vault.mjs");
         const wrong = [];
         for (const actor of studentActors()) {
-            const owned = stashRoomsFor(actor).map(entry => entry.room);
+            const owned = stashRoomsFor(actor, canvas?.scene).map(entry => entry.room);
             for (const room of owned) {
-                if (!stashIn(room, actor.id)) {
+                if (!stashIn(room, actor.id, canvas?.scene)) {
                     wrong.push(`${actor.name} owns a stash in ${room} that the room denies`);
                 }
-                if (!stashesIn(room).some(entry => entry.actorId === actor.id)) {
+                if (!stashesIn(room, canvas?.scene).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${actor.name}'s stash in ${room} is not in that room's list`);
                 }
             }
@@ -1083,7 +1083,7 @@ const INVARIANTS = [
             // list left out.
             for (const room of (await import("./movement.mjs")).allRooms(canvas?.scene)) {
                 if (owned.includes(room)) continue;
-                if (stashesIn(room).some(entry => entry.actorId === actor.id)) {
+                if (stashesIn(room, canvas?.scene).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${room} says ${actor.name} has a stash there and their own list does not`);
                 }
             }

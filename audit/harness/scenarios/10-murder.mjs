@@ -437,7 +437,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const secret = { note: canary.marker("remnant.note"), subject: canary.marker("remnant.subject") };
     const remnant = await gm.eval(`
         const scene = game.scenes.active;
-        const r = await game.drpg.placeRemnant({
+        const r = await game.drpg.placeRemnant({ scene,
             room: "Gym", type: "neutral", visibility: "obvious",
             note: "${secret.note}", subject: "${secret.subject}"
         });

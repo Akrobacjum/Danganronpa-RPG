@@ -1127,13 +1127,14 @@ export function tokenActorOf(payload) {
  * The character a Remnant's ledger says left it - remnant.edit's owner question.
  * From the ledger, which the GM holds: the token has carried no `sourceActor`
  * flag since the answer key moved off it (CASE-09), so a read off the token was
- * always undefined and every legitimate edit was refused. The scene falls back
- * to the one this client is viewing, as the handler's did.
+ * always undefined and every legitimate edit was refused. A packet that names no scene is
+ * read on the scene that holds the token (`sceneOfRemnant`); until E12 C6 it was read on the
+ * one this client was viewing, as the handler's was.
  */
 export async function remnantSourceOf(payload) {
-    const scene = game.scenes.get(payload?.sceneId ?? "") ?? canvas?.scene;
+    const { remnantData, sceneOfRemnant } = await import("./remnants.mjs");
+    const scene = game.scenes.get(payload?.sceneId ?? "") ?? sceneOfRemnant(payload?.tokenId);
     const token = scene?.tokens?.get(payload?.tokenId ?? "");
-    const { remnantData } = await import("./remnants.mjs");
     return remnantData(token)?.sourceActor ?? null;
 }
 

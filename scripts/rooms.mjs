@@ -199,3 +199,79 @@ export function sceneOfRoom(name) {
 export function placeRoomNames() {
     return [...new Set(placeScenes().flatMap(roomNames))].sort((a, b) => a.localeCompare(b));
 }
+
+/*
+ * THE CAMERA (E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15). The scene a browser has on
+ * screen is a fact about that browser, and a rule judged on it answers differently on two
+ * browsers looking at two maps. Before this commit 64 top-level declarations read the camera,
+ * by R382's own reading; 37 of them read it as a default or a fallback - the stashes, the
+ * favours, the room tables, the rest rooms, the Search tokens, where a trace was dropped and
+ * where a Remnant edit looked - so a GM looking at another scene judged a player's Search on a
+ * room of the same name there. Those 37 take the scene of what they judge now: an actor's
+ * (`locateActor`, movement.mjs `sceneOfActor`), a trace's (remnants.mjs `sceneOfRemnant`), a
+ * room name's (`sceneOfRoom`), or the one the caller names.
+ *
+ * The camera is read through `viewedScene()` and `viewedLevel()` (the level is LIVE-E12-02/03:
+ * nothing reads it yet), and only from a function `CAMERA_READERS` lists - keyed
+ * "file#top-level declaration", the whole of a class being one - with what it is:
+ *   definition  the two readers themselves;
+ *   draw        paints, pans or animates this browser's canvas;
+ *   window      a GM's window about "this scene", through utils.mjs `workingScene()`;
+ *   diagnose    a console readout of what this browser shows;
+ *   own         a player's view of their own map (the rooms they have found there).
+ * None is a rule: nothing listed decides what a roll, a stash, a token or a trace does.
+ * R382 reads every module file and fails on a reader not listed, a row whose function no
+ * longer reads the camera, and a kind not one of the five. It reads `canvas.scene`,
+ * `canvas.level`, `game.scenes.current`/`.viewed` and calls of the three functions; it does
+ * not read `canvas.tokens`, `getActiveTokens()` or a user's `viewedScene` property, which
+ * are the camera by other roads.
+ */
+
+/** The scene this browser has on screen, or null. Only for a function `CAMERA_READERS` lists. */
+export function viewedScene() {
+    return canvas?.scene ?? null;
+}
+
+/** The level this browser has on screen (Foundry v14), or null. Only for a function `CAMERA_READERS` lists. */
+export function viewedLevel() {
+    return canvas?.level ?? null;
+}
+
+/** Every function that may read the camera, and why - the note above, and R382. */
+export const CAMERA_READERS = Object.freeze({
+    "rooms.mjs#viewedScene": "definition",
+    "rooms.mjs#viewedLevel": "definition",
+
+    "call-world.mjs#panToGathered": "draw",
+    "fog-doorways.mjs#doorwayEdges": "draw",
+    "fog.mjs#visionForDrawnScene": "draw",
+    "fog.mjs#rememberMine": "draw",
+    "fog.mjs#repaintFog": "draw",
+    "fog.mjs#revealStartingRooms": "draw",
+    "fog.mjs#announceRoom": "draw",
+    "fog.mjs#playDiscoveryAnimation": "draw",
+
+    "utils.mjs#workingScene": "window",
+    "gm-panel.mjs#nextStep": "window",
+    "investigation.mjs#openNewTrace": "window",
+    "investigation.mjs#openKeyRemnantHere": "window",
+    "investigation.mjs#placeKeyRow": "window",
+    "investigation.mjs#openInvestigationDashboard": "window",
+    "mastermind.mjs#openMastermindDialog": "window",
+    "season-setup.mjs#steps": "window",
+    "traps.mjs#openPlantDialog": "window",
+    "vault.mjs#openRoomSetupDialog": "window",
+
+    "diagnostics.mjs#diagnoseVoice": "diagnose",
+    "fog-diagnostics.mjs#whatIsHere": "diagnose",
+    "fog-diagnostics.mjs#checkRegions": "diagnose",
+    "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",
+    "fog.mjs#diagnoseFog": "diagnose",
+    "fog.mjs#doorwayReport": "diagnose",
+    "fog.mjs#whyBlack": "diagnose",
+    "search-tokens.mjs#showSearchTokens": "diagnose",
+    "visibility.mjs#diagnoseVisibility": "diagnose",
+    "voice.mjs#competingModuleWarnings": "diagnose",
+
+    "movement.mjs#roomsKnownToMe": "own"
+});

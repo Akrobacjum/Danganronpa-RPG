@@ -56,7 +56,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
-import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions } from "./rooms.mjs";
+import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./utils.mjs";
@@ -269,7 +269,7 @@ export function registerFog() {
     Hooks.on("canvasPan", () => { try { rezoomRoomOutline(); } catch (err) { debug("Fog: could not restrike the outline", err); } });
 
     Hooks.on("canvasReady", () => {
-        step("scene vision mode", () => applySceneVisionMode());
+        step("scene vision mode", () => visionForDrawnScene());
         step("renderer failsafe", () => armRendererFailsafe());
         // Before the first paint, so a character who has been standing in a
         // room since before this client connected is not shown their own floor
@@ -431,7 +431,7 @@ export function fogEnabled() {
  * does not fight a GM editing scene config, and it never touches a scene when
  * the setting is off.
  */
-export async function applySceneVisionMode(scene = canvas?.scene) {
+export async function applySceneVisionMode(scene) {
     if (!game.user.isGM || !scene) return false;
     if (!fogEnabled()) return false;
     // A scene with rooms (E12 C2b): the regions on it decided this until 1.2.74, so a scene
@@ -469,6 +469,15 @@ export async function applySceneVisionMode(scene = canvas?.scene) {
         error("Could not switch the scene to room-based visibility", err);
         return false;
     }
+}
+
+/**
+ * `applySceneVisionMode` for the scene this GM's canvas just drew: `canvasReady` is a fact
+ * about the camera, so the camera is read here and not as the default of the writer, which
+ * `prepareScenes` and the console call with the scene they mean (E12 C6).
+ */
+function visionForDrawnScene() {
+    return applySceneVisionMode(viewedScene());
 }
 
 /** Flag holding a scene's vision settings from before the module changed them. */

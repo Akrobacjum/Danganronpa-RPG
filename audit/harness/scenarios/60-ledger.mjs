@@ -89,8 +89,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     await settle(800);
     const refusal = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const R = await import("${REPO}/scripts/rest.mjs");
         const k = M.roomsKnownToMe(), say = (from, to, next) => typeof M.notConnectedText === "function" ? M.notConnectedText(from, to, [next]) : "";
-        return { known: k ? [...k] : null, marked: R.restRooms("short"),
-            rest: typeof R.restRoomsSentence === "function" ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn") : "",
+        return { known: k ? [...k] : null, marked: R.restRooms("short", canvas?.scene),
+            rest: typeof R.restRoomsSentence === "function" ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, canvas?.scene) : "",
             unknown: say(${J(ids.rooms[0])}, ${J(unknownRoom)}, ${J(ids.rooms[1])}),
             found: say(${J(ids.rooms[0])}, ${J(ids.rooms[1])}, ${J(ids.rooms[0])}),
             cannot: game.i18n.format("DRPG.Move.cannotReach", { from: ${J(ids.rooms[0])} }) };`);

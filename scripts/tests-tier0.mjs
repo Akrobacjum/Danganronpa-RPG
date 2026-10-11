@@ -905,8 +905,8 @@ const REGRESSIONS = [
         const measured = {
             roomOfActor: time(() => M.roomOfActor(actor)),
             othersInRoom: time(() => M.othersInRoom(actor)),
-            stashItemsIn: time(() => V.stashItemsIn(actor, room)),
-            remnantsInRoom: time(() => R.remnantsInRoom(room)),
+            stashItemsIn: time(() => V.stashItemsIn(actor, room, canvas?.scene)),
+            remnantsInRoom: time(() => R.remnantsInRoom(room, canvas?.scene)),
             cleanableRemnants: time(() => C.cleanableRemnants(actor)),
             crossingWithTraps: time(() => T.armedIn(room), 60)
         };
@@ -7990,8 +7990,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#project.progress#bonus", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.share#countdownId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.share#targetUserId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1132) and `remnantRef` default to the camera - C6 takes the remnant's scene from its `sceneId` (E12 C6)"],
-            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1132) and `remnantRef` default to the camera - C6 takes the remnant's scene from its `sceneId` (E12 C6)"],
+            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1134) reads the trace on the scene the packet names, else on the scene holding the token (`sceneOfRemnant`), and `remnantRef` on the placed token's own; neither reads the camera since E12 C6"],
+            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1134) reads the trace on the scene the packet names, else on the scene holding the token (`sceneOfRemnant`), and `remnantRef` on the placed token's own; neither reads the camera since E12 C6"],
             ["PACKET gm-bridge.mjs#project.sabotage#targetId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.sabotage#actorId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
@@ -8021,7 +8021,7 @@ const REGRESSIONS = [
             ["SOCKET mastermind.mjs#registerMastermind#value", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
             ["SOCKET mastermind.mjs#registerMastermind#room", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
             ["SOCKET mastermind.mjs#registerMastermind#stamps", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
-            ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs `guardSearchRoom`) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`, over place scenes only since E12 C3; the packet's `sceneId` only picks among the actor's own tokens. C6 moves `key`/`left`/`setFor` off the camera (E12 C6)"],
+            ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs `guardSearchRoom`) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`, over place scenes only since E12 C3; the packet's `sceneId` only picks among the actor's own tokens; `key`, `left`, `sealed`, `spend` and `setFor` take the scene the handler judged, with no camera default since E12 C6"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: from a GM only (sync.mjs:137). E11 C3's gather broadcast rides it (`SYNC.gather`, call-world.mjs:396): `panToGathered` (436) pans only when the client's camera shows the broadcast scene - C5's scene from `locateActor(caller)` is the one broadcast (E12 C5)"],
             ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` over the character's tokens on every scene (read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene"],
@@ -9593,9 +9593,13 @@ const REGRESSIONS = [
             "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"] };
         const sources = await moduleSources();
         must(Object.keys(ROADS).every(file => sources.get(file)?.length), "the roads' files are among the module's sources - this would measure nothing");
+        // The fixture above is what proves this reader. It used to be shown `allVaults`,
+        // `stashItemsIn` and `remnantsOn` as well, the module's own camera fallbacks; E12 C6 took
+        // those away and R382 keeps every reader of the camera on a list, so what is left here is
+        // a draw's (fog.mjs `rememberMine`).
         const names = fallbacks([...sources.values()]);
-        must(["allVaults", "stashItemsIn", "remnantsOn"].every(name => names.has(name)),
-            `the reader no longer finds the camera fallbacks it was measured against (it finds ${[...names.keys()].join(", ") || "none"}) - this would measure nothing`);
+        must(names.has("rememberMine"),
+            `the reader no longer finds the camera fallback it was measured against (it finds ${[...names.keys()].join(", ") || "none"}) - this would measure nothing`);
         // A road that is not declared is listed as `fn:missing` rather than thrown (fnSource), so the parent of C5, where
         // `gatherSceneOf` and `gatherRefusal` do not exist yet, fails on this assertion with the camera reads beside it.
         const bodies = Object.entries(ROADS).flatMap(([file, fns]) => fns.map(fn => [fn, topLevelFunction(plain(sources.get(file)), fn)]));
@@ -9605,6 +9609,71 @@ const REGRESSIONS = [
             JSON.stringify([[], true, true]),
             "a road that places a project's room, a gather, a body or a Final Truth reads the camera (function:read), or `knowsProject` "
             + "no longer asks the token's scene and the place scenes, or the gather the caller's scene");
+    }],
+
+    ["R382 - the camera is read only where it is registered: every function that reads the scene on screen is listed in rooms.mjs CAMERA_READERS with its kind", async () => {
+        /*
+         * E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15. This test's reading, run as a node script
+         * over C5's tree (f66cf15), found 64 top-level declarations that read the camera, and 37 of
+         * them read it as a default or a fallback for a rule's scene: the stashes, the favours and
+         * hindrances, the room tables, the rest rooms, the Search tokens, the token a trace was dropped on, the scene a
+         * Remnant edit looked on - so the GM's browser judged a player's Search on a room of the
+         * same name on whatever scene that GM had on screen (the tier-2 "a character's stash and
+         * search odds are read on the scene the character stands on whatever scene is on screen"
+         * reads the harm). C6 took the scene from the subject instead and left 31 readers, each a
+         * drawing, a GM's window, a console readout or a player's own map, listed with that kind in
+         * `CAMERA_READERS` (rooms.mjs, whose note says what each kind means).
+         *
+         * This splits every module file - comments and strings blanked - at its top-level
+         * declarations (a line starting `function`, `class`, `const`, `let` or `var`, `export` and
+         * `async` allowed in front; code before the first counts as "(top level)"), and calls a
+         * declaration a reader when it contains `canvas.scene`, `canvas.level`,
+         * `game.scenes.current`/`.viewed` or a call of `viewedScene`, `viewedLevel` or
+         * `workingScene`. It fails on a reader the list does not hold, on a row whose declaration
+         * no longer reads the camera, and on a kind that is not one of the five. It does not see
+         * the camera reached by another road - `canvas.tokens`, `getActiveTokens()`, a user's
+         * `viewedScene` property - nor a top-level statement after a declaration, which it counts
+         * as that declaration's. The reader is run first on a fixture of one registered reader,
+         * one unregistered, one only in a comment and a string, one under a kind that is none of
+         * the five, and one row whose function is gone. With no list at all (before C6) every
+         * reader is unregistered.
+         */
+        const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\b(?:viewedScene|viewedLevel|workingScene)\s*\(|\bgame\.scenes\??\.(?:current|viewed)\b/;
+        const TOP = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s+(\w+)|class\s+(\w+)|(?:const|let|var)\s+(\w+))/gm;
+        const KINDS = new Set(["definition", "draw", "window", "diagnose", "own"]);
+        const readersIn = (file, raw) => {
+            const code = stripStrings(stripComments(raw));
+            const pieces = [{ at: 0, name: "(top level)" }, ...[...code.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] }))];
+            return pieces.filter((piece, i) => CAMERA.test(code.slice(piece.at, pieces[i + 1]?.at ?? code.length)))
+                .map(piece => `${file}#${piece.name}`);
+        };
+        const judge = (found, registry) => ({
+            unregistered: found.filter(key => !(key in registry)).sort(),
+            stale: Object.keys(registry).filter(key => !found.includes(key)).sort(),
+            kinds: Object.keys(registry).filter(key => !KINDS.has(registry[key])).sort()
+        });
+        const FIXTURE = [
+            "export function drawn() { return canvas?.scene; }",
+            "const judged = () => workingScene();",
+            "// canvas.scene, in a comment",
+            "function quiet() { return \"canvas.scene\"; }",
+            "class Board { static where() { return game.scenes.viewed; } }"
+        ].join("\n");
+        equal(JSON.stringify(judge(readersIn("f.mjs", FIXTURE), { "f.mjs#drawn": "draw", "f.mjs#Board": "rule", "f.mjs#gone": "own" })),
+            JSON.stringify({ unregistered: ["f.mjs#judged"], stale: ["f.mjs#gone"], kinds: ["f.mjs#Board"] }),
+            "the reader does not find exactly the unregistered reader, the stale row and the bad kind planted in its fixture");
+
+        const { CAMERA_READERS } = await import("./rooms.mjs");
+        const sources = await otherSources();
+        must(sources.length > 100 && sources.some(([file]) => file === "rooms.mjs"),
+            "the module's own files are not served - this would measure nothing");
+        const found = sources.flatMap(([file, raw]) => readersIn(file, raw));
+        must(found.includes("utils.mjs#workingScene"),
+            `the reader does not find workingScene, the windows' reader (it finds ${found.length}) - this would measure nothing`);
+        equal(JSON.stringify(judge(found, CAMERA_READERS ?? {})), JSON.stringify({ unregistered: [], stale: [], kinds: [] }),
+            "a function reads the camera without a row in rooms.mjs CAMERA_READERS (unregistered), a row names a function that no "
+            + "longer reads it (stale), or a row's kind is not definition, draw, window, diagnose or own (kinds)");
+        log(`R382: ${sources.length} files, ${found.length} camera readers, ${Object.keys(CAMERA_READERS).length} rows`);
     }]
 ];
 

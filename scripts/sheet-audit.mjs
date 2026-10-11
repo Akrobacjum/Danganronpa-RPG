@@ -1739,8 +1739,9 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!relief) {
         kind = moved[0];
         if (!REST[kind] || now[kind] !== restStamp(kind, getClock())) return null;
-        const { roomOfActor } = await import("./movement.mjs");
-        if (!roomAllows(roomOfActor(actor), kind)) return null;
+        const { locateActor } = await import("./movement.mjs");
+        const place = locateActor(actor);
+        if (!roomAllows(place?.room ?? null, kind, place?.scene)) return null;
     }
     const rules = REST[kind];
     if (!rules) return null;
@@ -2146,7 +2147,9 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
  */
 async function placeStands(actor, item, before, now) {
     const V = await import("./vault.mjs");
-    const stashOf = data => isStashed(itemLike(data)) ? V.stashRoomOfItem(itemLike(data), actor) : null;
+    const { sceneOfActor } = await import("./movement.mjs");
+    const scene = sceneOfActor(actor);
+    const stashOf = data => isStashed(itemLike(data)) ? V.stashRoomOfItem(itemLike(data), actor, scene) : null;
     const was = stashOf(before), is = stashOf(now);
     if (was === is) return true;
     const room = await V.myStashHere(actor);
@@ -2154,7 +2157,7 @@ async function placeStands(actor, item, before, now) {
     const category = foundry.utils.getProperty(now, `flags.${MODULE_ID}.${ITEM_FLAGS.category}`);
     if (is !== null) {
         return was === null && is === room && category !== "truthBullet"
-            && V.stashItemsIn(actor, room).filter(other => other.id !== item.id).length < VAULT_LIMIT;
+            && V.stashItemsIn(actor, room, scene).filter(other => other.id !== item.id).length < VAULT_LIMIT;
     }
     if (was !== room) return false;
     const cap = canCarry(actor, category);

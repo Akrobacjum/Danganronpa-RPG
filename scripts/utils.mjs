@@ -4,6 +4,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
+import { viewedScene } from "./rooms.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -251,21 +252,20 @@ export function plural(key, data = {}, countOn = "n") {
 }
 
 /**
- * The scene the GM is actually working on.
+ * The scene a GM's WINDOW means by "this scene" - Room Setup, Season setup, the dashboards -
+ * and nothing else (E12 C6, 11.10.2026; plan-E12 3.3): the camera (rooms.mjs `viewedScene`)
+ * when there is one, the world's active scene for code running with no canvas at all.
  *
- * `game.scenes.active` is a world flag - whichever scene was last marked
- * "active" for player navigation, which a GM building next chapter's map
- * leaves pointed at the CURRENT one while they work on the NEXT. Season setup
- * used to read `game.scenes.active` for its "rooms" step and told the GM their
- * freshly-drawn regions did not exist, because the scene showing on their own
- * canvas was not the one the flag named.
- *
- * `canvas?.scene` - what is actually rendered - is what a GM configuring rooms
- * means by "this scene", so it wins whenever there is one. The world flag is
- * only the fallback for code running with no canvas at all.
+ * `game.scenes.active` alone is wrong for a window: it is whichever scene was last marked for
+ * player navigation, which a GM building next chapter's map leaves on the current one, and
+ * Season setup told that GM their freshly drawn regions did not exist. The camera is wrong for
+ * a rule: until 1.2.74 the readers of rooms, stashes, Search tokens and traces defaulted to
+ * this function, so a GM's browser judged a player's Search on whatever scene that GM had on
+ * screen. They take the scene of what they judge now, and this function may be called only
+ * from a function rooms.mjs `CAMERA_READERS` lists as a window (R382).
  */
 export function workingScene() {
-    return canvas?.scene ?? game.scenes.active ?? null;
+    return viewedScene() ?? game.scenes.active ?? null;
 }
 
 export function ownerOf(actor) {

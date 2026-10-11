@@ -30,7 +30,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
 import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
-import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
+import { locateActor, sceneOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
@@ -314,7 +314,7 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
 }
 
 /** The RollTable this room draws from, or `null` for the global pool. */
-export function roomTable(room, scene = workingScene()) {
+export function roomTable(room, scene) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.table) || null;
 }
 
@@ -324,12 +324,12 @@ export function roomTable(room, scene = workingScene()) {
  * Read by every client, not just the GM's - a room description is one of the
  * few pieces of the GM's own prose this game means for the table to see.
  */
-export function roomDescription(room, scene = workingScene()) {
+export function roomDescription(room, scene) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.description) ?? "";
 }
 
 /** Categories this room is a good place to search for. */
-export function roomFavours(room, scene = workingScene()) {
+export function roomFavours(room, scene) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
 }
 
@@ -340,12 +340,12 @@ export function roomFavours(room, scene = workingScene()) {
  * bandages should not be as good a bet, and the guide agrees: "co się znajdzie,
  * może zależeć od pomieszczenia".
  */
-export function favoursCategory(room, category) {
-    return roomFavours(room).includes(category);
+export function favoursCategory(room, category, scene) {
+    return roomFavours(room, scene).includes(category);
 }
 
 /** Categories this room is a poor place to search for. */
-export function roomHinders(room, scene = workingScene()) {
+export function roomHinders(room, scene) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [];
 }
 
@@ -357,8 +357,8 @@ export function roomHinders(room, scene = workingScene()) {
  * disadvantage rather than mere absence of the bonus - a room can be actively
  * the wrong place to dig for a thing, not just not the best one.
  */
-export function hindersCategory(room, category) {
-    return roomHinders(room).includes(category);
+export function hindersCategory(room, category, scene) {
+    return roomHinders(room, scene).includes(category);
 }
 
 /* ==========================================================================
@@ -425,7 +425,7 @@ export function vaultOwnerOf(room, scene) {
  * The array is rebuilt rather than handed back, so no caller can edit the
  * region's stored flag by mutating what it was given.
  */
-export function stashesIn(room, scene = workingScene()) {
+export function stashesIn(room, scene) {
     return stashesOn(regionsByName(scene).get(room));
 }
 
@@ -455,12 +455,12 @@ function stashesOn(region) {
 }
 
 /** One person's stash in one room, or `null`. */
-export function stashIn(room, actorId, scene = workingScene()) {
+export function stashIn(room, actorId, scene) {
     return stashesIn(room, scene).find(entry => entry.actorId === actorId) ?? null;
 }
 
 /** Every room on the scene where this character has a stash. */
-export function stashRoomsFor(actor, scene = workingScene()) {
+export function stashRoomsFor(actor, scene) {
     if (!actor) return [];
     const out = [];
     for (const [name, region] of regionsByName(scene)) {
@@ -479,7 +479,7 @@ export function stashRoomsFor(actor, scene = workingScene()) {
  * order a GM happened to tick boxes in, and the bedroom is the one room a
  * player can always get back into.
  */
-export function primaryStashRoom(actor, scene = workingScene()) {
+export function primaryStashRoom(actor, scene) {
     if (!actor) return null;
 
     // ONE WALK ANSWERS BOTH HALVES. The obvious spelling - `stashRoomsFor` and
@@ -499,7 +499,7 @@ export function primaryStashRoom(actor, scene = workingScene()) {
 }
 
 /** The room this character's bedroom IS, owner flag only. */
-export function vaultRoomOwnedBy(actor, scene = workingScene()) {
+export function vaultRoomOwnedBy(actor, scene) {
     if (!actor) return null;
     for (const [name, region] of regionsByName(scene)) {
         if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
@@ -515,7 +515,7 @@ export function vaultRoomOwnedBy(actor, scene = workingScene()) {
  * region, which is exactly when it should happen: the moment somebody edits
  * this room, the old two-flag shape stops being the source of truth for it.
  */
-export async function setStash(room, actorId, { present = undefined, concealed = undefined, scene = workingScene() } = {}) {
+export async function setStash(room, actorId, { present = undefined, concealed = undefined, scene = null } = {}) {
     if (!game.user.isGM || !room || !actorId) return null;
 
     // The scene the caller names; the camera's when it names none, as `regionsByName()`
@@ -675,7 +675,7 @@ export function startLocked(region) {
  * person's stash should call `stashIn(room, actorId).concealed` instead: this
  * cannot answer for the stash somebody built in a room that is not theirs.
  */
-export function isConcealed(room, scene = workingScene()) {
+export function isConcealed(room, scene) {
     const ownerId = vaultOwnerOf(room, scene);
     if (!ownerId) return false;
     return Boolean(stashIn(room, ownerId, scene)?.concealed);
@@ -689,18 +689,18 @@ export function isConcealed(room, scene = workingScene()) {
  * now - the bedroom when they have a stash in it, the first one otherwise -
  * which is the closest true thing to what every existing caller meant.
  */
-export function vaultRoomFor(actor, scene = workingScene()) {
+export function vaultRoomFor(actor, scene) {
     return primaryStashRoom(actor, scene);
 }
 
 /** Which stash an item is lying in. Unmarked means the owner's primary. */
-export function stashRoomOfItem(item, owner, scene = workingScene()) {
+export function stashRoomOfItem(item, owner, scene) {
     return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.stashRoom)
         ?? primaryStashRoom(owner, scene);
 }
 
 /** What this character has stashed in ONE room. */
-export function stashItemsIn(actor, room, scene = workingScene()) {
+export function stashItemsIn(actor, room, scene) {
     if (!actor || !room) return [];
     // The primary is a fact about the CHARACTER, not about each item, so it is
     // worked out once. Calling `stashRoomOfItem` per item asked the same
@@ -775,7 +775,7 @@ export function bedroomOwnerAnywhere(room) {
  * Room Setup counted the unowned ones and rounded differently. The same map got
  * two answers, and neither of them was the guide's.
  */
-export function sharedRooms(scene = workingScene()) {
+export function sharedRooms(scene) {
     const out = [];
     for (const [name, region] of regionsByName(scene)) {
         if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner)) continue;
@@ -797,7 +797,7 @@ export function roomsWantedFor(people) {
 }
 
 /** Every stash on the scene, wherever it is and whoever it belongs to. */
-export function allVaults(scene = workingScene()) {
+export function allVaults(scene) {
     const out = [];
     for (const [name] of regionsByName(scene)) {
         for (const entry of stashesIn(name, scene)) {
@@ -819,12 +819,12 @@ export function allVaults(scene = workingScene()) {
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
     owner = undefined, table = undefined,
-    favours = undefined, hinders = undefined, description = undefined, scene = workingScene()
+    favours = undefined, hinders = undefined, description = undefined, scene = null
 } = {}) {
     if (!game.user.isGM) return null;
 
-    // The scene the caller names; the camera's default moved up here from `regionsByName`
-    // by E12 C2a. Every region of the name is written (`updateRoom`), a room's or not:
+    // The scene the caller names, with no default since E12 C6 (it was the camera's, moved up
+    // here from `regionsByName` by E12 C2a). Every region of the name is written (`updateRoom`), a room's or not:
     // Room Setup lists the named regions so that a GM can make one a room.
     const region = namedRegions(scene, room).at(-1);
     if (!region) return null;
@@ -865,14 +865,14 @@ export function vaultContents(actor) {
  * Was "am I in my one stash room" and is now "which of mine is this", because
  * the answer stopped being unique. Returns the room NAME so `stow` can stamp it
  * onto the item - a boolean would have made the caller ask the same question
- * again and get a different answer for anybody with two stashes.
+ * again and get a different answer for anybody with two stashes. The room and its stash
+ * are read on the scene the character stands on (E12 C6), as `stow` and `retrieve` read it.
  */
 export async function myStashHere(actor) {
     if (!actor) return null;
-    const { roomOfActor } = await import("./movement.mjs");
-    const room = roomOfActor(actor);
-    if (!room) return null;
-    return stashIn(room, actor.id) ? room : null;
+    const place = locateActor(actor);
+    if (!place?.room) return null;
+    return stashIn(place.room, actor.id, place.scene) ? place.room : null;
 }
 
 /** Compatibility: `game.drpg.atOwnVault` predates several stashes. */
@@ -922,7 +922,7 @@ export async function stow(actor, item) {
     // `ITEM_FLAGS.stashRoom` - the rule `stashItemsIn` applies and this line
     // did not, so an old stash listed three things and still took a fourth
     // (audit A3).
-    const here = stashItemsIn(actor, room);
+    const here = stashItemsIn(actor, room, sceneOfActor(actor));
     if (here.length >= VAULT_LIMIT) {
         ui.notifications.warn(game.i18n.format("DRPG.Vault.full",
             { room, limit: VAULT_LIMIT }));
@@ -955,7 +955,7 @@ export async function retrieve(actor, item) {
     // Two stashes and a shared "am I at a stash" test would let a player pull
     // something out of a drawer on the other side of the building.
     const here = await myStashHere(actor);
-    if (!here || stashRoomOfItem(item, actor) !== here) {
+    if (!here || stashRoomOfItem(item, actor, sceneOfActor(actor)) !== here) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
         return false;
     }
@@ -1007,16 +1007,21 @@ export async function retrieve(actor, item) {
 export function openStashesHere(actor) {
     if (!actor) return [];
 
-    // `roomOfActor` is the module's one answer to "which room is this actor in"
-    // - it already handles unlinked tokens, an empty region set and the
-    // geometric fallback. A local re-implementation here was a third copy of
-    // that logic, and a copy of a geometric test is a copy that drifts.
-    const room = roomOfActor(actor);
+    // `locateActor` is the module's one answer to "where is this actor" - it
+    // already handles unlinked tokens, an empty region set and the geometric
+    // fallback. A local re-implementation here was a third copy of that logic,
+    // and a copy of a geometric test is a copy that drifts. Its scene is the one
+    // the stashes are read on (E12 C6): until 1.2.74 they were read on the scene
+    // on screen, so a GM's browser listed another map's stashes for a room of
+    // the same name.
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
+    const scene = place?.scene ?? null;
     if (!room) return [];
 
     const mastermind = iAmTheMastermind();
     const out = [];
-    for (const entry of stashesIn(room)) {
+    for (const entry of stashesIn(room, scene)) {
         if (entry.actorId === actor.id) continue;         // yours is not a theft
         // Hidden: needs a Search - unless you are the Mastermind, to whom a
         // hiding place is furniture they watched being built (Dawid, 26.08).
@@ -1026,11 +1031,11 @@ export function openStashesHere(actor) {
         // hiding place to one person, and after that it is simply a stash they
         // know about. See `resolveStashSearch`.
         if (entry.concealed && !mastermind
-            && !hasFoundStash(actor, room, entry.actorId)) continue;
+            && !hasFoundStash(actor, room, entry.actorId, scene)) continue;
 
         const owner = game.actors.get(entry.actorId);
         if (!owner) continue;
-        out.push({ owner, room, items: stashItemsIn(owner, room) });
+        out.push({ owner, room, items: stashItemsIn(owner, room, scene) });
     }
     return out;
 }
@@ -1733,12 +1738,12 @@ export async function plantOnPerson({
  * ========================================================================== */
 
 /** One key per stash, so two stashes in one room stay separate. */
-function foundKey(room, ownerId, scene = workingScene()) {
+function foundKey(room, ownerId, scene) {
     return `${scene?.id ?? "?"}::${room}::${ownerId}`;
 }
 
 /** Has this character already found that hiding place? */
-export function hasFoundStash(actor, room, ownerId, scene = workingScene()) {
+export function hasFoundStash(actor, room, ownerId, scene) {
     const found = actor?.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
     return Array.isArray(found) && found.includes(foundKey(room, ownerId, scene));
 }

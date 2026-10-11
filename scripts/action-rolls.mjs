@@ -36,7 +36,7 @@ import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
-import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
+import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
@@ -392,7 +392,8 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
 
 /** The cost / statistics / room lines every briefing ends with. */
 function briefingFacts(actor, actionKey, def, extraFacts = []) {
-    const room = roomOfActor(actor);
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
     const cost = def.cost ?? 1;
     const facts = [];
 
@@ -444,7 +445,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     // what is true of the room the character is standing in, now.
     if (actionKey === "search" && room) {
         facts.push(game.i18n.format("DRPG.Action.searchTokensLeft", {
-            left: SearchTokens.left(room),
+            left: SearchTokens.left(room, place?.scene),
             max: SearchTokens.max
         }));
     }
@@ -931,7 +932,7 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
 function remnantRef(placed) {
     const doc = placed?.document ?? placed;
     if (!doc?.id) return { remnantId: null, remnantScene: null };
-    return { remnantId: doc.id, remnantScene: doc.parent?.id ?? canvas?.scene?.id ?? null };
+    return { remnantId: doc.id, remnantScene: doc.parent?.id ?? null };
 }
 
 /**
@@ -1698,8 +1699,8 @@ function canAfford(actor, cost) {
  * SEARCH
  * ========================================================================== */
 
-/** The stash a Search rifles first, if the room holds one with anything in it. */
-function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
+/** The stash a Search rifles first, if the room - on the searcher's scene - holds one with anything in it. */
+function stashToSearch(actor, room, scene, { stashesIn, stashItemsIn }) {
     /*
      * WHICH STASH A SEARCH FINDS, when the room holds more than one.
      *
@@ -1713,7 +1714,7 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
      *
      * Your own is skipped: you do not search a room to find your own drawer.
      */
-    const inRoom = stashesIn(room).filter(entry => entry.actorId !== actor.id);
+    const inRoom = stashesIn(room, scene).filter(entry => entry.actorId !== actor.id);
     const ordered = [...inRoom.filter(e => !e.concealed), ...inRoom.filter(e => e.concealed)];
 
     let stashOwner = null;
@@ -1722,7 +1723,7 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
     for (const entry of ordered) {
         const owner = game.actors.get(entry.actorId);
         if (!owner) continue;
-        const loot = stashItemsIn(owner, room);
+        const loot = stashItemsIn(owner, room, scene);
         if (!loot.length) continue;
         stashOwner = owner;
         stashLoot = loot;
@@ -1761,14 +1762,20 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
  * The concealed stash's other half, finding it at all, is unchanged.
  *
  * `vault` is vault.mjs, which `performSearch` imports when a Search runs.
+ *
+ * Read on the searcher's scene (`sceneOfActor`, E12 C6), which the window's count
+ * (roll-draw.mjs) and the GM drawing the roll read alike. Until 1.2.74 the favours, the
+ * hindrances and the stash were read on the scene on screen, so a GM looking at another map
+ * drew the dice of a room of the same name there.
  */
 export function searchOdds(actor, room, category, vault) {
     const { favoursCategory, hindersCategory, stashesIn, stashItemsIn } = vault;
-    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, { stashesIn, stashItemsIn });
+    const scene = sceneOfActor(actor);
+    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, scene, { stashesIn, stashItemsIn });
 
     let situational = 0;
-    if (favoursCategory(room, category)) situational += 1;
-    if (hindersCategory(room, category)) situational -= 1;
+    if (favoursCategory(room, category, scene)) situational += 1;
+    if (hindersCategory(room, category, scene)) situational -= 1;
     const stashDie = Boolean(stashLoot.length && stashConcealed);
     return { situational, stashDie, stashOwner, stashLoot };
 }
@@ -1902,7 +1909,7 @@ export function situationLine(step, score) {
 }
 
 /** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
-async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid }) {
+async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid }) {
     // WHY the token was refused decides what the player is told and whether
     // they keep the action.
     //
@@ -1922,7 +1929,7 @@ async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid
     // charge was introduced for - "a room they knew was empty" is the Hope
     // generator, and it still costs - while an unanswered request is the
     // module failing the player, not the player gaming it.
-    const reallyEmpty = SearchTokens.left(room) <= 0;
+    const reallyEmpty = SearchTokens.left(room, scene) <= 0;
     // With the receipt the spend handed back, so a Burst returns as a Burst.
     if (!reallyEmpty && paid) await refundAction(actor, paid.amount, paid);
 
@@ -1933,7 +1940,7 @@ async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid
         text: game.i18n.localize(reallyEmpty
             ? "DRPG.SearchTokens.pickedClean"
             : "DRPG.SearchTokens.timeout"),
-        room, tokensLeft: SearchTokens.left(room)
+        room, tokensLeft: SearchTokens.left(room, scene)
     });
     return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
 }
@@ -1942,7 +1949,7 @@ async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid
 // happens - and the tier it reaches is exactly the information the GM needs
 // to decide what was really there - so the result goes to them with the
 // player's own description attached.
-async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra = "", stash = null }) {
+async function searchSpecific(actor, def, roll, { room, scene, category, request, tier, hit, paid, extra = "", stash = null }) {
     await callGm(actor, {
         title: def.label,
         request,
@@ -1997,13 +2004,13 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
         text: game.i18n.localize("DRPG.Action.specificSent"),
         extra,
         stash,
-        room, tokensLeft: SearchTokens.left(room)
+        room, tokensLeft: SearchTokens.left(room, scene)
     });
     return { calledGm: true, roll, tier, request };
 }
 
 /** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
-async function searchNothing(actor, def, roll, { room, category, goalKey, extra = "", stash = null }) {
+async function searchNothing(actor, def, roll, { room, scene, category, goalKey, extra = "", stash = null }) {
     await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
 
     /*
@@ -2020,7 +2027,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey, extra 
      */
     playSfx("searchNothing");
 
-    await report(actor, def, roll, { text: def.failure, extra, stash, room, tokensLeft: SearchTokens.left(room) });
+    await report(actor, def, roll, { text: def.failure, extra, stash, room, tokensLeft: SearchTokens.left(room, scene) });
     return { success: false };
 }
 
@@ -2031,7 +2038,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey, extra 
 // room's own contents once the stash is empty. Nothing is drawn for a stash
 // - the loot is whatever its owner actually put in it, which is what makes
 // rifling through one worth the action.
-async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra = "", stash = null }) {
+async function searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra = "", stash = null }) {
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
     // The declaration still counts. Somebody rummaging for a weapon who
@@ -2074,7 +2081,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
     await report(actor, def, roll, {
-        success: true, text, extra, stash, room, tokensLeft: SearchTokens.left(room)
+        success: true, text, extra, stash, room, tokensLeft: SearchTokens.left(room, scene)
     });
     return { success: true, roll, tier, fromVault: true };
 }
@@ -2110,9 +2117,9 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
      * this far only once a failure, a request sent to a GM and a stash find have
      * all returned, and each of those leaves the plant in the room (ACT-03).
      */
-async function searchDraw(room, category, tier, goalKey, actor = null) {
+async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
     // The roll it is drawn for, so the GMs' fact of it goes on that roll's row (fix r1-G2).
-    const plant = await SearchTokens.takePlant(room, undefined,
+    const plant = await SearchTokens.takePlant(room, scene?.id ?? null,
         { actorId: actor?.id ?? null, rollId: actor ? rollInHand(actor)?.messageId ?? null : null });
 
     return plant
@@ -2126,7 +2133,7 @@ async function searchDraw(room, category, tier, goalKey, actor = null) {
             substitute: true,
             identity: plant.drpgItemId
         }
-        : await drawItem(category, tier, { goal: goalKey, room });
+        : await drawItem(category, tier, { goal: goalKey, room, scene });
 }
 
     // The item actually goes into the inventory, subject to the carry limits.
@@ -2231,7 +2238,13 @@ async function performSearch(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const room = options.room ?? roomOfActor(actor);
+    // Where the searcher stands, read once (E12 C6): the room, and the scene whose seal,
+    // tokens, plant and table answer for it - not the scene on the screen of the browser that
+    // runs the Search, which until 1.2.74 they each read. With no token, the school, as
+    // `searchOdds` reads it (`sceneOfActor`).
+    const place = locateActor(actor);
+    const room = options.room ?? place?.room ?? null;
+    const scene = place ? place.scene : sceneOfActor(actor);
     if (!room) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
         return null;
@@ -2240,7 +2253,7 @@ async function performSearch(actor, def, options) {
     // BEFORE the picker, not after it. A sealed room is not a question about
     // what you are looking for - there is nothing in there to look for - so
     // asking is a form the answer to which was always going to be no.
-    if (SearchTokens.sealed(room)) {
+    if (SearchTokens.sealed(room, scene)) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.sealed"));
         return null;
     }
@@ -2252,7 +2265,7 @@ async function performSearch(actor, def, options) {
 
     // Refuse early when the room is already spent, so the player is not walked
     // through a roll only to be told there was nothing left.
-    if (SearchTokens.left(room) <= 0) {
+    if (SearchTokens.left(room, scene) <= 0) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.exhausted"));
         return null;
     }
@@ -2292,7 +2305,7 @@ async function performSearch(actor, def, options) {
     // Spending it up front meant backing out of the trait picker or the roll
     // window burned one of the room's three searches for nothing - twice and
     // the room was closed for the rest of the time of day.
-    const claimed = await SearchTokens.spend(room, undefined, { actorId: actor.id });
+    const claimed = await SearchTokens.spend(room, scene?.id ?? null, { actorId: actor.id });
 
     // Kept whatever the token says - it was paid before the roll. The check
     // above the picker reads this client's copy of the counter, which can be a
@@ -2304,7 +2317,7 @@ async function performSearch(actor, def, options) {
     // Paying for it is also just what happened in the fiction. They searched a
     // room somebody else had already picked clean.
 
-    if (!claimed) return searchUnclaimed(actor, def, roll, { room, category, goalKey, paid });
+    if (!claimed) return searchUnclaimed(actor, def, roll, { room, scene, category, goalKey, paid });
 
     // The hidden stash's step lands here, on the total the tiers read, and the card says
     // so (`situationLine`); the roll message keeps the dice's own total. The die it sets
@@ -2316,13 +2329,13 @@ async function performSearch(actor, def, options) {
     const extra = situationLine(step, score);
     const stash = step ? { ...step, score } : null;
 
-    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra, stash });
+    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, scene, category, request, tier, hit, paid, extra, stash });
 
-    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey, extra, stash });
+    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, scene, category, goalKey, extra, stash });
 
-    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, scene, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
 
-    const drawn = await searchDraw(room, category, tier, goalKey, actor);
+    const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
     const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
 
@@ -2338,7 +2351,7 @@ async function performSearch(actor, def, options) {
         leftTrace,
         extra,
         stash,
-        room, tokensLeft: SearchTokens.left(room)
+        room, tokensLeft: SearchTokens.left(room, scene)
     };
 
     // Everything Reroll needs to take this Search back: the item to remove, the
@@ -5293,7 +5306,8 @@ async function performListen(actor, def, options) {
  */
 async function performRest(actor) {
     const { takeRest, roomAllows, restRoomsSentence, restSpent } = await import("./rest.mjs");
-    const room = roomOfActor(actor);
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
 
     // One row per rest, each carrying its own price and its own reason for
     // being unavailable - spent already, or not allowed in this room. Both
@@ -5302,9 +5316,9 @@ async function performRest(actor) {
     // they could not have.
     const variant = kind => {
         const spent = restSpent(actor, kind);
-        const allowed = roomAllows(room, kind);
+        const allowed = roomAllows(room, kind, place?.scene);
         // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence`.
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn");
+        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene);
 
         return {
             value: kind,

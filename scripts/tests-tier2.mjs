@@ -2810,8 +2810,8 @@ const MODIFIER_FIXTURES = Object.freeze([
             const gone = async () => { if (item) await t.other.items.get(item.id)?.delete(); };
             if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room.room });
             await settle();
-            if (!item || V.stashItemsIn(t.other, room.room).length !== 1) { await gone(); await room.back(); }
-            must(item && V.stashItemsIn(t.other, room.room).length === 1, "the thing is not in the hidden stash - this would measure nothing");
+            if (!item || V.stashItemsIn(t.other, room.room, canvas?.scene).length !== 1) { await gone(); await room.back(); }
+            must(item && V.stashItemsIn(t.other, room.room, canvas?.scene).length === 1, "the thing is not in the hidden stash - this would measure nothing");
             return { off: async () => { await gone(); await room.set(); }, undo: async () => { await gone(); await room.back(); } };
         },
         claim: (t, s, on) => ({ edit: p => ({ ...p, context: { category: "usable", ...(on ? { stashDie: true } : {}) } }) }),
@@ -9533,7 +9533,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
-            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             // ceil((1 - 0.01) * 6) = 6 on the GM; ceil((1 - 0.99) * 6) = 1 on the searcher's half.
             Dice.randomUniform = () => 0.01;
             F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, context: { category: "usable", stashDie: true } }) });
@@ -10942,7 +10942,7 @@ const SCENARIOS = [
             const item = await INV.grantItem(owner, { name: NAME, category: "usable", tier: 1, override: true, quiet: true });
             must(item, `${owner.name} could not be handed an item - this would measure nothing`);
             await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: where.room });
-            must(V.stashItemsIn(owner, where.room).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
+            must(V.stashItemsIn(owner, where.room, canvas?.scene).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
             const searched = [];
             for (const total of [3, 20]) {
                 const { message } = await neutralRoll(actor);
@@ -17593,7 +17593,7 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
         const thrown = [];
         try {
-            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            must(SearchTokens.left(stood.room, canvas?.scene) > 0 && !SearchTokens.sealed(stood.room, canvas?.scene), `${stood.room} has no search token left`);
             actor.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
             await performAction(actor, "search", { free: true });
             const root = document.createElement("div");
@@ -17726,7 +17726,7 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
         const thrown = [];
         try {
-            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            must(SearchTokens.left(stood.room, canvas?.scene) > 0 && !SearchTokens.sealed(stood.room, canvas?.scene), `${stood.room} has no search token left`);
             await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed");
@@ -26725,7 +26725,7 @@ const SCENARIOS = [
         const room = roomOfActor(actor);
         ok(room, `${actor?.name} is not standing in a room`);
 
-        const had = Boolean(V.stashIn(room, actor.id));
+        const had = Boolean(V.stashIn(room, actor.id, canvas?.scene));
         /* The room's list AS IT WAS (E30, 24.09.2026). The finally put the stash back
            with setStash, which writes a list, so a room that had no list was left
            with an empty one: "regions.REGDORMA00000000.flags.danganronpa-rpg (none) ->
@@ -26737,25 +26737,25 @@ const SCENARIOS = [
         const listBefore = foundry.utils.deepClone(region?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
         let item = null;
         try {
-            if (!had) await V.setStash(room, actor.id, { present: true });
+            if (!had) await V.setStash(room, actor.id, { present: true, scene: canvas?.scene });
             await settle();
 
             item = await INV.grantItem(actor, { name: "SUITE stowed", category: "usable", tier: 1 });
             ok(await V.stow(actor, item), "could not put the thing in the stash");
             await settle();
-            equal(V.stashItemsIn(actor, room).length, 1, "the thing did not go in");
+            equal(V.stashItemsIn(actor, room, canvas?.scene).length, 1, "the thing did not go in");
 
-            const refused = await V.setStash(room, actor.id, { present: false });
+            const refused = await V.setStash(room, actor.id, { present: false, scene: canvas?.scene });
             await settle();
             equal(refused, null, "a stash holding something was removed");
-            ok(V.stashIn(room, actor.id), "the stash is gone and the thing is still in it");
+            ok(V.stashIn(room, actor.id, canvas?.scene), "the stash is gone and the thing is still in it");
 
             // And an EMPTY one still goes, because that is the whole point of
             // the control.
             await V.retrieve(actor, item);
             await settle();
-            equal(V.stashItemsIn(actor, room).length, 0, "could not take the thing back out");
-            ok(await V.setStash(room, actor.id, { present: false }) !== null,
+            equal(V.stashItemsIn(actor, room, canvas?.scene).length, 0, "could not take the thing back out");
+            ok(await V.setStash(room, actor.id, { present: false, scene: canvas?.scene }) !== null,
                 "an empty stash refused to be removed");
         } finally {
             if (item) await item.delete().catch(() => {});
@@ -38054,8 +38054,8 @@ const SCENARIOS = [
             for (const region of regions) await region.update({ [key]: true });
             await settle();
             const say = known => typeof R.restRoomsSentence === "function"
-                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, known) : null;
-            const all = R.restRooms("short");
+                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, canvas?.scene, known) : null;
+            const all = R.restRooms("short", canvas?.scene);
             must(rooms.every(room => all.includes(room)), "the two rooms were not marked");
             equal(stableJson([say(new Set([rooms[0]])), say(new Set()), say(null)]), stableJson([
                 game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms[0] }),
@@ -38102,7 +38102,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
             await settle();
-            must(V.stashItemsIn(owner, room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
             equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
                 stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
@@ -38162,7 +38162,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
-            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const total = low + 1;
             actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
                 options: { roll: { trait: "instinct" } },
@@ -38177,7 +38177,7 @@ const SCENARIOS = [
             const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
             const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
             equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
-                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room).length]),
+                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room, canvas?.scene).length]),
             stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
             "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
         } finally {
@@ -47424,6 +47424,61 @@ const SCENARIOS = [
         equal(JSON.stringify(reading), JSON.stringify(expected),
             "a caller with no token (so the school's), viewing another scene: the refusal before paying for that scene's room and for the school's, "
             + "what the effect did with each (failed, the order's scene), and how often the refusal was told");
+    }],
+    ["a character's stash and search odds are read on the scene the character stands on whatever scene is on screen", async () => {
+        /*
+         * E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15. A room's stashes, favours and hindrances
+         * were read on the scene on screen (`stashesIn(room, scene = workingScene())` and its kin),
+         * so a GM looking at another map answered a character's Search and listed the stashes in
+         * their room off a room of the same name there. They are read on the character's own
+         * scene now (`locateActor`, `sceneOfActor`). Here a scene of the suite's own holds a room
+         * named as the student's, with another student's open stash in it and a category it
+         * favours that the student's own room neither favours nor hinders; the student has no
+         * token on it. The open stashes and the odds are read with the camera on the student's
+         * scene and then on the suite's, and must not move. Red before C6: with the camera on the
+         * suite's scene the other student's stash was listed and the room's favour counted (+1).
+         */
+        const [student, other] = cast(2);
+        const Mv = await import("./movement.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const A = await import("./action-rolls.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const here = Mv.locateActor(student);
+        const home = canvas?.scene ?? null;
+        must(here?.room && here.scene === home, `${student.name} stands in no room of the scene on screen (${here?.scene?.name ?? "none"}) - the two readings would not differ by the camera`);
+        must(!V.stashesIn(here.room, here.scene).some(entry => entry.actorId === other.id), `${other.name} already keeps a stash in "${here.room}" - the scene of the suite's own could not add one`);
+        const category = Object.keys(ITEM_CATEGORIES).find(key => key !== "truthBullet"
+            && !V.favoursCategory(here.room, key, here.scene) && !V.hindersCategory(here.room, key, here.scene));
+        must(category, `"${here.room}" favours or hinders every category - a favour on the other scene would not show`);
+        const reading = () => [V.openStashesHere(student).map(entry => entry.owner.id),
+            A.searchOdds(student, here.room, category, V).situational];
+        let read = null, first = null;
+        await G.withGmStoreWorld(`suite-c6-camera-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: "SUITE E12 C6 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: other.id, concealed: false }],
+                        [V.VAULT_FLAGS.favours]: [category] } }, behaviors: [] }]);
+                await settle();
+                must(Mv.locateActor(student)?.scene === home, `${student.name} is placed on ${Mv.locateActor(student)?.scene?.name ?? "no scene"} once the suite's scene exists - the test reads nothing about the camera`);
+                first = reading();
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - this would measure nothing");
+                read = [first, reading()];
+            } finally {
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        const expected = [first[0].filter(id => id !== other.id), 0];
+        equal(stableJson(read), stableJson([expected, expected]),
+            `${student.name}'s open stashes in "${here.room}" (owners' ids) and the Search odds' situational step for "${category}", `
+            + "with the camera on their scene and then on a scene of the suite's own that holds a room of the same name");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

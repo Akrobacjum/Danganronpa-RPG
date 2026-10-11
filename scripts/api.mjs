@@ -9,7 +9,8 @@
 import { DRPG, MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, bodyDiscovery, clearBodyDiscovery }
     from "./settings.mjs";
-import { SearchTokens } from "./search-tokens.mjs";
+import { SearchTokens, showSearchTokens } from "./search-tokens.mjs";
+import { sceneOfRoom } from "./rooms.mjs";
 import { getUltimate, setUltimate, findDuplicateUltimates } from "./sheet.mjs";
 import { openAdvancement, openAdvancementFor, applyAdvancement } from "./level-up.mjs";
 import { auditAnonymity, explainOwnership } from "./anonymity.mjs";
@@ -1216,11 +1217,12 @@ export const DrpgApi = {
 
     searchTokens: SearchTokens,
 
-    /** Shorthands kept for the existing GM macros. */
-    tokensLeft: roomName => SearchTokens.left(roomName),
-    useToken: roomName => SearchTokens.spend(roomName),
+    /** Shorthands kept for the existing GM macros. A room's scene, unless one is named: the
+     *  school's room of that name before another scene's (`sceneOfRoom`), never the camera's (E12 C6). */
+    tokensLeft: (roomName, scene = sceneOfRoom(roomName)) => SearchTokens.left(roomName, scene),
+    useToken: (roomName, scene = sceneOfRoom(roomName)) => SearchTokens.spend(roomName, scene?.id ?? null),
     resetTokens: () => SearchTokens.reset(),
-    showTokens: () => SearchTokens.report(),
+    showTokens: () => showSearchTokens(),
 
     /* ---- chat ---------------------------------------------------------- */
 

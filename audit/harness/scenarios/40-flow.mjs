@@ -1269,12 +1269,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
         globalThis.__c12bU = CONFIG.Dice.randomUniform;
         CONFIG.Dice.randomUniform = () => 0.01;
-        return { room, stashed: V.stashItemsIn(daichi, room).length };`, { timeout: 30000 });
+        return { room, stashed: V.stashItemsIn(daichi, room, canvas?.scene).length };`, { timeout: 30000 });
     const stashSearch = await p1.eval(`
         const V = await import("${REPO}/scripts/vault.mjs");
         const actor = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
-        for (let i = 0; i < 50 && !V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}).length; i++) await new Promise(r => setTimeout(r, 100));
-        const seen = V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}).length;
+        for (let i = 0; i < 50 && !V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}, canvas?.scene).length; i++) await new Promise(r => setTimeout(r, 100));
+        const seen = V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}, canvas?.scene).length;
         globalThis.__forceRoll = { hope: 2, fear: 1 };
         const real = CONFIG.Dice.randomUniform;
         CONFIG.Dice.randomUniform = () => 0.99;
@@ -1488,7 +1488,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         globalThis.__h6Stash.item = item.id;
         if (game.drpg.tokensLeft(room) <= 0) await game.drpg.resetTokens();
         await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
-        return { room, stashed: V.stashItemsIn(daichi, room).length };`, { timeout: 30000 });
+        return { room, stashed: V.stashItemsIn(daichi, room, canvas?.scene).length };`, { timeout: 30000 });
     await settle(600);
     const NEWEST = action => `Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "${action}").sort((a, b) => b.at - a.at)[0] ?? null`;
     const honestAnalyze = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
@@ -1502,7 +1502,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     await settle(800);
     const honestFound = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const S = await import("${REPO}/scripts/gm-stores.mjs");
         const row = ${NEWEST("analyze")};
-        return { found: V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(honestSet.room ?? "")}, "${ids.daichi}"), resolved: row?.resolved ?? null };`);
+        return { found: V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(honestSet.room ?? "")}, "${ids.daichi}", canvas?.scene), resolved: row?.resolved ?? null };`);
     const honestSearch = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 12, fear: 11 };
         let err = null;
@@ -1591,8 +1591,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const restSet = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
         const M = await import("${REPO}/scripts/movement.mjs"), REST = await import("${REPO}/scripts/rest.mjs");
         const aiko = game.actors.get("${ids.aiko}"), r = aiko.system.resources;
-        const room = M.roomOfActor(aiko), roomWas = room ? REST.restRooms("short").includes(room) : null;
-        if (room && !roomWas) await REST.setRestRoom(room, { short: true });
+        const room = M.roomOfActor(aiko), roomWas = room ? REST.restRooms("short", canvas?.scene).includes(room) : null;
+        if (room && !roomWas) await REST.setRestRoom(room, { short: true, scene: canvas?.scene });
         const was = { hp: r.hitPoints.value, stress: r.stress.value, actions: r.actions.value,
             rests: aiko.getFlag("${MOD}", "restsTaken") ?? null, grants: aiko.getFlag("${MOD}", "freeActionGrants") ?? null };
         await aiko.update({ "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2,
@@ -1630,7 +1630,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         if (was.grants === null) await aiko.unsetFlag("${MOD}", "freeActionGrants");
         else await aiko.setFlag("${MOD}", "freeActionGrants", was.grants);
         await aiko.items.get("${restSet.kit}")?.delete();
-        if (${JSON.stringify(restSet.room)} && !${restSet.roomWas}) await (await import("${REPO}/scripts/rest.mjs")).setRestRoom(${JSON.stringify(restSet.room)}, { short: false });
+        if (${JSON.stringify(restSet.room)} && !${restSet.roomWas}) await (await import("${REPO}/scripts/rest.mjs")).setRestRoom(${JSON.stringify(restSet.room)}, { short: false, scene: canvas?.scene });
         return out;`);
     {
         const STRESS = "system.resources.stress.value", STAMP = `flags.${MOD}.restsTaken.short`;
@@ -1657,8 +1657,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     phase("a stash, a retrieve and a discard of the day", { flow: "sheet-audit" });
     const dayItems = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
         const V = await import("${REPO}/scripts/vault.mjs"); const M = await import("${REPO}/scripts/movement.mjs");
-        const aiko = game.actors.get("${ids.aiko}"), room = M.roomOfActor(aiko), had = room ? Boolean(V.stashIn(room, aiko.id)) : null;
-        if (room && !had) await V.setStash(room, aiko.id, { present: true });
+        const aiko = game.actors.get("${ids.aiko}"), room = M.roomOfActor(aiko), had = room ? Boolean(V.stashIn(room, aiko.id, canvas?.scene)) : null;
+        if (room && !had) await V.setStash(room, aiko.id, { present: true, scene: canvas?.scene });
         const tool = await INV.grantItem(aiko, { name: "Scenario 40 stashed tool", category: "tool", tier: 1, override: true, quiet: true });
         const broken = await INV.grantItem(aiko, { name: "Scenario 40 broken tool", category: "tool", tier: 1, override: true, quiet: true });
         if (broken) await INV.breakItem(broken);
@@ -1685,7 +1685,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             out.traces = left.length;
             for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
             for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}]) await aiko.items.get(id ?? "")?.delete();
-            if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false });
+            if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false, scene: canvas?.scene });
             await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             out.patches = globalThis.__markPatches;
             return out;`, { timeout: 30000 }) };

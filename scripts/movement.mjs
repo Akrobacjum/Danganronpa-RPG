@@ -1138,7 +1138,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
     let described = "";
     try {
         const { roomDescription } = await import("./vault.mjs");
-        const text = to ? roomDescription(to) : "";
+        const text = to ? roomDescription(to, tokenDoc?.parent ?? sceneOfActor(actor)) : "";
         if (text) described = `<p class="drpg-room-prose">${foundry.utils.escapeHTML(text)}</p>`;
     } catch (err) {
         // A description is a courtesy; the move itself has already been paid
@@ -1335,6 +1335,16 @@ function chosenPlace(places, sceneId) {
     if (pool.length === 1) return pool[0];
     const home = homeScene(), active = game.scenes?.active ?? null;
     return pool.find(place => place.scene === home) ?? pool.find(place => place.scene === active) ?? pool[0];
+}
+
+/**
+ * The scene a character's rules are read on - their room's table, favours, stashes and Search
+ * tokens (E12 C6, plan-E12 3.3): where they stand (`locateActor`), else the school
+ * (`homeScene`), never the scene on screen. Until 1.2.74 those readers took the camera's
+ * scene, so the GM's browser and the player's could answer one Search differently.
+ */
+export function sceneOfActor(actor) {
+    return locateActor(actor)?.scene ?? homeScene();
 }
 
 /** Every place this character has a token, on every scene - `locateActor` for all of them. */
