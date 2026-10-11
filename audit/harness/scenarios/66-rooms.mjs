@@ -51,6 +51,10 @@
  *   N  the rooms p1 knows on Aiko's scene, and the names Listen's labels give that scene's rooms, with p1's camera on
  *      Floor 1, the Annex and nothing, and for a character with no scene (E12 fix r1-G4, review round 1 EARLY-C6-2 and
  *      SEC-2). Every room of the scene stands in for her doors: the harness measures no neighbour of the Hall on p1.
+ *   O  a scene of two floors made here, a Cellar on the ground floor and no room upstairs, Aiko on the ground floor: what
+ *      p1's fog does with the floor that has no room, whether p1's floor switcher outlives the scene's teardown, and
+ *      where the bridge puts Aiko, moved upstairs by the GM, when p1 asks to send her back to the ground floor's spot
+ *      with no floor named (E12 fix r2-H1: review round 2 on EARLY-C10-1, EARLY-C11-2, SEC2-5).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -89,6 +93,7 @@
  * of C14's red first and mutants (one or two checks failing); whether other lanes ran then was not read.
  * The merge of the E12 fix line (r1-G4's K1 and r1-G5's G3, renamed N1 and G10 because C7 and C9 had taken those names on
  * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
+ * E12 fix r2-H1 (O1-O3 added): 43 checks; their time is that commit's fast set's, in its message.
  */
 export const layers = ["ci"];
 
@@ -966,4 +971,61 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
        into an open room as the one it names. */
     check("G10: G2's climb starts with Aiko in the Corridor on the ground floor, under a Vault that is locked (E12 fix r1-G5)",
         setG.corridor === "Corridor" && setG.level === L1 && setG.vaultLocked === true, J(setG));
+
+    /* ------------------------------ O. a floor with no room, the switcher at teardown, a send-back with no floor ------------------------------ */
+    phase("O: a scene of two floors with no room upstairs: p1's fog there, p1's floor switcher at the scene's teardown, a send-back naming no floor");
+    const setO = await gm.eval(`const floors = await Scene.create({ name: "66 Floors", width: 4000, height: 3000, grid: { size: 100 }, active: false,
+            levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+        await floors.createEmbeddedDocuments("Region", [{ name: "Cellar", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        const [aiko] = await floors.createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: "${IDS.aiko}", actorLink: true, x: 300, y: 300,
+            width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level: "${L1}" }]);
+        return { floors: floors.id, aiko: aiko.id };`, { timeout: 30000 });
+    await settle(800);
+    const viewO = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const floors = game.scenes.get("${setO.floors}"), academy = game.scenes.get("${IDS.scene}");
+        const out = {};
+        try {
+            await floors.view({ level: "${L2}" });
+            canvas.level = floors.levels.get("${L2}");
+            F.repaintFog();
+            const d = F.diagnoseFog();
+            out.upper = { level: canvas.level?.id ?? null, reason: d.lastReason ?? null, drawn: d.lastDrawn ?? null, visible: d.layerVisible ?? null };
+            await floors.view({ level: "${L1}" });
+            const end = Date.now() + 5000;
+            while (!document.getElementById("drpg-floors") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            out.before = [...document.querySelectorAll("#drpg-floors button")].map(b => b.dataset.drpgLevel);
+            Hooks.callAll("canvasTearDown", canvas);
+            out.after = Boolean(document.getElementById("drpg-floors"));
+        } finally {
+            await academy.view();
+        }
+        return out;`, { timeout: 30000 });
+    /* Until E12 fix r2-H1 a floor whose rooms the fog found none of stood the fog down ("the floor on screen ... has no
+       room"), and with token vision off on a scene with rooms p1 saw the whole floor; and the switcher stayed on the page
+       through the teardown, its buttons holding the scene being left. */
+    check("O1: on a scene with rooms, p1's fog on a floor with no room draws that floor under fog, choosing no room, and does not stand down (E12 fix r2-H1)",
+        viewO.upper?.level === L2 && J(viewO.upper?.drawn?.pieces ?? null) === J([]) && viewO.upper?.drawn?.floor === "Upper"
+            && !/has no room|nothing to fog/.test(viewO.upper?.reason ?? ""), J(viewO));
+    check("O2: p1's floor switcher, shown on the ground floor, is gone once the scene is torn down (E12 fix r2-H1)",
+        J(viewO.before) === J([L1]) && viewO.after === false, J(viewO));
+    const moveO = to => gm.eval(`const t = game.scenes.get("${setO.floors}").tokens.get("${setO.aiko}");
+        await t.update(${J(to)}, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 800));
+        return { x: t.x, y: t.y, level: t.level ?? null };`, { timeout: 30000 });
+    const askO = spot => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return (await B.requestSendBack("${setO.floors}", "${setO.aiko}", ${J(spot)})) ?? null;`, { timeout: 30000 });
+    const readO = () => gm.eval(`const t = game.scenes.get("${setO.floors}").tokens.get("${setO.aiko}");
+        await new Promise(r => setTimeout(r, 1500));
+        return { x: t.x, y: t.y, level: t.level ?? null };`, { timeout: 30000 });
+    const upO = await moveO({ x: 1500, y: 300, level: L2 });
+    const farO = { answer: await askO({ x: 300, y: 300 }), at: await readO() };
+    const onO = await moveO({ x: 1800, y: 300 });
+    const nearO = { answer: await askO({ x: 1500, y: 300 }), at: await readO() };
+    await gm.eval(`await game.scenes.get("${setO.floors}").delete();`, { timeout: 30000 });
+    /* Until E12 fix r2-H1 a send-back that named no floor matched the spot Aiko left on the ground floor, and the bridge
+       wrote it as a revert onto the floor she stands on now: x 300 upstairs, where she never stood. A spot she left on
+       her own floor is still hers to go back to with no floor named (the token's floor stands in for it). */
+    check("O3: Aiko, moved upstairs by the GM, is not sent by p1's send-back naming no floor to the ground floor's spot, and is sent back to the spot she left upstairs (E12 fix r2-H1)",
+        J(upO) === J({ x: 1500, y: 300, level: L2 }) && J(farO.at) === J(upO) && J(onO) === J({ x: 1800, y: 300, level: L2 })
+            && J(nearO.at) === J(upO), J({ upO, farO, onO, nearO }));
 }

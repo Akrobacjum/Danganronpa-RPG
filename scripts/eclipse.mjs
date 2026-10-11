@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, neighbouringRooms, placesOf, allRooms, notConnectedText, roomsKnownToMe } from "./movement.mjs";
+import { roomOfActor, placesOf, allRooms, crossingRefused } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -871,7 +871,7 @@ function placingActors(dead) {
  * rooms actually connected to the one you are leaving - the guide's "2
  * connected rooms", not two arbitrary hops.
  */
-export async function judgeEclipseCrossing(actor, from, to, scene = null) {
+export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null) {
     if (!isEclipse()) return true;
 
     /*
@@ -899,17 +899,14 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null) {
             return false;
         }
 
-        // Must be a connected room.
-        if (from && to) {
-            // On the scene the token crossed on (movement.mjs `settleRoute` hands it in, E12 C2a).
-            const connected = neighbouringRooms(scene, from);
-            if (connected.length && !connected.includes(to)) {
-                // The same sentence the veto uses, and it names only rooms the
-                // viewer has been in, the destination included (E06 C11) -
-                // `notConnectedText` in movement.mjs.
-                ui.notifications.warn(notConnectedText(from, to, connected, roomsKnownToMe(scene)));
-                return false;
-            }
+        // Must be a connected room - and up or down only by the stairs (E12 fix r2-H1, early
+        // review EARLY-C9-1): the veto's own rule, movement.mjs `crossingRefused`, on the scene the
+        // token crossed on and the floor of each end (`settleRoute` hands both in, E12 C2a). Its
+        // sentence names only rooms the viewer has been in, the destination included (E06 C11).
+        const refused = crossingRefused(scene, from, to, floors);
+        if (refused) {
+            ui.notifications.warn(refused);
+            return false;
         }
     }
 

@@ -9749,7 +9749,11 @@ const REGRESSIONS = [
          * called on three plain steps and `crossingRefused`, fog.mjs `floorOffer` and `roomShading`, fog-diagnostics.mjs
          * `checkRegions` and the findings it can add), and the sentences that say it, one per handbook that says it. A
          * code fact that changes fails here with its sentences; a sentence rewritten without the code fails too; and the
-         * two stale sentences fail wherever they come back in either book. Each book is asserted to have loaded and each
+         * two stale sentences fail wherever they come back in either book. Since E12 fix r2-H1 (correctness review r2 R2-4)
+         * `noStairs` reads the road and not only the refusal's line - both of the veto's roads, the Eclipse's and daily
+         * life's, and eclipse.mjs `judgeEclipseCrossing` ask `crossingRefused`; tier 2 "a change of floor between rooms
+         * only a player's stairs link ..." reads the rule in an Eclipse - and `levels` and `order` read the floor asked
+         * by its id and v14's `elevation.bottom` (EARLY-C10-1, EARLY-C10-4). Each book is asserted to have loaded and each
          * function to have been cut (`fnSource` fails on a renamed one), so nothing passes on an empty read. What v14
          * itself does with levels is not read here, nor anywhere in the harness (LIVE-E12-02, LIVE-E12-03).
          */
@@ -9765,12 +9769,16 @@ const REGRESSIONS = [
         const FINDINGS = ["Region with no name", "DRPG.Fog.notRoom.problem", "No geometry the fog can read", "Overlaps \"",
             "Border runs away from the walls", "No way out", "Corners off the map's own lattice"];
         const facts = {
-            levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel),
-            order: /\(a\?\.elevation \?\? 0\) - \(b\?\.elevation \?\? 0\)/.test(fnSource(rooms, "floorsOf")),
+            levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel)
+                && /const id = level\?\.id \?\? level;/.test(onLevel) && /includedInLevel\(id\)/.test(onLevel) && /levels\.has\(id\)/.test(onLevel),
+            order: /Number\(level\?\.elevation\?\.bottom \?\? level\?\.elevation\) \|\| 0/.test(fnSource(rooms, "floorsOf"))
+                && /height\(a\) - height\(b\)/.test(fnSource(rooms, "floorsOf")),
             stairs: JSON.stringify([crossingCost({ room: "Lab", level: "L1" }, { room: "Attic", level: "L2" }),
                 crossingCost({ room: "Stairwell", level: "L1" }, { room: "Stairwell", level: "L2" }),
                 crossingCost({ room: "Lab", level: "L1" }, { room: "Hall", level: "L1" })]) === "[1,0,1]",
-            noStairs: /return linked \? false : game\.i18n\.format\("DRPG\.Move\.noStairs", \{ from \}\);/.test(fnSource(movement, "crossingRefused")),
+            noStairs: /return linked \? false : game\.i18n\.format\("DRPG\.Move\.noStairs", \{ from \}\);/.test(fnSource(movement, "crossingRefused"))
+                && (fnSource(movement, "crossingVerdict").match(/crossingRefused\(scene, from, to, floors\)/g) ?? []).length === 2
+                && /crossingRefused\(scene, from, to, floors\)/.test(fnSource(code("eclipse.mjs"), "judgeEclipseCrossing")),
             offer: [/if \(floors\.length < 2 \|\| !isPlaceScene\(scene\)\) return \[\];/, /if \(viewer\.everyFloor\) return floors\.map/,
                 /viewer\.owns\(tokenDoc\)/, /viewer\.discovered\.has\(region\.name\)/].every(re => re.test(offer)),
             sameRule: /export function roomShading\(\{ regions, current, discovered \}\)/.test(fog),

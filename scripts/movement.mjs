@@ -362,12 +362,15 @@ export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } =
  *   the token stood in during the window (`roomsVisited`). A route through
  *   several rooms that fails at the second crossing sends the token to the room
  *   it paid for (MAP-11), and that spot is a room's centre, which the token
- *   never stood on - the E03 review found the honest request refused.
+ *   never stood on - the E03 review found the honest request refused. A centre
+ *   names the floor it is on when the room was asked on one (`positionIn`).
+ * @param {*} [options.level]  The floor the token stands on now, for a packet
+ *   that names none.
  * @param {number} [options.now]
  * @param {number} [options.windowMs]
  * @returns {string|null}
  */
-export function sendBackRefusal(position, { scene = null, history = [], centres = [], now = Date.now(), windowMs = 60_000 } = {}) {
+export function sendBackRefusal(position, { scene = null, history = [], centres = [], level = undefined, now = Date.now(), windowMs = 60_000 } = {}) {
     const x = Number(position?.x);
     const y = Number(position?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return "the position is not a place on the map";
@@ -379,11 +382,16 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
     if (position.elevation !== undefined && !Number.isFinite(Number(position.elevation))) {
         return "the elevation is not a number";
     }
+    /* ON ONE FLOOR (E12 fix r2-H1, 11.10.2026; security review r2 SEC2-5). A packet that named no
+       floor matched a record on any floor, so the bridge wrote, as a revert, a spot the token stood
+       on a minute ago upstairs onto the floor it stands on now. The floor asked, else the token's
+       own, must be the record's - none on both, on a scene of one floor. */
+    const floor = position.level !== undefined ? position.level : (level ?? undefined);
+    const onFloor = spot => (spot.level ?? undefined) === floor;
     const matches = history.some(h => now - h.at <= windowMs && h.x === x && h.y === y
         && (position.elevation === undefined || h.elevation === Number(position.elevation))
-        && (position.level === undefined || h.level === position.level));
-    const centre = position.elevation === undefined && position.level === undefined
-        && centres.some(c => c && c.x === x && c.y === y);
+        && onFloor(h));
+    const centre = position.elevation === undefined && centres.some(c => c && c.x === x && c.y === y && onFloor(c));
     return matches || centre ? null : "the token did not stand there a moment ago";
 }
 
@@ -728,12 +736,14 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
             // through that the GM's count then refuses and sends back (eclipse.mjs).
             if (pay && eclipseMovesUsed(actor.id, clock) >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
-            if (from && to) {
-                const connected = neighbouringRooms(scene, from);
-                if (connected.length && !connected.includes(to)) {
-                    return notConnectedText(from, to, connected, roomsKnownToMe(scene));
-                }
-            }
+            /* The connected-rooms rule, the stairs between floors included (E12 fix r2-H1, 11.10.2026;
+               early review EARLY-C9-1). This branch asked `neighbouringRooms` itself and never reached
+               the stairs rule in `crossingRefused`, so in an Eclipse a change of floor from the Lab up
+               into the Attic above it cost one crossing, and the witness judge, which asks here with
+               `pay: false`, called it lawful. One rule for both roads now; tier 2 "a change of floor
+               between rooms only a player's stairs link is refused ..." reads it in an Eclipse. */
+            const refused = crossingRefused(scene, from, to, floors);
+            if (refused) return refused;
         }
         return true;
     }
@@ -789,9 +799,12 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
  * is no dead end. Whether a v14 Change Level region moves a token through `preUpdateToken` as the
  * player, so that this sees the climb at all, is LIVE-E12-02.
  *
+ * Asked by the movement economy below, by the Eclipse's branch above it and by eclipse.mjs
+ * `judgeEclipseCrossing` (E12 fix r2-H1), so a change of floor meets the stairs on every road.
+ *
  * @returns {false|string} false when allowed, otherwise the reason.
  */
-function crossingRefused(scene, from, to, floors = null) {
+export function crossingRefused(scene, from, to, floors = null) {
     if (!from || !to) return false;
 
     if (floors && levelKey(floors.from) !== levelKey(floors.to)) {
@@ -1200,8 +1213,8 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
         // Per crossing, like the economy below: the Eclipse's cap is two
         // CROSSINGS, and settling a whole route as one would have let a
         // multi-waypoint drag walk the map on a single allowance.
-        for (const [from, to] of crossings) {
-            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent);
+        for (const [from, to, floors] of crossings) {
+            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors);
             if (!allowed) {
                 await sendBack(tokenDoc, previous, before);
                 return;
@@ -1231,11 +1244,13 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // as it stood before any of them was charged, so a route of three rooms
     // on one free Move passes all three vetoes and fails at the second
     // crossing here. The token goes to the room that WAS paid for.
+    // On the floor the step reached (E12 fix r2-H1; early review EARLY-C9-2): a room's centre
+    // without its floor put a route refused at the stairs back at the Hall's x and y upstairs.
     let standing = previous;
-    for (const [from, to] of crossings) {
+    for (const [from, to, floors] of crossings) {
         const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
         if (!paid) return;
-        standing = positionIn(to, tokenDoc) ?? standing;
+        standing = positionIn(to, tokenDoc, floors?.to ?? null) ?? standing;
     }
 }
 
@@ -1388,15 +1403,17 @@ function takePath(tokenId) {
  * neighbour yields one, and a there-and-back route yields two - which is what
  * it costs at the table.
  *
- * Every step is `{room, level}` (E12 C9) and `crossingCost` prices it; the
- * pairs handed on are room names, as before.
+ * Every step is `{room, level}` (E12 C9) and `crossingCost` prices it; each
+ * crossing handed on is `[from, to, {from, to}]`, the two room names and the
+ * floor of each end (E12 fix r2-H1), for the stairs rule on the Eclipse's road
+ * and the floor a refused route is put back on.
  */
 function crossingsAlong(before, path, after) {
     const route = [before, ...path, after];
     const crossings = [];
     for (let i = 1; i < route.length; i++) {
         if (crossingCost(route[i - 1], route[i]) === 0) continue;
-        crossings.push([route[i - 1].room, route[i].room]);
+        crossings.push([route[i - 1].room, route[i].room, { from: route[i - 1].level ?? null, to: route[i].level ?? null }]);
     }
     return crossings;
 }
@@ -1426,7 +1443,12 @@ export function crossingCost(from, to) {
  * off a table (LIVE-E12-02); this reads only where the region stands. Exported for tier 2.
  */
 export function stairLinks(scene) {
-    const stairs = Array.from(scene?.regions ?? []).filter(region => passageBehaviour(region) === "changeLevel");
+    // Not stairs a player drew (E12 fix r2-H1; early review EARLY-C9-3): `roomPieces` leaves a
+    // player's region out of the rooms, and a player's Change Level region over the Lab and the
+    // Attic linked them. Whether v14 lets a player draw one is LIVE-E12-04.
+    const players = playerRegionIds();
+    const stairs = Array.from(scene?.regions ?? [])
+        .filter(region => passageBehaviour(region) === "changeLevel" && !players.has(region.id));
     if (!stairs.length) return null;
     const every = Array.from(scene?.levels ?? []).map(level => level?.id ?? level);
     const pairs = new Set();
@@ -1582,18 +1604,24 @@ async function sendBack(tokenDoc, previous, room) {
 /**
  * A position inside a named room on the token's scene - its centre, less the token's own size.
  * The centre of the room's first piece (E12 C2a): a room of two pieces has no centre of its own
- * that is inside it, and the token's scene is the only one asked - never the camera's.
+ * that is inside it, and the token's scene is the only one asked - never the camera's. Given a
+ * `level`, the first piece on that floor, and the spot names the floor (E12 fix r2-H1): a
+ * refused route is put back on the floor it paid for, and the bridge's send-back guard matches
+ * a room's centre on the floor asked. No piece on that floor is no position.
  */
-export function positionIn(room, tokenDoc) {
+export function positionIn(room, tokenDoc, level = null) {
     try {
         const scene = tokenDoc?.parent ?? null;
-        const region = roomRegions(scene, room)[0];
+        const floor = level?.id ?? level ?? null;
+        const pieces = roomRegions(scene, room);
+        const region = floor === null ? pieces[0] : pieces.find(piece => onLevel(piece, floor));
         const box = region ? boundsOf(region) : null;
         if (!box) return null;
         const size = scene?.grid?.size ?? canvas?.grid?.size ?? 100;
         const w = (tokenDoc?.width ?? 1) * size;
         const h = (tokenDoc?.height ?? 1) * size;
-        return { x: Math.round(box.x + box.w / 2 - w / 2), y: Math.round(box.y + box.h / 2 - h / 2) };
+        const spot = { x: Math.round(box.x + box.w / 2 - w / 2), y: Math.round(box.y + box.h / 2 - h / 2) };
+        return floor === null ? spot : { ...spot, level: floor };
     } catch {
         return null;
     }

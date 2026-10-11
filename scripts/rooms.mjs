@@ -284,21 +284,32 @@ export function levelOf(tokenDoc) {
  * Whether a region is on this floor: no floor asked, a region on no floor in particular (every
  * floor), or one Foundry says it is on. A region that cannot be asked is on every floor - the
  * module's rule wherever it cannot read a map (movement.mjs `neighbouringRooms`).
+ *
+ * ASKED BY THE FLOOR'S ID, WHATEVER THE CALLER HOLDS (E12 fix r2-H1, 11.10.2026; early review
+ * EARLY-C10-1). The rules hand in a token's level (an id), the fog `canvas.level` (a level), and
+ * this passed either on unchanged - so one side was wrong on v14 whichever form
+ * `includedInLevel` takes, and the harness's model takes both. The community typings for v14
+ * (fvtt-types 14.366.0-beta, read 11.10.2026) type it `string | Level`; Foundry's own source was
+ * not read. One form for every caller, so one reading at a table (LIVE-E12-02) settles them all.
  */
 export function onLevel(region, level) {
     if (level === null || level === undefined || !region?.levels?.size) return true;
-    if (typeof region.includedInLevel === "function") return region.includedInLevel(level);
-    return region.levels.has(level?.id ?? level);
+    const id = level?.id ?? level;
+    if (typeof region.includedInLevel === "function") return region.includedInLevel(id);
+    return region.levels.has(id);
 }
 
 /**
  * A scene's floors, lowest first - by `elevation`, the order the owner's item 5 of 09.10 gives
  * them - or none on a scene that names no floor (every scene before v14). `elevation` as a
- * number is the harness's model of a level (lib/shim.mjs `LevelList`); what v14's level keeps
- * there was not read (LIVE-E12-02).
+ * number is the harness's model of a level (lib/shim.mjs `LevelList`); the v14 typings
+ * (`onLevel`'s note) give a level `elevation: {bottom, top}`, and an object subtracted gave NaN
+ * and left the floors in the scene's own order (E12 fix r2-H1; early review EARLY-C10-4). So the
+ * bottom when there is one, else the number; what v14 holds at a table is LIVE-E12-02.
  */
 export function floorsOf(scene) {
-    return [...(scene?.levels ?? [])].sort((a, b) => (a?.elevation ?? 0) - (b?.elevation ?? 0));
+    const height = level => Number(level?.elevation?.bottom ?? level?.elevation) || 0;
+    return [...(scene?.levels ?? [])].sort((a, b) => height(a) - height(b));
 }
 
 /*

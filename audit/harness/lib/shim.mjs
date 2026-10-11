@@ -652,6 +652,8 @@ export function buildDocumentClasses(ctx) {
         }
         testPoint(point) { return this.pointInside(point); }
         get levels() { return new Set(this._source.levels ?? []); }
+        /* Either form, as the v14 typings type it (`string | Level`, fvtt-types 14.366.0-beta, read 11.10.2026 for E12
+           fix r2-H1); rooms.mjs `onLevel` hands it the id alone since then. Which form v14 answers is LIVE-E12-02. */
         includedInLevel(level) {
             const levels = this.levels;
             return !levels.size || levels.has(level?.id ?? level);

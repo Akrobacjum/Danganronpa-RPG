@@ -384,6 +384,9 @@ export function registerFog() {
             // The tiles are bound to the renderer that is going away, and the
             // palette may have changed by the time we come back.
             dropRasterTiles();
+            // The floor switcher's buttons hold the scene being left, and one pressed while the
+            // next one loads viewed that scene again (E12 fix r2-H1; early review EARLY-C11-2).
+            document.getElementById(FLOORS_ID)?.remove();
         } catch { /* leaving anyway */ }
     });
 }
@@ -2489,15 +2492,18 @@ export function repaintFog() {
         const level = viewedLevel();
         const regions = fogRegionsFor(scene, level);
         const floorKey = level?.id ?? level ?? null;
-        if (!regions.length) {
-            // No rooms drawn at all: nothing to gate visibility on. Leave the
-            // canvas as Foundry would show it rather than fogging a scene the
-            // GM has not built rooms into yet.
-            if (sceneHoldsRooms(scene)) {
-                return stand(`the floor on screen ("${level?.name ?? floorKey}") has no room, so there is nothing to fog`);
-            }
+        // No rooms drawn at all: nothing to gate visibility on. Leave the
+        // canvas as Foundry would show it rather than fogging a scene the
+        // GM has not built rooms into yet.
+        if (!regions.length && !sceneHoldsRooms(scene)) {
             return stand("this scene has no room (a named Region a GM marked one), so there is nothing to fog");
         }
+        /* A FLOOR WITH NO ROOM IS FOGGED WHOLE (E12 fix r2-H1, 11.10.2026; security review r2 on
+           EARLY-C10-1). On a scene that has rooms this stood down, and with Foundry's token vision
+           off on such a scene (`applySceneVisionMode`) a player saw the whole floor: one a GM drew
+           no room on, or every floor, had a v14 floor read come back empty. Now such a floor is
+           drawn as the space between rooms is, under full fog (a GM's veil); scenario 66 O1 reads
+           it on a floor with no room. */
         lastDrawn = { scene: scene.name, floor: level?.name ?? floorKey, pieces: regions.map(r => r.name).sort() };
 
         const dims = canvas.dimensions;
@@ -2523,7 +2529,7 @@ export function repaintFog() {
             readable = regions.filter(r => regionShapes(r, rect).length).length;
             readableCache = { sceneId: scene.id, level: floorKey, count: regions.length, readable };
         }
-        if (!readable) {
+        if (regions.length && !readable) {
             warn("Fog: no room geometry could be read on this scene, so nothing was fogged. "
                 + "The Regions may be drawn in a shape the module cannot measure.");
             return stand("regions exist but none exposed usable polygons");

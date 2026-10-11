@@ -730,10 +730,15 @@ export async function guardSendbackPlace(sender, payload, ctx) {
     const token = scene?.tokens?.get(payload.tokenId);
     const { recentPositions, roomsVisited, positionIn, sendBackRefusal } = await import("./movement.mjs");
     const asked = payload.position ?? {};
-    const judge = () => sendBackRefusal(asked, {
-        scene, history: recentPositions(token.id),
-        centres: [...roomsVisited(token)].map(room => positionIn(room, token))
-    });
+    // The token's floor now, for a packet that names none; a room's centre on the floor asked (E12 fix r2-H1).
+    const judge = () => {
+        const level = token.level ?? undefined;
+        const floor = asked.level !== undefined ? asked.level : level;
+        return sendBackRefusal(asked, {
+            scene, history: recentPositions(token.id), level,
+            centres: [...roomsVisited(token)].map(room => positionIn(room, token, floor ?? null))
+        });
+    };
     let why = judge();
     if (why) {
         await pause(300);

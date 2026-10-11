@@ -38059,6 +38059,8 @@ const SCENARIOS = [
          * refusal asks the same question and must use the same sentence. Since E12 fix r1-G4 the
          * veto's two refusals and the Eclipse's hand it the rooms found on the scene the token
          * crossed on (`roomsKnownToMe(scene)`), not on the scene on screen - read in the source.
+         * Since E12 fix r2-H1 all three go through one refusal, `crossingRefused`, which carries the
+         * stairs rule: the veto's Eclipse branch and daily life's, and eclipse.mjs.
          */
         const M = await import("./movement.mjs");
         const sources = await moduleSources();
@@ -38071,10 +38073,11 @@ const SCENARIOS = [
         equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
             stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
             "a refusal named a destination the viewer has not found, or no longer names one they have");
-        ok(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
-            "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
-        equal((veto.match(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/g) ?? []).length, 2,
-            "the crossing veto's two refusals do not filter by the rooms found on the scene the token crossed on");
+        ok(/crossingRefused\(scene, from, to, floors\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+            "the Eclipse's refusal does not go through the veto's (crossingRefused), so it can still name an unknown room");
+        equal(stableJson([(fnSource(veto, "crossingRefused").match(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/g) ?? []).length,
+            (fnSource(veto, "crossingVerdict").match(/crossingRefused\(scene, from, to, floors\)/g) ?? []).length]), stableJson([1, 2]),
+            "[the refusals in crossingRefused that filter by the rooms found on the scene the token crossed on; the veto's roads (the Eclipse's, daily life's) that ask it]");
     }],
 
     ["the Rest window names no rest room the viewer has not found", async () => {
@@ -48981,6 +48984,152 @@ const SCENARIOS = [
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
+    ["a change of floor between rooms only a player's stairs link is refused in daily life and in an Eclipse by the veto and the witness judge and by the Eclipse's own judge", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C9-1 and EARLY-C9-3, correctness review r2 R2-4. A scene of two
+         * floors in plain objects, as C9's tests draw one: a Lab under an Attic, a Hall under a Landing, the GM's stairs
+         * (a Change Level region) between the Hall and the Landing, and a Change Level region over the Lab and the Attic
+         * that a player drew - its id is put in the record of players' regions (`SETTINGS.playerRegions`). Read, for a
+         * living student who is not the Mastermind: `crossingVerdict` with no price (`pay: false`, as the witness judge
+         * asks it) for the climb from the Lab to the Attic and up the GM's stairs, in daily life with the movement cost on
+         * and in an Eclipse that is no free placement; eclipse.mjs `judgeEclipseCrossing` for the Lab-to-Attic climb, what
+         * it answers and what it warns (refused before it counts anything); the witness judge's own road, movement.mjs
+         * `judgeArrival`, for a token of the student a GM put in the Lab and a player then moved to the floor above, into
+         * the Attic, in the Eclipse (the floors it hands the veto are its own line, `arrivalVerdict`); the same climb by
+         * its level alone settled
+         * in the Eclipse by movement.mjs's charge (taken off `Hooks.events` as in C9's tests, for a plain token of a plain
+         * character the primary GM pays for), which hands the judge each end's floor: what the send-back wrote and what
+         * was warned; and the rooms the stairs link. Red before the
+         * fix: the player's region linked the Lab and the Attic, so daily life let the climb through, and the Eclipse's
+         * roads never asked the stairs and let it through for one crossing. The free-placement Eclipse is not asked: it
+         * places a token anywhere, adjacency and stairs alike (movement.mjs `crossingVerdict`). restore() puts the clock and
+         * the settings back.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        must(game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`), "no record of players' regions is registered - this would measure nothing");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = []) => ({ id: `suite-e12-h1-${name}`, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? !behaviors.length : undefined) });
+        const drawn = region("PlayerStairs", 0, [L1, L2], [{ type: "changeLevel" }]);
+        const scene = { id: "suite-e12-h1-scene", name: "SUITE E12 H1", grid: { size: 100 }, levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }],
+            regions: new Set([region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+                region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }]), drawn]) };
+        const climb = { from: L1, to: L2 };
+        const walks = () => [M.crossingVerdict(actor, "Lab", "Attic", scene, climb, { pay: false }),
+            M.crossingVerdict(actor, "Hall", "Landing", scene, climb, { pay: false })];
+        await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? []), drawn.id]);
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const links = M.stairLinks(scene);
+        const daily = walks();
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const witness = { id: `suite-e12-h1-judged-${foundry.utils.randomID(6)}`, name: actor.name, x: 100, y: 100, width: 1, height: 1, elevation: 0,
+            level: L1, parent: scene, actor };
+        const dropped = M.judgeArrival(witness, game.user.id);
+        witness.level = L2;
+        const climbed = M.judgeArrival(witness, player.id);
+        const judge = [dropped?.lawful ?? null, climbed?.lawful ?? null, climbed?.reason ?? null];
+        const warned = [], settled = [];
+        const warn = ui.notifications.warn;
+        const plain = { id: "suite-e12-h1-actor", name: "SUITE E12 H1 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: () => undefined, testUserPermission: () => false };
+        const written = [];
+        const token = { id: `suite-e12-h1-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene,
+            actor: plain, update: async data => { written.push(data); return token; } };
+        let judged = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            judged = await E.judgeEclipseCrossing(actor, "Lab", "Attic", scene, climb);
+            ui.notifications.warn = message => { settled.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            token.level = L2;
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        const refused = game.i18n.format("DRPG.Move.noStairs", { from: "Lab" });
+        equal(stableJson([links, daily, eclipse, judge, [judged, warned], [written, settled]]), stableJson([[["Hall", "Landing"]], [refused, true], [refused, true],
+            [true, false, refused], [false, [refused]], [[{ x: 0, y: 100, level: L1 }], [refused]]]),
+            `[the rooms the stairs link; whether ${actor.name} may climb from the Lab to the Attic and up the GM's stairs, in daily life; `
+                + "the same in an Eclipse; [lawful when a GM put the token in the Lab, lawful in the Attic a player moved it to, why not] by the witness judge; "
+                + "what the Eclipse's own judge answers and warns for the Lab-to-Attic climb; "
+                + "what the charge's send-back wrote and what it warned for a plain token's level-only climb from the Lab to the Attic in the Eclipse]");
+    }],
+
+    ["a route refused at the stairs after a paid crossing puts the token back on the floor it paid for", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C9-2 (MAP-11). A route of two crossings settles one at a time, and
+         * the one that cannot be paid for puts the token back in the room the route last paid for, at that room's centre
+         * (movement.mjs `settleRoute`, `positionIn`) - without its floor, so a route that paid its way from the Lab into
+         * the Hall and failed on the stairs up to the Landing was put back at the Hall's x and y upstairs. Here
+         * movement.mjs's charge, taken off `Hooks.events` as in C9's test above, is handed a plain token of a plain
+         * character no connected player owns (the primary GM pays) with the free Move and nothing else: its place
+         * recorded as our own revert records it in the Lab, a step of the drag in flight in the Hall, and the drag's end on
+         * the Landing above. Whether one v14 drag can change floor midway is LIVE-E12-02; the waypoints here are the
+         * harness's and Foundry's field (`movement.pending.waypoints`) as the charge reads it. Read: what the send-back
+         * wrote, what was spent and what the GM was told. Red before the fix: the write named no floor.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = []) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? !behaviors.length : undefined) });
+        const scene = { id: "suite-e12-h1-route", grid: { size: 100 }, levels: [{ id: L1 }, { id: L2 }],
+            regions: new Set([region("Lab", 0, [L1]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+                region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }])]) };
+        const flags = { [FLAGS.freeMoveUsed]: false };
+        const actor = { id: "suite-e12-h1-actor", name: "SUITE E12 H1 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: () => false,
+            update: async changes => {
+                for (const [key, value] of Object.entries(changes)) if (key.startsWith(`flags.${MODULE_ID}.`)) flags[key.slice(`flags.${MODULE_ID}.`.length)] = value;
+                return actor;
+            } };
+        const written = [];
+        const token = { id: `suite-e12-h1-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor,
+            update: async data => { written.push(data); return token; } };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 600, movement: { pending: { waypoints: [{ x: 600, y: 100 }] } } });
+            await charge(token, { x: 600 }, {}, player.id);
+            Object.assign(token, { level: L2, movement: { pending: { waypoints: [] } } });
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+            read = [written, flags[FLAGS.freeMoveUsed], warned];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([[{ x: 650, y: 150, level: L1 }], true, [game.i18n.localize("DRPG.Move.noBudget")]]),
+            "[what the send-back wrote to a token whose route paid into the Hall and failed on the stairs to the Landing, "
+                + "whether the free Move was spent, what the GM was told]");
+    }],
     ...GRID
 ];
 

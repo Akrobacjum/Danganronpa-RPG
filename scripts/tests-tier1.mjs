@@ -6502,7 +6502,32 @@ const INVARIANTS = [
         equal(JSON.stringify(shown), JSON.stringify([true, true, false, false, false, true]),
             "whether a player is shown the door [Hall-Library, Library-Gym, Gym-outside, Gym-Pool, in no room, Library-outside]");
         equal(CONFIG.Canvas?.doorControlClass?.name ?? null, "RoomDoorControl", "the class Foundry makes door controls from is the module's");
-    }]
+    }],
+    ["R411 - a floor is asked by its id whatever form the caller holds, and floors with v14's elevation come lowest first", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C10-1 and EARLY-C10-4. The rules hand rooms.mjs `onLevel` a
+         * token's level (an id) and the fog `canvas.level` (a level), and it handed either on to `includedInLevel`
+         * unchanged; the harness's regions answer both, so nothing headless could tell which side v14 would refuse. Here
+         * an Attic whose `includedInLevel` answers an id alone, as the stricter reading of v14 would, is asked by its
+         * floor's id and by the floor itself - through `onLevel` and through what the fog draws (fog.mjs `fogRegionsFor`).
+         * And three floors whose `elevation` is `{bottom, top}`, as the v14 typings give a level, listed out of order,
+         * through `floorsOf`. Plain objects: the answer is the readers', not a world's. Red before the fix: the Attic
+         * asked by the floor itself was on no floor and not drawn, and the floors kept the order they were listed in.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const upper = { id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }, ground = { id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } };
+        const cellar = { id: "SUITEFLOORCELLAR", name: "Cellar", elevation: { bottom: -10, top: 0 } };
+        const attic = { id: "AtticId", name: "Attic", behaviors: [], levels: new Set([L2]), includedInLevel: level => level === L2,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) };
+        const scene = { levels: [upper, cellar, ground], regions: new Set([attic]) };
+        const drawn = level => F.fogRegionsFor(scene, level).map(region => region.id);
+        equal(JSON.stringify([R.onLevel(attic, L2), R.onLevel(attic, upper), R.onLevel(attic, ground), drawn(L2), drawn(upper), drawn(ground)]),
+            JSON.stringify([true, true, false, ["AtticId"], ["AtticId"], []]),
+            "[whether the Attic is on the upper floor asked by its id, by the floor, on the ground floor; the pieces drawn on each of the three]");
+        equal(JSON.stringify(R.floorsOf(scene).map(level => level.name)), JSON.stringify(["Cellar", "Ground", "Upper"]), "the scene's floors, lowest first");
+    }],
 ];
 
 /**
