@@ -773,6 +773,8 @@ async function withBetrayalWindows(note, run) {
  * is the first one in each line's text; the panel's is NaN where it was not drawn.
  */
 async function sweepCountsShown() {
+    const { isPrimaryGm } = await import("./utils.mjs");
+    must(isPrimaryGm(), "this client is not the primary GM, whose alone the End of chapter panel is - its count would not be drawn");
     const { confirmSweepBullets } = await import("./investigation.mjs");
     const { openChapterEndDialog } = await import("./chapter.mjs");
     const D = foundry.applications.api.DialogV2;
@@ -27596,6 +27598,8 @@ const SCENARIOS = [
         const UI = await import("./trial-floor-ui.mjs");
         const M = await import("./murder.mjs");
         const { openChapterEndDialog } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const floor = await import("./trial-floor.mjs");
         const D = foundry.applications.api.DialogV2;
         const loc = key => game.i18n.localize(key);
@@ -32883,6 +32887,8 @@ const SCENARIOS = [
          * make the failure harder to read.
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { startFloor, trialFloor } = await import("./trial-floor.mjs");
         const clock = foundry.utils.deepClone(getClock());
         try {
@@ -43959,6 +43965,8 @@ const SCENARIOS = [
          * refused were told to the GMs (`endTwice`).
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { contentOf } = await import("./secret.mjs");
         const clock = foundry.utils.deepClone(getClock());
         try {
@@ -43980,17 +43988,22 @@ const SCENARIOS = [
         }
     }],
 
-    ["a chapter end step that fails is named, and the steps after it still run", async () => {
+    ["a chapter end step that fails is named and no morning opens over a trial that did not close", async () => {
         /*
          * E11 C5, 1.2.73 (the plan's section 3.4 for the chapter's end). A step that threw stopped
          * the chapter's end where it stood, with nothing said to the GM, and `closeTrial`'s false
          * (its clock write threw, E10 C12) was taken as nothing to say: no line, no word, the trial
          * still sitting. Here two of the clock's writes are refused - the session's move (the step
-         * throws) and the trial's close (`closeTrial` answers false) - and the morning's is let
+         * throws) and the trial's close (`closeTrial` answers false) - and the morning's would be let
          * through. Read: what the GM was shown as an error, whether the end answered anything (or
          * threw), how far the session and the day moved, the phase, and whether the floor is open.
+         * Since E11 fix r1-G5 (round 1's EARLY-C5-1) the morning is not opened over the trial that
+         * did not close, and is named with the failed steps: with C5's code the day moved on with the
+         * trial sitting ([0, 1, "classTrial", false], measured 11.10.2026).
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { startFloor, trialFloor, endFloor } = await import("./trial-floor.mjs");
         const clock = foundry.utils.deepClone(getClock());
         const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
@@ -44027,10 +44040,12 @@ const SCENARIOS = [
             await settle();
         }
         const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
-        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}` });
-        equal(stableJson([errors, Array.isArray(ended), after]), stableJson([[failed], true, [0, 1, "classTrial", false]]),
-            "a step that threw or a trial that would not close was not named to the GM, or the steps after them did not run "
-            + "([the errors shown, the end answered, [sessions on, days on, the phase, the floor open]])");
+        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}, ${L("morning")}` });
+        // Nothing of this end is done, so it answers null (the morning was its one line before the fix); a throw reads as text.
+        equal(stableJson([errors, ended, after]), stableJson([[failed], null, [0, 0, "classTrial", false]]),
+            "a step that threw or a trial that would not close was not named to the GM, the steps after them did not run, "
+            + "or the morning opened over the trial still sitting "
+            + "([the errors shown, the end's answer, [sessions on, days on, the phase, the floor open]])");
     }],
 
     ["Edit campaign moving the time back calls nobody", async () => {
@@ -44045,6 +44060,10 @@ const SCENARIOS = [
          * the other road to the same harm). Read per road: the cards posted after the write that carry Monokuma's
          * banner (an assembly held), the order still standing, the called-off cards. Red at C5's tree (A1, 10.10.2026): the time put back and the session alone each held the
          * assembly ([1, false, 0]: the four students' tokens moved into the room), the rewind called it off.
+         * Since E11 fix r1-G5 (round 1's EARLY-C6-1, EARLY-C6-2) two roads more: the next day at the same hour with
+         * the session on, a correction (held with C6's code, measured 11.10.2026); and Night to the next day's morning
+         * with the session on, the hour passing, which still holds the assembly - nothing measured that before, so
+         * a window that called off every write passed this test. The tokens the held road moves are put back.
          */
         const CE = await import("./call-effects.mjs");
         const { rewindTimeOfDay } = await import("./clock.mjs");
@@ -44066,15 +44085,20 @@ const SCENARIOS = [
             return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter), day: c.day ?? 1, phase: c.phase,
                 session: c.session, timeOfDay: c.timeOfDay, reset: false, ...answer };
         };
+        const nextDay = () => ({ day: Number(getClock().day ?? 1) + 1, session: Number(getClock().session) + 1 });
         const roads = {
             back: () => { answer = { timeOfDay: "morning" }; return openClockDialog(); },
             session: () => { answer = { session: Number(getClock().session) + 1 }; return openClockDialog(); },
+            daySession: () => { answer = nextDay(); return openClockDialog(); },
+            onward: () => { answer = { ...nextDay(), timeOfDay: "morning" }; return openClockDialog(); },
             rewind: () => rewindTimeOfDay()
         };
+        const from = { onward: "night" };
+        const where = canvas.scene.tokens.map(t => ({ _id: t.id, x: t.x, y: t.y }));
         const readings = {};
         try {
             for (const [road, run] of Object.entries(roads)) {
-                await setClock({ timeOfDay: "afternoon" });
+                await setClock({ timeOfDay: from[road] ?? "afternoon" });
                 await settle();
                 must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
                 const seen = new Set(game.messages.keys());
@@ -44088,9 +44112,11 @@ const SCENARIOS = [
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (CE.pendingGather()) await CE.cancelGather();
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await canvas.scene.updateEmbeddedDocuments("Token", where.filter(w => canvas.scene.tokens.has(w._id)));
             await settle();
         }
-        equal(stableJson(readings), stableJson({ back: [0, false, 1], session: [0, false, 1], rewind: [0, false, 1] }),
+        equal(stableJson(readings), stableJson({ back: [0, false, 1], session: [0, false, 1], daySession: [0, false, 1],
+            onward: [1, false, 0], rewind: [0, false, 1] }),
             "a correction of the clock held the assembly called for the next time of day, or left it standing, or did not "
             + "say it was called off (read per road: cards with Monokuma's banner after the write, the order standing, "
             + "the called-off cards)");
@@ -45095,6 +45121,121 @@ const SCENARIOS = [
             if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
         }
+    }],
+
+    ["an Eclipse begun during Edit campaign's trial question keeps the rest of the window", async () => {
+        /*
+         * E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3. Edit campaign read the Eclipse before its two questions,
+         * which wait for the GM, and called the assembly off after them: an Eclipse begun while the trial's
+         * question stood made `setClock` refuse the whole write (no trial opens in an Eclipse, E10 fix r2-G5)
+         * after the assembly had been called off - the order gone and nothing of the window applied. Driven
+         * from Daily Life's afternoon with no verdict in the chapter and an assembly called in a named room of
+         * this scene: Edit campaign answered with the Class Trial, the morning (a correction, so the assembly
+         * goes) and a new name, and the trial's question answered yes once an Eclipse has begun. Read: the
+         * phase, the time of day, the name applied, the Eclipse, the order standing, the called-off cards and
+         * the held ones since the window, the floor open, the "End the Eclipse first" warnings.
+         */
+        const CE = await import("./call-effects.mjs");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!getClock().eclipse && !CE.pendingGather(), "an Eclipse or an assembly was already standing - this would measure nothing");
+        const L = key => game.i18n.localize(key);
+        const jump = L("DRPG.Panel.jump"), trialTitle = L("DRPG.Clock.trialFromEditTitle"), eclipseFirst = L("DRPG.Floor.eclipseFirst");
+        const banner = L("DRPG.Calls.gatherBanner");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: foundry.utils.escapeHTML(room) });
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const name = `${clockBefore.campaignName ?? ""} (G5)`;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownWarn = ui.notifications.warn;
+        const told = [];
+        D.wait = async cfg => {
+            const title = cfg?.window?.title;
+            if (title === trialTitle) {
+                await setClock({ eclipse: true });
+                return "ok";
+            }
+            if (title !== jump) return null;
+            const c = getClock();
+            return { campaignName: name, chapter: Number(c.chapter), day: c.day ?? 1, phase: "classTrial",
+                session: c.session, timeOfDay: "morning", reset: false };
+        };
+        ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+        let reading = null;
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: "dailyLife", timeOfDay: "afternoon" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+            await settle();
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            const seen = new Set(game.messages.keys());
+            const posted = text => game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(text)).length;
+            await openClockDialog();
+            await settle();
+            reading = [getClock().phase, getClock().timeOfDay, getClock().campaignName === name, getClock().eclipse === true,
+                Boolean(CE.pendingGather()), posted(calledOff), posted(banner), Boolean(floor.trialFloor()),
+                told.filter(m => m === eclipseFirst).length];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            if (CE.pendingGather()) await CE.cancelGather();
+            if (floor.trialFloor()) await floor.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        equal(stableJson(reading), stableJson(["dailyLife", "morning", true, true, false, 1, 0, false, 1]),
+            "an Eclipse begun during Edit campaign's trial question dropped the rest of the window, opened the trial, or lost "
+            + "the assembly some other way (read: the phase, the time of day, the name applied, the Eclipse, the order "
+            + "standing, the called-off cards, the held ones, the floor open, the warnings told)");
+    }],
+
+    ["an assembly whose calling off was not written is not announced as called off", async () => {
+        /*
+         * E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3 (its related, older finding). `cancelGather` posted "called
+         * off" whatever its write did: `writeGather` answered null for a cleared order whether the write landed or
+         * threw, so the table was told the assembly was off while the order stood, to be held at the next time of
+         * day. An assembly called in a named room of this scene, then called off with the order's write refused.
+         * Read: whether the call off answered the order, the order standing, the called-off cards since.
+         */
+        const CE = await import("./call-effects.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly was already standing - this would measure nothing");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: foundry.utils.escapeHTML(room) });
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        let reading = null;
+        try {
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            const seen = new Set(game.messages.keys());
+            const set = game.settings.set;
+            game.settings.set = function (scope, key, value, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.pendingGather) throw new Error("E11 fix r1-G5's test: the assembly's write refused");
+                return set.call(this, scope, key, value, ...rest);
+            };
+            let answer = null;
+            try {
+                answer = await CE.cancelGather();
+            } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            }
+            await settle();
+            reading = [Boolean(answer), Boolean(CE.pendingGather()),
+                game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(calledOff)).length];
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            if (CE.pendingGather()) await CE.cancelGather();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([false, true, 0]),
+            "an assembly whose calling off was not written was announced as called off, or did not stand "
+            + "(read: the call off answered the order, the order standing, the called-off cards)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

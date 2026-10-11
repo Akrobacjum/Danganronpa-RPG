@@ -1438,12 +1438,19 @@ export async function openPublicRollDialog() {
  * do not move on (or the session goes back). A move on - Day 2's evening to Day 3's morning - is the hour
  * passing, and the assembly is held as it would be at the panel's next time of day. Measured in tier 2 "Edit
  * campaign moving the time back calls nobody" and scenario 65's C2.
+ *
+ * A NEW DAY AT THE SAME HOUR IS NOT THE HOUR PASSING (E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-1). C6 counted
+ * any later day as a move on, so Day 3's morning in session 5 corrected to Day 4's morning in session 6 held the
+ * assembly - the session differs, which is all `runPendingGather` compares - and the cast was moved by a typo
+ * fix: the tier-2 test's "day and session" road read the assembly held with the code before this (11.10.2026).
+ * The hour passing changes the time of day, so a move on now needs one; its "onward" road (Night to the next
+ * day's morning, the session on) is the hour passing and still holds the order.
  */
 export function correctsTheHour(from, to) {
     const at = clock => [Number(clock.day ?? 1), TIMES_OF_DAY.indexOf(clock.timeOfDay), Number(clock.session)];
     const [dayWas, hourWas, sessionWas] = at(from), [day, hour, session] = at(to);
     if (hour === hourWas && session === sessionWas) return false;
-    const onward = day > dayWas || (day === dayWas && hour > hourWas);
+    const onward = hour !== hourWas && (day > dayWas || (day === dayWas && hour > hourWas));
     return !onward || session < sessionWas;
 }
 
@@ -1628,6 +1635,17 @@ export async function openClockDialog() {
             const { confirmNewTrial } = await import("./trial-floor-ui.mjs");
             if (!(await confirmNewTrial(Number(chapter)))) phase = getClock().phase;
         }
+    }
+
+    /* AND AGAIN JUST BEFORE THE WRITE (E11 fix r1-G5; round 1's EARLY-C6-3). The Eclipse above was read before
+       the two questions, which wait for the GM; an Eclipse started meanwhile made `setClock` refuse the whole
+       write after the assembly had been called off - the order gone, the rest of the window dropped (tier 2 "an
+       Eclipse begun during Edit campaign's trial question keeps the rest of the window" read the time of day
+       and the name unwritten with the code before this, 11.10.2026). Read again here, with nothing awaited
+       between it and the write: the phase is kept and the GM told, as above. */
+    if (phase === "classTrial" && getClock().phase !== "classTrial" && isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
+        phase = getClock().phase;
     }
 
     const patch = {

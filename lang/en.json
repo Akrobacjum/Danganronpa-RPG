@@ -1843,7 +1843,8 @@
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
       "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
       "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
-      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock has moved since - another End of chapter got there first. Nothing was done twice.",
+      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
+      "endPrimaryOnly": "Only the primary GM, {name}, can end the chapter, so that one browser counts it once. Ask {name}, or end it when you are the only GM connected.",
       "endFailed": "The end of the chapter did not finish: {steps}. Everything else was done - finish those by hand rather than ending the chapter again.",
       "step": {
         "reveal": "revealing the Truth Bullets",

@@ -42,6 +42,10 @@
  *      other group still ran (C9).
  *   G  a world already reset: two new projects, an orphan, a duplicate and one project's
  *      token deleted by hand, then the primary's canvas drawn again: what the sync leaves (C8).
+ *   H  a second GM (`gm2`, a late account whose id sorts after the seeded GM's, so the seeded
+ *      GM stays the primary) ends the chapter while the primary's end runs, held in its first
+ *      step until the primary's move has landed - the interleaving round 1's COR-2 named and
+ *      did not run; then opens its End of chapter window (E11 fix r1-G5).
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -52,14 +56,18 @@
  * Its bound (the plan's M4, set from C0's first readings): its 17 checks took 20.2-21.6 s
  * in seven runs alone on 10.10.2026 (20.7 s for this file as committed, the rest drafts and
  * mutants), about 25 s with the boot - a twelfth of run-all's shared five minutes, so it
- * states no `timeoutMs` of its own. The plan's 480 s was 61's.
+ * states no `timeoutMs` of its own. The plan's 480 s was 61's. With H (E11 fix r1-G5, a fifth
+ * client booted) its 23 checks took 34.7 s in a2's fast set on 11.10.2026, beside two other
+ * lanes - still none of its own.
  */
 export const layers = ["ci"];
+
+export const accounts = [{ who: "gm2", id: "USERGZ0000000000", name: "Second GM", role: 4, character: null, color: "#aa00aa", late: true }];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, IDS, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
     const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
     const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
@@ -525,4 +533,47 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
     check("G1: the canvas drawn again keeps the orphan and the duplicate without a word and puts back the token deleted by hand - today's reading; E11 C8 changes all three",
         Boolean(swept.three) && Boolean(swept.four) && swept.deleted && swept.planted === 3 && swept.orphan === true && swept.duplicates === 2
             && swept.back === true && swept.warned === 0, J(swept), { flow: "season-reset" });
+
+    /* ------------------------------ H. two GMs end one chapter ------------------------------ */
+    phase("H: a second GM ends the chapter while the primary's end runs, then opens its window", { flow: "clock-day" });
+    await connect("gm2");
+    await settle(500);
+    const MARK = `const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1 });`;
+    const opened = await gm.eval(`${MARK} return mark();`);
+    /* The second GM's Do it on a window opened on the same clock, before the primary's: its end is started and
+       held in its first step until the primary's move has reached this browser, as a second GM's end whose
+       guard was passed before that move landed. With the code before E11 fix r1-G5 it then counted the session
+       again (session 1 to 3, measured 11.10.2026; the day moved once, both mornings having read day 1). */
+    await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const first = C.CHAPTER_END_STEPS[0], run = first.run, opened = ${J(opened)};
+        first.run = async args => { await until(() => getClock().session !== opened.session, 8000); return run(args); };
+        globalThis.__h = { restore: () => { first.run = run; }, told: globalThis.__notifications.length,
+            end: C.applyChapterEnd({ nextSession: true, nextMorning: true, opened }) };
+        return true;`, { timeout: 30000 });
+    const primary = await gm.eval(`${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const ended = await C.applyChapterEnd({ nextSession: true, nextMorning: true, opened: ${J(opened)} });
+        return { ended: Boolean(ended), after: mark() };`, { timeout: 60000 });
+    const second = await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { primaryGmId } = await import("${repoUrl}/scripts/utils.mjs");
+        const ended = await globalThis.__h.end.catch(err => "threw: " + err?.message);
+        globalThis.__h.restore();
+        const refusal = game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
+        const warned = globalThis.__notifications.slice(globalThis.__h.told).filter(n => n.level === "warn" && n.msg === refusal).length;
+        await until(() => JSON.stringify(mark()) === ${J(J(primary.after))}, 4000);
+        const atEnd = mark();
+        const told = globalThis.__notifications.length, asked = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push(() => null);
+        const window = await C.openChapterEndDialog();
+        globalThis.__dialogAnswers.length = 0;
+        return { ended: ended === null ? null : String(ended), warned, atEnd, window: window ?? null,
+            asked: globalThis.__dialogLog.slice(asked).map(d => d.title),
+            windowWarned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === refusal).length };`, { timeout: 60000 });
+    const after = await gm.eval(`${UNTIL} ${MARK} await new Promise(r => setTimeout(r, 500)); return mark();`, { timeout: 30000 });
+    check("H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is, and the chapter's end counts one session and one day (E11 fix r1-G5)",
+        primary.ended === true && second.ended === null && second.warned === 1
+            && after.chapter === opened.chapter && after.session === opened.session + 1 && after.day === opened.day + 1
+            && J(primary.after) === J(after) && J(second.atEnd) === J(after), J({ opened, primary, second, after }), { flow: "clock-day" });
+    check("H2: the second GM's End of chapter window is refused before anything is asked, and told whose the end is (E11 fix r1-G5)",
+        second.window === null && J(second.asked) === J([]) && second.windowWarned === 1, J(second), { flow: "clock-day" });
 }

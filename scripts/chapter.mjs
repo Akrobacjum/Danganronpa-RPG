@@ -1609,6 +1609,8 @@ export async function openChapterEndDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Before anything is asked or counted: the end is the primary GM's (`applyChapterEnd`, ONE BROWSER).
+    if (!chapterEndHere()) return null;
 
     /* AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18): the register takes its
        killers when it is closed. Since E09 fix r2-G4 the row goes under the chapter the incident
@@ -1765,14 +1767,15 @@ function endMark(clock) {
 /**
  * THE CHAPTER'S END, ONE ORDERED LIST (E11 C5, 1.2.73; audit S06-13, S06-40; the plan's p10change).
  *
- * Each step is `{ key, run }`; `run({ choices, ending })` answers the line the GMs' card reports, null
+ * Each step is `{ key, run }`; `run({ choices, ending, failed })` answers the line the GMs' card reports, null
  * when it had nothing to do, or false when it failed without throwing (`closeTrial` answers false
- * when its clock write threw, E10 C12). `applyChapterEnd` runs them in this order, one try/catch each:
- * a step that fails is logged and named, and the steps after it still run. Until 1.2.73 the same
+ * when its clock write threw, E10 C12); `failed` holds the keys of the steps before it that failed.
+ * `applyChapterEnd` runs them in this order, one try/catch each: a step that fails is logged and named,
+ * and the steps after it still run - the morning aside, which does not open over a trial that did not close. Until 1.2.73 the same
  * work was one function of nine steps, three of them in a try/catch and six not, so a clock move
  * that threw stopped the end there with the rest undone and the GM told nothing, and a trial that would not
  * close left no line on the GMs' card and no word to the GM (tier 2 "a chapter end step that fails
- * is named, ..." measured both with the code before this, 10.10.2026).
+ * is named ..." measured both with the code before this, 10.10.2026).
  *
  * THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
  * Reveal first - it publishes the bullets the sweep is about to take, shows a Final its kind, and
@@ -1862,7 +1865,7 @@ export const CHAPTER_END_STEPS = [
 
        `closeTrial` answers false when its clock write threw (E10 C12): the floor is shut and nothing
        announced. That is this step failing, and the GMs are told so (tier 2 "a chapter end step that
-       fails is named, and the steps after it still run"). */
+       fails is named and no morning opens over a trial that did not close"). */
     { key: "trial", run: async ({ choices, ending }) => {
         if (!choices.endTrial || ending.phase !== "classTrial") return null;
         const { closeTrial } = await import("./trial-floor-ui.mjs");
@@ -1883,9 +1886,17 @@ export const CHAPTER_END_STEPS = [
 
        LAST, AFTER THE TRIAL IS CLOSED. `closeTrial` puts the phase back to Daily Life and starts the
        elapsed clock; announcing a new morning before that would post the card into a Class Trial that
-       has not finished. */
-    { key: "morning", run: async ({ choices }) => {
+       has not finished.
+
+       AND NOT AT ALL WHEN THE TRIAL DID NOT CLOSE (E11 fix r1-G5, 1.2.73; round 1's EARLY-C5-1). C5 ran
+       this step after a `trial` step that had failed, so the morning was announced into the Class Trial
+       still sitting, against the paragraph above: tier 2 "a chapter end step that fails is named and no
+       morning opens over a trial that did not close" read the day moved on in a trial with the code
+       before this (11.10.2026). It is left undone and named with the failed steps, for the GM to open by
+       hand once the trial is closed. */
+    { key: "morning", run: async ({ choices, failed }) => {
         if (!choices.nextMorning) return null;
+        if (failed.includes("trial")) return false;
         const { setTimeOfDay } = await import("./clock.mjs");
         // One write for the day and the hour: each write is a full redraw on every client (CORE-12).
         await setTimeOfDay("morning", {
@@ -1919,9 +1930,10 @@ export const CHAPTER_END_STEPS = [
  * is scoped to "the chapter that is ending" and "is the trial sitting", and both
  * are facts about the moment the work runs, not about the moment the GM was asked.
  *
- * ONCE (E11 C5, 1.2.73; audit S06-40). Two guards, for two ways of pressing twice:
+ * ONCE (E11 C5, 1.2.73; audit S06-40). Three guards, for three ways of pressing twice:
  * - `opened`, the clock the window was shown on (`endMark`): an end whose chapter,
- *   session or day has moved since is refused whole and the GMs are told
+ *   session or day has moved since - by another end, by Edit campaign, or by the
+ *   time of day turning into a new day - is refused whole and the GMs are told
  *   (`endTwice`). Until 1.2.73 the window sent the chapter read when Do it was
  *   pressed and only a moved chapter was refused (CORE-17), which saw nothing when
  *   "next chapter" was unticked: 65-season C1 read two sessions on with the code
@@ -1929,10 +1941,18 @@ export const CHAPTER_END_STEPS = [
  * - one end at a time on this browser: a second call waits for the first to finish
  *   before it compares, so two in flight at once cannot both read the clock before
  *   either moves it (tier 2 "the chapter's end leaves the Investigation and counts
- *   once" starts two together). Two GMs' browsers have no such queue: a second
- *   GM's Do it pressed while the first's steps are still running reads the clock
- *   before the first's move lands. Read in the code, not measured - the harness
- *   has one GM.
+ *   once" starts two together).
+ * - ONE BROWSER: the primary GM's (E11 fix r1-G5; round 1's COR-2). Two GMs' browsers
+ *   share no queue, and the guard above compares once, before the steps: another GM's
+ *   end that passed it while the primary's was running read the chapter, the session
+ *   and the day again in its own steps, after the primary's move had landed, and
+ *   counted them again - 65-season H1 read session 1 to 3 with the code before this
+ *   (11.10.2026), the second GM's end held in its first step until the primary's move
+ *   arrived (the day moved once there: both mornings read day 1 before either landed;
+ *   a day counted twice would need only other timing - read in the code, not measured). So the end runs on the primary only, as the season reset
+ *   does (season-setup.mjs `resetSeason`), and another GM is told whose it is, both
+ *   here and at the window (`openChapterEndDialog`, which the panel and the trial
+ *   console's End the chapter open).
  *
  * @param {object} choices Which parts to do. Anything absent is not done, so a
  *   caller can ask for one step without knowing about the others. `opened` is
@@ -1940,13 +1960,21 @@ export const CHAPTER_END_STEPS = [
  *   compared.
  */
 export async function applyChapterEnd(choices = {}) {
-    if (!game.user.isGM) return null;
+    if (!game.user.isGM || !chapterEndHere()) return null;
     const run = chapterEnds.then(() => endChapterNow(choices));
     chapterEnds = run.catch(() => null);
     return run;
 }
 
 let chapterEnds = Promise.resolve();
+
+/** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
+function chapterEndHere() {
+    if (isPrimaryGm()) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications.warn(game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name }));
+    return false;
+}
 
 async function endChapterNow(choices) {
     const now = getClock();
@@ -1960,7 +1988,7 @@ async function endChapterNow(choices) {
     const done = [], failed = [];
     for (const step of CHAPTER_END_STEPS) {
         try {
-            const line = await step.run({ choices, ending });
+            const line = await step.run({ choices, ending, failed });
             if (line === false) failed.push(step.key);
             else if (line) done.push(line);
         } catch (err) {
