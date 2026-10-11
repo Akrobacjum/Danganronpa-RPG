@@ -528,7 +528,7 @@ export async function openPlantDialog(projectId) {
     const { allRooms } = await import("./movement.mjs");
 
     const meta = metaFor(projectId);
-    const rooms = allRooms();
+    const rooms = allRooms(canvas?.scene ?? null);
     const roomOptions = rooms.map(r =>
         `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");
 

@@ -23,7 +23,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     for (const c of clients) users[c.who] = await c.eval(`return game.user.id;`);
     const world = await gm.eval(`return {
         scene: canvas.scene.id,
-        rooms: (await import("${REPO}/scripts/movement.mjs")).allRooms().slice(0, 3),
+        rooms: (await import("${REPO}/scripts/movement.mjs")).allRooms(canvas?.scene).slice(0, 3),
         owners: Object.fromEntries(game.actors.filter(a => a.type === "character").map(a =>
             [a.id, game.users.filter(u => !u.isGM && a.testUserPermission(u, "OWNER")).map(u => u.id)])) };`);
     const owned = who => Object.entries(world.owners).find(([, us]) => us.length === 1 && us[0] === users[who])?.[0] ?? null;
@@ -80,10 +80,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     phase("what a refusal names", { flow: "discovery-ledger" });
     const J = JSON.stringify;
     const unknownRoom = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const k = M.roomsKnownToMe();
-        return k ? M.allRooms().find(r => !k.has(r)) ?? null : null;`);
+        return k ? M.allRooms(canvas?.scene).find(r => !k.has(r)) ?? null : null;`);
     const restRooms = [ids.rooms[0], unknownRoom];
     const marks = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs");
-        const out = {}; for (const room of ${J(restRooms)}) { const g = V.regionsByName().get(room); if (!g) continue;
+        const out = {}; for (const room of ${J(restRooms)}) { const g = V.regionsByName(canvas?.scene).get(room); if (!g) continue;
             out[room] = g.getFlag("${MOD}", "restShort") ?? null; await g.update({ "flags.${MOD}.restShort": true }); }
         return out;`);
     await settle(800);
@@ -95,7 +95,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
             found: say(${J(ids.rooms[0])}, ${J(ids.rooms[1])}, ${J(ids.rooms[0])}),
             cannot: game.i18n.format("DRPG.Move.cannotReach", { from: ${J(ids.rooms[0])} }) };`);
     await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
-        for (const [room, was] of Object.entries(${J(marks)})) await V.regionsByName().get(room)?.update({ "flags.${MOD}.restShort": was ?? forcedDeletion() });
+        for (const [room, was] of Object.entries(${J(marks)})) await V.regionsByName(canvas?.scene).get(room)?.update({ "flags.${MOD}.restShort": was ?? forcedDeletion() });
         return true;`);
     check(`${p1_.who}: a refusal and the Rest list name no room Aiko has not found, and still name the ones she has`,
         Boolean(unknownRoom) && Object.keys(marks).length === 2 && refusal.marked.includes(unknownRoom)

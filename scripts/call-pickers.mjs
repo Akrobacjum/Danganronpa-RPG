@@ -297,7 +297,7 @@ async function pickProject(actor, kind = "hope", call = null) {
 
 async function pickRoom() {
     const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms();
+    const rooms = allRooms(canvas?.scene ?? null);
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Rest.noRegions"));
         return null;

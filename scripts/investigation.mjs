@@ -43,6 +43,7 @@ import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./li
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
+import { roomRegions } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -995,7 +996,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
         return null;
     }
 
-    const region = Array.from(scene?.regions ?? []).find(r => r.name === result.room);
+    const region = roomRegions(scene, result.room)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: result.room }));
         return null;
@@ -1078,7 +1079,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
  *   passes it through.
  */
 async function createKeyRemnant(row, scene = workingScene()) {
-    const region = Array.from(scene?.regions ?? []).find(r => r.name === row.createIn);
+    const region = roomRegions(scene, row.createIn)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: row.createIn }));
         return null;
@@ -2317,7 +2318,7 @@ export async function openInvestigationDashboard() {
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
-    const buildCase = () => caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapter });
+    const buildCase = () => caseHtml(reading, { allRooms: () => allRooms(workingScene()), finalRemnants, finalTruthPlacedThisChapter });
 
     const content = dialogContent(buildCase());
 

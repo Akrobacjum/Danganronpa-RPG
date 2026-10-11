@@ -1230,7 +1230,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const FOG = `const F = await import("${repoUrl}/scripts/fog.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const E = await import("${repoUrl}/scripts/gm-store.mjs");`;
-    const fogRooms = await gm.eval(`${FOG} const rooms = (await import("${repoUrl}/scripts/movement.mjs")).allRooms().slice(0, 2);
+    const fogRooms = await gm.eval(`${FOG} const rooms = (await import("${repoUrl}/scripts/movement.mjs")).allRooms(canvas?.scene).slice(0, 2);
         await F.setDiscovery(canvas.scene, { actorId: "${IDS.aiko}", rooms, value: true });
         await F.applyDiscoveryChanges(canvas.scene, [{ actorId: "${IDS.aiko}", room: rooms[0], value: false }]);
         return rooms;`);

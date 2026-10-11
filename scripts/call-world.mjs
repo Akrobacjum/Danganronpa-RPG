@@ -21,7 +21,8 @@
  * now - and it re-exports the eleven names of this file it exported before, so
  * every other importer keeps importing call-effects.mjs. Nothing here imports it
  * back (R161 would see the cycle). Below it are config.mjs, settings.mjs and
- * utils.mjs, statically. movement.mjs imports `isSealed` and `isChained` from the
+ * utils.mjs, statically, and rooms.mjs, the leaf every room is read through
+ * (E12 C2a). movement.mjs imports `isSealed` and `isChained` from the
  * facade statically, so a static import of movement.mjs here would close a cycle
  * (movement -> call-effects -> call-world); it stays a lazy `import()`, as do the
  * others, which a pure move does not touch. `isCallSilenced` sits here (renamed
@@ -31,6 +32,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { announce, log, warn, error, plural, isPrimaryGm } from "./utils.mjs";
+import { roomRegions } from "./rooms.mjs";
 
 /* ==========================================================================
  * ROOM EFFECTS AND RESTRICTIONS
@@ -179,7 +181,7 @@ export async function scheduleGather(room, by = null) {
        been cleared. Resolved here, where the room has just been checked against the
        map the GM is actually working on. */
     const scene = canvas?.scene ?? null;
-    if (!scene?.regions?.find(r => r.name === room)) {
+    if (!roomRegions(scene, room).length) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return null;
     }
@@ -304,7 +306,7 @@ export async function runPendingGather() {
      * fire into nothing every time of day for the rest of the season.
      */
     const scene = order.sceneId ? game.scenes.get(order.sceneId) : (canvas?.scene ?? null);
-    const region = scene?.regions?.find(r => r.name === order.room) ?? null;
+    const region = roomRegions(scene, order.room)[0] ?? null;
     if (!region) {
         await writeGather(null);
         ui.notifications.warn(game.i18n.format("DRPG.Calls.gatherRoomGone", { room: order.room }));
@@ -352,7 +354,7 @@ export async function gatherEveryone(room, onScene = null) {
     const scene = onScene ?? canvas?.scene ?? null;
     if (!game.user.isGM || !scene) return 0;
 
-    const region = scene.regions.find(r => r.name === room);
+    const region = roomRegions(scene, room)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return 0;

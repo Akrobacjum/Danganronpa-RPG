@@ -1357,7 +1357,7 @@ export async function openBodyDiscoveryDialog() {
     }
 
     const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms();
+    const rooms = allRooms(canvas?.scene ?? null);
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.noRooms"));
         return null;

@@ -376,7 +376,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         const room = M.roomOfActor(game.actors.get("${ids.aiko}"));
         let tokens = null;
         try { tokens = game.drpg.searchTokens ? game.drpg.searchTokens(room) : null; } catch (e) { tokens = "err:"+e.message; }
-        return { room, tokens, allRooms: game.drpg.allRooms() };
+        return { room, tokens, allRooms: game.drpg.allRooms(canvas?.scene) };
     `, { timeout: 60000 });
     check("MOVEMENT: player's room resolved + search tokens present", !!search.room, JSON.stringify(search).slice(0, 300));
 

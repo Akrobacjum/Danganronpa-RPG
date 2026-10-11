@@ -2729,7 +2729,8 @@ async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
     const { projectTraitOptions } = await import("./projects-ui.mjs");
     const room = roomOfActor(actor);
-    const rooms = allRooms();
+    // The rooms of the scene the character stands on (E12 C2a): the project is started where they are.
+    const rooms = allRooms(locateActor(actor)?.scene);
 
     const scaleOptions = Object.entries(PROJECT_SCALE)
         .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${s.label} - ${s.progress} progress</option>`)
@@ -5190,7 +5191,8 @@ async function performListen(actor, def, options) {
 
     const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
     const here = roomOfActor(actor);
-    const neighbours = neighbouringRooms(here);
+    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's.
+    const neighbours = neighbouringRooms(locateActor(actor)?.scene, here);
 
     if (!neighbours.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Listen.noNeighbours"));

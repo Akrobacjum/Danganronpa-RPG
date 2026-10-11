@@ -56,7 +56,7 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
-import { roomOfActor, neighbouringRooms, othersInRoom } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, othersInRoom, locateActor } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -3982,7 +3982,7 @@ function roomBlockFor(actor, key) {
         if (key === "search" && SearchTokens.left(here) <= 0)
             return game.i18n.localize("DRPG.SearchTokens.exhausted");
 
-        if (key === "listen" && neighbouringRooms(here).length === 0)
+        if (key === "listen" && neighbouringRooms(locateActor(actor)?.scene, here).length === 0)
             return game.i18n.localize("DRPG.Listen.noNeighbours");
 
         // Palm needs a pocket, and a pocket needs somebody standing in it -

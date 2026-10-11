@@ -1252,7 +1252,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const M = await import("${REPO}/scripts/movement.mjs");
         const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
         const room = M.roomOfActor(aiko);
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (!region) return { room, err: "no region" };
         const path = k => "flags.${MOD}." + k;
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
@@ -1296,7 +1296,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
         const { room, keys, before, item, actions, calls } = globalThis.__c12bStash ?? {};
         delete globalThis.__c12bStash;
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
         await game.actors.get("${ids.daichi}")?.items.get(item ?? "")?.delete();
         const aiko = game.actors.get("${ids.aiko}");
@@ -1473,7 +1473,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const M = await import("${REPO}/scripts/movement.mjs");
         const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
         const room = M.roomOfActor(aiko);
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (!region) return { room, err: "no region" };
         const path = k => "flags.${MOD}." + k;
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
@@ -1558,7 +1558,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
         const { room, keys, before, found, actions, calls } = globalThis.__h6Stash ?? {};
         delete globalThis.__h6Stash;
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
         const aiko = game.actors.get("${ids.aiko}");
         for (const a of [aiko, game.actors.get("${ids.daichi}")]) for (const i of a.items.filter(x => x.name === "Scenario 40 H6 stashed kit")) await i.delete();

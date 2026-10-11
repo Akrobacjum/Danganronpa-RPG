@@ -44,7 +44,7 @@ import { carriableCategories } from "./inventory.mjs";
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 // A leaf: which named regions no GM has decided yet (E12 C1).
-import { unmarkedRegions } from "./rooms.mjs";
+import { unmarkedRegions, roomRegions } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
@@ -1261,7 +1261,7 @@ export async function placeCast(choice, actors = studentActors()) {
         if (to === "bedroom") {
             const mine = bedrooms.filter(entry => entry.owner?.id === actor.id);
             const bedroom = mine.find(entry => tokensOf(actor, entry.scene).length) ?? mine[0];
-            const region = bedroom ? [...(bedroom.scene?.regions ?? [])].find(r => r.name === bedroom.room) : null;
+            const region = bedroom ? roomRegions(bedroom.scene, bedroom.room)[0] ?? null : null;
             target = region ? { scene: bedroom.scene, region } : null;
         }
         const tokens = target ? tokensOf(actor, target.scene) : [];

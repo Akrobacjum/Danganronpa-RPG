@@ -17,10 +17,14 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { roomOfActor, roomsKnownToMe } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
-// One room map for the whole module (audit C3): `workingScene()`, which is what
-// a GM resolving somebody else's rest means by "this scene", not `canvas.scene`.
+import { whisperToOwner, log, error, plural, cardHead, workingScene } from "./utils.mjs";
+// One room map for the whole module (audit C3): `regionsByName`, rooms only and on the
+// scene it is handed (E12 C2a). The scene is `workingScene()` here, the default that map
+// carried until then - what a GM resolving somebody else's rest means by "this scene", and
+// the camera all the same: these three are camera readers until the scene comes from the
+// character (plan-E12 C6).
 import { regionsByName } from "./vault.mjs";
+import { namedRegions } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -35,16 +39,16 @@ export const REST_FLAGS = {
  * ========================================================================== */
 
 /** Does this room allow the given kind of rest? */
-export function roomAllows(room, kind) {
+export function roomAllows(room, kind, scene = workingScene()) {
     if (!room) return false;
-    const region = regionsByName().get(room);
+    const region = regionsByName(scene).get(room);
     if (!region) return false;
     return Boolean(region.getFlag(MODULE_ID, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short));
 }
 
 /** Rooms flagged for a kind of rest. */
-export function restRooms(kind) {
-    return Array.from(regionsByName().entries())
+export function restRooms(kind, scene = workingScene()) {
+    return Array.from(regionsByName(scene).entries())
         .filter(([, region]) => region.getFlag(MODULE_ID, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short))
         .map(([name]) => name)
         .sort();
@@ -70,11 +74,15 @@ export function restRoomsSentence(kind, key, data = {}, known = roomsKnownToMe()
         : game.i18n.format("DRPG.Rest.noRooms", { kind: data.kind ?? "" });
 }
 
-/** Mark or unmark a room. GM only. */
-export async function setRestRoom(roomName, { short = null, long = null } = {}) {
+/**
+ * Mark or unmark a room. GM only. Every region of the name on the scene is written (E12 C2a),
+ * a room's or not: Room Setup, which calls this, is where a named region is made a room.
+ */
+export async function setRestRoom(roomName, { short = null, long = null, scene = workingScene() } = {}) {
     if (!game.user.isGM) return null;
 
-    const region = regionsByName().get(roomName);
+    const pieces = namedRegions(scene, roomName);
+    const region = pieces.at(-1);
     if (!region) return null;
 
     const update = {};
@@ -82,7 +90,7 @@ export async function setRestRoom(roomName, { short = null, long = null } = {}) 
     if (long !== null) update[`flags.${MODULE_ID}.${REST_FLAGS.long}`] = long;
     if (!Object.keys(update).length) return null;
 
-    await region.update(update);
+    await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, ...update })));
     return region;
 }
 

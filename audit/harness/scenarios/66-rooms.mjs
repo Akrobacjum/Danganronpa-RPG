@@ -45,7 +45,8 @@
  * C0's mutants of the module and the shim (two of them drafts that stayed green), and 20.9 s under the one that stops
  * the discovery (I waits up to 8 s for it) - against 61's 480 s and run-all's shared five minutes, so it states no
  * `timeoutMs` of its own. E12 C1 (C2, D3, H rewritten as H1-H2, J1-J2): 20 checks in 15.9 s, one run alone under the
- * lock on 11.10.2026.
+ * lock on 11.10.2026. E12 C2a (C1, D1, D2 rewritten; G's tower regions marked rooms): 20 checks in 15.6 s, one run alone
+ * under the lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -87,12 +88,14 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         ${SCENES}
         const tower = await Scene.create({ name: "66 Tower", width: 4000, height: 3000, grid: { size: 100 }, active: false,
             levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+        // Marked rooms, as Room Setup draws a region the load's pass never decided (E12 C1): since C2a the rules read
+        // rooms only, and G read none of the five unmarked (G1's lab and corridor null, 11.10.2026).
         await tower.createEmbeddedDocuments("Region", [
-            { name: "Lab", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: {}, behaviors: [] },
-            { name: "Attic", shapes: ${rect(200, 200)}, levels: ["${L2}"], flags: {}, behaviors: [] },
-            { name: "Corridor", shapes: ${rect(1200, 200)}, levels: ["${L1}"], flags: {}, behaviors: [] },
-            { name: "Vault", shapes: ${rect(1200, 200)}, levels: ["${L2}"], flags: { "${MOD}": { drpgLocked: true } }, behaviors: [] },
-            { name: "Stairwell", shapes: ${rect(2200, 200)}, levels: [], flags: {}, behaviors: [] }]);
+            { name: "Lab", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "Attic", shapes: ${rect(200, 200)}, levels: ["${L2}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "Corridor", shapes: ${rect(1200, 200)}, levels: ["${L1}"], flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "Vault", shapes: ${rect(1200, 200)}, levels: ["${L2}"], flags: { "${MOD}": { room: true, drpgLocked: true } }, behaviors: [] },
+            { name: "Stairwell", shapes: ${rect(2200, 200)}, levels: [], flags: { "${MOD}": { room: true } }, behaviors: [] }]);
         const named = name => tower.regions.find(r => r.name === name);
         let fired = 0;
         const count = () => { fired += 1; };
@@ -161,9 +164,10 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         return { rooms, marked, isRoom, flag };`, { timeout: 30000 });
     /* The behaviour's type, `teleportToken`, is Foundry's name as recalled (LIVE-E12-02); rooms.mjs reads it since E12 C1.
        At 180df61 every named region is a room. E12 C1 (V3) makes a room what a GM marked and `isRoom` refuses a
-       region carrying a Teleport or ChangeLevel behaviour, the mark notwithstanding; C2a moves the readers onto it. */
-    check("C1: a region named Closet carrying a Teleport behaviour is listed among Floor 1's rooms (E12 C2a)",
-        setC.rooms.includes("Closet"), J(setC));
+       region carrying a Teleport or ChangeLevel behaviour, the mark notwithstanding; C2a moves the readers onto it, and
+       `allRooms` lists rooms only (until C2a C1 read the Closet among them). */
+    check("C1: a region named Closet carrying a Teleport behaviour is not among Floor 1's rooms by allRooms (E12 C2a)",
+        !setC.rooms.includes("Closet") && setC.rooms.includes("Gym"), J(setC));
     check("C2: the Closet, marked a room by hand, is no room by isRoom: its Teleport makes it a passage (E12 C1)",
         setC.flag === true && setC.isRoom === false && !setC.marked.includes("Closet") && setC.marked.includes("Gym"), J(setC));
 
@@ -193,11 +197,12 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         return out;`, { timeout: 30000 });
     /* At 180df61 Room Setup writes a row through `regionsByName()`, whose map keeps the LAST region of a name, and
        the veto reads the FIRST (`isLocked`, movement.mjs): the lock lands on piece 2 and the walk into piece 1 is
-       let through. E12 C2a (V4): two pieces are one room, locked together. */
-    check("D1: a Kitchen of two pieces locked from Room Setup carries the lock on its second piece alone (E12 C2a)",
-        setD.seen?.box === true && J(setD.locks) === J([false, true]), J(setD));
-    check("D2: p1's walk from Dorm A into the Kitchen's first piece lands (E12 C2a)",
-        setD.room === "Dorm A" && walkD.room === "Kitchen" && walkD.at.x === 950, J({ setD, walkD }));
+       let through (D1 read [false, true], D2 the token at x 950 in the Kitchen). E12 C2a (V4): two pieces are one room -
+       Room Setup writes every piece and the veto reads the room over its pieces - so the walk is refused where it starts. */
+    check("D1: a Kitchen of two pieces locked from Room Setup carries the lock on both pieces (E12 C2a)",
+        setD.seen?.box === true && J(setD.locks) === J([true, true]), J(setD));
+    check("D2: p1's walk from Dorm A into the Kitchen's first piece is refused: the token stays where it stood in Dorm A (E12 C2a)",
+        setD.room === "Dorm A" && walkD.room === "Dorm A" && walkD.at.x === setD.at.x && walkD.at.y === setD.at.y, J({ setD, walkD }));
     /* At 180df61 Room Setup has no room column and writes no mark. E12 C1: the Kitchen, drawn after the load's pass and
        so never decided, is drawn ticked "This is a room", and Apply marks both pieces. */
     check("D3: Room Setup's Apply marks both pieces of the never-decided Kitchen a room (E12 C1)",
@@ -385,7 +390,7 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;
         globalThis.__s66i = { cards: cards(), log: console.log, lines: [] };
         console.log = (...args) => { globalThis.__s66i.lines.push(args.map(String).join(" ")); return globalThis.__s66i.log.apply(console, args); };
-        return { locked: locked(storage), daichi, kept, botan, aiko, cards: cards(), neighbours: M.neighbouringRooms("Hall"),
+        return { locked: locked(storage), daichi, kept, botan, aiko, cards: cards(), neighbours: M.neighbouringRooms(academy, "Hall"),
             names: { aiko: game.actors.get("${IDS.aiko}").name, botan: game.actors.get("${IDS.botan}").name } };`, { timeout: 60000 });
     const jump = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");

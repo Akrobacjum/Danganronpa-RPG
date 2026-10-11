@@ -15,6 +15,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
+import { roomFlag, roomNames } from "./rooms.mjs";
 
 /**
  * Region flags this file owns.
@@ -186,12 +187,9 @@ export class SearchTokens {
     static sealed(roomName, scene = canvas?.scene) {
         if (!roomName) return false;
         const where = typeof scene === "string" ? game.scenes?.get(scene) : scene;
-        for (const region of (where ?? canvas?.scene)?.regions ?? []) {
-            if (region.name === roomName) {
-                return Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
-            }
-        }
-        return false;
+        // Every piece of the room, and only regions that are rooms (E12 C2a): the first
+        // region of that name used to answer, and Room Setup wrote the last one.
+        return Boolean(roomFlag(where ?? canvas?.scene, roomName, SEARCH_FLAGS.sealed));
     }
 
     /**
@@ -302,10 +300,7 @@ export class SearchTokens {
         const max = this.max;
         const scene = canvas?.scene;
 
-        const rooms = Array.from(scene?.regions ?? [])
-            .map(r => r.name)
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
+        const rooms = roomNames(scene);
 
         const rows = rooms.length
             ? rooms.map(room => {

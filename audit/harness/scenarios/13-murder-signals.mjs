@@ -1128,7 +1128,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
         const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
         const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
-        const room = Mv.allRooms().find(r => Mv.othersInNamedRoom(r).length === 0) ?? Mv.allRooms()[0];
+        const room = Mv.allRooms(canvas?.scene).find(r => Mv.othersInNamedRoom(r).length === 0) ?? Mv.allRooms(canvas?.scene)[0];
         const first = livingStudentsForGm().find(a => a.id !== "${ids.chie}")?.id ?? null;
         const had = new Set(game.messages.contents.map(m => m.id));
         const windows = globalThis.__dialogWindows;
@@ -1558,7 +1558,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const Mv = await import("${repoUrl}/scripts/movement.mjs");
         const chie = game.actors.get("${ids.chie}");
         const room = Mv.locateActor(chie)?.room ?? "";
-        const target = ${target === "room" ? "Mv.neighbouringRooms(room).find(r => r !== room) ?? null" : JSON.stringify(target)};
+        const target = ${target === "room" ? "Mv.neighbouringRooms(Mv.locateActor(chie)?.scene, room).find(r => r !== room) ?? null" : JSON.stringify(target)};
         globalThis.__forceRoll = { hope: 11, fear: 2 };
         const before = A.rollInHand(chie)?.messageId ?? null, here = Cl.bodyIsHere(chie);
         let r = null, err = null;

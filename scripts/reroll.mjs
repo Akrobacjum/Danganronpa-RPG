@@ -1720,8 +1720,8 @@ export async function heardLines(actor, lines) {
 
 async function listenLines(actor, { room, target, total, isCritical }) {
     const def = ACTIONS.listen;
-    const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
-    const neighbours = room ? neighbouringRooms(room) : [];
+    const { neighbouringRooms, occupantsOf, roomsKnownToMe, locateActor } = await import("./movement.mjs");
+    const neighbours = room ? neighbouringRooms(locateActor(actor)?.scene, room) : [];
     const labelOf = listenLabels(neighbours, roomsKnownToMe());
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {

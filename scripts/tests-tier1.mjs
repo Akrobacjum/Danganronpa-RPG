@@ -1081,7 +1081,7 @@ const INVARIANTS = [
             }
             // And the other direction: a room that names them, which their own
             // list left out.
-            for (const room of (await import("./movement.mjs")).allRooms()) {
+            for (const room of (await import("./movement.mjs")).allRooms(canvas?.scene)) {
                 if (owned.includes(room)) continue;
                 if (stashesIn(room).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${room} says ${actor.name} has a stash there and their own list does not`);
@@ -1129,7 +1129,7 @@ const INVARIANTS = [
         ok(!errors.length, `the map has ${errors.length} region error(s): ${
             errors.map(e => `${e.room} ${e.problem}`).join("; ")}`);
 
-        const rooms = allRooms();
+        const rooms = allRooms(canvas?.scene);
         const named = [...scene.regions].filter(r => rooms.includes(r.name));
         const box = region => {
             const xs = [], ys = [];

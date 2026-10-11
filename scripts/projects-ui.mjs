@@ -298,7 +298,7 @@ export async function openProjectManager() {
     }
 
     const projects = allProjects();
-    const rooms = allRooms();
+    const rooms = allRooms(canvas?.scene ?? null);
 
     // No projects yet? Go straight to creating one.
     if (!projects.length) {
@@ -460,7 +460,7 @@ export function projectTraitOptions(current = "") {
  *   the same as `project`: nothing has been created, so this still takes the
  *   create path and the GM can change every answer before it does.
  */
-export async function openProjectDialog({ project = null, preset = null, rooms = allRooms() } = {}) {
+export async function openProjectDialog({ project = null, preset = null, rooms = allRooms(canvas?.scene ?? null) } = {}) {
     const editing = Boolean(project);
     const start = project ?? preset ?? null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
@@ -782,7 +782,7 @@ async function applySecrecy(id, wanted, viewers = null) {
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */
-async function openCreateDialog(rooms = allRooms()) {
+async function openCreateDialog(rooms = allRooms(canvas?.scene ?? null)) {
     return openProjectDialog({ rooms });
 }
 

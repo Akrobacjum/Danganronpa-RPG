@@ -33,7 +33,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
-import { ROOM_FLAG } from "./rooms.mjs";
+import { ROOM_FLAG, isRoomWith, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -356,7 +356,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (from === to) return;                       // same room: always free
         if (!from && !to) return;                      // no regions here
 
-        const allowed = canCross(actor, from, to);
+        const allowed = canCross(actor, from, to, tokenDoc.parent);
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -406,7 +406,7 @@ function isCorpse(actor) {
  *
  * @returns {true|string} true, or the reason it is refused.
  */
-function canCross(actor, from, to) {
+function canCross(actor, from, to, scene) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -422,7 +422,7 @@ function canCross(actor, from, to) {
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const blocked = restrictedFrom(actor, to);
+    const blocked = restrictedFrom(actor, to, scene);
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -480,7 +480,7 @@ function canCross(actor, from, to) {
             if (used >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
             if (from && to) {
-                const connected = neighbouringRooms(from);
+                const connected = neighbouringRooms(scene, from);
                 if (connected.length && !connected.includes(to)) {
                     return notConnectedText(from, to, connected);
                 }
@@ -497,7 +497,7 @@ function canCross(actor, from, to) {
     // they are in." Only the Eclipse used to check this, so during an ordinary
     // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
-    const notConnected = crossingRefused(from, to);
+    const notConnected = crossingRefused(scene, from, to);
     if (notConnected) return notConnected;
 
     /*
@@ -531,10 +531,10 @@ function canCross(actor, from, to) {
  *
  * @returns {false|string} false when allowed, otherwise the reason.
  */
-function crossingRefused(from, to) {
+function crossingRefused(scene, from, to) {
     if (!from || !to) return false;
 
-    const connected = neighbouringRooms(from);
+    const connected = neighbouringRooms(scene, from);
     if (!connected.length || connected.includes(to)) return false;
 
     return notConnectedText(from, to, connected);
@@ -659,17 +659,17 @@ function lockedInIncident(actor) {
  *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to) {
+function restrictedFrom(actor, to, scene) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
         if (to && !iAmTheMastermind()) {
-            if (isLocked(to)) return game.i18n.localize("DRPG.Move.locked");
+            if (isLocked(scene, to)) return game.i18n.localize("DRPG.Move.locked");
             if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
-            if (!game.user.isGM && bedroomShut(actor, to)) {
+            if (!game.user.isGM && bedroomShut(actor, scene, to)) {
                 return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
             }
         }
@@ -682,18 +682,20 @@ function restrictedFrom(actor, to) {
 /**
  * Has a GM locked this room shut, from Room Setup?
  *
- * Reads the flag straight off the room's own Region on the scene actually
- * being dragged on - the same `canvas?.scene` assumption every other room
- * function in this file makes for the synchronous veto path (see `roomAt`,
- * `neighbouringRooms`): the crossing being judged is always happening on
- * whatever scene the dragging client has open.
+ * Read off the room on the scene of the token being moved, which the veto hands
+ * in (`tokenDoc.parent`), and over EVERY piece of it (E12 C2a, audit S07-05,
+ * S08-17). Until 1.2.74 this took the camera's scene and the FIRST region of the
+ * name, while Room Setup wrote the lock through `regionsByName`, whose map kept
+ * the LAST: a Kitchen drawn in two pieces and locked from Room Setup carried the
+ * lock on its second piece, and a walk into the first was let through (scenario
+ * 66 D1 and D2 read it so, 11.10.2026). Room Setup now writes every piece and this reads
+ * the room as one (`roomFlag`, rooms.mjs: the first piece that carries the flag
+ * answers), so a lock left on one piece by the old writer still holds. Exported
+ * for tier 2's "two pieces are one room", which asks it about a scene of its own.
  */
-function isLocked(room) {
+export function isLocked(scene, room) {
     if (!room) return false;
-    for (const region of canvas?.scene?.regions ?? []) {
-        if (region.name === room) return Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
-    }
-    return false;
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.locked));
 }
 
 /**
@@ -708,20 +710,23 @@ function isLocked(room) {
  * door: losing it would otherwise lock them out of the one place the guide says
  * is theirs.
  */
-function bedroomShut(actor, to) {
-    for (const region of canvas?.scene?.regions ?? []) {
-        if (region.name !== to) continue;
-        const owner = region.getFlag(MODULE_ID, ROOM_OWNER_FLAG);
-        if (!owner || owner === actor?.id) return false;
-        return !Array.from(actor?.items ?? [])
-            .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
-    }
-    return false;
+function bedroomShut(actor, scene, to) {
+    // The owner as the room's pieces carry it, on the mover's scene - as `isLocked`.
+    const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;
+    if (!owner || owner === actor?.id) return false;
+    return !Array.from(actor?.items ?? [])
+        .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
 }
 
-/** Which room a point falls inside, using the same regions as roomOfToken. */
+/**
+ * Which room a point falls inside, using the same regions as roomOfToken.
+ *
+ * On the scene of the token it is asked for, and no other (E12 C2a): every
+ * caller hands a token document in, and the camera's scene it fell back to
+ * answered for a token on another map with the rooms of the map on screen.
+ */
 export function roomAt(x, y, tokenDoc) {
-    const scene = tokenDoc?.parent ?? canvas?.scene;
+    const scene = tokenDoc?.parent ?? null;
     if (!scene?.regions?.size) return null;
 
     // Test the token's centre, not its corner - measured with THAT SCENE's grid.
@@ -763,11 +768,13 @@ export function roomAt(x, y, tokenDoc) {
 }
 
 /**
- * Every named Region a point falls inside - the plural version of `roomAt`,
+ * Every room piece a point falls inside - the plural version of `roomAt`,
  * and the one place the hit test is written: grid size, elevation, the
  * `testPoint` fallback chain. `roomAt` takes the alphabetically-first name off
  * it; nothing outside this file reads the list any more (the vision clip that
- * did is gone).
+ * did is gone). Rooms only (rooms.mjs `roomPieces`, E12 C2a): a named region
+ * that is no room - a Teleport, a level change, a player's area - is no room a
+ * token stands in; until 1.2.74 any name made one.
  */
 function regionsAt(scene, x, y, tokenDoc) {
     if (!scene?.regions?.size) return [];
@@ -777,7 +784,7 @@ function regionsAt(scene, x, y, tokenDoc) {
     const cy = y + ((tokenDoc?.height ?? 1) * size) / 2;
     const elevation = Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0;
 
-    const named = Array.from(scene.regions).filter(r => r.name);
+    const named = roomPieces(scene);
     const found = [];
     let asked = 0;
 
@@ -881,7 +888,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
         // CROSSINGS, and settling a whole route as one would have let a
         // multi-waypoint drag walk the map on a single allowance.
         for (const [from, to] of crossings) {
-            const allowed = await judgeEclipseCrossing(actor, from, to);
+            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent);
             if (!allowed) {
                 await sendBack(tokenDoc, previous, before);
                 return;
@@ -1207,11 +1214,15 @@ async function sendBack(tokenDoc, previous, room) {
     setTimeout(apply, 0);
 }
 
-/** A position inside a named room on the token's scene - its centre, less the token's own size. */
+/**
+ * A position inside a named room on the token's scene - its centre, less the token's own size.
+ * The centre of the room's first piece (E12 C2a): a room of two pieces has no centre of its own
+ * that is inside it, and the token's scene is the only one asked - never the camera's.
+ */
 export function positionIn(room, tokenDoc) {
     try {
-        const scene = tokenDoc?.parent ?? canvas?.scene;
-        const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
+        const scene = tokenDoc?.parent ?? null;
+        const region = roomRegions(scene, room)[0];
         const box = region ? boundsOf(region) : null;
         if (!box) return null;
         const size = scene?.grid?.size ?? canvas?.grid?.size ?? 100;
@@ -1244,9 +1255,11 @@ export function roomOfToken(tokenDoc) {
     const regions = tokenDoc?.regions;
 
     if (regions?.size) {
+        // Foundry's own list holds every region the token is in, a Teleport's too: rooms only (E12 C2a).
+        const players = playerRegionIds();
         const names = Array.from(regions)
             .map(r => (typeof r === "string" ? tokenDoc.parent?.regions?.get(r) : r))
-            .filter(Boolean)
+            .filter(r => r && isRoomWith(r, players))
             .map(r => r.name)
             .filter(Boolean)
             .sort();
@@ -1426,20 +1439,18 @@ export function othersInNamedRoom(room, actor = null) {
 }
 
 /**
- * Every room region on a scene. Defaults to the one being looked at.
+ * Every room on a scene, by name, once each (rooms.mjs `roomNames`).
  *
- * The argument exists for the callers that are NOT about the current view - the
- * voice eavesdrop dialog above all, where a GM reviewing the trial room would
- * otherwise be offered the trial room's regions and end up listening to a
- * LiveKit room nobody is standing in.
+ * The scene is the caller's to name (E12 C2a): it defaulted to the one being
+ * looked at, which on a GM's browser is wherever that GM parked the camera, and
+ * listed every named region - a Teleport's as well, and a room drawn in two
+ * pieces twice. A window the GM works in hands in the scene on screen; a
+ * player's own action hands in the scene their character stands on.
  *
- * @param {Scene|null} [scene]
+ * @param {Scene|null} scene
  */
-export function allRooms(scene = null) {
-    return Array.from((scene ?? canvas?.scene)?.regions ?? [])
-        .map(r => r.name)
-        .filter(Boolean)
-        .sort();
+export function allRooms(scene) {
+    return roomNames(scene);
 }
 
 /**
@@ -1454,35 +1465,42 @@ export function allRooms(scene = null) {
  * comma-separated list of room names, for rooms that touch but have no door,
  * or doors between rooms that do not touch.
  */
-export function neighbouringRooms(room) {
-    const scene = canvas?.scene;
+export function neighbouringRooms(scene, room) {
     if (!room || !scene) return [];
 
-    const regions = Array.from(scene.regions).filter(r => r.name);
-    const self = regions.find(r => r.name === room);
-    if (!self) return [];
+    // A ROOM OF SEVERAL PIECES IS ONE ROOM (E12 C2a, audit S07-05): its neighbours are
+    // the union of its pieces' neighbours, and a neighbour is named once however many
+    // of its own pieces touch. Until 1.2.74 this read the first region of the name on
+    // the camera's scene, so a corridor drawn in two pieces had the neighbours of one.
+    const regions = roomPieces(scene);
+    const mine = regions.filter(r => r.name === room);
+    if (!mine.length) return [];
+    const names = list => [...new Set(list.map(r => r.name))].sort();
 
-    // Explicit list wins, when the GM has set one.
-    const declared = self.getFlag?.(MODULE_ID, "drpgNeighbours");
-    if (typeof declared === "string" && declared.trim()) {
-        const names = declared.split(",").map(s => s.trim()).filter(Boolean);
-        return names.filter(n => regions.some(r => r.name === n)).sort();
+    // Explicit list wins, when the GM has set one - on any piece.
+    const declared = mine.map(r => r.getFlag?.(MODULE_ID, "drpgNeighbours"))
+        .filter(d => typeof d === "string" && d.trim());
+    if (declared.length) {
+        const listed = new Set(declared.flatMap(d => d.split(",").map(s => s.trim()).filter(Boolean)));
+        return names(regions.filter(r => listed.has(r.name)));
     }
 
     // Tolerance for the thickness of a shared wall, and no more. A larger
     // margin bridges rooms that merely lie near each other - at 1.5 squares it
-    // treated a room two doors away as adjacent.
+    // treated a room two doors away as adjacent. Measured in THIS scene's grid,
+    // not the one on screen.
     const others = regions.filter(r => r.name !== room);
-    const pad = (canvas?.grid?.size ?? 100) * 0.35;
-    const mine = boundsOf(self);
+    const pad = (scene.grid?.size ?? 100) * 0.35;
+    const boxes = mine.map(boundsOf);
 
     // No usable geometry - an unrendered scene, an exotic shape, a region drawn
     // in a way we cannot measure. Treat every other room as reachable rather
     // than telling the player there is nowhere to go: being too permissive is a
-    // GM ruling away, being too strict is a dead end.
-    if (!mine) {
-        debug(`No bounds for "${room}"; treating all rooms as neighbours.`);
-        return others.map(r => r.name).sort();
+    // GM ruling away, being too strict is a dead end. One piece that cannot be
+    // measured is enough: its doors could be anywhere.
+    if (boxes.some(box => !box)) {
+        debug(`No bounds for a piece of "${room}"; treating all rooms as neighbours.`);
+        return names(others);
     }
 
     // Split by whether each candidate's own geometry could be measured at all.
@@ -1504,12 +1522,10 @@ export function neighbouringRooms(room) {
 
     const near = others.filter(r => {
         const other = boundsOf(r);
-        return other && overlaps(mine, other, pad);
+        return other && boxes.some(box => overlaps(box, other, pad));
     });
 
-    // Disjoint by construction - `boundsOf(r)` cannot be both truthy and falsy
-    // for the same region - so a plain concat is enough.
-    return [...near, ...unmeasured].map(r => r.name).sort();
+    return names([...near, ...unmeasured]);
 }
 
 /**

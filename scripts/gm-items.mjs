@@ -1251,7 +1251,7 @@ export async function issueAutopsyDialog() {
  */
 async function takeItemDialog(actor, { only = null } = {}) {
     // A key is a room fact, and the room's owner is asked below.
-    const { keyRoomOf, vaultOwnerOf } = await import("./vault.mjs");
+    const { keyRoomOf, bedroomOwnerAnywhere } = await import("./vault.mjs");
 
     /*
      * A FILTERED WINDOW SAYS WHAT IT IS FILTERED TO. The title and the
@@ -1288,7 +1288,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
         // the next load. Offering it here would be a removal that quietly
         // undoes itself.
         .filter(({ item, category }) =>
-            category !== "bedroomKey" || vaultOwnerOf(keyRoomOf(item)) !== who.id);
+            category !== "bedroomKey" || bedroomOwnerAnywhere(keyRoomOf(item)) !== who.id);
 
     const optionsFor = who => {
         const owned = ownedFor(who);

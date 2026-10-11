@@ -43,7 +43,8 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
-import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag } from "./rooms.mjs";
+import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames }
+    from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -207,9 +208,11 @@ export function keysHeldBy(actor) {
  * never needs a key to their own room - losing your own key would otherwise
  * lock you out of the one place the guide says is yours.
  */
-export function mayEnterBedroom(actor, room, scene = workingScene()) {
+export function mayEnterBedroom(actor, room, scene = null) {
     if (!actor || !room) return true;
-    const owner = vaultOwnerOf(room, scene);
+    // The scene the caller names, else the room wherever it is drawn (E12 C2a): a key is
+    // a room's name, and the camera's scene answered "nobody's" for a bedroom one map over.
+    const owner = scene ? vaultOwnerOf(room, scene) : bedroomOwnerAnywhere(room);
     if (!owner || owner === actor.id) return true;
     return keysHeldBy(actor).has(room);
 }
@@ -362,18 +365,43 @@ export function hindersCategory(room, category) {
  * WHOSE ROOM IS THIS
  * ========================================================================== */
 
-/** Named regions on a scene, by name. rest.mjs reads rooms through this too (C3). */
-export function regionsByName(scene = workingScene()) {
+/**
+ * The rooms on a scene, by name, one piece each. rest.mjs reads rooms through this too (C3).
+ *
+ * ROOMS, ON THE SCENE NAMED (E12 C2a, audit S07-05, S07-06, S08-17). Until 1.2.74 this took
+ * every named region of the camera's scene (`workingScene()`), a Teleport's included, and
+ * its map kept the LAST region of a name - which is the piece Room Setup wrote, while the
+ * crossing veto read the FIRST. A room is now what rooms.mjs says it is, the caller names
+ * the scene, and every writer here writes all the pieces of a name (`updateRoom`); the
+ * piece this map holds is still the last, where a room drawn in two pieces kept what Room
+ * Setup wrote before then. The readers that decide a rule - the owner, the bedrooms, the
+ * lock - read the room as one (`roomFlag`).
+ */
+export function regionsByName(scene) {
     const map = new Map();
-    for (const region of scene?.regions ?? []) {
-        if (region.name) map.set(region.name, region);
-    }
+    for (const region of roomPieces(scene)) map.set(region.name, region);
     return map;
 }
 
-/** The actor id whose BEDROOM this is, or `null`. Doors and keys, not stashes. */
-export function vaultOwnerOf(room, scene = workingScene()) {
-    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null;
+/**
+ * One update written to every region of a room's name on this scene, rooms or not, in one
+ * update of the scene's regions (E12 C2a): the writers below wrote the one piece
+ * `regionsByName` held, so a Kitchen of two pieces had its owner, its stash or its lock on
+ * one of them. Answers the regions written. A GM's write, on a GM's client only.
+ */
+async function updateRoom(scene, room, update) {
+    if (!game.user.isGM || !scene) return [];
+    const pieces = namedRegions(scene, room);
+    if (pieces.length) await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, ...update })));
+    return pieces;
+}
+
+/**
+ * The actor id whose BEDROOM this is, or `null`. Doors and keys, not stashes. Read over
+ * every piece of the room on the scene named (E12 C2a) - no scene, no answer.
+ */
+export function vaultOwnerOf(room, scene) {
+    return roomFlag(scene, room, VAULT_FLAGS.owner) ?? null;
 }
 
 /* ==========================================================================
@@ -487,13 +515,15 @@ export function vaultRoomOwnedBy(actor, scene = workingScene()) {
  * region, which is exactly when it should happen: the moment somebody edits
  * this room, the old two-flag shape stops being the source of truth for it.
  */
-export async function setStash(room, actorId, { present = undefined, concealed = undefined } = {}) {
+export async function setStash(room, actorId, { present = undefined, concealed = undefined, scene = workingScene() } = {}) {
     if (!game.user.isGM || !room || !actorId) return null;
 
-    const region = regionsByName().get(room);
+    // The scene the caller names; the camera's when it names none, as `regionsByName()`
+    // read it here until E12 C2a moved the default up to this line (C4 hands Room Setup's in).
+    const region = regionsByName(scene).get(room);
     if (!region) return null;
 
-    const list = stashesIn(room);
+    const list = stashesIn(room, scene);
     const at = list.findIndex(entry => entry.actorId === actorId);
 
     if (present === false) {
@@ -517,7 +547,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
          * floor under it, not a replacement for it.
          */
         const owner = game.actors.get(actorId);
-        const held = owner ? stashItemsIn(owner, room).length : 0;
+        const held = owner ? stashItemsIn(owner, room, scene).length : 0;
         if (held) {
             ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
                 name: owner?.name ?? "?", room, n: held
@@ -535,7 +565,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
         list[at] = { actorId, concealed: Boolean(concealed) };
     }
 
-    await region.update({ [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
+    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
 
     // A hiding place taken away is one nobody has "found" any more (ITEM-09):
     // the finders' notes pointed at it by room and owner, and left standing
@@ -581,9 +611,10 @@ export async function forgetAllStashesFound(actors = game.actors) {
  * through `setStash`), and it outlived the reset that took the projects, the notes of who had found it
  * and the doors with it - so the new season opened on a drawer nobody had hidden in it yet (read in
  * the code, 10.10.2026: no step of the reset wrote `stashes` or the legacy flag). A stash itself is the map's, as
- * a bedroom's owner is: it stays. Every scene and not `regionsByName()`'s, which is the scene the GM
- * is looking at (ITEM-16); the legacy one-stash flag too, which `stashesOn` still reads where a room
- * was never edited since the list came in. GM-side.
+ * a bedroom's owner is: it stays. Every scene and not the one the GM is looking at, which
+ * `regionsByName()` read until E12 C2a made its scene a parameter (ITEM-16); the legacy
+ * one-stash flag too, which `stashesOn` still reads where a room was never edited since the
+ * list came in. GM-side.
  *
  * @returns {Promise<number>} how many rooms had a hiding place taken off.
  */
@@ -683,10 +714,11 @@ export function stashItemsIn(actor, room, scene = workingScene()) {
  * permanent entry to their bedroom. That is precisely the leak the two flags
  * were separated to prevent.
  */
-export function allBedrooms(scene = workingScene()) {
+export function allBedrooms(scene) {
     const out = [];
-    for (const [name, region] of regionsByName(scene)) {
-        const ownerId = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
+    // The scene named, every piece of each room read as one (E12 C2a): no camera.
+    for (const name of roomNames(scene)) {
+        const ownerId = vaultOwnerOf(name, scene);
         if (!ownerId) continue;
         // The scene it was read on (E11 C10b): the reset's "each to their own bedroom" moves a
         // token only on the map its bedroom is drawn on, and `allBedroomsAnywhere` mixes scenes.
@@ -781,11 +813,14 @@ export function allVaults(scene = workingScene()) {
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
     owner = undefined, table = undefined,
-    favours = undefined, hinders = undefined, description = undefined
+    favours = undefined, hinders = undefined, description = undefined, scene = workingScene()
 } = {}) {
     if (!game.user.isGM) return null;
 
-    const region = regionsByName().get(room);
+    // The scene the caller names; the camera's default moved up here from `regionsByName`
+    // by E12 C2a. Every region of the name is written (`updateRoom`), a room's or not:
+    // Room Setup lists the named regions so that a GM can make one a room.
+    const region = namedRegions(scene, room).at(-1);
     if (!region) return null;
 
     const update = {};
@@ -803,7 +838,7 @@ export async function setVaultRoom(room, {
     }
     if (!Object.keys(update).length) return null;
 
-    await region.update(update);
+    await updateRoom(scene, room, update);
     return region;
 }
 
@@ -1910,11 +1945,14 @@ function stashMatrixRows(rooms, students, scene) {
 function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
     const players = playerRegionIds();
     return rooms.map(room => {
-        const owner = vaultOwnerOf(room) ?? "";
-        const table = roomTable(room) ?? "";
-        const favours = roomFavours(room);
-        const hinders = roomHinders(room);
+        // Off the region the form writes back (E12 C2a): the room readers read rooms only, and
+        // this window lists every named region so that a GM can make one a room - a cell read
+        // through them would show a region that is no room yet as empty, and Apply clear it.
         const region = regions.get(room);
+        const owner = region?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? "";
+        const table = region?.getFlag(MODULE_ID, VAULT_FLAGS.table) || "";
+        const favours = region?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
+        const hinders = region?.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [];
         // NOT `esc`: every other file in this module uses that name for the
         // escaping FUNCTION, so a local string by the same name here means the
         // next `esc(x)` written inside this block is a TypeError.
@@ -2382,15 +2420,28 @@ function bedroomClaimedTwice(rowResults) {
     return false;
 }
 
-/** Write every row that differs from its region. Answers how many changed and whose bedroom moved. */
-async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
+/**
+ * The named regions of a scene by name, the last of a name held - Room Setup's own map (E12 C2a).
+ * Not `regionsByName`, which holds rooms only: this window is where a region becomes one.
+ */
+function namedByName(scene) {
+    return new Map(namedRegions(scene).map(region => [region.name, region]));
+}
+
+/**
+ * Write every row that differs from its region. Answers how many changed and whose bedroom moved.
+ * Every write lands on every region of the row's name (E12 C2a, `updateRoom`): one write to the
+ * piece `regionsByName` held left a Kitchen of two pieces locked on one of them (66 D1).
+ */
+async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     let changed = 0;
     // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
     // on inline because the seeding below has to run after the stash matrix has
     // been written, or it would seed into a list it is about to overwrite.
     const ownerMoved = [];
+    const named = namedByName(scene);
     for (const row of rowResults) {
-        const region = regionsByName().get(row.room);
+        const region = named.get(row.room);
         if (!region) continue;
 
         const before = {
@@ -2411,7 +2462,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
         // Settled when every piece of the name already says what the row says (E12 C1); the
         // scene is the region's own, so the flag goes where the row was read.
         const roomSettled = row.isRoom === null
-            || namedRegions(region.parent, row.room).every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
+            || namedRegions(scene, row.room).every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
 
         const same = before.owner === (row.owner || null)
             && before.table === (row.table || null)
@@ -2440,12 +2491,13 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
             table: row.table,
             favours: row.favours,
             hinders: row.hinders,
-            description: row.description
+            description: row.description,
+            scene
         });
 
         // Through rest.mjs's own writer rather than a second flag path, so the
         // two rest flags keep one owner.
-        await setRestRoom(row.room, { short: row.shortRest, long: row.longRest });
+        await setRestRoom(row.room, { short: row.shortRest, long: row.longRest, scene });
 
         // No announcement either way. A room nobody can search says so on the
         // action tile the moment anybody stands in it and looks - which is a
@@ -2453,25 +2505,25 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
         // earlier, and it does not tell the whole cast which room the GM has
         // just decided is interesting enough to close.
         if (wasSealed !== row.noSearch) {
-            await region.setFlag(MODULE_ID, SEARCH_FLAGS.sealed, row.noSearch);
+            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: row.noSearch });
         }
 
         // Nothing to announce: this moves a line of advice on two GM screens
         // and no rule at all.
         if (wasNotShared !== row.notShared) {
-            await region.setFlag(MODULE_ID, VAULT_FLAGS.notShared, row.notShared);
+            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${VAULT_FLAGS.notShared}`]: row.notShared });
         }
 
         // Nothing announced: whether a region is a room is the GM's map, not news.
-        if (!roomSettled) await setRoomFlag(region.parent, row.room, ROOM_FLAG, row.isRoom);
+        if (!roomSettled) await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
 
         // Written whether or not it changed, because "unset" and "unset but
         // equal to the current lock" are the same thing to `startLocked` and
         // only one of them survives a mid-season change to the lock itself.
-        await region.setFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart, row.lockedAtStart);
+        await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.lockedAtStart}`]: row.lockedAtStart });
 
         if (wasLocked !== row.locked) {
-            await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, row.locked);
+            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: row.locked });
             // Only unlocking is announced. A GM locking a door mid-session is
             // often the point the players finding out is meant to come from
             // walking into it and reading "Drzwi są zamknięte." themselves -
@@ -2571,7 +2623,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     // Alphabetical, because a GM opens this looking for ONE room by name. The
     // order regions come in is the order somebody happened to draw the map,
     // which is nobody's mental model of the building.
-    const rooms = Array.from(regionsByName().keys()).sort((a, b) => a.localeCompare(b));
+    const scene = workingScene();
+    const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;
@@ -2581,7 +2634,6 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
     const { discoveredFor, applyDiscoveryChanges, sceneUncoveredPercent } =
         await import("./fog.mjs");
-    const scene = workingScene();
     const students = studentActors();
     const { isDeceased } = await import("./chapter.mjs");
     const living = students.filter(a => !isDeceased(a)).length;
@@ -2607,7 +2659,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
      */
     const categories = pickableCategories({ splitUsables: false })
         .map(c => [c.key, ITEM_CATEGORIES[c.key]]);
-    const regions = regionsByName();
+    const regions = namedByName(scene);
 
     const uncovered = sceneUncoveredPercent(scene);
     const maxTokens = SearchTokens.max;
@@ -2704,7 +2756,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     await applyDiscoveryChanges(scene, result.fogChanges ?? []);
 
-    const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults, { REST_FLAGS, setRestRoom });
+    // The scene on screen when Apply is pressed, as `regionsByName()` read it inside the rows
+    // until E12 C2a made the scene a parameter; C4 (R119) hands in the one this window opened on.
+    const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults,
+        { REST_FLAGS, setRestRoom, scene: workingScene() });
     let changed = rowsChanged;
 
     if (result.stashes && typeof result.stashes === "object") {

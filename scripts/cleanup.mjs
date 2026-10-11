@@ -72,6 +72,7 @@ import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
 import { locateActor } from "./movement.mjs";
+import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
@@ -2496,7 +2497,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      * where. `def.rooms` stays in the table as the reach - the picker offers the
      * rooms connected to this one - and the random walk is gone.
      */
-    const reachable = await bodyDestinations(here.room);
+    const reachable = await bodyDestinations(here.scene, here.room);
     let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
 
     if (!room) {
@@ -2506,7 +2507,8 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
         return;
     }
 
-    const region = Array.from(here.scene?.regions ?? []).find(r => r.name === room);
+    // The room's first piece (rooms.mjs, E12 C2a): a Teleport named like the room is no room.
+    const region = roomRegions(here.scene, room)[0] ?? null;
     const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id) ?? null;
 
     /*
@@ -3287,13 +3289,15 @@ export async function openCleanupDialog(actor) {
  * Every neighbour being a bedroom returns an empty list, which the callers
  * already read as "there is nowhere to take it" - the honest answer.
  */
-async function bodyDestinations(room) {
+async function bodyDestinations(scene, room) {
     if (!room) return [];
     const { neighbouringRooms } = await import("./movement.mjs");
     const { vaultOwnerOf } = await import("./vault.mjs");
-    return neighbouringRooms(room)
+    // The killer's scene, for the neighbours and for whose bedroom each is (E12 C2a): both
+    // read the camera's scene until 1.2.74.
+    return neighbouringRooms(scene, room)
         .filter(r => r !== room)
-        .filter(r => !vaultOwnerOf(r));
+        .filter(r => !vaultOwnerOf(r, scene));
 }
 
 /**
@@ -3312,7 +3316,7 @@ export async function openMoveBodyDialog(actor) {
     }
 
     const here = locateActor(actor);
-    const rooms = await bodyDestinations(here?.room ?? "");
+    const rooms = await bodyDestinations(here?.scene, here?.room ?? "");
 
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));

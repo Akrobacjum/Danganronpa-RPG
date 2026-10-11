@@ -578,7 +578,7 @@ export async function openMastermindDialog() {
     // secret the module guards hardest, and planting endgame clues gave a GM
     // reasons to have it open. What is left is the role and the lair.
     const lair = readStore().room ?? "";
-    const roomOptions = allRooms().map(r =>
+    const roomOptions = allRooms(canvas?.scene ?? null).map(r =>
         `<option value="${foundry.utils.escapeHTML(r)}"${r === lair ? " selected" : ""}>${
             foundry.utils.escapeHTML(r)}</option>`).join("");
 
@@ -713,7 +713,8 @@ export async function placeFinalRemnant({ room, visibility = "evident", note = "
     if (!game.user.isGM || !room) return null;
 
     const scene = canvas?.scene;
-    const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
+    const { roomRegions } = await import("./rooms.mjs");
+    const region = roomRegions(scene, room)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return null;

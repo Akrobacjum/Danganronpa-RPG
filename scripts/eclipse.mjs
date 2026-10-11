@@ -866,7 +866,7 @@ function placingActors(dead) {
  * rooms actually connected to the one you are leaving - the guide's "2
  * connected rooms", not two arbitrary hops.
  */
-export async function judgeEclipseCrossing(actor, from, to) {
+export async function judgeEclipseCrossing(actor, from, to, scene = null) {
     if (!isEclipse()) return true;
 
     /*
@@ -896,7 +896,8 @@ export async function judgeEclipseCrossing(actor, from, to) {
 
         // Must be a connected room.
         if (from && to) {
-            const connected = neighbouringRooms(from);
+            // On the scene the token crossed on (movement.mjs `settleRoute` hands it in, E12 C2a).
+            const connected = neighbouringRooms(scene, from);
             if (connected.length && !connected.includes(to)) {
                 // The same sentence the veto uses, and it names only rooms the
                 // viewer has been in, the destination included (E06 C11) -

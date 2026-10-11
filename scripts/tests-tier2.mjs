@@ -571,7 +571,7 @@ const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { qu
 async function markRestRoom(room, short) {
     const { regionsByName } = await import("./vault.mjs");
     const { REST_FLAGS } = await import("./rest.mjs");
-    const region = regionsByName().get(room);
+    const region = regionsByName(canvas?.scene).get(room);
     must(region, `the room ${room} has no region to mark`);
     const had = region.getFlag(MODULE_ID, REST_FLAGS.short), now = () => region.getFlag(MODULE_ID, REST_FLAGS.short);
     if (Boolean(had) !== short) await region.setFlag(MODULE_ID, REST_FLAGS.short, short);
@@ -644,7 +644,7 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
     const scene = canvas?.scene;
     const tokens = [killer, victim].filter(Boolean).map(a => scene?.tokens?.find(t => t.actorId === a.id));
     ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
     ok(room, "every named room on the scene on screen has somebody in it");
     const was = tokens.map(t => ({ x: t.x, y: t.y }));
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
@@ -2224,7 +2224,7 @@ async function standAlone(actor) {
     const scene = canvas?.scene;
     const token = scene?.tokens?.find(t => t.actorId === actor.id);
     must(token, `${actor.name} has no token on the scene on screen`);
-    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
     must(room, "every named room on the scene on screen has somebody in it");
     const was = { x: token.x, y: token.y };
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
@@ -2612,7 +2612,7 @@ async function c3Pick(actor, kind, key, trait, variant = null) {
 async function c3Room(actor, flags) {
     const V = await import("./vault.mjs");
     const stood = await standAlone(actor);
-    const region = V.regionsByName().get(stood.room);
+    const region = V.regionsByName(canvas?.scene).get(stood.room);
     const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
     const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
     const path = k => `flags.${MODULE_ID}.${k}`;
@@ -9518,7 +9518,7 @@ const SCENARIOS = [
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const stood = await standAlone(theirs);
-        const region = V.regionsByName().get(stood.room);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
@@ -15298,13 +15298,13 @@ const SCENARIOS = [
         const self = regions.find(r => r.name === room);
         // The harness's six rooms are drawn apart, so none has a neighbour by its walls (read 08.10.2026); a room
         // without one is given the next room by name - the GM's own declared list - and has it taken off afterwards.
-        const declared = neighbouringRooms(room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
+        const declared = neighbouringRooms(scene, room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
         let read = null, target = null;
         const body = tokenOf(victim), mine = tokenOf(killer), was = { x: body.x, y: body.y };
         const tokens = new Set(scene.tokens.map(t => t.id));
         try {
             if (declared) await self.setFlag(MODULE_ID, "drpgNeighbours", declared);
-            target = neighbouringRooms(room).find(r => r !== room) ?? null;
+            target = neighbouringRooms(scene, room).find(r => r !== room) ?? null;
             must(target, `${room} connects to no room the body could be carried to - this would measure nothing`);
             await fightOpen(M, killer, victim);
             await turnFor(M, killer, "finishingBlow");
@@ -26387,8 +26387,8 @@ const SCENARIOS = [
         needs(world.atLeast("namedRooms"), "the trap is built in a room");
 
         // A room with nobody in it, so "alone" is a fact rather than a guess.
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
 
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         let made = null;
@@ -26457,8 +26457,8 @@ const SCENARIOS = [
         const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
         const [killer, other] = cast(2);
         needs(world.atLeast("namedRooms"), "the trap is built in a room");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         const inWorld = id => P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor(id), f));
         const armedHere = id => T.armedIn(room).some(t => t.id === id);
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
@@ -26526,9 +26526,9 @@ const SCENARIOS = [
         const { allRooms } = await import("./movement.mjs");
 
         needs(world.atLeast("namedRooms"), "the thing is planted in a room");
-        const room = allRooms()[0];
+        const room = allRooms(canvas?.scene)[0];
         const [actor] = cast(1);
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
 
         // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
         let granted = null;
@@ -26584,8 +26584,8 @@ const SCENARIOS = [
         const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
         const { allRooms } = await import("./movement.mjs");
         needs(world.atLeast("namedRooms"), "the thing is planted in a room");
-        const room = allRooms()[0];
-        must(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene)[0];
+        must(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         // The plants are a GM store since E04: tier 2's restore puts them back.
         const spend = SearchTokens.spend;
         SearchTokens.spend = async () => true;
@@ -26730,7 +26730,7 @@ const SCENARIOS = [
            absent list is read as the bedroom owner's own stash (stashesIn), an empty
            one as no stash at all - so in a world with an owned bedroom this took the
            owner's stash away. */
-        const region = V.regionsByName().get(room);
+        const region = V.regionsByName(canvas?.scene).get(room);
         const listBefore = foundry.utils.deepClone(region?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
         let item = null;
         try {
@@ -27439,8 +27439,8 @@ const SCENARIOS = [
         const killer = livingStudents().find(a => ownerOf(a)?.active);
         must(killer, "no living student has a connected player - this would measure nothing");
         const owner = ownerOf(killer);
-        const room = allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
@@ -32013,7 +32013,7 @@ const SCENARIOS = [
         const first = livingStudentsForGm().find(a => a.id !== builder.id);
         const victim = rest.find(a => a.id !== first?.id);
         must(victim, "no living student but the builder and the one the window proposes first");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const had = new Set(game.messages.contents.map(m => m.id));
         let made = null;
@@ -32101,7 +32101,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-        const [here, there] = allRooms();
+        const [here, there] = allRooms(canvas?.scene);
         const was = tokens.map(t => ({ x: t.x, y: t.y }));
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
         const stand = async (token, room) => { await token.update(positionIn(room, token), PLACE); };
@@ -38021,7 +38021,7 @@ const SCENARIOS = [
          */
         const M = await import("./movement.mjs");
         const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
-        const [here, there, next] = M.allRooms();
+        const [here, there, next] = M.allRooms(canvas?.scene);
         must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
         const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
         const listed = game.i18n.format("DRPG.Move.notConnected", { from: here, to: there, rooms: next });
@@ -38041,9 +38041,9 @@ const SCENARIOS = [
         const R = await import("./rest.mjs");
         const V = await import("./vault.mjs");
         const M = await import("./movement.mjs");
-        const rooms = M.allRooms().slice(0, 2);
+        const rooms = M.allRooms(canvas?.scene).slice(0, 2);
         must(rooms.length === 2, "the scene has fewer than two rooms - there is no list to filter");
-        const regions = rooms.map(room => V.regionsByName().get(room));
+        const regions = rooms.map(room => V.regionsByName(canvas?.scene).get(room));
         must(regions.every(Boolean), "a room has no region to mark");
         const key = `flags.${MODULE_ID}.${R.REST_FLAGS.short}`;
         const before = regions.map(region => region.getFlag(MODULE_ID, R.REST_FLAGS.short));
@@ -38086,7 +38086,7 @@ const SCENARIOS = [
         const [who, owner] = cast(2);
         const room = roomOfActor(who);
         must(room, `${who.name} is not standing in a room`);
-        const region = V.regionsByName().get(room);
+        const region = V.regionsByName(canvas?.scene).get(room);
         must(region, `${room} has no region`);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
@@ -38141,7 +38141,7 @@ const SCENARIOS = [
         const { wordsOf, cardFlag } = await import("./secret.mjs");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
         const stood = await standAlone(actor);
-        const region = V.regionsByName().get(stood.room);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
@@ -44085,7 +44085,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -44150,7 +44150,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the trial");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -44406,7 +44406,7 @@ const SCENARIOS = [
         const { isMonokuma } = await import("./monokuma.mjs");
         const { isMonocub } = await import("./monocub.mjs");
         const scene = canvas.scene;
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         const was = new Map([...scene.tokens].filter(t => t.actor?.type === "character").map(t => [t.id, { x: t.x, y: t.y }]));
         const gathered = [...scene.tokens].filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
@@ -44921,7 +44921,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
         must(!isDeadForGm(convict), `${convict.name} is dead before the verdict - this would measure nothing`);
@@ -44999,7 +44999,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -45095,7 +45095,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, bystander].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
         const other = { id: "!E11G2otherGM", name: "E11 G2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
@@ -45331,7 +45331,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [body, old, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the four students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -46072,7 +46072,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [mastermind, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the verdict");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -46860,6 +46860,52 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, true, false, true, true, 1]),
             `${player.name}'s region and ${player.name}'s change to a GM's room ([the region a room before its creation was judged, recorded as a player's, `
             + "a room after, the GM's room a room, its mark, the GMs told])");
+    }],
+
+    ["two pieces are one room: Room Setup writes both and the lock and the seal and the neighbours read either piece", async () => {
+        /*
+         * E12 C2a, 11.10.2026; plan-E12 V4, audit S07-05, S08-17. A room is its name over every piece
+         * that is a room (rooms.mjs). Until 1.2.74 Room Setup wrote a room's flags through
+         * `regionsByName`, whose map kept the LAST region of a name, while the veto (`isLocked`), the
+         * search (`SearchTokens.sealed`) and `neighbouringRooms` read the FIRST, on the camera's scene;
+         * scenario 66 D drives Room Setup's Apply and a player's walk on the harness. This runs on a
+         * scene of its own: a Kitchen drawn in two pieces far apart, a Hall against piece 1, a Pantry
+         * against piece 2 and, below piece 2, a Lift marked a room that carries a Teleport. Read: the
+         * owner Room Setup's `setVaultRoom` writes, on each piece, and whether a stranger may enter;
+         * the lock and the seal set on piece 2 alone, through the veto's and the search's readers; the
+         * room at the centre of piece 2 and of the Lift; the neighbours of the Kitchen and of the
+         * Pantry; the scene's rooms. Red before C2a on its first check: movement.mjs exports no
+         * `isLocked`.
+         */
+        const M = await import("./movement.mjs");
+        ok(typeof M.isLocked === "function", "movement.mjs exports no isLocked - the veto's lock reader cannot be asked about a room of two pieces");
+        if (typeof M.isLocked !== "function") return;
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const [owner, stranger] = (await import("./monokuma.mjs")).studentActors();
+        must(owner && stranger, "two students, a bedroom's owner and a stranger - this would measure nothing");
+        const NAME = "SUITE E12 C2a two pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y = 0, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], flags: mark, behaviors });
+        const at = (scene, x, y) => M.roomAt(x - 50, y - 50, { parent: scene, width: 1, height: 1, elevation: 0 });
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            // 20 px between neighbours, inside the 35 px a 100 px grid allows for a wall.
+            const [one, two] = await scene.createEmbeddedDocuments("Region", [room(K, 0), room(K, 2000), room("SUITE Hall", 420),
+                room("SUITE Pantry", 2420), room("SUITE Lift", 2000, 420, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
+            await V.setVaultRoom(K, { owner: owner.id, scene });
+            await two.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            read = [[one, two].map(piece => piece.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) === owner.id), V.mayEnterBedroom(stranger, K, scene),
+                M.isLocked(scene, K), SearchTokens.sealed(K, scene), at(scene, 2200, 200), at(scene, 2200, 620),
+                M.neighbouringRooms(scene, K), M.neighbouringRooms(scene, "SUITE Pantry"), M.allRooms(scene)];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([[true, true], false, true, true, K, null, ["SUITE Hall", "SUITE Pantry"], [K],
+            ["SUITE Hall", K, "SUITE Pantry"]]),
+            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked and sealed by piece 2's flags, "
+            + "the room at piece 2 and at the Lift, the Kitchen's neighbours, the Pantry's, the scene's rooms])");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

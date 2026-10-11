@@ -893,7 +893,7 @@ const REGRESSIONS = [
 
         const actor = studentActors()[0];
         ok(actor, "need a student");
-        const room = M.allRooms()[0] ?? null;
+        const room = M.allRooms(canvas?.scene)[0] ?? null;
 
         const time = (fn, runs = 200) => {
             fn();                                  // warm: the first call pays for the map
@@ -2841,7 +2841,7 @@ const REGRESSIONS = [
         ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
         const gm = open.indexOf("game.user.isGM");
         const dark = open.indexOf("isEclipse()");
-        const rooms = open.indexOf("allRooms()");
+        const rooms = open.indexOf("allRooms(");
         ok(gm > 0 && dark > 0 && rooms > 0, "the body-discovery window lost one of its three guards");
         ok(gm < dark, "the body-discovery window asks about the Eclipse before it asks who is pressing");
         ok(dark < rooms,
@@ -7139,8 +7139,9 @@ const REGRESSIONS = [
             ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
             ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
             ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
-            ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"],
-            ["vault.mjs", "applyRoomRows", "region", "a room's region flags, from the room set-up"]
+            ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"]
+            // vault.mjs applyRoomRows's "region" row went with E12 C2a: Room Setup writes a room's flags
+            // through `updateRoom`, which is gated on a GM's client.
         ];
         const GM_ROADS = [
             ["analyze.mjs", "lockOut", "resolveAnalyze"],
@@ -8344,7 +8345,7 @@ const REGRESSIONS = [
          * `RESET_STEPS` - after every cast group, so a death the reset clears is cleared before it asks
          * who is dead, and before the chat - and that it is a choice's step, not a group's; that
          * `placeCast` finds a bedroom through `allBedroomsAnywhere`, never `allBedrooms()`, whose default
-         * is the scene on this GM's screen (ITEM-16), nor reads that scene itself; that it reads the dead
+         * was the scene on this GM's screen until E12 C2a made it a parameter (ITEM-16), nor reads that scene itself; that it reads the dead
          * off the primary's mark and runs on the primary GM only; that the window offers the three, (a)
          * checked, and hands the answer to the plan; and the words. What the moves do is tier 2's "the
          * cast goes where the GM chose" and scenario 65's P.

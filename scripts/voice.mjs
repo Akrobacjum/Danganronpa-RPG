@@ -42,6 +42,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
+import { roomPieces } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
@@ -828,10 +829,12 @@ function sceneRoomWarnings() {
         const peopled = scene.tokens.some(t => t.actor?.type === "character");
         if (!peopled) continue;
 
-        const names = Array.from(scene.regions ?? []).map(r => r.name).filter(Boolean);
+        // Rooms only (E12 C2a): a named region with a Teleport, or one a GM marked as not a
+        // room, splits nobody's voice.
+        const names = roomPieces(scene).map(r => r.name);
         if (!names.length) {
             lines.push("");
-            lines.push(`"${scene.name}" has characters on it and no named regions - everybody`);
+            lines.push(`"${scene.name}" has characters on it and no rooms - everybody`);
             lines.push("   standing there shares the main room. Name the regions to split them up.");
             continue;
         }
