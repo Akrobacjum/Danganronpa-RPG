@@ -38,7 +38,7 @@
 import { boundsOf } from "./movement.mjs";
 import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
-import { traceRegionPathsAt, regionShapes, clamp01 } from "./fog-geometry.mjs";
+import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour
 } from "./fog-doorways.mjs";
@@ -737,7 +737,7 @@ function outlineWidths(glass, grid) {
    Glass a room's name is exactly what the audit page reserves the title face for - "tam,
    gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
    has. Legacy keeps the pixel face to the letter. */
-function roomLabel(region, { glass, grid, bone, bounds, rect }) {
+function roomLabel(region, { glass, grid, bone, rect }) {
     const label = new PIXI.Text(region.name, {
         fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
         fontSize: Math.max(28, Math.round(grid * 1.1)),
@@ -755,10 +755,20 @@ function roomLabel(region, { glass, grid, bone, bounds, rect }) {
     ensurePixelFont().then(() => {
         if (!label.destroyed) label.dirty = true;
     }).catch(() => { /* the fallback stands */ });
-    if (bounds) {
-        label.position.set(bounds.x - rect.x + bounds.w / 2, bounds.y - rect.y + bounds.h / 2);
-    }
+    const at = labelPoint(region, rect);
+    if (at) label.position.set(at.x, at.y);
     return label;
+}
+
+/**
+ * Where a room's name is drawn, in the outline's space: the middle of its largest piece's box
+ * (fog-geometry `largestPiece`), or null when the room has no box. Until E12 fix r1-G5 it was the
+ * middle of the box round every piece, which for a room drawn in two pieces apart lay in neither
+ * (review EARLY-C2b-2: a Kitchen at x 0-400 and 2000-2400 was named at x 1200).
+ */
+export function labelPoint(region, rect = { x: 0, y: 0 }) {
+    const box = boundsOf(largestPiece(region));
+    return box ? { x: box.x - rect.x + box.w / 2, y: box.y - rect.y + box.h / 2 } : null;
 }
 
 /*
@@ -888,7 +898,6 @@ export function flashOutline(fx, region, rect, level = null) {
     const glass = glassOn();
     const bone = outlineColour();
     const grid = canvas?.grid?.size ?? 100;
-    const bounds = boundsOf(region);
 
     const group = new PIXI.Container();
     group.name = OUTLINE_NAME;
@@ -933,7 +942,7 @@ export function flashOutline(fx, region, rect, level = null) {
     stroke(boneWidth, bone);
     trace();
 
-    const label = roomLabel(region, { glass, grid, bone, bounds, rect });
+    const label = roomLabel(region, { glass, grid, bone, rect });
 
 
     if (glass) group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }));

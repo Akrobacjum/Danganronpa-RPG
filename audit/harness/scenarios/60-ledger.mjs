@@ -79,7 +79,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
        not, the Rest list names the found one alone. The marks are put back. */
     phase("what a refusal names", { flow: "discovery-ledger" });
     const J = JSON.stringify;
-    const unknownRoom = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const k = M.roomsKnownToMe();
+    const unknownRoom = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const k = M.roomsKnownToMe(canvas?.scene);
         return k ? M.allRooms(canvas?.scene).find(r => !k.has(r)) ?? null : null;`);
     const restRooms = [ids.rooms[0], unknownRoom];
     const marks = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs");
@@ -88,7 +88,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
         return out;`);
     await settle(800);
     const refusal = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const R = await import("${REPO}/scripts/rest.mjs");
-        const k = M.roomsKnownToMe(), say = (from, to, next) => typeof M.notConnectedText === "function" ? M.notConnectedText(from, to, [next]) : "";
+        const k = M.roomsKnownToMe(canvas?.scene), say = (from, to, next) => typeof M.notConnectedText === "function" ? M.notConnectedText(from, to, [next], k) : "";
         return { known: k ? [...k] : null, marked: R.restRooms("short", canvas?.scene),
             rest: typeof R.restRoomsSentence === "function" ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, canvas?.scene) : "",
             unknown: say(${J(ids.rooms[0])}, ${J(unknownRoom)}, ${J(ids.rooms[1])}),

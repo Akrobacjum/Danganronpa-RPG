@@ -7845,10 +7845,11 @@ const REGRESSIONS = [
             for (const file of [...FILES, ...Object.keys(NAMED)]) {
                 if (!files.has(file)) continue;
                 const code = blankComments(files.get(file));
-                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                // A statement at column 0 that declares nothing (a `Hooks.on` or `game.socket.on` there) is
+                // "(top)", not dropped (E12 fix r1-G5; review EARLY-C0-1).
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
                 at.forEach((top, i) => {
-                    if (!top.name) return;
-                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    if (top.name !== "(top)" && NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
                     tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
                 });
             }
@@ -7864,9 +7865,10 @@ const REGRESSIONS = [
                 const [file, name] = handler.split("#");
                 // The bridge's own sockets are E28's (R1b and the bridge's tables).
                 if (file === "gm-bridge.mjs") continue;
-                const top = tops.find(t => t.file === file && t.name === name);
+                // Every declaration of the name: a file's "(top)" statements are read as one.
+                const mine = tops.filter(t => t.file === file && t.name === name);
                 // A handler this reader cannot find is a key no row can hold.
-                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                const fields = mine.length ? [...new Set(mine.flatMap(top => [...top.text.matchAll(/\bpayload\??\.(\w+)/g)]).map(m => m[1]).filter(f => f !== "action"))] : ["?"];
                 for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
             }
             for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
@@ -7892,7 +7894,8 @@ const REGRESSIONS = [
             "project.planted": { sanitize: { fields: { countdownId: "id" } } },
             "vote.planted": { sanitize: { fields: { choice: "id" } } }
         }, [
-            ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"],
+            ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"
+                + "game.socket.on(EVENT, async (payload) => payload.scene);\n"],
             ["chapter.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
                 + "function unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"
                 + "const forged = msg => msg.getFlag(MODULE_ID, \"bodyFound\");\n"],
@@ -7900,11 +7903,11 @@ const REGRESSIONS = [
             ["gm-stores.mjs", "export const offerStore = defineGmStore({});\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#project.planted#countdownId", "SOCKET sync.mjs#registerSync#room",
-            "CHAT chapter.mjs#forged", "SHEET chapter.mjs#judged", "STORE gm-stores.mjs#offerStore"]),
+            "SOCKET sync.mjs#(top)#scene", "CHAT chapter.mjs#forged", "SHEET chapter.mjs#judged", "STORE gm-stores.mjs#offerStore"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
         equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#project.planted#countdownId", ""], ["SOCKET sync.mjs#registerSync#room", ""],
             ["SHEET chapter.mjs#judged", ""], ["SHEET chapter.mjs#gone", ""], ["STORE gm-stores.mjs#offerStore", ""]])),
-            JSON.stringify({ unclassified: ["CHAT chapter.mjs#forged"], stale: ["SHEET chapter.mjs#gone"] }),
+            JSON.stringify({ unclassified: ["SOCKET sync.mjs#(top)#scene", "CHAT chapter.mjs#forged"], stale: ["SHEET chapter.mjs#gone"] }),
             "the census judge does not tell a planted reader without a row, or a row without its reader");
 
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
@@ -7960,6 +7963,11 @@ const REGRESSIONS = [
          * PACKET, 21 SOCKET, 19 HOOK, 7 SHEET, 8 STORE - against 108 rows (harness, 11.10.2026, once).
          * E12 C12 added two, `judgeArrival` and its standing map (`standings`), and rewrote ten: 110 places - 53 PACKET,
          * 21 SOCKET, 19 HOOK, 8 SHEET, 9 STORE - against 110 rows (harness, 11.10.2026, once).
+         * E12 fix r1-G1 added one, vault.mjs's `preUpdateRegion` listener: 106 places, 17 HOOK,
+         * against 106 rows (harness, 11.10.2026, once, on the fix line before C7-C12 were merged in).
+         * The merge of that line beside C7-C12 (11.10.2026): 111 rows - 53 PACKET, 21 SOCKET, 20 HOOK,
+         * 8 SHEET, 9 STORE, counted in this table; this test compares them with the places on the
+         * harness in the merge commit's fast set.
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -7994,19 +8002,19 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#vault.steal#viaSearch", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#clumsy", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#rollId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#project.progress#countdownId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#countdownId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
             ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#project.progress#actorId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#actorId", "judged on the primary: knownSender + owns; `guardProjectRoom` (bridge-guards.mjs) holds the character in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` (projects.mjs: the token's scene, else `sceneOfRoom`) by `standsAtProject` since E12 fix r1-G3; a trait ruling for a project (`guardTraitRuling`'s `projectWithinReach`) is held by the same pickers"],
             ["PACKET gm-bridge.mjs#project.progress#rollId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#relief", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.progress#bonus", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.share#countdownId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.share#targetUserId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1134) reads the trace on the scene the packet names, else on the scene holding the token (`sceneOfRemnant`), and `remnantRef` on the placed token's own; neither reads the camera since E12 C6"],
-            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1134) reads the trace on the scene the packet names, else on the scene holding the token (`sceneOfRemnant`), and `remnantRef` on the placed token's own; neither reads the camera since E12 C6"],
-            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: knownSender + ownsActorAt(`data.sourceActor`, gm-bridge.mjs `ACTION_REMNANT`); `handleRemnant` rebuilds a player's trace (`narrowPlayerRemnant`, remnants.mjs) at the scene, x, y and room of the character's token `locateActor` chooses - the packet's `sceneId` only picks among the character's own tokens (E12 C3); neither reads the camera"],
+            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: knownSender + ownsActorAt(`data.sourceActor`, gm-bridge.mjs `ACTION_REMNANT`); `handleRemnant` rebuilds a player's trace (`narrowPlayerRemnant`, remnants.mjs) at the scene, x, y and room of the character's token `locateActor` chooses - the packet's `sceneId` only picks among the character's own tokens (E12 C3); neither reads the camera; the trace's band is the GMs' record of the roll (`traceBandOf`)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "judged on the primary: knownSender + owns; `guardSabotageRoom` (bridge-guards.mjs) holds a student in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` by `standsAtProject` since E12 fix r1-G3; a Monokuma reaches every project"],
             ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "judged on the primary: knownSender + owns; `guardSabotageRoom` (bridge-guards.mjs) holds a student in the project's room on the project's own scene - placed by `locateActor` over the place scenes since E12 C3, never the camera, and compared with `projectScene` by `standsAtProject` since E12 fix r1-G3; a Monokuma reaches every project"],
             ["PACKET gm-bridge.mjs#project.sabotage#rollId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.sabotage#penalty", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
@@ -8036,7 +8044,7 @@ const REGRESSIONS = [
             ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs `guardSearchRoom`) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`, over place scenes only since E12 C3; the packet's `sceneId` only picks among the actor's own tokens; `key`, `left`, `sealed`, `spend` and `setFor` take the scene the handler judged, with no camera default since E12 C6"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: from a GM only (sync.mjs:137). E11 C3's gather broadcast rides it (`SYNC.gather`, call-world.mjs:396): `panToGathered` (436) pans only when the client's camera shows the broadcast scene - C5's scene from `locateActor(caller)` is the one broadcast (E12 C5)"],
-            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` over the character's tokens on every scene (read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene"],
+            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` (traps.mjs) over the character's tokens on the scene the sender views when the character has a token there (`User#viewedScene`, which only narrows among the character's own tokens), else on every scene (`placesOf`; read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene; an \"alone\" trap counts the room on the crossed token's scene, or the relay's `sceneId`, which only chooses among the character's own tokens (`isAlone`, `locateActor`; E12 fix r1-G4)"],
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
@@ -8048,6 +8056,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the primary's record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`); since E12 C12 it judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
+            ["HOOK vault.mjs#registerRoomPieces#preUpdateRegion:inline", "judged on the client that writes it: a GM's rename of one piece of a room that keeps other pieces takes the room's flags off that piece in the same update, told to the GMs (`clearSplitPiece`; a player's rename is not judged, LIVE-E12-04) (E12 fix r1-G1)"],
             ["HOOK fog.mjs#registerFog#createRegion:inline", "out of scope: no rule reads it; on the primary a GM's region that gives its scene its first room puts that scene into room-based vision (`prepareRoomScene` -> `applySceneVisionMode(region.parent)`), a non-GM's is left to movement.mjs's record; every client repaints the scene it views (`repaintRoomScene`); since E12 C7"],
             ["HOOK fog.mjs#registerFog#updateRegion:inline", "out of scope: as createRegion; since E12 C8 a GM's rename of a room's last piece of its name carries, on the primary, the discovery record, the stashed items' and the keys' room and the notes of a stash found (`noteRegionName` -> `carryRename`, vault.mjs `carryRoomOnSheets`), the old name from every GM's memory (`regionNameSeen`); a non-GM's rename carries nothing"],
             ["HOOK fog.mjs#registerFog#deleteRegion:inline", "out of scope: as createRegion; a scene that loses its last room keeps the vision the module gave it until the setting goes off; since E12 C7"],
@@ -8064,12 +8073,12 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#crossingVerdict", "a claim on the mover's browser, judged again on the primary: exported since E12 C9 with the floor of each end (the stairs rule, `crossingRefused`); since E12 C12 `judgeArrival` asks it of the student as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`, one synchronous step), with the mover it judges and no price (`pay: false`) [1b.2] MARKED"],
             ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user [1b.2]"],
             ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room, by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
-            ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3) or the canvas's tokens (`occupantsOf`, Listen)"],
+            ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
             ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step [1b.2]"],
-            ["STORE Region#name", "not a source: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Since C1 a room is a named region a GM marked (rooms.mjs `isRoom`, which refuses a region the primary recorded as a non-GM's); the readers that still take every named region move onto it in C2a and C2b [1b.1 room flag] MARKED (E12 C2a, E12 C2b)"],
-            ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told; `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
-            ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`) [1b.1]"],
+            ["STORE Region#name", "not a source: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Since C1 a room is a named region a GM marked (rooms.mjs `isRoom`, which refuses a region the primary recorded as a non-GM's); the readers that still take every named region move onto it in C2a and C2b; a non-GM's rename, reshape or added behaviour of a GM's region is not put back, only the mark is (`judgeRoomFlagChange`; E12 fix r1-G5) [1b.1 room flag] MARKED (E12 C2a, E12 C2b)"],
+            ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told, while a GM is connected (a change made with none is taken by the next GM's ready pass as a GM's, read in the code); a region whose mark the GM never saw is left as it is and told (E12 fix r1-G5); `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
+            ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`, while a GM is connected - a region a player draws with none is never recorded, read in the code, LIVE-E12-04) [1b.1]"],
             ["STORE movement.mjs#standings", "not a source: the primary's memory of where each token stands and the last room it stood in lawfully (a Map in movement.mjs, in no document or setting), written by `judgeArrival` from the hook's `userId` and, for a token it never saw, by `standingOf` (lawful where it stands); a new primary starts from `gmSeen`, primed at ready [3.4]"],
             ["STORE Region#vaultFlags", "not a source: a GM document written by Room Setup (a GM window); C4 writes to the scene it was opened on (R119); C14 writes Neighbours to every piece [1b.1 Room Setup] (E12 C4, E12 C14)"],
             ["STORE settings.mjs#discoveredRooms", "not a source: a world setting the primary writes through the ledger road (`guardFogShare`); a GM's rename moves its rooms since E12 C8 (`carryRename`); since E12 C11 the fog of another floor and the floor switcher draw from it with no new read (3.5) (E12 C11)"],
@@ -8107,10 +8116,10 @@ const REGRESSIONS = [
             const tops = [];
             for (const [file, source] of sources) {
                 const code = blankComments(source);
-                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
-                at.forEach((top, i) => {
-                    if (top.name) tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
-                });
+                // A statement at column 0 that declares nothing (a `Hooks.on` or `game.socket.on` there) is
+                // "(top)", not dropped (E12 fix r1-G5; review EARLY-C0-1).
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
+                at.forEach((top, i) => tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) }));
             }
             const handlers = new Set();
             for (const top of tops) {
@@ -8122,9 +8131,10 @@ const REGRESSIONS = [
             }
             for (const handler of handlers) {
                 const [file, name] = handler.split("#");
-                const top = tops.find(t => t.file === file && t.name === name);
+                // Every declaration of the name: a file's "(top)" statements are read as one.
+                const mine = tops.filter(t => t.file === file && t.name === name);
                 // A handler this reader cannot find is a key no row can hold.
-                const fields = top ? [...new Set([...top.text.matchAll(/\b(?:payload|data|msg|message)\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                const fields = mine.length ? [...new Set(mine.flatMap(top => [...top.text.matchAll(/\b(?:payload|data|msg|message)\??\.(\w+)/g)]).map(m => m[1]).filter(f => f !== "action"))] : ["?"];
                 for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
             }
             for (const top of tops) {
@@ -8153,17 +8163,18 @@ const REGRESSIONS = [
             "vote.planted": { sanitize: { fields: { choice: "id" } } }
         }, [
             ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        // payload.secret is named in a comment only\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"],
-            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", (doc, changes) => changes.x);\n    Hooks.on(\"renderChatMessage\", () => null);\n}\n"],
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", (doc, changes) => changes.x);\n    Hooks.on(\"renderChatMessage\", () => null);\n}\n"
+                + "Hooks.on(\"createRegion\", region => region.name);\n"],
             ["movement.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\nfunction unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"],
             ["chapter.mjs", "export function notNamed(actor) {\n    return isDeceased(actor);\n}\n"],
             ["settings.mjs", "export const SETTINGS = { bodiesFound: \"bodiesFound\" };\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#token.sendBack#tokenId", "SOCKET sync.mjs#registerSync#room",
-            "HOOK hud.mjs#registerHud#updateToken:inline", "SHEET movement.mjs#judged", "STORE settings.mjs#bodiesFound"]),
+            "HOOK hud.mjs#registerHud#updateToken:inline", "HOOK hud.mjs#(top)#createRegion:inline", "SHEET movement.mjs#judged", "STORE settings.mjs#bodiesFound"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
         equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#token.sendBack#tokenId", ""], ["SOCKET sync.mjs#registerSync#room", ""],
             ["SHEET movement.mjs#judged", ""], ["SHEET movement.mjs#gone", ""], ["STORE settings.mjs#bodiesFound", ""]])),
-            JSON.stringify({ unclassified: ["HOOK hud.mjs#registerHud#updateToken:inline"], stale: ["SHEET movement.mjs#gone"] }),
+            JSON.stringify({ unclassified: ["HOOK hud.mjs#registerHud#updateToken:inline", "HOOK hud.mjs#(top)#createRegion:inline"], stale: ["SHEET movement.mjs#gone"] }),
             "the census judge does not tell a planted reader without a row, or a row without its reader");
 
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
@@ -9585,6 +9596,13 @@ const REGRESSIONS = [
          * parameter is not seen. Run as a node script on C5's base (e925ca2, 11.10.2026) it read 17
          * camera reads in these functions and two of them missing; on C5's tree, none.
          * The reader is run first on a fixture of one call that hands the scene and one that does not.
+         * E12 fix r1-G2 (11.10.2026; review round 1 CR1-6, EARLY-C5-1, CR1-2, CR1-5) adds the three
+         * windows whose list and write took two scenes: the Case dashboard's Final Truth (its markup,
+         * the dashboard and the placement it hands the picked option's scene), the Trap plant and
+         * the Mastermind window's lair, with the select they share (utils.mjs `placeRoomOptions`)
+         * and Season setup's undecided regions. On 8eb3801 this read `openPlantDialog`,
+         * `openMastermindDialog` and `openInvestigationDashboard` reading the camera; the harm
+         * itself (the list's scene is the write's) is read by four tier-2 tests of r1-G2.
          */
         const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\bworkingScene\(|\bgame\.scenes\??\.(?:current|viewed)\b/g;
         const plain = text => stripStrings(stripComments(text));
@@ -9608,8 +9626,10 @@ const REGRESSIONS = [
             "projects-ui.mjs": ["openProjectManager", "openProjectDialog", "openCreateDialog"],
             "call-world.mjs": ["scheduleGather", "runPendingGather", "gatherEveryone", "gatherSceneOf"],
             "call-effects.mjs": ["gatherRefusal", "gatherEffect"], "call-pickers.mjs": ["pickRoom"],
-            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant"],
-            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"] };
+            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant", "openMastermindDialog"],
+            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"],
+            "investigation.mjs": ["caseHtml", "openInvestigationDashboard", "placeFinalFromDashboard"],
+            "traps.mjs": ["openPlantDialog"], "utils.mjs": ["placeRoomOptions"], "season-setup.mjs": ["undecidedRegionNames"] };
         const sources = await moduleSources();
         must(Object.keys(ROADS).every(file => sources.get(file)?.length), "the roads' files are among the module's sources - this would measure nothing");
         // The fixture above is what proves this reader. It used to be shown `allVaults`,
@@ -9822,6 +9842,33 @@ const REGRESSIONS = [
             equal(JSON.stringify(measured), JSON.stringify(expected),
                 `the ${lang} handbooks' floors and region check say what the code does not do, or a stale sentence is back (each claim: [the code, ...its sentences])`);
         }
+    }],
+
+    ["R410 - Season setup and the project map take a room from rooms.mjs: neither lists a scene's regions itself", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review goal-r1 N1, audit S07-06. Since E12 C1 a room is a region
+         * a GM marked (rooms.mjs), and five readers in these two files still took any region, or any
+         * named one, for a room: the Pre-season "The map has rooms" row (`regions.size`), the reset's
+         * cast points and the point `placeCast` moves the cast to, the reset's doors and the room a
+         * project token is put in (`centreOfRoom`, the first region of the name) - five `.regions`
+         * reads, found by this test at the parent. They ask rooms.mjs now (`sceneHoldsRooms`,
+         * `piecesByName`, `roomPieces`, `roomRegions`); the tier-2 "a cast point that is no room
+         * moves nobody ..." reads `placeCast` itself. This keeps a new reader from coming back the old
+         * way, as R381 does for the fog: comments blanked, each `.regions` read is listed by file and
+         * line. It reads text: a reader that reaches the regions through another name is not seen.
+         * The reader is run first on a fixture of one read in a function and one in a comment.
+         */
+        const reads = (file, text) => {
+            const plain = stripComments(text);
+            return [...plain.matchAll(/\.regions\b/g)].map(m => `${file}:${plain.slice(0, m.index).split("\n").length}`);
+        };
+        equal(JSON.stringify(reads("fixture", "// scene.regions\nfunction a(scene) {\n    return scene.regions.size;\n}\n")),
+            JSON.stringify(["fixture:3"]), "the reader does not find a `.regions` read in its fixture, or finds the one in a comment");
+        const sources = await moduleSources();
+        const FILES = ["season-setup.mjs", "projects-map.mjs"];
+        must(FILES.every(file => sources.get(file)?.length), "the two files are among the module's sources - this would measure nothing");
+        equal(JSON.stringify(FILES.flatMap(file => reads(file, sources.get(file)))), JSON.stringify([]),
+            "Season setup or the project map lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read)");
     }]
 ];
 

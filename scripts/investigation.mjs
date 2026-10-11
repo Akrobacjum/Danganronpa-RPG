@@ -38,7 +38,7 @@ import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
-    workingScene, esc, wireDashboardTabs } from "./utils.mjs";
+    workingScene, esc, wireDashboardTabs, placeRoomOptions } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -1987,13 +1987,12 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
 }
 
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
-function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapter }) {
+function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
     const students = evidenceByStudent();
     const traces = allTraces();
     const finders = findersByAnyRemnant();
     const plan = keyPlan();
     const status = keyPlanStatus();
-    const rooms = allRooms();
     // The opening roll's own limit on how many Key Remnants this chapter gets
     // - `null` before a murder has happened, meaning "no limit yet, plan
     // freely". See `def.keyRemnants` in config.mjs and `caseKeyCount`, which
@@ -2006,8 +2005,6 @@ function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapte
        selected and disabled. Since E09 C16 a Key row has no pickers: its Place button asks in a
        window of its own (`placeKeyRow`), and a placed row's room and visibility read in its
        picker of placed traces. The Final tab is what is left here, and it is always an input. */
-    const roomOptionsFor = chosen => rooms.map(r =>
-        `<option value="${esc(r)}"${r === chosen ? " selected" : ""}>${esc(r)}</option>`).join("");
     const visOptionsFor = chosen => REMNANT_VISIBILITY.map(v =>
         `<option value="${v}"${v === (chosen || "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
@@ -2045,8 +2042,11 @@ function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapte
         ${caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
                read back - so it takes the plain lists: every room, none chosen,
-               and Evident as the default. */
-            roomOptions: roomOptionsFor(null), visOptions: visOptionsFor(null),
+               and Evident as the default. Every room of every place scene, each
+               option carrying its scene, which Save hands to the placement (E12 fix
+               r1-G2; utils.mjs `placeRoomOptions`): it listed the camera's rooms
+               and placed on the school's room of the name. */
+            roomOptions: placeRoomOptions(), visOptions: visOptionsFor(null),
             finalRemnants, finalTruthPlacedThisChapter })}
 
     </form></div>`;
@@ -2096,6 +2096,7 @@ function readDashboardForm(d) {
         // gave for riding Apply: planting the endgame clue must
         // not need a second button to remember.
         finalRoom: q("finalRoom")?.value ?? "",
+        finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
         finalVis: q("finalVis")?.value || "evident",
         finalName: q("finalName")?.value.trim() ?? "",
         finalText: q("finalText")?.value.trim() ?? "",
@@ -2243,10 +2244,12 @@ async function runDashboardButton(action) {
 // The clue first, because it is the half that can fail: a room that no
 // longer exists warns and places nothing, and the GM should see that on
 // the window they pressed Save on. Same order its old home kept.
+// On the scene of the option picked (E12 fix r1-G2): the placement used to look the room's
+// name up on the school first, so a GM who picked the Annex's Kitchen got the school's.
 async function placeFinalFromDashboard(action) {
     const { placeFinalRemnant } = await import("./mastermind.mjs");
     const placedFinal = await placeFinalRemnant({
-        room: action.finalRoom, visibility: action.finalVis, note: action.finalNote,
+        room: action.finalRoom, scene: game.scenes.get(action.finalSceneId) ?? null, visibility: action.finalVis, note: action.finalNote,
         name: action.finalName, text: action.finalText, analysis: action.finalAnalysis
     });
     if (placedFinal) {
@@ -2268,7 +2271,6 @@ export async function openInvestigationDashboard() {
         return null;
     }
 
-    const { allRooms } = await import("./movement.mjs");
     // The Final Key Remnant planner lived on the Mastermind screen, where it
     // shared a window with the one secret the module guards hardest - a GM
     // planting the endgame clue had the Mastermind's name on screen every
@@ -2318,7 +2320,7 @@ export async function openInvestigationDashboard() {
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
-    const buildCase = () => caseHtml(reading, { allRooms: () => allRooms(workingScene()), finalRemnants, finalTruthPlacedThisChapter });
+    const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
     const content = dialogContent(buildCase());
 

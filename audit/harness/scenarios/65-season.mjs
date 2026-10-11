@@ -170,8 +170,10 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         const PM = await import("${repoUrl}/scripts/projects-map.mjs");
         ${PROJECT_TOKENS}
         const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");
+        /* Marked a room (E12 fix r1-G3): a region drawn after the migration is a room only when a GM marked it (E12 C1).
+           Unmarked, the Annex's project had no token and Chie no bedroom (k1 on b5baaf5, 11.10.2026: P0, A1, R2, G1, G2 red). */
         await annex.createEmbeddedDocuments("Region", [{ name: "Annex Hall", shapes: [{ type: "rectangle", x: 200, y: 200, width: 600, height: 600 }],
-            flags: {}, behaviors: [] }]);
+            flags: { "${MOD}": { room: true } }, behaviors: [] }]);
         const view = canvas.scene;
         canvas.scene = academy;
         const one = await P.createProject({ name: "E11 C0 65 the Cafeteria's project", target: 6, room: "Cafeteria" });
@@ -697,7 +699,10 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
        that project's token there. At 80ba2a5 (10.10.2026) the second GM's draw placed the token (second.placed 1); the
        drag wrote the metadata once and whispered once there too, so those two readings guard
        the primary-only move rather than prove it. The project's room is the Gym, created while the GM looks at the
-       Annex, so nothing is placed until a draw of the Academy. */
+       Annex. Since E12 C5 a project is placed on its room's scene when it is created, so the Gym's project stood on the
+       Academy before the second GM drew it and this check measured nothing (k1, 11.10.2026: made.tokens 1, second.placed
+       1); E12 fix r1-G3 takes that token off with the module's own delete (`removeProjectToken`, which does not keep
+       the project off the map), so the draws place it again. */
     await connect("gm2");
     const IMPORTS = `const P = await import("${repoUrl}/scripts/projects.mjs"); const PM = await import("${repoUrl}/scripts/projects-map.mjs");
         const U = await import("${repoUrl}/scripts/utils.mjs"); ${PROJECT_TOKENS}
@@ -709,6 +714,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         const made = await gm.eval(`${IMPORTS} const view = canvas.scene; canvas.scene = annex;
             let five = null;
             try { five = await P.createProject({ name: "E11 C8 65 G3 the Gym's project", target: 6, room: "Gym" }); } finally { canvas.scene = view; }
+            if (five) await PM.removeProjectToken(five.id);
             return { five: five?.id ?? null, tokens: projectTokens().filter(t => t.project === five?.id).length };`, { timeout: 30000 });
         const second = await gm2.eval(`${IMPORTS} await draw(academy);
             return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length };`, { timeout: 30000 });

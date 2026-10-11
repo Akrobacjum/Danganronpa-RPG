@@ -48,7 +48,7 @@
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
-import { roomOfActor, occupantsOf } from "./movement.mjs";
+import { locateActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
@@ -572,12 +572,17 @@ function subjectActor(message, author) {
     return game.actors.get(speakerId) ?? author?.character ?? null;
 }
 
-/** Everyone standing in the same room as this actor, as user ids. */
-function sameRoomAudience(actor) {
+/**
+ * Everyone standing in the same room as this actor, as user ids - in the room on the
+ * scene the actor stands on (E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1).
+ * `occupantsOf` counted the canvas's tokens, so a Monocub's roll went to whoever stood
+ * in a room of that name on the map the posting browser had on screen. Exported for the suite.
+ */
+export function sameRoomAudience(actor) {
     try {
-        const room = roomOfActor(actor);
-        if (!room) return [];
-        return occupantsOf(room, actor)
+        const place = locateActor(actor);
+        if (!place?.room) return [];
+        return occupantsOf(place.room, actor, place.scene)
             .map(other => ownerOf(other)?.id)
             .filter(Boolean);
     } catch {

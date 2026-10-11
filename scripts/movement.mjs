@@ -33,7 +33,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
-import { ROOM_FLAG, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene,
+import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene,
     isMoveChange, levelOf, onLevel, passageBehaviour } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
@@ -107,7 +107,8 @@ export function registerMovement() {
     // what reaches a rule names them where they are registered.
     Hooks.on("createRegion", (region, options, userId) => noteRegionCreated(region, userId));
     Hooks.on("updateRegion", (region, changes, options, userId) => judgeRoomFlagChange(region, changes, userId));
-    Hooks.once("ready", primeRoomFlags);
+    Hooks.once("ready", () => primeRoomFlags(game.scenes ?? []));
+    Hooks.on("createScene", scene => primeRoomFlags([scene]));
 }
 
 /* ==========================================================================
@@ -118,7 +119,14 @@ export function registerMovement() {
  * Whether Foundry v14 lets a player create or update a Region outside
  * Daggerheart's relay has not been read off a live table (LIVE-E12-04), so
  * both are answered here, on the primary GM, from the user id Foundry hands
- * the document hook - Foundry's, not a packet's claim.
+ * the document hook - Foundry's, not a packet's claim - and only while a GM is
+ * connected: no hook runs on a client that is not there. A region drawn, or a
+ * mark changed, while no GM is connected is judged by nobody; the next GM's
+ * ready pass (`primeRoomFlags`) takes the mark as it finds it for one a GM left,
+ * and a region a player drew then is never recorded as a player's (read in the
+ * code, 11.10.2026; the harness keeps its GM connected, so it is not measured).
+ * Whether v14's `_stats.lastModifiedBy` could let the primary judge them at
+ * ready is a live check (LIVE-E12-04).
  *
  * A REGION A PLAYER DREW is recorded in `SETTINGS.playerRegions`, and
  * rooms.mjs `canBeRoom` refuses it whatever its flag says. Nothing is put
@@ -129,10 +137,28 @@ export function registerMovement() {
  * GMs are told. "Last left" is remembered (`roomFlagSeen`), not read off the
  * change: an update hook carries the new value only, and a write made with
  * `diff: false` repeats the old one, so a flip read off the change could be
- * steered. Every GM primes the memory at ready and keeps it on a GM's create
- * and update; the primary writes the old value back, and that write, a GM's,
- * is what moves every GM's memory. A change that names the mark and leaves it
- * as it was is told and needs nothing put back.
+ * steered. Every GM primes the memory at ready and on a scene's creation (a
+ * scene made or imported with its regions brings no `createRegion` of its own -
+ * recalled of Foundry, and the harness's shim does the same) and keeps it on a
+ * GM's create and update; the primary writes the old value back, and that
+ * write, a GM's, is what moves every GM's memory. A change that names the mark
+ * and leaves it as it was is told and needs nothing put back. A region this GM
+ * has no memory of is not guessed at: "never seen" was read as "seen unset"
+ * until E12 fix r1-G5 (review SEC-4), so a player's write to the mark of a
+ * region that came with its scene unset the mark a GM gave it. Now nothing is
+ * written and the GMs are told it went unjudged.
+ *
+ * Only the mark is judged. A player who can write a GM's region at all could
+ * also rename it, reshape it or give it a behaviour, and none of that is put
+ * back here (review EARLY-C1-3): whether v14 lets a player write a Region
+ * outside Daggerheart's relay is LIVE-E12-04, and the relay refuses one.
+ *
+ * "Drawn by a player" is read from `SETTINGS.playerRegions`, which only the
+ * primary writes, as well as from this client's memory of the creates it saw:
+ * the memory alone forgot a player's region on a GM's reload, and the next
+ * write to its flags was put back and told as if it were a GM's room (review
+ * EARLY-C1-4). The setting, not a flag on the region: the region is its
+ * author's own document, and a flag on it is the author's to unset.
  * ========================================================================== */
 
 /** regionId -> the room flag as a GM last left it (`null` never decided), on every GM. */
@@ -144,10 +170,13 @@ let playerRegionWrites = Promise.resolve();
 
 const roomFlagOf = region => region.getFlag(MODULE_ID, ROOM_FLAG) ?? null;
 
-function primeRoomFlags() {
+/** Remember the mark of every region of these scenes this GM has not seen yet. */
+function primeRoomFlags(scenes) {
     if (!game.user?.isGM) return;
-    for (const scene of game.scenes ?? []) {
-        for (const region of scene.regions ?? []) roomFlagSeen.set(region.id, roomFlagOf(region));
+    for (const scene of scenes) {
+        for (const region of scene?.regions ?? []) {
+            if (!roomFlagSeen.has(region.id)) roomFlagSeen.set(region.id, roomFlagOf(region));
+        }
     }
 }
 
@@ -194,25 +223,31 @@ export function judgeRoomFlagChange(region, changes, userId) {
         roomFlagSeen.set(region.id, now);
         return null;
     }
-    if (!changes?.flags || drawnByPlayer.has(region.id)) return null;
-    const was = roomFlagSeen.has(region.id) ? roomFlagSeen.get(region.id) : null;
+    if (!changes?.flags || drawnByPlayer.has(region.id) || playerRegionIds().has(region.id)) return null;
+    if (!roomFlagSeen.has(region.id)) return keepRoomFlag(region, undefined, false, author);
+    const was = roomFlagSeen.get(region.id);
     if (now === was && !namesRoomFlag(changes)) return null;
     return keepRoomFlag(region, was, now !== was, author);
 }
 
-/** On the primary: put the mark back to `was` when it moved, log it, tell the GMs. */
+/**
+ * On the primary: put the mark back to `was` when it moved, log it, tell the GMs. `was` undefined:
+ * this GM has no memory of the region, so nothing is written and the GMs are told it went unjudged.
+ */
 async function keepRoomFlag(region, was, moved, author) {
     if (!isPrimaryGm()) return null;
+    const unknown = was === undefined;
     try {
-        if (moved) {
+        if (moved && !unknown) {
             if (was === null) await region.unsetFlag(MODULE_ID, ROOM_FLAG);
             else await region.setFlag(MODULE_ID, ROOM_FLAG, was);
         }
-        log(`${author.name} changed whether "${region.name}" on "${region.parent?.name}" is a room; ${moved ? "put back" : "nothing moved"}.`);
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rooms.flagKept", {
+        log(`${author.name} changed whether "${region.name}" on "${region.parent?.name}" is a room; `
+            + `${unknown ? "no memory of its mark, so it was left as it is" : moved ? "put back" : "nothing moved"}.`);
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format(unknown ? "DRPG.Rooms.flagUnjudged" : "DRPG.Rooms.flagKept", {
             user: author.name, region: region.name, scene: region.parent?.name ?? ""
         }))}</p>`);
-        return { moved };
+        return { moved, unknown };
     } catch (err) {
         error(`Could not put back the room mark of "${region.name}"`, err);
         return null;
@@ -696,7 +731,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
             if (from && to) {
                 const connected = neighbouringRooms(scene, from);
                 if (connected.length && !connected.includes(to)) {
-                    return notConnectedText(from, to, connected);
+                    return notConnectedText(from, to, connected, roomsKnownToMe(scene));
                 }
             }
         }
@@ -770,7 +805,7 @@ function crossingRefused(scene, from, to, floors = null) {
     const connected = neighbouringRooms(scene, from);
     if (!connected.length || connected.includes(to)) return false;
 
-    return notConnectedText(from, to, connected);
+    return notConnectedText(from, to, connected, roomsKnownToMe(scene));
 }
 
 /**
@@ -785,7 +820,9 @@ function crossingRefused(scene, from, to, floors = null) {
  * fog could be read one refused crossing at a time. An unknown destination gets a
  * sentence that names only where you stand. Exported for the Eclipse's refusal
  * (eclipse.mjs), which is the same question, and `known` is a parameter for the
- * suite, which runs on a GM's browser, where it is `null`.
+ * suite, which runs on a GM's browser, where it is `null`. Every caller hands in
+ * `roomsKnownToMe(scene)` for the scene the token crossed on (E12 fix r1-G4); the
+ * default, with no scene, knows no room on a player's browser and so names none.
  */
 export function notConnectedText(from, to, connected, known = roomsKnownToMe()) {
     if (known && !known.has(to)) return game.i18n.format("DRPG.Move.cannotReach", { from });
@@ -796,31 +833,40 @@ export function notConnectedText(from, to, connected, known = roomsKnownToMe()) 
 }
 
 /**
- * The rooms this viewer's own characters have discovered on the current
- * scene, plus wherever they stand; `null` for a GM or the Mastermind, who know
- * the whole map. Read off this client's own copy of the ledger (D2: a player's
+ * The rooms this viewer's own characters have discovered on `scene`, plus
+ * wherever they stand there; `null` for a GM or the Mastermind, who know the
+ * whole map. Read off this client's own copy of the ledger (D2: a player's
  * browser holds only their own rows), through settings.mjs, so this stays a
  * leaf and needs nothing from the fog.
+ *
+ * ON THE SCENE THE CALLER NAMES (E12 fix r1-G4, 11.10.2026; review round 1
+ * EARLY-C6-2 and SEC-2). It read the scene on screen and that screen's token
+ * placeables, while Listen's doors and the rest rooms came from the scene the
+ * character stands on - so a player whose camera was on another map was told
+ * "Unexplored room" for doors they had been through, and a player whose client
+ * had no scene on screen got `null`, the GM's "no filter", and Listen named
+ * every neighbour. The callers hand in the character's scene now, and a player
+ * with no scene, or one this cannot read, knows no room: an empty Set, never
+ * `null`.
  */
-export function roomsKnownToMe() {
+export function roomsKnownToMe(scene = null) {
     try {
         if (game.user.isGM || iAmTheMastermind()) return null;
-        const sceneId = canvas?.scene?.id;
-        if (!sceneId) return null;
-        const ledger = discoveryLedger();
         const known = new Set();
-        for (const [actorId, rooms] of Object.entries(ledger[sceneId] ?? {})) {
+        if (!scene?.id) return known;
+        const ledger = discoveryLedger();
+        for (const [actorId, rooms] of Object.entries(ledger[scene.id] ?? {})) {
             if (!game.actors.get(actorId)?.isOwner) continue;
             for (const room of rooms ?? []) known.add(room);
         }
-        for (const token of canvas?.tokens?.placeables ?? []) {
-            if (!token.isOwner) continue;
-            const room = roomOfToken(token.document);
+        for (const tokenDoc of scene.tokens ?? []) {
+            if (!tokenDoc.isOwner) continue;
+            const room = roomOfToken(tokenDoc);
             if (room) known.add(room);
         }
         return known;
     } catch {
-        return null;
+        return new Set();
     }
 }
 
@@ -1712,7 +1758,7 @@ const levelKey = level => level?.id ?? level ?? null;
  *             fiction is concerned.
  */
 function countsAsPresent(token) {
-    // A placeable (`occupantsOf`) or a token document (`othersInNamedRoom`, since E12 C3).
+    // A token document (both callers since E12 fix r1-G4); a placeable is read through its own.
     const doc = token?.document ?? token;
     const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
@@ -1956,12 +2002,14 @@ function sharesEdge(a, b, pad, edge) {
  * This is what Listen reports, so it answers to exactly the same rule as
  * `othersInRoom` - see `countsAsPresent`. Listening at a wall does not tell you
  * about a body or about Monokuma.
+ *
+ * Counted on a scene's token documents since E12 fix r1-G4 (11.10.2026; review
+ * round 1 EARLY-C6-1), by `othersInNamedRoom`'s rule: the scene handed in, else
+ * the excluded actor's (`locateActor`), else the school. It read the canvas's
+ * tokens, so a Listen heard, or a Monocub's dice shared (private-rolls.mjs
+ * `sameRoomAudience`), on a browser looking at another map counted the room of
+ * that name there.
  */
-export function occupantsOf(room, exclude = null) {
-    if (!room) return [];
-    return (canvas?.tokens?.placeables ?? [])
-        .filter(t => !exclude || t.actor?.id !== exclude.id)
-        .filter(countsAsPresent)
-        .filter(t => roomOfToken(t.document) === room)
-        .map(t => t.actor);
+export function occupantsOf(room, exclude = null, scene = null) {
+    return othersInNamedRoom(room, exclude, scene);
 }

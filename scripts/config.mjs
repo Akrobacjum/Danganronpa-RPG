@@ -1687,10 +1687,10 @@ function analysableBulletCount(actor) {
 /** Projects this character could work on from where they are standing. */
 function workableProjectCount(actor) {
     const api = globalThis.game?.drpg;
-    if (!actor || !api?.projectsAvailableIn || !api?.roomOfActor) return 1;
-    const room = api.roomOfActor(actor);
-    if (!room) return 0;                                  // nothing here to push
-    return api.projectsAvailableIn(room)?.length ?? 0;
+    if (!actor || !api?.projectsAvailableIn || !api?.locateActor) return 1;
+    const place = api.locateActor(actor);                 // the room on its scene (E12 fix r1-G3)
+    if (!place?.room) return 0;                           // nothing here to push
+    return api.projectsAvailableIn(place)?.length ?? 0;
 }
 
 /**

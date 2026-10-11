@@ -1382,7 +1382,7 @@ function buildRoom() {
         // The NAME is never rendered, for either of them: this widget is on
         // screen while people share a screen, and a project's name is exactly
         // the thing the guide keeps between its owner and the GM.
-        const projects = projectsAvailableIn(room, game.user);
+        const projects = projectsAvailableIn(place, game.user);
         box.append(line("drpg-hud-room-project", game.i18n.localize(projects.length
             ? "DRPG.Hud.roomProject" : "DRPG.Hud.roomNoProject")));
 

@@ -48,6 +48,9 @@
  *      follow it, as p1 reads it, and whom the GMs' report reaches (C8).
  *   M  a Nook drawn against Dorm A's corner, and a Den of two pieces across a wall from the Storage whose Neighbours the GM
  *      types in Room Setup: what the pieces carry, what the window draws again, and the neighbours the GM and p1 read (C14).
+ *   N  the rooms p1 knows on Aiko's scene, and the names Listen's labels give that scene's rooms, with p1's camera on
+ *      Floor 1, the Annex and nothing, and for a character with no scene (E12 fix r1-G4, review round 1 EARLY-C6-2 and
+ *      SEC-2). Every room of the scene stands in for her doors: the harness measures no neighbour of the Hall on p1.
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -84,6 +87,8 @@
  * C13's red first and mutants (one or four checks failing); whether other lanes ran then was not read.
  * E12 C14 (M1, M2 added): 38 checks in 35.4 s, one run under the harness lock on 11.10.2026, and 34.1-41.1 s in seven runs
  * of C14's red first and mutants (one or two checks failing); whether other lanes ran then was not read.
+ * The merge of the E12 fix line (r1-G4's K1 and r1-G5's G3, renamed N1 and G10 because C7 and C9 had taken those names on
+ * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
  */
 export const layers = ["ci"];
 
@@ -396,7 +401,7 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         globalThis.__s66g = { token: t.id, actions: game.drpg.actionsLeft(aiko), free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null };
         if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
         return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko),
-            charge: game.settings.get("${MOD}", "chargeMovement") };`, { timeout: 30000 });
+            vaultLocked: M.isLocked(tower, "Vault"), charge: game.settings.get("${MOD}", "chargeMovement") };`, { timeout: 30000 });
     /* p1 moves the token by its level alone, on the tower's canvas (`canvasReady` primes movement.mjs's memory of where
        each token stands) and waits there for its own charge; `drpgRoomCrossed` is the one announcement of a crossing paid. */
     const CLIMB = `const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
@@ -925,4 +930,40 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         [setM.read, seenM.read].every(r => r.dormA === false && J(r.nook) === J([]) && r.hall === true && r.storage === false && J(r.den) === J(["Hall"]))
             && J(seenM.den) === J(["Hall", "Hall"]),
         J({ setM: setM.read, seenM }));
+
+    /* ------------------------------ N. the rooms a player knows, whatever is on their screen ------------------------------ */
+    phase("N: the rooms p1 knows, read on Aiko's scene with p1's camera on Floor 1, the Annex and nothing");
+    /* Aiko is stood in the Hall first (she stood in no room after J, read on 11.10.2026) and put back after. */
+    const putN = to => gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = academy.tokens.find(x => x.actorId === "${IDS.aiko}"), was = { x: t.x, y: t.y };
+        await t.update(${to ? J(to) : `M.positionIn("Hall", t)`}, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 1200)); return { was, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    const stoodN = await putN(null);
+    const readN = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const where = M.locateActor(game.actors.get("${IDS.aiko}")), doors = M.allRooms(where?.scene ?? null);
+        const read = scene => { const known = M.roomsKnownToMe(scene); return { known: known ? [...known].sort() : null, doors: [...A.listenLabels(doors, known).values()] }; };
+        const was = canvas.scene, out = { scene: where?.scene?.id ?? null, room: where?.room ?? null, names: doors };
+        try {
+            for (const [name, view] of [["floor1", academy], ["annex", annex], ["nothing", null]]) { canvas.scene = view; out[name] = read(where?.scene ?? null); }
+            out.noScene = read(null);
+        } finally { canvas.scene = was; }
+        return out;`, { timeout: 30000 });
+    await putN(stoodN.was);
+    /* Until E12 fix r1-G4 `roomsKnownToMe` read p1's camera: the Annex's ledger and tokens with the camera there, and
+       null - no filter, every door named - with nothing on screen. It reads the scene its caller names now (Listen and the
+       Rest list name the character's), and a player with no scene knows no room. */
+    const unexplored = list => list.every(label => !readN.names.includes(label));
+    check("N1: the rooms p1 knows on Aiko's scene and the names Listen gives its rooms do not follow p1's camera, and with no scene name no room (E12 fix r1-G4)",
+        stoodN.room === "Hall" && readN.scene === IDS.scene && readN.room === "Hall" && Array.isArray(readN.floor1.known) && readN.floor1.known.includes(readN.room)
+            && readN.names.length > readN.floor1.known.length && readN.floor1.doors.includes("Hall")
+            && J(readN.annex) === J(readN.floor1) && J(readN.nothing) === J(readN.floor1)
+            && J(readN.noScene.known) === J([]) && unexplored(readN.noScene.doors),
+        J({ stoodN, readN }));
+
+    /* G2's premises, read where G set them up (E12 fix r1-G5; review EARLY-C0-2; named G3 on the fix line, G10 at its merge,
+       where C9 had taken G3 and fix r1-G4's K1 became N1 beside C7's K): until this check nothing asserted that
+       Aiko's climb starts in the Corridor or that the Vault above it is locked, so G2 could read a climb from anywhere
+       into an open room as the one it names. */
+    check("G10: G2's climb starts with Aiko in the Corridor on the ground floor, under a Vault that is locked (E12 fix r1-G5)",
+        setG.corridor === "Corridor" && setG.level === L1 && setG.vaultLocked === true, J(setG));
 }

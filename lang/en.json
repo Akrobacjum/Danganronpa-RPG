@@ -2009,9 +2009,9 @@
       "tabFromRemnant": "From a Remnant",
       "onScene": "On {scene}",
       "tabWriteNew": "Write a new one",
-      "pickRemnant": "Which trace on this scene",
+      "pickRemnant": "Which trace",
       "remnantNote": "The bullet copies the trace: type, difficulty, room, the action that left it, and whether it is tied to the murder. The marker becomes visible to whoever holds it and nobody else. Renaming it here renames the trace.",
-      "remnantEmpty": "No Remnants on this scene. Place one on the map, or write a bullet by hand on the other tab.",
+      "remnantEmpty": "No Remnants on any scene. Place one on a map, or write a bullet by hand on the other tab.",
       "remnantGone": "That Remnant is no longer on the map.",
       "alreadyHeld": "already has a copy",
       "needsName": "The Truth Bullet needs a name.",
@@ -2835,6 +2835,7 @@
       "title": "Danganronpa - GM Panel",
       "launcher": "GM",
       "gmOnly": "Only a GM can open the panel.",
+      "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
       "nextLabel": "Next",
       "nextGo": "Do it",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
@@ -3480,7 +3481,7 @@
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",
-      "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
+      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room Setup. Movement, Search, Listen and every incident are answered in terms of them.",
       "step.roomsMarked": "Every named region is decided: a room or not",
       "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room Setup (the Doors tab). These named regions have not been decided yet.",
       "step.cursor": "The GM's pointer is private (recommended)",
@@ -3606,7 +3607,7 @@
       "resetButton": "Reset the season",
       "resetMistyped": "Not reset - you have to type {word} exactly.",
       "resetDone": "The season has been reset. The cast and the maps are untouched.",
-      "roomGuide": "Walls first, then one named Region per room, drawn to them with snapping on. An unnamed region is not a room and never counts as a neighbour. Neighbours touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
+      "roomGuide": "Walls first, then a Region for each room, drawn to them with snapping on; a room may be drawn as several regions of one name. A region is a room only once a GM ticks “This is a room” for it in Room Setup (the Doors tab): a region nobody ticked, a passage (a region that teleports a token or changes its level) and a region a player drew are no rooms and never count as neighbours. Neighbours touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
       "checkRooms": "Check the rooms on this scene",
       "checkClean": "Nothing to report - the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
@@ -3718,7 +3719,9 @@
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
       "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
-      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}."
+      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}.",
+      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room Setup (the Doors tab).",
+      "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",

@@ -459,6 +459,42 @@ async function withAnsweredWindows(answer, run) {
 }
 
 /**
+ * Every window `run` opens through DialogV2.wait answered through its own form (E12 fix r1-G2,
+ * 11.10.2026): the content is drawn into a detached element, `choose(element, n)` sets its fields
+ * (`n` counts the windows from 0) and answers true to press the default button, whose callback reads
+ * the drawn form as a click would, or false to close the window. A browser's form answers its
+ * controls by name (`form.room`) and jsdom's does not (measured 11.10.2026: `form.name` is the
+ * form's own name attribute there), so each named control is set on its form as that. Answers the
+ * elements drawn, in order; Foundry's own `wait` is put back.
+ */
+async function withFormAnswered(choose, run) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const drawn = [];
+    D.wait = async cfg => {
+        const element = document.createElement("div");
+        if (typeof cfg?.content === "string") element.innerHTML = cfg.content;
+        else if (cfg?.content) element.append(cfg.content.cloneNode(true));
+        for (const form of element.querySelectorAll("form")) {
+            for (const control of form.querySelectorAll("[name]")) {
+                Object.defineProperty(form, control.getAttribute("name"), { value: control, configurable: true });
+            }
+        }
+        drawn.push(element);
+        if (!choose(element, drawn.length - 1)) return null;
+        const button = (cfg?.buttons ?? []).find(b => b.default) ?? null;
+        return button?.callback ? button.callback(new Event("click"), button, { element }) : (button?.action ?? null);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own);
+        else delete D.wait;
+    }
+    return drawn;
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -38020,10 +38056,14 @@ const SCENARIOS = [
          * so a token dragged onto a black patch came back with the name of the room under
          * it. `known` is what `roomsKnownToMe` answers on a player's browser; the suite runs
          * on a GM's, where it answers null and every name may be said. The Eclipse's
-         * refusal asks the same question and must use the same sentence.
+         * refusal asks the same question and must use the same sentence. Since E12 fix r1-G4 the
+         * veto's two refusals and the Eclipse's hand it the rooms found on the scene the token
+         * crossed on (`roomsKnownToMe(scene)`), not on the scene on screen - read in the source.
          */
         const M = await import("./movement.mjs");
-        const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
+        const sources = await moduleSources();
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const veto = stripComments(sources.get("movement.mjs") ?? "");
         const [here, there, next] = M.allRooms(canvas?.scene);
         must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
         const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
@@ -38031,8 +38071,10 @@ const SCENARIOS = [
         equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
             stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
             "a refusal named a destination the viewer has not found, or no longer names one they have");
-        ok(/notConnectedText\(from, to, connected\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+        ok(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
             "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
+        equal((veto.match(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/g) ?? []).length, 2,
+            "the crossing veto's two refusals do not filter by the rooms found on the scene the token crossed on");
     }],
 
     ["the Rest window names no rest room the viewer has not found", async () => {
@@ -43831,8 +43873,10 @@ const SCENARIOS = [
         const here = game.scenes.viewed ?? game.scenes.contents[0];
         const there = game.scenes.contents.find(scene => scene.id !== here.id);
         const RECT = { width: 600, height: 600 };
+        // Marked rooms (E12 fix r1-G3; k1, 11.10.2026): a region drawn after the migration is a room only when a GM marked
+        // it (E12 C1), and the unmarked bedrooms were no bedrooms from E12 C2a on, so the choice moved nobody.
         const room = (name, x, owner) => ({ name, shapes: [{ type: "rectangle", x, y: 0, ...RECT }],
-            flags: owner ? { [MODULE_ID]: { [V.VAULT_FLAGS.owner]: owner } } : {} });
+            flags: { [MODULE_ID]: { room: true, ...(owner ? { [V.VAULT_FLAGS.owner]: owner } : {}) } } });
         let actors = [], made = [];
         try {
             actors = await Actor.createDocuments(["A", "B", "C"].map(n => ({ name: `SUITE E11 C10b student ${n}`, type: "character" })));
@@ -46828,6 +46872,15 @@ const SCENARIOS = [
          * and is no room though it carries the mark; a player's change naming the mark of a GM's room
          * leaves it a room, and the GMs are told once. Red before C1 on its first check: no setting
          * records a player's region.
+         * E12 fix r1-G5 (11.10.2026; review EARLY-C1-1, SEC-4, EARLY-C1-4): the change is now made, not
+         * only told - the Gym is unticked on the document before the hook, so a put-back that writes
+         * nothing reads false here (until then the hook was handed `false` over a region that still
+         * held `true`, and deleting the put-back left this green). The Gym arrives with its scene, so
+         * no `createRegion` of its own primes the GM's memory: until this fix the memory had no entry,
+         * read "never seen" as "seen unset" and unset the GM's mark. And a Shed recorded as a player's
+         * through the setting alone - as after a GM's reload, when the memory of the create is gone -
+         * takes its author's write to its flags without a put-back or a word to the GMs; until this
+         * fix it was unset and told.
          */
         ok(Boolean(SETTINGS.playerRegions) && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`),
             "no world setting records the regions a player created - a region a player drew and named is a room");
@@ -46843,26 +46896,34 @@ const SCENARIOS = [
         const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         let scene = null, read = null;
         try {
-            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false });
-            const [kept, drawn] = await scene.createEmbeddedDocuments("Region", [
-                { name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
-                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }]);
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false,
+                regions: [{ name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }] });
+            const kept = scene.regions.find(r => r.name === "SUITE E12 C1 Gym");
+            must(kept?.getFlag(MODULE_ID, R.ROOM_FLAG) === true, "the scene was not made with its marked Gym - this would measure nothing");
+            const [drawn, shed] = await scene.createEmbeddedDocuments("Region", [
+                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
+                { name: "SUITE E12 C1 Shed", shapes: [{ type: "rectangle", x: 1200, y: 0, width: 400, height: 400 }], flags: {}, behaviors: [] }]);
             const wasRoom = R.isRoom(drawn);
             Hooks.callAll("createRegion", drawn, {}, player.id);
             const recorded = await until(() => R.playerRegionIds().has(drawn.id));
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...R.playerRegionIds(), shed.id]);
             const from = game.messages.size;
-            const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes("SUITE E12 C1 Gym"));
+            const told = name => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(name));
+            shed.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } });
+            Hooks.callAll("updateRegion", shed, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } }, {}, player.id);
+            kept.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } });
             Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } }, {}, player.id);
-            await until(() => told().length > 0);
+            await until(() => told("SUITE E12 C1 Gym").length > 0);
             await settle();
-            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG), told().length];
+            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Gym").length,
+                shed.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Shed").length];
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
             await scene?.delete();
         }
-        equal(stableJson(read), stableJson([true, true, false, true, true, 1]),
-            `${player.name}'s region and ${player.name}'s change to a GM's room ([the region a room before its creation was judged, recorded as a player's, `
-            + "a room after, the GM's room a room, its mark, the GMs told])");
+        equal(stableJson(read), stableJson([true, true, false, true, true, 1, true, 0]),
+            `${player.name}'s region and ${player.name}'s changes to a GM's room and to a region of ${player.name}'s ([the region a room before its creation `
+            + "was judged, recorded as a player's, a room after, the GM's room a room, its mark, the GMs told; the Shed's mark as its author left it, the GMs told])");
     }],
 
     ["two pieces are one room: Room Setup writes both and the lock and the seal and the neighbours read either piece", async () => {
@@ -46875,7 +46936,7 @@ const SCENARIOS = [
          * scene of its own: a Kitchen drawn in two pieces far apart, a Hall against piece 1, a Pantry
          * against piece 2 and, below piece 2, a Lift marked a room that carries a Teleport. Read: the
          * owner Room Setup's `setVaultRoom` writes, on each piece, and whether a stranger may enter;
-         * the lock and the seal set on piece 2 alone, through the veto's and the search's readers; the
+         * the lock set on piece 1 and the seal on piece 2, through the veto's and the search's readers; the
          * room at the centre of piece 2 and of the Lift; the neighbours of the Kitchen and of the
          * Pantry; the scene's rooms. Red before C2a on its first check: movement.mjs exports no
          * `isLocked`.
@@ -46898,7 +46959,10 @@ const SCENARIOS = [
             const [one, two] = await scene.createEmbeddedDocuments("Region", [room(K, 0), room(K, 2000), room("SUITE Hall", 420),
                 room("SUITE Pantry", 2420), room("SUITE Lift", 2000, 420, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
             await V.setVaultRoom(K, { owner: owner.id, scene });
-            await two.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            // The lock on one piece and the seal on the other (E12 fix r1-G1; review EARLY-C2a-3): both on
+            // piece 2, the last, passed a reader that took the last region of a name.
+            await one.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
+            await two.update({ [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
             read = [[one, two].map(piece => piece.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) === owner.id), V.mayEnterBedroom(stranger, K, scene),
                 M.isLocked(scene, K), SearchTokens.sealed(K, scene), at(scene, 2200, 200), at(scene, 2200, 620),
                 M.neighbouringRooms(scene, K), M.neighbouringRooms(scene, "SUITE Pantry"), M.allRooms(scene)];
@@ -46907,7 +46971,7 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[true, true], false, true, true, K, null, ["SUITE Hall", "SUITE Pantry"], [K],
             ["SUITE Hall", K, "SUITE Pantry"]]),
-            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked and sealed by piece 2's flags, "
+            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked by piece 1's flag and sealed by piece 2's, "
             + "the room at piece 2 and at the Lift, the Kitchen's neighbours, the Pantry's, the scene's rooms])");
     }],
 
@@ -48122,6 +48186,797 @@ const SCENARIOS = [
             + "whether each category is one switch with no box to tick, and three clicks of one (the states, and back where it began); "
             + "whether each table is fixed with a column a heading; whether each student heading carries the whole name; the legend's states; "
             + "and the Fog tab's own Discover all and Hide all (boxes there, all ticked, all cleared, the window still open)");
+    }],
+
+    ["a room's piece drawn and marked after the room was set up reads and writes as the room and a passage of its name takes none of it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-1, EARLY-C2a-1, goal-r1 N2 and the security review's
+         * note on `setRoomFlag`. E12 C2a made every writer write every region of a room's name, while every
+         * rule reader but the owner, the lock and the seal read the LAST room piece (`regionsByName`). The
+         * review measured on b5baaf5 what a second piece drawn and marked after a Kitchen was set up does:
+         * its stash, its bedroom, its rest, its table gone (`stashesIn` 1 -> 0, `roomAllows(long)` true ->
+         * false, `sharedRooms` [] -> [Kitchen]), and the next stash edit wrote the new piece's empty list
+         * over the old one; a Teleport of the name took the room mark and the stash list with the rest.
+         * Here, on a scene of the suite's own that nobody views: a Kitchen set up in one piece through the
+         * module's writers (a bedroom, its owner's stash, a long rest, a table, a favour, a hindrance, a
+         * description), then a second piece and a Teleport of the same name drawn, the name marked a room
+         * through Room Setup's writer of the mark, and another student given a stash there. Read: every
+         * room reader before and after the mark, the stashes after the edit, and the flags the Teleport
+         * carries. Red before this commit on the readers after the mark.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const [favoured, hindered] = Object.keys(ITEM_CATEGORIES).filter(key => key !== "truthBullet");
+        must(favoured && hindered && owner && other, "two students and two categories - this would measure nothing");
+        const K = "SUITE r1-G1 Kitchen", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const read = scene => [V.stashesIn(K, scene).map(entry => entry.actorId), V.stashRoomsFor(owner, scene).map(entry => entry.room),
+            V.primaryStashRoom(owner, scene), V.vaultRoomOwnedBy(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
+            V.roomDescription(K, scene), V.roomFavours(K, scene), V.roomHinders(K, scene), Rest.roomAllows(K, "long", scene),
+            Rest.restRooms("long", scene), V.sharedRooms(scene), V.allVaults(scene).map(entry => [entry.room, entry.owner?.id, entry.bedroom])];
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece drawn later", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", favours: [favoured], hinders: [hindered], description: "SUITE r1-G1 tiles", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            const before = read(scene);
+            const [, lift] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(2000), behaviors: [] },
+                { name: K, shapes: box(1000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] }]);
+            await R.setRoomFlag(scene, K, R.ROOM_FLAG, true);
+            const marked = read(scene);
+            await V.setStash(K, other.id, { concealed: false, scene });
+            reading = [before, marked, V.stashesIn(K, scene).map(entry => entry.actorId).sort(),
+                Object.keys(scene.regions.get(lift.id)?.flags?.[MODULE_ID] ?? {}), R.roomRegions(scene, K).length];
+        } finally {
+            await scene?.delete();
+        }
+        const set = [[owner.id], [K], K, K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
+        equal(stableJson(reading), stableJson([set, set, [owner.id, other.id].sort(), [], 2]),
+            `a Kitchen set up in one piece, then a second piece and a Teleport of its name drawn and the name marked a room ([every room reader before the mark: `
+            + "the stashes, the owner's stash rooms, primary stash room and bedroom, the bedroom's owner, the table, the description, the favours, the hindrances, "
+            + "a long rest, the long-rest rooms, the shared rooms, every stash; the same after the mark; the stashes after another student's was added; "
+            + "the Teleport's flags; the room's pieces])");
+    }],
+
+    ["Room Setup shows a room of several pieces as one and writes only the pieces that can be rooms and counts only the rooms it wrote", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 EARLY-C2a-1, EARLY-C2a-2 and EARLY-C4-1. Room Setup read
+         * each row off the LAST region of its name and wrote the row to every region of it, so with a
+         * Teleport of a bedroom's name drawn last, a GM who ticked one box and pressed Apply wrote the
+         * Teleport's empty owner over the bedroom's; it showed a room locked on one piece and sealed on
+         * another as neither, while the rules read it both; and it counted a room changed for a stash cell
+         * of a name no room carries, where nothing was written. Here, on a scene of the suite's own viewed
+         * for the window: a Kitchen set up in one piece (a bedroom, its owner's stash, a long rest, locked),
+         * a second piece marked and sealed, a Teleport of the name last, and a Teleport "Closet" alone. The
+         * window is answered as the C4 test answers it: read the Kitchen's owner, long rest, lock, seal and
+         * owner's stash cell, tick its short rest, give another student an open stash in the Closet, Apply.
+         * Read: the cells, the owner on each piece and through the reader, the short rest, what each
+         * Teleport carries, and the count Apply answers. Red before this commit on the cells. In a GM-store
+         * world of the suite's own, as the C4 test; the bedroom key Apply's sweep hands the owner is taken
+         * back here.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const { SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const home = canvas?.scene ?? null;
+        const K = "SUITE r1-G1 Kitchen", CLOSET = "SUITE r1-G1 Closet", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === K).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g1-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: "SUITE E12 fix r1-G1 Room Setup", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const [one] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await V.setVaultRoom(K, { owner: owner.id, scene });
+                await Rest.setRestRoom(K, { long: true, scene });
+                await V.setStash(K, owner.id, { concealed: false, scene });
+                await one.update({ [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: true });
+                const [two, lift, closet] = await scene.createEmbeddedDocuments("Region", [
+                    { name: K, shapes: box(2000), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [SEARCH_FLAGS.sealed]: true } }, behaviors: [] },
+                    { name: K, shapes: box(1000), behaviors: up }, { name: CLOSET, shapes: box(3000), behaviors: up }]);
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - Room Setup would open on another");
+                let cells = null;
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [bedroom, long, lock, seal, stash, short, closetStash] = [`owner:${K}`, `long:${K}`, `locked:${K}`, `nosearch:${K}`,
+                        `stash:${K}:${owner.id}`, `short:${K}`, `stash:${CLOSET}:${other.id}`].map(field);
+                    must(bedroom && long && lock && seal && stash && short && closetStash, `Room Setup drew no owner, rest, lock, seal or stash cell for "${K}" or no stash cell for "${CLOSET}" - the answer would change nothing`);
+                    cells = [bedroom.value, long.checked, lock.checked, seal.checked, stash.value];
+                    short.checked = true;
+                    closetStash.value = "open";
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const answered = await V.openRoomSetupDialog();
+                await settle();
+                const flagsOf = region => Object.keys(scene.regions.get(region.id)?.flags?.[MODULE_ID] ?? {}).sort();
+                reading = [cells, [one, two].map(piece => scene.regions.get(piece.id)?.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) ?? null),
+                    V.vaultOwnerOf(K, scene), Rest.roomAllows(K, "short", scene), Rest.roomAllows(K, "long", scene), flagsOf(lift), flagsOf(closet), answered];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                const keys = keyFor(owner);
+                if (keys.length) await owner.deleteEmbeddedDocuments("Item", keys);
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[owner.id, true, true, true, "open"], [owner.id, owner.id], owner.id, true, true, [], [], 1]),
+            `Room Setup over a Kitchen of two pieces with a Teleport of its name last, and a Teleport "Closet" alone ([the Kitchen's cells: owner, long rest, `
+            + "locked, sealed, the owner's stash; the owner on each piece after Apply; the owner through the reader; a short and a long rest; the flags "
+            + "on the Kitchen's Teleport and on the Closet; the rooms Apply says it changed])");
+    }],
+
+    ["a piece renamed out of a room of several takes none of the room with it and the GMs are told while a room's only piece renamed keeps it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-3. Every room writer writes every piece of the
+         * name, so each piece carries a whole copy of the room; the review measured on b5baaf5 that
+         * renaming one piece of a two-piece Kitchen to "Pantry" left `vaultOwnerOf("Pantry")` the
+         * Kitchen's owner (a second bedroom, shut to the rest, and a key at the next Apply). A GM's
+         * rename of such a piece now takes the room's flags off it in the same update (vault.mjs
+         * `clearSplitPiece`, in `preUpdateRegion`) and the GMs are told; a room's only piece renamed is
+         * the room's own rename, E12 C8's, and keeps them. Here, on a scene of the suite's own that
+         * nobody views: a Kitchen of two marked pieces set up through the module's writers (a bedroom,
+         * its owner's stash, a long rest, a table) and locked and sealed on both, and a Den of one piece
+         * with the same owner's stash. One Kitchen piece is renamed Pantry, the Den renamed Study.
+         * Read: the Pantry's owner, stashes, rest, table, lock and seal and whether it is a room; the
+         * Kitchen's owner, stashes, rest and lock; the Study's stashes; and the GM whispers that name
+         * the Pantry. Red before this commit on the Pantry's owner.
+         */
+        const [owner] = cast(1);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const Rest = await import("./rest.mjs");
+        const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const K = "SUITE r1-G1 Kitchen", P = "SUITE r1-G1 Pantry", DEN = "SUITE r1-G1 Den", STUDY = "SUITE r1-G1 Study";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const from = game.messages.size;
+        const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(P)).length;
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece renamed", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [one, two, den] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: mark, behaviors: [] },
+                { name: K, shapes: box(2000), flags: mark, behaviors: [] }, { name: DEN, shapes: box(3000), flags: mark, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            await V.setStash(DEN, owner.id, { concealed: false, scene });
+            for (const piece of [one, two]) await piece.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            must(V.vaultOwnerOf(K, scene) === owner.id && V.stashesIn(DEN, scene).length === 1, "the Kitchen has no owner or the Den no stash before the renames - this would measure nothing");
+            await two.update({ name: P });
+            await den.update({ name: STUDY });
+            await until(() => told() > 0);
+            reading = [V.vaultOwnerOf(P, scene), V.stashesIn(P, scene).length, Rest.roomAllows(P, "long", scene), V.roomTable(P, scene),
+                M.isLocked(scene, P), SearchTokens.sealed(P, scene), R.isRoom(scene.regions.get(two.id)),
+                V.vaultOwnerOf(K, scene), V.stashesIn(K, scene).length, Rest.roomAllows(K, "long", scene), M.isLocked(scene, K),
+                V.stashesIn(STUDY, scene).length, told()];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1]),
+            "a piece of a two-piece Kitchen renamed Pantry, and a one-piece Den renamed Study ([the Pantry's owner, stashes, long rest, table, lock, seal, "
+            + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry])");
+    }],
+
+    ["the Case dashboard's Final Truth goes to the room picked on the scene picked whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-1 and CR1-6. The dashboard's Final Truth
+         * select listed the rooms of the scene on the GM's screen (`allRooms(workingScene())`) and Save
+         * handed the placement a room name only, which E12 C5 looks up on the school first
+         * (`sceneOfRoom`): a GM viewing the Annex who picked its Kitchen had the Final Truth placed in
+         * the school's Kitchen, and a room only the school has was not offered. Here a scene of the
+         * suite's own holds a room named as one of the school's; with the camera on it the dashboard
+         * is opened, that scene's room of the name is picked and Save pressed. Read: the scene the new
+         * Final Truth stands on, and whether every school room was offered. Red on 8eb3801: placed on
+         * the school, and the school's other rooms missing from the list.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        must(ROOM, "no scene holds a room - the school has nothing to place a Final Truth in");
+        let annex = null, reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-final-${foundry.utils.randomID(8)}`, async () => {
+            let placed = [];
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 the Annex", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's Annex - this would measure nothing");
+                const before = new Set(MM.finalRemnants().map(f => f.token.id));
+                let offered = [];
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const options = [...element.querySelectorAll('select[name="finalRoom"] option')];
+                    offered = options.map(o => o.value);
+                    const pick = options.find(o => o.value === ROOM && (o.dataset.scene ?? annex.id) === annex.id);
+                    if (pick) pick.selected = true;
+                    return Boolean(pick);
+                }, () => openInvestigationDashboard());
+                await settle();
+                placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
+                reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
+            } finally {
+                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.delete();
+                await home?.view();
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[annex.id], true]),
+            `the Case dashboard saved with the camera on a scene of the suite's own and its "${ROOM}" picked ([the scenes the new Final Truth stands on, `
+            + "whether every room of the school was offered])");
+    }],
+
+    ["a Trap plant ruled with another scene on screen is found by a Search in the project's room", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-2 and CR1-6. The plant window listed the
+         * rooms of the scene on the GM's screen and keyed the plant on it, while a Search takes a
+         * plant on the scene its searcher stands on (action-rolls.mjs `searchDraw`): a GM ruling a
+         * Trap whose project is in the school's room, with another map holding a room of that name
+         * on screen, found that room chosen and planted it there, and the Search in the school's
+         * room never found it. Here a project is made in a school room and a scene of the suite's
+         * own holds a room of the same name; with the camera on it the plant window is answered as
+         * drawn (the room it chose) with an item's name, and a Search's take is asked on the school.
+         * Read: the plant's name the take gets. Red on 8eb3801: nothing.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        const ITEM = "SUITE E12 fix r1-G2 a planted kit";
+        must(ROOM, "no scene holds a room - a project has nowhere to be");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-plant-${foundry.utils.randomID(8)}`, async () => {
+            let annex = null, id = null;
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 a room of the project's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                id = (await P.createProject({ name: "SUITE E12 fix r1-G2 a Trap", target: 6, room: ROOM }))?.id ?? null;
+                must(id, "could not create a project - this would measure nothing");
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's scene - this would measure nothing");
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const name = element.querySelector('input[name="name"]');
+                    if (name) name.value = ITEM;
+                    return Boolean(name);
+                }, () => T.openPlantDialog(id));
+                const taken = await T.takePlant(ROOM, school.id);
+                reading = [taken?.name ?? null];
+            } finally {
+                if (annex) await T.takePlant(ROOM, annex.id);
+                await home?.view();
+                if (id) await P.deleteProject(id);
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([ITEM]),
+            `a plant ruled with the camera on a scene of the suite's own holding a "${ROOM}", taken by a Search in the school's "${ROOM}" ([the plant's name])`);
+    }],
+
+    ["Season setup names a region nobody decided on a scene that is not on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-4 and CR1-6. The Pre-season row "every named
+         * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
+         * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
+         * suite's own holds one named region nobody marked, and the camera stays where it is; the
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         */
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
+        const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
+        const home = canvas?.scene ?? null;
+        let floor = null, reading = null;
+        try {
+            floor = await Scene.create({ name: "SUITE E12 fix r1-G2 a floor not on screen", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
+            await settle();
+            must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
+            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const row = [...(drawn[0]?.querySelectorAll(".drpg-setup-step") ?? [])].find(li => li.querySelector("strong")?.textContent === title);
+            must(row, "the checklist drew no row for the named regions - this would measure nothing");
+            reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
+        } finally {
+            await floor?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
+    }],
+
+    ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
+         * of the scene on the GM's screen, and Apply writes the select whenever it differs from the
+         * store: opened with a map on screen that has no room of the lair's name, the select read "-"
+         * and Apply cleared the lair. Here, in a GM-store world of the suite's own, a student is the
+         * Mastermind with a school room for a lair, then a lair no scene has; each time the window is
+         * opened with the camera on a scene of the suite's own (one room of another name) and applied
+         * as drawn. Read: the lair option the window chose (its label: a school room by its name, a
+         * lair on no scene marked so) and the lair after each. Red on 8eb3801: "-" chosen and the
+         * lair cleared both times.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const MM = await import("./mastermind.mjs");
+        const [student] = cast(1);
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const LAIR = school ? R.roomNames(school)[0] ?? null : null, GONE = "SUITE E12 fix r1-G2 a lair on no scene";
+        must(LAIR, "no scene holds a room - there is no lair to keep");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-lair-${foundry.utils.randomID(8)}`, async () => {
+            let other = null;
+            try {
+                other = await Scene.create({ name: "SUITE E12 fix r1-G2 a scene with no lair", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await other.createEmbeddedDocuments("Region", [{ name: "SUITE E12 fix r1-G2 a hall", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await other.view();
+                await settle();
+                must(canvas?.scene === other, "the camera did not move to the suite's scene - this would measure nothing");
+                reading = [];
+                for (const lair of [LAIR, GONE]) {
+                    await S.mastermindStore.patch("record", { actorId: student.id, room: lair });
+                    must(MM.mastermindActor()?.id === student.id && MM.mastermindLair() === lair, `${student.name} is not the Mastermind with "${lair}" for a lair - this would measure nothing`);
+                    let chosen = null;
+                    await withFormAnswered((element, n) => {
+                        chosen = n === 0 ? element.querySelector('select[name="lair"]')?.selectedOptions?.[0]?.textContent ?? null : chosen;
+                        return n === 0;
+                    }, () => MM.openMastermindDialog());
+                    await settle();
+                    reading.push([chosen, MM.mastermindLair()]);
+                }
+            } finally {
+                await home?.view();
+                await other?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[LAIR, LAIR], [game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE }), GONE]]),
+            "the Mastermind window applied as drawn with the camera on a scene with no room of the lair's name ([the lair option it chose, the lair after it], "
+            + "for a school room and for a room on no scene)");
+    }],
+
+    ["the stash window lists a thing once when its owner keeps stashes of one name on two scenes", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-2. A stashed thing carries its room's
+         * name and no scene, and since E12 C5 the stash window lists every place scene's stashes, each
+         * with what lies in it (`stashItemsIn` on its scene): a student with a "Storage" stash on two
+         * scenes had each thing in it listed twice. Here two scenes of the suite's own each hold a
+         * room of one name with the student's stash, and the student a thing stashed there. Read: how
+         * often the window names it. Red on 8eb3801: twice.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const [owner] = cast(1);
+        const STORE = "SUITE E12 fix r1-G2 Storage", ITEM = "SUITE E12 fix r1-G2 a stashed lamp";
+        const scenes = [];
+        let thing = null, reading = null;
+        try {
+            for (const name of ["SUITE E12 fix r1-G2 Floor 1", "SUITE E12 fix r1-G2 Floor 2"]) {
+                const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                scenes.push(scene);
+                await scene.createEmbeddedDocuments("Region", [{ name: STORE, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: false }] } }, behaviors: [] }]);
+            }
+            [thing] = await owner.createEmbeddedDocuments("Item", [moduleItemData(ITEM, { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: STORE })],
+                { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+            await settle();
+            must(scenes.every(scene => V.stashItemsIn(owner, STORE, scene).some(i => i.id === thing?.id)),
+                `${owner.name}'s stashed thing does not read as lying in "${STORE}" on both scenes - this would measure nothing`);
+            const drawn = await withFormAnswered(() => false, () => V.openVaultInspector());
+            reading = [(drawn[0]?.textContent ?? "").split(ITEM).length - 1];
+        } finally {
+            if (thing && owner.items.has(thing.id)) await thing.delete({ [AUDIT_ASIDE]: true });
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([1]), `the stash window with ${owner.name}'s "${STORE}" stash on two scenes and one thing in it ([how often it names the thing])`);
+    }],
+
+    ["the console's room setters take the room's scene and a placement that names no scene is told", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4. Since E12 C6 nothing defaults to the
+         * scene on screen, and `game.drpg`'s setters returned null in silence to a console or a macro
+         * that named no scene (scenarios 10 and 72 fell into it). The room setters take the room's
+         * scene now (`sceneOfRoom`, as `tokensLeft` does), and a placement, which names a point and no
+         * room to look a scene up by, warns the GM. Here a scene of the suite's own holds a room no
+         * other scene has; `game.drpg.setStash` is called for it with no scene, and
+         * `game.drpg.placeRemnant` with a point and no scene. Read: whether the stash was written, what
+         * the placement answered and how many warnings name it. Red on 8eb3801: no stash, no warning.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const [owner] = cast(1);
+        const LARDER = "SUITE E12 fix r1-G2 Larder";
+        const warned = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G2 the larder's scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: LARDER, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await settle();
+            must(R.sceneOfRoom(LARDER) === scene, `"${LARDER}" is not found on the suite's scene - this would measure nothing`);
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message ?? "")); return own?.value?.call(ui.notifications, message, ...rest); };
+            await game.drpg.setStash(LARDER, owner.id, { concealed: false });
+            const placed = await game.drpg.placeRemnant({ x: 100, y: 100, room: LARDER, type: "prep", visibility: "obvious" });
+            reading = [V.stashesIn(LARDER, scene).some(entry => entry.actorId === owner.id), placed ?? null,
+                warned.filter(m => m.includes("placeRemnant")).length];
+        } finally {
+            if (own) Object.defineProperty(ui.notifications, "warn", own);
+            else delete ui.notifications.warn;
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true, null, 1]),
+            `game.drpg.setStash for "${LARDER}" and game.drpg.placeRemnant at a point, both with no scene ([the stash written on the room's scene, what the placement answered, the warnings naming it])`);
+    }],
+
+    ["a project is reached only on its own scene and not through a room of its name on another", async () => {
+        /*
+         * E12 fix r1-G3, 11.10.2026; review round 1 SEC-1. The lists a character builds where they
+         * stand (projects.mjs `projectsListedIn`, `sabotageTargetsIn`) and the GM's guards of a Work,
+         * a Sabotage and a trait ruling for a project (bridge-guards.mjs `guardProjectRoom`,
+         * `guardSabotageRoom`, `projectWithinReach`) compared the project's room by its name, so a
+         * character standing in a room of that name on another scene was offered the project, and its
+         * progress and sabotage passed. Here a connected player's character stands in a room on its
+         * scene, and a scene of the suite's own holds a room of the same name. Two public projects in
+         * that room: one stands on the suite's scene (its token put there, as a project placed by
+         * `sceneOfRoom` on another floor stands), one on the character's own. Read for each, as that
+         * player: whether the Work list and the Sabotage list offer it (the lists took the room's name
+         * until this fix, its place since), whether a trait ruling for it is refused as out of reach,
+         * the GM's answer to +1 progress naming a roll the record says came to 13 and the bar after,
+         * then to a Sabotage naming one at 13 and the freeze. Red on 0e49709: the project on the other
+         * scene is listed, the ruling passes its reach and both requests pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await projectPackets(player, actor);
+        const OUT_OF_REACH = "that project is not one the character can work on or break here";
+        let other = null, reading = null;
+        try {
+            other = await Scene.create({ name: "SUITE E12 fix r1-G3 a floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const away = await F.project(where.room), here = await F.project(where.room);
+            for (const [id, scene] of [[away, other], [here, where.scene]]) {
+                if (PM.projectTokenOf(id)?.parent?.id !== scene.id) {
+                    await PM.removeProjectToken(id);
+                    await PM.placeProjectToken(id, { scene });
+                }
+                must(PM.projectTokenOf(id)?.parent?.id === scene.id, `a project's token is not on ${scene.name} - this would measure nothing`);
+            }
+            const at = F.P.projectScene ? where : where.room;
+            const lists = id => [F.P.projectsListedIn(at, player).some(p => p.id === id), F.P.sabotageTargetsIn(at, { user: player }).some(p => p.id === id)];
+            const ruling = async id => (await G.guardTraitRuling(player, { actorId: actor.id, kind: "project", key: id, variant: null }, {})) === OUT_OF_REACH;
+            reading = [];
+            for (const id of [away, here]) reading.push([...lists(id), await ruling(id)]);
+            for (const [n, id] of [away, here].entries()) {
+                const worked = await F.rolled(13);
+                reading[n].push(await F.ask("project.progress", { countdownId: id, amount: 1, rollId: worked.id }), F.progress(id));
+                const broke = await F.rolled(13, "sabotage");
+                reading[n].push(await F.ask("project.sabotage", { targetId: id, difficulty: 8, rollId: broke.id, penalty: 0, relief: 0 }), F.P.isFrozen(id));
+            }
+        } finally {
+            await F.putBack();
+            await other?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([[false, false, true, "notThere", 0, "notThere", false], [true, true, false, null, 1, null, true]]),
+            `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
+    }],
+
+    ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security
+         * review). `occupantsOf` counted the canvas's tokens, so what a Listen heard (action-rolls.mjs
+         * `performListen`, its Reroll's lines in reroll.mjs `heardLines`) and who received a Monocub's
+         * dice (private-rolls.mjs `sameRoomAudience`) were read on whichever map the browser had on
+         * screen: a GM looking at another scene counted a room of the same name there. Here a scene
+         * of the suite's own holds a room named as the student's, with another student's second
+         * token standing in it; the student has no token on it. Read with the camera on the
+         * student's scene and then on the suite's: who `occupantsOf` counts, the names a named
+         * Listen's line hears there, and the users a Monocub's roll would reach. Red before this
+         * fix: with the camera on the suite's scene the other student is counted, heard and reached.
+         */
+        const pool = cast(3), student = pool[0];
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const PR = await import("./private-rolls.mjs");
+        const { heardLines } = await import("./reroll.mjs");
+        const here = Mv.locateActor(student);
+        const home = canvas?.scene ?? null;
+        must(here?.room && here.scene === home, `${student.name} stands in no room of the scene on screen (${here?.scene?.name ?? "none"}) - the two readings would not differ by the camera`);
+        const other = pool.slice(1).find(a => !Mv.othersInNamedRoom(here.room, student, home).some(b => b.id === a.id)) ?? null;
+        must(other, `every other student of the cast stands in "${here.room}" - the other scene's token would not show`);
+        const reading = async () => [Mv.occupantsOf(here.room, student).map(a => a.id).sort(),
+            (await heardLines(student, [{ listen: { room: here.room, target: here.room, total: 99, isCritical: false } }])).some(line => line.includes(other.name)),
+            [...(typeof PR.sameRoomAudience === "function" ? PR.sameRoomAudience(student) : [])].sort()];
+        let read = null, first = null, scene = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: other.id, actorLink: true, name: other.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            must(Mv.locateActor(student)?.scene === home && Mv.othersInNamedRoom(here.room, null, scene).some(a => a.id === other.id),
+                `${student.name} is not placed on the scene on screen, or ${other.name}'s token on the suite's scene stands in no "${here.room}" - this would measure nothing`);
+            first = await reading();
+            await scene.view();
+            await settle();
+            must(canvas?.scene === scene, "the camera did not move to the suite's scene - this would measure nothing");
+            read = [first, await reading()];
+        } finally {
+            await home?.view();
+            await scene?.delete();
+            await settle();
+        }
+        ok(!first[0].includes(other.id) && first[1] === false, `${other.name} was counted in "${here.room}" with the camera on ${student.name}'s own scene`);
+        equal(stableJson(read), stableJson([first, first]),
+            `who stands in "${here.room}" beside ${student.name} (actor ids), whether a named Listen there hears ${other.name}, and a Monocub's dice audience (user ids), `
+            + "with the camera on the student's scene and then on a scene of the suite's own whose room of that name holds another student");
+    }],
+
+    ["a trap that waits for somebody alone counts the room on the scene the crossing happened on", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-1. traps.mjs `isAlone` counted the room a
+         * crossing named on the scene `locateActor` chose - the school's, when the character has a
+         * token there too - so a student who walked alone into a room of another scene was counted
+         * with whoever stood in the school's room of that name, and an "alone" trap there stayed
+         * quiet. Here a student with a player stands with another in a room of the scene on screen,
+         * and has a second token, alone, in a room of that name on a scene of the suite's own; a
+         * third student builds an "alone" trap in that room. Three crossings: on the scene on screen
+         * as the GM's own browser raises it (the other is there: quiet), on the suite's scene as the
+         * GM's own browser raises it (the token that crossed), and on the suite's scene as the
+         * player's browser relays it (judged on the primary, its `sceneId` a hint among the
+         * student's own tokens). The trap is re-armed after it speaks. Red before this fix: quiet
+         * on all three.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const pool = cast(3);
+        const student = pool.find(playerOf) ?? null;
+        const [builder, other] = pool.filter(a => a !== student);
+        must(student && builder && other, "three living students, one with a connected player - this would measure nothing");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = await import("./rooms.mjs");
+        const stood = await aloneTogether(student, other);
+        const home = canvas?.scene ?? null;
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let made = null, scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room to be alone in", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: stood.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            const mine = home?.tokens?.find(t => t.actorId === student.id) ?? null;
+            made = await P.createProject({ name: "SUITE r1-G4 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            must(made?.id && T.diagnoseTraps().armed === 1 && mine && away, "the trap is not watching, or a token of the student is missing - this would measure nothing");
+            const fires = async raise => {
+                const count = game.messages.size;
+                await raise();
+                const spoke = await until(() => game.messages.size > count, 3000);
+                if (spoke) {
+                    await until(() => T.diagnoseTraps().armed === 0);
+                    await T.rearmTrap(made.id);
+                    await until(() => T.diagnoseTraps().armed === 1);
+                }
+                return spoke;
+            };
+            read = [
+                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: mine })),
+                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away })),
+                await fires(() => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: stood.room, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} }))
+            ];
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([false, true, true]),
+            `the "alone" trap in "${stood.room}" spoke for ${student.name}'s crossing on the scene on screen (${other.name} there), on a scene of the suite's own (alone there) `
+            + "as the GM's browser raises it, and the same relayed by the player's browser");
+    }],
+
+    ["Move the body is refused before it is paid for when the body lies in a room of the same name on another scene", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-3. cleanup.mjs `bodyIsHere` compared the
+         * killer's room and the body's by name alone, so a killer standing in a room of the body's
+         * room's name on another scene passed the killer's browser's check and the GM's, and the GM's
+         * side charged its price (`resolveStageSix`, a packet that names no paid step) before
+         * `applyMoveBody` looked for the body on the killer's scene and found none. Here the killer
+         * kills in Stage 6's fixture, then stands, by their only token a GM has not hidden, in a room
+         * named as the body's on a scene of the suite's own. Read: `bodyIsHere`, the GM's answer to
+         * Move the body naming no paid step, the Sanity it marked, and the body's room. Red before this
+         * fix: the body is "here", the move is not refused and a Sanity step is taken; the body stays.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const R = await import("./rooms.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const home = canvas?.scene ?? null;
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => home?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const standing = livingStudents().filter(a => playerOf(a) && tokenOf(a) && locateActor(a)?.room);
+        const [killer, victim] = standing;
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(killer._source, STRESS)) || 0;
+        must(Number(killer.system.resources?.stress?.max) >= 2, `${killer.name}'s Sanity cannot take a step - this would measure nothing`);
+        const had = marks(), mine = tokenOf(killer);
+        let scene = null, read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            const body = locateActor(victim);
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the body's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: body.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: killer.id, actorLink: true, name: killer.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await mine.update({ hidden: true });
+            await killer.update({ [STRESS]: 0 });
+            await settle();
+            const there = locateActor(killer);
+            must(body.scene === home && there?.scene === scene && there.room === body.room,
+                `the killer is not placed in "${body.room}" on the suite's scene with the body on the scene on screen - this would measure nothing`);
+            const answer = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: null, total: 30, isCritical: false, withHope: true, price: null });
+            await settle();
+            read = [CL.bodyIsHere(killer), answer?.refused ?? null, marks(), locateActor(victim)?.scene?.id ?? null, locateActor(victim)?.room ?? null];
+            read.unshift(body.room);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (home?.tokens?.has(mine?.id)) await mine.update({ hidden: false });
+            await scene?.delete();
+            await killer.update({ [STRESS]: had });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([read?.[0], false, "the body is not in the killer's room", 0, home?.id ?? null, read?.[0]]),
+            `[the body's room, bodyIsHere, the GM's refusal, ${killer.name}'s Sanity marks, the body's scene and room] with the killer in a room of that name on another scene`);
+    }],
+
+    ["a room drawn in touching and overlapping pieces is outlined round its outside only and named inside its largest piece", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review EARLY-C2b-1, EARLY-C2b-2, plan-E12 3.1 ("the outline and
+         * the fog's reveal union the pieces"). E12 C2b handed the outline every piece of a room
+         * (fog-geometry `piecesAsOne`) without joining them, so where two pieces touch or overlap
+         * each piece's own border was drawn across the room's floor, and the name sat at the middle
+         * of the box round every piece - in none of them when the pieces lie apart. Here a Kitchen
+         * on a scene of its own: A and B touching along x = 400, E overlapping B's corner, and a
+         * larger C far off. The outline is traced as the room's outline is (`doorwayEdges`, then
+         * `traceOutlineGapped`, with no margin and no shortest run) into a recorder, so it reads the
+         * same in Foundry and on the harness; nothing else stands on the scene, so no edge opens.
+         * Read: the length stroked, the strokes with the room's floor two pixels either side, and
+         * where the name is drawn (fog-reveal `labelPoint`). The outside of A, B and E is 3400 px and
+         * C's 2400. Red before this fix: 7200 px stroked, the shared line and the overlaps among them.
+         */
+        const fog = await import("./fog.mjs");
+        const reveal = await import("./fog-reveal.mjs");
+        const { doorwayEdges, traceOutlineGapped } = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        const NAME = "SUITE E12 r1-G5 pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const boxes = [[0, 0, 400, 400], [400, 0, 400, 400], [700, 200, 400, 400], [2000, 0, 600, 600]];
+        const inFloor = (x, y) => boxes.some(([bx, by, w, h]) => x > bx && x < bx + w && y > by && y < by + h);
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", boxes.map(([x, y, width, height]) => ({ name: K,
+                shapes: [{ type: "rectangle", x, y, width, height }], flags: mark, behaviors: [] })));
+            const shape = fog.roomShapeOn(scene, K);
+            must(shape?.pieces?.length === 4, "the Kitchen was not handed as one room of four pieces - this would measure nothing");
+            const strokes = [];
+            let pen = null;
+            const recorder = { line: { width: 4 }, moveTo(x, y) { pen = { x, y }; }, lineTo(x, y) { strokes.push([pen.x, pen.y, x, y]); pen = { x, y }; } };
+            traceOutlineGapped(recorder, doorwayEdges(shape), { x: 0, y: 0 }, 0, 0);
+            const across = strokes.filter(([x1, y1, x2, y2]) => {
+                const length = Math.hypot(x2 - x1, y2 - y1);
+                if (length < 1) return false;
+                const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, nx = -(y2 - y1) / length * 2, ny = (x2 - x1) / length * 2;
+                return inFloor(mx + nx, my + ny) && inFloor(mx - nx, my - ny);
+            });
+            read = [Math.round(strokes.reduce((sum, [x1, y1, x2, y2]) => sum + Math.hypot(x2 - x1, y2 - y1), 0)), across.length,
+                typeof reveal.labelPoint === "function" ? reveal.labelPoint(shape) : null];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([5800, 0, { x: 2300, y: 300 }]),
+            "a Kitchen of four pieces, two touching, one overlapping and one apart ([the length its outline strokes, the strokes across its own floor, "
+            + "where its name is drawn])");
+    }],
+
+    ["a cast point that is no room moves nobody: a Teleport, a player's region or a region nobody marked", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review goal-r1 N1, audit S07-06. The reset's "everyone to one
+         * room" offered every named region of every map (season-setup.mjs `castPoints`), and
+         * `placeCast` moved the cast into whichever region the choice named: a Teleport's, a region a
+         * player drew, a region no GM marked a room. Both read rooms.mjs now. Here a scene of the
+         * suite's own holds a Teleport marked a room, a region marked a room and recorded as a
+         * player's, and a named region nobody marked, with a student of the suite's own (no player
+         * owns it, so no client follows a move) standing outside them. Read: whom `placeCast` moves
+         * and where the token stands after each. Red before this fix: moved each time.
+         */
+        const { placeCast } = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
+        const NAME = "SUITE E12 r1-G5 cast", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const region = (name, x, flags, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags, behaviors });
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        let scene = null, actor = null, read = null;
+        try {
+            [actor] = await Actor.createDocuments([{ name: "SUITE E12 r1-G5 student", type: "character" }]);
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1200, grid: { size: 100 }, active: false, navigation: false });
+            const points = await scene.createEmbeddedDocuments("Region", [
+                region("SUITE Lift", 0, mark, [{ type: "teleportToken", name: "Up", system: { destination: null } }]),
+                region("SUITE Den", 600, mark), region("SUITE Shed", 1200, {})]);
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...playersBefore, points[1].id]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 2000, y: 800, width: 1, height: 1 }]);
+            must(points.every(point => !R.isRoom(point)), "a point of the test is a room - this would measure nothing");
+            read = [];
+            for (const point of points) {
+                const placed = await placeCast({ to: "point", scene: scene.id, region: point.id }, [actor]);
+                await settle();
+                const t = scene.tokens.get(token.id);
+                read.push([point.name, placed?.moved?.length ?? null, placed?.stayed?.length ?? null, `${t?.x},${t?.y}`]);
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+            await actor?.delete();
+        }
+        equal(stableJson(read), stableJson([["SUITE Lift", 0, 1, "2000,800"], ["SUITE Den", 0, 1, "2000,800"], ["SUITE Shed", 0, 1, "2000,800"]]),
+            "the cast sent to a point that is no room ([the point, moved, stayed, where the token stands after])");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

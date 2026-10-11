@@ -1722,11 +1722,13 @@ export async function heardLines(actor, lines) {
 async function listenLines(actor, { room, target, total, isCritical }) {
     const def = ACTIONS.listen;
     const { neighbouringRooms, occupantsOf, roomsKnownToMe, locateActor } = await import("./movement.mjs");
-    const neighbours = room ? neighbouringRooms(locateActor(actor)?.scene, room) : [];
-    const labelOf = listenLabels(neighbours, roomsKnownToMe());
+    // One scene for the doors, the rooms found and who is behind them: the roller's (E12 fix r1-G4).
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = room ? neighbouringRooms(scene, room) : [];
+    const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {
-        const who = occupantsOf(r, actor).map(a => a.name);
+        const who = occupantsOf(r, actor, scene).map(a => a.name);
         return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
     };
     const hit = resolveThreshold(Number(total), def.thresholds);
@@ -1735,7 +1737,7 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     if (isCritical) return neighbours.map(r => `${shown(r)} - ${named(r)}`);
     if (hit && hit.min >= namedFrom) return [game.i18n.format("DRPG.Listen.named", { room: shown(target), who: named(target) })];
     if (hit) {
-        const count = occupantsOf(target, actor).length;
+        const count = occupantsOf(target, actor, scene).length;
         return [count
             ? plural("DRPG.Listen.anonymous", { room: shown(target), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: shown(target) })];

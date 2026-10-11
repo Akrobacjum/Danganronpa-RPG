@@ -552,15 +552,18 @@ export async function guardTraitRuling(sender, payload, ctx) {
     return cleanupBlocker(actor) ? "the character may not clean up now" : null;
 }
 
-/** Whether `projectId` is one the sender sees and the character may work on or sabotage in the room they stand in. */
+/**
+ * Whether `projectId` is one the sender sees and the character may work on or sabotage in the room they stand in,
+ * on the project's own scene (E12 fix r1-G3; projects.mjs `standsAtProject`).
+ */
 async function projectWithinReach(actor, projectId, sender) {
     const { projectsAvailableIn, sabotageTargetsIn } = await import("./projects.mjs");
     const { locateActor } = await import("./movement.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     // Where the character stands on its own scene, not on the one this GM views (E12 C3).
-    const room = locateActor(actor)?.room ?? null;
-    return [...(room ? projectsAvailableIn(room, sender) : []),
-        ...sabotageTargetsIn(room, { anyRoom: isMonokuma(actor), user: sender })].some(p => p.id === projectId);
+    const place = locateActor(actor);
+    return [...(place?.room ? projectsAvailableIn(place, sender) : []),
+        ...sabotageTargetsIn(place, { anyRoom: isMonokuma(actor), user: sender })].some(p => p.id === projectId);
 }
 
 /*
@@ -585,7 +588,8 @@ export function guardShareGuest(sender, payload, ctx) {
  * never offers one (projects.mjs `projectsListedIn`), and a refusal spends no roll. Progress is
  * added by a character standing in the project's room when it has one, as the picker lists them,
  * read on the scene documents (`locateActor`): `roomOfActor` sees only the scene this GM is
- * looking at.
+ * looking at. The room on the project's own scene (E12 fix r1-G3; review round 1 SEC-1): a room
+ * of the same name on another map passed until then (projects.mjs `standsAtProject`).
  *
  * A PACKET THAT NAMES NO ROLL IS A HOPE CALL'S, PAID FOR (fix r2-H2, 05.10.2026; review S2-5). C16
  * held it to the largest Call's 2, asked nothing of where it stood, and took it as often as it came:
@@ -613,11 +617,11 @@ export async function guardProjectFrozen(sender, payload, ctx) {
 
 export async function guardProjectRoom(sender, payload, ctx) {
     if (sender.isGM) return null;
-    const { roomOf } = await import("./projects.mjs");
-    const room = roomOf(payload.countdownId);
-    if (!room) return null;
+    const { roomOf, standsAtProject } = await import("./projects.mjs");
+    if (!roomOf(payload.countdownId)) return null;
     const { locateActor } = await import("./movement.mjs");
-    return locateActor(game.actors.get(payload.actorId ?? ""))?.room === room ? null : "the character is not in that room";
+    return standsAtProject(locateActor(game.actors.get(payload.actorId ?? "")), payload.countdownId)
+        ? null : "the character is not in that room";
 }
 
 /*
@@ -628,18 +632,18 @@ export async function guardProjectRoom(sender, payload, ctx) {
  * project in another room, its repair made and nothing refused, and a miss named its target for
  * the Reroll from anywhere as well. A player's packet, a miss's included, is held here to the room
  * on the scene documents, as `guardProjectRoom` holds a Work's, before its roll is claimed; a
- * Monokuma reaches every project, as the picker lets them (`anyRoom`).
+ * Monokuma reaches every project, as the picker lets them (`anyRoom`). The room on the project's
+ * own scene since E12 fix r1-G3, as `guardProjectRoom`'s.
  */
 export async function guardSabotageRoom(sender, payload, ctx) {
     if (sender.isGM) return null;
     const actor = game.actors.get(payload.actorId ?? "");
     const { isMonokuma } = await import("./monokuma.mjs");
     if (isMonokuma(actor)) return null;
-    const { roomOf } = await import("./projects.mjs");
-    const room = roomOf(payload.targetId);
-    if (!room) return "that project is not one the character can work on or break here";
+    const { roomOf, standsAtProject } = await import("./projects.mjs");
+    if (!roomOf(payload.targetId)) return "that project is not one the character can work on or break here";
     const { locateActor } = await import("./movement.mjs");
-    return locateActor(actor)?.room === room ? null : "the character is not in that room";
+    return standsAtProject(locateActor(actor), payload.targetId) ? null : "the character is not in that room";
 }
 
 /*

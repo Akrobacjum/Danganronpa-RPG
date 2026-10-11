@@ -43,8 +43,11 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
-import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes }
-    from "./rooms.mjs";
+import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
+    roomRegions, flagOver, listOver, piecesByName, writablePieces } from "./rooms.mjs";
+// Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
+// its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
+import { REST_FLAGS } from "./rest.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -319,7 +322,7 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
 
 /** The RollTable this room draws from, or `null` for the global pool. */
 export function roomTable(room, scene) {
-    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.table) || null;
+    return roomFlag(scene, room, VAULT_FLAGS.table) || null;
 }
 
 /**
@@ -329,12 +332,12 @@ export function roomTable(room, scene) {
  * few pieces of the GM's own prose this game means for the table to see.
  */
 export function roomDescription(room, scene) {
-    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.description) ?? "";
+    return roomFlag(scene, room, VAULT_FLAGS.description) ?? "";
 }
 
 /** Categories this room is a good place to search for. */
 export function roomFavours(room, scene) {
-    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
+    return listOver(roomRegions(scene, room), VAULT_FLAGS.favours);
 }
 
 /**
@@ -350,7 +353,7 @@ export function favoursCategory(room, category, scene) {
 
 /** Categories this room is a poor place to search for. */
 export function roomHinders(room, scene) {
-    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [];
+    return listOver(roomRegions(scene, room), VAULT_FLAGS.hinders);
 }
 
 /**
@@ -370,16 +373,18 @@ export function hindersCategory(room, category, scene) {
  * ========================================================================== */
 
 /**
- * The rooms on a scene, by name, one piece each. rest.mjs reads rooms through this too (C3).
+ * The rooms on a scene, by name, one piece each: a handle on a room's region, for a caller that
+ * needs a region and decides nothing by its flags.
  *
  * ROOMS, ON THE SCENE NAMED (E12 C2a, audit S07-05, S07-06, S08-17). Until 1.2.74 this took
  * every named region of the camera's scene (`workingScene()`), a Teleport's included, and
  * its map kept the LAST region of a name - which is the piece Room Setup wrote, while the
  * crossing veto read the FIRST. A room is now what rooms.mjs says it is, the caller names
- * the scene, and every writer here writes all the pieces of a name (`updateRoom`); the
- * piece this map holds is still the last, where a room drawn in two pieces kept what Room
- * Setup wrote before then. The readers that decide a rule - the owner, the bedrooms, the
- * lock - read the room as one (`roomFlag`).
+ * the scene, and every writer here writes all the pieces of a name that can be rooms
+ * (`updateRoom`). The piece this map holds is still the last, so no rule reads through it
+ * any more (E12 fix r1-G1, 11.10.2026): until then the stashes, the bedroom walkers, the
+ * table, the favours and rest.mjs's rest rooms did, and a piece drawn and marked after a room
+ * was set up hid all of it (rooms.mjs, "ONE ROOM OF MANY PIECES").
  */
 export function regionsByName(scene) {
     const map = new Map();
@@ -388,14 +393,15 @@ export function regionsByName(scene) {
 }
 
 /**
- * One update written to every region of a room's name on this scene, rooms or not, in one
- * update of the scene's regions (E12 C2a): the writers below wrote the one piece
- * `regionsByName` held, so a Kitchen of two pieces had its owner, its stash or its lock on
- * one of them. Answers the regions written. A GM's write, on a GM's client only.
+ * One update written to every region of a room's name on this scene that can be a room, marked
+ * or not (`writablePieces`), in one update of the scene's regions (E12 C2a): the writers below
+ * wrote the one piece `regionsByName` held, so a Kitchen of two pieces had its owner, its stash
+ * or its lock on one of them. Until E12 fix r1-G1 a Teleport or a player's region of the name
+ * was written too. Answers the regions written. A GM's write, on a GM's client only.
  */
 async function updateRoom(scene, room, update) {
     if (!game.user.isGM || !scene) return [];
-    const pieces = namedRegions(scene, room);
+    const pieces = writablePieces(scene, room);
     if (pieces.length) await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, ...update })));
     return pieces;
 }
@@ -430,15 +436,29 @@ export function vaultOwnerOf(room, scene) {
  * region's stored flag by mutating what it was given.
  */
 export function stashesIn(room, scene) {
-    return stashesOn(regionsByName(scene).get(room));
+    return stashesOver(roomRegions(scene, room));
+}
+
+/**
+ * Every piece's stashes as one list (E12 fix r1-G1): the first piece that lists a person answers
+ * for their stash. The writer gives every piece the same list, so the pieces disagree only where
+ * one was drawn after the last edit, and that piece lists nobody.
+ */
+function stashesOver(pieces) {
+    const byActor = new Map();
+    for (const piece of pieces) {
+        for (const entry of stashesOn(piece)) if (!byActor.has(entry.actorId)) byActor.set(entry.actorId, entry);
+    }
+    return [...byActor.values()];
 }
 
 /**
  * The same answer, from a region already in hand.
  *
- * `regionsByName` rebuilds its Map on every call - cheap once, and quadratic
- * from anything that wants to look at every room. Splitting the body out is
- * what lets the walkers below build that Map once instead of once per room.
+ * A room's pieces are found by a pass over the scene's regions - cheap once,
+ * and quadratic from anything that wants to look at every room. Splitting the
+ * body out is what lets the walkers below group them once (`piecesByName`)
+ * instead of once per room.
  */
 function stashesOn(region) {
     if (!region) return [];
@@ -467,8 +487,8 @@ export function stashIn(room, actorId, scene) {
 export function stashRoomsFor(actor, scene) {
     if (!actor) return [];
     const out = [];
-    for (const [name, region] of regionsByName(scene)) {
-        const mine = stashesOn(region).find(entry => entry.actorId === actor.id);
+    for (const [name, pieces] of piecesByName(scene)) {
+        const mine = stashesOver(pieces).find(entry => entry.actorId === actor.id);
         if (mine) out.push({ room: name, concealed: mine.concealed });
     }
     return out;
@@ -494,10 +514,10 @@ export function primaryStashRoom(actor, scene) {
     // deliberately keeps. Not a fire, but a quadratic with a free fix.
     let first = null;
     let bedroom = null;
-    for (const [name, region] of regionsByName(scene)) {
-        if (!stashesOn(region).some(entry => entry.actorId === actor.id)) continue;
+    for (const [name, pieces] of piecesByName(scene)) {
+        if (!stashesOver(pieces).some(entry => entry.actorId === actor.id)) continue;
         if (first === null) first = name;
-        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) bedroom = name;
+        if (flagOver(pieces, VAULT_FLAGS.owner) === actor.id) bedroom = name;
     }
     return bedroom ?? first;
 }
@@ -505,8 +525,8 @@ export function primaryStashRoom(actor, scene) {
 /** The room this character's bedroom IS, owner flag only. */
 export function vaultRoomOwnedBy(actor, scene) {
     if (!actor) return null;
-    for (const [name, region] of regionsByName(scene)) {
-        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
+    for (const [name, pieces] of piecesByName(scene)) {
+        if (flagOver(pieces, VAULT_FLAGS.owner) === actor.id) return name;
     }
     return null;
 }
@@ -522,10 +542,11 @@ export function vaultRoomOwnedBy(actor, scene) {
 export async function setStash(room, actorId, { present = undefined, concealed = undefined, scene = null } = {}) {
     if (!game.user.isGM || !room || !actorId) return null;
 
-    // The scene the caller names; the camera's when it names none, as `regionsByName()`
-    // read it here until E12 C2a moved the default up to this line (C4 hands Room Setup's in).
-    const region = regionsByName(scene).get(room);
-    if (!region) return null;
+    // The scene the caller names, with no default since E12 C6. The list is every piece's
+    // (`stashesIn`) and goes to every piece that can be a room (`updateRoom`): until E12 fix r1-G1
+    // it was read off the last piece, so an edit after a piece was drawn and marked wrote that
+    // piece's empty list over the room's.
+    if (!roomRegions(scene, room).length) return null;
 
     const list = stashesIn(room, scene);
     const at = list.findIndex(entry => entry.actorId === actorId);
@@ -840,7 +861,7 @@ export async function carryRoomOnSheets(scene, from, to) {
  * G-36: about one and a half rooms per player, "corridors and dormitories
  * aside". Three kinds of region are therefore not on this list:
  *
- *   unnamed      not a room at all - `regionsByName` never yields it
+ *   unnamed      not a room at all - `piecesByName` never yields it
  *   a bedroom    it belongs to one person, whoever else can open the door
  *   marked       a corridor, a stairwell, a wing nobody has opened; the GM
  *                says so with the "Counts as a room" column in Room Setup
@@ -852,9 +873,9 @@ export async function carryRoomOnSheets(scene, from, to) {
  */
 export function sharedRooms(scene) {
     const out = [];
-    for (const [name, region] of regionsByName(scene)) {
-        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner)) continue;
-        if (region.getFlag(MODULE_ID, VAULT_FLAGS.notShared)) continue;
+    for (const [name, pieces] of piecesByName(scene)) {
+        if (flagOver(pieces, VAULT_FLAGS.owner)) continue;
+        if (flagOver(pieces, VAULT_FLAGS.notShared)) continue;
         out.push(name);
     }
     return out;
@@ -874,8 +895,9 @@ export function roomsWantedFor(people) {
 /** Every stash on the scene, wherever it is and whoever it belongs to. */
 export function allVaults(scene) {
     const out = [];
-    for (const [name] of regionsByName(scene)) {
-        for (const entry of stashesIn(name, scene)) {
+    for (const [name, pieces] of piecesByName(scene)) {
+        const owner = flagOver(pieces, VAULT_FLAGS.owner);
+        for (const entry of stashesOver(pieces)) {
             out.push({
                 room: name,
                 owner: game.actors.get(entry.actorId) ?? null,
@@ -884,7 +906,7 @@ export function allVaults(scene) {
                 // Stashes tab shades that column, and it is the difference
                 // between "their drawer" and "something they built at
                 // somebody else's place".
-                bedroom: vaultOwnerOf(name, scene) === entry.actorId
+                bedroom: owner === entry.actorId
             });
         }
     }
@@ -899,9 +921,9 @@ export async function setVaultRoom(room, {
     if (!game.user.isGM) return null;
 
     // The scene the caller names, with no default since E12 C6 (it was the camera's, moved up
-    // here from `regionsByName` by E12 C2a). Every region of the name is written (`updateRoom`), a room's or not:
-    // Room Setup lists the named regions so that a GM can make one a room.
-    const region = namedRegions(scene, room).at(-1);
+    // here from `regionsByName` by E12 C2a). Every region of the name that can be a room is written (`updateRoom`),
+    // marked or not: Room Setup lists the named regions so that a GM can make one a room.
+    const region = writablePieces(scene, room).at(-1);
     if (!region) return null;
 
     const update = {};
@@ -921,6 +943,65 @@ export async function setVaultRoom(room, {
 
     await updateRoom(scene, room, update);
     return region;
+}
+
+/*
+ * A PIECE RENAMED OUT OF A ROOM OF SEVERAL (E12 fix r1-G1, 11.10.2026; review round 1 CR1-3).
+ * Every writer here writes every piece of a room's name, so each piece carries a whole copy of
+ * the room. Renaming one piece of a two-piece Kitchen to "Pantry" made the Pantry a second copy:
+ * measured by the review on b5baaf5, `vaultOwnerOf("Pantry")` answered the Kitchen's owner, who
+ * had two bedrooms then, and read in the code, the Pantry was shut to everyone else and the next
+ * Room Setup Apply gave her its key (`reconcileBedroomKeys` walks every named region). A GM's
+ * rename of a piece whose old name keeps other room pieces now takes the room's flags off that
+ * piece in the same update, and the GMs are told what it carried; the room keeps all of it on
+ * its other pieces. A rename of a room's only piece is the room's own rename and keeps its flags
+ * (E12 C8 carries the rest of the room with it). Judged in `preUpdateRegion`, which runs on the
+ * client that writes the update and hands it the old name beside the changes before they are
+ * sent; a write that skips the hooks (`noHook`) is not seen, and a player's rename is not judged
+ * here (what v14 lets a player write to a Region is LIVE-E12-04).
+ */
+
+/** The flags a piece carries for its room, each with the Room Setup column that sets it. A function: read at a rename, not at load. */
+function pieceData() {
+    return [
+        [VAULT_FLAGS.owner, "DRPG.Vault.owner"], [VAULT_FLAGS.stashes, "DRPG.Vault.tabStashes"],
+        [VAULT_FLAGS.concealed, "DRPG.Vault.tabStashes"], [VAULT_FLAGS.table, "DRPG.Vault.table"],
+        [VAULT_FLAGS.favours, "DRPG.Vault.favours"], [VAULT_FLAGS.hinders, "DRPG.Vault.hinders"],
+        [VAULT_FLAGS.description, "DRPG.Vault.descriptionColumn"], [VAULT_FLAGS.notShared, "DRPG.Vault.notSharedColumn"],
+        [REST_FLAGS.short, "DRPG.Rest.shortColumn"], [REST_FLAGS.long, "DRPG.Rest.longColumn"],
+        [ROOM_FLAGS.locked, "DRPG.Vault.lockedColumn"], [ROOM_FLAGS.lockedAtStart, "DRPG.Vault.lockedAtStartColumn"],
+        [SEARCH_FLAGS.sealed, "DRPG.SearchTokens.sealedColumn"]
+    ];
+}
+
+const carriesValue = value => value !== undefined && value !== null && value !== false && value !== ""
+    && !(Array.isArray(value) && !value.length);
+
+export function registerRoomPieces() {
+    Hooks.on("preUpdateRegion", (region, changes, options, userId) => clearSplitPiece(region, changes, userId));
+}
+
+/**
+ * A GM's rename of one piece of a room of several: the piece's room flags are set to none in the
+ * update itself (the note above), and the GMs told. Answers the flags taken off, or null.
+ */
+export function clearSplitPiece(region, changes, userId) {
+    if (!game.user?.isGM || userId !== game.user.id) return null;
+    const was = region?.name, now = changes?.name;
+    if (!was || now === undefined || now === was) return null;
+    const scene = region.parent;
+    if (!roomRegions(scene, was).some(piece => piece.id !== region.id)) return null;
+    const written = changes.flags?.[MODULE_ID] ?? {};
+    const carried = pieceData().filter(([key]) => !(key in written) && carriesValue(region.getFlag(MODULE_ID, key)));
+    if (!carried.length) return null;
+    changes.flags = { ...(changes.flags ?? {}), [MODULE_ID]: { ...written, ...Object.fromEntries(carried.map(([key]) => [key, null])) } };
+    const keys = carried.map(([key]) => key);
+    log(`"${was}" on "${scene?.name}" renamed "${now}" was one piece of several: it no longer carries ${keys.join(", ")}.`);
+    const labels = [...new Set(carried.map(([, label]) => game.i18n.localize(label)))].join(", ");
+    whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rooms.pieceSplit", {
+        name: now, room: was, scene: scene?.name ?? "", carried: labels
+    }))}</p>`).catch(err => error(`Could not tell the GMs what "${now}" no longer carries`, err));
+    return keys;
 }
 
 /* ==========================================================================
@@ -2066,16 +2147,19 @@ function stashMatrixRows(rooms, students, scene) {
  * the Apply callback below, identical whichever table a cell sits in -
  * Apply reads the whole form and never asks which tab was showing. */
 function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
-    const players = playerRegionIds();
     return rooms.map(room => {
-        // Off the region the form writes back (E12 C2a): the room readers read rooms only, and
+        // Off the pieces the form writes back (E12 C2a): the room readers read rooms only, and
         // this window lists every named region so that a GM can make one a room - a cell read
         // through them would show a region that is no room yet as empty, and Apply clear it.
-        const region = regions.get(room);
-        const owner = region?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? "";
-        const table = region?.getFlag(MODULE_ID, VAULT_FLAGS.table) || "";
-        const favours = region?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
-        const hinders = region?.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [];
+        // Every piece that can be a room, read as one (E12 fix r1-G1, 11.10.2026; review round 1
+        // EARLY-C2a-1, EARLY-C2a-2): until then the cells read the LAST region of the name - a
+        // Teleport's, or a piece drawn after the room was set up - so they showed the room
+        // unowned, unlocked and unsealed while the rules read it locked, and Apply wrote that.
+        const pieces = regions.get(room) ?? [];
+        const owner = flagOver(pieces, VAULT_FLAGS.owner) ?? "";
+        const table = flagOver(pieces, VAULT_FLAGS.table) || "";
+        const favours = listOver(pieces, VAULT_FLAGS.favours);
+        const hinders = listOver(pieces, VAULT_FLAGS.hinders);
         // NOT `esc`: every other file in this module uses that name for the
         // escaping FUNCTION, so a local string by the same name here means the
         // next `esc(x)` written inside this block is a TypeError.
@@ -2129,10 +2213,11 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
          * a name on a scene. Decided - every piece carries the flag - the box reads whether any
          * piece is marked; undecided, whether a piece may be a room at all, which is what Apply then
          * writes: the GM who applies this window has decided. No piece may be one (a passage's
-         * behaviour, a region a player drew): the box is drawn off and Apply writes nothing.
+         * behaviour, a region a player drew): the box is drawn off and Apply writes nothing. The
+         * pieces are those that may be rooms (`namedByName`), so a Teleport of the name, which is
+         * never decided, leaves the box reading what the GM decided of the rest.
          */
-        const pieces = namedRegions(scene, room);
-        const possible = pieces.some(piece => canBeRoom(piece, players));
+        const possible = pieces.length > 0;
         const isRoomNow = pieces.length && pieces.every(roomDecided)
             ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
 
@@ -2142,15 +2227,15 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
                 type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
             concealed: check("concealed", isConcealed(room, scene)),
-            short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
-            long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
-            locked: check("locked", region?.getFlag(MODULE_ID, ROOM_FLAGS.locked)),
-            startlocked: check("startlocked", startLocked(region),
+            short: check("short", flagOver(pieces, REST_FLAGS.short)),
+            long: check("long", flagOver(pieces, REST_FLAGS.long)),
+            locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
+            startlocked: check("startlocked", pieces.some(startLocked),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
-            nosearch: check("nosearch", region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed)),
+            nosearch: check("nosearch", flagOver(pieces, SEARCH_FLAGS.sealed)),
             // Advice only: it changes no rule, just which regions the ratio
             // line above the table counts. See `sharedRooms`.
-            notshared: check("notshared", region?.getFlag(MODULE_ID, VAULT_FLAGS.notShared),
+            notshared: check("notshared", flagOver(pieces, VAULT_FLAGS.notShared),
                 game.i18n.localize("DRPG.Vault.notSharedHint")),
             // The list every piece holds (E12 C14); greyed under it when blank, the rooms the
             // rules connect this one to now - its walls and the lists that name it.
@@ -2186,7 +2271,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // stylesheet - so the prose wraps instead of stretching the window.
             description: `<td><textarea name="desc:${escRoom}" rows="5"${named("desc")}
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
-                >${foundry.utils.escapeHTML(roomDescription(room, scene))}</textarea></td>`
+                >${foundry.utils.escapeHTML(flagOver(pieces, VAULT_FLAGS.description) ?? "")}</textarea></td>`
         };
     });
 }
@@ -2638,11 +2723,20 @@ function neighboursTyped(cell, room, rooms) {
 }
 
 /**
- * The named regions of a scene by name, the last of a name held - Room Setup's own map (E12 C2a).
- * Not `regionsByName`, which holds rooms only: this window is where a region becomes one.
+ * The named regions of a scene by name - Room Setup's own map (E12 C2a): every name, with the
+ * pieces of it that can be rooms, marked or not (none for a name only a Teleport or a player's
+ * region carries). Not `piecesByName`, which holds rooms only: this window is where a region
+ * becomes one. Until E12 fix r1-G1 it held the LAST region of a name, whatever it was, and the
+ * window read and compared that one piece (rooms.mjs, "ONE ROOM OF MANY PIECES").
  */
 function namedByName(scene) {
-    return new Map(namedRegions(scene).map(region => [region.name, region]));
+    const players = playerRegionIds();
+    const map = new Map();
+    for (const region of namedRegions(scene)) {
+        if (!map.has(region.name)) map.set(region.name, []);
+        if (canBeRoom(region, players)) map.get(region.name).push(region);
+    }
+    return map;
 }
 
 /**
@@ -2658,31 +2752,34 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     const ownerMoved = [];
     const named = namedByName(scene);
     for (const row of rowResults) {
-        const region = named.get(row.room);
-        if (!region) continue;
+        // The pieces that can be rooms, read as one as the cells were (E12 fix r1-G1): a name
+        // with none - a Teleport's alone - has nothing a row may write.
+        const pieces = named.get(row.room) ?? [];
+        if (!pieces.length) continue;
 
         const before = {
-            owner: region.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null,
-            table: region.getFlag(MODULE_ID, VAULT_FLAGS.table) ?? null,
-            favours: region.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [],
-            hinders: region.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [],
-            description: region.getFlag(MODULE_ID, VAULT_FLAGS.description) ?? ""
+            owner: flagOver(pieces, VAULT_FLAGS.owner),
+            table: flagOver(pieces, VAULT_FLAGS.table),
+            favours: listOver(pieces, VAULT_FLAGS.favours),
+            hinders: listOver(pieces, VAULT_FLAGS.hinders),
+            description: flagOver(pieces, VAULT_FLAGS.description) ?? ""
         };
         const beforeRest = {
-            short: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.short)),
-            long: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.long))
+            short: Boolean(flagOver(pieces, REST_FLAGS.short)),
+            long: Boolean(flagOver(pieces, REST_FLAGS.long))
         };
-        const wasLocked = Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
-        const wasLockedAtStart = startLocked(region);
-        const wasSealed = Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
-        const wasNotShared = Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.notShared));
-        // Settled when every piece of the name already says what the row says (E12 C1); the
-        // scene is the region's own, so the flag goes where the row was read.
+        const wasLocked = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
+        const wasLockedAtStart = pieces.some(startLocked);
+        const wasSealed = Boolean(flagOver(pieces, SEARCH_FLAGS.sealed));
+        const wasNotShared = Boolean(flagOver(pieces, VAULT_FLAGS.notShared));
+        // Settled when every piece that can be a room already says what the row says (E12 C1);
+        // the scene is the pieces' own, so the flag goes where the row was read.
         const roomSettled = row.isRoom === null
-            || namedRegions(scene, row.room).every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
-        // Likewise the Neighbours list (E12 C14): every piece holds the list the row says.
+            || pieces.every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
+        // Likewise the Neighbours list (E12 C14): every piece holds the list the row says - the
+        // pieces `updateRoom` writes, as for the mark (E12 fix r1-G1).
         const neighboursSettled = row.neighbours === null
-            || namedRegions(scene, row.room).every(piece => neighboursWritten([piece]) === row.neighbours);
+            || pieces.every(piece => neighboursWritten([piece]) === row.neighbours);
 
         const same = before.owner === (row.owner || null)
             && before.table === (row.table || null)
@@ -2803,15 +2900,15 @@ async function applyStashMatrix(stashes, scene) {
                 keep.set(entry.actorId, entry);      // refused: leave it alone
                 continue;
             }
-            await setStash(room, entry.actorId, { present: false, scene });
-            changed.add(room);
+            // Counted only when written (E12 fix r1-G1; review EARLY-C4-1): a cell of a name no
+            // room carries - a Teleport's - wrote nothing and was counted a changed room.
+            if (await setStash(room, entry.actorId, { present: false, scene })) changed.add(room);
         }
 
         for (const entry of keep.values()) {
             const was = current.find(e => e.actorId === entry.actorId);
             if (was && was.concealed === entry.concealed) continue;
-            await setStash(room, entry.actorId, { concealed: entry.concealed, scene });
-            changed.add(room);
+            if (await setStash(room, entry.actorId, { concealed: entry.concealed, scene })) changed.add(room);
         }
     }
     return changed;
@@ -2834,8 +2931,7 @@ async function seedOwnerStashes(ownerMoved, scene) {
     const changed = new Set();
     for (const { room, owner } of ownerMoved) {
         if (stashIn(room, owner, scene)) continue;
-        await setStash(room, owner, { concealed: false, scene });
-        changed.add(room);
+        if (await setStash(room, owner, { concealed: false, scene })) changed.add(room);
     }
     return changed;
 }
@@ -3036,15 +3132,23 @@ export async function openVaultInspector() {
        owner had stashed anywhere (`vaultContents`): a student with two stashes showed the same
        things twice, and a stash on another scene not at all (read in the code). Each place scene is a heading when there is more than one
        (the school first, rooms.mjs `placeScenes`), and a stash lists what lies in it
-       (`stashItemsIn` on that scene). */
+       (`stashItemsIn` on that scene).
+       ONCE, UNDER THE FIRST SCENE (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-2). A stashed
+       thing carries the name of its room (`ITEM_FLAGS.stashRoom`) and no scene, so a student with a
+       "Storage" stash on Floor 1 and another on the Annex had each thing listed under both, and an
+       unstamped one under each scene's primary stash. Which of the two holds it is not written
+       anywhere this window could read, so each thing is listed once: under the first scene in
+       `placeScenes`' order whose stash of its owner and room takes it, and not again below. */
     const scenes = placeScenes().map(scene => ({ scene, vaults: allVaults(scene).filter(v => v.owner) }));
+    const listed = new Set();
     if (!scenes.some(entry => entry.vaults.length)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
         return null;
     }
 
     const section = scene => v => {
-        const items = stashItemsIn(v.owner, v.room, scene);
+        const items = stashItemsIn(v.owner, v.room, scene).filter(i => !listed.has(`${v.owner.id}.${i.id}`));
+        items.forEach(i => listed.add(`${v.owner.id}.${i.id}`));
         const list = items.length
             ? items.map(i => `<li>${foundry.utils.escapeHTML(i.name)} - ${
                 foundry.utils.escapeHTML(

@@ -32,7 +32,7 @@
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
 import {
-    regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline
+    regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
 
 /**
@@ -505,7 +505,8 @@ export function doorwayEdges(region, level = null) {
         const inset = grid * DOORWAY_OVERLAP_INSET;
         const near = grid * DOORWAY_WALL_NEAR;
 
-        const own = regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f));
+        const rings = regionShapes(region, { x: 0, y: 0 });
+        const own = rings.map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
         const others = [];
@@ -533,11 +534,19 @@ export function doorwayEdges(region, level = null) {
                 const length = Math.hypot(dx, dy);
                 if (length < 1) continue;
 
+                // The stretches with the room on both sides: a line two pieces share, or
+                // a piece's edge across another's floor (fog-geometry `innerStretches`).
+                // Neither drawn nor opened; [] for a room of one shape.
+                const inner = innerStretches(rings, ax, ay, dx, dy);
+                const inInner = t => inner.some(([a, b]) => t >= a && t <= b);
+
                 // The normal pointing OUT of the room, chosen by trying one and
-                // seeing whether it lands back inside.
+                // seeing whether it lands back inside - at the middle of the
+                // longest stretch that is a border, where the inside is one side.
+                const probe = outerMiddle(inner);
                 let nx = -dy / length;
                 let ny = dx / length;
-                if (inPolygons(own, ax + dx / 2 + nx * 2, ay + dy / 2 + ny * 2)) {
+                if (inPolygons(own, ax + dx * probe + nx * 2, ay + dy * probe + ny * 2)) {
                     nx = -nx;
                     ny = -ny;
                 }
@@ -555,7 +564,8 @@ export function doorwayEdges(region, level = null) {
                         const t = k / samples;
                         let isOpen = false;
 
-                        if (k < samples) {
+                        // A sample on an inner stretch is closed: the floor beyond is this room's.
+                        if (k < samples && !inInner((k + 0.5) / samples)) {
                             const mid = (k + 0.5) / samples;
                             const mx = ax + dx * mid;
                             const my = ay + dy * mid;
@@ -626,7 +636,7 @@ export function doorwayEdges(region, level = null) {
                     }
                 }
 
-                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, trend });
+                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, inner, trend });
             }
         }
 
@@ -635,6 +645,17 @@ export function doorwayEdges(region, level = null) {
         debug("Fog: could not work out where the doorways are", err);
         return [];
     }
+}
+
+/** The middle of the longest stretch of an edge outside its inner ones, as a fraction of the edge. */
+function outerMiddle(inner) {
+    if (!inner.length) return 0.5;
+    let best = [0.5, -1], cursor = 0;
+    for (const [a, b] of [...inner, [1, 1]]) {
+        if (a - cursor > best[1]) best = [(cursor + a) / 2, a - cursor];
+        cursor = Math.max(cursor, b);
+    }
+    return best[0];
 }
 
 /**
@@ -1195,8 +1216,10 @@ export function traceOutlineGapped(graphics, edges, rect, pad = null, minRun = n
         for (let index = 0; index < ring.length; index++) {
             const edge = ring[index];
             const margin = edge.length ? pad / edge.length : 0;
-            const gaps = (edge.open ?? [])
-                .map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)])
+            // An inner stretch (`doorwayEdges`) is no border at all: left out to the point,
+            // with no margin, so the line meets the other piece's border where it starts.
+            const gaps = [...(edge.open ?? []).map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)]),
+                ...(edge.inner ?? [])]
                 .sort((p, q) => p[0] - q[0]);
 
             let cursor = 0;

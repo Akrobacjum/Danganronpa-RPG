@@ -1872,11 +1872,12 @@ const INVARIANTS = [
 
         // Listen names only the rooms the listener has discovered - its first throw and, since
         // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
-        // `listenLines`), through the one rule (`listenLabels`).
+        // `listenLines`), through the one rule (`listenLabels`), on the scene the character
+        // stands on (E12 fix r1-G4; what a player's browser answers is scenario 66 K1).
         const listen = src("action-rolls.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
         const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
-        const doors = /listenLabels\(neighbours, roomsKnownToMe\(\)\)/;
+        const doors = /listenLabels\(neighbours, roomsKnownToMe\(scene\)\)/;
         ok(doors.test(body) && doors.test(rerolled),
             "Listen names every neighbouring room again, discovered or not (the first throw or the Reroll)");
         const { listenLabels } = await import("./action-rolls.mjs");

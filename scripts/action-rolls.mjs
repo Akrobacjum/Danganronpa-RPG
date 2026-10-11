@@ -552,8 +552,8 @@ function thresholdFacts(actor, actionKey, def) {
             if (sa !== undefined) f("DRPG.Action.dcSabotage", { a: sa, b: sb ?? sa, relief: reliefNote });
             if (othersInRoom(actor).length) f("DRPG.Action.dcConceal", { n: SABOTAGE_CONCEAL.threshold });
             try {
-                const room = roomOfActor(actor);
-                const here = room ? projectsAvailableIn(room) : [];
+                const place = locateActor(actor);
+                const here = place?.room ? projectsAvailableIn(place) : [];
                 if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
             } catch { /* no projects here */ }
             break;
@@ -2624,8 +2624,10 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
 /** Start something new (GM ruling) or push an existing project (automatic). */
 async function performProject(actor, def, options) {
     const { projectsAvailableIn } = await import("./projects.mjs");
-    const room = roomOfActor(actor);
-    const here = room ? projectsAvailableIn(room) : [];
+    // Where the character stands, the room and its scene: a project is listed on its own scene only (E12 fix r1-G3).
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
+    const here = room ? projectsAvailableIn(place) : [];
 
     // ONE WINDOW: which kind of work, and WHICH project.
     //
@@ -2667,7 +2669,7 @@ async function performProject(actor, def, options) {
      */
     const { isMonokuma } = await import("./monokuma.mjs");
     const { sabotageTargetsIn } = await import("./projects.mjs");
-    const breakable = sabotageTargetsIn(room, { anyRoom: isMonokuma(actor) });
+    const breakable = sabotageTargetsIn(place, { anyRoom: isMonokuma(actor) });
 
     const picked = await chooseVariant({
         actor,
@@ -2892,10 +2894,11 @@ async function workOnProject(actor, def, options, chosen = null) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const room = roomOfActor(actor);
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
     // Two lists, because a finished project is neither absent nor workable.
     // `listed` is what the player sees; `workable` is what they may pick.
-    const listed = projectsListedIn(room);
+    const listed = projectsListedIn(place);
     const here = listed.filter(p => !p.complete);
     if (!here.length) {
         // Say that there is nothing here, and nothing else.
@@ -3338,10 +3341,11 @@ async function performSabotage(actor, def, options, preset = null) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const room = roomOfActor(actor);
+    const place = locateActor(actor);
+    const room = place?.room ?? null;
     const { sabotageTargetsIn, sabotageProject } = await import("./projects.mjs");
 
-    const { targets, withheld } = await sabotageTargets(actor, room, { sabotageTargetsIn });
+    const { targets, withheld } = await sabotageTargets(actor, place, { sabotageTargetsIn });
 
     if (!targets.length) {
         ui.notifications.warn(withheld.length
@@ -3502,7 +3506,7 @@ async function performSabotage(actor, def, options, preset = null) {
 }
 
 /** What this character can sabotage from where they stand, and what is being held back from them. */
-async function sabotageTargets(actor, room, { sabotageTargetsIn }) {
+async function sabotageTargets(actor, place, { sabotageTargetsIn }) {
     // WHICH CHARACTER, NOT WHICH ACCOUNT.
     //
     // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
@@ -3519,7 +3523,7 @@ async function sabotageTargets(actor, room, { sabotageTargetsIn }) {
     // character, and it survives whoever is logged in as them.
     const { isMonokuma } = await import("./monokuma.mjs");
     const anyRoom = isMonokuma(actor);
-    const targets = sabotageTargetsIn(room, { anyRoom });
+    const targets = sabotageTargetsIn(place, { anyRoom });
 
     // Say what is being held back and why.
     //
@@ -3530,9 +3534,9 @@ async function sabotageTargets(actor, room, { sabotageTargetsIn }) {
     // The SAME reach `sabotageTargetsIn` uses, or this list names projects in
     // other rooms - which is both a leak and a lie, since they were never
     // candidates and are not being "held back" from anything.
-    const { visibleProjects, isFrozen, repairs } = await import("./projects.mjs");
+    const { visibleProjects, isFrozen, repairs, standsAtProject } = await import("./projects.mjs");
     const withheld = visibleProjects()
-        .filter(p => anyRoom || (room && p.room === room))
+        .filter(p => anyRoom || standsAtProject(place, p.id))
         .filter(p => isFrozen(p.id) || repairs(p.id));
     return { targets, withheld };
 }
@@ -5204,15 +5208,17 @@ async function performListen(actor, def, options) {
 
     const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
     const here = roomOfActor(actor);
-    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's.
-    const neighbours = neighbouringRooms(locateActor(actor)?.scene, here);
+    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's;
+    // who is in them and which of them this player has found, on the same scene (E12 fix r1-G4).
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, here);
 
     if (!neighbours.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Listen.noNeighbours"));
         return null;
     }
 
-    const labelOf = listenLabels(neighbours, roomsKnownToMe());
+    const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
 
     const options_ = neighbours
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
@@ -5266,7 +5272,7 @@ async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor).map(a => a.name);
+            const who = occupantsOf(room, actor, scene).map(a => a.name);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -5275,7 +5281,7 @@ async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor).map(a => a.name);
+        const who = occupantsOf(target, actor, scene).map(a => a.name);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
@@ -5283,7 +5289,7 @@ async function performListen(actor, def, options) {
         outcome = { success: true, room: target, named: who };
     } else if (hit) {
         // Anonymous: a count, no identities.
-        const count = occupantsOf(target, actor).length;
+        const count = occupantsOf(target, actor, scene).length;
         lines.push(`<p>${count
             ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })
@@ -5317,8 +5323,9 @@ async function performRest(actor) {
     const variant = kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence`.
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene);
+        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
+        // character's scene, the school's for one with no token (E12 fix r1-G4).
+        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
 
         return {
             value: kind,
