@@ -1812,8 +1812,8 @@
       "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
       "neighboursColumn": "Sąsiedzi",
       "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
-      "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał.",
-      "neighboursUnknown": "{room}: żaden region tej sceny nie nazywa się {names}. Zostaje w Sąsiadach, ale niczego nie łączy."
+      "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
+      "neighboursUnknown": "{room}: żaden pokój tej sceny nie nazywa się {names}. Zostaje w Sąsiadach, ale niczego nie łączy."
     },
     "Chapter": {
       "deathTitle": "Postać umiera",

@@ -970,7 +970,12 @@ function pieceData() {
         [VAULT_FLAGS.description, "DRPG.Vault.descriptionColumn"], [VAULT_FLAGS.notShared, "DRPG.Vault.notSharedColumn"],
         [REST_FLAGS.short, "DRPG.Rest.shortColumn"], [REST_FLAGS.long, "DRPG.Rest.longColumn"],
         [ROOM_FLAGS.locked, "DRPG.Vault.lockedColumn"], [ROOM_FLAGS.lockedAtStart, "DRPG.Vault.lockedAtStartColumn"],
-        [SEARCH_FLAGS.sealed, "DRPG.SearchTokens.sealedColumn"]
+        [SEARCH_FLAGS.sealed, "DRPG.SearchTokens.sealedColumn"],
+        // A room's Neighbours (E12 C14) was left on the piece (E12 fix r2-H2, 11.10.2026; correctness
+        // review r2 R2-1, security review r2 SEC2-6): the piece renamed off a room spoke that room's list
+        // as its own, and by "either declares" every room on it gained the new name as a door - measured
+        // by the review on the harness (97-corr-split.mjs): the split-off piece was the Hall's neighbour.
+        [ROOM_FLAGS.neighbours, "DRPG.Vault.neighboursColumn"]
     ];
 }
 
@@ -2704,22 +2709,20 @@ function neighboursWritten(pieces) {
 /**
  * A Neighbours cell as Apply writes it (E12 C14): each name typed once, in the order typed, spelt
  * as the window's row of that name when one matches it without regard to case, never the room's
- * own; `neighbours` null when the window drew no cell. The names that match no row of this window
- * (no named region of the scene) come back in `neighboursUnknown`. A room whose name holds a
- * comma cannot be listed: the list is the flag's comma-separated string, which GMs typed by hand
- * before this column.
+ * own; `neighbours` null when the window drew no cell. A room whose name holds a comma cannot be
+ * listed: the list is the flag's comma-separated string, which GMs typed by hand before this
+ * column. Which of the names is no room is `applyRoomRows`'s to say (E12 fix r2-H2).
  */
 function neighboursTyped(cell, room, rooms) {
-    if (!cell) return { neighbours: null, neighboursUnknown: [] };
+    if (!cell) return { neighbours: null };
     const lower = new Map(rooms.map(name => [name.toLowerCase(), name]));
-    const listed = [], unknown = [];
+    const listed = [];
     for (const typed of String(cell.value ?? "").split(",").map(name => name.trim()).filter(Boolean)) {
         const name = rooms.includes(typed) ? typed : lower.get(typed.toLowerCase()) ?? typed;
         if (name === room || listed.includes(name)) continue;
         listed.push(name);
-        if (!lower.has(name.toLowerCase())) unknown.push(name);
     }
-    return { neighbours: listed.join(", "), neighboursUnknown: unknown };
+    return { neighbours: listed.join(", ") };
 }
 
 /**
@@ -2751,6 +2754,16 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     // been written, or it would seed into a list it is about to overwrite.
     const ownerMoved = [];
     const named = namedByName(scene);
+    /* The rooms of this scene once this Apply is written, for the Neighbours names that are none
+       (E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2). The names were checked against the
+       window's rows, and a row is any named region that could be a room - so a list naming a Teleport
+       or a region nobody marked was taken without a word, though `neighbouringRooms` reads rooms only
+       and the name connected nothing. A box ticked or cleared in this same Apply counts. */
+    const roomsAfter = new Set(roomNames(scene));
+    for (const row of rowResults) {
+        if (row.isRoom === true) roomsAfter.add(row.room);
+        else if (row.isRoom === false) roomsAfter.delete(row.room);
+    }
     for (const row of rowResults) {
         // The pieces that can be rooms, read as one as the cells were (E12 fix r1-G1): a name
         // with none - a Teleport's alone - has nothing a row may write.
@@ -2835,15 +2848,16 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         // Nothing announced: whether a region is a room is the GM's map, not news.
         if (!roomSettled) await setRoomFlag(scene, row.room, ROOM_FLAG, row.isRoom);
 
-        // Nothing announced: a door on the GM's map is learnt by walking through it. A name no
-        // region of this scene carries is kept as typed and the GM told: it connects nothing,
-        // and the room it names may be drawn after this Apply.
+        // Nothing announced: a door on the GM's map is learnt by walking through it. A name that
+        // is no room of this scene is kept as typed and the GM told: it connects nothing, and the
+        // room it names may be drawn or marked after this Apply.
         if (!neighboursSettled) {
             await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.neighbours}`]:
                 row.neighbours || (forcedDeletion() ?? null) });
-            if (row.neighboursUnknown.length) {
+            const unknown = (row.neighbours ?? "").split(", ").filter(name => name && !roomsAfter.has(name));
+            if (unknown.length) {
                 ui.notifications.warn(game.i18n.format("DRPG.Vault.neighboursUnknown",
-                    { room: row.room, names: row.neighboursUnknown.join(", ") }));
+                    { room: row.room, names: unknown.join(", ") }));
             }
         }
 

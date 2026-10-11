@@ -48049,9 +48049,9 @@ const SCENARIOS = [
          * of 7906034, 11.10.2026): the Hall's neighbours were the Closet, the Nook and the Study, the
          * Nook's and the Closet's the Hall, the Storage's the Kitchen and the Pantry; the walks from the
          * Hall to the Nook and the Closet and from the Storage and the Pantry to the Kitchen were let
-         * through and the one from the Hall to the Kitchen refused, in both. Not asked: a room the lists and the
-         * walls leave with no neighbour (the Nook, the Closet here) walks anywhere, as a room drawn
-         * apart from the rest always has - `crossingRefused` reads no neighbours as a map it cannot read.
+         * through and the one from the Hall to the Kitchen refused, in both. Not asked here: where a room the
+         * lists and the walls leave with no neighbour (the Nook, the Closet) may go - nowhere since E12 fix
+         * r2-H2, tier 2 "a room the lists or the walls leave with no neighbour reaches no room by crossing ...".
          */
         const M = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
@@ -48342,7 +48342,9 @@ const SCENARIOS = [
          * with the same owner's stash. One Kitchen piece is renamed Pantry, the Den renamed Study.
          * Read: the Pantry's owner, stashes, rest, table, lock and seal and whether it is a room; the
          * Kitchen's owner, stashes, rest and lock; the Study's stashes; and the GM whispers that name
-         * the Pantry. Red before this commit on the Pantry's owner.
+         * the Pantry. Red before this commit on the Pantry's owner. Since E12 fix r2-H2 (correctness review r2
+         * R2-1, security review r2 SEC2-6) both Kitchen pieces also carry a Neighbours list, and the Pantry's
+         * piece is read for it: red before that fix, the Pantry kept the Kitchen's list.
          */
         const [owner] = cast(1);
         const V = await import("./vault.mjs");
@@ -48351,7 +48353,7 @@ const SCENARIOS = [
         const Rest = await import("./rest.mjs");
         const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
         const { contentOf } = await import("./secret.mjs");
-        const K = "SUITE r1-G1 Kitchen", P = "SUITE r1-G1 Pantry", DEN = "SUITE r1-G1 Den", STUDY = "SUITE r1-G1 Study";
+        const K = "SUITE r1-G1 Kitchen", P = "SUITE r1-G1 Pantry", DEN = "SUITE r1-G1 Den", STUDY = "SUITE r1-G1 Study", HALL = "SUITE r1-G1 Hall";
         const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
         const from = game.messages.size;
         const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(P)).length;
@@ -48364,7 +48366,8 @@ const SCENARIOS = [
             await Rest.setRestRoom(K, { long: true, scene });
             await V.setStash(K, owner.id, { concealed: false, scene });
             await V.setStash(DEN, owner.id, { concealed: false, scene });
-            for (const piece of [one, two]) await piece.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            for (const piece of [one, two]) await piece.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true,
+                [`flags.${MODULE_ID}.${M.ROOM_FLAGS.neighbours}`]: HALL });
             must(V.vaultOwnerOf(K, scene) === owner.id && V.stashesIn(DEN, scene).length === 1, "the Kitchen has no owner or the Den no stash before the renames - this would measure nothing");
             await two.update({ name: P });
             await den.update({ name: STUDY });
@@ -48372,13 +48375,15 @@ const SCENARIOS = [
             reading = [V.vaultOwnerOf(P, scene), V.stashesIn(P, scene).length, Rest.roomAllows(P, "long", scene), V.roomTable(P, scene),
                 M.isLocked(scene, P), SearchTokens.sealed(P, scene), R.isRoom(scene.regions.get(two.id)),
                 V.vaultOwnerOf(K, scene), V.stashesIn(K, scene).length, Rest.roomAllows(K, "long", scene), M.isLocked(scene, K),
-                V.stashesIn(STUDY, scene).length, told()];
+                V.stashesIn(STUDY, scene).length, told(),
+                [two, one].map(piece => scene.regions.get(piece.id)?.getFlag(MODULE_ID, M.ROOM_FLAGS.neighbours) ?? null)];
         } finally {
             await scene?.delete();
         }
-        equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1]),
+        equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1, [null, HALL]]),
             "a piece of a two-piece Kitchen renamed Pantry, and a one-piece Den renamed Study ([the Pantry's owner, stashes, long rest, table, lock, seal, "
-            + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry])");
+            + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry; "
+            + "the Neighbours list on the Pantry's piece and on the Kitchen's other])");
     }],
 
     ["the Case dashboard's Final Truth goes to the room picked on the scene picked whatever scene is on screen", async () => {
@@ -49129,6 +49134,143 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[{ x: 650, y: 150, level: L1 }], true, [game.i18n.localize("DRPG.Move.noBudget")]]),
             "[what the send-back wrote to a token whose route paid into the Hall and failed on the stairs to the Landing, "
                 + "whether the free Move was spent, what the GM was told]");
+    }],
+
+    ["a room the lists or the walls leave with no neighbour reaches no room by crossing while one drawn apart or unmeasured reaches any", async () => {
+        /*
+         * E12 fix r2-H2, 11.10.2026; early review EARLY-C14-1 (and EARLY-C14-2's list of unknown names). `crossingRefused`
+         * read an empty neighbour list as a map it could not read and let every crossing through, and E12 C14 gave
+         * measured rooms an empty list: a Storage whose last wall a Kitchen's list closes, a Nook that meets the Hall only
+         * at a corner, a Lab whose list names only an Attic the scene does not have - each walked into the Hall (the
+         * reviewer's probe, S/e12-review/c14-copies/nb.mjs). Here, in plain objects as the C14 test draws them: those
+         * three, a Hall with a Study across its wall, and an Island drawn apart from everything; on a second scene a Shed
+         * whose shape cannot be measured beside a Yard whose list names only a Gate. Read, for a living student who is
+         * not the Mastermind: the neighbours of the room each walk starts in; `crossingVerdict` with no price (as the
+         * witness judge asks it) for the Hall to the Study, the Nook, the Storage, the Lab and the Island to the Hall
+         * and the Shed to the Yard, in daily life with the movement cost on and in an Eclipse that is no free placement;
+         * and eclipse.mjs `judgeEclipseCrossing` for the three into the Hall that are refused, what it answers and what
+         * it warns (refused before it counts anything). Red before the fix: the Nook, the Storage and the Lab walked into
+         * the Hall on every road. The Island and the Shed keep the freedom they had (e12-review/fixes-r2.md H2). restore()
+         * puts the clock and the setting back.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        const room = (name, box, flags = {}) => ({ id: `suite-e12-h2-${name}`, name, behaviors: [], levels: new Set(), shapes: [],
+            ...(box ? { bounds: { x: box[0], y: box[1], width: box[2], height: box[3] } } : {}),
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const scene = { id: "suite-e12-h2-scene", name: "SUITE E12 H2", grid: { size: 100 }, regions: new Set([
+            room("Hall", [1000, 1000, 400, 400]), room("Study", [1000, 580, 400, 400]), room("Nook", [800, 1400, 200, 200]),
+            room("Storage", [3000, 0, 400, 400]), room("Kitchen", [3420, 0, 400, 400], { drpgNeighbours: "Hall" }),
+            room("Lab", [5000, 0, 400, 400], { drpgNeighbours: "Attic" }), room("Island", [7000, 3000, 200, 200])]) };
+        const yard = { id: "suite-e12-h2-yard", name: "SUITE E12 H2 yard", grid: { size: 100 }, regions: new Set([
+            room("Shed", null), room("Yard", [8000, 0, 400, 400], { drpgNeighbours: "Gate" })]) };
+        const WALKS = [[scene, "Hall", "Study"], [scene, "Nook", "Hall"], [scene, "Storage", "Hall"], [scene, "Lab", "Hall"],
+            [scene, "Island", "Hall"], [yard, "Shed", "Yard"]];
+        const walks = () => WALKS.map(([on, from, to]) => M.crossingVerdict(actor, from, to, on, null, { pay: false }));
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const neighbours = WALKS.map(([on, from]) => M.neighbouringRooms(on, from));
+        const daily = walks();
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const SHUT = ["Nook", "Storage", "Lab"];
+        const judged = [];
+        const warn = ui.notifications.warn;
+        try {
+            for (const from of SHUT) {
+                const warned = [];
+                ui.notifications.warn = message => { warned.push(String(message)); };
+                judged.push([await E.judgeEclipseCrossing(actor, from, "Hall", scene, null), warned]);
+            }
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        const refused = from => game.i18n.format("DRPG.Move.notConnectedShort", { from, to: "Hall" });
+        const VERDICTS = [true, ...SHUT.map(refused), true, true];
+        equal(stableJson([neighbours, daily, eclipse, judged]),
+            stableJson([[["Kitchen", "Study"], [], [], [], [], []], VERDICTS, VERDICTS, SHUT.map(from => [false, [refused(from)]])]),
+            `[the neighbours of ${WALKS.map(w => w[1]).join(", ")}; whether ${actor.name} may cross ${WALKS.map(w => `${w[1]} > ${w[2]}`).join(", ")} `
+                + `in daily life; the same in an Eclipse; what the Eclipse's own judge answers and warns for ${SHUT.join(", ")} > Hall]`);
+    }],
+
+    ["Room Setup warns of a Neighbours name that is no room on the scene and not of a region marked a room in the same Apply", async () => {
+        /*
+         * E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2. Apply checked the names typed into a Neighbours cell
+         * against the window's rows, and a row is any named region that could be a room - so a list naming a region
+         * nobody marked was written without a word, though the rules read rooms only and the name connects nothing.
+         * Here, on a scene of the suite's own viewed for the window, as the r1-G1 Room Setup test: a Hall marked a
+         * room, a Teleport "Lift", and two regions nobody decided, a Gate and a Porch, whose room boxes the window draws
+         * ticked (it offers an undecided region as a room). The window is answered: the three names typed in lower case
+         * into the Hall's Neighbours, the Gate's room box cleared and the Porch's left ticked, Apply. Read: the list on the
+         * Hall's piece, the warnings that name the Gate, the Lift or the Porch, and whether the Gate and the Porch are
+         * rooms. Red before the fix on the warnings (none; first written with the Gate's box left as drawn, this read no
+         * warning on the fixed tree either, rightly: that Apply marks the Gate a room). In a GM-store world of the
+         * suite's own, as that test.
+         */
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const HALL = "SUITE r2-H2 Hall", GATE = "SUITE r2-H2 Gate", PORCH = "SUITE r2-H2 Porch", LIFT = "SUITE r2-H2 Lift";
+        const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
+        const box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r2h2-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const warned = [];
+            try {
+                scene = await Scene.create({ name: "SUITE E12 fix r2-H2 Room Setup", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const [hall, gate, porch] = await scene.createEmbeddedDocuments("Region", [
+                    { name: HALL, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] },
+                    { name: GATE, shapes: box(1000), behaviors: [] }, { name: PORCH, shapes: box(2000), behaviors: [] },
+                    { name: LIFT, shapes: box(3000), behaviors: up }]);
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - Room Setup would open on another");
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [list, notRoom, room] = [`neighbours:${HALL}`, `isroom:${GATE}`, `isroom:${PORCH}`].map(field);
+                    must(list && notRoom && room && !notRoom.disabled && !room.disabled,
+                        `Room Setup drew no Neighbours cell for "${HALL}" or no room box for "${GATE}" or "${PORCH}" - this would measure nothing`);
+                    list.value = [GATE, LIFT, PORCH].map(name => name.toLowerCase()).join(", ");
+                    notRoom.checked = false;
+                    room.checked = true;
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                ui.notifications.warn = message => { warned.push(String(message)); return warn.call(ui.notifications, message); };
+                await V.openRoomSetupDialog({ tab: "doors" });
+                await settle();
+                reading = [scene.regions.get(hall.id)?.getFlag(MODULE_ID, ROOM_FLAGS.neighbours) ?? null,
+                    warned.filter(message => [GATE, LIFT, PORCH].some(name => message.includes(name))), [gate, porch].map(region => R.isRoom(scene.regions.get(region.id)))];
+            } finally {
+                ui.notifications.warn = warn;
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([`${GATE}, ${LIFT}, ${PORCH}`,
+            [game.i18n.format("DRPG.Vault.neighboursUnknown", { room: HALL, names: `${GATE}, ${LIFT}` })], [false, true]]),
+            "Room Setup over a Hall, a Teleport Lift, and a Gate and a Porch nobody decided, Apply with the three typed in the Hall's Neighbours, the "
+                + "Gate's room box cleared and the Porch's ticked ([the list on the Hall's piece, the warnings naming the Gate, the Lift or the Porch, "
+                + "whether the Gate and the Porch are rooms])");
     }],
     ...GRID
 ];

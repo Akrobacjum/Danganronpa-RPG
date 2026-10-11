@@ -783,9 +783,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 /**
  * Is the destination reachable from where you stand?
  *
- * Silent when adjacency cannot be established - `neighbouringRooms` already
- * treats a room it cannot measure the geometry of as reachable, and a map the
- * module cannot read must not become a map nobody can walk across. Leaving the
+ * Silent when adjacency cannot be established - `neighbourAnswer` treats a room
+ * it cannot measure the geometry of as reachable, and a map the module cannot
+ * read must not become a map nobody can walk across; a room whose answer was
+ * decided and came out empty reaches nothing (E12 fix r2-H2). Leaving the
  * rooms entirely, or arriving from outside them, is likewise not a crossing
  * this rule governs.
  *
@@ -815,8 +816,10 @@ export function crossingRefused(scene, from, to, floors = null) {
         }
     }
 
-    const connected = neighbouringRooms(scene, from);
-    if (!connected.length || connected.includes(to)) return false;
+    // An empty answer lets the crossing through only when no rule decided it (E12 fix r2-H2,
+    // `neighbourAnswer`): a room the lists or the walls left with no door reaches nothing.
+    const { rooms: connected, decided } = neighbourAnswer(scene, from);
+    if ((!connected.length && !decided) || connected.includes(to)) return false;
 
     return notConnectedText(from, to, connected, roomsKnownToMe(scene));
 }
@@ -1862,7 +1865,28 @@ export function allRooms(scene) {
  * names, for rooms that touch but have no door, or doors between rooms that do not touch.
  */
 export function neighbouringRooms(scene, room) {
-    if (!room || !scene) return [];
+    return neighbourAnswer(scene, room).rooms;
+}
+
+/**
+ * `neighbouringRooms` with whether its answer was DECIDED (E12 fix r2-H2, 11.10.2026; early review
+ * EARLY-C14-1). An empty list meant two things to `crossingRefused`: "the map could not
+ * be read, let everything through" - the reading it was written for - and, since E12 C14, "this room
+ * has no door": a Storage whose last wall a Kitchen's list closed, a Nook that meets the Hall only at a
+ * corner, and a room whose list names only rooms the scene does not have each came out `[]` and so
+ * walked into every room on the map (the reviewer's probe, S/e12-review/c14-copies/nb.mjs, re-run by
+ * the orchestrator on 1529762). `decided` is false only where no rule answered: the room is no room on
+ * this scene, a piece of it cannot be measured, or nothing touches it at all, not even at a corner - a
+ * room drawn apart from the rest, which has walked anywhere since before 1.2.74 and still does (the
+ * fix list's row, e12-review/fixes-r2.md H2). A room with a list of its own, or one that a room it
+ * touches was ruled out of - by that room's list or by the corner rule - is decided, and an empty
+ * answer reaches nothing by crossing. Tier 2 "a room the lists or the walls leave with no neighbour
+ * reaches no room ..." reads each case.
+ *
+ * @returns {{rooms: string[], decided: boolean}}
+ */
+export function neighbourAnswer(scene, room) {
+    if (!room || !scene) return { rooms: [], decided: false };
 
     // A ROOM OF SEVERAL PIECES IS ONE ROOM (E12 C2a, audit S07-05): its neighbours are
     // the union of its pieces' neighbours, and a neighbour is named once however many
@@ -1870,7 +1894,7 @@ export function neighbouringRooms(scene, room) {
     // the camera's scene, so a corridor drawn in two pieces had the neighbours of one.
     const regions = roomPieces(scene);
     const mine = regions.filter(r => r.name === room);
-    if (!mine.length) return [];
+    if (!mine.length) return { rooms: [], decided: false };
     const names = list => [...new Set(list.map(r => r.name))].sort();
 
     /*
@@ -1894,7 +1918,7 @@ export function neighbouringRooms(scene, room) {
     const others = regions.filter(r => r.name !== room);
     const decided = others.filter(r => lists.has(room) || lists.has(r.name));
     const listed = decided.filter(r => lists.get(room)?.has(r.name) || lists.get(r.name)?.has(room));
-    if (lists.has(room)) return names(listed);
+    if (lists.has(room)) return { rooms: names(listed), decided: true };
     const open = others.filter(r => !lists.has(r.name));
 
     // Tolerance for the thickness of a shared wall, and no more. A larger
@@ -1913,7 +1937,7 @@ export function neighbouringRooms(scene, room) {
     // leaves this one out has said so, and stays out (E12 C14).
     if (boxes.some(box => !box)) {
         debug(`No bounds for a piece of "${room}"; treating all rooms as neighbours.`);
-        return names([...listed, ...open]);
+        return { rooms: names([...listed, ...open]), decided: false };
     }
 
     // Split by whether each candidate's own geometry could be measured at all.
@@ -1938,7 +1962,14 @@ export function neighbouringRooms(scene, room) {
         return other && boxes.some(box => sharesEdge(box, other, pad, grid / 2));
     });
 
-    return names([...listed, ...near, ...unmeasured]);
+    // Decided when a room this one touches - across a wall's thickness on both axes, a corner
+    // included, the test before E12 C14 - was ruled out: by a list, or by the corner rule.
+    const rooms = names([...listed, ...near, ...unmeasured]);
+    const touched = others.some(r => {
+        const other = boundsOf(r);
+        return other && boxes.some(box => touches(box, other, pad));
+    });
+    return { rooms, decided: rooms.length > 0 || touched };
 }
 
 /**
@@ -2022,6 +2053,11 @@ function sharesEdge(a, b, pad, edge) {
     const along = (a0, aLength, b0, bLength) => Math.min(a0 + aLength, b0 + bLength) - Math.max(a0, b0);
     const x = along(a.x, a.w, b.x, b.w), y = along(a.y, a.h, b.y, b.h);
     return (x >= -pad && y >= edge) || (y >= -pad && x >= edge);
+}
+
+/** Two boxes that meet or lie at most `pad` apart on both axes: a shared edge or a corner (E12 fix r2-H2). */
+function touches(a, b, pad) {
+    return sharesEdge(a, b, pad, -pad);
 }
 
 /**

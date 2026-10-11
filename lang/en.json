@@ -1767,8 +1767,8 @@
       "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
-      "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it.",
-      "neighboursUnknown": "{room}: no region on this scene is named {names}. Kept in its Neighbours, where it connects nothing."
+      "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
+      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbours, where it connects nothing."
     },
     "Chapter": {
       "deathTitle": "A character dies",
