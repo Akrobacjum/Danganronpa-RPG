@@ -51,6 +51,8 @@
  *   N  the rooms p1 knows on Aiko's scene, and the names Listen's labels give that scene's rooms, with p1's camera on
  *      Floor 1, the Annex and nothing, and for a character with no scene (E12 fix r1-G4, review round 1 EARLY-C6-2 and
  *      SEC-2). Every room of the scene stands in for her doors: the harness measures no neighbour of the Hall on p1.
+ *   O  p1 drags Aiko's school token from the Hall into a Porch beside it with p1's camera on the Annex: whether the crossing
+ *      is announced (E12 fix r2-S1, review round 2 O3).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -89,6 +91,8 @@
  * of C14's red first and mutants (one or two checks failing); whether other lanes ran then was not read.
  * The merge of the E12 fix line (r1-G4's K1 and r1-G5's G3, renamed N1 and G10 because C7 and C9 had taken those names on
  * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
+ * E12 fix r2-S1 (O1 added): 41 checks in 44.5 s, one run of the side line's fast set on 11.10.2026 while two other harness
+ * lanes ran, and 44.6 s and 41.0 s in its red first and one mutant (O1 failing).
  */
 export const layers = ["ci"];
 
@@ -966,4 +970,46 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
        into an open room as the one it names. */
     check("G10: G2's climb starts with Aiko in the Corridor on the ground floor, under a Vault that is locked (E12 fix r1-G5)",
         setG.corridor === "Corridor" && setG.level === L1 && setG.vaultLocked === true, J(setG));
+
+    /* ------------------------------ O. a move on the school with the camera elsewhere ------------------------------ */
+    phase("O: p1 moves Aiko from the Hall into a Porch beside it with p1's camera on the Annex");
+    /* The GM stands Aiko in the Hall (a GM's move is free and every client remembers where it put her) and draws a Porch
+       20 px to its east, inside the 35 px a 100 px grid allows a wall; p1 then puts the Annex on its canvas, whose
+       `canvasReady` rebuilds movement.mjs's memory of where each token stands, and drags Aiko's school token over. */
+    const setO = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${IDS.aiko}"), t = academy.tokens.get("TOKAIKO000000000");
+        globalThis.__s66o = { x: t.x, y: t.y, actions: game.drpg.actionsLeft(aiko), free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null };
+        await t.update(M.positionIn("Hall", t), { teleport: true, movementAction: "displace", animate: false });
+        const [porch] = await academy.createEmbeddedDocuments("Region", [{ name: "66 O Porch", shapes: ${rect(2820, 200, 300, 300)},
+            flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        globalThis.__s66o.porch = porch.id;
+        if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
+        await new Promise(r => setTimeout(r, 1200));
+        return { room: M.roomOfToken(t), actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
+    const moveO = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        game._viewScene(annex);
+        const t = academy.tokens.get("TOKAIKO000000000"), crossed = [], camera = canvas.scene?.id ?? null;
+        const note = ({ from, to }) => crossed.push([from, to]);
+        Hooks.on("drpgRoomCrossed", note);
+        let threw = null;
+        try { await t.update({ x: 2900, y: 300 }); } catch (err) { threw = String(err?.message ?? err); }
+        await new Promise(r => setTimeout(r, 1500));
+        Hooks.off("drpgRoomCrossed", note);
+        const out = { camera, threw, crossed, room: M.roomOfToken(t) };
+        game._viewScene(academy);
+        return out;`, { timeout: 30000 });
+    await settle(800);
+    await gm.eval(`${SCENES} const aiko = game.actors.get("${IDS.aiko}"), t = academy.tokens.get("TOKAIKO000000000"), was = globalThis.__s66o;
+        await t.update({ x: was.x, y: was.y }, { teleport: true, movementAction: "displace", animate: false });
+        await academy.deleteEmbeddedDocuments("Region", [was.porch]);
+        await game.drpg.setActions(aiko, was.actions);
+        if (was.free === null) await aiko.unsetFlag("${MOD}", "freeMoveUsed"); else await aiko.setFlag("${MOD}", "freeMoveUsed", was.free);
+        delete globalThis.__s66o; return true;`, { timeout: 30000 });
+    /* Until E12 fix r2-S1 (review round 2 O3) movement.mjs's memory was rebuilt from the tokens the canvas draws, so with
+       the Annex on screen p1 had forgotten every school token, and the move was its first sight of Aiko - free, and no
+       crossing announced. It is rebuilt from every place scene's tokens now. */
+    check("O1: p1's own move of Aiko from the Hall into the Porch, with p1's camera on the Annex, is a crossing announced (E12 fix r2-S1)",
+        setO.room === "Hall" && moveO.camera === IDS.annex && moveO.threw === null && moveO.room === "66 O Porch"
+            && J(moveO.crossed) === J([["Hall", "66 O Porch"]]),
+        J({ setO, moveO }));
 }

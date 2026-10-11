@@ -33,7 +33,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
-import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene,
+import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
@@ -1159,13 +1159,24 @@ function onPreCreateToken(token, data) {
     if (Object.keys(update).length) token.updateSource(update);
 }
 
-/** Remember where every token starts, so the first drag is judged correctly. */
+/**
+ * Remember where every token starts, so the first drag is judged correctly.
+ *
+ * EVERY PLACE SCENE'S TOKENS, NOT THE CANVAS'S (E12 fix r2-S1, 11.10.2026; review round 2
+ * O3). It read `canvas.tokens.placeables`, so a browser that drew another scene forgot
+ * every token of the one it left, and the next move of such a token was "never seen" - free,
+ * whatever it crossed. Scenario 66 O moves p1's own token on the school with p1's camera on
+ * the Annex: at the parent the crossing was not announced. Read off the documents, the cache
+ * no longer depends on what this browser draws; `canvasReady` stays the moment it is rebuilt.
+ */
 function primeRoomCache() {
     lastRoom.clear();
     lastPosition.clear();
-    for (const token of canvas?.tokens?.placeables ?? []) {
-        lastRoom.set(token.document.id, roomOfToken(token.document));
-        lastPosition.set(token.document.id, spotOf(token.document));
+    for (const scene of placeScenes()) {
+        for (const tokenDoc of scene.tokens ?? []) {
+            lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        }
     }
 }
 

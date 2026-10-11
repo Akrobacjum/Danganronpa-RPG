@@ -300,11 +300,18 @@ export function knownProjects(user = game.user) {
  * `canSee`, not `knowsProject`: this is the ownership question. Discovery is
  * about walking into a room, and the observer is standing in it - asking whether
  * they have found the room would be asking a question whose answer is yes.
+ *
+ * IN ITS ROOM ON ITS OWN SCENE (E12 fix r2-S1, 11.10.2026; review round 2 SEC2-3). This took a
+ * room's name and matched it on every scene, so a non-obvious Observe in the Annex's "Kitchen"
+ * was let in on a secret project standing in the school's - round 1 closed that road for a Work
+ * and a Sabotage and left this one. It takes the observer's place now (movement.mjs
+ * `locateActor`'s `{ room, scene }`) and asks `standsAtProject`, as the lists below do; a bare
+ * name finds nothing.
  */
-export function secretsUnknownIn(room, user) {
-    if (!room || !user || user.isGM) return [];
+export function secretsUnknownIn(place, user) {
+    if (!place?.room || !user || user.isGM) return [];
     return allProjects()
-        .filter(p => p.room === room)
+        .filter(p => standsAtProject(place, p.id))
         .filter(p => isSecret(p.id))
         .filter(p => !canSee(p.id, user));
 }

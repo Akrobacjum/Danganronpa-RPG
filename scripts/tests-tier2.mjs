@@ -24486,9 +24486,9 @@ const SCENARIOS = [
 
             ok(projects.canSee(id, user) === false,
                 "the fixture project was not secret from the observer to begin with");
-            ok(projects.secretsUnknownIn(room, user).some(p => p.id === id),
+            ok(projects.secretsUnknownIn(locateActor(actor), user).some(p => p.id === id),
                 "a secret project in the observer's own room was not a candidate");
-            ok(projects.secretsUnknownIn(room, game.users.find(u => u.isGM)).length === 0,
+            ok(projects.secretsUnknownIn(locateActor(actor), game.users.find(u => u.isGM)).length === 0,
                 "a GM was offered secret projects to discover, which they are already in on");
 
             /* ---- the wrong declaration never carries it -------------------- */
@@ -26499,7 +26499,7 @@ const SCENARIOS = [
         const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
         ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         const inWorld = id => P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor(id), f));
-        const armedHere = id => T.armedIn(room).some(t => t.id === id);
+        const armedHere = id => T.armedIn(room, P.projectScene(id)).some(t => t.id === id);
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         let made = null;
         try {
@@ -48977,6 +48977,182 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([["SUITE Lift", 0, 1, "2000,800"], ["SUITE Den", 0, 1, "2000,800"], ["SUITE Shed", 0, 1, "2000,800"]]),
             "the cast sent to a point that is no room ([the point, moved, stayed, where the token stands after])");
+    }],
+
+    ["a trap springs only in its room on its own scene, not through a room of its name on another", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 SEC2-2. traps.mjs looked an armed trap up by its
+         * room's name alone - a crossing (`armedIn`), a successful Search, a Rest and a stash hunt -
+         * so the same thing done in a room of that name on another scene sprang the trap a killer
+         * built here, and spent it. Here a student with a player stands in a room of the scene on
+         * screen and has a second token in a room of that name on a scene of the suite's own; a
+         * third student builds four traps in the room here, one each on a crossing, a Search, a
+         * Rest and a stash hunt. Read, each trap re-armed after it speaks: the four done here (the
+         * controls); a crossing of the second token as the GM's browser raises it and as the
+         * player's browser relays it; then, with the token here hidden so that the student stands
+         * on the suite's scene, a Search, a Rest and a stash hunt there. Red before this fix: all
+         * nine spring their trap.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = await import("./rooms.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const pool = cast(3);
+        const student = pool.find(a => playerOf(a) && locateActor(a)?.room && locateActor(a).scene === home) ?? null;
+        const builder = pool.find(a => a !== student) ?? null;
+        must(student && builder, "two living students, one with a connected player standing in a room of the scene on screen - this would measure nothing");
+        const ROOM = locateActor(student).room, mine = home.tokens.find(t => t.actorId === student.id && !t.hidden) ?? null;
+        must(mine, `${student.name} has no token a GM has not hidden on the scene on screen - this would measure nothing`);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const KINDS = ["enters", "search", "rest", "stash"], traps = {};
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r2-S1 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            for (const kind of KINDS) {
+                const made = await P.createProject({ name: `SUITE r2-S1 ${kind} trap`, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                    condition: "suite", trigger: { kind, afterDark: false, notBuilder: true } });
+                must(made?.id, `could not build the ${kind} trap - this would measure nothing`);
+                traps[kind] = made.id;
+                await P.addProgress(made.id, 1, { by: builder.id });
+            }
+            await settle();
+            must(T.diagnoseTraps().armed === KINDS.length && KINDS.every(kind => P.projectScene(traps[kind])?.id === home.id),
+                `the four traps are not armed in "${ROOM}" on the scene on screen - this would measure nothing`);
+            must(locateActor(student)?.scene === home, `${student.name} is not placed on the scene on screen while both tokens show - this would measure nothing`);
+            const fires = async (kind, raise) => {
+                const fired = () => Boolean(P.secretsOf(traps[kind]).trigger?.firedAt);
+                await raise();
+                const spoke = await until(fired, 2500);
+                if (spoke) {
+                    await T.rearmTrap(traps[kind]);
+                    await until(() => !fired() && T.diagnoseTraps().armed === KINDS.length);
+                }
+                return spoke;
+            };
+            const standing = async () => [
+                await fires("search", () => Hooks.callAll("drpgActionResolved", { actor: student, actionKey: "search", outcome: { success: true, room: ROOM } })),
+                await fires("rest", () => Hooks.callAll("drpgRested", { actor: student, kind: "short", picks: [], room: ROOM })),
+                await fires("stash", () => Hooks.callAll("drpgStashHunted", { actor: student, room: ROOM, total: 10 }))
+            ];
+            read = [await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: mine })),
+                ...await standing(),
+                await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: away })),
+                await fires("enters", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: ROOM, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} }))];
+            await mine.update({ hidden: true });
+            must(locateActor(student)?.scene === scene, `${student.name} is not placed on the suite's scene with the token here hidden - this would measure nothing`);
+            read.push(...await standing());
+        } finally {
+            if (mine?.hidden) await mine.update({ hidden: false });
+            for (const id of Object.values(traps)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, true, false, false, false, false, false]),
+            `the traps in "${ROOM}" on the scene on screen spoke for ${student.name}'s crossing, Search, Rest and stash hunt there; for a crossing into a room of that name `
+            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; and for a Search, a Rest and a stash hunt there");
+    }],
+
+    ["a secret project is a non-obvious Observe's find only in its room on its own scene", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 SEC2-3. A non-obvious Observe's candidates were the
+         * secret projects whose room had the observer's room's NAME (projects.mjs `secretsUnknownIn`,
+         * handed `where.room` by observe.mjs), so an Observe in a room of that name on another scene
+         * was let in on a secret project standing here - round 1 closed that road for a Work and a
+         * Sabotage and left this one. Here a connected player's character stands in a room on its
+         * scene, and a scene of the suite's own holds a room of the same name. A secret project
+         * nobody is in on stands in that room there (its token put on the suite's scene): read
+         * whether the primary's non-obvious Observe for that character carries a project. Then a
+         * second one stands in the character's own room (the control): the same read. Red before
+         * this fix: the first Observe carries the project on the other scene.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the observer stands in a room");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the observer has a player who is not in on the project");
+        const { player, actor, where } = await playerInRoom();
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        let other = null, read = null;
+        const carries = async () => {
+            const looking = await O.chooseObserveTarget({ actorId: actor.id, declaration: "nonObvious" });
+            return looking?.ok ? O.pendingShape(looking.key)?.hasProject === true : false;
+        };
+        const secret = async (scene, n) => {
+            const project = await P.createProject({ name: `SUITE r2-S1 secret ${n}`, target: 6, room: where.room, secret: true, viewers: [] });
+            must(project?.id, "could not create a secret project - this would measure nothing");
+            made.push(project.id);
+            if (PM.projectTokenOf(project.id)?.parent?.id !== scene.id) {
+                await PM.removeProjectToken(project.id);
+                await PM.placeProjectToken(project.id, { scene });
+            }
+            must(PM.projectTokenOf(project.id)?.parent?.id === scene.id && !P.canSee(project.id, player),
+                `the secret project's token is not on ${scene.name}, or ${player.name} is in on it - this would measure nothing`);
+        };
+        try {
+            other = await Scene.create({ name: "SUITE E12 fix r2-S1 an Observe's room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await secret(other, 1);
+            read = [await carries()];
+            await secret(where.scene, 2);
+            read.push(await carries());
+        } finally {
+            await O.clearPendingObserves();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await other?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true]),
+            `whether ${actor.name}'s non-obvious Observe in "${where.room}" carries a secret project: one standing in a room of that name on another scene, then one in the room itself`);
+    }],
+
+    ["the console's createProject refuses a room no scene holds and tells the GM", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 O1. `game.drpg.createProject` took any name for a
+         * room: a project in a room no place scene holds was made and its token put on no scene, and
+         * nothing said so - the project manager offers such a room only labelled "(on no scene now)".
+         * Read: what the console answers for such a room, whether a project of that name exists
+         * after, whether a warning naming the room was shown; then for a room a place scene holds
+         * (the control) whether the project is made and its token placed. Red before this fix: the
+         * first is made, and nothing is said.
+         */
+        const R = await import("./rooms.mjs");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const ROOM = R.placeRoomNames()[0] ?? null, GONE = "SUITE E12 fix r2-S1 a room on no scene";
+        must(ROOM && !R.sceneOfRoom(GONE), "no place scene holds a room, or one holds the suite's made-up room - this would measure nothing");
+        const NAMES = ["SUITE r2-S1 nowhere", "SUITE r2-S1 somewhere"];
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        const made = [];
+        let read = null;
+        try {
+            const gone = await game.drpg.createProject({ name: NAMES[0], target: 4, room: GONE });
+            if (gone?.id) made.push(gone.id);
+            const kept = await game.drpg.createProject({ name: NAMES[1], target: 4, room: ROOM });
+            if (kept?.id) made.push(kept.id);
+            read = [Boolean(gone?.id), P.allProjects().some(p => p.name === NAMES[0]), warned.some(line => line.includes(GONE)),
+                Boolean(kept?.id), Boolean(kept?.id && PM.projectTokenOf(kept.id))];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, false, true, true, true]),
+            `the console asked for a project in "${GONE}" ([made, a project of its name exists, a warning names the room]) and then in "${ROOM}" ([made, its token placed])`);
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

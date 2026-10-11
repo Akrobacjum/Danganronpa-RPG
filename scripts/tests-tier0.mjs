@@ -911,7 +911,7 @@ const REGRESSIONS = [
             stashItemsIn: time(() => V.stashItemsIn(actor, room, canvas?.scene)),
             remnantsInRoom: time(() => R.remnantsInRoom(room, canvas?.scene)),
             cleanableRemnants: time(() => C.cleanableRemnants(actor)),
-            crossingWithTraps: time(() => T.armedIn(room), 60)
+            crossingWithTraps: time(() => T.armedIn(room, canvas?.scene), 60)
         };
         const CEILING = 2.0;   // ms per call, on a machine also running Foundry
         const over = Object.entries(measured)
@@ -9869,6 +9869,28 @@ const REGRESSIONS = [
         must(FILES.every(file => sources.get(file)?.length), "the two files are among the module's sources - this would measure nothing");
         equal(JSON.stringify(FILES.flatMap(file => reads(file, sources.get(file)))), JSON.stringify([]),
             "Season setup or the project map lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read)");
+    }],
+
+    ["R430 - the room cache and a Remnant's card read the world's tokens, not the ones this browser draws", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 O3. Two readers reached the camera by a road R382
+         * does not read: movement.mjs `primeRoomCache` took `canvas.tokens.placeables`, so a browser
+         * that drew another scene forgot every token of the one it left and the next move of one was
+         * "never seen" (scenario 66 O reads that crossing), and remnant-ring.mjs `showRemnantCard`
+         * fell back to `getActiveTokens()`, a linked token drawn on this canvas - which no trace is,
+         * remnants.mjs placing every one unlinked. Both read documents now. This keeps the two from
+         * going back: comments blanked, neither function names `canvas` or `getActiveTokens`. It reads
+         * text: a reader that reaches the canvas through another name is not seen. The reader is run
+         * first on a fixture of each road and one in a comment.
+         */
+        const camera = text => /\bcanvas\b|\bgetActiveTokens\b/.test(stripComments(text));
+        equal(JSON.stringify(["for (const t of canvas?.tokens?.placeables ?? []) {}", "actor?.getActiveTokens?.(true, true)", "// canvas\nscene.tokens"].map(camera)),
+            JSON.stringify([true, true, false]), "the reader does not find the two roads in its fixture, or finds the one in a comment");
+        const sources = await moduleSources();
+        const read = [["movement.mjs", "primeRoomCache"], ["remnant-ring.mjs", "showRemnantCard"]]
+            .filter(([file, name]) => camera(fnSource(sources.get(file), name))).map(([file, name]) => `${file}#${name}`);
+        equal(JSON.stringify(read), JSON.stringify([]),
+            "the room cache or a Remnant's card reads the tokens this browser draws (`canvas` or `getActiveTokens`) instead of the world's");
     }]
 ];
 

@@ -151,7 +151,12 @@ export function registerRemnantRings() {
  */
 function showRemnantCard(app, element) {
     const actor = app?.document;
-    const token = actor?.token ?? actor?.getActiveTokens?.(true, true)?.[0] ?? null;
+    /* The token the sheet was opened from, and nothing else (E12 fix r2-S1, 11.10.2026; review
+       round 2 O3). It fell back to `getActiveTokens(true, true)`, a linked token of this
+       actor drawn on this browser's canvas - which no trace has: remnants.mjs places every one
+       unlinked (`actorLink: false`), read in the code, so the fallback answered nothing and was
+       the camera by another road. R430 keeps it out. */
+    const token = actor?.token ?? null;
     const source = token ?? actor;
     if (!source?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
 

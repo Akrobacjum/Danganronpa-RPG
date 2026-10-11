@@ -67,7 +67,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
-import { allProjects, secretsOf, patchTrigger } from "./projects.mjs";
+import { allProjects, secretsOf, patchTrigger, standsAtProject } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
 import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
@@ -138,9 +138,32 @@ export function forgetArmedTraps() {
  * the trap alerted its killer and stamped itself spent, from a tier the suite
  * promises can be run during play. A query answers the same timing question
  * and cannot spring anything.
+ *
+ * ON THE TRAP'S OWN SCENE (E12 fix r2-S1, 11.10.2026; review round 2 SEC2-2). The map is
+ * keyed by the room's name, and this answered every trap of that name: a crossing, a Search,
+ * a Rest or a stash hunt in the Annex's "Kitchen" sprang and spent the trap a killer built in
+ * the school's (the tier-2 "a trap springs only in its room on its own scene ..." measured all
+ * five roads there spring it at the parent, 11.10.2026: a crossing as the GM's browser raises it
+ * and as a player's relays it, a Search, a Rest and a stash hunt). A trap stands where its project stands - its token's scene, else the
+ * first place scene holding the room (projects.mjs `standsAtProject`, round 1's rule for a
+ * Work and a Sabotage) - and a room with no scene to ask about answers nothing. The name
+ * still goes first, so a miss costs what it cost.
  */
-export function armedIn(room) {
-    return room ? (armed().byRoom.get(room) ?? []) : [];
+export function armedIn(room, scene) {
+    if (!room) return [];
+    const named = armed().byRoom.get(room);
+    return named ? named.filter(trap => standsAtProject({ room, scene }, trap.id)) : [];
+}
+
+/**
+ * The scene a trap's event happened on: the crossed token's, else where the character
+ * stands (movement.mjs `locateActor`; a relayed crossing's `sceneId` only chooses among
+ * the character's own tokens). By a dynamic import, as `standsIn` reads movement.mjs.
+ */
+async function sceneOfEvent(actor, { tokenDoc = null, sceneId = null } = {}) {
+    if (tokenDoc?.parent) return tokenDoc.parent;
+    const { locateActor } = await import("./movement.mjs");
+    return locateActor(actor, { sceneId })?.scene ?? null;
 }
 
 /**
@@ -784,7 +807,7 @@ export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
  *
  * ON THE SCENE THE SENDER IS LOOKING AT, when the character has a token there
  * (`User#viewedScene`): the relay does not say which scene it came from, and
- * traps are keyed by room name alone, so asking every scene let a token left on
+ * traps were keyed by room name alone until E12 fix r2-S1, so asking every scene let a token left on
  * an old map, or a room of the same name elsewhere, answer for this one (the E03
  * second review). Only a character with no token on that scene falls back to
  * every scene.
@@ -831,7 +854,9 @@ export function usedItemRefusal({ author, actor, used, trap, owns }) {
 async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
     try {
         if (!isPrimaryGm() || !to) return;
-        const here = armedIn(to);
+        if (!armed().byRoom.has(to)) return;
+        const scene = await sceneOfEvent(actor, { tokenDoc, sceneId });
+        const here = armedIn(to, scene);
         if (!here.length) return;
 
         // Asked once for the whole room rather than once per trap: there is no
@@ -843,7 +868,7 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
             if (!passesModifiers(trap, actor)) continue;
 
             if (kind === "alone") {
-                if (alone === null) alone = await isAlone(actor, to, { tokenDoc, sceneId });
+                if (alone === null) alone = await isAlone(actor, to, scene);
                 if (!alone) continue;
             }
             await alert(trap, actor, game.i18n.localize(
@@ -869,12 +894,12 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
  * school's when the character has a token there too, so a student walking alone
  * into a room of the Annex was counted with whoever stood in the school's room
  * of that name. The crossed token's scene now, else the one the relay names,
- * chosen only among the character's own tokens.
+ * chosen only among the character's own tokens (`sceneOfEvent`, which since E12
+ * fix r2-S1 also chooses the traps the crossing asks about).
  */
-async function isAlone(actor, room, { tokenDoc = null, sceneId = null } = {}) {
+async function isAlone(actor, room, scene) {
     try {
-        const { othersInNamedRoom, locateActor } = await import("./movement.mjs");
-        const scene = tokenDoc?.parent ?? locateActor(actor, { sceneId })?.scene ?? null;
+        const { othersInNamedRoom } = await import("./movement.mjs");
         return othersInNamedRoom(room, actor, scene).length === 0;
     } catch {
         // Cannot tell, so do not claim it. A trap that fires on "alone" when
@@ -895,7 +920,7 @@ async function onActionResolved({ actor, actionKey, outcome, projectId } = {}) {
             // A failed Search found nothing and disturbed nothing.
             if (!outcome?.success) return;
             const room = outcome?.room ?? roomOf(actor);
-            if (room) candidates.push(...(map.byRoom.get(room) ?? []));
+            if (map.byRoom.has(room)) candidates.push(...armedIn(room, await sceneOfEvent(actor)));
         } else if (projectId) {
             candidates.push(...(map.byProject.get(projectId) ?? []));
         }
@@ -918,8 +943,8 @@ async function onRested({ actor, room } = {}) {
     try {
         if (!isPrimaryGm()) return;
         const where = room ?? roomOf(actor);
-        if (!where) return;
-        for (const trap of armed().byRoom.get(where) ?? []) {
+        if (!armed().byRoom.has(where)) return;
+        for (const trap of armedIn(where, await sceneOfEvent(actor))) {
             if (trap.trigger.kind !== "rest") continue;
             if (!passesModifiers(trap, actor)) continue;
             await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.rest"));
@@ -938,8 +963,8 @@ async function onRested({ actor, room } = {}) {
  */
 async function onStashHunted({ actor, room } = {}) {
     try {
-        if (!isPrimaryGm() || !room) return;
-        for (const trap of armed().byRoom.get(room) ?? []) {
+        if (!isPrimaryGm() || !armed().byRoom.has(room)) return;
+        for (const trap of armedIn(room, await sceneOfEvent(actor))) {
             if (trap.trigger.kind !== "stash") continue;
             if (!passesModifiers(trap, actor)) continue;
             await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.stash"));
