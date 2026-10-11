@@ -55,6 +55,10 @@
  *      p1's fog does with the floor that has no room, whether p1's floor switcher outlives the scene's teardown, and
  *      where the bridge puts Aiko, moved upstairs by the GM, when p1 asks to send her back to the ground floor's spot
  *      with no floor named (E12 fix r2-H1: review round 2 on EARLY-C10-1, EARLY-C11-2, SEC2-5).
+ *   P  a returning GM whose id sorts first (gm0) places Aiko in the locked Storage as the primary and leaves, and p1 steps
+ *      her inside it; then p1's console jumps her in from the Hall and gm0 arrives: where each primary reads her standing,
+ *      and how gm0 judges a token of hers a player drops before it has judged any (E12 fix r2-H3: review round 2 SEC2-4
+ *      and SEC2-1, early review EARLY-C12-1).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -94,8 +98,14 @@
  * The merge of the E12 fix line (r1-G4's K1 and r1-G5's G3, renamed N1 and G10 because C7 and C9 had taken those names on
  * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
  * E12 fix r2-H1 (O1-O3 added): 43 checks; their time is that commit's fast set's, in its message.
+ * E12 fix r2-H3 (P1-P3 added, and gm0 with them): 46 checks; their time is that commit's fast set's, in its message.
  */
 export const layers = ["ci"];
+/* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
+   the primary and its leaving hands the primacy back. */
+export const accounts = [
+    { who: "gm0", id: "USERGA0000000000", name: "Returning GM", role: 4, character: null, color: "#aa0000", late: true }
+];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
@@ -104,7 +114,7 @@ const L1 = "LEVELGROUND00000", L2 = "LEVELUPPER000000";
 /* The two floors G's stack adds above L1 (E12 C11). */
 const F2 = "LEVELMIDDLE00000", F3 = "LEVELROOF0000000";
 
-export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
+export async function run({ gm, gm0, p1, check, note, phase, settle, connect, disconnect, IDS, repoUrl }) {
     const SCENES = `const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");`;
     const rect = (x, y, width = 600, height = 600) => J([{ type: "rectangle", x, y, width, height }]);
     /* Room Setup answered as a GM answers it: the window's own form with one lock ticked, then its Apply button's
@@ -1028,4 +1038,108 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
     check("O3: Aiko, moved upstairs by the GM, is not sent by p1's send-back naming no floor to the ground floor's spot, and is sent back to the spot she left upstairs (E12 fix r2-H1)",
         J(upO) === J({ x: 1500, y: 300, level: L2 }) && J(farO.at) === J(upO) && J(onO) === J({ x: 1800, y: 300, level: L2 })
             && J(nearO.at) === J(upO), J({ upO, farO, onO, nearO }));
+
+    /* ------------------------------ P. a change of primary GM ------------------------------ */
+    phase("P: the witness judge across a change of primary GM", { flow: "body-discovery" });
+    /* The returning GM (gm0, as 65's U) sorts before the seeded GM, so its arrival makes it the primary and its leaving
+       hands the judge back. Every reading of a standing is on the client that is the primary when it is read. */
+    const PRIMARY = `const U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const placeP = (client, room, nudge = 0) => client.eval(`${AIKO} ${PRIMARY}
+        const spot = M.positionIn(${J(room)}, t);
+        await t.update({ x: spot.x + ${nudge}, y: spot.y }, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 1500));
+        return { primary: U.isPrimaryGm(), room: M.roomOfToken(t), x: t.x, y: t.y };`, { timeout: 30000 });
+    const readP = client => client.eval(`${AIKO} ${PRIMARY}
+        await wait(() => U.isPrimaryGm(), 10000);
+        await new Promise(r => setTimeout(r, 1000));
+        return { primary: U.isPrimaryGm(), at: { x: t.x, y: t.y }, room: M.roomOfToken(t), standing: standing(), lawfulRoom: M.lawfulRoomOf(t) ?? null,
+            told: told() };`, { timeout: 30000 });
+    const hallP = await placeP(gm, "Hall");
+    const setP = await gm.eval(`${SCENES} ${LOCKED} return locked(academy.regions.find(r => r.name === "Storage"));`, { timeout: 30000 });
+    const beforeP = await readP(gm);
+    let placedP = null;
+    await connect("gm0");
+    try {
+        await readP(gm0);
+        placedP = await placeP(gm0, "Storage");
+        await gm.eval(`await new Promise(r => setTimeout(r, 1000)); return true;`, { timeout: 30000 });
+    } finally {
+        await disconnect("gm0");
+    }
+    await readP(gm);
+    const stepP = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = canvas.scene.tokens.get("TOKAIKO000000000");
+        await t.update({ x: t.x + 100 }, { animate: false });
+        await new Promise(r => setTimeout(r, 800));
+        return { x: t.x, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    const afterP = await readP(gm);
+    /* Until E12 fix r2-H3 the seeded GM, the primary again, judged p1's step from the Hall: its standings and `gmSeen` stood
+       where it had last judged as the primary, gm0's placing was a move it never heard, and the step inside the Storage read
+       as a jump from the Hall past the lock - the GMs told, Aiko no witness (measured on this check at d5e9acd). */
+    check("P1: a step inside the locked Storage, where the returning GM had placed Aiko as the primary, is lawful on the seeded GM once it is the primary again (E12 fix r2-H3)",
+        setP && hallP.room === "Hall" && beforeP.primary && beforeP.standing.lawful === true && placedP?.primary === true && placedP.room === "Storage"
+            && stepP.room === "Storage" && stepP.x === placedP.x + 100 && afterP.primary && afterP.standing.lawful === true
+            && afterP.lawfulRoom === "Storage" && afterP.told === beforeP.told,
+        J({ setP, hallP, beforeP, placedP, stepP, afterP }));
+
+    /* P2: what a new primary does with a move it did not see. p1's console jumps Aiko from the Hall into the locked Storage
+       (the veto skipped as a revert skips it, as in I1) while the seeded GM judges; then gm0 arrives and is asked where she
+       stands. The record is the primary's memory alone (the fix list's decision on EARLY-C12-1): gm0 primed `gmSeen` at its
+       ready with her already in the Storage and holds no standing, so it reads her as standing there lawfully. The jump is
+       to a spot off the Storage's centre: P1's gm0 placed her on the centre less than a minute before, and a revert to a
+       spot she stood on that recently is honoured to the lawful standing recorded there (`sendBackRefusal`; the first
+       draft of this check jumped to the centre and read her lawful on the seeded GM too). P3's scene is made here, before
+       gm0 boots, so gm0 primes its token too. */
+    await placeP(gm, "Hall");
+    const sceneP = await gm.eval(`const scene = await Scene.create({ name: "66 Drop", width: 3000, height: 1000, grid: { size: 100 }, active: false });
+        const room = (name, x, next) => ({ name, shapes: ${rect(0, 200)}.map(r => ({ ...r, x })), flags: { "${MOD}": { room: true, drpgNeighbours: next } }, behaviors: [] });
+        await scene.createEmbeddedDocuments("Region", [room("66 Fore", 200, "66 Mid"), room("66 Mid", 1000, "66 Fore, 66 Back"), room("66 Back", 1800, "66 Mid")]);
+        const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: "${IDS.aiko}", actorLink: true, x: 400, y: 400,
+            width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 }]);
+        await new Promise(r => setTimeout(r, 800));
+        return { id: scene.id, token: token.id, room: (await import("${repoUrl}/scripts/movement.mjs")).roomOfToken(token) };`, { timeout: 30000 });
+    const jumpP = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = canvas.scene.tokens.get("TOKAIKO000000000");
+        const centre = M.positionIn("Storage", t);
+        await t.update({ x: centre.x + 37, y: centre.y + 23 }, { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
+        return M.roomOfToken(t);`, { timeout: 30000 });
+    const seededP = await readP(gm);
+    let newP = null, backP = null, dropP = null;
+    await connect("gm0");
+    try {
+        /* P3, before gm0 has judged anything: a token of Aiko p1 drops (the harness refuses a player's Token create,
+           cluster.mjs `canWrite`, so gm0's `noteGmCreated` is handed a plain one, as tier 2 hands it) in the 66 Back,
+           which only the 66 Mid's list reaches, on a scene where her other token stands in the 66 Fore. gm0 holds no
+           standing of hers; the drop is judged from where its `gmSeen` saw her token on the scene (`droppedFrom`). */
+        dropP = await gm0.eval(`${AIKO} ${PRIMARY}
+            await wait(() => U.isPrimaryGm(), 10000);
+            const scene = game.scenes.get("${sceneP.id}"), mine = scene.tokens.get("${sceneP.token}"), aiko = mine.actor;
+            const player = game.users.find(u => !u.isGM)?.id ?? null, room = "66 Back";
+            const spot = M.positionIn(room, mine);
+            const drop = { id: "TOKDROP066000000", name: aiko.name, x: spot.x, y: spot.y, width: 1, height: 1, elevation: 0,
+                parent: scene, actor: aiko, actorId: aiko.id };
+            // At d5e9acd \`noteGmCreated\` was not exported; on the primary it handed the drop to \`judgeArrival\` as it is here.
+            if (typeof M.noteGmCreated === "function") M.noteGmCreated(drop, player); else M.judgeArrival(drop, player);
+            const notices = kind => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-' + kind + '="TOKDROP066000000"')).length;
+            await wait(() => notices("unlawful") + notices("dropped") > 0, 3000);
+            await new Promise(r => setTimeout(r, 800));
+            return { room, at: M.roomOfToken(drop), lawful: M.standingOf(drop)?.lawful ?? null, lawfulRoom: M.lawfulRoomOf(drop) ?? null,
+                unlawful: notices("unlawful"), dropped: notices("dropped") };`, { timeout: 30000 });
+        newP = await readP(gm0);
+    } finally {
+        await disconnect("gm0");
+    }
+    backP = await readP(gm);
+    await gm.eval(`await game.scenes.get("${sceneP.id}").delete(); return true;`, { timeout: 30000 });
+    note("P2: where each primary reads Aiko after p1's jump into the locked Storage - the seeded GM before gm0 came, gm0, the seeded GM after gm0 left",
+        J({ seededP, newP, backP }));
+    check("P2: Aiko, jumped into the locked Storage by p1's console, stands unlawfully for the seeded GM and lawfully for a GM who becomes the primary after it (E12 fix r2-H3)",
+        sceneP.room === "66 Fore" && jumpP === "Storage" && seededP.primary && seededP.standing.lawful === false && seededP.told === afterP.told + 1
+            && newP?.primary === true && newP.room === "Storage" && newP.standing.lawful === true && newP.lawfulRoom === "Storage",
+        J({ jumpP, seededP, newP, backP }));
+    /* Until E12 fix r2-H3 a drop was judged from nowhere: lawful in any room no lock, seal or bedroom shuts, however far
+       from where the student stood (security review r2 SEC2-1). */
+    check("P3: a token of Aiko a player drops in a room her other token's room does not reach, judged by a new primary that holds no standing of hers, is judged from that room: unlawful, the GMs told so and not that it came from nowhere (E12 fix r2-H3)",
+        sceneP.room === "66 Fore" && dropP?.room === "66 Back" && dropP.at === dropP.room && dropP.lawful === false && dropP.lawfulRoom === null && dropP.unlawful === 1 && dropP.dropped === 0,
+        J({ sceneP, dropP, newP }));
 }

@@ -2469,7 +2469,8 @@
     },
     "Movement": {
       "unlawfulArrival": "Postać {name} weszła do: {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z: {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch MG czyni miejsce, w którym stoi, dozwolonym.",
-      "outsideRooms": "poza pokojami"
+      "outsideRooms": "poza pokojami",
+      "droppedFromNowhere": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
     },
     "Move": {
       "notConnectedShort": "{to} nie łączy się z {from}.",

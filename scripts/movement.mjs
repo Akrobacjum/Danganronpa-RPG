@@ -289,23 +289,33 @@ function positionOf(tokenDoc) {
     };
 }
 
+/*
+ * ON EVERY GM, NOT THE PRIMARY ALONE (E12 fix r2-H3, 11.10.2026; early review EARLY-C12-1, security
+ * review r2 SEC2-4). The record was primed and kept on the primary only, so a GM who became the primary
+ * after its own ready - a co-GM whose id sorts first joining, the primary reloading - judged each first
+ * move from where it last saw the token as primary, or from nowhere: a token another GM had put in a
+ * locked room read as having jumped there from the room it stood in before. Every GM now primes it at
+ * ready and keeps it on every move; only the judgement (`judgeArrival`) waits for the primary.
+ */
 function primeGmPositions() {
-    if (!isPrimaryGm()) return;
+    if (!game.user?.isGM) return;
     for (const scene of game.scenes ?? []) {
         for (const token of scene.tokens ?? []) gmSeen.set(token.id, positionOf(token));
     }
 }
 
 function noteGmPosition(tokenDoc, changes, options, userId) {
-    if (!isPrimaryGm()) return;
+    if (!game.user?.isGM) return;
     if (changes?.x === undefined && changes?.y === undefined
         && changes?.elevation === undefined && changes?.level === undefined) return;
     // The arrival judged before `gmSeen` moves (E12 C12): a token the judge has no standing for
     // stood lawfully where `gmSeen` last saw it (`seenStanding`).
-    try {
-        judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]) });
-    } catch (err) {
-        error(`Could not judge where "${tokenDoc.name}" arrived`, err);
+    if (judgingHere()) {
+        try {
+            judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]) });
+        } catch (err) {
+            error(`Could not judge where "${tokenDoc.name}" arrived`, err);
+        }
     }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
@@ -315,11 +325,15 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
 }
 
-/** A token dropped on a scene: where it stands, and on the primary whether a player dropped it somewhere the rules refuse (E12 C12). */
-function noteGmCreated(tokenDoc, userId) {
-    if (isPrimaryGm()) {
+/**
+ * A token dropped on a scene: where it stands, and on the primary whether a player dropped it somewhere
+ * the rules refuse (E12 C12) - judged from where that student last stood on the scene (`droppedFrom`,
+ * E12 fix r2-H3). Exported for tier 2, which hands it a plain token.
+ */
+export function noteGmCreated(tokenDoc, userId) {
+    if (judgingHere()) {
         try {
-            judgeArrival(tokenDoc, userId);
+            judgeArrival(tokenDoc, userId, { created: true });
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" was dropped`, err);
         }
@@ -426,14 +440,76 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
  * writes a moment before the move - `monokuma`, which no crossing rule binds - is put
  * back by the sheet audit, and read off the document it let the arrival stand (66 I3).
  * Both readers come in by a dynamic import (`registerMovement`); until it lands, at
- * boot, the document is read. The record is the primary's memory alone: a new primary
- * starts from where `gmSeen` saw each token, which it primes at ready.
+ * boot, the document is read.
+ *
+ * THE RECORD IS THE PRIMARY'S MEMORY ALONE (E12 fix r2-H3, 11.10.2026; the fix list's decision on
+ * EARLY-C12-1 and SEC2-4). Every GM keeps `gmSeen`; only the primary judges and keeps `standings`. A
+ * client that becomes the primary forgets the standings it holds (`judgingHere`): they were written
+ * before another GM judged the moves since, and read again they called a GM's placing a jump. It then
+ * judges each token's next move from where `gmSeen` saw it, lawful. So an unlawful standing does not
+ * survive a change of primary: a student a console put past a lock counts where they stand once another
+ * GM takes over (scenario 66 P2 reads it), and so, by the same reading of `gmSeen` primed at ready, does a
+ * move made while no GM was connected (not driven by any scenario). Kept in no document or setting. P1 reads
+ * the other half: a GM's placing made while another GM was the primary is not a jump.
+ *
+ * A TOKEN A PLAYER DROPS (E12 fix r2-H3; security review r2 SEC2-1). A drop had no standing and was
+ * judged from nowhere - lawful in any room no lock, seal or bedroom shuts, however far from where the
+ * student stood - and a student with two tokens in a room was two witnesses. A drop is now judged from
+ * the newest standing of that student on that scene, of any of their tokens, deleted ones included
+ * (`droppedFrom`); a drop with none is still judged from nowhere and the GMs are told a player placed it
+ * (`tellDropped`). `witnessesOf` (chapter.mjs) counts one token a student.
  * ========================================================================== */
 
 /** tokenId -> where it stands as the judge read it: { x, y, level, lawful, last: { room, level }, told, reason }. */
 const standings = new Map();
 /** tokenId -> the standings it was moved from, newest last, as `gmHistory`: what an honoured revert returns to. */
 const standingHistory = new Map();
+/** "sceneId actorId" -> the newest standing of any token of that student on that scene: what a drop is judged from. */
+const studentStandings = new Map();
+/** Whether this client was the primary when the judge last asked (`judgingHere`). */
+let judgedAsPrimary = false;
+
+/**
+ * Whether this client judges: the primary GM. A client that was not the primary when last asked and is
+ * now forgets the standings it holds (the note above). Asked on every GM's every move and drop, so a
+ * client that stops being the primary sees it by the next move any GM makes.
+ */
+function judgingHere() {
+    const primary = isPrimaryGm();
+    if (primary && !judgedAsPrimary) {
+        standings.clear();
+        standingHistory.clear();
+        studentStandings.clear();
+    }
+    judgedAsPrimary = primary;
+    return primary;
+}
+
+const studentKey = tokenDoc => {
+    const scene = tokenDoc?.parent?.id, actor = tokenDoc?.actorId ?? tokenDoc?.actor?.id;
+    return scene && actor ? `${scene} ${actor}` : null;
+};
+
+/** Record where the judge reads this token as standing, and that it is its student's newest standing on the scene. */
+function keepStanding(tokenDoc, now) {
+    standings.set(tokenDoc.id, now);
+    const key = studentKey(tokenDoc);
+    if (key) studentStandings.set(key, now);
+}
+
+/** Where a dropped token's student last stood on its scene: the newest standing of any token of theirs, else where `gmSeen` saw another, else null. */
+function droppedFrom(tokenDoc) {
+    const key = studentKey(tokenDoc);
+    const kept = key ? studentStandings.get(key) : null;
+    if (kept) return kept;
+    const actorId = tokenDoc.actorId ?? tokenDoc.actor?.id;
+    for (const other of tokenDoc.parent?.tokens ?? []) {
+        if (other.id === tokenDoc.id || (other.actorId ?? other.actor?.id) !== actorId) continue;
+        const seen = seenStanding(other);
+        if (seen) return seen;
+    }
+    return null;
+}
 /** sheet-audit.mjs's held readers and mastermind.mjs's `isMastermind`, once `registerMovement`'s import lands. */
 let judgeReaders = null;
 
@@ -462,12 +538,15 @@ function seenStanding(tokenDoc) {
 /**
  * Judge where this token now stands (the note above), record it, and tell the GMs when it
  * turned unlawful. `userId` is the mover's, `revert` whether the write was marked as our own
- * revert, `sentBack` whether the bridge wrote it for a player. On the primary, from
- * `noteGmPosition` and `noteGmCreated`; exported for tier 2, which judges a plain token.
+ * revert, `sentBack` whether the bridge wrote it for a player, `created` whether the token was
+ * just dropped. On the primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2,
+ * which judges a plain token.
  */
-export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false } = {}) {
+export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, created = false } = {}) {
     if (!tokenDoc?.id) return null;
-    const was = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
+    judgingHere();
+    const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
+    const was = own ?? (created ? droppedFrom(tokenDoc) : null);
     const mover = game.users?.get(userId) ?? null;
     const actor = tokenDoc.actor;
     let now = null;
@@ -488,14 +567,16 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         now = verdict === true ? standingHere(tokenDoc)
             : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
     }
-    if (was && !samePlace(was, now)) {
-        const ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...was }];
+    if (own && !samePlace(own, now)) {
+        const ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...own }];
         standingHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
     }
-    standings.set(tokenDoc.id, now);
+    keepStanding(tokenDoc, now);
     if (!now.lawful && !now.told && isPrimaryGm()) {
         now.told = true;
         tellUnlawful(tokenDoc, now);
+    } else if (created && !was && now.lawful && !mover?.isGM && actor?.type === "character" && isPrimaryGm()) {
+        tellDropped(tokenDoc);
     }
     return now;
 }
@@ -526,18 +607,30 @@ function tellUnlawful(tokenDoc, now) {
         .catch(err => error("Could not tell the GMs of an unlawful arrival", err));
 }
 
+/** The GMs' notice of a student's token a player placed on a scene where the student stood nowhere before: judged from nowhere. */
+function tellDropped(tokenDoc) {
+    const name = tokenDoc.actor?.name ?? tokenDoc.name ?? "";
+    const room = roomOfToken(tokenDoc) ?? game.i18n.localize("DRPG.Movement.outsideRooms");
+    const scene = tokenDoc.parent?.name ?? "";
+    log(`A player placed a token of ${name} in ${room} on "${scene}", where ${name} stood nowhere before; judged from nowhere.`);
+    whisperToGms(`<p class="drpg-warning" data-drpg-dropped="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.droppedFromNowhere", { name, room, scene }))}</p>`)
+        .catch(err => error("Could not tell the GMs of a token a player placed", err));
+}
+
 /**
  * Where the judge reads this token as standing: its record, or - where the token moved since
  * (a reader that came before the hook that records it) - judged now, as a move by nobody known
  * to be a GM, so the order of the movement and murder hooks does not matter. A token never seen
- * stands lawfully where it is.
+ * stands lawfully where it is. Off the primary nothing is judged or kept (E12 fix r2-H3): every
+ * token stands lawfully where it is, as `roomOfToken` reads it.
  */
 export function standingOf(tokenDoc) {
     if (!tokenDoc?.id) return null;
+    if (!judgingHere()) return standingHere(tokenDoc);
     const now = standings.get(tokenDoc.id);
     if (!now) {
         const first = standingHere(tokenDoc);
-        standings.set(tokenDoc.id, first);
+        keepStanding(tokenDoc, first);
         return first;
     }
     return samePlace(now, positionOf(tokenDoc)) ? now : judgeArrival(tokenDoc, null);
@@ -1825,15 +1918,21 @@ export function othersInRoom(actor) {
  *
  * Counted on a scene's token documents since E12 C3: the one handed in, else
  * the actor's (`locateActor`), else `homeScene()` - never the camera's.
+ *
+ * `roomOf` places each token: `roomOfToken`, or `lawfulRoomOf` where the
+ * caller runs on the primary and asks who counts (E12 fix r2-H3; security review
+ * r2 SEC2-7, goal review N5): a trap's "alone" (traps.mjs `isAlone`) and the
+ * Eclipse's witnesses to a murder (eclipse.mjs `judgePendingMurders`), so a student
+ * a console put in the room past the rules decides neither.
  */
-export function othersInNamedRoom(room, actor = null, scene = null) {
+export function othersInNamedRoom(room, actor = null, scene = null, roomOf = roomOfToken) {
     if (!room) return [];
     // The scene handed in; else the actor's; else the school (E12 C3) - never the camera's.
     const on = scene ?? (actor ? locateActor(actor)?.scene : null) ?? homeScene();
     return Array.from(on?.tokens ?? [])
         .filter(t => !actor || t.actorId !== actor.id)
         .filter(countsAsPresent)
-        .filter(t => roomOfToken(t) === room)
+        .filter(t => roomOf(t) === room)
         .map(t => t.actor);
 }
 

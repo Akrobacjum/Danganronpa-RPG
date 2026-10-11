@@ -873,9 +873,11 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
  */
 async function isAlone(actor, room, { tokenDoc = null, sceneId = null } = {}) {
     try {
-        const { othersInNamedRoom, locateActor } = await import("./movement.mjs");
+        const { othersInNamedRoom, locateActor, lawfulRoomOf } = await import("./movement.mjs");
         const scene = tokenDoc?.parent ?? locateActor(actor, { sceneId })?.scene ?? null;
-        return othersInNamedRoom(room, actor, scene).length === 0;
+        // Counted where the witness judge lets each one count (E12 fix r2-H3; security review r2
+        // SEC2-7): a student a console put in the room past the rules does not keep a trap from firing.
+        return othersInNamedRoom(room, actor, scene, lawfulRoomOf).length === 0;
     } catch {
         // Cannot tell, so do not claim it. A trap that fires on "alone" when
         // the room was full is worse than one that misses a beat.

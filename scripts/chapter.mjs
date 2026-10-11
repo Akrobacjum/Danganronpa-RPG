@@ -1172,10 +1172,15 @@ export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seas
  * the GMs - the dead are not witnesses, only a Monocub is. Until 1.2.73 a dead student's token
  * standing in the room counted, so one living student walking in on a body beside an earlier
  * victim's was "two witnesses". `held` and `pending` as `bodiesToDiscover` reads them; `roomOf` is
- * movement.mjs `roomOfToken`.
+ * movement.mjs `roomOfToken`, or `lawfulRoomOf` (E12 C12).
+ *
+ * WITNESSES ARE STUDENTS, NOT TOKENS (E12 fix r2-H3, 11.10.2026; security review r2 SEC2-1). One
+ * student with two tokens in the room was two witnesses, so one player's second token opened the
+ * discovery the rule of two keeps for two people. One token a student is kept, the first that counts.
  */
 export function witnessesOf({ tokens = [], room = null, bodies = new Set(), students = new Set(), held = actor => actor,
     pending = id => pendingDeath({ id }), roomOf = () => null } = {}) {
+    const counted = new Set();
     return [...tokens].filter(t => {
         const actor = t.actor;
         if (!actor || actor.type !== "character") return false;
@@ -1184,7 +1189,9 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
         if (!students.has(actor.id)) return false;            // excludes Monokumas
         const view = held(actor);
         if (deadIn(view, pending) && !view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
-        return roomOf(t) === room;
+        if (roomOf(t) !== room || counted.has(actor.id)) return false;
+        counted.add(actor.id);
+        return true;
     });
 }
 

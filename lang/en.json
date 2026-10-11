@@ -2377,7 +2377,8 @@
     },
     "Movement": {
       "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
-      "outsideRooms": "outside the rooms"
+      "outsideRooms": "outside the rooms",
+      "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",

@@ -689,7 +689,7 @@ async function judgePendingMurders(id, taken = new Map()) {
     if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
 
-    const { othersInNamedRoom, locateActor } = await import("./movement.mjs");
+    const { othersInNamedRoom, locateActor, lawfulRoomOf } = await import("./movement.mjs");
     const { openMurder, murderState } = await import("./murder.mjs");
     const { whisperToOwner, whisperToGms } = await import("./utils.mjs");
 
@@ -704,11 +704,15 @@ async function judgePendingMurders(id, taken = new Map()) {
         /* Where the killer stands and who stands with them, on the killer's own scene (E12 C3,
            11.10.2026; audit S10-14): `roomOfActor` and `othersInRoom` read the canvas until then,
            so the primary GM looking at another scene at the end of the Eclipse judged a murder in
-           a room of three as one with nobody there (scenario 66 F2). One placing for both. */
+           a room of three as one with nobody there (scenario 66 F2). One placing for both. And each
+           witness counted where the witness judge lets them count (E12 fix r2-H3; goal review N5, the
+           owner's Q3 a): a student a console put in the room past the rules cancels no murder there.
+           Where the primary ends the Eclipse: the judge's record is the primary's alone, so a co-GM who
+           ends it reads every student where they stand, as before (read in the code; not driven). */
         const parked = all[killerId];
         const where = locateActor(killer);
         const room = where?.room ?? parked.room;
-        const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene) : [];
+        const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene, lawfulRoomOf) : [];
 
         // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
         // actor and their player at the moment the lights judged them.

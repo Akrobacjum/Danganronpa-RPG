@@ -47922,6 +47922,7 @@ const SCENARIOS = [
          * clock out of a trial and an Eclipse, the cost on; restore() puts them back and the notices. Red
          * before C12: no `judgeArrival`.
          */
+        needs(env.primaryGm(), "the witness judge records and tells on the primary GM alone (`judgeArrival`, `tellUnlawful`)");
         const M = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
         const { witnessesOf } = await import("./chapter.mjs");
@@ -47983,12 +47984,18 @@ const SCENARIOS = [
          * (`judgeArrival`). Here the killer and the victim are stood alone in a room and fight, the room
          * is locked, and a third student who is not the Mastermind is put in it by an update marked as a
          * player's send-back to a spot it never stood on: it walks in on nothing and stands unlawfully.
+         * A spot it never stood on in the last minute (E12 fix r2-H3, 11.10.2026): the room's centre was
+         * one, and the whole suite at 8109466 (k2) read the third lawful there - in the suite's order the
+         * third had stood on the Hall's centre 40.5 s before (a probe of the nineteen tests before this
+         * one in the suite's order, on the harness), and a send-back to where a token stood a moment ago is honoured as the judge
+         * left it there (`judgeArrival`). The code was right; the spot is now off the centre and checked.
          * Then this GM moves it a pixel inside the room: lawful, and it walks in. Read: the incident's
          * third after each, and the standing the primary read. Tokens, the lock and the clock put back;
          * the incident by restore(). Red before C12: the third walked in on the send-back.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         needs(world.atLeast("studentTokensOnScreen", 3), "the three are stood in rooms by their tokens");
+        needs(env.primaryGm(), "the witness judge and the third party are the primary GM's (`judgeArrival`, `maybeThirdParty`)");
         const M = await import("./murder.mjs");
         const MV = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
@@ -48010,7 +48017,10 @@ const SCENARIOS = [
         try {
             await fightOpen(M, killer, victim);
             for (const [piece] of pieces) await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, true);
-            const spot = MV.positionIn(room, thirdToken);
+            const centre = MV.positionIn(room, thirdToken);
+            const spot = { x: centre.x + 37, y: centre.y + 23 };
+            must(!MV.recentPositions(thirdToken.id).some(h => h.x === spot.x && h.y === spot.y),
+                `${third.name} stood on the spot a moment ago - the send-back would be honoured and this would measure nothing`);
             await thirdToken.update(spot, { ...PLACE, [MV.REVERT]: true, [MV.SENT_BACK]: true });
             await settle();
             await wait(400);
@@ -49271,6 +49281,170 @@ const SCENARIOS = [
             "Room Setup over a Hall, a Teleport Lift, and a Gate and a Porch nobody decided, Apply with the three typed in the Hall's Neighbours, the "
                 + "Gate's room box cleared and the Porch's ticked ([the list on the Hall's piece, the warnings naming the Gate, the Lift or the Porch, "
                 + "whether the Gate and the Porch are rooms])");
+    }],
+
+    ["a token a player drops is judged from where the student last stood on the scene, and two tokens of one student are one witness", async () => {
+        /*
+         * E12 fix r2-H3, 11.10.2026; security review r2 SEC2-1 (confirmed by running there), the fix list's
+         * decision. A token a player dropped had no standing and was judged from nowhere (`judgeArrival` from
+         * no room): lawful in any room no lock, seal or bedroom shuts, however far from where the student
+         * stood; and `witnessesOf` (chapter.mjs) counted tokens, so one student's two tokens in a room were two
+         * witnesses. Here, on a plain scene of a Hall, a Den beside it and a Far room beside the Den alone
+         * (each with its Neighbours list; the scene lists no tokens, as though the student's were deleted), a
+         * living student who is not the Mastermind is placed in the Hall by this GM; a player then drops a
+         * token of that student in the Far room and another in the Hall, as `noteGmCreated` is handed a drop,
+         * and a token of a second student, never seen on the scene, in the Far room. Read: whether each drop
+         * stands lawfully and the room it counts in; `witnessesOf` in the Far room over the first drop and in
+         * the Hall over the placed token and the second drop (through `lawfulRoomOf`); and the GMs' notices
+         * naming each drop - unlawful, and placed from nowhere. The movement cost on, the clock out of a trial
+         * and an Eclipse; restore() puts them back and the notices. Red before this fix: the Far drop lawful,
+         * two witnesses in the Hall, no notice of the drop from nowhere.
+         */
+        needs(env.primaryGm(), "the witness judge records and tells on the primary GM alone (`judgeArrival`, `tellUnlawful`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [actor, stranger] = cast(3).filter(a => !isMastermind(a));
+        must(actor && stranger, "no two living students who are not the Mastermind - this would measure nothing");
+        const player = game.users.find(u => !u.isGM)?.id ?? null;
+        must(player, "no player account - a player's drop cannot be told from a GM's");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const region = (name, x, next) => ({ id: name, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, [M.ROOM_FLAGS.neighbours]: next }[key] : undefined) });
+        const id = foundry.utils.randomID(6);
+        const scene = { id: `suite-e12-h3-${id}`, name: "SUITE E12 fix r2-H3", grid: { size: 100 },
+            regions: new Set([region("Hall", 0, "Den"), region("Den", 500, "Hall,Far"), region("Far", 1000, "Den")]) };
+        const token = (name, of, x) => ({ id: `suite-e12-h3-${name}-${id}`, name: of.name, x, y: 100, width: 1, height: 1, elevation: 0,
+            parent: scene, actor: of, actorId: of.id });
+        const placed = token("placed", actor, 100), far = token("far", actor, 1100), beside = token("beside", actor, 150), stray = token("stray", stranger, 1150);
+        const notices = (kind, t) => game.messages.filter(m => String(contentOf(m) ?? "").includes(`data-drpg-${kind}="${t.id}"`)).length;
+        // At the parent `noteGmCreated` was not exported; on the primary it handed the drop to `judgeArrival` as it is here.
+        const drop = typeof M.noteGmCreated === "function" ? M.noteGmCreated : (t, user) => M.judgeArrival(t, user);
+        M.judgeArrival(placed, game.user.id);
+        const read = [far, beside, stray].map(t => {
+            drop(t, player);
+            return [M.standingOf(t)?.lawful ?? null, M.lawfulRoomOf(t)];
+        });
+        const count = (room, tokens) => witnessesOf({ tokens, room, students: new Set([actor.id, stranger.id]), roomOf: M.lawfulRoomOf }).length;
+        read.push([count("Far", [far]), count("Hall", [placed, beside])]);
+        await until(() => notices("unlawful", far) >= 1 && notices("dropped", stray) >= 1, 3000);
+        await settle();
+        const told = [notices("unlawful", far), notices("unlawful", beside) + notices("dropped", beside), notices("unlawful", stray), notices("dropped", stray)];
+        equal(stableJson([read, told]), stableJson([[[false, null], [true, "Hall"], [true, "Far"], [0, 1]], [1, 0, 0, 1]]),
+            "[[lawful, the room it counts in] of a player's drop of the student placed in the Hall, in the Far room, in the Hall beside the placed token, "
+                + "and of a second student never seen on the scene, in the Far room; [the witnesses in the Far room over the first drop, in the Hall over "
+                + "the placed token and the second drop]]; [the GMs' notices of the Far drop unlawful, of the Hall drop, of the second student's drop "
+                + "unlawful, of it placed from nowhere]");
+    }],
+
+    ["a student a send-back put in a room past the rules keeps no trap for somebody alone quiet and is nobody at the lights", async () => {
+        /*
+         * E12 fix r2-H3, 11.10.2026; security review r2 SEC2-7, goal review N5, the owner's Q3 a, the fix list.
+         * The witness judge kept an unlawful student out of the discovery and the third party only: a trap's
+         * "alone" (traps.mjs `isAlone`) and the Eclipse's verdict on a declared murder (eclipse.mjs
+         * `judgePendingMurders`) counted every token in the room. Here a student and another who is not the
+         * Mastermind are stood alone in a room by this GM; the other is moved by this GM to another room, the
+         * room is locked, and the other is put back in it by an update marked as a player's send-back
+         * (`SENT_BACK`) to a spot it never stood on - unlawful there; the lock is lifted again (the standing
+         * stays until the token moves; a first draft looked for a room the neighbours shut instead, and the
+         * harness's seeded scene has none into the Hall). A third student builds an "alone" trap in
+         * the room and the first crosses into it as the GM's own browser raises the crossing; then an Eclipse
+         * opens, the first declares a murder in the room and the Eclipse ends, the GM's question at the lights
+         * answered no. Read: the other's standing and room, whether the trap spoke, whether the GM was asked
+         * about a murder, and whether the GMs were told it came to nothing with nobody there. The lights'
+         * `present` is also whom the murder falls on, so a student standing unlawfully is not its victim
+         * either (the fix list: presence read through the standing). Red before this fix: the trap quiet and
+         * a murder of the other asked about.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "the student and another are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        needs(env.primaryGm(), "the witness judge, the traps and the lights are the primary GM's");
+        const Mv = await import("./movement.mjs");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const T = await import("./traps.mjs");
+        const Ev = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const pool = cast(3);
+        const other = pool.find(a => !isMastermind(a)) ?? null;
+        const [student, builder] = pool.filter(a => a !== other);
+        must(other && student && builder, "no living student who is not the Mastermind - the judge binds nobody here, this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const home = canvas?.scene ?? null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stood = await aloneTogether(student, other);
+        const theirs = home.tokens.find(t => t.actorId === other.id), mine = home.tokens.find(t => t.actorId === student.id);
+        const away = Mv.allRooms(home).find(r => r !== stood.room) ?? null;
+        const pieces = R.roomRegions(home, stood.room).map(r => [r, r.getFlag(MODULE_ID, Mv.ROOM_FLAGS.locked)]);
+        const unlock = async () => {
+            for (const [piece, old] of pieces) {
+                if (old === undefined || old === null) await piece.unsetFlag(MODULE_ID, Mv.ROOM_FLAGS.locked);
+                else await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, old);
+            }
+        };
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let made = null, read = null;
+        try {
+            must(away, `no second room on the scene on screen - this would measure nothing`);
+            await theirs.update(Mv.positionIn(away, theirs), PLACE);
+            for (const [piece] of pieces) await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, true);
+            await settle();
+            const centre = Mv.positionIn(stood.room, theirs);
+            const spot = { x: centre.x + 37, y: centre.y + 23 };
+            must(!Mv.recentPositions(theirs.id).some(h => h.x === spot.x && h.y === spot.y),
+                `${other.name} stood on the spot a moment ago - the send-back would be honoured and this would measure nothing`);
+            await theirs.update(spot, { ...PLACE, [Mv.REVERT]: true, [Mv.SENT_BACK]: true });
+            await settle();
+            const standing = [Mv.roomOfToken(theirs), Mv.standingOf(theirs)?.lawful ?? null];
+            await unlock();
+            made = await P.createProject({ name: "SUITE r2-H3 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            must(made?.id && T.diagnoseTraps().armed === 1, "the trap is not watching - this would measure nothing");
+            const count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: mine });
+            const spoke = await until(() => game.messages.size > count, 3000);
+            await P.deleteProject(made.id);
+            made = null;
+            T.forgetArmedTraps();
+            const asked = [];
+            D.confirm = async config => { asked.push(config?.window?.title ?? null); return false; };
+            const from = game.messages.size;
+            await Ev.startEclipse();
+            await settle();
+            must(Ev.isEclipse(), "the Eclipse did not open");
+            await Ev.parkDirectMurder({ killerId: student.id, room: stood.room, note: "SUITE E12 fix r2-H3 declared in the dark" });
+            await Ev.endEclipse({ advance: false });
+            await settle();
+            const nobody = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name),
+                room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
+            read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own);
+            else delete D.confirm;
+            await unlock();
+            if (Ev.isEclipse()) await Ev.endEclipse({ advance: false }).catch(() => {});
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([[stood.room, false], true, 0, true]),
+            `[[the room ${other.name} stands in, lawfully] after a send-back from ${away} into ${stood.room} locked; whether the "alone" trap there spoke for `
+                + `${student.name}'s crossing; how often the GM was asked about a murder at the lights; whether the GMs were told it came to nothing with nobody there]`);
     }],
     ...GRID
 ];
