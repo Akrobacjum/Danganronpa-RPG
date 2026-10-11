@@ -1860,14 +1860,17 @@ const REGRESSIONS = [
         const claim = open.indexOf("bedroomClaimedTwice(");
         const write = open.indexOf("applyDiscoveryChanges(scene");
         ok(claim > 0 && write > claim, "the fog is written before the one-bedroom check can refuse the Apply");
-        ok(/action:\s*"discoverAll",\s*type:\s*"button"/.test(open)
-            && /action:\s*"hideAll",\s*type:\s*"button"/.test(open),
-            "Discover all / Hide all submit the window again, which throws away the other tabs' edits");
-        // `type: "button"` is not enough on its own: DialogV2 makes every entry in
-        // `buttons` an action, so the click has to stop before the window hears it.
-        const bulk = bodyOf(vault, "function wireFogButtons(", { until: "function wireTwoRoomsCheck(" });
-        ok(/stopPropagation\(\)/.test(bulk),
-            "Discover all / Hide all let the click reach DialogV2, which closes the window on it");
+        /* E12 C15 (audit S08-26): the two buttons left the footer, where showing them on the Fog
+           tab alone moved Apply, for the top of the Fog tab's matrix. So they must be no entry of
+           DialogV2's `buttons` (every entry there is an action, whatever its `type`, and the
+           window closed on the click until ROOM-03's review stopped it) and carry no `data-action`
+           the window's own click handling would hear, and `type="button"` keeps the form from
+           being submitted. */
+        const content = bodyOf(vault, "function roomSetupContent(", { until: "function readRoomSetupForm(" });
+        const bulk = [...content.matchAll(/<button\b[^>]*data-drpg-fog-all[^>]*>/g)].map(m => m[0]);
+        ok(!/action:\s*"(?:discoverAll|hideAll)"/.test(open) && bulk.length === 2
+            && bulk.every(tag => /type="button"/.test(tag) && !/data-action/.test(tag)),
+            "Discover all / Hide all are DialogV2 buttons again, or would submit the window, which throws away the other tabs' edits");
     }],
 
     ["R32 - the case dashboard saves the rows on screen, and a plan row only when it was edited", async () => {

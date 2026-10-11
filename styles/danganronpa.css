@@ -3798,13 +3798,15 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    button cycles the three states that actually exist. */
 .drpg-stash-cell {
     text-align: center;
-    width: 7ch;
 }
 
-/* The bedroom owner's column, so a GM can see which stash appeared by itself
-   when they assigned the room rather than by their own hand. */
-.drpg-stash-cell.drpg-stash-bedroom {
-    background: rgba(var(--drpg-bone-rgb), 0.05);
+/* The bedroom owner's cell, so a GM can see which stash appeared by itself
+   when they assigned the room rather than by their own hand. The swatch is the
+   legend's (E12 C15). 0.05 of bone was all but invisible in the audit's
+   screenshot (S12-23); 0.14 is a choice, not a reading - LIVE-E12-06 looks. */
+.drpg-stash-cell.drpg-stash-bedroom,
+.drpg-stash-swatch {
+    background: rgba(var(--drpg-bone-rgb), 0.14);
 }
 
 .drpg-stash-toggle {
@@ -3833,8 +3835,137 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     opacity: 0.85;
 }
 
+/* 0.35 read as an empty cell with nothing in it at all (S12-23); 0.7 is a
+   choice, not a reading, as the shading above. */
 .drpg-stash-none {
-    opacity: 0.35;
+    opacity: 0.7;
+}
+
+/* ---- Room Setup's tables (E12 C15, audit S08-26 and S12-23) ---------------
+   FIXED COLUMNS. Every table of the window states its columns (`<col>`, one
+   class a kind of cell: `roomSetupColumns` in vault.mjs) and is laid out
+   fixed, so a column is as wide as its kind says and not as its content
+   happens to push it. `width: 1px` is what lets the table be as wide as its
+   columns and no wider: a fixed table is the larger of its stated width and
+   the sum of its columns (CSS 2.1, 17.5.2.1; read in the specification, not
+   measured here - the harness lays nothing out), so the window is fitted to
+   the widest tab (`fitWindowToTabs`) and a narrower tab leaves the rest of
+   the line empty instead of stretching its columns over it. `!important`
+   because the dialog-table rule above (`width: max-content; min-width: 100%;
+   table-layout: auto`) is the one it has to beat, for the reason written on
+   `.drpg-room-check-table`.
+
+   The widths are the audit's (a Room column of about 220 px) and choices for
+   the rest, one width a kind, not readings: LIVE-E12-06 is Room Setup at a
+   desk and on a narrow screen. Every column needs one - a fixed table of
+   width 1px gives a column without a width nothing. */
+.drpg-room-setup-table {
+    table-layout: fixed !important;
+    width: 1px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+.drpg-room-setup-table .drpg-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table :is(.drpg-col-check, .drpg-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-step { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-prose { width: calc(560px * var(--drpg-legacy-scale, 1)); }
+
+/* A room's name wraps inside its 220 px rather than running under the next
+   column: the dialog-table rule keeps every cell on one line, and a fixed
+   column does not grow to hold it. */
+.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table td:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.drpg-room-setup-table input[type="text"] {
+    width: 100%;
+}
+
+/* A student's name on one line, centred, cut where the column ends; the
+   whole name is the heading's title (`studentHeads`). */
+.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table thead th.drpg-student-head {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/* The search-token counter's four pieces in one row. The buttons are flex
+   items here, so Foundry's block-level button cannot take a line of its own. */
+.drpg-token-step {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+}
+.drpg-token-step > * {
+    flex: none;
+}
+
+/* The place switches of a row, as many to a line as the column holds. */
+.drpg-place-switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+/* `!important` against any rule that draws a checkbox: these two are the
+   form's values, the button beside them is what the GM sees. */
+.drpg-place-box {
+    display: none !important;
+}
+.drpg-place-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    padding: 1px 6px;
+    background: none;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
+    border-radius: 3px;
+    color: var(--drpg-bone);
+    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    white-space: nowrap;
+    cursor: pointer;
+}
+/* The state's colour is this theme's; Stained Glass draws every button of a
+   panel with its own brush, and there the glyph (a circle, a thumb up, a
+   thumb down) is what tells the three apart. */
+.drpg-place-toggle[data-drpg-place=""] {
+    opacity: 0.7;
+}
+.drpg-place-toggle[data-drpg-place="good"] {
+    border-color: rgba(var(--drpg-bone-rgb), 0.8);
+    background: rgba(var(--drpg-bone-rgb), 0.16);
+}
+.drpg-place-toggle[data-drpg-place="bad"] {
+    border-color: rgba(var(--drpg-eye-rgb), 0.8);
+    background: rgba(var(--drpg-eye-rgb), 0.2);
+}
+
+/* The legend over the Stashes matrix and the bulk buttons over the Fog one. */
+.drpg-stash-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+.drpg-stash-swatch {
+    display: inline-block;
+    width: 1.2em;
+    height: 1em;
+    vertical-align: middle;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
+}
+.drpg-fog-bulk {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0;
+}
+.drpg-fog-bulk > button {
+    flex: none;
+    width: auto;
 }
 
 .drpg-room-check-table td:first-child { width: 2.5ch; }
@@ -11811,8 +11942,9 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     overflow-wrap: anywhere;
 }
 
-/* The search-token counter in Room Setup: a number, then three small controls
-   that act at once. `white-space: nowrap` keeps "2 / 3" from breaking across
+/* The search-token counter in Room Setup: a minus, the number, a plus and a
+   refill, the controls acting at once (in one row since E12 C15: see
+   `.drpg-token-step`). `white-space: nowrap` keeps "2 / 3" from breaking across
    two lines when the table is narrow - the count and its cap are one value. */
 .drpg-token-cell {
     white-space: nowrap;

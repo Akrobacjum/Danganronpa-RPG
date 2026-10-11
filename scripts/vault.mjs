@@ -1969,9 +1969,15 @@ function fogMatrixRows(rooms, students, known) {
     }).join("");
 }
 
-/** One column heading per student, for the two matrices. */
+/* One column heading per student, for the two matrices. On one line and cut with an ellipsis
+   where the column ends, the whole name in the title (E12 C15, audit S12-23): the audit read the
+   student columns at 52-79 px beside a 1030 px Room column, and the names broke over two and three
+   lines, each aligned differently. */
 function studentHeads(students) {
-    return students.map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`).join("");
+    return students.map(a => {
+        const name = foundry.utils.escapeHTML(a.name);
+        return `<th class="drpg-student-head" title="${name}">${name}</th>`;
+    }).join("");
 }
 
 /*
@@ -2004,14 +2010,44 @@ function stashGlyph(state) {
     return STASH_GLYPHS[state] ?? STASH_GLYPHS[""];
 }
 
+/* The three states a stash cell cycles, drawn with the cells' own glyphs above the table (E12 C15,
+   audit S12-23: the icons had no legend, and the dash of an empty cell was all but invisible). */
+function stashLegend() {
+    const STATES = [["", "DRPG.Vault.stashNone"], ["open", "DRPG.Vault.stashOpen"], ["hidden", "DRPG.Vault.stashHidden"]];
+    return `<p class="drpg-stash-legend" data-drpg-stash-legend>${STATES.map(([state, key]) =>
+        `<span data-drpg-stash-state="${state}">${stashGlyph(state)} ${game.i18n.localize(key)}</span>`).join("")
+    }<span><span class="drpg-stash-swatch"></span> ${game.i18n.localize("DRPG.Vault.stashOwnBedroom")}</span></p>`;
+}
+
+/*
+ * A room's place for one category: neither, good or bad (E12 C15) - see `placeSwitches` in
+ * `roomCells`. The button says its state three ways, because each reader needs a different one:
+ * the glyph and the colour for the eye, the words in its accessible name for a screen reader, and
+ * `data-drpg-place` for the click that moves it on.
+ */
+const PLACE_STATES = {
+    "": { glyph: "fa-regular fa-circle", key: "DRPG.Vault.placeNeither" },
+    good: { glyph: "fa-solid fa-thumbs-up", key: "DRPG.Vault.favours" },
+    bad: { glyph: "fa-solid fa-thumbs-down", key: "DRPG.Vault.hinders" }
+};
+
+function placeToggle(state, label) {
+    const { glyph, key } = PLACE_STATES[state] ?? PLACE_STATES[""];
+    const name = foundry.utils.escapeHTML(label);
+    return `<button type="button" class="drpg-place-toggle" data-drpg-place="${state}" data-drpg-label="${name}"
+        aria-label="${name}: ${foundry.utils.escapeHTML(game.i18n.localize(key))}"
+        title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.placeCycle"))}"><i class="${glyph}"></i> ${name}</button>`;
+}
+
 function stashMatrixRows(rooms, students, scene) {
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
         const bedroomOwner = vaultOwnerOf(room, scene);
         const cells = students.map(actor => {
             const state = stashState(room, actor.id, scene);
-            // The bedroom owner's column is shaded so a GM can see at a glance
-            // which stash appeared by itself when they assigned the room.
+            // The bedroom owner's CELL is shaded - one per bedroom row, not a column -
+            // so a GM can see at a glance which stash appeared by itself when they
+            // assigned the room (the legend above the table says so, E12 C15).
             const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
             return `<td class="drpg-stash-cell${own}">
                 <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" />
@@ -2051,13 +2087,25 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const tableOptions = tables.map(t =>
             `<option value="${foundry.utils.escapeHTML(t)}"${t === table ? " selected" : ""}>${
                 foundry.utils.escapeHTML(t)}</option>`).join("");
-        // The same set of category boxes twice, under two prefixes: `fav` for
-        // the advantage column, `hin` for the disadvantage one. The render
-        // hook below keeps one category from being ticked in both.
-        const categoryBoxes = (prefix, ticked) => categories.map(([key, cat]) =>
-            `<label class="drpg-inline-check"><input type="checkbox"
-                name="${prefix}:${escRoom}:${key}" ${ticked.includes(key) ? "checked" : ""} />${
-                foundry.utils.escapeHTML(cat.label)}</label>`).join(" ");
+        /*
+         * ONE SWITCH A CATEGORY, THREE STATES (E12 C15, audit S08-26). This was the same set of
+         * category boxes twice, in a "Good place" and a "Bad place" column, so a category could be
+         * ticked as both and a render hook had to untick the other side. Now one button a category
+         * cycles neither -> good -> bad, as a stash cell cycles its three states. The two boxes are
+         * still in the cell, hidden, under the names Apply has always read (`fav:` and `hin:`); the
+         * button ticks at most one of them, so the form posts the same names and values as before
+         * and `readRoomSetupForm` is unchanged. A stored row holding a category in both lists is
+         * drawn as good, which is what Apply's own filter has always kept of it.
+         */
+        const placeSwitches = categories.map(([key, cat]) => {
+            const state = favours.includes(key) ? "good" : hinders.includes(key) ? "bad" : "";
+            return `<span class="drpg-place-switch">
+                <input type="checkbox" hidden class="drpg-place-box" name="fav:${escRoom}:${key}"${
+                    state === "good" ? " checked" : ""} />
+                <input type="checkbox" hidden class="drpg-place-box" name="hin:${escRoom}:${key}"${
+                    state === "bad" ? " checked" : ""} />
+                ${placeToggle(state, cat.label)}</span>`;
+        }).join("");
 
         /* A NAME A SCREEN READER CAN SAY (21.09). A control in a table row is named by
            its column header only for the eye; 1.2.47's a11y sweep found these with no
@@ -2110,23 +2158,28 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                 value="${foundry.utils.escapeHTML(neighboursWritten(pieces))}"
                 placeholder="${foundry.utils.escapeHTML(neighbouringRooms(scene, room).join(", "))}"
                 title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursHint"))}" /></td>`,
-            tokens: `<td class="drpg-token-cell" style="text-align:center">
-                <span data-drpg-tokens="${escRoom}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
+            /* [-] 2 / 3 [+] [refill] on one line (E12 C15, audit S08-26): the count between the two
+               buttons that move it, and all four in one inline row. A button is a block in
+               Foundry's own sheet, so the three of them stood one under another after the count
+               and a room's row was about 128 px tall in the audit's screenshot - 2200 px of
+               scrolling for 17 rooms. */
+            tokens: `<td class="drpg-token-cell" style="text-align:center"><span class="drpg-token-step">
                 <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="-1" title="${
                         game.i18n.localize("DRPG.SearchTokens.spendOne")}">−</button>
+                <span class="drpg-token-count"><span data-drpg-tokens="${escRoom}">${
+                    SearchTokens.left(room, scene)}</span> / ${maxTokens}</span>
                 <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="1" title="${
                         game.i18n.localize("DRPG.SearchTokens.giveOne")}">+</button>
                 <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="max" title="${
                         game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
-            </td>`,
+            </span></td>`,
             table: `<td><select name="table:${escRoom}"${named("table")}>
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>`,
-            favours: `<td>${categoryBoxes("fav", favours)}</td>`,
-            hinders: `<td>${categoryBoxes("hin", hinders)}</td>`,
+            place: `<td><span class="drpg-place-switches">${placeSwitches}</span></td>`,
             // A textarea, not an input: these are sentences. The cell escapes
             // the wrapping-cell rule the rest of this table lives under - see
             // the `:has(input[type="text"], textarea)` exception in the
@@ -2148,13 +2201,42 @@ const ROOM_SETUP_TABS = [
     ["fog", "DRPG.Vault.tabFog"]
 ];
 
+/*
+ * FIXED COLUMNS, ONE WIDTH A KIND OF CELL (E12 C15, audit S08-26 and S12-23).
+ *
+ * The tables were laid out by their content, so the audit read the checkbox columns of Doors and
+ * Fog at anything from 190 to 460 px in a 1400 px window that was mostly empty, a Room column of
+ * 1030 px on Stashes beside student columns of 52-79 px, and a different width for the same kind
+ * of column on every tab. Each table now states its columns with a `<col>` per column, the room
+ * first, and the stylesheet gives each kind one width (`.drpg-col-*`, `table-layout: fixed`), so
+ * the column of a checkbox is as wide on Doors as on Rests and every student's column on Stashes is
+ * as wide as on Fog. What a column holds is the key below; the student matrices are "student".
+ */
+const ROOM_SETUP_COLUMN = {
+    owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
+    neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
+    short: "check", long: "check", description: "prose"
+};
+
+function roomSetupColumns(kinds) {
+    return `<colgroup><col class="drpg-col-room" />${
+        kinds.map(kind => `<col class="drpg-col-${kind}" />`).join("")}</colgroup>`;
+}
+
 /** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
 function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens }) {
     const th = key => `<th>${game.i18n.localize(key)}</th>`;
-    const tableFor = (heads, cols) => `<table class="drpg-vault-table"><thead><tr>${
+    const TABLE = "drpg-vault-table drpg-room-setup-table";
+    const tableFor = (heads, cols) => `<table class="${TABLE}">${
+        roomSetupColumns(cols.map(k => ROOM_SETUP_COLUMN[k]))}<thead><tr>${
         th("DRPG.Vault.room")}${heads.join("")}</tr></thead><tbody>${
         cells.map(c => `<tr>${c.name}${cols.map(k => c[k]).join("")}</tr>`).join("")
     }</tbody></table>`;
+    const matrix = rows => `<table class="${TABLE}">${
+        roomSetupColumns(students.map(() => "student"))}<thead><tr>
+            <th>${game.i18n.localize("DRPG.Vault.room")}</th>
+            ${studentHeads(students)}
+        </tr></thead><tbody>${rows}</tbody></table>`;
 
     const nav = ROOM_SETUP_TABS.map(([key, label]) =>
         `<button type="button" class="drpg-dashboard-tab${key === initial ? " active" : ""}"
@@ -2187,8 +2269,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                 <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
                 ${tableFor([
                     th("DRPG.SearchTokens.sealedColumn"), th("DRPG.SearchTokens.title"),
-                    th("DRPG.Vault.table"), th("DRPG.Vault.favours"), th("DRPG.Vault.hinders")
-                ], ["nosearch", "tokens", "table", "favours", "hinders"])}
+                    th("DRPG.Vault.table"), th("DRPG.Vault.placeColumn")
+                ], ["nosearch", "tokens", "table", "place"])}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
                 <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
                     { max: maxTokens })}</p>
@@ -2203,10 +2285,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
             ${panel("stashes", `
                 <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
-                <table class="drpg-vault-table"><thead><tr>
-                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                    ${studentHeads(students)}
-                </tr></thead><tbody>${stashRows}</tbody></table>
+                ${stashLegend()}
+                ${matrix(stashRows)}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
             `)}
 
@@ -2220,10 +2300,13 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                 <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
                 ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
                     { pct: uncovered })}</p>` : ""}
-                <table class="drpg-vault-table"><thead><tr>
-                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                    ${studentHeads(students)}
-                </tr></thead><tbody>${fogRows}</tbody></table>
+                <div class="drpg-fog-bulk">
+                    <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover">${
+                        game.i18n.localize("DRPG.Vault.discoverAll")}</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-fog-all="hide">${
+                        game.i18n.localize("DRPG.Vault.hideAll")}</button>
+                </div>
+                ${matrix(fogRows)}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
             `)}
         </form>`);
@@ -2251,8 +2334,8 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         favours: categories
             .map(([key]) => key)
             .filter(key => pick(`fav:${room}:${key}`)?.checked),
-        // The render hook keeps the two columns exclusive in
-        // the UI; the filter repeats it here so a row somebody
+        // The place switch ticks at most one of the two boxes
+        // (E12 C15); the filter repeats it here so a row somebody
         // edited by other means still cannot say both.
         hinders: categories
             .map(([key]) => key)
@@ -2372,19 +2455,31 @@ function wireStashCells(root) {
     }
 }
 
-// A room cannot favour and hinder the same category. Ticking one
-// side clears the other quietly - refusing at Apply instead would
-// send the GM hunting through checkboxes for the contradiction.
-// The room name may itself contain ":", so the category is read
-// from the LAST segment and the room is everything between.
-function wireFavourExclusion(root) {
-    root.querySelector("form")?.addEventListener("change", ev => {
-        const m = ev.target?.name?.match(/^(fav|hin):(.+):([^:]+)$/);
-        if (!m || !ev.target.checked) return;
-        const twin = root.querySelector(`[name="${
-            CSS.escape(`${m[1] === "fav" ? "hin" : "fav"}:${m[2]}:${m[3]}`)}"]`);
-        if (twin) twin.checked = false;
-    });
+/*
+ * Cycle a place switch: neither -> good -> bad -> neither (E12 C15).
+ *
+ * A room cannot favour and hinder the same category, and with one switch it
+ * cannot be asked to: each state ticks at most one of the cell's two hidden
+ * boxes. This replaced a change listener that unticked the other column's box
+ * when one was ticked. The boxes are the truth and the button follows them,
+ * as in `wireStashCells` above.
+ */
+function wirePlaceSwitches(root) {
+    const NEXT = { "": "good", good: "bad", bad: "" };
+    for (const button of root.querySelectorAll("[data-drpg-place]")) {
+        button.addEventListener("click", ev => {
+            ev.preventDefault();
+            const [fav, hin] = button.parentElement?.querySelectorAll("input.drpg-place-box") ?? [];
+            if (!fav || !hin) return;
+            const state = NEXT[fav.checked ? "good" : hin.checked ? "bad" : ""];
+            fav.checked = state === "good";
+            hin.checked = state === "bad";
+            const { glyph, key } = PLACE_STATES[state];
+            button.dataset.drpgPlace = state;
+            button.querySelector("i")?.setAttribute("class", glyph);
+            button.setAttribute("aria-label", `${button.dataset.drpgLabel}: ${game.i18n.localize(key)}`);
+        });
+    }
 }
 
 // The search-token controls act AT ONCE and recount in place.
@@ -2418,35 +2513,27 @@ function wireTokenButtons(root, scene, recount) {
  * They used to be submit buttons that wrote the ledger and reopened the
  * window, which threw away every unapplied edit on the other six tabs - and
  * they sat in the footer of all of them, so "Hide all" pressed from Bedrooms
- * emptied the fog with no warning. Now they show on the Fog tab only and tick
- * its boxes; Apply or Cancel decides, like every other box in this window.
+ * emptied the fog with no warning. Since ROOM-03 they tick the Fog tab's boxes
+ * and Apply or Cancel decides, like every other box in this window.
  *
- * Answers the show/hide function, for the tab switch to call.
+ * ABOVE THE TABLE, NOT IN THE FOOTER (E12 C15, audit S08-26). They were footer
+ * buttons shown on the Fog tab only, and the footer centres its buttons, so
+ * switching to Fog moved Apply by about 270 px (the audit's reading) for two
+ * buttons that only tick boxes. They sit over the matrix they tick now, and
+ * the footer is Apply and Cancel on every tab. Not in DialogV2's `buttons`
+ * and with no `data-action`, so the window's own click handling never hears
+ * them, and `type="button"`, so the form is not submitted.
  */
-function wireFogButtons(root, initial) {
-    const fogButtons = ["discoverAll", "hideAll"]
-        .map(action => root.querySelector(`footer button[data-action="${action}"]`))
-        .filter(Boolean);
-    const showFogButtons = key => {
-        for (const button of fogButtons) button.style.display = key === "fog" ? "" : "none";
-    };
-    showFogButtons(initial);
-    for (const button of fogButtons) {
+function wireFogButtons(root) {
+    for (const button of root.querySelectorAll("[data-drpg-fog-all]")) {
         button.addEventListener("click", ev => {
-            // Both, and the second is the one that matters: DialogV2 turns
-            // every button in `buttons` into an action whatever its `type`,
-            // and the application's own click listener sits above this one.
-            // Without it the boxes ticked and the window closed anyway,
-            // with every edit on it (measured 17.09, review of ROOM-03).
             ev.preventDefault();
-            ev.stopPropagation();
-            const value = button.dataset.action === "discoverAll";
+            const value = button.dataset.drpgFogAll === "discover";
             for (const box of root.querySelectorAll('input[type="checkbox"][name^="fog:"]')) {
                 box.checked = value;
             }
         });
     }
-    return showFogButtons;
 }
 
 /*
@@ -2845,10 +2932,6 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
                 callback: (e, b, d) => readRoomSetupForm(d, { rooms, students, categories })
             },
-            // Not submit buttons, and shown on the Fog tab only - see
-            // `wireFogButtons` (ROOM-03).
-            { action: "discoverAll", type: "button", label: game.i18n.localize("DRPG.Vault.discoverAll") },
-            { action: "hideAll", type: "button", label: game.i18n.localize("DRPG.Vault.hideAll") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         render: (event, dialog) => {
@@ -2863,21 +2946,18 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             // The footer pin is a different question and does have to be
             // redone: each tab holds a different table, so whether this
             // window scrolls sideways changes with the tab, and a bar pinned
-            // for the Fog tab is wrong for Bedrooms (C-F5-8). The switch also
-            // shows Discover all / Hide all on the Fog tab and nowhere else.
-            const showFogButtons = wireFogButtons(root, initial);
+            // for the Fog tab is wrong for Bedrooms (C-F5-8). The footer's
+            // buttons themselves are Apply and Cancel on every tab (E12 C15).
+            wireFogButtons(root);
             wireDashboardTabs(root, {
-                onSwitch: key => {
-                    showFogButtons(key);
-                    requestAnimationFrame(() => pinFooterAcrossScroll(dialog));
-                }
+                onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
             });
             wireTwoRoomsCheck(root, rooms);
 
             const recount = where => recountTokenCells(where, scene);
 
             wireStashCells(root);
-            wireFavourExclusion(root);
+            wirePlaceSwitches(root);
             wireTokenButtons(root, scene, recount);
 
             /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.

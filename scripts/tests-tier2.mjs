@@ -48018,6 +48018,112 @@ const SCENARIOS = [
                 + "the same in an Eclipse]");
     }],
 
+    ["Room Setup draws fixed columns with its counter on one line and one switch a category and keeps its footer still", async () => {
+        /*
+         * E12 C15, 11.10.2026; audit S08-26 and S12-23 (plan-E12 C15). Room Setup's look, read off the window as
+         * it is drawn. The harness lays nothing out, so what is read here is what the look is built from, and what
+         * it looks like is LIVE-E12-06. One reading for each of the audit's harms: the search-token counter's three
+         * buttons stood one under another after the count, a room's row about 128 px tall - the order of the
+         * counter's pieces and whether one row holds them all; a category could be marked a good and a bad place
+         * at once, in two columns of boxes - whether each category is one switch and no box is left to tick, and
+         * what three clicks of one switch say; the tables were laid out by their content (checkbox columns of
+         * 190-460 px, a Room column of 1030 px) - whether every table is the fixed kind and states one column a
+         * heading; the student headings broke over two and three lines - whether each carries its whole name as
+         * its title; the stash icons had no legend - the states the legend shows; Discover all and Hide all, in
+         * the footer on the Fog tab only, moved Apply when the tab was opened - the footer's buttons on each tab,
+         * and whether the Fog tab's own two tick and clear its boxes with the window still open. Nothing is
+         * applied: the window is cancelled, and Room Setup writes on Apply only - but for the first room's refill,
+         * pressed to read the counter again after its live recount; it acts at once on the search-token setting,
+         * which the runner's restore puts back.
+         */
+        needs(env.dialogs(), "the window is drawn and its controls pressed");
+        needs(world.atLeast("namedRooms", 1), "Room Setup lists the named regions of the scene on screen");
+        cast(1);
+        const V = await import("./vault.mjs");
+        const drawn = () => [...foundry.applications.instances.values()]
+            .filter(app => app.rendered && app.element?.classList?.contains("drpg-window-rooms"));
+        must(!drawn().length, "a Room Setup window is open already, and a second is not drawn");
+        const answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(() => "threw");
+        let reading = null;
+        try {
+            must(await until(() => drawn().length === 1, 6000), "Room Setup drew no window");
+            await settle();
+            const root = drawn()[0].element;
+            const footers = {};
+            for (const tab of root.querySelectorAll("[data-drpg-tab]")) {
+                tab.click();
+                footers[tab.dataset.drpgTab] = [...root.querySelectorAll("footer.form-footer button")]
+                    .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
+            }
+            const cell = root.querySelector(".drpg-token-cell");
+            const counter = () => {
+                const pieces = [...(cell?.querySelectorAll("[data-drpg-token-by], [data-drpg-tokens]") ?? [])];
+                const step = cell?.querySelector(".drpg-token-step") ?? null;
+                return [pieces.map(piece => piece.dataset.drpgTokenBy ?? "count"), Boolean(step) && pieces.every(piece => step.contains(piece))];
+            };
+            const drawnFirst = counter();
+            // And once more after the refill, which acts at once and is counted again in place (`recountTokenCells`):
+            // the row is drawn by the window and rewritten by the count, and the count must leave it one row.
+            cell?.querySelector('[data-drpg-token-by="max"]')?.click();
+            await settle();
+            const recounted = counter();
+            const boxes = [...root.querySelectorAll('input[name^="fav:"], input[name^="hin:"]')];
+            const fav = boxes.find(box => box.name.startsWith("fav:")) ?? null;
+            const hin = fav ? root.querySelector(`[name="${CSS.escape(fav.name.replace(/^fav:/, "hin:"))}"]`) : null;
+            const toggle = fav?.parentElement?.querySelector("[data-drpg-place]") ?? null;
+            const state = () => [fav.checked && "good", hin.checked && "bad"].filter(Boolean).join("+") || "none";
+            let clicks = null;
+            if (toggle && hin) {
+                const was = state();
+                clicks = [];
+                for (let i = 0; i < 3; i++) {
+                    toggle.click();
+                    clicks.push(state());
+                }
+                clicks = [[...clicks].sort(), clicks[2] === was];
+            }
+            const tables = [...root.querySelectorAll("table.drpg-vault-table")];
+            const heads = [...root.querySelectorAll('[data-drpg-panel="stashes"] thead th, [data-drpg-panel="fog"] thead th')]
+                .filter(th => th.cellIndex > 0);
+            const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
+            const press = which => {
+                const button = root.querySelector(`[data-drpg-fog-all="${which}"]`);
+                if (!button) return null;
+                button.click();
+                return fogBoxes().map(box => box.checked);
+            };
+            const discovered = press("discover"), hidden = press("hide");
+            reading = {
+                footers,
+                counter: [drawnFirst, recounted],
+                place: [root.querySelectorAll("[data-drpg-place]").length * 2 === boxes.length && boxes.length > 0,
+                    boxes.filter(box => !box.hidden).length, clicks],
+                tables: tables.map(table => table.classList.contains("drpg-room-setup-table")
+                    && table.querySelectorAll("col").length === table.querySelectorAll("thead th").length),
+                heads: heads.length > 0 && heads.every(th => th.title === th.textContent.trim()),
+                legend: [...root.querySelectorAll("[data-drpg-stash-legend] [data-drpg-stash-state]")].map(entry => entry.dataset.drpgStashState),
+                fog: [fogBoxes().length > 0, discovered?.every(Boolean) ?? null, hidden?.every(on => !on) ?? null, drawn().length === 1]
+            };
+        } finally {
+            for (const app of drawn()) app.element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+            for (const app of drawn()) await app.close();
+        }
+        const both = ["ok", "cancel"];
+        equal(stableJson(reading), stableJson({
+            footers: Object.fromEntries(["bedrooms", "doors", "search", "rest", "stashes", "description", "fog"].map(tab => [tab, both])),
+            counter: [[["-1", "count", "1", "max"], true], [["-1", "count", "1", "max"], true]],
+            place: [true, 0, [["bad", "good", "none"], true]],
+            tables: Array(7).fill(true),
+            heads: true,
+            legend: ["", "open", "hidden"],
+            fog: [true, true, true, true]
+        }), "Room Setup as drawn: the footer's buttons on each tab; the counter's pieces in order and whether one row holds them, drawn and after a refill; "
+            + "whether each category is one switch with no box to tick, and three clicks of one (the states, and back where it began); "
+            + "whether each table is fixed with a column a heading; whether each student heading carries the whole name; the legend's states; "
+            + "and the Fog tab's own Discover all and Hide all (boxes there, all ticked, all cleared, the window still open)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID
