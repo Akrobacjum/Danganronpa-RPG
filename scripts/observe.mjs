@@ -195,7 +195,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
        about the OBSERVER's account, not `game.user`: this runs on the GM's
        client, where the ambient answer would be "in on all of them". */
     const secret = declaration === DECLARATIONS.nonObvious
-        ? pickHidden(await hiddenProjectsFor(actor, room))
+        ? pickHidden(await hiddenProjectsFor(actor, where))
         : null;
 
     if (!candidates.length) {
@@ -377,11 +377,11 @@ export async function pickFromCard({ rid, by, request = "" } = {}) {
  * THE OTHER THING IN THE ROOM - a secret project
  * ========================================================================== */
 
-/** The secret projects in this room that the observer's account is not in on. */
-async function hiddenProjectsFor(actor, room) {
+/** The secret projects where the observer stands (`locateActor`'s place: the room on its scene) that their account is not in on. */
+async function hiddenProjectsFor(actor, where) {
     try {
         const { secretsUnknownIn } = await import("./projects.mjs");
-        return secretsUnknownIn(room, ownerOf(actor));
+        return secretsUnknownIn(where, ownerOf(actor));
     } catch (err) {
         // A world with no projects, or a module half-loaded. Finding nothing is
         // the safe direction: it leaves Observe exactly as it was.

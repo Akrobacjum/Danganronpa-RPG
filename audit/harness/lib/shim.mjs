@@ -882,7 +882,18 @@ export function buildDocumentClasses(ctx) {
         get statuses() { return new Set(this._source.statuses ?? []); }
     }
     class RegionBehaviorImpl extends BaseDocument { static get documentName() { return "RegionBehavior"; } }
-    class WallImpl extends BaseDocument { static get documentName() { return "Wall"; } }
+    /* A wall's floors as a region's (E12 fix r2-S2, 11.10.2026): v14's typings give a wall `levels`, the ids of the
+       scene's levels it is part of (S/spike-iso/dl fvtt-types 14.366.0-beta, common/documents/wall.d.mts:315-317), and
+       every canvas document `includedInLevel` (client/documents/abstract/canvas-document.d.mts:61). Read in the
+       typings, not in v14's code; an empty set here is every floor, as for a region (LIVE-E12-02). */
+    class WallImpl extends BaseDocument {
+        static get documentName() { return "Wall"; }
+        get levels() { return new Set(this._source.levels ?? []); }
+        includedInLevel(level) {
+            const levels = this.levels;
+            return !levels.size || levels.has(level?.id ?? level);
+        }
+    }
     class SettingImpl extends BaseDocument { static get documentName() { return "Setting"; } }
 
     const classes = {

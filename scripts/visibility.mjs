@@ -204,7 +204,10 @@ function applyToToken(token) {
  * own floor since E12 C9) and the viewer's rooms are where their own tokens stand, by name: on a
  * floor the viewer looks at and does not stand on, every other player's token is hidden, as it is
  * in a room of their own floor they are not in - and one in a room the viewer stands in, a
- * stairwell drawn on both floors, is shown on each. Taken out of `applyToToken` so the verdict
+ * stairwell drawn on both floors, is shown on each - where the viewer's tokens are read at all:
+ * `myRooms` reads `canvas.tokens.placeables`, the whole scene in the harness, and v14's layer may
+ * hold only the floor on screen (LIVE-E12-02; E12 fix r2-S2, review EARLY-C11-1), stricter if so.
+ * Taken out of `applyToToken` so the verdict
  * can be read without a canvas (tier 2 "a room on another floor looks as it does on yours").
  */
 export function tokenShownTo(tokenDoc, viewer) {

@@ -1101,7 +1101,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const secretsOn = client => client.eval(`${TRAP} const s = P.secretsOf("${trap.id}");
         return { killerId: s.killerId ?? null, condition: s.condition ?? null, kind: s.trigger?.kind ?? null, armed: s.trigger?.armed ?? null,
             firedAt: s.trigger?.firedAt ?? null, inMeta: P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor("${trap.id}"), f)),
-            mapped: T.armedIn("${trap.room}").some(t => t.id === "${trap.id}") };`);
+            mapped: T.armedIn("${trap.room}", P.projectScene("${trap.id}")).some(t => t.id === "${trap.id}") };`);
     const onGm2P = await secretsOn(gm2), onGmP = await secretsOn(gm);
     check("P1: a GM who joined with an empty browser holds the trap's killer, condition and trigger, fired - and projectMeta holds none of the four",
         onGm2P.killerId === IDS.botan && onGm2P.condition === "E04 61G" && onGm2P.kind === "item" && onGm2P.firedAt !== null

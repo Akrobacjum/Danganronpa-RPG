@@ -2527,6 +2527,7 @@
       "room": "Pokój",
       "anyRoom": "- dowolny pokój -",
       "roomElsewhere": "{room} (obecnie na żadnej scenie)",
+      "roomOnNoScene": "Nie utworzono projektu: pokoju {room} nie ma teraz na żadnej scenie. Podaj pokój, który leży na jakiejś scenie, albo żaden.",
       "indirect": "Morderstwo pośrednie",
       "secret": "Tajny",
       "createTitle": "Utwórz projekt",

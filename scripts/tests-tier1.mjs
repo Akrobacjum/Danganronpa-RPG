@@ -6487,20 +6487,28 @@ const INVARIANTS = [
          * Pool under fog (never visited), each a flat polygon as `regionShapes` hands it - and doors
          * asked on their two sides, a fifth of a square out (`doorSides`). Red before C13: there
          * was no `doorShownTo`, and no class of the module's made the door controls.
+         * E12 fix r2-S2 (11.10.2026; review EARLY-C13-1): a Den, clear, drawn 30 px inside the wall
+         * of its door - a border the map check takes for the wall's (`DOORWAY_WALL_NEAR`, 0.6 of a
+         * square). Asked a fifth of a square out alone, both points fell in the gap and the player
+         * standing in the Den was shown none of its doors (red at 19abd42 on the Den's door and on
+         * the points); each side is asked at both depths now.
          */
         const F = await import("./fog.mjs");
         const square = (x, y) => [[x, y, x + 100, y, x + 100, y + 100, x, y + 100]];
         const rooms = [{ shading: "clear", polygons: square(0, 0) }, { shading: "veil", polygons: square(100, 0) },
-            { shading: "fog", polygons: square(200, 0) }, { shading: "fog", polygons: square(200, 100) }];
+            { shading: "fog", polygons: square(200, 0) }, { shading: "fog", polygons: square(200, 100) }, { shading: "clear", polygons: square(430, 0) }];
         const sides = typeof F.doorSides === "function"
             ? [F.doorSides([100, 200, 300, 200], 100), F.doorSides([100, 0, 100, 100], 100), F.doorSides([5, 5, 5, 5], 100)] : "no doorSides";
-        equal(JSON.stringify(sides), JSON.stringify([[{ x: 200, y: 218 }, { x: 200, y: 182 }], [{ x: 82, y: 50 }, { x: 118, y: 50 }], [{ x: 5, y: 5 }]]),
+        equal(JSON.stringify(sides), JSON.stringify([[{ x: 200, y: 218 }, { x: 200, y: 182 }, { x: 200, y: 260 }, { x: 200, y: 140 }],
+            [{ x: 82, y: 50 }, { x: 118, y: 50 }, { x: 40, y: 50 }, { x: 160, y: 50 }], [{ x: 5, y: 5 }]]),
             "the points a door is asked on, for [a level wall, an upright one, a wall of no length] on a grid of 100");
-        const doors = [[100, 20, 100, 80], [200, 20, 200, 80], [300, 20, 300, 80], [220, 100, 280, 100], [500, 500, 560, 500], [120, 0, 180, 0]];
+        const doors = [[100, 20, 100, 80], [200, 20, 200, 80], [300, 20, 300, 80], [220, 100, 280, 100], [500, 500, 560, 500], [120, 0, 180, 0],
+            [400, 20, 400, 80]];
         const shown = typeof F.doorShownTo === "function" && typeof F.doorSides === "function"
             ? doors.map(c => F.doorShownTo(F.doorSides(c, 100), rooms)) : "no doorShownTo";
-        equal(JSON.stringify(shown), JSON.stringify([true, true, false, false, false, true]),
-            "whether a player is shown the door [Hall-Library, Library-Gym, Gym-outside, Gym-Pool, in no room, Library-outside]");
+        equal(JSON.stringify(shown), JSON.stringify([true, true, false, false, false, true, true]),
+            "whether a player is shown the door [Hall-Library, Library-Gym, Gym-outside, Gym-Pool, in no room, Library-outside, "
+            + "the Den's, 30 px outside the Den]");
         equal(CONFIG.Canvas?.doorControlClass?.name ?? null, "RoomDoorControl", "the class Foundry makes door controls from is the module's");
     }],
     ["R411 - a floor is asked by its id whatever form the caller holds, and floors with v14's elevation come lowest first", async () => {

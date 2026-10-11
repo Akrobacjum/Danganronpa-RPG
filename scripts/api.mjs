@@ -263,6 +263,23 @@ function sceneNamed(fn, scene) {
     return scene ?? null;
 }
 
+/*
+ * A PROJECT IN A ROOM NO SCENE HOLDS IS REFUSED, AND THE GM IS TOLD (E12 fix r2-S1, 11.10.2026;
+ * review round 2 O1). The console's `createProject` took any name for a room and put the
+ * project's token on no scene, in silence; the project manager offers such a room only labelled
+ * "(on no scene now)" (`DRPG.Project.roomElsewhere`). The console refuses it now and says why; a
+ * room a place scene holds (rooms.mjs `sceneOfRoom`), or none, is created as before. The manager
+ * and a repair call projects.mjs `createProject` itself and are not changed here.
+ */
+async function createProjectNamed(data = {}) {
+    const room = data?.room ?? null;
+    if (room && game.user?.isGM && !sceneOfRoom(room)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Project.roomOnNoScene", { room }));
+        return null;
+    }
+    return createProject(data);
+}
+
 export const DrpgApi = {
     /** Static rules data straight from the guide. */
     config: DRPG,
@@ -469,7 +486,8 @@ export const DrpgApi = {
     isComplete,
     addProgress,
     setProjectMeta,
-    createProject,
+    /** Refuses a room no place scene holds, and says so (`createProjectNamed`). */
+    createProject: createProjectNamed,
 
     /** Rename, re-scale, re-room or re-portrait a project without losing its
      *  progress or its id - everything pointing at it keeps pointing at it. */

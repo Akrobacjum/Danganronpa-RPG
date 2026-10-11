@@ -911,7 +911,7 @@ const REGRESSIONS = [
             stashItemsIn: time(() => V.stashItemsIn(actor, room, canvas?.scene)),
             remnantsInRoom: time(() => R.remnantsInRoom(room, canvas?.scene)),
             cleanableRemnants: time(() => C.cleanableRemnants(actor)),
-            crossingWithTraps: time(() => T.armedIn(room), 60)
+            crossingWithTraps: time(() => T.armedIn(room, canvas?.scene), 60)
         };
         const CEILING = 2.0;   // ms per call, on a machine also running Foundry
         const over = Object.entries(measured)
@@ -7597,10 +7597,12 @@ const REGRESSIONS = [
             for (const file of [...FILES, ...Object.keys(NAMED)]) {
                 if (!files.has(file)) continue;
                 const code = blankComments(files.get(file));
-                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                // A statement at column 0 that declares nothing (a `game.socket.on` there) is "(top)", not dropped
+                // (E12 fix r2-S2; review O7, as R346 and R379 were read since E12 fix r1-G5, review EARLY-C0-1). The
+                // live census read the same 52 places with it (harness, 11.10.2026, once): the planted `onLoose` is its proof.
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? "(top)", binding: Boolean(m[3]) }));
                 at.forEach((top, i) => {
-                    if (!top.name) return;
-                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    if (top.name !== "(top)" && NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
                     tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
                 });
             }
@@ -7613,9 +7615,10 @@ const REGRESSIONS = [
                 const [file, name] = handler.split("#");
                 // The bridge's own sockets are E28's (R1b and the bridge's tables); its Level Up ones are the trial's.
                 if (file === "gm-bridge.mjs" && !/Advancement/.test(name)) continue;
-                const top = tops.find(t => t.file === file && t.name === name);
+                // Every declaration of the name: a file's "(top)" statements are read as one.
+                const mine = tops.filter(t => t.file === file && t.name === name);
                 // A handler this reader cannot find is a key no row can hold.
-                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                const fields = mine.length ? [...new Set(mine.flatMap(top => [...top.text.matchAll(/\bpayload\??\.(\w+)/g)]).map(m => m[1]).filter(f => f !== "action"))] : ["?"];
                 for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
             }
             for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
@@ -7646,13 +7649,15 @@ const REGRESSIONS = [
                 + "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
                 + "function unread(actor) {\n    // its deceased flag is read elsewhere\n    return actor.name;\n}\n"
                 + "const forged = msg => msg.getFlag(MODULE_ID, \"voteOpen\");\n"
-                + "let ballots = null;\n"],
+                + "let ballots = null;\n"
+                + "game.socket.on(EVENT, onLoose);\n"
+                + "function onLoose(payload) {\n    return payload.ballot;\n}\n"],
             ["chapter.mjs", "export function notNamed(actor) {\n    return isDeceased(actor);\n}\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#vote.planted#choice", "SOCKET vote.mjs#onPlanted#choice",
-            "CHAT vote.mjs#forged", "SHEET vote.mjs#judged", "STORE vote.mjs#ballots"]),
+            "SOCKET vote.mjs#onLoose#ballot", "CHAT vote.mjs#forged", "SHEET vote.mjs#judged", "STORE vote.mjs#ballots"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
-        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#vote.planted#choice", ""], ["SOCKET vote.mjs#onPlanted#choice", ""],
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#vote.planted#choice", ""], ["SOCKET vote.mjs#onPlanted#choice", ""], ["SOCKET vote.mjs#onLoose#ballot", ""],
             ["SHEET vote.mjs#judged", ""], ["SHEET vote.mjs#gone", ""], ["STORE vote.mjs#ballots", ""]])),
             JSON.stringify({ unclassified: ["CHAT vote.mjs#forged"], stale: ["SHEET vote.mjs#gone"] }),
             "the census judge does not tell a planted reader without a row, or a row without its reader");
@@ -7968,6 +7973,9 @@ const REGRESSIONS = [
          * The merge of that line beside C7-C12 (11.10.2026): 111 rows - 53 PACKET, 21 SOCKET, 20 HOOK,
          * 8 SHEET, 9 STORE, counted in this table; this test compares them with the places on the
          * harness in the merge commit's fast set.
+         * E12 fix r2-S2 added four HOOK rows, fog.mjs's two behaviour listeners and its `updateScene` and
+         * movement.mjs's `updateScene`: 115 places - 53 PACKET, 21 SOCKET, 24 HOOK, 8 SHEET, 9 STORE -
+         * against 115 rows (harness, 11.10.2026, once).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8056,10 +8064,15 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
+            ["HOOK movement.mjs#registerMovement#updateScene:inline", "put back on the primary: a region changed through its scene's own update is judged as `updateRegion` judges it (`regionPatches` -> `judgeRoomFlagChange`): a GM's mark remembered, a non-GM's change put back (scenario 66 X5) (E12 fix r2-S2)"],
             ["HOOK vault.mjs#registerRoomPieces#preUpdateRegion:inline", "judged on the client that writes it: a GM's rename of one piece of a room that keeps other pieces takes the room's flags off that piece in the same update, told to the GMs (`clearSplitPiece`; a player's rename is not judged, LIVE-E12-04) (E12 fix r1-G1); since E12 fix r2-H4 so does a GM's rename onto a room that stands on the scene (rooms.mjs `joinsAnotherRoom`, judged from the writing GM's memory of renames)"],
             ["HOOK fog.mjs#registerFog#createRegion:inline", "out of scope: no rule reads it; on the primary a GM's region that gives its scene its first room puts that scene into room-based vision (`prepareRoomScene` -> `applySceneVisionMode(region.parent)`), a non-GM's is left to movement.mjs's record; every client repaints the scene it views (`repaintRoomScene`); since E12 C7"],
             ["HOOK fog.mjs#registerFog#updateRegion:inline", "out of scope: as createRegion; since E12 C8 a GM's rename of a room's last piece of its name carries, on the primary, the discovery record, the stashed items' and the keys' room and the notes of a stash found (`noteRegionName` -> `carryRename`, vault.mjs `carryRoomOnSheets`), the old name from every GM's memory (`regionNameSeen`); a non-GM's rename carries nothing; since E12 fix r2-H4 whether it carries is judged at the hook, never onto a room that stands on the scene (rooms.mjs `joinsAnotherRoom`), and it also carries a project's room, a trap's plant, the Mastermind's room, a called assembly and the scene's Neighbours lists (`carryRoomInWorld`)"],
             ["HOOK fog.mjs#registerFog#deleteRegion:inline", "out of scope: as createRegion; a scene that loses its last room keeps the vision the module gave it until the setting goes off; since E12 C7"],
+            // E12 fix r2-S2 (review EARLY-C7-3, O6): a behaviour added to or taken off a region, and regions a scene's own update hands in.
+            ["HOOK fog.mjs#registerFog#createRegionBehavior:inline", "out of scope: as createRegion, for the behaviour's region - a Teleport added unmakes a room (rooms.mjs `canBeRoom`); every client repaints the scene on screen (scenario 66 X4) (E12 fix r2-S2)"],
+            ["HOOK fog.mjs#registerFog#deleteRegionBehavior:inline", "out of scope: as createRegion, for the behaviour's region - a Teleport taken off a marked region makes a room, and a GM's that gives the scene its first room prepares it on the primary (scenario 66 X3) (E12 fix r2-S2)"],
+            ["HOOK fog.mjs#registerFog#updateScene:inline", "out of scope: as updateRegion, for each region a scene's own update changed (`regionsReplaced`, `regionPatches`): a GM's rename carries (`noteRegionName`), the primary prepares the scene a GM's change gives its first room, every client repaints (scenario 66 X5; what v14 fires, LIVE-E12-03) (E12 fix r2-S2)"],
             ["HOOK movement.mjs#registerMovement#createToken:inline", "judged: `gmSeen` primes a dropped token's position, `level` in it (`positionOf`); since E12 C12 the primary judges a player's drop (`noteGmCreated` -> `judgeArrival`), a GM's lawful; since E12 fix r2-H3 from the newest standing of that student on that scene, any token of theirs, deleted ones included (`droppedFrom`) - with none, from nowhere (no rule of which rooms connect applies), and the GMs are told (`tellDropped`)"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken:inline", "judged on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3); since E12 C12 `maybeThirdParty` and the discovery `maybeBodyFound` reaches (`checkBodyFound`) count a token only in its lawful room (`lawfulRoomOf`, Q3 a)"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken:inline", "judged on the primary: `onProjectTokenMoved` moves a project only for its own token (`projectOwning`); gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
@@ -8092,7 +8105,7 @@ const REGRESSIONS = [
         // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
         const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
             "vault.mjs": ["keysHeldBy"] };
-        const EVENTS = /Hooks\.(?:on|once)\(\s*"(preUpdateToken|updateToken|createToken|createRegion|updateRegion|deleteRegion|preCreateRegion|preUpdateRegion)"\s*,\s*(?:([A-Za-z_]\w*)\s*\)|(?:async\s*)?\(?)/g;
+        const EVENTS = /Hooks\.(?:on|once)\(\s*"(preUpdateToken|updateToken|createToken|createRegion|updateRegion|deleteRegion|preCreateRegion|preUpdateRegion|createRegionBehavior|deleteRegionBehavior|updateScene)"\s*,\s*(?:([A-Za-z_]\w*)\s*\)|(?:async\s*)?\(?)/g;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub|monokuma)\b/,
             /\brestrictedFrom\(|FLAGS\.restrict\w*/, /\bkeysHeldBy\(|\bitemsHeldNow\(|\bactor\.items\b/];
         const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|itemAsHeld|itemsHeldNow|meansHeld|heldMark)\s*\(/;
@@ -9744,7 +9757,7 @@ const REGRESSIONS = [
          * with `\s*` so that `git grep` for the sentence itself stays at 0 hits, as the stage's ledger row D3 reads it).
          * Until this commit neither handbook had a word on floors, and the GM's said `checkRegions()` reports "openings
          * too long to be doorways" - a check fog-diagnostics.mjs does not make (a doorway has no upper size, its own note
-         * says) - while it can add seven findings and, since E12 C10, names the floor of each. Each claim is a pair, as R321's: what the code does, read
+         * says) - while it could add seven findings (eight since E12 fix r2-S2) and, since E12 C10, names the floor of each. Each claim is a pair, as R321's: what the code does, read
          * from its function with comments blanked (rooms.mjs `onLevel` and `floorsOf`, movement.mjs `crossingCost`
          * called on three plain steps and `crossingRefused`, fog.mjs `floorOffer` and `roomShading`, fog-diagnostics.mjs
          * `checkRegions` and the findings it can add), and the sentences that say it, one per handbook that says it. A
@@ -9756,6 +9769,8 @@ const REGRESSIONS = [
          * by its id and v14's `elevation.bottom` (EARLY-C10-1, EARLY-C10-4). Each book is asserted to have loaded and each
          * function to have been cut (`fnSource` fails on a renamed one), so nothing passes on an empty read. What v14
          * itself does with levels is not read here, nor anywhere in the harness (LIVE-E12-02, LIVE-E12-03).
+         * E12 fix r2-S2 (11.10.2026; review O4): an eighth finding, a room still named as Foundry names a new region, and
+         * its words in both handbooks' row.
          */
         const sources = await moduleSources();
         const code = file => {
@@ -9767,7 +9782,7 @@ const REGRESSIONS = [
         const { crossingCost } = await import("./movement.mjs");
         const onLevel = fnSource(rooms, "onLevel"), offer = fnSource(fog, "floorOffer"), check = fnSource(diag, "checkRegions");
         const FINDINGS = ["Region with no name", "DRPG.Fog.notRoom.problem", "No geometry the fog can read", "Overlaps \"",
-            "Border runs away from the walls", "No way out", "Corners off the map's own lattice"];
+            "Border runs away from the walls", "No way out", "Corners off the map's own lattice", "Room still has the name Foundry gave it"];
         const facts = {
             levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel)
                 && /const id = level\?\.id \?\? level;/.test(onLevel) && /includedInLevel\(id\)/.test(onLevel) && /levels\.has\(id\)/.test(onLevel),
@@ -9796,7 +9811,7 @@ const REGRESSIONS = [
                     noStairs: [/a change of floor between two rooms they do not link is refused, and the refusal names only the room you stand in/],
                     offer: [/offers a player the floors their own tokens stand on and every floor holding a room they have found, lowest first, and a GM or the Mastermind every floor; it appears only on a scene of two floors or more/],
                     sameRule: [/A player sees the rooms their character has discovered on every floor exactly as on their own: under the veil, with nobody else's token in them\. A room they have never been in stays under full fog on every floor\./],
-                    regionCheck: [/\| `checkRegions\(\)` \| checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a named region that is not a room \(and why\), and corners off the map's own lattice;/],
+                    regionCheck: [/\| `checkRegions\(\)` \| checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a room still bearing the name Foundry gave it, a named region that is not a room \(and why\), and corners off the map's own lattice;/],
                     floorColumn: [/`checkRegions\(\)` checks each floor apart and names it in its `floor` column/,
                         /each floor is checked apart and named in the `floor` column \(the `level` column is the finding's weight: error, warning or info\)/]
                 },
@@ -9816,7 +9831,7 @@ const REGRESSIONS = [
                     noStairs: [/zmiana piętra między dwoma pokojami, których schody nie łączą, jest odrzucana, a odmowa wymienia tylko pokój, w którym stoisz/],
                     offer: [/proponuje graczowi piętra, na których stoją jego tokeny, i każde piętro z pokojem, który odkrył, od najniższego, a GMowi i Mastermindowi każde piętro; pojawia się tylko na scenie o co najmniej dwóch piętrach/],
                     sameRule: [/Gracz widzi pokoje odkryte przez swoją postać na każdym piętrze dokładnie tak jak na własnym: za zasłoną, bez cudzych tokenów\. Pokój, w którym nigdy nie był, zostaje pod pełną mgłą na każdym piętrze\./],
-                    regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
+                    regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
                     floorColumn: [/`checkRegions\(\)` sprawdza każde piętro osobno i podaje je w kolumnie `floor`/,
                         /sprawdza każde piętro osobno i podaje je w kolumnie `floor` \(kolumna `level` to waga ustalenia: error, warning albo info\)/]
                 },
@@ -9877,6 +9892,28 @@ const REGRESSIONS = [
         must(FILES.every(file => sources.get(file)?.length), "the two files are among the module's sources - this would measure nothing");
         equal(JSON.stringify(FILES.flatMap(file => reads(file, sources.get(file)))), JSON.stringify([]),
             "Season setup or the project map lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read)");
+    }],
+
+    ["R430 - the room cache and a Remnant's card read the world's tokens, not the ones this browser draws", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 O3. Two readers reached the camera by a road R382
+         * does not read: movement.mjs `primeRoomCache` took `canvas.tokens.placeables`, so a browser
+         * that drew another scene forgot every token of the one it left and the next move of one was
+         * "never seen" (scenario 66 R reads that crossing), and remnant-ring.mjs `showRemnantCard`
+         * fell back to `getActiveTokens()`, a linked token drawn on this canvas - which no trace is,
+         * remnants.mjs placing every one unlinked. Both read documents now. This keeps the two from
+         * going back: comments blanked, neither function names `canvas` or `getActiveTokens`. It reads
+         * text: a reader that reaches the canvas through another name is not seen. The reader is run
+         * first on a fixture of each road and one in a comment.
+         */
+        const camera = text => /\bcanvas\b|\bgetActiveTokens\b/.test(stripComments(text));
+        equal(JSON.stringify(["for (const t of canvas?.tokens?.placeables ?? []) {}", "actor?.getActiveTokens?.(true, true)", "// canvas\nscene.tokens"].map(camera)),
+            JSON.stringify([true, true, false]), "the reader does not find the two roads in its fixture, or finds the one in a comment");
+        const sources = await moduleSources();
+        const read = [["movement.mjs", "primeRoomCache"], ["remnant-ring.mjs", "showRemnantCard"]]
+            .filter(([file, name]) => camera(fnSource(sources.get(file), name))).map(([file, name]) => `${file}#${name}`);
+        equal(JSON.stringify(read), JSON.stringify([]),
+            "the room cache or a Remnant's card reads the tokens this browser draws (`canvas` or `getActiveTokens`) instead of the world's");
     }]
 ];
 

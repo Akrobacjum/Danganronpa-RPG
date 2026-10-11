@@ -2434,6 +2434,7 @@
       "room": "Room",
       "anyRoom": "- any room -",
       "roomElsewhere": "{room} (on no scene now)",
+      "roomOnNoScene": "No project was made: {room} is a room on no scene now. Name a room a scene holds, or none.",
       "indirect": "Indirect murder",
       "cardTitle": "A project",
       "cardProgress": "Progress",

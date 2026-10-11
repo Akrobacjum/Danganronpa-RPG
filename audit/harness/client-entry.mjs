@@ -1328,7 +1328,8 @@ function applySnapshot(snap) {
 }
 
 function findEmbKey(parentName, embName) {
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" } };
+    // A region's behaviours as cluster.mjs `embKey` has them (E12 fix r2-S2, 11.10.2026; scenario 66 X3 and X4).
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     return map[parentName]?.[embName];
 }
 

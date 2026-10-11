@@ -2201,13 +2201,21 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
          * and `readRoomSetupForm` is unchanged. A stored row holding a category in both lists is
          * drawn as good, which is what Apply's own filter has always kept of it.
          */
+        /* The two boxes are hidden, and still controls: a11y.mjs `CONTROLS` reads a checkbox with the
+           `hidden` attribute as one, and a reader that reaches it reads it out. With no name they
+           turned both control-name sweeps of tier 2 red - "every standing GM window names every
+           control it draws" counted 48 unnamed on Floor 1's Room Setup (harness, 19abd42 with this
+           commit's tests, 11.10.2026; E12 fix r2-S2, review EARLY-C15-1). Each is named as `named`
+           below names a column - "Good place to look for: Usable: Big IT Room". */
+        const boxName = (key, label) => ` aria-label="${foundry.utils.escapeHTML(game.i18n.localize(key))}: ${
+            foundry.utils.escapeHTML(label)}: ${escRoom}"`;
         const placeSwitches = categories.map(([key, cat]) => {
             const state = favours.includes(key) ? "good" : hinders.includes(key) ? "bad" : "";
             return `<span class="drpg-place-switch">
                 <input type="checkbox" hidden class="drpg-place-box" name="fav:${escRoom}:${key}"${
-                    state === "good" ? " checked" : ""} />
+                    boxName("DRPG.Vault.favours", cat.label)}${state === "good" ? " checked" : ""} />
                 <input type="checkbox" hidden class="drpg-place-box" name="hin:${escRoom}:${key}"${
-                    state === "bad" ? " checked" : ""} />
+                    boxName("DRPG.Vault.hinders", cat.label)}${state === "bad" ? " checked" : ""} />
                 ${placeToggle(state, cat.label)}</span>`;
         }).join("");
 
