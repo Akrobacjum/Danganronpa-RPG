@@ -3495,6 +3495,12 @@
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
       "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
+      "resetCastTitle": "Where the cast's tokens go",
+      "resetCastNote": "A token moves only on the map its room is drawn on. A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Not remembered: every reset starts from the first choice.",
+      "resetCastStay": "They stay where they stand",
+      "resetCastBedroom": "Each student to their own bedroom, as Room Setup assigns it",
+      "resetCastPoint": "Everyone to one room:",
+      "resetCastNoRooms": "No map has a named room yet",
       "resetRemembered": {
         "one": "1 exception is remembered from the last reset and is unticked below.",
         "other": "{n} exceptions are remembered from the last reset and are unticked below."
@@ -3513,7 +3519,9 @@
         "title": "The season reset did not finish",
         "failed": "Not cleared: {groups}.",
         "done": "Cleared: {groups}.",
-        "kept": "Kept, as unticked: {groups}."
+        "kept": "Kept, as unticked: {groups}.",
+        "titleCast": "Where the cast went after the season reset",
+        "stayed": "Stayed where they were: {names}."
       },
       "section": {
         "case": "The case",

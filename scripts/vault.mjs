@@ -672,7 +672,7 @@ export function stashItemsIn(actor, room, scene = workingScene()) {
 }
 
 /**
- * Every BEDROOM on the scene, as {room, owner}.
+ * Every BEDROOM on the scene, as {room, owner, scene}.
  *
  * Split out of `allVaults` at E11, and the split is a rule rather than tidying:
  * keys are a bedroom fact and stashes are not. `allVaults` now lists stashes,
@@ -686,7 +686,9 @@ export function allBedrooms(scene = workingScene()) {
     for (const [name, region] of regionsByName(scene)) {
         const ownerId = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
         if (!ownerId) continue;
-        out.push({ room: name, owner: game.actors.get(ownerId) ?? null });
+        // The scene it was read on (E11 C10b): the reset's "each to their own bedroom" moves a
+        // token only on the map its bedroom is drawn on, and `allBedroomsAnywhere` mixes scenes.
+        out.push({ room: name, owner: game.actors.get(ownerId) ?? null, scene });
     }
     return out;
 }

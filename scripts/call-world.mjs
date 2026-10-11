@@ -393,6 +393,31 @@ export async function gatherEveryone(room, onScene = null) {
 }
 
 /**
+ * Tokens of one scene into one of its rooms, for the season reset's choice of where the cast goes
+ * (season-setup.mjs `placeCast`, E11 C10b, 1.2.73): the region's own teleport, as the gather above,
+ * and `fallbackGather` when the region cannot - handed the room's box as movement.mjs `boundsOf`
+ * reads it. The gather hands it none and the fallback reads `region.object?.bounds ?? region.bounds`:
+ * a region on a scene nobody's canvas draws has no placeable, and where the document has no `bounds`
+ * either the ring lands round the scene's centre. Measured in the headless harness, whose regions
+ * have neither and no `teleportTokens`: with no box handed in (10.10.2026, a mutant of this line),
+ * tier 2's "the cast goes where the GM chose" read its tokens at 2120,1500 and 2085,1585 - the ring
+ * round 2000,1500 of a 4000 by 3000 scene, outside both rooms. Whether Foundry's region document
+ * answers `bounds`, and whether its `teleportTokens` takes these options, is not measured here. The
+ * gather is left as it is (its scenarios read where its fallback puts the cast); this caller is not.
+ * Answers how many were placed.
+ */
+export async function teleportInto(scene, region, tokens) {
+    try {
+        await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
+        return tokens.length;
+    } catch (err) {
+        error("Region teleport failed; falling back to a direct placement", err);
+        const { REVERT, boundsOf } = await import("./movement.mjs");
+        return fallbackGather(scene, region, tokens, REVERT, boundsOf(region));
+    }
+}
+
+/**
  * Pan this client's camera to its own token among the ones a gather moved (`SYNC.gather`,
  * sync.mjs; E11 C3, 1.2.73). Answers the token's id, or null when there is nothing to pan to:
  * no drawn canvas, another scene on screen, or none of the tokens this user's own student
@@ -427,8 +452,8 @@ export async function panToGathered({ scene, tokenIds } = {}) {
  * that does not hold them, the client backend rejected the update, and the order
  * - already cleared, its six Despair spent - moved nobody and told nobody.
  */
-async function fallbackGather(scene, region, tokens, REVERT) {
-    const bounds = region.object?.bounds ?? region.bounds;
+async function fallbackGather(scene, region, tokens, REVERT, box = null) {
+    const bounds = box ? { x: box.x, y: box.y, width: box.w, height: box.h } : region.object?.bounds ?? region.bounds;
     const centre = bounds
         ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
         : { x: scene.width / 2, y: scene.height / 2 };

@@ -41,7 +41,7 @@ import { listExperiences, initCharacter, needsStartingResources } from "./charac
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
-import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes } from "./vault.mjs";
+import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
@@ -884,6 +884,47 @@ function tickedIn(root) {
 }
 
 /**
+ * WHERE THE CAST'S TOKENS GO, AS THE WINDOW ASKS IT (E11 C10b, 1.2.73; the owner's Q2 of
+ * 09.10.2026: "do wyboru przez gma"). (a) they stay, the default every time the window opens;
+ * (b) each student to their own bedroom; (c) everyone to one room the GM picks here. The room is
+ * this reset's and is stored nowhere: a world setting would be one more thing a reset keeps.
+ */
+const CAST_TO = Object.freeze(["stay", "bedroom", "point"]);
+
+/** Every named room on every map, by scene and region id - the GM's camera is no part of the answer (ITEM-16). */
+function castPoints() {
+    return game.scenes.contents.flatMap(scene => [...(scene.regions ?? [])]
+        .filter(region => region.name?.trim())
+        .map(region => ({ value: `${scene.id}.${region.id}`, label: `${scene.name}: ${region.name}` })));
+}
+
+/** The window's answer to "where the cast goes", bounded: anything else is (a). */
+function castChoiceIn(root) {
+    const to = root?.querySelector('[name="castTo"]:checked')?.value;
+    if (to !== "point") return { to: CAST_TO.includes(to) ? to : "stay" };
+    const [scene, region] = String(root?.querySelector('[name="castPoint"]')?.value ?? "").split(".");
+    return { to, scene: scene || null, region: region || null };
+}
+
+function castFieldset() {
+    const points = castPoints();
+    const choice = (value, key, { disabled = false, after = "" } = {}) => `<label class="drpg-inline-check">
+        <input type="radio" name="castTo" value="${value}"${value === "stay" ? " checked" : ""}${disabled ? " disabled" : ""} />
+        ${esc(game.i18n.localize(key))}${after}</label>`;
+    const options = points.length
+        ? points.map(point => `<option value="${esc(point.value)}">${esc(point.label)}</option>`).join("")
+        : `<option value="">${esc(game.i18n.localize("DRPG.Season.resetCastNoRooms"))}</option>`;
+    return `<fieldset class="drpg-reset-section drpg-reset-cast">
+        <legend>${esc(game.i18n.localize("DRPG.Season.resetCastTitle"))}</legend>
+        <p class="notes">${esc(game.i18n.localize("DRPG.Season.resetCastNote"))}</p>
+        ${choice("stay", "DRPG.Season.resetCastStay")}
+        ${choice("bedroom", "DRPG.Season.resetCastBedroom")}
+        ${choice("point", "DRPG.Season.resetCastPoint", { disabled: !points.length,
+            after: ` <select name="castPoint"${points.length ? "" : " disabled"}>${options}</select>` })}
+    </fieldset>`;
+}
+
+/**
  * Wipe the season, keep the cast.
  *
  * Typed confirmation, not a clicked one. Every other destructive control in this
@@ -974,6 +1015,7 @@ export async function resetSeason() {
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.resetGroupsNote"))}</p>
             ${memoryLine}
             <div class="drpg-reset-groups">${rows}</div>
+            ${castFieldset()}
 
             <label>${esc(game.i18n.format("DRPG.Season.resetType", { word }))}
                 <input type="text" name="confirm" autocomplete="off" autofocus /></label>
@@ -992,7 +1034,8 @@ export async function resetSeason() {
                 class: "drpg-gm-route drpg-destructive",
                 callback: (e, b, d) => ({
                     word: d.element.querySelector("[name=confirm]").value.trim(),
-                    ticked: tickedIn(d.element)
+                    ticked: tickedIn(d.element),
+                    cast: castChoiceIn(d.element)
                 })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true }
@@ -1006,7 +1049,8 @@ export async function resetSeason() {
         return null;
     }
 
-    const plan = planFrom(typed.ticked);
+    // Where the cast goes rides on the plan: a choice, not a tick, so `planFrom` (the ticks') does not read it.
+    const plan = { ...planFrom(typed.ticked), cast: typed.cast ?? { to: "stay" } };
     if (!plan.groups.size) {
         // Nothing ticked is not a reset, and it is worth saying so rather than
         // running a wipe that does nothing and reporting success.
@@ -1048,15 +1092,24 @@ async function deleteMessages(ids) {
  * armed Despair Calls, the board, the deaths, the case and the cast's sheets; the chat last but
  * the clock, so a card an earlier step posted goes with it; and the clock last of all, so
  * nothing armed fires on a clock still reading the old season.
+ *
+ * One step is not a group (E11 C10b): `placeCast`, where the cast's tokens go, after the cast's
+ * groups - so the deaths the reset clears are cleared before it asks who is dead - and before the
+ * chat. It is asked for by the window's choice rather than a tick (`RESET_CHOICES`): "stay" runs
+ * nothing and is no exception, so the window has no box for it and nothing remembers it.
  */
 export const RESET_STEPS = Object.freeze([
     "incident", "seals", "projects", "mastermind", "deaths",
     "remnants", "bullets", "trialFloor", "trialProgress", "bodyFound", "discovered", "searchTokens",
     "keyPlan", "eclipseMoves", "motive", "rules", "assembly",
     "items", "advancement", "actions", "despair", "overflow", "doors", "stashesFound",
+    "placeCast",
     "preNotes", "sheetNotes", "cards", "chatRest",
     "clock"
 ]);
+
+/** The steps of `RESET_STEPS` the window's choices ask for, not its ticks (E11 C10b). R50 holds the rest to the groups. */
+export const RESET_CHOICES = Object.freeze(["placeCast"]);
 
 /**
  * THE CAST'S GROUPS, ONE STUDENT AT A TIME (E11 C10, 10.10.2026; audit S06-21, S06-41, S08-32;
@@ -1136,6 +1189,69 @@ export async function wipeStudent(actor, key) {
 }
 
 /**
+ * THE CAST WHERE THE GM CHOSE (E11 C10b, 1.2.73; the owner's Q2 of 09.10.2026, and of 10.10.2026
+ * for a token on another map). `choice.to`: "stay" moves nothing; "bedroom" moves each student's
+ * token into the room Room Setup gave them (the region flag `VAULT_FLAGS.owner`, read through
+ * `allBedroomsAnywhere` - every scene, never the one on this GM's screen: ITEM-16); "point" moves
+ * every student's token into the room `choice.scene`/`choice.region` names. Only on the map the room
+ * is drawn on: Foundry moves no token between scenes, so a student whose token is on another map,
+ * who has no token there or no bedroom, stays where they are and is answered in `stayed`, which the
+ * reset's report names. A cross-scene move is E13's to measure (C3b), and a later commit's to reuse.
+ *
+ * A body stays where it fell and is not named: the gather's rule (call-world.mjs `gatherEveryone`,
+ * DESP-15), read here off the primary's mark (`flagsHeldNow`) in the one synchronous pass that
+ * decides every move before the first is made (H3). With `deaths` ticked the reset has revived
+ * everybody by now; a death is still standing here only when that box was unticked.
+ * A bedroom whose name another map's room already has is not found: `allBedroomsAnywhere` keeps the
+ * first scene's (read in the code); that student stays and is named.
+ *
+ * The moves are the gather's (`teleportInto`), made by a GM, which movement.mjs does not bill.
+ * Called by the reset's step on the primary GM, and by tier 2's "the cast goes where the GM chose"
+ * with three students of its own.
+ *
+ * @returns {Promise<{moved: string[], stayed: string[]}|null>} the actor ids; null on any browser
+ *   but the primary GM's, which moves nothing.
+ */
+export async function placeCast(choice, actors = studentActors()) {
+    if (!isPrimaryGm()) return null;
+    const placed = { moved: [], stayed: [] };
+    const to = CAST_TO.includes(choice?.to) ? choice.to : "stay";
+    if (to === "stay") return placed;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    const { teleportInto } = await import("./call-world.mjs");
+
+    const bedrooms = to === "bedroom" ? allBedroomsAnywhere() : [];
+    const pointScene = to === "point" ? game.scenes.get(choice.scene) : null;
+    const pointRegion = [...(pointScene?.regions ?? [])].find(region => region.id === choice.region);
+    const point = pointRegion ? { scene: pointScene, region: pointRegion } : null;
+    const tokensOf = (actor, scene) => [...(scene?.tokens ?? [])].filter(token => token.actorId === actor.id);
+    const batches = new Map();
+    for (const actor of actors) {
+        const held = flagsHeldNow(actor);
+        if (isDeadForGm(held) && !isMonocub(held)) continue;
+        let target = point;
+        if (to === "bedroom") {
+            const mine = bedrooms.filter(entry => entry.owner?.id === actor.id);
+            const bedroom = mine.find(entry => tokensOf(actor, entry.scene).length) ?? mine[0];
+            const region = bedroom ? [...(bedroom.scene?.regions ?? [])].find(r => r.name === bedroom.room) : null;
+            target = region ? { scene: bedroom.scene, region } : null;
+        }
+        const tokens = target ? tokensOf(actor, target.scene) : [];
+        if (!tokens.length) {
+            placed.stayed.push(actor.id);
+            continue;
+        }
+        const key = `${target.scene.id}.${target.region.id}`;
+        if (!batches.has(key)) batches.set(key, { ...target, tokens: [] });
+        batches.get(key).tokens.push(...tokens);
+        placed.moved.push(actor.id);
+    }
+    for (const { scene, region, tokens } of batches.values()) await teleportInto(scene, region, tokens);
+    return placed;
+}
+
+/**
  * The wipe itself.
  *
  * Each step is guarded on its own. A world where one of these settings was never
@@ -1147,6 +1263,8 @@ async function wipeSeason(plan) {
     const done = [];
     const kept = [];
     const failed = [];
+    // The students `placeCast` could not move (E11 C10b): the report names them.
+    const stayed = [];
 
     /*
      * THE CUT FIRST, AND OUTSIDE EVERY STEP (E04 C10; the design's 2.10, D12 option 1).
@@ -1447,6 +1565,10 @@ async function wipeSeason(plan) {
          * stay the cut's (tier 2, "a reset counts the season and keeps the fog epoch"). The clock is
          * kept out of the settings written whole, campaign name kept, because the name belongs to the table.
          */
+        placeCast: async () => {
+            stayed.push(...((await placeCast(plan.cast))?.stayed ?? []));
+        },
+
         clock: async () => {
             const clock = getClock();
             await setClock({
@@ -1498,7 +1620,10 @@ async function wipeSeason(plan) {
      * reads empty, so running the reset again with only the failed groups ticked is safe.
      */
     const step = async key => {
-        if (!plan.groups.has(key)) {
+        // A choice's step (E11 C10b) is asked for by its choice; left at "stay" it runs nothing and keeps nothing.
+        if (RESET_CHOICES.includes(key)) {
+            if ((plan.cast?.to ?? "stay") === "stay") return;
+        } else if (!plan.groups.has(key)) {
             kept.push(key);
             await keeping[key]?.();
             return;
@@ -1516,21 +1641,32 @@ async function wipeSeason(plan) {
 
     log(`Season reset. Cleared: ${done.join(", ") || "nothing"}.${
         kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}`);
+    const label = key => RESET_CHOICES.includes(key) ? game.i18n.localize("DRPG.Season.resetCastTitle") : groupLabel(key);
+    const names = keys => keys.map(label).join("; ");
+    // Who stayed where they were, by name (E11 C10b): on the card and in a warning of its own.
+    const stayedLine = stayed.length ? game.i18n.format("DRPG.Season.reportCard.stayed",
+        { names: stayed.map(id => game.actors.get(id)?.name ?? id).join(", ") }) : "";
     if (failed.length) {
-        const names = keys => keys.map(groupLabel).join("; ");
         ui.notifications.error(game.i18n.format("DRPG.Season.failed", { groups: names(failed) }));
-        try {
-            const line = (key, keys) => keys.length
-                ? `<p>${esc(game.i18n.format(`DRPG.Season.reportCard.${key}`, { groups: names(keys) }))}</p>` : "";
-            await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Season.reportCard.title"))}</h3>
-                ${line("failed", failed)}${line("done", done)}${line("kept", kept)}`);
-        } catch (err) {
-            error("Season reset: could not post the report of the groups that failed", err);
-        }
     } else {
         ui.notifications.info(kept.length
             ? plural("DRPG.Season.resetDoneKept", { n: kept.length })
             : game.i18n.localize("DRPG.Season.resetDone"));
     }
-    return { cleared: done, kept, failed };
+    if (stayedLine) ui.notifications.warn(stayedLine);
+    if (failed.length || stayedLine) {
+        try {
+            const line = (key, keys) => keys.length
+                ? `<p>${esc(game.i18n.format(`DRPG.Season.reportCard.${key}`, { groups: names(keys) }))}</p>` : "";
+            // The card says the reset did not finish only when it did not; one that finished and left
+            // somebody standing has a title of its own.
+            const title = failed.length ? "DRPG.Season.reportCard.title" : "DRPG.Season.reportCard.titleCast";
+            await whisperToGms(`<h3>${esc(game.i18n.localize(title))}</h3>
+                ${failed.length ? `${line("failed", failed)}${line("done", done)}${line("kept", kept)}` : ""}${
+                stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}`);
+        } catch (err) {
+            error("Season reset: could not post its report", err);
+        }
+    }
+    return { cleared: done, kept, failed, stayed };
 }

@@ -2537,15 +2537,17 @@ const REGRESSIONS = [
          */
         const setup = stripComments(sources.get("season-setup.mjs") ?? "");
         const wipe = bodyOf(setup, "async function wipeSeason");
-        const { RESET_STEPS } = await import("./season-setup.mjs");
+        const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
         ok(Array.isArray(RESET_STEPS), "season-setup.mjs does not export the reset's order as RESET_STEPS");
         const steps = RESET_STEPS ?? [];
         equal(new Set(steps).size, steps.length, "a group runs twice in RESET_STEPS");
         for (const { key } of groups) {
             ok(steps.includes(key), `the reset has no step for the group "${key}", so its tick does nothing`);
         }
+        // A step the window asks for by a choice, not a tick (E11 C10b, `placeCast`): its choice's
+        // "stay" is the exception, so it is held to the choices and not to the groups.
         for (const key of steps) {
-            ok(groups.some(group => group.key === key),
+            ok(groups.some(group => group.key === key) || (RESET_CHOICES ?? []).includes(key),
                 `the reset clears "${key}" and no group offers it, so it cannot be excepted`);
         }
         equal(steps[0], "incident", "the reset clears something before it abandons the incident, which could write about it");
@@ -7694,6 +7696,10 @@ const REGRESSIONS = [
          * held, the Call rows, `seasonItems`, `wipeSeason`, `grantBedroomKey`: on the harness on
          * 10.10.2026 this test read 71 places (28 PACKET, 4 SOCKET, 1 CHAT, 30 SHEET, 8 STORE)
          * against the 71 rows.
+         * E11 C10b (1.2.73) added the PLANNED place `placeCast` (SHEET: who is dead, read before
+         * the reset moves the cast's tokens): on the harness on 10.10.2026 this test passed - no place
+         * without a row, no row without a place - against 72 rows (28 PACKET, 4 SOCKET, 1 CHAT,
+         * 31 SHEET, 8 STORE, counted in the source); at the parent, with the row, it read the row stale.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7752,6 +7758,7 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#seasonItems", "out of scope: the reset's `items` step lists the cast's items to delete on the primary; a player's own item write is audited (E29). Since E11 C10 each student's bedroom keys are handed back at once, in the same group (`wipeStudent`: `reconcileBedroomKeys({ silent: true, owners })`)"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. C11 adds a Level Up's experiences to its `advancement` part (E11 C11)"],
+            ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road"],
             ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
@@ -8050,6 +8057,51 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify(["live", null, null, null, null, null]),
             "a token other than the one a live project's metadata names was read as the project's own, or that one was not (read: the named "
             + "token, a spare, the named id on another scene, a deleted project's still named, no id, a live project naming no token)");
+    }],
+
+    ["R354 - the cast's tokens go where the GM chose, after the cast's groups, by every map's bedrooms and never by the map on the GM's screen", async () => {
+        /*
+         * E11 C10b, 1.2.73; the owner's Q2 (09.10.2026: the GM chooses - (a) they stay, (b) each to their
+         * own bedroom, (c) a start point - and 10.10.2026: a token on another map stays and is named), the
+         * ledger's Q2. Until 1.2.73 a reset left every token where last season did, and asked nothing.
+         * Read here, because a reset is not the suite's to run (the plan's M10): the step's place in
+         * `RESET_STEPS` - after every cast group, so a death the reset clears is cleared before it asks
+         * who is dead, and before the chat - and that it is a choice's step, not a group's; that
+         * `placeCast` finds a bedroom through `allBedroomsAnywhere`, never `allBedrooms()`, whose default
+         * is the scene on this GM's screen (ITEM-16), nor reads that scene itself; that it reads the dead
+         * off the primary's mark and runs on the primary GM only; that the window offers the three, (a)
+         * checked, and hands the answer to the plan; and the words. What the moves do is tier 2's "the
+         * cast goes where the GM chose" and scenario 65's P.
+         */
+        const { RESET_STEPS, RESET_CHOICES } = await import("./season-setup.mjs");
+        const steps = RESET_STEPS ?? [];
+        const at = key => steps.indexOf(key);
+        ok(at("placeCast") >= 0, "the reset has no step that places the cast");
+        ok((RESET_CHOICES ?? []).includes("placeCast"), "placing the cast is not one of the window's choices, so a tick would gate it");
+        for (const key of ["deaths", "items", "advancement", "actions", "despair", "stashesFound"]) {
+            ok(at(key) < at("placeCast"), `the cast is placed before the group "${key}" has run`);
+        }
+        for (const key of ["preNotes", "sheetNotes", "cards", "chatRest", "clock"]) {
+            ok(at("placeCast") < at(key), `the cast is placed after "${key}"`);
+        }
+
+        const setup = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        const place = fnSource(setup, "placeCast");
+        ok(/allBedroomsAnywhere\(\)/.test(place), "placeCast does not read the bedrooms of every scene");
+        ok(!/\ballBedrooms\(|\bworkingScene\(|\bcanvas\??\.scene\b/.test(place),
+            "placeCast reads the scene on this GM's screen - a GM looking at another map would send nobody to bed (ITEM-16)");
+        ok(/if \(!isPrimaryGm\(\)\) return null;/.test(place), "placeCast moves tokens on a browser that is not the primary GM's");
+        ok(/flagsHeldNow\(actor\)/.test(place), "placeCast reads who is dead off the document instead of the primary's mark");
+        const reset = fnSource(setup, "resetSeason");
+        ok(/castFieldset\(\)/.test(reset) && /cast: castChoiceIn\(/.test(reset) && /cast: typed\.cast/.test(reset),
+            "the reset window does not ask where the cast goes, or does not hand the answer to the plan");
+        const fieldset = fnSource(setup, "castFieldset");
+        ok(/value === "stay" \? " checked"/.test(fieldset), "the window's default is not (a), the cast where it stands");
+        for (const value of ["stay", "bedroom", "point"]) ok(fieldset.includes(`choice("${value}"`), `the window does not offer "${value}"`);
+        for (const key of ["resetCastTitle", "resetCastNote", "resetCastStay", "resetCastBedroom", "resetCastPoint", "resetCastNoRooms",
+            "reportCard.titleCast", "reportCard.stayed"]) {
+            ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
+        }
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {

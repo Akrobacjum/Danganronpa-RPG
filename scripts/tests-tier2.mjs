@@ -43791,6 +43791,81 @@ const SCENARIOS = [
         }
     }],
 
+    ["the cast goes where the GM chose: they stay put or go to their own bedrooms or to one room", async () => {
+        /*
+         * E11 C10b, 1.2.73; the owner's Q2 (09.10.2026: the GM chooses (a) stay, (b) each student to their
+         * own bedroom, (c) a start point; 10.10.2026: a token on another map stays and is named), the
+         * ledger's Q2. Until 1.2.73 a reset asked nothing about the cast's tokens and left them where last
+         * season did. `placeCast` is the reset's step, run here with no reset (the plan's M10) on three
+         * students of the test's own, each with a token: A's bedroom and token on a scene that is not the
+         * one on screen (ITEM-16: a GM looking at one map sent nobody to a bedroom on another), B with no
+         * bedroom on the scene on screen, C with a bedroom on the other scene and a token on this one. Each
+         * choice is read as who moved, who stayed and where each token stands - inside the test's room
+         * (its centre within the rectangle the test drew) or where it stood. What a body does is
+         * scenario 65's P1; the window and the step's place are R354's. Red at the parent (C10) on its
+         * first check, no `placeCast` (measured on the harness, 10.10.2026).
+         */
+        const { placeCast } = await import("./season-setup.mjs");
+        ok(typeof placeCast === "function", "season-setup.mjs has no step that places the cast (`placeCast`) - the reset leaves every token where it was");
+        if (typeof placeCast !== "function") return;
+        needs(world.atLeast("scenes", 2), "a bedroom on another map than the one on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const here = game.scenes.viewed ?? game.scenes.contents[0];
+        const there = game.scenes.contents.find(scene => scene.id !== here.id);
+        const RECT = { width: 600, height: 600 };
+        const room = (name, x, owner) => ({ name, shapes: [{ type: "rectangle", x, y: 0, ...RECT }],
+            flags: owner ? { [MODULE_ID]: { [V.VAULT_FLAGS.owner]: owner } } : {} });
+        let actors = [], made = [];
+        try {
+            actors = await Actor.createDocuments(["A", "B", "C"].map(n => ({ name: `SUITE E11 C10b student ${n}`, type: "character" })));
+            const [a, b, c] = actors;
+            const [bedA, bedC] = await there.createEmbeddedDocuments("Region", [room("SUITE E11 C10b A's bedroom", 0, a.id), room("SUITE E11 C10b C's bedroom", 700, c.id)]);
+            const [point] = await here.createEmbeddedDocuments("Region", [room("SUITE E11 C10b the start point", 0, null)]);
+            made.push([there, "Region", [bedA.id, bedC.id]], [here, "Region", [point.id]]);
+            const token = (actor, x) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y: 1500, width: 1, height: 1 });
+            const [tokA] = await there.createEmbeddedDocuments("Token", [token(a, 1600)]);
+            const [tokB, tokC] = await here.createEmbeddedDocuments("Token", [token(b, 1600), token(c, 1800)]);
+            made.push([there, "Token", [tokA.id]], [here, "Token", [tokB.id, tokC.id]]);
+            const toks = { A: [there, tokA.id], B: [here, tokB.id], C: [here, tokC.id] };
+            const inside = (t, region) => {
+                const shape = region.shapes?.[0] ?? {}, size = t.parent?.grid?.size ?? 100;
+                const cx = t.x + (t.width ?? 1) * size / 2, cy = t.y + (t.height ?? 1) * size / 2;
+                return cx >= shape.x && cx <= shape.x + shape.width && cy >= shape.y && cy <= shape.y + shape.height;
+            };
+            const where = () => Object.fromEntries(Object.entries(toks).map(([n, [scene, id]]) => {
+                const t = scene.tokens.get(id);
+                const rooms = [[bedA, "bedA"], [bedC, "bedC"], [point, "point"]].filter(([region]) => region.parent?.id === scene.id && inside(t, region));
+                return [n, rooms.length ? rooms[0][1] : `${t.x},${t.y}`];
+            }));
+            const names = ids => ids?.map(id => actors.find(actor => actor.id === id)?.name.slice(-1)) ?? null;
+            const run = async choice => {
+                const placed = await placeCast(choice, actors);
+                await settle();
+                return { moved: names(placed?.moved), stayed: names(placed?.stayed), at: where() };
+            };
+            const start = where();
+            must(stableJson(start) === stableJson({ A: "1600,1500", B: "1600,1500", C: "1800,1500" }),
+                `the three tokens did not stand outside the test's rooms - this would measure nothing: ${stableJson(start)}`);
+            const stay = await run({ to: "stay" });
+            const bedroom = await run({ to: "bedroom" });
+            const toPoint = await run({ to: "point", scene: here.id, region: point.id });
+            equal(stableJson({ stay, bedroom, toPoint }), stableJson({
+                stay: { moved: [], stayed: [], at: start },
+                bedroom: { moved: ["A"], stayed: ["B", "C"], at: { A: "bedA", B: "1600,1500", C: "1800,1500" } },
+                toPoint: { moved: ["B", "C"], stayed: ["A"], at: { A: "bedA", B: "point", C: "point" } }
+            }), "the cast did not go where the GM chose (read per choice: who moved, who stayed, and where each token stands - "
+                + "A's bedroom and token on another map, B with no bedroom, C's bedroom on another map than its token)");
+        } finally {
+            for (const [scene, kind, ids] of made.reverse()) {
+                const left = ids.filter(id => scene.getEmbeddedCollection(kind).has(id));
+                if (left.length) await scene.deleteEmbeddedDocuments(kind, left);
+            }
+            if (actors.length) await Actor.deleteDocuments(actors.map(actor => actor.id));
+        }
+    }],
+
     ["a body found is stamped once per chapter and season", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-03, decision D8; the ledger's D2. The discovery's only memory was

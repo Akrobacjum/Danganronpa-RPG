@@ -3680,6 +3680,12 @@
       },
       "resetGroupsTitle": "Co znika, a co zostaje",
       "resetGroupsNote": "Odznacz wszystko, czego ten reset ma nie ruszać. Wybór zostaje zapamiętany na następny reset i wraca odznaczony - zaznacz ponownie, a zniknie.",
+      "resetCastTitle": "Dokąd trafiają żetony obsady",
+      "resetCastNote": "Żeton przenosi się tylko na mapie, na której narysowano jego pokój. Uczeń bez sypialni albo bez żetonu na mapie pokoju, do którego ma trafić, zostaje na miejscu, a raport go wymienia. Ciało zostaje tam, gdzie upadło. Wybór nie jest zapamiętywany: każdy reset zaczyna od pierwszej opcji.",
+      "resetCastStay": "Zostają tam, gdzie stoją",
+      "resetCastBedroom": "Każdy uczeń do własnej sypialni, przypisanej w Ustawieniach pokoi",
+      "resetCastPoint": "Wszyscy do jednego pokoju:",
+      "resetCastNoRooms": "Żadna mapa nie ma jeszcze nazwanego pokoju",
       "resetRemembered": {
         "one": "Z ostatniego resetu zapamiętano 1 wyjątek - poniżej jest odznaczony.",
         "few": "Z ostatniego resetu zapamiętano {n} wyjątki - poniżej są odznaczone.",
@@ -3704,7 +3710,9 @@
         "title": "Reset sezonu się nie dokończył",
         "failed": "Niewyczyszczone: {groups}.",
         "done": "Wyczyszczone: {groups}.",
-        "kept": "Zostawione, bo odznaczone: {groups}."
+        "kept": "Zostawione, bo odznaczone: {groups}.",
+        "titleCast": "Dokąd trafiła obsada po resecie sezonu",
+        "stayed": "Zostali na miejscu: {names}."
       },
       "section": {
         "case": "Sprawa",
