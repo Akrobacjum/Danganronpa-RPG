@@ -35,6 +35,7 @@ import {
     MODULE_ID, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TRUTH_BULLET_TYPES
 } from "./config.mjs";
 import { getClock } from "./clock.mjs";
+import { seasonEpoch } from "./settings.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import {
@@ -583,6 +584,11 @@ const READ_ON_ANALYZE = ["key", "final"];
  *   `keyFeeOf`), because the item's stamp is its holder's to rewrite. The stamp's
  *   chapter, or the clock's, unless the caller names it: a handover names its giver's
  *   answer key's, never the giver's item.
+ * @param {number|null} [data.epoch] The season of the find, kept in the answer key beside `chapter`
+ *   (E11 fix r2-H2) for the one kind whose reader asks it of the key itself, the autopsy (gm-panel.mjs
+ *   `autopsyIssued`): a copy names its original's (handover.mjs `shareBullet`), and an autopsy that is no
+ *   copy - issued from the panel (`issueAutopsy`) or written by hand in the Give a Truth Bullet window -
+ *   is this season's (settings.mjs `seasonEpoch`). Any other bullet's key names no season.
  * @param {string} [data.sourceAction] Which action left the source trace.
  *   Secret until the bullet is identified - see TRUTH_BULLET_FLAGS.
  * @param {boolean} [data.tiedToCrime] Whether the source trace belongs to the
@@ -621,7 +627,7 @@ export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
-    room = null, analyzed = null, stamp = null, foundIn = undefined,
+    room = null, analyzed = null, stamp = null, foundIn = undefined, epoch = undefined,
     sourceAction = null, tiedToCrime = null
 } = {}) {
     if (!actor || !name) return null;
@@ -700,13 +706,15 @@ export async function createTruthBullet(actor, {
 
     if (!item) return null;
 
+    const season = epoch !== undefined ? epoch : realType === "autopsy" && foundIn === undefined ? seasonEpoch() : undefined;
     // `analyzedText` goes into the secret whether or not it went onto the item:
     // that is what lets `identify` publish it later without going back to the
     // Remnant, and what lets a trace the killer has since wiped still pay out.
     await setSecret(item.uuid, {
         realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
         faint: !!faint,
-        chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter)
+        chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter),
+        ...(season !== undefined ? { epoch: season } : {})
     });
 
     // Its owners' copy of which trace it came from (E05 C13), before the trace is

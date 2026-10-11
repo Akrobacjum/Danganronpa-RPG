@@ -46340,6 +46340,135 @@ const SCENARIOS = [
         }
     }],
 
+    ["this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence", async () => {
+        /*
+         * E11 fix r2-H2, 1.2.73; round 2's cor COR2-2, sec S2 and goal S06-42, round 1's res R6. A reset sends the
+         * clock back to chapter 1 and keeps what the GM left unticked - the Remnants, the Truth Bullets, the
+         * Monocubs - and five readers asked only the chapter, so the new season's chapter 1 read last season's as
+         * its own: the GM panel's next line counted its Key Remnants as placed (`keysToPlace`) and its autopsy as
+         * issued, the Key plan counted its Key Remnant found off the plan (`keyPlanStatus`) and the Key fee as
+         * found (`keyFeeOf`), and its crime witness stayed marked (`isCrimeSilenced`). A reset is not the suite's
+         * to run (the plan's M10): the new season is the clock's `seasonStartedAt` moved on, as tier 2's "last
+         * season's chapter is not this one" moves it, in a chapter no trace of this world names; scenario 65's K
+         * plays it through a real reset of the clock alone. In the season before: a case of one Key Remnant, that
+         * Key Remnant placed off the plan and copied by one student, an autopsy issued to the same student, another
+         * marked a crime witness, and a discovery's stamp. In the new one, a discovery's stamp, and the autopsy
+         * handed over to the other (`shareBullet`, a road that writes an answer key again). Read in each: the
+         * Keys still to place, whether the off-plan count and the Key fee find the copy, the line in the
+         * Investigation, the mark (the new season's case of one Key Remnant written, as a reset drops the old one's
+         * row); then, in the new season, the line once a Key Remnant of its own stands. Last, the
+         * autopsy's answer key and the mark as 1.2.72 wrote them, with no season: read by their chapter alone, as
+         * before (`sameSeason` has nothing else to read on them). Red at the parent: last season's read as this one's.
+         */
+        const [living, cub] = cast(2);
+        const R = await import("./remnants.mjs");
+        const { keysToPlace, keyPlanStatus, keyFeeOf, recordCaseKeys } = await import("./investigation.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { nextStep } = await import("./gm-panel.mjs");
+        const { createTruthBullet, issueAutopsy, bulletsOf, secretOf, setSecret, dropSecret } = await import("./truth-bullets.mjs");
+        const { isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        const { recordBodyFound, isEclipse } = await import("./settings.mjs");
+        const { plural } = await import("./utils.mjs");
+        const scene = canvas.scene;
+        must(scene, "there is no scene to place the Key Remnants on");
+        must(!isEclipse() && !game.drpg?.murderState?.()?.active, "an Eclipse or an incident is open - the next line would answer that first, and this would measure nothing");
+        const named = new Set(game.scenes.contents.flatMap(s => R.remnantsOn(s).map(t => R.remnantData(t)?.chapter)));
+        let chapter = 1000;
+        while (named.has(chapter)) chapter++;
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const caseRow = `${chapter}:case`;
+        const caseBefore = foundry.utils.deepClone(keyPlanStore.get(caseRow) ?? null);
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const placed = [], made = [];
+        const place = async () => {
+            const token = await R.placeRemnant({ type: "key", visibility: "evident", faint: false, tiedToCrime: null, x: 0, y: 0, scene, chapter,
+                note: "SUITE E11 r2-H2 a Key Remnant" });
+            must(token?.id, "could not place the fixture Key Remnant");
+            placed.push(token);
+            return token;
+        };
+        // The line in an Investigation since the discovery stamped below, as the panel asks it (`bodyFoundSinceTrial`).
+        const line = () => {
+            const step = nextStep({ ...getClock(), phase: "investigation", trialEndedAt: 0 });
+            return [step?.text ?? null, step?.action ?? null];
+        };
+        const autopsies = () => bulletsOf(living).filter(item => secretOf(item.uuid).realType === "autopsy");
+        let before = null, after = null, legacy = null;
+        const { shareBullet } = await import("./handover.mjs");
+        // A handover asks one room of the two (`verify`); this asks its world rows, so before the first write.
+        const { back } = await aloneTogether(living, cub);
+        try {
+            await setClock({ chapter });
+            must(await recordCaseKeys(chapter, 1), "could not write the chapter's case count");
+            const oldKey = await place();
+            const copy = await createTruthBullet(living, { name: "SUITE E11 r2-H2 a Key copy", realType: "key", remnantId: oldKey.id, sceneId: scene.id });
+            must(copy, "could not make the fixture Key copy");
+            made.push(copy);
+            const had = new Set(autopsies().map(item => item.id));
+            await issueAutopsy([living], { name: "SUITE E11 r2-H2 autopsy" });
+            const [autopsy] = autopsies().filter(item => !had.has(item.id));
+            must(autopsy, "the autopsy was not issued");
+            made.push(autopsy);
+            await setSilenced(cub, true);
+            const reading = async () => {
+                await gmStoresIdle();
+                await judgedFor(living.id);
+                return { toPlace: keysToPlace(chapter), offPlan: keyPlanStatus().offPlan.some(row => row.tokenId === oldKey.id),
+                    fee: (await keyFeeOf(chapter))?.found ?? null, line: line(), silenced: isCrimeSilenced(cub) };
+            };
+            await recordBodyFound({ chapter, epoch: seasonEpoch(), at: Date.now(), by: "gm", victimIds: [] });
+            before = await reading();
+            must(stableJson([before.toPlace, before.offPlan, before.fee, before.line[1] === "autopsy", before.silenced]) === stableJson([0, true, 1, false, true]),
+                `the season before does not read its own records as this chapter's - this would measure nothing: ${stableJson(before)}`);
+            const next = Math.max(Date.now() - 3600_000, (Number(clockBefore.seasonStartedAt) || 0) + 1);
+            await setClock({ seasonStartedAt: next });
+            // The new season's own case: a reset drops the old one's row (investigation.mjs `keepOnlyKeyPlanChapter`).
+            must(await recordCaseKeys(chapter, 1), "could not write the new season's case count");
+            await recordBodyFound({ chapter, epoch: next, at: Date.now(), by: "gm", victimIds: [] });
+            // Last season's autopsy handed over in the new one: the copy is last season's too.
+            const handed = await shareBullet({ fromId: living.id, toId: cub.id, itemId: autopsy.id });
+            must(handed && !handed.refused, "the autopsy could not be handed over");
+            made.push(handed);
+            after = await reading();
+            await place();
+            await gmStoresIdle();
+            after.ownKeyLine = line();
+            // As 1.2.72 wrote them: the answer key with no season, the mark the bare chapter.
+            await setSecret(autopsy.uuid, { epoch: null });
+            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            await cub.setFlag(MODULE_ID, FLAGS.silencedChapter, chapter);
+            await gmStoresIdle();
+            legacy = { line: line(), silenced: isCrimeSilenced(cub) };
+        } finally {
+            if (cub.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            for (const item of made) {
+                try { await dropSecret(item.uuid); } catch { /* nothing filed */ }
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const token of placed) {
+                if (!scene.tokens.get(token.id)) continue;
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            if (caseBefore) await keyPlanStore.patch(caseRow, caseBefore);
+            else if (keyPlanStore.get(caseRow)) await keyPlanStore.dropMany([caseRow]);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await gmStoresIdle();
+            await back();
+        }
+        const keysLine = [plural("DRPG.Panel.nextKeysToPlace", { n: 1 }), "investigation"];
+        const autopsyLine = [game.i18n.localize("DRPG.Panel.nextAutopsy"), "autopsy"];
+        equal(stableJson({ after, legacy: { asked: legacy.line[1] === "autopsy", silenced: legacy.silenced } }),
+            stableJson({ after: { toPlace: 1, offPlan: false, fee: 0, line: keysLine, silenced: false, ownKeyLine: autopsyLine },
+                legacy: { asked: false, silenced: true } }),
+            "the new season's chapter read last season's of the same number as its own (in the new season: the Keys still to place, "
+            + "whether the off-plan count and the Key fee find last season's copy, the next line [text, button], the crime-witness mark, "
+            + "the line once a Key Remnant of this season stands; then an autopsy and a mark with no season: whether the line still "
+            + "asks for the autopsy, and the mark)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

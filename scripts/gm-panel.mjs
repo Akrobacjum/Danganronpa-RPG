@@ -14,7 +14,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
-import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
@@ -1267,12 +1267,17 @@ function bodyWaiting(clock) {
  * Whether a student holds an Autopsy Truth Bullet of `chapter`, by the GMs' answer keys (`secretOf`: the
  * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
  * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
+ * Of this season (E11 fix r2-H2; round 1's res R6, round 2's goal S06-42): a reset that keeps the Truth
+ * Bullets starts again at chapter 1, and last season's chapter-1 autopsy read as issued, so the new
+ * chapter's line never asked for one. An autopsy's answer key names its season since (truth-bullets.mjs
+ * `createTruthBullet`, a copy its original's); one issued before 1.2.73 names none and is read by its chapter alone, as before (`sameSeason`; tier 2
+ * "this season's chapter reads none of last season's Key Remnants nor its autopsy nor its silence").
  */
 function autopsyIssued(chapter) {
     return studentActors().some(actor => itemsHeldNow(actor).some(item => {
         if (!isTruthBullet(item)) return false;
         const secret = secretOf(actor.items.get(item.id)?.uuid);
-        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter);
+        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter) && sameSeason(secret);
     }));
 }
 

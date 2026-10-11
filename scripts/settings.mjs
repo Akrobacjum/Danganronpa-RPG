@@ -2225,8 +2225,13 @@ export function seasonEpoch() {
  * counted and taken off the map at the new chapter 1's end, its Final Truth read as placed, its
  * motive was in force, and its Faint Prep traces were offered at the new season's first discovery.
  * The writers stamp `epoch: seasonEpoch()` beside `chapter` (remnants.mjs `placeRemnant`, rules.mjs
- * `setMotive`) - a death's record carries it since E11 C1 - and every reader that asks "this chapter"
- * asks this as well.
+ * `setMotive`; a death's record since E11 C1; the autopsy's answer key, truth-bullets.mjs
+ * `createTruthBullet`, and the crime-witness mark, monocub.mjs `setSilenced`, since E11 fix r2-H2), and the
+ * readers of those records that ask "this chapter" ask this as well (tier 0 R356 and R376 hold them).
+ * Not every reader of a chapter asks it: the trial's progress and ballots, a betrayal offer and the
+ * Key plan's rows live in groups of their own and are read by their chapter, and a Truth Bullet's
+ * analysis lock and a Key copy's answer key carry no season (round 2's census of these readers, in
+ * E11 fix r2-H2's handoff).
  *
  * A record from before 1.2.73 carries no epoch. Its own real-time stamp answers instead - a trace's
  * `placedAt`, the motive's `at` - against the season's start: an older one is last season's, and

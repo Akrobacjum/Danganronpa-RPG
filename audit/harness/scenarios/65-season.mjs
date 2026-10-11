@@ -64,6 +64,9 @@
  *      GM stays the primary) ends the chapter while the primary's end runs, held in its first
  *      step until the primary's move has landed - the interleaving round 1's COR-2 named and
  *      did not run; then opens its End of chapter window (E11 fix r1-G5).
+ *   K  last season's chapter 1 again (E11 fix r2-H2): in chapter 1 a case of one Key Remnant, that Key Remnant copied by
+ *      Aiko off the plan, an autopsy issued to her and Botan marked a crime witness, then a reset of the clock alone and
+ *      a case of one Key Remnant in the new season's chapter 1: the Keys still to place, the off-plan count, the Key fee, the GM panel's next line and the mark, before and after.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -910,4 +913,53 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             && J(primary.after) === J(after) && J(secondGm.atEnd) === J(after), J({ opened, primary, second: secondGm, after }), { flow: "clock-day" });
     check("H2: the second GM's End of chapter window is refused before anything is asked, and told whose the end is (E11 fix r1-G5)",
         secondGm.window === null && J(secondGm.asked) === J([]) && secondGm.windowWarned === 1, J(secondGm), { flow: "clock-day" });
+
+    /* ------------------- K. last season's Key Remnants, autopsy and crime witness ------------------- */
+    phase("K: last season's chapter 1 after a reset that keeps the Remnants, the Truth Bullets and the Monocubs", { flow: "season-reset" });
+    /* E11 fix r2-H2 (round 2's cor COR2-2, sec S2, goal S06-42; round 1's res R6). In chapter 1: a case of one Key Remnant,
+       that Key Remnant placed off the plan and copied by Aiko, an autopsy issued to Aiko, Botan marked a crime witness and a
+       discovery stamped; then a reset of the clock alone, which drops the case's row (`keepOnlyKeyPlanChapter`), and in the
+       new season a case of one Key Remnant in chapter 1 and a discovery stamped. Read before and after,
+       through the GM panel's `nextStep` in an Investigation since that discovery: the Keys still to place, whether the
+       off-plan count finds Aiko's copy, the Key fee's found count, the line, Botan's mark; then a Key Remnant of the new
+       season placed, and the line. Before the fix the new chapter 1 counted last season's Key Remnant as placed and found
+       and its autopsy as issued, and Botan stayed marked. */
+    const KSEASON = `const R = await import("${repoUrl}/scripts/remnants.mjs"); const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const GP = await import("${repoUrl}/scripts/gm-panel.mjs"); const MC = await import("${repoUrl}/scripts/monocub.mjs");
+        const SET = await import("${repoUrl}/scripts/settings.mjs"); const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { judgedFor } = await import("${repoUrl}/scripts/sheet-audit.mjs"); const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), aiko = game.actors.get("${IDS.aiko}"), botan = game.actors.get("${IDS.botan}");
+        const place = async note => (await R.placeRemnant({ type: "key", visibility: "evident", faint: false, tiedToCrime: null, x: 0, y: 0,
+            sceneId: academy.id, chapter: SET.getClock().chapter, note }))?.id ?? null;
+        const stamp = () => SET.recordBodyFound({ chapter: SET.getClock().chapter, at: Date.now(), by: "gm", victimIds: [] });
+        const line = () => { const s = GP.nextStep({ ...SET.getClock(), phase: "investigation", trialEndedAt: 0 }); return [s?.text ?? null, s?.action ?? null]; };
+        const reading = async key => { await gmStoresIdle(); await judgedFor(aiko.id); const chapter = SET.getClock().chapter;
+            return { chapter, toPlace: I.keysToPlace(chapter), offPlan: I.keyPlanStatus().offPlan.some(r => r.tokenId === key),
+                fee: (await I.keyFeeOf(chapter))?.found ?? null, line: line(), silenced: MC.isCrimeSilenced(botan) }; };`;
+    const keptBefore = await gm.eval(`${KSEASON} const TB = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const chapter = SET.getClock().chapter;
+        await I.recordCaseKeys(chapter, 1);
+        const key = await place("65 K last season's Key Remnant");
+        const copy = await TB.createTruthBullet(aiko, { name: "65 K a Key copy", realType: "key", remnantId: key, sceneId: academy.id });
+        const autopsy = await TB.issueAutopsy([aiko], { name: "65 K autopsy" });
+        await MC.setSilenced(botan, true);
+        await stamp();
+        globalThis.__k = key;
+        return { key: Boolean(key), copy: Boolean(copy), autopsy, ...(await reading(key)) };`, { timeout: 60000 });
+    const keptReset = await gm.eval(`${resetRun({ ticked: J(["clock"]) })} return { cleared: read.cleared, failed: read.failed };`, { timeout: 120000 });
+    const keptAfter = await gm.eval(`${KSEASON}
+        await I.recordCaseKeys(SET.getClock().chapter, 1);
+        await stamp();
+        const read = await reading(globalThis.__k);
+        await place("65 K this season's Key Remnant");
+        await gmStoresIdle();
+        return { ...read, ownKeyLine: line(), keysLine: [plural("DRPG.Panel.nextKeysToPlace", { n: 1 }), "investigation"],
+            autopsyLine: [game.i18n.localize("DRPG.Panel.nextAutopsy"), "autopsy"] };`, { timeout: 60000 });
+    check("K1: after a reset of the clock alone, last season's chapter 1 is not this one - its Key Remnant is not placed nor found off the plan nor paid for, its autopsy not issued, its crime witness not marked (E11 fix r2-H2)",
+        keptBefore.key && keptBefore.copy && keptBefore.autopsy === 1 && keptBefore.chapter === 1 && keptBefore.toPlace === 0
+            && keptBefore.offPlan === true && keptBefore.fee >= 1 && keptBefore.line[1] !== "autopsy" && keptBefore.silenced === true
+            && J(keptReset.cleared) === J(["clock"]) && J(keptReset.failed) === "[]"
+            && keptAfter.chapter === 1 && keptAfter.toPlace === 1 && keptAfter.offPlan === false && keptAfter.fee === keptBefore.fee - 1
+            && J(keptAfter.line) === J(keptAfter.keysLine) && keptAfter.silenced === false && J(keptAfter.ownKeyLine) === J(keptAfter.autopsyLine),
+        J({ keptBefore, keptReset, keptAfter }), { flow: "season-reset" });
 }

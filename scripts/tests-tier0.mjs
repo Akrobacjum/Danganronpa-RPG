@@ -7325,7 +7325,7 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
-            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter, over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
+            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter (and its season since fix r2-H2, `sameSeason`), over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
@@ -9129,6 +9129,43 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ en: [true, true, false], pl: [true, true, false] }),
             "the hold's words are missing, do not say the Investigation has not started, or say that the game, the actions or the "
             + "searching stopped (per language: [the line, says not started, says stopped])");
+    }],
+
+    ["R376 - the Key Remnants still to place, the off-plan finds, the Key fee, the autopsy and the crime-witness mark are this season's chapter's", async () => {
+        /*
+         * E11 fix r2-H2, 1.2.73; round 2's cor COR2-2, sec S2 and goal S06-42, round 1's res R6. C12 gave
+         * `sameSeason` to seven readers of a trace or the motive (R356); the side line's Key line (r1-G4)
+         * and three older readers asked the chapter alone, so after a reset that kept the Remnants, the
+         * Truth Bullets or the Monocubs, the new chapter 1 read last season's as its own: its Key
+         * Remnants as placed and found, its autopsy as issued, its crime witness as marked. The guard
+         * on the promise, in the source: each of the five readers asks `sameSeason`, and the two
+         * writers whose records had no season - the autopsy's answer key and the crime-witness mark -
+         * write one. What the readers answer is tier 2's "this season's chapter reads none of last
+         * season's Key Remnants nor its autopsy nor its silence" and scenario 65's K (a real reset of the clock
+         * alone).
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const [investigation, panel, bullets, monocub] = ["investigation.mjs", "gm-panel.mjs", "truth-bullets.mjs", "monocub.mjs"].map(src);
+        ok(investigation.length > 1000 && panel.length > 1000 && bullets.length > 1000 && monocub.length > 1000,
+            "a source file did not load - the reads below would measure nothing");
+        const readers = [
+            ["investigation.mjs keysToPlace", fnSource(investigation, "keysToPlace"), /=== Number\(chapter\) && sameSeason\(r\.data\)\)\.length/],
+            ["investigation.mjs keyPlanStatus's off-plan count", fnSource(investigation, "keyPlanStatus"), /\(r\.data\?\.chapter \?\? chapter\) === chapter && sameSeason\(r\.data\)/],
+            ["investigation.mjs keyFeeOf", fnSource(investigation, "keyFeeOf"), /trace \? \(sameSeason\(trace\) \? trace\.chapter \?\? now : null\)/],
+            ["gm-panel.mjs autopsyIssued", fnSource(panel, "autopsyIssued"), /Number\(secret\.chapter\) === Number\(chapter\) && sameSeason\(secret\)/],
+            ["monocub.mjs isCrimeSilenced", fnSource(monocub, "isCrimeSilenced"), /record\.chapter === getClock\(\)\.chapter && sameSeason\(record\)/]
+        ];
+        const blind = readers.filter(([, body, asks]) => !asks.test(body)).map(([name]) => name);
+        equal(blind.join(", "), "", "a reader of this chapter's Key Remnants, autopsy or crime-witness mark takes last season's chapter of the same number for this one");
+        const writers = [
+            ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
+                && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
+            ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "shareBullet"))],
+            ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
+        ];
+        equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
+            "the autopsy's answer key or the crime-witness mark does not name its season");
     }]
 ];
 

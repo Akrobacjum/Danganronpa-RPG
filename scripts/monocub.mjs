@@ -48,6 +48,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
+import { seasonEpoch, sameSeason } from "./settings.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -130,7 +131,8 @@ export async function setSilenced(actor, silenced) {
 
     const was = isCrimeSilenced(actor);
     if (silenced) {
-        await actor.setFlag(MODULE_ID, FLAGS.silencedChapter, getClock().chapter);
+        // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`.
+        await actor.setFlag(MODULE_ID, FLAGS.silencedChapter, { chapter: getClock().chapter, epoch: seasonEpoch() });
     } else {
         await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
     }
@@ -155,10 +157,19 @@ export async function setSilenced(actor, silenced) {
  * reader in call-effects.mjs shared one bare name, and sheet.mjs renamed them at its door.
  * The alias in api.mjs still answers this question under that old name, so a macro
  * reads what it read.
+ *
+ * THIS SEASON'S CHAPTER (E11 fix r2-H2; round 2's goal S06-42). The mark was the chapter alone, and
+ * a reset that keeps the Monocubs (its deaths group unticked) sends the clock back to chapter 1: a
+ * Monocub marked in last season's chapter 1 read as marked in the new one, on the GM's Players
+ * window and the sheet. `setSilenced` writes `{ chapter, epoch }` since, and this asks `sameSeason`
+ * of it; a mark from before 1.2.73 is the bare chapter, which names no season and is read by its
+ * chapter alone, as before (tier 2 "this season's chapter reads none of last season's Key Remnants
+ * nor its autopsy nor its silence"; scenario 65's K).
  */
 export function isCrimeSilenced(actor) {
-    const chapter = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
-    return typeof chapter === "number" && chapter === getClock().chapter;
+    const mark = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
+    const record = typeof mark === "number" ? { chapter: mark } : mark;
+    return typeof record?.chapter === "number" && record.chapter === getClock().chapter && sameSeason(record);
 }
 
 /* ==========================================================================

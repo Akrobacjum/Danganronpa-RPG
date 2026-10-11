@@ -295,6 +295,10 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // stamp above is the giver's item flag, which the giver writes. A copy made before that
         // fix names none, and neither does this one.
         foundIn: secret.chapter ?? null,
+        // And its season where the answer key names one (E11 fix r2-H2): an autopsy's, which the GM panel
+        // reads as this season's chapter's (gm-panel.mjs `autopsyIssued`) - a copy handed over after a reset
+        // of last season's autopsy is last season's, and a copy of one that names none names none.
+        epoch: secret.epoch ?? undefined,
         // From the SECRET, not the item: `createTruthBullet` publishes these
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.
