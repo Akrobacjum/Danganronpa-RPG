@@ -38,7 +38,9 @@
  *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
  *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
- *      the discovery counts (Q5a, C12).
+ *      the discovery counts (Q5a, C12); a step inside and the bridge's send-back to that spot, a
+ *      jump back to the Hall and in again with a Monokuma flag her player wrote a moment before,
+ *      and the GM's own placing of her (C12).
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
  *   K  two scenes made here with Foundry's vision on: p1 views the Study and draws a region marked a room on the Den,
  *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
@@ -73,6 +75,8 @@
  * was not read.
  * E12 C11 (G6-G8 added): 32 checks in 27.2-28.5 s, two runs under the harness lock on 11.10.2026; another lane's scenario 30
  * was running when the first started, whether it still ran was not read.
+ * E12 C12 (I1 rewritten; I2-I4 added): 35 checks in 33.4-35.3 s, two runs under the harness lock on 11.10.2026; whether
+ * other lanes ran then was not read.
  */
 export const layers = ["ci"];
 
@@ -594,29 +598,96 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         console.log = (...args) => { globalThis.__s66i.lines.push(args.map(String).join(" ")); return globalThis.__s66i.log.apply(console, args); };
         return { locked: locked(storage), daichi, kept, botan, aiko, cards: cards(), neighbours: M.neighbouringRooms(academy, "Hall"),
             names: { aiko: game.actors.get("${IDS.aiko}").name, botan: game.actors.get("${IDS.botan}").name } };`, { timeout: 60000 });
+    /* What the GMs were told of Aiko's arrivals (`tellUnlawful`, movement.mjs), and what the primary reads of where she
+       stands (`standingOf`) - the find is not the only answer: under a judge that counts her, the second witness. */
+    const AIKO = `const M = await import("${repoUrl}/scripts/movement.mjs"), S = await import("${repoUrl}/scripts/settings.mjs"),
+            { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+        const told = () => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-unlawful="TOKAIKO000000000"')).length;
+        const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length - globalThis.__s66i.cards;
+        const wait = async (until, ms) => { const start = Date.now(); while (!until() && Date.now() - start < ms) await new Promise(r => setTimeout(r, 100));
+            return Date.now() - start; };
+        const standing = () => { const s = M.standingOf?.(t); return { lawful: s?.lawful ?? null, reason: s?.reason ?? null }; };`;
     const jump = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = canvas.scene.tokens.get("TOKAIKO000000000");
         await t.update(M.positionIn("Storage", t), { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
         return M.roomOfToken(t);`, { timeout: 30000 });
-    const foundI = await gm.eval(`const S = await import("${repoUrl}/scripts/settings.mjs");
+    const readI1 = await gm.eval(`${AIKO}
+        const ms = await wait(() => told() >= 1, 6000);
+        await new Promise(r => setTimeout(r, 1500));
+        return { ms, told: told(), held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing(), room: M.roomOfToken(t) };`, { timeout: 30000 });
+    /* At 180df61 the discovery counted every student standing in the room when a token arrived (`witnessesOf`), however
+       they got there: p1's jump from the Hall into the locked Storage, the veto skipped as a revert skips it, made Aiko
+       the second witness, and the body was found by Aiko and Botan (E12 C0, measured). E12 C12 (Q5a, the owner's Q3 a):
+       the primary judges the arrival again from her last lawful room, the Hall, and an unlawful one is no witness. */
+    check("I1: Aiko jumped by her player from the Hall into the locked Storage is no witness: nothing is found, the GMs are told once (E12 C12)",
+        setI.locked && setI.kept && setI.daichi === "Storage" && setI.botan === "Storage" && setI.aiko === "Hall" && setI.cards === 0
+            && !setI.neighbours.includes("Storage") && jump === "Storage" && readI1.room === "Storage" && readI1.told === 1
+            && !readI1.held && readI1.cards === 0 && readI1.standing.lawful === false,
+        J({ setI, jump, readI1 }));
+
+    /* I2: a step inside the Storage, which p1's veto lets through (one room), and then the bridge's send-back to the
+       spot she jumped to: a revert the primary wrote for p1 (`SENT_BACK`), honoured to where she stood - unlawfully. */
+    const sendI2 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const t = canvas.scene.tokens.get("TOKAIKO000000000");
+        const spot = { x: t.x, y: t.y };
+        await t.update({ x: t.x + 100 }, { animate: false });
+        await new Promise(r => setTimeout(r, 800));
+        const stepped = { x: t.x, room: M.roomOfToken(t) };
+        const answer = await B.requestSendBack(canvas.scene.id, t.id, spot);
+        return { spot, stepped, answer: answer ?? null };`, { timeout: 30000 });
+    const readI2 = await gm.eval(`${AIKO}
+        const ms = await wait(() => t.x === ${J(sendI2.spot.x)} && t.y === ${J(sendI2.spot.y)}, 6000);
+        await new Promise(r => setTimeout(r, 1500));
+        return { ms, at: { x: t.x, y: t.y }, told: told(), held: Boolean(S.bodyDiscovery()), cards: cards(), standing: standing() };`, { timeout: 30000 });
+    check("I2: sent back by the bridge to the spot she jumped to, Aiko still stands unlawfully: no find, no second notice (E12 C12)",
+        sendI2.stepped.room === "Storage" && sendI2.stepped.x === sendI2.spot.x + 100 && readI2.at.x === sendI2.spot.x && readI2.at.y === sendI2.spot.y
+            && readI2.told === 1 && !readI2.held && readI2.cards === 0 && readI2.standing.lawful === false,
+        J({ sendI2, readI2 }));
+
+    /* I3: a revert-jump back to the Hall (lawful: the room she last stood in lawfully), then p1's console marks Aiko a
+       Monokuma - whom no crossing rule binds - and, without waiting for it, jumps her into the Storage beside the spot
+       of I1. The flag reaches the primary before the move, and the sheet audit puts it back after it: the judge reads
+       her as the GMs hold her, a student. */
+    const jumpI3 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
+        const PLACE = { drpgRevert: true, teleport: true, movementAction: "displace", animate: false };
+        const centre = M.positionIn("Storage", t);
+        await t.update(M.positionIn("Hall", t), PLACE);
+        await new Promise(r => setTimeout(r, 1000));
+        const hall = M.roomOfToken(t);
+        const flag = aiko.setFlag("${MOD}", "monokuma", true);
+        await t.update({ x: centre.x + 50, y: centre.y }, PLACE);
+        await flag;
+        return { hall, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    const readI3 = await gm.eval(`${AIKO}
+        const aiko = game.actors.get("${IDS.aiko}");
+        const ms = await wait(() => told() >= 2 && !aiko.getFlag("${MOD}", "monokuma"), 6000);
+        await new Promise(r => setTimeout(r, 1000));
+        return { ms, told: told(), monokuma: aiko.getFlag("${MOD}", "monokuma") ?? null, held: Boolean(S.bodyDiscovery()), cards: cards(),
+            standing: standing() };`, { timeout: 30000 });
+    check("I3: jumped back to the Hall and in again with a Monokuma flag her player wrote a moment before, Aiko stands unlawfully and the flag is put back (E12 C12)",
+        jumpI3.hall === "Hall" && jumpI3.room === "Storage" && readI3.told === 2 && !readI3.monokuma && !readI3.held && readI3.cards === 0
+            && readI3.standing.lawful === false,
+        J({ jumpI3, readI3 }));
+
+    /* I4: the GM places her in the Storage: a GM's move makes the spot lawful (nothing was put back, Q3 a), and the
+       body is found by the two who stand there. */
+    const foundI = await gm.eval(`${AIKO}
+        await t.update(M.positionIn("Storage", t), { teleport: true, movementAction: "displace", animate: false });
         const end = Date.now() + 8000; while (!S.bodyDiscovery() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         await new Promise(r => setTimeout(r, 800));
-        const cards = game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length - globalThis.__s66i.cards;
         const rows = (S.bodiesFoundIn?.(S.getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
+        const out = { held: Boolean(S.bodyDiscovery()), cards: cards(), rows, standing: standing(), told: told() };
         console.log = globalThis.__s66i.log;
-        const finders = globalThis.__s66i.lines.filter(line => line.includes("Body found in Storage:"));
+        out.finders = globalThis.__s66i.lines.filter(line => line.includes("Body found in Storage:"));
         delete globalThis.__s66i;
-        return { held: Boolean(S.bodyDiscovery()), cards, rows, finders };`, { timeout: 30000 });
-    /* At 180df61 the discovery counts every student standing in the room when a token arrives (`witnessesOf`), however
-       they got there: p1's jump from the Hall into the locked Storage, the veto skipped as a revert skips it, makes Aiko
-       the second witness, and the body is found. E12 C12 (Q5a): a token that reached the room unlawfully is not a
-       witness - Botan alone, no card. */
-    check("I1: Aiko jumped from the Hall into the locked Storage by her player is counted a witness: the body is found by Aiko and Botan (E12 C12)",
-        setI.locked && setI.kept && setI.daichi === "Storage" && setI.botan === "Storage" && setI.aiko === "Hall" && setI.cards === 0
-            && !setI.neighbours.includes("Storage") && jump === "Storage" && foundI.held && foundI.cards === 1
+        return out;`, { timeout: 30000 });
+    check("I4: placed in the Storage by the GM, Aiko stands lawfully and the body is found by Aiko and Botan (E12 C12)",
+        foundI.standing.lawful === true && foundI.held && foundI.cards === 1 && foundI.told === 2
             && foundI.rows.some(row => row.room === "Storage" && row.by === "witnesses")
             && foundI.finders.length === 1 && foundI.finders[0].includes(setI.names.aiko) && foundI.finders[0].includes(setI.names.botan),
-        J({ setI, jump, foundI }));
+        J({ setI, foundI }));
 
     /* ------------------------------ J. a player's region and a player's untick ------------------------------ */
     phase("J: p1 draws a region marked a room and unticks the Gym");

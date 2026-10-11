@@ -1226,7 +1226,7 @@ async function checkBodyFound(tokenDoc) {
        mark (`flagsHeldNow`) without waiting for the audit - a walk waits on nothing a judgement
        waits on. */
     const { isEclipse } = await import("./eclipse.mjs");
-    const { roomOfToken } = await import("./movement.mjs");
+    const { roomOfToken, lawfulRoomOf } = await import("./movement.mjs");
     const { blackenedIds, killerIds, murderState } = await import("./murder.mjs");
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
 
@@ -1277,8 +1277,12 @@ async function checkBodyFound(tokenDoc) {
        their own Stage 6. The running incident's killers count as involved too. */
     const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
 
-    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`).
-    const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: roomOfToken });
+    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`). Nor is a student
+    // who reached the room by a crossing the rules refuse, until they stand somewhere lawful (E12
+    // C12, the owner's Q3 a): the room they count in is the witness judge's (movement.mjs
+    // `lawfulRoomOf`), read in this same step. Scenario 66 I1 read Aiko, jumped into the locked
+    // Storage by her player's console, as the second witness until 1.2.74.
+    const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: lawfulRoomOf });
 
     /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
        on a body nobody has found with nobody else there sees it - told privately by the GMs,

@@ -2364,6 +2364,10 @@
       "bodyLocked": "The Eclipse is running. A body cannot be discovered - by hand or automatically - until everyone has finished placing.",
       "panelLocked": "Locked while the Eclipse runs - nobody has finished placing yet."
     },
+    "Movement": {
+      "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
+      "outsideRooms": "outside the rooms"
+    },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
       "cannotReach": "You cannot get there from {from}.",

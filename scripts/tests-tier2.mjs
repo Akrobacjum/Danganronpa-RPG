@@ -47837,6 +47837,133 @@ const SCENARIOS = [
                 + "on a scene with no room; on a scene of one floor]");
     }],
 
+    ["a student a player's console put in a room the rules refuse is no witness until they stand somewhere lawful", async () => {
+        /*
+         * E12 C12, 11.10.2026; plan-E12 3.4, audit Q5a, the owner's Q3 a. The room veto runs on the
+         * mover's browser and a revert skips it, so the discovery counted a student a console jumped
+         * into a locked room (scenario 66 I1 at E12 C0). The primary now judges each arrival again
+         * (movement.mjs `judgeArrival`) from the token's last lawful room. Here it is handed a plain
+         * token of a living student who is not the Mastermind, on a plain scene of a Hall whose
+         * neighbours are a locked Storage, another student's Bedroom and a Den, as `noteGmPosition` hands
+         * it each move: dropped in the Hall by this GM; jumped into the Storage by a player with the
+         * revert mark; stepped inside it by the player; walked back to the Hall; into the Bedroom, with no
+         * key; into the Den; placed in the Storage by this GM. Read after each: lawful, the room it counts
+         * in (`lawfulRoomOf`), the reason; whether `witnessesOf` counts it in the Storage through that
+         * room and through the plain one; and how many notices the GMs were sent of it. And a plain student
+         * with no free Move and no action left walks from the Hall into the Den with the movement cost on:
+         * lawful, for the judge asks no price (`pay: false`; what a crossing costs is the charge's). The
+         * clock out of a trial and an Eclipse, the cost on; restore() puts them back and the notices. Red
+         * before C12: no `judgeArrival`.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const trio = cast(3);
+        const actor = trio.find(a => !isMastermind(a)), owner = trio.find(a => a !== actor);
+        must(actor && owner, "no living student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const player = game.users.find(u => !u.isGM)?.id ?? null;
+        const region = (name, x, flags = {}) => ({ id: name, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const NEXT = "drpgNeighbours";
+        const scene = { id: "suite-e12-c12-scene", name: "SUITE E12 C12", grid: { size: 100 }, regions: new Set([
+            region("Hall", 0, { [NEXT]: "Storage,Bedroom,Den" }), region("Storage", 500, { [M.ROOM_FLAGS.locked]: true, [NEXT]: "Hall" }),
+            region("Bedroom", 1000, { [ROOM_OWNER_FLAG]: owner.id, [NEXT]: "Hall" }), region("Den", 1500, { [NEXT]: "Hall" })]) };
+        const token = { id: "suite-e12-c12", name: actor.name, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene, actor };
+        const spent = { id: "suite-e12-c12-spent", name: "SUITE E12 C12 spent", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeMoveUsed ? true : undefined) };
+        const walker = { id: "suite-e12-c12-walker", name: spent.name, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene, actor: spent };
+        const walked = () => {
+            const dropped = M.judgeArrival(walker, game.user.id);
+            walker.x = 1600;
+            const walk = M.judgeArrival(walker, player);
+            return [dropped?.lawful ?? null, walk?.lawful ?? null, walk?.reason ?? null];
+        };
+        const told = () => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-unlawful="suite-e12-c12"')).length;
+        const before = told();
+        const step = (x, y, userId, options) => {
+            Object.assign(token, { x, y });
+            const now = M.judgeArrival(token, userId, options);
+            return [now?.lawful ?? null, M.lawfulRoomOf(token), now?.reason ?? null];
+        };
+        const counted = roomOf => witnessesOf({ tokens: [token], room: "Storage", students: new Set([actor.id]), roomOf }).length;
+        const read = typeof M.judgeArrival === "function" ? [step(100, 100, game.user.id), step(600, 100, player, { revert: true }),
+            step(650, 150, player), [counted(M.lawfulRoomOf), counted(M.roomOfToken)], step(150, 100, player), step(1100, 100, player),
+            step(1600, 100, player), step(600, 100, game.user.id), walked()]
+            : "no judgeArrival";
+        await until(() => told() - before >= 2, 3000);
+        await settle();
+        const locked = game.i18n.localize("DRPG.Move.locked"), keyless = game.i18n.format("DRPG.Vault.keyMissing", { room: "Bedroom" });
+        equal(stableJson([read, told() - before]), stableJson([[[true, "Hall", null], [false, null, locked], [false, null, locked], [0, 1],
+            [true, "Hall", null], [false, null, keyless], [true, "Den", null], [true, "Storage", null], [true, true, null]], 2]),
+            "[[lawful, the room it counts in, the reason] dropped in the Hall by a GM, jumped into the locked Storage by a player with the "
+                + "revert mark, stepped inside it, [counted a witness in the Storage through the lawful room, through the plain one], walked "
+                + "back to the Hall, into another's Bedroom with no key, into the Den, placed in the Storage by a GM; [a spent student dropped in the Hall by a GM, its walk into the Den]; the notices the GMs were sent]");
+    }],
+
+    ["a student a send-back put in a locked room walks in on no incident there until a GM moves them", async () => {
+        /*
+         * E12 C12, 11.10.2026; plan-E12 3.4, the owner's Q3 a. A third party is somebody who walks into
+         * the room of a running incident (murder-rules.mjs `maybeThirdParty`), and the room was the
+         * token's wherever it got to. A send-back the bridge writes for a player (`handleSendback`) is a
+         * GM's write marked as our revert, so it carries `SENT_BACK` and is judged as the player's
+         * (`judgeArrival`). Here the killer and the victim are stood alone in a room and fight, the room
+         * is locked, and a third student who is not the Mastermind is put in it by an update marked as a
+         * player's send-back to a spot it never stood on: it walks in on nothing and stands unlawfully.
+         * Then this GM moves it a pixel inside the room: lawful, and it walks in. Read: the incident's
+         * third after each, and the standing the primary read. Tokens, the lock and the clock put back;
+         * the incident by restore(). Red before C12: the third walked in on the send-back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the three are stood in rooms by their tokens");
+        const M = await import("./murder.mjs");
+        const MV = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const trio = cast(3);
+        const third = trio.find(a => !isMastermind(a));
+        must(third, "no student who is not the Mastermind to walk in - the lock binds nobody here, this would measure nothing");
+        const [killer, victim] = trio.filter(a => a !== third);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const scene = canvas?.scene;
+        const thirdToken = scene?.tokens?.find(t => t.actorId === third.id);
+        must(thirdToken, `${third.name} has no token on the scene on screen`);
+        const was = { x: thirdToken.x, y: thirdToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const { room, back } = await aloneTogether(killer, victim);
+        const pieces = R.roomRegions(scene, room).map(r => [r, r.getFlag(MODULE_ID, MV.ROOM_FLAGS.locked)]);
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            for (const [piece] of pieces) await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, true);
+            const spot = MV.positionIn(room, thirdToken);
+            await thirdToken.update(spot, { ...PLACE, [MV.REVERT]: true, [MV.SENT_BACK]: true });
+            await settle();
+            await wait(400);
+            const sentIn = [MV.roomOfToken(thirdToken), M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"];
+            await thirdToken.update({ x: spot.x + 1 }, PLACE);
+            await until(() => M.murderState()?.thirdId === third.id, 3000);
+            read = [sentIn, [M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"]];
+        } finally {
+            for (const [piece, old] of pieces) {
+                if (old === undefined || old === null) await piece.unsetFlag(MODULE_ID, MV.ROOM_FLAGS.locked);
+                else await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, old);
+            }
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(was, PLACE);
+            await back();
+        }
+        equal(stableJson(read), stableJson([[room, null, false], [third.id, true]]),
+            `[[the third's room, the incident's third, whether it stands lawfully] put in the locked ${room} by a player's send-back; `
+                + "[the incident's third, lawful] after this GM moved it a pixel]");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

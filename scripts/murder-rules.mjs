@@ -3086,13 +3086,16 @@ async function maybeThirdParty(tokenDoc) {
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
 
-    const { roomOfToken, locateActor } = await import("./movement.mjs");
+    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
     const scene = locateActor(game.actors.get(state.victimId));
     if (!scene?.room) return;
     // Same scene, same room. Two rooms of the same name on two maps are not
-    // one room - `sameRoom` makes the same distinction for a handover.
+    // one room - `sameRoom` makes the same distinction for a handover. And
+    // the room the witness judge lets them count in (E12 C12, the owner's
+    // Q3 a): a player's console that put the token there past the rules
+    // walks nobody in, until it stands somewhere lawful.
     if (tokenDoc.parent?.id !== scene.scene?.id) return;
-    if (roomOfToken(tokenDoc) !== scene.room) return;
+    if (lawfulRoomOf(tokenDoc) !== scene.room) return;
 
     // The guide gives the scene one third party. The second one to walk in is
     // the fourth person in the room, and at four this stops being a murder

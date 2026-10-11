@@ -2456,6 +2456,10 @@
       "panelLocked": "Zablokowane, dopóki trwa Eclipse - nikt jeszcze nie skończył się ustawiać.",
       "murderWindowLocked": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Otwórz incydent, gdy zapali się światło; karta pułapki czeka w wątku, dopóki tego nie zrobisz."
     },
+    "Movement": {
+      "unlawfulArrival": "Postać {name} weszła do: {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z: {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch MG czyni miejsce, w którym stoi, dozwolonym.",
+      "outsideRooms": "poza pokojami"
+    },
     "Move": {
       "notConnectedShort": "{to} nie łączy się z {from}.",
       "cannotReach": "Stąd ({from}) nie da się tam dojść.",

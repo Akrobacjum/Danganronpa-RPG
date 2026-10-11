@@ -87,8 +87,15 @@ export function registerMovement() {
     Hooks.on("canvasReady", primeRoomCache);
     Hooks.on("preCreateToken", onPreCreateToken);
     Hooks.on("updateToken", noteGmPosition);
-    Hooks.on("createToken", token => gmSeen.set(token.id, positionOf(token)));
+    Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
     Hooks.once("ready", primeGmPositions);
+    // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs and
+    // mastermind.mjs each reach this file back through their own static imports (R161).
+    Promise.all([import("./sheet-audit.mjs"), import("./mastermind.mjs")])
+        .then(([sheet, mastermind]) => {
+            judgeReaders = { flagsHeldNow: sheet.flagsHeldNow, itemsHeldNow: sheet.itemsHeldNow, isMastermind: mastermind.isMastermind };
+        })
+        .catch(err => error("Could not load the readers the witness judge reads a student through", err));
     // Who may make a room (E12 C1; the note below). Inline, each one line, so the census of
     // what reaches a rule names them where they are registered.
     Hooks.on("createRegion", (region, options, userId) => noteRegionCreated(region, userId));
@@ -247,14 +254,33 @@ function primeGmPositions() {
     }
 }
 
-function noteGmPosition(tokenDoc, changes) {
+function noteGmPosition(tokenDoc, changes, options, userId) {
     if (!isPrimaryGm()) return;
     if (changes?.x === undefined && changes?.y === undefined
         && changes?.elevation === undefined && changes?.level === undefined) return;
+    // The arrival judged before `gmSeen` moves (E12 C12): a token the judge has no standing for
+    // stood lawfully where `gmSeen` last saw it (`seenStanding`).
+    try {
+        judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]) });
+    } catch (err) {
+        error(`Could not judge where "${tokenDoc.name}" arrived`, err);
+    }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
         const ring = [...(gmHistory.get(tokenDoc.id) ?? []), { ...was, at: Date.now() }];
         gmHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+    }
+    gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
+}
+
+/** A token dropped on a scene: where it stands, and on the primary whether a player dropped it somewhere the rules refuse (E12 C12). */
+function noteGmCreated(tokenDoc, userId) {
+    if (isPrimaryGm()) {
+        try {
+            judgeArrival(tokenDoc, userId);
+        } catch (err) {
+            error(`Could not judge where "${tokenDoc.name}" was dropped`, err);
+        }
     }
     gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
 }
@@ -317,6 +343,159 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
     const centre = position.elevation === undefined && position.level === undefined
         && centres.some(c => c && c.x === x && c.y === y);
     return matches || centre ? null : "the token did not stand there a moment ago";
+}
+
+/* ==========================================================================
+ * WHERE A TOKEN STANDS LAWFULLY (E12 C12, 11.10.2026; plan-E12 3.4, audit Q5a; the owner's answer Q3 a)
+ * --------------------------------------------------------------------------
+ * The room veto (`onPreUpdateToken`) runs on the mover's browser, and an update
+ * marked as our own revert skips it, so a player's console could put a token in a
+ * room the rules refuse and the discovery counted it there: scenario 66 I1 read Aiko,
+ * jumped by p1 from the Hall into the locked Storage, as the second witness of
+ * Daichi's body, and the body was found (E12 C0, 11.10.2026).
+ *
+ * So the primary judges every arrival again, from the token's LAST LAWFUL ROOM, by
+ * the veto's own rules (`crossingVerdict`) without the price: what a crossing costs
+ * is the charge's to take and a player's own budget (E39, layer two). A token that
+ * arrived where the rules refuse is unlawful until it stands in a room lawfully
+ * reachable from that room, and the GMs are told once each time it turns so. An
+ * unlawful token is no witness and no third party (`lawfulRoomOf`: chapter.mjs
+ * `checkBodyFound`, murder-rules.mjs `maybeThirdParty`). Nothing is put back (Q3 a,
+ * not b): a GM who sees it otherwise moves the token, and a GM's move or a GM's
+ * create makes it lawful where it stands. Who moved it is the hook's `userId`,
+ * Foundry's and not a packet's.
+ *
+ * A REVERT is a player's claim. It is honoured only where `sendBackRefusal` passes it
+ * against the primary's record (`recentPositions`), and the token then stands as the
+ * judge last left it on that spot, lawful or not; any other is judged as a crossing.
+ * A send-back the bridge writes for a player (gm-bridge.mjs `handleSendback`, marked
+ * `SENT_BACK`) is the player's revert, though a GM writes it.
+ *
+ * The student is read as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`), in one
+ * synchronous step and not awaited (plan 1b.2; H3, H17): a flag a player's console
+ * writes a moment before the move - `monokuma`, which no crossing rule binds - is put
+ * back by the sheet audit, and read off the document it let the arrival stand (66 I3).
+ * Both readers come in by a dynamic import (`registerMovement`); until it lands, at
+ * boot, the document is read. The record is the primary's memory alone: a new primary
+ * starts from where `gmSeen` saw each token, which it primes at ready.
+ * ========================================================================== */
+
+/** tokenId -> where it stands as the judge read it: { x, y, level, lawful, last: { room, level }, told, reason }. */
+const standings = new Map();
+/** tokenId -> the standings it was moved from, newest last, as `gmHistory`: what an honoured revert returns to. */
+const standingHistory = new Map();
+/** sheet-audit.mjs's held readers and mastermind.mjs's `isMastermind`, once `registerMovement`'s import lands. */
+let judgeReaders = null;
+
+/** Marks the bridge's send-back (gm-bridge.mjs `handleSendback`): a player's revert that a GM writes. */
+export const SENT_BACK = "drpgSentBack";
+
+function samePlace(a, b) {
+    return a.x === b.x && a.y === b.y && (a.level ?? null) === (b.level ?? null);
+}
+
+/** The token where it stands: lawful, its room the last lawful one - or not, keeping the last lawful room it had. */
+function standingHere(tokenDoc, { lawful = true, last = null, told = false, reason = null } = {}) {
+    return { x: tokenDoc.x, y: tokenDoc.y, level: tokenDoc.level ?? undefined, lawful,
+        last: lawful ? { room: roomOfToken(tokenDoc), level: levelOf(tokenDoc) } : last,
+        told: lawful ? false : told, reason: lawful ? null : reason };
+}
+
+/** A token the judge has no record of stood lawfully where the primary last saw it (`gmSeen`), else nowhere. */
+function seenStanding(tokenDoc) {
+    const seen = gmSeen.get(tokenDoc.id);
+    if (!seen) return null;
+    const level = seen.level ?? levelOf(tokenDoc);
+    return { ...seen, lawful: true, last: { room: roomAt(seen.x, seen.y, tokenDoc, level), level }, told: false, reason: null };
+}
+
+/**
+ * Judge where this token now stands (the note above), record it, and tell the GMs when it
+ * turned unlawful. `userId` is the mover's, `revert` whether the write was marked as our own
+ * revert, `sentBack` whether the bridge wrote it for a player. On the primary, from
+ * `noteGmPosition` and `noteGmCreated`; exported for tier 2, which judges a plain token.
+ */
+export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false } = {}) {
+    if (!tokenDoc?.id) return null;
+    const was = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
+    const mover = game.users?.get(userId) ?? null;
+    const actor = tokenDoc.actor;
+    let now = null;
+    if (!actor || actor.type !== "character") now = standingHere(tokenDoc);
+    else if ((revert && !mover?.isGM) || sentBack) {
+        const spot = positionOf(tokenDoc);
+        const honoured = !sendBackRefusal(spot, { scene: tokenDoc.parent, history: recentPositions(tokenDoc.id) });
+        const back = honoured ? (standingHistory.get(tokenDoc.id) ?? []).findLast(s => samePlace(s, spot)) : null;
+        if (back) now = { ...back, x: spot.x, y: spot.y, level: spot.level };
+    } else if (mover?.isGM) now = standingHere(tokenDoc);
+    if (!now) {
+        // One synchronous step from the reads to the verdict (H3), nothing awaited (H17).
+        const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
+        const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
+        const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
+        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc,
+            { gm: false, mastermind: Boolean(judgeReaders?.isMastermind(actor)) });
+        now = verdict === true ? standingHere(tokenDoc)
+            : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
+    }
+    if (was && !samePlace(was, now)) {
+        const ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...was }];
+        standingHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+    }
+    standings.set(tokenDoc.id, now);
+    if (!now.lawful && !now.told && isPrimaryGm()) {
+        now.told = true;
+        tellUnlawful(tokenDoc, now);
+    }
+    return now;
+}
+
+/**
+ * Whether a student may stand where this token stands, coming from the last lawful room: true or
+ * the reason. The veto's rules, read the way the veto reads them (`crossingVerdict`) with no price,
+ * and a body is a body (`isCorpse`, which the veto asks before them). Pure but for the settings
+ * those rules read.
+ */
+function arrivalVerdict(student, last, tokenDoc, mover) {
+    if (isCorpse(student)) return game.i18n.localize("DRPG.Move.dead");
+    const from = last?.room ?? null;
+    const to = roomOfToken(tokenDoc);
+    if (from === to) return true;                      // the same room, a stairwell's floors too
+    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false });
+}
+
+/** The GMs' notice, once per turn to unlawful; and the GM's console. */
+function tellUnlawful(tokenDoc, now) {
+    const outside = game.i18n.localize("DRPG.Movement.outsideRooms");
+    const name = tokenDoc.actor?.name ?? tokenDoc.name ?? "";
+    const room = roomOfToken(tokenDoc) ?? outside;
+    const from = now.last?.room ?? outside;
+    log(`${name} reached ${room} on "${tokenDoc.parent?.name}" by a crossing the rules refuse (${now.reason}); no witness and no third party until they stand somewhere they could have reached from ${from}.`);
+    whisperToGms(`<p class="drpg-warning" data-drpg-unlawful="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.unlawfulArrival", { name, room, from }))}</p>`
+        + `<p>${esc(now.reason ?? "")}</p>`)
+        .catch(err => error("Could not tell the GMs of an unlawful arrival", err));
+}
+
+/**
+ * Where the judge reads this token as standing: its record, or - where the token moved since
+ * (a reader that came before the hook that records it) - judged now, as a move by nobody known
+ * to be a GM, so the order of the movement and murder hooks does not matter. A token never seen
+ * stands lawfully where it is.
+ */
+export function standingOf(tokenDoc) {
+    if (!tokenDoc?.id) return null;
+    const now = standings.get(tokenDoc.id);
+    if (!now) {
+        const first = standingHere(tokenDoc);
+        standings.set(tokenDoc.id, first);
+        return first;
+    }
+    return samePlace(now, positionOf(tokenDoc)) ? now : judgeArrival(tokenDoc, null);
+}
+
+/** The room this token counts in as a witness or a third party: its room, or none while it stands unlawfully. */
+export function lawfulRoomOf(tokenDoc) {
+    return standingOf(tokenDoc)?.lawful === false ? null : roomOfToken(tokenDoc);
 }
 
 /**
@@ -427,11 +606,15 @@ function isCorpse(actor) {
  *
  * `floors` names the floor each end is on (E12 C9), for the stairs rule in `crossingRefused`; null
  * reads both ends as one floor. Exported, and named for what it returns, so a GM's client can ask
- * the same question of a crossing a player's veto let through.
+ * the same question of a crossing a player's veto let through - which the witness judge does
+ * (`judgeArrival`, E12 C12): it hands in the student as the GMs hold it, the `mover` it judges
+ * (whether a GM, whether the Mastermind; this browser's user when null) and `pay: false`, which
+ * asks every rule but the price - the Eclipse's count of crossings and the economy below the
+ * movement setting. What a crossing costs is the charge's, on whichever browser pays it.
  *
  * @returns {true|string} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true } = {}) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -447,7 +630,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null) {
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const blocked = restrictedFrom(actor, to, scene);
+    const blocked = restrictedFrom(actor, to, scene, mover);
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -501,8 +684,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null) {
             // The GMs' count on a GM's browser, the owner's copy of it on theirs (E05; the
             // settings.mjs leaf, for the cycle above). A stale copy can only let a crossing
             // through that the GM's count then refuses and sends back (eclipse.mjs).
-            const used = eclipseMovesUsed(actor.id, clock);
-            if (used >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
+            if (pay && eclipseMovesUsed(actor.id, clock) >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
             if (from && to) {
                 const connected = neighbouringRooms(scene, from);
@@ -524,6 +706,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null) {
     // which makes Listen, room visibility and any alibi meaningless.
     const notConnected = crossingRefused(scene, from, to, floors);
     if (notConnected) return notConnected;
+    if (!pay) return true;
 
     /*
      * THE THIRD PLACE THAT ASKS "CAN YOU AFFORD THIS", and the only one that
@@ -700,19 +883,22 @@ function lockedInIncident(actor) {
  * to. `isChained` is untouched: that Despair Call targets a specific person,
  * not a door, and it stays absolute for everyone it is cast on.
  *
+ * `mover` is the one `crossingVerdict` was handed (E12 C12): the primary judging a player's
+ * arrival is a GM, and asks of the player whether they are the Mastermind and are a GM.
+ *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to, scene) {
+function restrictedFrom(actor, to, scene, mover = null) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
-        if (to && !iAmTheMastermind()) {
+        if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
             if (isLocked(scene, to)) return game.i18n.localize("DRPG.Move.locked");
             if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
-            if (!game.user.isGM && bedroomShut(actor, scene, to)) {
+            if (!(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
                 return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
             }
         }
