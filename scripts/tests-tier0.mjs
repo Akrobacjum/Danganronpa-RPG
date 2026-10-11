@@ -9446,6 +9446,41 @@ const REGRESSIONS = [
         const place = fnSource(setup, "placeCast");
         const moved = place.indexOf("await teleportInto("), told = place.indexOf("broadcast(SYNC.gather,");
         ok(moved > 0 && told > moved, "placeCast moves the cast's tokens and tells no camera where they went (the gather's SYNC.gather)");
+    }],
+
+    ["R381 - the fog family reads rooms through rooms.mjs: no fog file lists a scene's regions but the map check's census", async () => {
+        /*
+         * E12 C2b, 11.10.2026; plan-E12 V4, audit S07-05, S07-06. Until 1.2.74 the five fog files
+         * read `scene.regions` themselves - fifteen reads, ten of them in fog.mjs, by this test on
+         * the harness at C2a's tree (11.10.2026) - and each took a named region for a room and the
+         * first of a name for the whole room: a passage marked a room was fogged as one, an
+         * unmarked region was a doorway's neighbour, and a room drawn in two pieces was outlined
+         * round the first. They now ask rooms.mjs (`roomPieces`, `roomRegions`, `roomNames`,
+         * `scenesWithRooms`) and draw a room through `roomShapeOn`; scenario 66 C3 and the tier-2
+         * "the fog draws a two-piece room from both pieces ..." read what that changes.
+         * This keeps a new reader from coming back the old way: in each fog file, comments blanked,
+         * a `.regions` read is listed by file and line, except inside fog-diagnostics
+         * `roomsToCheck`, which must see every region - an unnamed one and a named one that is no
+         * room are what it reports; renamed, its read is listed with the rest. It reads text: a
+         * reader that reaches the regions through another name (`getEmbeddedCollection("Region")`,
+         * or rooms.mjs `namedRegions`) is not seen.
+         * The reader is run first on a fixture of one read in a function and one in a comment.
+         */
+        const reads = (file, text, allowed = null) => {
+            const plain = stripComments(text), skip = allowed ? (topLevelFunction(plain, allowed) ?? "") : "";
+            const from = skip ? plain.indexOf(skip) : -1;
+            return [...plain.matchAll(/\.regions\b/g)].filter(m => from < 0 || m.index < from || m.index >= from + skip.length)
+                .map(m => `${file}:${plain.slice(0, m.index).split("\n").length}`);
+        };
+        equal(JSON.stringify(reads("fixture", "// scene.regions\nfunction a(scene) {\n    return scene.regions.find(r => r.name);\n}\n")),
+            JSON.stringify(["fixture:3"]), "the reader does not find a `.regions` read in its fixture, or finds the one in a comment");
+        const sources = await moduleSources();
+        const FILES = ["fog.mjs", "fog-reveal.mjs", "fog-doorways.mjs", "fog-geometry.mjs", "fog-diagnostics.mjs"];
+        must(FILES.every(file => sources.get(file)?.length), "the five fog files are among the module's sources - this would measure nothing");
+        const found = FILES.flatMap(file => reads(file, sources.get(file), file === "fog-diagnostics.mjs" ? "roomsToCheck" : null));
+        equal(JSON.stringify(found), JSON.stringify([]),
+            "a fog file lists a scene's regions itself instead of asking rooms.mjs (file:line of each `.regions` read; "
+            + "fog-diagnostics `roomsToCheck`, while it is declared, is let through)");
     }]
 ];
 

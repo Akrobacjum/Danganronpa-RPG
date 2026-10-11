@@ -26155,9 +26155,11 @@ const SCENARIOS = [
 
             let region = null, walls = [];
             try {
+                // Marked a room: since E12 C2b `checkRegions` checks rooms and notes a named region that is no room.
                 region = (await scene.createEmbeddedDocuments("Region", [{
                     name: "Suite staircase fixture",
-                    shapes: [{ type: "polygon", points }]
+                    shapes: [{ type: "polygon", points }],
+                    flags: { [MODULE_ID]: { room: true } }
                 }]))[0];
                 ok(region, `could not place the ${T}-square fixture`);
                 walls = (await scene.createEmbeddedDocuments("Wall", [
@@ -26188,7 +26190,8 @@ const SCENARIOS = [
             const L = n * g;
             bare = (await scene.createEmbeddedDocuments("Region", [{
                 name: "Suite open fixture",
-                shapes: [{ type: "polygon", points: [x0, y0, x0 + L, y0, x0 + L, y0 + L, x0, y0 + L] }]
+                shapes: [{ type: "polygon", points: [x0, y0, x0 + L, y0, x0 + L, y0 + L, x0, y0 + L] }],
+                flags: { [MODULE_ID]: { room: true } }
             }]))[0];
             const { checkRegions } = await import("./fog.mjs");
             const adrift = checkRegions().find(r =>
@@ -46906,6 +46909,61 @@ const SCENARIOS = [
             ["SUITE Hall", K, "SUITE Pantry"]]),
             "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked and sealed by piece 2's flags, "
             + "the room at piece 2 and at the Lift, the Kitchen's neighbours, the Pantry's, the scene's rooms])");
+    }],
+
+    ["the fog draws a two-piece room from both pieces and seeds it on a scene off screen", async () => {
+        /*
+         * E12 C2b, 11.10.2026; plan-E12 V4 and 3.3, audit S07-05, S07-06. The fog family drew a
+         * room's outline, its reveal and its doorway glow from `regions.find(r => r.name === room)`
+         * - the first piece only - and seeded the discovery ledger on the scene the primary GM's
+         * camera showed. It now asks rooms.mjs, hands the drawing one shape over every piece
+         * (`roomShapeOn`, fog-geometry `piecesAsOne`) and seeds the scene it is handed - a token's
+         * own, from `createToken`. This runs on a scene of its own, never viewed: a Kitchen of two
+         * marked pieces far apart, an unmarked Shed and a Lift marked a room that carries a
+         * Teleport, and a student standing in piece 2. Read: the Kitchen's shape - its name, its
+         * rings, its box, the ring of each border edge `doorwayEdges` walks for the outline's gaps
+         * and the glow; what the Shed and the Lift give; and the rooms the ledger holds for the
+         * student on that scene once it is seeded, in a GM-store world of the suite's own
+         * (`withGmStoreWorld`), so the real ledger is not written. Not read here: WHICH edges open
+         * onto another room. The harness's PIXI.Polygon answers no to every point
+         * (audit/harness/lib/shim.mjs, `contains() { return false; }`), so on it no edge opens, a marked Hall 20 px from piece 2
+         * included (measured 11.10.2026); that an unmarked region is no neighbour is a reading for
+         * a real canvas, and R381 keeps the doorways off `scene.regions`. Red before C2b on its
+         * first check: fog.mjs exports no `roomShapeOn`.
+         */
+        const fog = await import("./fog.mjs");
+        ok(typeof fog.roomShapeOn === "function", "fog.mjs exports no roomShapeOn - the outline has no reader for a room of two pieces");
+        if (typeof fog.roomShapeOn !== "function") return;
+        const { regionShapes } = await import("./fog-geometry.mjs");
+        const { doorwayEdges } = await import("./fog-doorways.mjs");
+        const { boundsOf } = await import("./movement.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const [student] = (await import("./monokuma.mjs")).studentActors();
+        must(student, "a student to stand in the Kitchen - the seed would measure nothing");
+        const NAME = "SUITE E12 C2b two pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const piece = (name, x, y = 0, flags = mark, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], flags, behaviors });
+        let read = null;
+        await E.withGmStoreWorld(`suite-c2b-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [piece(K, 0), piece(K, 2000), piece("SUITE Shed", 420, 0, {}),
+                    piece("SUITE Lift", 2000, 420, mark, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, name: student.name, x: 2100, y: 100, width: 1, height: 1 }]);
+                await fog.seedDiscovery(scene);
+                await settle();
+                const shape = fog.roomShapeOn(scene, K);
+                read = [shape?.name, regionShapes(shape, { x: 0, y: 0 }).length, boundsOf(shape), doorwayEdges(shape).map(edge => edge.ring),
+                    fog.roomShapeOn(scene, "SUITE Shed"), fog.roomShapeOn(scene, "SUITE Lift"), fog.discoveredFor(scene.id, student.id)];
+            } finally {
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson([K, 2, { x: 0, y: 0, w: 2400, h: 400 }, [0, 0, 0, 0, 1, 1, 1, 1], null, null, [K]]),
+            `a Kitchen of two pieces on a scene off screen ([its name, its rings, its box, the ring of each border edge the doorways walk, `
+            + `the Shed's shape, the Lift's, the rooms seeded for ${student.name} standing in piece 2])`);
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

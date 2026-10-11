@@ -3667,8 +3667,18 @@
         "other": "Room-based visibility switched on for {count} scenes."
       },
       "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
-      "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
-      "checksScenes": "Scenes and rooms"
+      "noRoomScenes": "No scene has rooms (named Regions a GM marked as rooms), so no scene uses room-based visibility.",
+      "checksScenes": "Scenes and rooms",
+      "notRooms": {
+        "one": "{n} named region is not a room",
+        "other": "{n} named regions are not rooms"
+      },
+      "notRoom": {
+        "problem": "Named, but not a room",
+        "passage": "It carries a {type} behaviour, so it is a passage, not a room: the fog draws no outline or reveal for it and no doorway leads into it.",
+        "player": "A player drew it, so it is never a room: the fog draws no outline or reveal for it and no doorway leads into it.",
+        "unmarked": "It is not marked as a room (Room Setup, the Doors tab, “This is a room”), so the fog draws no outline or reveal for it and no doorway leads into it."
+      }
     },
     "Rooms": {
       "reportTitle": "Rooms marked",

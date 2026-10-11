@@ -3847,8 +3847,20 @@
         "other": "Widoczność oparta na pokojach włączona dla {count} scen."
       },
       "scenesFailed": "Nie udało się przełączyć tych scen na widoczność opartą na pokojach: {scenes}",
-      "noRoomScenes": "Żadna scena nie ma nazwanych regionów, więc żadna nie używa widoczności opartej na pokojach.",
-      "checksScenes": "Sceny i pokoje"
+      "noRoomScenes": "Żadna scena nie ma pokoi (nazwanych regionów, które GM oznaczył jako pokoje), więc żadna nie używa widoczności opartej na pokojach.",
+      "checksScenes": "Sceny i pokoje",
+      "notRooms": {
+        "one": "{n} nazwany region nie jest pokojem",
+        "few": "{n} nazwane regiony nie są pokojami",
+        "many": "{n} nazwanych regionów nie jest pokojami",
+        "other": "{n} nazwanego regionu nie jest pokojem"
+      },
+      "notRoom": {
+        "problem": "Ma nazwę, ale nie jest pokojem",
+        "passage": "Ma zachowanie {type}, więc jest przejściem, nie pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
+        "player": "Narysował go gracz, więc nigdy nie jest pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
+        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”), więc mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi."
+      }
     },
     "Rooms": {
       "reportTitle": "Oznaczone pokoje",

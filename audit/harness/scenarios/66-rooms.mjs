@@ -17,7 +17,8 @@
  *   A  a project in the Gym, its manager saved while the GM looks at the Annex (V1, C5).
  *   B  Room Setup opened on Floor 1 and answered after the GM's camera moved to an Annex holding
  *      its own Gym: which Gym the lock lands on (V2, C4 / R119).
- *   C  a region named "Closet" carrying a Teleport behaviour and the room mark: whether it is a room (V3, C1 and C2a).
+ *   C  a region named "Closet" carrying a Teleport behaviour and the room mark: whether it is a room (V3, C1 and C2a),
+ *      and what the fog's map check and the scenes' report say of it (C2b).
  *   D  a "Kitchen" drawn in two pieces and locked from Room Setup: which piece holds the lock, the room
  *      mark Apply writes (C1), and a player's walk into the other piece (V4, C2a).
  *   E  a project in a room Aiko has found: whether p1 knows it with its camera on Floor 1, the
@@ -37,7 +38,10 @@
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
  * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
  * is the first reader the harness can call; until then G records no fog), Foundry's own level
- * control and door controls - LIVE-E12-02/03/05. What G measures is the shim's model of levels
+ * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
+ * room: the harness's token placeable (client-entry.mjs `_wrap`) has no `isOwner`, so fog.mjs `isMine`
+ * reads none of a player's tokens as theirs and their client outlines nothing (read on p1 on 11.10.2026,
+ * E12 C2b). What G measures is the shim's model of levels
  * (lib/shim.mjs `LevelList`), not v14's.
  *
  * Its bound (plan M4): its 15 checks took 12.6-13.8 s in six runs alone under the harness lock on 11.10.2026 (five
@@ -46,7 +50,7 @@
  * the discovery (I waits up to 8 s for it) - against 61's 480 s and run-all's shared five minutes, so it states no
  * `timeoutMs` of its own. E12 C1 (C2, D3, H rewritten as H1-H2, J1-J2): 20 checks in 15.9 s, one run alone under the
  * lock on 11.10.2026. E12 C2a (C1, D1, D2 rewritten; G's tower regions marked rooms): 20 checks in 15.6 s, one run alone
- * under the lock on 11.10.2026.
+ * under the lock on 11.10.2026. E12 C2b (C3 added): 21 checks in 16.2 s, one run alone under the lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -160,8 +164,13 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const [closet] = await academy.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: ${rect(3000, 1200, 400, 400)},
             flags: { "${MOD}": { room: true } }, behaviors: [{ type: "teleportToken", name: "To the roof", system: { destination: null } }] }]);
         const rooms = M.allRooms(academy), marked = R.roomNames(academy), isRoom = R.isRoom(closet), flag = closet.getFlag("${MOD}", R.ROOM_FLAG);
+        const F = await import("${repoUrl}/scripts/fog.mjs"), view = canvas.scene;
+        canvas.scene = academy;
+        const checked = F.checkRegions().filter(r => r.room === "Closet").map(r => [r.level, r.problem, /teleportToken/.test(r.detail)]);
+        canvas.scene = view;
+        const line = F.diagnoseScenes().split("\\n").find(l => l.includes(academy.name)) ?? null;
         await closet.delete();
-        return { rooms, marked, isRoom, flag };`, { timeout: 30000 });
+        return { rooms, marked, isRoom, flag, checked, notRoom: game.i18n.localize("DRPG.Fog.notRoom.problem"), line };`, { timeout: 30000 });
     /* The behaviour's type, `teleportToken`, is Foundry's name as recalled (LIVE-E12-02); rooms.mjs reads it since E12 C1.
        At 180df61 every named region is a room. E12 C1 (V3) makes a room what a GM marked and `isRoom` refuses a
        region carrying a Teleport or ChangeLevel behaviour, the mark notwithstanding; C2a moves the readers onto it, and
@@ -170,6 +179,11 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         !setC.rooms.includes("Closet") && setC.rooms.includes("Gym"), J(setC));
     check("C2: the Closet, marked a room by hand, is no room by isRoom: its Teleport makes it a passage (E12 C1)",
         setC.flag === true && setC.isRoom === false && !setC.marked.includes("Closet") && setC.marked.includes("Gym"), J(setC));
+    /* At E12 C2a the fog's map check took every named region for a room: the Closet was checked as one and nothing
+       said it was not, and the scenes' report counted it among Floor 1's rooms. E12 C2b: the check notes it apart, once,
+       naming its Teleport, and the report adds a named region that is not a room. */
+    check("C3: the fog's map check notes the Closet once as a named region that is no room, naming its Teleport, and the scenes' report counts it apart (E12 C2b)",
+        J(setC.checked) === J([["info", setC.notRoom, true]]) && /1 named region is not a room/.test(setC.line ?? ""), J(setC));
 
     /* ------------------------------ D. a room of two pieces ------------------------------ */
     phase("D: a Kitchen drawn in two pieces, locked from Room Setup");

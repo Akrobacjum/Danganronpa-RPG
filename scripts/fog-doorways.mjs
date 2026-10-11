@@ -23,12 +23,14 @@
  * names between them - which is why they are exported now; fog.mjs exported none
  * of them before and re-exports none, so the module's API is the one it was.
  * Nothing here imports any of the three back (R161 would see the cycle). Below it
- * are utils.mjs (`debug`) and fog-geometry.mjs. `ADRIFT_WARN_RUN` is read only by
+ * are utils.mjs (`debug`), fog-geometry.mjs and the rooms.mjs leaf (`roomPieces`,
+ * E12 C2b). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
+import { roomPieces } from "./rooms.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline
 } from "./fog-geometry.mjs";
@@ -475,10 +477,17 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * corners - and it left the real defects, which were in how the patches were
  * composited, exactly where they were. `addDoorwayGlow` handles the staircase
  * now, on this same honest geometry.
+ *
+ * WHAT COUNTS AS ANOTHER ROOM (E12 C2b, 11.10.2026; plan-E12 3.1, audit S07-05/06). A room's
+ * pieces beyond, through rooms.mjs, on the region's own scene (the viewed one when a region
+ * names none). Until 1.2.74 every named region but this one was "another room": a Teleport or
+ * a player's area drawn against a wall opened a doorway into it, and a room drawn in two
+ * pieces opened one into itself. `region` may be a room of several pieces handed as one
+ * (fog-geometry.mjs `piecesAsOne`); none of its pieces is another room.
  */
 export function doorwayEdges(region) {
     try {
-        const scene = canvas?.scene;
+        const scene = region?.parent ?? canvas?.scene;
         if (!scene) return [];
 
         const grid = canvas?.grid?.size ?? 100;
@@ -494,8 +503,8 @@ export function doorwayEdges(region) {
         if (!own.length) return [];
 
         const others = [];
-        for (const other of scene.regions ?? []) {
-            if (!other.name || other === region) continue;
+        for (const other of roomPieces(scene)) {
+            if (other.name === region.name) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
         }
 

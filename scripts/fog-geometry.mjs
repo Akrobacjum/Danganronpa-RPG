@@ -20,7 +20,8 @@
  * because those files read them; fog.mjs exported
  * none of them before and re-exports none, so the module's API is the one it was.
  * `flattenPoints` and `ellipsePoints` are read only by `regionShapes` and stay
- * private.
+ * private. `piecesAsOne` (E12 C2b) hands the drawing code a room of several
+ * regions as one shape; it is handed the pieces, and still imports nothing.
  */
 
 /**
@@ -102,6 +103,27 @@ export function regionShapes(region, rect) {
         }
     }
     return out;
+}
+
+/**
+ * A room of several pieces as one shape for the code that draws it (E12 C2b, 11.10.2026;
+ * plan-E12 3.1, audit S07-05). A room is a name on a scene and may be drawn as any number of
+ * regions (rooms.mjs `roomRegions`); the outline, the reveal, the doorway glow and the map's
+ * checks each read ONE region - its `polygons` through `regionShapes`, its box through
+ * movement.mjs `boundsOf`, its `name`, its scene through `parent` - and until 1.2.74 they were
+ * handed the first region of the name, so a room in two pieces was outlined and revealed round
+ * one of them. The pieces' shapes are read here once, holes left out as `regionShapes` leaves
+ * them, and handed on as a `polygons` list in scene space, the shape both of those readers take
+ * before the raw `shapes`; one piece is handed back as the region it is, so a room of one
+ * piece is drawn exactly as before. Where two pieces touch, the line between them is a border
+ * of each with no other room beyond it, so the outline draws it: the pieces are not merged into
+ * one polygon here (read in the code; no map with touching pieces was looked at).
+ */
+export function piecesAsOne(pieces) {
+    if (!pieces?.length) return null;
+    if (pieces.length === 1) return pieces[0];
+    const polygons = pieces.flatMap(piece => regionShapes(piece, { x: 0, y: 0 }));
+    return { name: pieces[0].name, id: pieces[0].id, parent: pieces[0].parent, pieces, polygons };
 }
 
 /** `[x,y,…]` or `[{x,y},…]` → a flat, shifted array. `null` if unreadable. */
