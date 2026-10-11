@@ -1916,6 +1916,7 @@
       "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
       "doneInvestigationOver": "Investigation zakończone; kampania wraca do Daily Life.",
       "endTwice": "To okno końca rozdziału otwarto przy rozdziale {chapter}, sesji {session}, dniu {day}, a rozdział, sesja lub dzień na zegarze od tego czasu się zmieniły - przez inny koniec rozdziału, przez edycję kampanii albo przez porę dnia przechodzącą w nowy dzień. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
+      "endPhaseMoved": "To okno końca rozdziału otwarto w fazie {opened}, a zegar od tego czasu pokazuje {now} - faza zmieniła się po otwarciu okna, więc to, co okno proponowało zamknąć, nie jest tym, co trwa teraz. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
       "endPrimaryOnly": "Rozdział kończy tylko główny GM, {name}, żeby jedna przeglądarka policzyła go raz. Poproś o to GM-a {name} albo zakończ go, gdy będziesz jedynym połączonym GM-em.",
       "endFailed": "Koniec rozdziału nie dobiegł końca: {steps}. Cała reszta została wykonana - dokończ to ręcznie, zamiast kończyć rozdział jeszcze raz.",
       "step": {

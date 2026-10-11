@@ -67,6 +67,9 @@
  *   K  last season's chapter 1 again (E11 fix r2-H2): in chapter 1 a case of one Key Remnant, that Key Remnant copied by
  *      Aiko off the plan, an autopsy issued to her and Botan marked a crime witness, then a reset of the clock alone and
  *      a case of one Key Remnant in the new season's chapter 1: the Keys still to place, the off-plan count, the Key fee, the GM panel's next line and the mark, before and after.
+ *   T  a Class Trial opened under the End of chapter window (E11 fix r2-H3): the primary GM draws the window outside a
+ *      trial, the second GM (at the table since H) opens a trial while it stands, then the primary answers it with the
+ *      next session and the next morning - the box as drawn, what the end did, the clock and the GMs' whisper.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -962,4 +965,46 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             && keptAfter.chapter === 1 && keptAfter.toPlace === 1 && keptAfter.offPlan === false && keptAfter.fee === keptBefore.fee - 1
             && J(keptAfter.line) === J(keptAfter.keysLine) && keptAfter.silenced === false && J(keptAfter.ownKeyLine) === J(keptAfter.autopsyLine),
         J({ keptBefore, keptReset, keptAfter }), { flow: "season-reset" });
+
+    /* ------------------- T. a Class Trial opened under the End of chapter window ------------------- */
+    phase("T: a second GM opens a Class Trial while the primary's End of chapter window stands", { flow: "clock-day" });
+    /* E11 fix r2-H3 (round 2's sec S3). The primary GM draws the End of chapter window outside a trial, where "Close the
+       trial" is drawn disabled; while it stands the second GM opens a Class Trial, as its trial console's debate does
+       (`startFloor`); then the primary answers the window with the next session and the next morning. Read: the box as
+       drawn, what the end answered, the session, the day and the phase against the window's, and the GMs' whisper
+       naming the moved phase. Before the fix the end compared no phase, and the session and the morning went on over the
+       trial nobody could close from that window. */
+    const drawnT = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        globalThis.__t = { drawn: null };
+        globalThis.__dialogAnswers.push(async config => {
+            const c = config?.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+            const box = div?.querySelector?.('input[name="endTrial"]');
+            globalThis.__t.drawn = { title: config?.window?.title ?? null, checked: box?.checked ?? null, disabled: box?.disabled ?? null,
+                session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase };
+            await until(() => getClock().phase === "classTrial", 8000);
+            return { reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
+        });
+        globalThis.__t.end = C.openChapterEndDialog();
+        return Boolean(await until(() => globalThis.__t.drawn, 8000));`, { timeout: 30000 });
+    const trialT = await gm2.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const floor = await F.startFloor({ confirmNewTrial: true });
+        return { floor: Boolean(floor), phase: getClock().phase };`, { timeout: 30000 });
+    const endT = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const ended = await globalThis.__t.end.catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const drawn = globalThis.__t.drawn;
+        const words = game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(drawn?.phase), now: phaseLabel("classTrial") });
+        const read = { drawn, ended: ended ?? null, after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            told: game.messages.filter(m => String(contentOf(m)).includes(words)).length, title: game.i18n.localize("DRPG.Chapter.endTitle") };
+        await (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).closeTrial();
+        return read;`, { timeout: 60000 });
+    const drawn = endT.drawn ?? {};
+    check("T1: a Class Trial a second GM opens while the primary's End of chapter window stands is not ended over - the window's end does nothing and the GMs are told the phase moved (E11 fix r2-H3)",
+        drawnT === true && drawn.title === endT.title && drawn.checked === false && drawn.disabled === true && drawn.phase !== "classTrial"
+            && trialT.phase === "classTrial" && endT.ended === null
+            && J(endT.after) === J({ session: drawn.session, day: drawn.day, phase: "classTrial" }) && endT.told === 1,
+        J({ drawnT, trialT, endT }), { flow: "clock-day" });
 }

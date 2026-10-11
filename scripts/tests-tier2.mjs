@@ -46469,6 +46469,62 @@ const SCENARIOS = [
             + "asks for the autopsy, and the mark)");
     }],
 
+    ["an End of chapter window drawn before a trial opened ends nothing", async () => {
+        /*
+         * E11 fix r2-H3, 1.2.73; round 2's sec S3. The End of chapter window draws "Close the trial" disabled and
+         * unticked when no trial sits, and its end compared the chapter, the session and the day it was drawn on, not
+         * the phase: a Class Trial opened while the window stood - another GM's at a real table (scenario 65's T plays
+         * that), here this browser's own from inside the window - could not be closed from it, and the next session
+         * and the next morning it had ticked went on over the trial. The window is drawn outside a trial and answered
+         * with those two after `startFloor` has opened one. Read: the box as drawn [ticked, disabled], whether the end
+         * did anything, how far the session and the day moved, the phase, and how many of the GMs' whispers say the
+         * phase moved (`endPhaseMoved`). Red at the parent: the end went on, one session and one day, in the trial.
+         */
+        needs(env.primaryGm(), "the chapter's end runs on the primary GM alone (`applyChapterEnd`)");
+        const { openChapterEndDialog } = await import("./chapter.mjs");
+        const { startFloor, trialFloor, endFloor } = await import("./trial-floor.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { phaseLabel } = await import("./clock.mjs");
+        must(!murderState() && !isEclipse(), "an incident or an Eclipse is open - the window would ask about the incident first, or no trial could open, and this would measure nothing");
+        must(getClock().phase !== "classTrial" && !trialFloor(), "a trial already sits - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const words = game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(clock.phase), now: phaseLabel("classTrial") });
+        const told = () => game.messages.filter(m => String(contentOf(m)).includes(words)).length;
+        const toldBefore = told();
+        const title = game.i18n.localize("DRPG.Chapter.endTitle");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let drawn = null, ended = null, after = null;
+        try {
+            D.wait = async config => {
+                if (config?.window?.title !== title) return null;
+                const c = config.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+                const box = div?.querySelector?.('input[name="endTrial"]');
+                drawn = [box?.checked ?? null, box?.disabled ?? null];
+                await startFloor({ confirmNewTrial: true });
+                return { reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true };
+            };
+            try {
+                ended = await openChapterEndDialog().catch(err => `threw: ${err?.message}`);
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            }
+            await settle();
+            after = [getClock().session - clock.session, (getClock().day ?? 1) - (clock.day ?? 1), getClock().phase, told() - toldBefore];
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (trialFloor()) await endFloor();
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+            await settle();
+        }
+        equal(stableJson([drawn, ended, after]), stableJson([[false, true], null, [0, 0, "classTrial", 1]]),
+            "a trial opened under the End of chapter window was not refused whole, or the GMs were not told the phase moved "
+            + "([the box as drawn: ticked, disabled], [what the end answered], [sessions on, days on, the phase, whispers told])");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

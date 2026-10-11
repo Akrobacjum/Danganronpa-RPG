@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
-import { getClock } from "./clock.mjs";
+import { getClock, phaseLabel } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
     deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound
@@ -1723,7 +1723,10 @@ export async function openChapterEndDialog() {
        and the morning again (65-season C1, measured on 10.10.2026 with the code before this: two
        sessions and two days on). The chapter, the
        session and the day as they stood when the GM was shown this window are what the GM chose
-       against; `applyChapterEnd` refuses the end when any of them has moved since. */
+       against; `applyChapterEnd` refuses the end when any of them has moved since. And the phase
+       (E11 fix r2-H3; round 2's sec S3): "Close the trial" is drawn disabled when no trial sits, so a
+       Class Trial another GM opened while this window stood could not be closed from it, and the
+       morning - with them ticked, the session and the chapter - went on over it. */
     const opened = endMark(getClock());
 
     // The SAME test the reveal itself applies, or the preview promises work the
@@ -1818,7 +1821,7 @@ export async function openChapterEndDialog() {
 
 /** The part of the clock an End of chapter is chosen against: `openChapterEndDialog` reads it, `applyChapterEnd` compares. */
 function endMark(clock) {
-    return { chapter: clock.chapter, session: clock.session, day: clock.day ?? 1 };
+    return { chapter: clock.chapter, session: clock.session, day: clock.day ?? 1, phase: clock.phase };
 }
 
 /**
@@ -1994,7 +1997,12 @@ export const CHAPTER_END_STEPS = [
  *   (`endTwice`). Until 1.2.73 the window sent the chapter read when Do it was
  *   pressed and only a moved chapter was refused (CORE-17), which saw nothing when
  *   "next chapter" was unticked: 65-season C1 read two sessions on with the code
- *   before this (10.10.2026).
+ *   before this (10.10.2026). An end whose phase alone has moved is refused too, with
+ *   its own words (`endPhaseMoved`; E11 fix r2-H3, round 2's sec S3): the window offers
+ *   to close a trial only when one sits, so a trial opened after it was drawn sat on
+ *   under the morning - tier 2 "an End of chapter window drawn before a trial opened
+ *   ends nothing" and 65-season T1 read the day moved on in the trial with the code
+ *   before this (11.10.2026).
  * - one end at a time on this browser: a second call waits for the first to finish
  *   before it compares, so two in flight at once cannot both read the clock before
  *   either moves it (tier 2 "the chapter's end leaves the Investigation and counts
@@ -2036,8 +2044,13 @@ function chapterEndHere() {
 async function endChapterNow(choices) {
     const now = getClock();
     const { opened } = choices;
-    if (opened && Object.entries(endMark(now)).some(([key, value]) => opened[key] != null && opened[key] !== value)) {
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.endTwice", opened)}</p>`);
+    const mark = endMark(now);
+    const moved = opened ? Object.keys(mark).filter(key => opened[key] != null && opened[key] !== mark[key]) : [];
+    if (moved.length) {
+        const words = moved.some(key => key !== "phase")
+            ? game.i18n.format("DRPG.Chapter.endTwice", opened)
+            : game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(opened.phase), now: phaseLabel(now.phase) });
+        await whisperToGms(`<p class="drpg-warning">${words}</p>`);
         return null;
     }
 
