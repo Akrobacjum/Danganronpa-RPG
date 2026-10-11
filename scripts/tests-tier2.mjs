@@ -46525,6 +46525,91 @@ const SCENARIOS = [
             + "([the box as drawn: ticked, disabled], [what the end answered], [sessions on, days on, the phase, whispers told])");
     }],
 
+    ["a project token the module takes off the map is never written down as deleted by hand - not even until the module's own write lands", async () => {
+        /*
+         * E11 fix r2-H5, 1.2.73 (the round-2 reviews' open item 2: C8's mutant m8 lived). `removeProjectToken`
+         * passes `MODULE_REMOVAL` so the primary's `deleteToken` hook does not take the module's removal for a
+         * GM's Delete. With the option dropped the suite's "deleted by hand" test still passed (10.10.2026): the
+         * hook marked the project kept off the map, and `removeProjectToken`'s own write, read before the mark
+         * landed, wrote the row back without it - a lost update that hid the harm; landed in the other order, the
+         * project stays off the map. So this reads the row at every write of the metadata while the module takes
+         * the token off, not only the row it ends with; then the scene's draw, which puts the token back.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the project's token is placed on the scene on screen");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose hook keeps a deleted project off the map - run the suite on the primary GM");
+        const room = canvas.scene.regions?.contents?.find(region => region.name)?.name ?? null;
+        must(room, "the scene on screen has no named region for a project to stand in - this would measure nothing");
+        const META = `${MODULE_ID}.${SETTINGS.projectMeta}`;
+        const seen = [];
+        let made = null, heard = null, read = null;
+        try {
+            made = (await P.createProject({ name: "SUITE E11 r2-H5 taken off by the module", target: 4, room }))?.id ?? null;
+            must(PM.projectTokenOf(made), "the project's token was not placed - this would measure nothing");
+            heard = Hooks.on("updateSetting", setting => { if (setting?.key === META) seen.push(P.metaFor(made).mapHidden === true); });
+            const removed = await PM.removeProjectToken(made);
+            await settle();
+            Hooks.off("updateSetting", heard);
+            heard = null;
+            const gone = !PM.projectTokenOf(made);
+            await PM.syncProjectTokens();
+            read = [removed, gone, seen.length > 0, seen.some(Boolean), P.metaFor(made).mapHidden === true, Boolean(PM.projectTokenOf(made))];
+        } finally {
+            if (heard !== null) Hooks.off("updateSetting", heard);
+            if (made) await P.deleteProject(made).catch(() => {});
+        }
+        equal(stableJson(read), stableJson([true, true, true, false, false, true]),
+            "the module's removal of a project token was written down, even for a moment, as a GM's Delete, or the scene's draw did not put it back "
+            + "(read: removed, its token gone, the metadata written, any write marking it kept off the map, kept off at the end, its token after the draw)");
+    }],
+
+    ["the GM panel's standing block redraws itself when a token is placed and when a row of the Key plan is written", async () => {
+        /*
+         * E11 fix r2-H5, 1.2.73 (round 1's residue R8: r1-G4's watch on tokens and on the Key plan's store was read
+         * in the code, not tested). Since E11 fix r1-G4 the panel's next line reads the Key Remnants' tokens and
+         * the case's Key count in the Key plan's store, so the standing block (gm-panel.mjs `keepPanelFresh`) is
+         * kept live on both. Drawn as a GM opens it; a redraw replaces the block's element (live.mjs `keepLive`),
+         * so the block as drawn before leaving the page is the redraw. A hidden token of no actor placed on the
+         * scene on screen, then a row of a chapter nobody plays written to the Key plan; the runner's restore puts
+         * the store back, and the test removes the token.
+         */
+        needs(env.dialogs(), "the panel is drawn as a window, and DialogV2 draws none here");
+        needs(world.atLeast("sceneOnScreen"), "a token is placed on the scene on screen");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const S = await import("./gm-stores.mjs");
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        const panel = () => [...foundry.applications.instances.values()].find(app => app?.options?.classes?.includes("drpg-window-panel"));
+        const block = () => panel()?.element?.querySelector?.(".drpg-gmp-standing") ?? null;
+        const ROW = "999:case";
+        let opening = null, token = null, read = null;
+        try {
+            opening = openGmPanel().catch(() => null);
+            must(await until(() => block()), "the GM panel drew no standing block - this would measure nothing");
+            const beforeToken = block();
+            [token] = await canvas.scene.createEmbeddedDocuments("Token", [{ name: "SUITE E11 r2-H5 a token the panel hears",
+                x: 100, y: 100, width: 1, height: 1, hidden: true }]);
+            must(token, "no token was placed - this would measure nothing");
+            const onToken = Boolean(await until(() => !beforeToken.isConnected && block()));
+            await settle();
+            const beforeRow = block();
+            must(beforeRow && !S.keyPlanStore.get(ROW), `the panel's block is gone, or the Key plan holds a row "${ROW}" already - this would measure nothing`);
+            await S.keyPlanStore.patch(ROW, { keys: 0 });
+            const onRow = Boolean(await until(() => !beforeRow.isConnected && block()));
+            read = [onToken, onRow];
+        } finally {
+            if (token) await token.delete().catch(() => {});
+            await panel()?.close?.();
+            await opening;
+        }
+        equal(stableJson(read), stableJson([true, true]),
+            "the GM panel's standing block was not drawn again when a token was placed, or when a row of the Key plan was written "
+            + "(read: redrawn on the token, redrawn on the row)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

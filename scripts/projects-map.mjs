@@ -342,7 +342,9 @@ export function sweepProjectTokens(options = {}) {
        once more in the migration, and at the first ready after the upgrade both start
        together (`runMigrationOnLoad` and the sync deferred to `ready`): two sweeps that list
        the same orphan before either has deleted it ask Foundry twice to delete one token.
-       Queued, the second lists what the first left. Read, not measured at a table. */
+       Queued, the second lists what the first left. Read, not measured at a table. Since E11 fix
+       r2-H5 the sync waits for the load's pass (`syncProjectTokens`), so those two no longer
+       meet at that ready; the queue still orders a pass begun by hand beside a scene draw. */
     const run = sweepQueue.then(() => sweepOnce(options));
     sweepQueue = run.catch(() => null);
     return run;
@@ -558,6 +560,16 @@ export async function syncProjectTokens() {
        GMs drawing at once could each place one - a duplicate the map then keeps. That race
        is read, not measured. */
     if (!isPrimaryGm() || !canvas?.scene) return 0;
+    /* AFTER THE LOAD'S MIGRATION (E11 fix r2-H5, 1.2.73; the round-2 review's COR2-5). At the
+       first ready after the upgrade the migration's clause `sweepOldProjectTokens` is the sweep
+       that tells the GM how many tokens of gone projects it removed; this sync, deferred from the
+       boot's scene draw to the same ready, swept them first and said so to the console alone.
+       Measured on the harness with Foundry's boot order replayed on the primary (the scene drawn
+       before ready, then the module's ready, then the deferred sync; scenario 65 V2, 11.10.2026):
+       one orphan, removed by the sync, the clause's report null and no toast - from a world
+       stamped 1.2.66 (that one clause pending) and from one stamped 1.2.60 (24 pending) alike.
+       The sync now waits for the pass this load started; with none running it waits for nothing. */
+    await (await import("./migrate.mjs")).migrationOnLoad();
     // The base actor's own housekeeping (ownership, the hammer), when there is one to keep.
     if (findProjectActor()) await ensureProjectActor();
     await Promise.allSettled([...hiding.values()]);

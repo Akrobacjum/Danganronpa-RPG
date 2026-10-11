@@ -74,6 +74,10 @@
  *      send the cast to one room - the Hall, with the players' cameras read; the word typed in lower case; a returning
  *      GM (`gm0`, its id sorting before the seeded GM's) connecting while the window stands; and the same GM connecting
  *      after the reset's cut is written, before the cast's step.
+ *   V  the close and the first load (E11 fix r2-H5): Chie's suicide at Stage 6 again and a reset of the incident group alone
+ *      with that group's cut held back on the GM, so the close reads the whole incident - who dies of it and who is told;
+ *      then a world stamped before 1.2.73's clause holding an orphan, loaded in Foundry's boot order (the scene drawn
+ *      before `ready`): who sweeps the orphan and whether the GM is told how many went; and the fog's failures of the run.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -95,7 +99,8 @@
  * client booted) its 23 checks took 34.7 s in a2's fast set on 11.10.2026, beside two other
  * lanes - still none of its own. Merged (11.10.2026), G to W then H: 35 checks took 52.8 s in the
  * merge's fast set beside two other lanes - still none. E11 fix r2-H4 (11.10.2026): with U and its sixth client (gm0),
- * 41 checks took 57.9 s in one run - still none.
+ * 41 checks took 57.9 s in one run - still none. E11 fix r2-H5 (11.10.2026): with V, 44 checks took 61.9 s and 63.7 s
+ * in two runs under the harness lock, 71.8-79.6 s in a2's mutant lanes beside each other (two a2 runs) - still none.
  */
 export const layers = ["ci"];
 // The second GM of G3 (E11 C8) and of H (E11 fix r1-G5), as 61 declares its own: its id sorts after the
@@ -709,16 +714,24 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             Hooks.on("updateSetting", globalThis.__g3WritesFn);
             const own = PM.projectTokenOf("${made.five}");
             return { primary: U.isPrimaryGm(), placed: projectTokens().filter(t => t.project === "${made.five}").length, token: own?.id ?? null };`, { timeout: 30000 });
-        await gm2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        /* E11 fix r2-H5 (the round-2 reviews' open item 2: the move hook's primary-only gate had no kill - the counts on
+           the primary came out the same without it). What the second GM's own browser writes and whispers while its drag
+           lands: its writes of the metadata (`game.settings.set` counted there) and the whispers it authors. */
+        const dragged = await gm2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
             const t = game.scenes.get("${IDS.scene}").tokens.get(${J(first.token)});
-            if (t) await t.update(M.positionIn("Cafeteria", t), { teleport: true, movementAction: "displace", animate: false });
-            await new Promise(r => setTimeout(r, 2000));
-            return true;`, { timeout: 30000 });
+            const was = new Set(game.messages.map(m => m.id)), set = game.settings.set;
+            let writes = 0;
+            game.settings.set = async function (...args) { if (args[0] === "${MOD}" && args[1] === "projectMeta") writes++; return set.apply(this, args); };
+            try {
+                if (t) await t.update(M.positionIn("Cafeteria", t), { teleport: true, movementAction: "displace", animate: false });
+                await new Promise(r => setTimeout(r, 2000));
+            } finally { game.settings.set = set; }
+            return { writes, whispers: game.messages.filter(m => !was.has(m.id) && (m.author?.id ?? m._source?.author) === game.user.id).length };`, { timeout: 30000 });
         const moved = await gm.eval(`${IMPORTS} const was = new Set(globalThis.__g3Messages ?? []);
             Hooks.off("updateSetting", globalThis.__g3WritesFn);
             return { room: P.roomOf("${made.five}"), writes: globalThis.__g3Writes,
                 whispers: game.messages.filter(m => !was.has(m.id)).length };`, { timeout: 30000 });
-        g3 = { made, second, first, moved };
+        g3 = { made, second, first, dragged, moved };
     } finally {
         await gm.eval(`if (globalThis.__g3WritesFn) Hooks.off("updateSetting", globalThis.__g3WritesFn);
             const P = await import("${repoUrl}/scripts/projects.mjs");
@@ -726,10 +739,10 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             return true;`, { timeout: 30000 });
         await disconnect("gm2");
     }
-    check("G3: a second GM's scene draw places no project token and its drag moves the project with one write of the metadata; the primary's draw places it (E11 C8)",
+    check("G3: a second GM's scene draw places no project token and its drag moves the project with one write of the metadata and one whisper, both the primary's; the primary's draw places it (E11 C8, fix r2-H5)",
         Boolean(g3?.made.five) && g3.made.tokens === 0 && g3.second.primary === false && g3.second.placed === 0 && g3.first.primary === true
             && g3.first.placed === 1 && g3.moved.room === "Cafeteria" && g3.moved.writes === 1
-            && g3.moved.whispers === 1, J(g3), { flow: "season-reset" });
+            && g3.moved.whispers === 1 && g3.dragged.writes === 0 && g3.dragged.whispers === 0, J(g3), { flow: "season-reset" });
 
     /* G4 (E11 C8). The upgrade's pass on a world an earlier season left a project token of no project in: the clause
        `sweepOldProjectTokens`, run alone as `migrate1_2_0` runs it at the first ready after 1.2.73. It removes the orphan, keeps
@@ -1096,4 +1109,102 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             && still(cutU2, IDS.aiko, IDS.botan, IDS.chie),
         J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, errors: cutU2.errors,
             reports: cutU2.reports, season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
+
+    phase("V: a reset's close of a running incident the cut does not reach, and the first load of 1.2.73 in Foundry's boot order", { flow: "season-reset" });
+    /* V1 (E11 fix r2-H5; the round-2 reviews' open item 3: C9's mutant m7, the reset's close concluding the incident,
+       was killed by R50's source read alone). R4 cannot see the close's own answer: the reset's cut, written on the
+       clock first, takes the incident's cast on this browser before the close reads it. Here the cut of the incident
+       group is held back on this GM - the clock write keeps the incident's earlier cut - so the close reads the whole
+       incident: Chie's suicide at Stage 6, as in D, and a reset of the incident group alone. Abandoned, nobody dies of
+       it and nobody is told it is over. */
+    await mute();
+    const suicideV = await gm.eval(`await game.drpg.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.chie}", openingTrait: "body" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await new Promise(r => setTimeout(r, 800));
+        const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, self: s?.selfInflicted ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${IDS.chie}")) };`, { timeout: 60000 });
+    await unmute();
+    const closedYou = await gm.eval(`return game.i18n.localize("DRPG.Murder.closedYou");`);
+    const abandoned = await gm.eval(`const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf: wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const closedBefore = game.messages.filter(m => String(wordsOf(m)).includes(${J(closedYou)})).length;
+        const set = game.settings.set, held = (await import("${repoUrl}/scripts/settings.mjs")).getClock?.()?.resetCuts?.incident;
+        globalThis.__v = { held: false, put: () => { game.settings.set = set; } };
+        game.settings.set = async function (...args) {
+            const cuts = args[1] === KEYS.clock ? args[2]?.resetCuts : null;
+            if (cuts && "incident" in cuts) {
+                globalThis.__v.held = true;
+                const resetCuts = { ...cuts };
+                if (held === undefined) delete resetCuts.incident; else resetCuts.incident = held;
+                args[2] = { ...args[2], resetCuts };
+                globalThis.__v.put();
+            }
+            return set.apply(this, args);
+        };
+        try {
+            ${resetRun({ ticked: J(["incident"]) })}
+            return { ...read, held: globalThis.__v.held, cards: game.messages.filter(m => String(wordsOf(m)).includes(${J(closedYou)})).length - closedBefore };
+        } finally { globalThis.__v.put(); }`, { timeout: 120000 });
+    check("V1: a reset whose cut does not reach the running incident abandons it - Chie's suicide at Stage 6 kills nobody and nobody is told the incident is over (E11 fix r2-H5)",
+        suicideV.stage === "resolution" && suicideV.self === true && suicideV.dead === false && abandoned.held === true
+            && J(abandoned.failed) === "[]" && abandoned.incident.before === true && abandoned.incident.closes === 1 && abandoned.incident.after === null
+            && abandoned.victim?.forGm === false && abandoned.victim?.flag === false && abandoned.victim?.row === false && abandoned.cards === 0,
+        J({ suicideV, abandoned: { held: abandoned.held, cleared: abandoned.cleared, failed: abandoned.failed, incident: abandoned.incident,
+            victim: abandoned.victim, cards: abandoned.cards, errors: abandoned.errors } }), { flow: "season-reset" });
+
+    /* V2 (E11 fix r2-H5; the round-2 correctness review's COR2-5). Foundry draws the scene before `ready` at boot, and
+       the harness's own boot does it the other way round, so the order is replayed here on the primary: a world stamped
+       1.2.66 (only 1.2.73's clause pending, as for a world last loaded on 1.2.72 once the manifest says 1.2.73 - this
+       tree's says 1.2.72) holding a project token of no project, the scene drawn while the game is not ready (the
+       project sync defers itself to `ready`), then the module's `ready` - the load's migration - and the deferred
+       listeners after it, in the order Foundry calls them. The game stays not ready for half a second after the draw, as
+       Foundry's boot leaves time between the two: without it a sync that did not defer itself (the fix's mutant m7)
+       still found the load's pass started by the time its first await came back, and the check passed. Measured at
+       4d89b53 (11.10.2026, scratch probe): the sync swept the orphan first and logged it; the clause found nothing and
+       the GM was told nothing. */
+    const ORPHAN_V = "E11H5ORPHAN00001";
+    const booted = await gm.eval(`${UNTIL} const P = await import("${repoUrl}/scripts/projects.mjs"); const PM = await import("${repoUrl}/scripts/projects-map.mjs");
+        const Mi = await import("${repoUrl}/scripts/migrate.mjs"); const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        ${PROJECT_TOKENS}
+        const academy = game.scenes.get("${IDS.scene}"), view = canvas.scene;
+        let made = null;
+        canvas.scene = academy;
+        try { made = await P.createProject({ name: "E11 r2-H5 65 V2 a project to copy", target: 6, room: "Cafeteria" }); } finally { canvas.scene = view; }
+        const own = PM.projectTokenOf(made?.id);
+        if (own) await academy.createEmbeddedDocuments("Token", [{ name: own.name, actorId: own.actorId, actorLink: false, x: 200, y: own.y,
+            width: own.width, height: own.height, texture: { src: own.texture?.src ?? "" }, hidden: false, flags: { "${MOD}": { projectId: "${ORPHAN_V}" } } }]);
+        const planted = projectTokens().filter(t => t.project === "${ORPHAN_V}").length;
+        await game.settings.set("${MOD}", KEYS.migratedVersion, "1.2.66");
+        const told = globalThis.__notifications.length;
+        const before = new Set((Hooks.events.ready ?? []).map(e => e.fn));
+        game.ready = false;
+        try {
+            Hooks.callAll("canvasReady", canvas);
+            await new Promise(r => setTimeout(r, 500));
+        } finally { game.ready = true; }
+        const deferred = (Hooks.events.ready ?? []).filter(e => !before.has(e.fn)).map(e => e.fn);
+        Mi.runMigrationOnLoad();
+        for (const fn of deferred) { Hooks.off("ready", fn); fn(); }
+        const report = await Mi.migrationOnLoad();
+        await until(() => !projectTokens().some(t => t.project === "${ORPHAN_V}"));
+        await new Promise(r => setTimeout(r, 1500));
+        const read = { made: Boolean(made), planted, deferred: deferred.filter(fn => /syncProjectTokens/.test(String(fn))).length, clause: report?.clauses?.sweepOldProjectTokens ?? null,
+            orphan: projectTokens().some(t => t.project === "${ORPHAN_V}"),
+            told: globalThis.__notifications.slice(told).filter(n => n.level === "info" && /no longer exist/.test(n.msg)).length };
+        if (made) await P.deleteProject(made.id);
+        return read;`, { timeout: 60000 });
+    check("V2: at the first load of 1.2.73 in Foundry's boot order the upgrade's pass removes the project token of no project and tells the GM how many went (E11 fix r2-H5)",
+        booted.made && booted.planted === 1 && booted.deferred === 1 && booted.clause?.removed === 1 && booted.orphan === false && booted.told === 1,
+        J(booted), { flow: "season-reset" });
+
+    /* V3 (E11 fix r2-H5; the round-2 goal review saw five Fog "reveal on arrival" TypeErrors in this scenario's log at
+       bc20730, four on gm2 and one on gm, every check green). The harness's shim, not the fog: it set `canvas.rendered`
+       to `true` where Foundry has the canvas group the fog mounts its layer in, and behind that its Container had no
+       `setChildIndex` and its `foundry.canvas.animation` no `CanvasAnimation` (client-entry.mjs). Read off each client
+       still at the table, from the session's failure log the GM panel shows (utils.mjs `sessionFailures`, one row per
+       message with its count); gm2 and gm0 have left. */
+    const fogFailures = await Promise.all([gm, ...players].map(client => client.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(row => /reveal on arrival/.test(row.message)).reduce((n, row) => n + row.count, 0);`)));
+    check("V3: no client at the table logged a Fog \"reveal on arrival\" failure this session (E11 fix r2-H5)",
+        fogFailures.every(n => n === 0), J({ gm: fogFailures[0], players: fogFailures.slice(1) }), { flow: "season-reset" });
 }

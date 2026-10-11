@@ -1056,6 +1056,20 @@ export function buildPIXI() {
         removeChild(...cs) { for (const c of cs) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); c.parent = null; } return cs[0]; }
         removeChildren() { const cs = this.children; this.children = []; return cs; }
         getChildByName(n) { return this.children.find(c => c.name === n) ?? null; }
+        /* PIXI's own two, throwing where PIXI throws (a child of another parent, an index outside the list):
+           fog-reveal.mjs lifts a room's outline and name over its doorway glow with `setChildIndex`, and once
+           the fog's layer could mount (`canvas.rendered`, client-entry.mjs) the reveal reached that line and
+           threw here - nine times in scenario 65 (E11 fix r2-H5, 11.10.2026). */
+        getChildIndex(c) {
+            const i = this.children.indexOf(c);
+            if (i < 0) throw new Error("The supplied DisplayObject must be a child of the caller");
+            return i;
+        }
+        setChildIndex(c, i) {
+            if (i < 0 || i >= this.children.length) throw new Error(`The index ${i} supplied is out of bounds ${this.children.length}`);
+            this.children.splice(this.getChildIndex(c), 1);
+            this.children.splice(i, 0, c);
+        }
         destroy() { this.destroyed = true; this.removeChildren(); this.parent?.removeChild(this); }
         on() { return this; } off() { return this; } once() { return this; }
         removeAllListeners() { return this; }
