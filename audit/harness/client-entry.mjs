@@ -1001,6 +1001,28 @@ canvas.rendered = new PIXI.Container();
 canvas.rendered.addChild(canvas.primary, canvas.interface);
 canvas.stage.addChild(canvas.rendered);
 
+/* THE FLOOR ON SCREEN AND THE WAY A SCENE IS VIEWED (E12 C0, 11.10.2026; plan-E12 2.1 and 1.x item 7).
+   `canvas.level` is the floor this client looks at: the one a view named, while it is a floor of the viewed
+   scene, else that scene's lowest (by elevation, the order the owner's item 5 gives the floors), else null - every
+   seeded scene, which has none. Which floor v14 opens a scene on was not read (LIVE-E12-02). `_viewScene` is what
+   `Scene#view` and `#activate` call (lib/shim.mjs): it puts the scene on this canvas and fires `canvasReady`, as a
+   draw ends; a scenario that only assigns `canvas.scene` fires nothing, as before. */
+let viewedLevelId = null;
+Object.defineProperty(canvas, "level", {
+    configurable: true, enumerable: true,
+    get() {
+        const levels = canvas.scene?.levels ?? [];
+        return levels.find(level => level.id === viewedLevelId) ?? [...levels].sort((a, b) => a.elevation - b.elevation)[0] ?? null;
+    },
+    set(level) { viewedLevelId = level?.id ?? level ?? null; }
+});
+game._viewScene = (scene, { level = null } = {}) => {
+    canvas.scene = scene ?? null;
+    viewedLevelId = level?.id ?? level ?? null;
+    hooks.callAll("canvasReady", canvas);
+    return canvas;
+};
+
 // Foundry's WorldCollection getters the mock's plain Collection lacks.
 Object.defineProperty(game.scenes, "active", { get: () => game.scenes.find(s => s._source.active) });
 Object.defineProperty(game.scenes, "viewed", { get: () => canvas.scene });
@@ -1194,7 +1216,10 @@ globalThis.foundry = {
             return fs.existsSync(file) ? new PIXI.Texture(p) : null;
         }
     },
-    documents: {},
+    /* The fields whose change is a move (E12 C0): plan-E12 3.2's list, which C9's `MOVE_FIELDS` falls back to. v13's
+       BaseToken names x, y, elevation, width, height and shape, as recalled, not read; v14's `level` and `depth` are
+       the plan's reading - LIVE-E12-02. */
+    documents: { BaseToken: { MOVEMENT_FIELDS: Object.freeze(["x", "y", "elevation", "width", "height", "depth", "shape", "level"]) } },
     dice: { Roll: RollImpl, terms: { Die, NumericTerm, OperatorTerm } },
     abstract: { DataModel: class {}, TypeDataModel: class {} },
     // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.

@@ -7912,6 +7912,244 @@ const REGRESSIONS = [
             "a season road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E11 commit that will) and strike the gone one");
     }],
 
+    ["R379 - a room or scene road has a census row, and every row judges a road", async () => {
+        /*
+         * E12 C0, 11.10.2026; R346's twin for rooms, scenes and floors (census-1c.md of the E12
+         * plan, METHOD change 1). E12 reads rooms from the token and the scene handed in instead of
+         * the scene a GM happens to view, and this test keeps the list of places that write or
+         * judge a room, a token's position or a floor closed: a new one fails until it has a row
+         * and a verdict, a row whose place is gone fails until it is struck. Five kinds, read live:
+         * PACKET - every field of a BRIDGE_ACTIONS declaration that names a place, a token's
+         * position or a room (a send-back, an Eclipse move, a steal, a plant, a vault steal, a
+         * stash's search, a Call's arming, the project rows, a trace's placing); SOCKET - every raw
+         * socket handler of the files E12 reads (an arrow registered inline is its declaration),
+         * one row per field of its packet; HOOK - every listener of a token's or a region's
+         * document events (`preUpdateToken`, `updateToken`, `createToken`, the Region three and
+         * their two `pre` ones), keyed by the declaration that registers it and the listener's
+         * name or "inline"; SHEET - a declaration of movement.mjs, or one of the named few
+         * (`witnessesOf`, `checkBodyFound`, `registerMurder`, `keysHeldBy`), that reads a death, a
+         * Monocub, Monokuma or restriction flag or the items, held or off the document; STORE -
+         * the places the fields live, each found by the name that holds it in its file. A verdict
+         * says what judges the place today; a row ending "(E12 C<n>)" names the commit that
+         * changes it, and that commit rewrites the row with the code. A camera reader is not a row
+         * here: it is C6's `CAMERA_READERS` (one key judged in two tables would be a finding).
+         * The PLANNED places of the census (the room flag and `playerRegions`, the region
+         * listeners, `crossingVerdict`, `judgeArrival`, the floor switcher) are added by the
+         * commits that write them. It reads names and text, not data flow: a reader in another
+         * file, or reached through a helper this list does not name, is not seen.
+         * Measured 11.10.2026 at 180df61 (1.2.73): this reader, run in Node on the tree's files,
+         * found the 48 SOCKET, HOOK, SHEET and STORE keys of the parse-only census kept with the
+         * E12 plan outside the repository but one - that census read `registerTraps`'s
+         * `payload.actorId` out of a comment (it reads comments; this reader blanks them), so the
+         * row is keyed "#-", a handler that reads its packet only through a helper. On the harness
+         * (11.10.2026, this test alone, twice) it read 101 places - 53 PACKET, 21 SOCKET, 14 HOOK,
+         * 7 SHEET, 6 STORE - against the 101 rows, none either side: the 53 PACKET keys, which only
+         * the live `BRIDGE_ACTIONS` gives, are the census's.
+         * The reader is run first on a fixture: a packet of a family and of none, an inline socket
+         * arrow with a field named only in a comment, a token listener beside another event's, a
+         * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
+         * named file that is not named, a store and a stale row.
+         */
+        const ROOM_CENSUS = [
+            ["PACKET gm-bridge.mjs#action.plant#plannerId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#victimId", "judged: knownSender + owns(plannerId); the same-room rule is `plantOnPerson`'s - C3 reads it through `sameRoom` (E12 C3)"],
+            ["PACKET gm-bridge.mjs#action.plant#itemId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#total", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#isCritical", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#unseenTotal", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#unseenCritical", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#rollId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.plant#unseenRollId", "out of scope: a plant's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.findStash#actorId", "judged: knownSender + owns; the stash found is recorded by room - C3 keys `forgetStashFound` by `sceneId::room::ownerId` (E12 C3)"],
+            ["PACKET gm-bridge.mjs#vault.findStash#total", "out of scope: a stash search's roll (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.findStash#isCritical", "out of scope: a stash search's roll (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.findStash#rollId", "out of scope: a stash search's roll (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#thiefId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#victimId", "judged: knownSender + owns(thiefId); the same-room rule is `stealFromPerson`'s - C3 reads it through `sameRoom` (located scenes; a steal across scenes with equal room names is refused, C3's other road) (E12 C3)"],
+            ["PACKET gm-bridge.mjs#action.steal#itemId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#total", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#isCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#unseenTotal", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#unseenCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#rollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.steal#unseenRollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#thiefId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#ownerId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#itemId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#viaSearch", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#clumsy", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#vault.steal#rollId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#countdownId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#amount", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#actorId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#rollId", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#relief", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.progress#bonus", "out of scope: a project's progress (E28/E08: judged on the primary; it writes Countdowns, never a token) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.share#countdownId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.share#targetUserId", "out of scope: a project's share (judged on the primary: you may share only what you see) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1132) and `remnantRef` default to the camera - C6 takes the remnant's scene from its `sceneId` (E12 C6)"],
+            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: knownSender + ownsActorAt(`remnantSourceOf`, gm-bridge.mjs:1902); `remnantSourceOf` (bridge-guards.mjs:1132) and `remnantRef` default to the camera - C6 takes the remnant's scene from its `sceneId` (E12 C6)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#rollId", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#penalty", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.sabotage#relief", "out of scope: a sabotage (`guardSabotageRoom`, gm-bridge.mjs:25) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#targetId", "out of scope: a thaw (a Reroll receipt) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#project.unsabotage#repairId", "out of scope: a thaw (a Reroll receipt) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#token.sendBack#sceneId", "judged: knownSender + ownsActorAt (the token's actor); `sendBackRefusal` (bridge-guards.mjs) compares the position with the GM's record (`gmSeen`, movement.mjs:123) [1b.1 a token's room]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "judged: knownSender + ownsActorAt (the token's actor); `sendBackRefusal` (bridge-guards.mjs) compares the position with the GM's record (`gmSeen`, movement.mjs:123) [1b.1 a token's room]"],
+            ["PACKET gm-bridge.mjs#token.sendBack#position", "OPEN (C9): the send-back's position whitelist drops `level` today; C9 accepts it, judged by `sendBackRefusal` (which compares it) [1b.1 a token's floor] (E12 C9)"],
+            ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: a Call's arming (`guardArm*`) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#call.arm#call", "OPEN (C5): a gather's room rides the Call's choice, picked on the caller's browser (`pickRoom`, call-pickers.mjs:298; `gatherEffect` call-effects.mjs:1188); C5 takes the scene from `locateActor(caller)` on the GM and refuses, told (`DRPG.Call.gatherNoRoom`), a room not in `roomNames(scene)` [1b.1 the gather's room and scene] MARKED (E12 C5)"],
+            ["PACKET gm-bridge.mjs#eclipse.move#actorId", "judged on the primary: knownSender + owns; the declared move's room `to` is judged by `judgePendingMurders` - S10-14 (plan 1.2): C3 makes that judgement read the actor's located scene, not the viewed one (E12 C3)"],
+            ["PACKET gm-bridge.mjs#eclipse.move#to", "judged on the primary: knownSender + owns; the declared move's room `to` is judged by `judgePendingMurders` - S10-14 (plan 1.2): C3 makes that judgement read the actor's located scene, not the viewed one (E12 C3)"],
+            ["SOCKET bridge-guards.mjs#registerBridgeReplies#-", "out of scope: the bridge's replies to the asker, read on that player's client (E31); no place field"],
+            ["SOCKET call-effects.mjs#onConfusionsSocket#spent", "out of scope: the Confusions' stamps, judged on the primary; no place field"],
+            ["SOCKET call-effects.mjs#onConfusionsSocket#confusions", "out of scope: the Confusions' stamps, judged on the primary; no place field"],
+            ["SOCKET call-effects.mjs#onConfusionsSocket#stamps", "out of scope: the Confusions' stamps, judged on the primary; no place field"],
+            ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: the primary sends a player the Eclipse's stored crossings when asked by an active non-GM (eclipse.mjs:1089-1099); E12 changes no field of it"],
+            ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: the primary sends a player the Eclipse's stored crossings when asked by an active non-GM (eclipse.mjs:1089-1099); E12 changes no field of it"],
+            ["SOCKET fog.mjs#registerLedgerRoad#userId", "judged: the discovery ledger's road - a player's share is judged by `guardFogShare` on the primary (fog.mjs:886-887); copies to a player only from a GM (871, 882)"],
+            ["SOCKET fog.mjs#registerLedgerRoad#section", "judged: the discovery ledger's road - a player's share is judged by `guardFogShare` on the primary (fog.mjs:886-887); copies to a player only from a GM (871, 882)"],
+            ["SOCKET fog.mjs#registerLedgerRoad#stamps", "judged: the discovery ledger's road - a player's share is judged by `guardFogShare` on the primary (fog.mjs:886-887); copies to a player only from a GM (871, 882)"],
+            ["SOCKET fog.mjs#registerLedgerRoad#requestId", "judged: the discovery ledger's road - a player's share is judged by `guardFogShare` on the primary (fog.mjs:886-887); copies to a player only from a GM (871, 882)"],
+            ["SOCKET fog.mjs#registerLedgerRoad#store", "judged by `guardFogShare` (fog.mjs:887); its rows are keyed scene / actor / room (897-899): C8 renames the room in them on a rename; C11 draws other floors from the record with no new read [1b.1 the floor a player views] (E12 C8, E12 C11)"],
+            ["SOCKET mastermind.mjs#registerMastermind#value", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
+            ["SOCKET mastermind.mjs#registerMastermind#room", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
+            ["SOCKET mastermind.mjs#registerMastermind#stamps", "out of scope: the primary answers an active non-GM's door question with the Mastermind's own room (mastermind.mjs:315-323); no player-sent room is read"],
+            ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs:393-416) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`; the packet's `sceneId` only picks among the actor's tokens. C3 changes `locateActor` (place scenes) and keeps that; C6 moves `key`/`left`/`setFor` off the camera (E12 C3, E12 C6)"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137)"],
+            ["SOCKET sync.mjs#registerSync#data", "judged: from a GM only (sync.mjs:137). E11 C3's gather broadcast rides it (`SYNC.gather`, call-world.mjs:396): `panToGathered` (436) pans only when the client's camera shows the broadcast scene - C5's scene from `locateActor(caller)` is the one broadcast (E12 C5)"],
+            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair, traps.mjs:667-680, 715); the room names a trap fires on (`to`, `room`, 750-758) are claims - C3 moves `roomOf`/`plantKey` (368, 390) to the actor's located scene; whether a room claim is checked against where the character stands was not read by the prep (E12 C3)"],
+            ["SOCKET voice.mjs#onVoiceSocket#room", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
+            ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
+            ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
+            ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "OPEN (C9): fog.mjs:2918 gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
+            ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
+            ["HOOK hud.mjs#registerHud#updateToken:inline", "OPEN (C9): hud.mjs:178 gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
+            ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "OPEN (C9, C12): the veto runs on the mover's browser (a claim; a GM returns early); C9 adds `level` (`isMoveChange`) and the stairs; C12 judges the arrival on the primary for the witness count [1b.1 a token's room / floor] MARKED (E12 C9, E12 C12)"],
+            ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "OPEN (C9): the charge (`settleRoute`) gates on x/y at movement.mjs:830; C9 gates on `isMoveChange` and charges a stair crossing as a door (Q1 a) (E12 C9)"],
+            ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the primary's record of positions `sendBackRefusal` compares against; C9 keeps `level` in it, C12's last-lawful map sits beside it (3.4) (E12 C9, E12 C12)"],
+            ["HOOK movement.mjs#registerMovement#createToken:inline", "judged: `gmSeen` primes a dropped token's position (movement.mjs:78); C9 keeps `level` in `positionOf` (E12 C9)"],
+            ["HOOK murder-rules.mjs#registerMurder#updateToken:inline", "OPEN (C9, C12): on the primary, gates on x/y (murder-rules.mjs:2987) - C9 gates on `isMoveChange`; `maybeThirdParty`/`maybeBodyFound` take the arrival's standing (C12, Q3 a) (E12 C9, E12 C12)"],
+            ["HOOK projects-map.mjs#registerProjectsMap#updateToken:inline", "OPEN (C9): projects-map.mjs's `onProjectTokenMoved` road (primary only since E11 C8) gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
+            ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken:inline", "out of scope: repaints a ring on a flag change only (remnant-ring.mjs:110-114), not on a move; not one of the plan's movement listeners"],
+            ["HOOK visibility.mjs#registerVisibility#updateToken:inline", "OPEN (C9): visibility.mjs:55 gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
+            ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; C11's `tokenShownTo` is the rule it draws through (E12 C11)"],
+            ["HOOK voice.mjs#registerVoice#updateToken:inline", "OPEN (C9): voice.mjs:73 gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
+            ["HOOK voice.mjs#registerVoice#createToken:inline", "out of scope: a token dropped reconciles voice rooms on every client"],
+            ["SHEET chapter.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`, chapter.mjs:1275; the default `held = actor => actor` reads the document, 1171); C12 adds the standing through `roomOf` and keeps the read one synchronous step (H3, H17) (E12 C12)"],
+            ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs:264-265), on the mover's browser; E12 changes neither"],
+            ["SHEET movement.mjs#canCross", "OPEN (C9, C12): the crossing rules on the mover's browser (a claim); C9 extracts `crossingVerdict`; C12 runs it on the primary reading `actorHeldNow`/`flagsHeldNow` and `itemsHeldNow` in one synchronous step [1b.2] MARKED (E12 C9, E12 C12)"],
+            ["SHEET movement.mjs#restrictedFrom", "OPEN (C12): the restriction flags, read from the document; C12's `crossingVerdict` on the primary reads them held [1b.2] (E12 C12)"],
+            ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` (movement.mjs:1280-1281) of tokens in a room; C3 moves its caller `othersInRoom` to the located scene (E12 C3)"],
+            ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; C12 gives `maybeThirdParty` the arrival's standing (E12 C12)"],
+            ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; C12's bedroom rule reads `itemsHeldNow` in the same synchronous step [1b.2] (E12 C12)"],
+            ["STORE Region#name", "not a source today: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Today every named region is a room; C1's flag makes a room what a GM marked and `isRoom` refuses a region the primary recorded as a non-GM's [1b.1 room flag] MARKED (E12 C1)"],
+            ["STORE Region#vaultFlags", "not a source: a GM document written by Room Setup (a GM window); C4 writes to the scene it was opened on (R119); C14 writes Neighbours to every piece [1b.1 Room Setup] (E12 C4, E12 C14)"],
+            ["STORE settings.mjs#discoveredRooms", "not a source: a world setting the primary writes through the ledger road (`guardFogShare`); C11 draws other floors from it with no new read (3.5); C8 renames its rooms (E12 C8, E12 C11)"],
+            ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; V1: the manager's save writes `room` unconditionally (projects-ui.mjs) - C5 writes it only when changed (E12 C5)"],
+            ["STORE settings.mjs#bodiesFound", "not a source: a world setting only a GM writes (E11 C1 `recordBodyFound`); its `sceneId` is the discovery's scene - C5's `runDiscovery(tokenDoc.parent)` makes it the body's scene, not the camera's (E12 C5)"],
+            ["STORE Item#keyRoom", "item flags: a key on a player's sheet is the owner's own document (class 1; whether a write to these flags is put back: not read by the prep), read held on the GM's branch (`keysHeldBy`); C8 rewrites both flags on a rename, on the primary, in one write per store (E12 C8)"],
+        ];
+        const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
+        const SOCKET_FILES = ["movement.mjs", "fog.mjs", "eclipse.mjs", "search-tokens.mjs", "traps.mjs", "call-effects.mjs", "mastermind.mjs",
+            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs"];
+        // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
+        const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
+            "vault.mjs": ["keysHeldBy"] };
+        const EVENTS = /Hooks\.(?:on|once)\(\s*"(preUpdateToken|updateToken|createToken|createRegion|updateRegion|deleteRegion|preCreateRegion|preUpdateRegion)"\s*,\s*(?:([A-Za-z_]\w*)\s*\)|(?:async\s*)?\(?)/g;
+        const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents(?:ForGm)?\(|\bdeathRecordFor\(|FLAGS\.(?:deceased|monocub|monokuma)\b/,
+            /\brestrictedFrom\(|FLAGS\.restrict\w*/, /\bkeysHeldBy\(|\bitemsHeldNow\(|\bactor\.items\b/];
+        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|itemAsHeld|itemsHeldNow|meansHeld|heldMark)\s*\(/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|livingStudentsForGm|deathRecordFor|keysHeldBy|restrictedFrom)\s*\(|\bactor\.items\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|monocub|monokuma)\b/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        // Where each field lives, found by the name that holds it in its file.
+        const STORES = [["STORE Region#name", "vault.mjs", "regionsByName"], ["STORE Region#vaultFlags", "vault.mjs", "VAULT_FLAGS"],
+            ["STORE settings.mjs#discoveredRooms", "settings.mjs", "discoveredRooms"], ["STORE projects-secrecy.mjs#projectMeta", "projects-secrecy.mjs", "projectMeta"],
+            ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"], ["STORE Item#keyRoom", "vault.mjs", "KEY_FLAG"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!FAMILIES.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                for (const field of fields.length ? fields : ["-"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const tops = [];
+            for (const [file, source] of sources) {
+                const code = blankComments(source);
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                at.forEach((top, i) => {
+                    if (top.name) tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
+                });
+            }
+            const handlers = new Set();
+            for (const top of tops) {
+                if (!SOCKET_FILES.includes(top.file) || !/game\.socket\.on\(/.test(top.text)) continue;
+                for (const m of top.text.matchAll(/game\.socket\.on\(\s*[\w.]+\s*,\s*([A-Za-z_]\w*)\s*\)/g)) handlers.add(`${top.file}#${m[1]}`);
+                for (const m of top.text.matchAll(/return\s+([A-Za-z_]\w*)\(\s*payload/g)) handlers.add(`${top.file}#${m[1]}`);
+                // An arrow registered inline: the declaration that registers it is the handler.
+                if (/game\.socket\.on\(\s*[\w.]+\s*,\s*(?:async\s*)?(?:\(|\w+\s*=>)/.test(top.text)) handlers.add(`${top.file}#${top.name}`);
+            }
+            for (const handler of handlers) {
+                const [file, name] = handler.split("#");
+                const top = tops.find(t => t.file === file && t.name === name);
+                // A handler this reader cannot find is a key no row can hold.
+                const fields = top ? [...new Set([...top.text.matchAll(/\b(?:payload|data|msg|message)\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
+            }
+            for (const top of tops) {
+                for (const m of top.text.matchAll(EVENTS)) found.push(`HOOK ${top.file}#${top.name}#${m[1]}:${m[2] ?? "inline"}`);
+            }
+            for (const top of tops) {
+                if (!(top.file in SHEET_NAMED) || (SHEET_NAMED[top.file] && !SHEET_NAMED[top.file].includes(top.name))) continue;
+                // A table or a constant reads no sheet.
+                if (top.binding && !/=>|function/.test(top.text)) continue;
+                if (SHEET.some(re => re.test(top.text)) && (HELD.test(top.text) || RAW.test(top.text))) found.push(`SHEET ${top.file}#${top.name}`);
+            }
+            const files = new Map(sources);
+            for (const [key, file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(key);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["PACKET", "SOCKET", "HOOK", "SHEET", "STORE"];
+
+        const planted = censusOf({
+            "token.sendBack": { sanitize: { fields: { tokenId: "id" } } },
+            "vote.planted": { sanitize: { fields: { choice: "id" } } }
+        }, [
+            ["sync.mjs", "export function registerSync() {\n    game.socket.on(EVENT, async (payload) => {\n        // payload.secret is named in a comment only\n        if (payload?.action === \"x\") return payload.room;\n    });\n}\n"],
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", (doc, changes) => changes.x);\n    Hooks.on(\"renderChatMessage\", () => null);\n}\n"],
+            ["movement.mjs", "export function judged(actor) {\n    return isDeceased(actor);\n}\nfunction unread(actor) {\n    // its FLAGS.deceased is read elsewhere\n    return actor.name;\n}\n"],
+            ["chapter.mjs", "export function notNamed(actor) {\n    return isDeceased(actor);\n}\n"],
+            ["settings.mjs", "export const SETTINGS = { bodiesFound: \"bodiesFound\" };\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#token.sendBack#tokenId", "SOCKET sync.mjs#registerSync#room",
+            "HOOK hud.mjs#registerHud#updateToken:inline", "SHEET movement.mjs#judged", "STORE settings.mjs#bodiesFound"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#token.sendBack#tokenId", ""], ["SOCKET sync.mjs#registerSync#room", ""],
+            ["SHEET movement.mjs#judged", ""], ["SHEET movement.mjs#gone", ""], ["STORE settings.mjs#bodiesFound", ""]])),
+            JSON.stringify({ unclassified: ["HOOK hud.mjs#registerHud#updateToken:inline"], stale: ["SHEET movement.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(KINDS.every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, ROOM_CENSUS);
+        log(`R379: the census read ${found.length} place(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${ROOM_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a room or scene road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E12 commit that will) and strike the gone one");
+    }],
+
     ["R347 - the bodies to discover are this chapter's and season's unannounced dead, never an execution", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-03, amend 26.09, the ledger's V2 and A26. The watcher's body rule

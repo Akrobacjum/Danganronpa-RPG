@@ -557,6 +557,9 @@ export function buildDocumentClasses(ctx) {
         get height() { return this._source.height ?? 1; }
         get texture() { return this._source.texture ?? {}; }
         get disposition() { return this._source.disposition ?? 0; }
+        /* The floor the token stands on: a level's id on its scene (E12 C0), null where the token names none - every
+           token of the seed, so no scenario before 66 moves. See `LevelList` below. */
+        get level() { return this._source.level ?? null; }
         get object() {
             const cv = ctx.gameRef().canvas;
             if (!cv?.scene || cv.scene.id !== this.parent?.id) return null;
@@ -596,8 +599,32 @@ export function buildDocumentClasses(ctx) {
             const w = this._source.width ?? 4000, h = this._source.height ?? 3000, s = this.grid.size;
             return { width: w, height: h, size: s, sceneX: 0, sceneY: 0, sceneWidth: w, sceneHeight: h, rect: { x: 0, y: 0, width: w, height: h }, sceneRect: { x: 0, y: 0, width: w, height: h } };
         }
-        async view() { ctx.gameRef()._viewScene(this); return this; }
+        /* The scene's floors, `{ id, name, elevation }` each, in the order the source lists them (E12 C0). */
+        get levels() {
+            return LevelList.from((this._source.levels ?? []).map(l => ({ id: l.id ?? l._id ?? null, name: l.name ?? "", elevation: l.elevation ?? 0 })));
+        }
+        /* Until E12 C0 nothing defined `game._viewScene` (grep of audit/harness, plan-E12 1.x item 7), so either call
+           threw; client-entry.mjs defines it now. */
+        async view(options = {}) { ctx.gameRef()._viewScene(this, options); return this; }
         async activate() { await this.update({ active: true }); ctx.gameRef()._viewScene(this); return this; }
+    }
+
+    /*
+     * FOUNDRY V14'S LEVELS, AS PLAN-E12 2.1 READS THEM (E12 C0, 11.10.2026). A scene holds floors, a token
+     * stands on one (`level`, a level's id), a region belongs to some (`levels`, a set of ids) and
+     * `includedInLevel(id)` asks whether it is on that one - an empty set is every floor; the viewed floor is
+     * `canvas.level` and the token's movement fields are `BaseToken.MOVEMENT_FIELDS` (client-entry.mjs). None of
+     * it was read in v14's source - there is none in this tree - so the shapes are the plan's: whether v14 hands
+     * an array or a collection, and what a new region's levels are, is LIVE-E12-02/03. The list answers both
+     * ways (an array, and `get`, `contents` and `size` as Foundry's collections do), so a reader written either
+     * way runs here. Region testing still ignores elevation and a token's `regions` are still centre-based: a
+     * floor is told apart by these fields alone. Nothing in the seed has a level; scenario 66 builds its own
+     * two-floor scene, so no other scenario's numbers move.
+     */
+    class LevelList extends Array {
+        get(id) { return this.find(level => level.id === id); }
+        get contents() { return [...this]; }
+        get size() { return this.length; }
     }
 
     class RegionImpl extends BaseDocument {
@@ -624,6 +651,11 @@ export function buildDocumentClasses(ctx) {
             return false;
         }
         testPoint(point) { return this.pointInside(point); }
+        get levels() { return new Set(this._source.levels ?? []); }
+        includedInLevel(level) {
+            const levels = this.levels;
+            return !levels.size || levels.has(level?.id ?? level);
+        }
     }
 
     function pointInPolygon(x, y, pts) {

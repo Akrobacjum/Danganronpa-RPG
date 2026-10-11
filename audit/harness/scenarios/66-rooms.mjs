@@ -1,0 +1,375 @@
+/**
+ * Rooms, scenes and floors, as they are today (E12 C0, 11.10.2026; plan-E12 sections 2.1 and 2.2).
+ *
+ * A room is a region's name read off whichever scene the reader's camera shows (`canvas.scene`),
+ * the first region of a name answering for all of them, and a floor is nothing at all: no
+ * scenario drove the readers with the camera somewhere else, with one room drawn in two pieces
+ * or with a scene of two floors. This drives each on the seeded GM and players and reads the
+ * world's state through public functions and documents, so the E12 commits that rewrite the
+ * readers (C1-C12) leave the drive as it is and rewrite only the check that names them.
+ *
+ * Every reading is asserted at its value at 180df61 (1.2.73 and the E11 fixes), measured on this
+ * harness, and its check names the E12 commit that changes it; that commit rewrites the check
+ * with the code.
+ *   S  the shim's own levels (plan G4): a region with no levels is on every floor, one with a
+ *      level only on it; `Scene#view` puts the scene on the canvas, fires `canvasReady` and names
+ *      the floor (it threw before C0: nothing defined `game._viewScene`).
+ *   A  a project in the Gym, its manager saved while the GM looks at the Annex (V1, C5).
+ *   B  Room Setup opened on Floor 1 and answered after the GM's camera moved to an Annex holding
+ *      its own Gym: which Gym the lock lands on (V2, C4 / R119).
+ *   C  a region named "Closet" carrying a Teleport behaviour: whether it is a room (V3, C1 and C2a).
+ *   D  a "Kitchen" drawn in two pieces and locked from Room Setup: which piece holds the lock, and
+ *      a player's walk into the other piece (V4, C2a).
+ *   E  a project in a room Aiko has found: whether p1 knows it with its camera on Floor 1, the
+ *      Annex and nothing; the gather ordered with the GM's camera on the Annex and on nothing
+ *      (V5, C5 / R118).
+ *   F  Aiko's second token on the Annex: where `locateActor` puts her with the GM's camera on
+ *      either scene; a direct murder parked in Dorm A before two others, judged at the end of the
+ *      Eclipse with the GM looking at the Annex (C3).
+ *   G  a two-floor scene built here (Lab under Attic, Corridor under a locked Vault): the room of
+ *      a token on the lower floor; a player's level-only move into the locked Vault and the actions
+ *      it costs (V7, V8, C9).
+ *   H  the room-marking clause of the migration asked for by name (C1).
+ *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
+ *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
+ *      the discovery counts (Q5a, C12).
+ * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
+ * is the first reader the harness can call; until then G records no fog), Foundry's own level
+ * control and door controls - LIVE-E12-02/03/05. What G measures is the shim's model of levels
+ * (lib/shim.mjs `LevelList`), not v14's.
+ *
+ * Its bound (plan M4): its 15 checks took 12.6-13.8 s in six runs alone under the harness lock on 11.10.2026 (five
+ * drafts, each through every phase, and this file: 12.8 s, 17.3 s with the boot); 12.6-13.5 s in fourteen runs under
+ * C0's mutants of the module and the shim (two of them drafts that stayed green), and 20.9 s under the one that stops
+ * the discovery (I waits up to 8 s for it) - against 61's 480 s and run-all's shared five minutes, so it states no
+ * `timeoutMs` of its own.
+ */
+export const layers = ["ci"];
+
+const MOD = "danganronpa-rpg";
+const J = value => JSON.stringify(value);
+/* The two floors of G's scene, by id; the ids are this file's, any 16 characters would do. */
+const L1 = "LEVELGROUND00000", L2 = "LEVELUPPER000000";
+
+export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
+    const SCENES = `const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");`;
+    const rect = (x, y, width = 600, height = 600) => J([{ type: "rectangle", x, y, width, height }]);
+    /* Room Setup answered as a GM answers it: the window's own form with one lock ticked, then its Apply button's
+       own callback. `move` runs between the tick and the press - B moves the GM's camera there. */
+    const ROOM_SETUP = `const roomSetup = async (room, move = () => {}) => {
+        const V = await import("${repoUrl}/scripts/vault.mjs");
+        let seen = null;
+        globalThis.__dialogAnswers.push(async config => {
+            const ok = (config.buttons ?? []).find(b => b.action === "ok");
+            const element = document.createElement("dialog"), form = document.createElement("form");
+            if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
+            element.append(form);
+            const box = form.querySelector('[name="locked:' + room + '"]');
+            seen = { box: Boolean(box), was: box?.checked ?? null };
+            if (box) box.checked = true;
+            move();
+            return ok.callback(new globalThis.window.Event("click"), { form }, { element });
+        });
+        let changed = null;
+        try { changed = await V.openRoomSetupDialog(); } finally { globalThis.__dialogAnswers.length = 0; }
+        return { seen, changed };
+    };`;
+    const LOCKED = `const { ROOM_FLAGS } = await import("${repoUrl}/scripts/movement.mjs"); const locked = r => Boolean(r?.getFlag("${MOD}", ROOM_FLAGS.locked));`;
+
+    /* ------------------------------ S. the shim ------------------------------ */
+    phase("S: the shim's floors and Scene#view", { flow: "levels-floor" });
+    /* The world's own migration first (as 65 waits for it): the harness's world is unstamped, so every clause runs on
+       load, and H asks the migration again by name. */
+    const shim = await gm.eval(`await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad();
+        ${SCENES}
+        const tower = await Scene.create({ name: "66 Tower", width: 4000, height: 3000, grid: { size: 100 }, active: false,
+            levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+        await tower.createEmbeddedDocuments("Region", [
+            { name: "Lab", shapes: ${rect(200, 200)}, levels: ["${L1}"], flags: {}, behaviors: [] },
+            { name: "Attic", shapes: ${rect(200, 200)}, levels: ["${L2}"], flags: {}, behaviors: [] },
+            { name: "Corridor", shapes: ${rect(1200, 200)}, levels: ["${L1}"], flags: {}, behaviors: [] },
+            { name: "Vault", shapes: ${rect(1200, 200)}, levels: ["${L2}"], flags: { "${MOD}": { drpgLocked: true } }, behaviors: [] },
+            { name: "Stairwell", shapes: ${rect(2200, 200)}, levels: [], flags: {}, behaviors: [] }]);
+        const named = name => tower.regions.find(r => r.name === name);
+        let fired = 0;
+        const count = () => { fired += 1; };
+        Hooks.on("canvasReady", count);
+        let threw = null, onTower = null;
+        try { await tower.view({ level: "${L2}" }); onTower = { scene: canvas.scene?.id ?? null, level: canvas.level?.id ?? null }; }
+        catch (err) { threw = String(err?.message ?? err); }
+        try { await academy.view(); } catch (err) { threw ??= String(err?.message ?? err); }
+        Hooks.off("canvasReady", count);
+        if (canvas.scene?.id !== academy.id) canvas.scene = academy;
+        return { tower: tower.id, levels: tower.levels.map(l => l.id), threw, fired, onTower,
+            back: { scene: canvas.scene?.id ?? null, level: canvas.level?.id ?? null },
+            stairwell: [named("Stairwell")?.includedInLevel("${L1}"), named("Stairwell")?.includedInLevel("${L2}")],
+            lab: [named("Lab")?.includedInLevel("${L1}"), named("Lab")?.includedInLevel("${L2}"), named("Lab")?.includedInLevel(tower.levels.get("${L1}"))],
+            fields: foundry.documents.BaseToken?.MOVEMENT_FIELDS ?? null };`, { timeout: 60000 });
+    const towerId = shim.tower;
+    check("S1: a region with no levels is on every floor, one with a level on that floor alone (asked by id or by the level)",
+        J(shim.stairwell) === J([true, true]) && J(shim.lab) === J([true, false, true]) && J(shim.levels) === J([L1, L2]), J(shim));
+    check("S2: Scene#view puts the scene on the canvas on the floor it names and fires canvasReady; the seeded scene has no floor",
+        shim.threw === null && shim.fired === 2 && J(shim.onTower) === J({ scene: towerId, level: L2 })
+            && J(shim.back) === J({ scene: IDS.scene, level: null }) && Array.isArray(shim.fields) && shim.fields.includes("level"), J(shim));
+
+    /* ------------------------------ A. the project manager ------------------------------ */
+    phase("A: a project's manager saved while the GM looks at the Annex", { flow: "projects" });
+    const setA = await gm.eval(`${SCENES}
+        const P = await import("${repoUrl}/scripts/projects.mjs"), UI = await import("${repoUrl}/scripts/projects-ui.mjs");
+        const { metaFor } = await import("${repoUrl}/scripts/projects-secrecy.mjs");
+        canvas.scene = academy;
+        const made = await P.createProject({ name: "E12 C0 66 the Gym's project", target: 6, room: "Gym" });
+        const before = metaFor(made?.id).room ?? null;
+        canvas.scene = annex;
+        try { await UI.openProjectManager(); } finally { canvas.scene = academy; }
+        const after = metaFor(made?.id).room ?? null;
+        if (made?.id) await P.deleteProject(made.id);
+        return { id: made?.id ?? null, before, after };`, { timeout: 60000 });
+    /* At 180df61 the manager's room select is filled from the camera's scene (`allRooms()`), which on the Annex
+       holds no Gym, and every row's room is written back from it: the project loses its room. E12 C5 (V1): a room
+       the manager did not change is kept. */
+    check("A1: the Gym's project saved from its manager with the GM's camera on the Annex has lost its room (E12 C5)",
+        Boolean(setA.id) && setA.before === "Gym" && setA.after === null, J(setA));
+
+    /* ------------------------------ B. Room Setup's scene ------------------------------ */
+    phase("B: Room Setup opened on Floor 1, applied with the camera on the Annex");
+    const setB = await gm.eval(`${SCENES} ${ROOM_SETUP} ${LOCKED}
+        canvas.scene = academy;
+        const [annexGym] = await annex.createEmbeddedDocuments("Region", [{ name: "Gym", shapes: ${rect(1200, 1200, 800, 600)}, flags: {}, behaviors: [] }]);
+        const floorGym = academy.regions.find(r => r.name === "Gym");
+        let answer = null;
+        try { answer = await roomSetup("Gym", () => { canvas.scene = annex; }); } finally { canvas.scene = academy; }
+        const out = { ...answer, floor: locked(floorGym), annex: locked(annexGym) };
+        if (locked(floorGym)) await floorGym.setFlag("${MOD}", ROOM_FLAGS.locked, false);
+        await annexGym.delete();
+        return out;`, { timeout: 60000 });
+    /* At 180df61 `applyRoomRows` finds each row's region with `regionsByName()`, the scene the camera shows when Apply
+       is pressed: the Floor 1 window's lock lands on the Annex's Gym. E12 C4 (V2, R119): the scene it was opened on. */
+    check("B1: Room Setup opened on Floor 1 and applied with the camera on the Annex locks the Annex's Gym, not Floor 1's (E12 C4)",
+        setB.seen?.box === true && setB.seen?.was === false && setB.annex === true && setB.floor === false, J(setB));
+
+    /* ------------------------------ C. a Teleport region ------------------------------ */
+    phase("C: a region with a Teleport behaviour");
+    const setC = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const [closet] = await academy.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: ${rect(3000, 1200, 400, 400)}, flags: {},
+            behaviors: [{ type: "teleportToken", name: "To the roof", system: { destination: null } }] }]);
+        const rooms = M.allRooms(academy);
+        await closet.delete();
+        return { rooms };`, { timeout: 30000 });
+    /* The behaviour's type, `teleportToken`, is Foundry's name as recalled: nothing in this tree reads a behaviour's type yet.
+       At 180df61 every named region is a room. E12 C1 (V3) makes a room what a GM marked and `isRoom` refuses a
+       region carrying a Teleport or ChangeLevel behaviour; C2a moves the readers onto it. */
+    check("C1: a region named Closet carrying a Teleport behaviour is listed among Floor 1's rooms (E12 C1, C2a)",
+        setC.rooms.includes("Closet"), J(setC));
+
+    /* ------------------------------ D. a room of two pieces ------------------------------ */
+    phase("D: a Kitchen drawn in two pieces, locked from Room Setup");
+    const setD = await gm.eval(`${SCENES} ${ROOM_SETUP} ${LOCKED} const M = await import("${repoUrl}/scripts/movement.mjs");
+        canvas.scene = academy;
+        const pieces = await academy.createEmbeddedDocuments("Region", [
+            { name: "Kitchen", shapes: ${rect(850, 200, 300, 300)}, flags: {}, behaviors: [] },
+            { name: "Kitchen", shapes: ${rect(3000, 200, 400, 400)}, flags: {}, behaviors: [] }]);
+        const answer = await roomSetup("Kitchen");
+        const aiko = game.actors.get("${IDS.aiko}"), t = academy.tokens.get("TOKAIKO000000000");
+        globalThis.__s66d = { pieces: pieces.map(p => p.id), actions: game.drpg.actionsLeft(aiko), at: { x: t.x, y: t.y } };
+        if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
+        return { ...answer, locks: pieces.map(locked), at: globalThis.__s66d.at, room: M.roomOfToken(t) };`, { timeout: 60000 });
+    /* Piece 1 stands a grid square's half from Dorm A, so it is Dorm A's neighbour; the walk is p1's own drag. */
+    await p1.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 950, y: 300 }); return true;`, { timeout: 30000 });
+    await settle(1500);
+    const walkD = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = academy.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66d;
+        const out = { at: { x: t.x, y: t.y }, room: M.roomOfToken(t) };
+        await t.update(was.at, { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(aiko, was.actions);
+        await academy.deleteEmbeddedDocuments("Region", was.pieces);
+        delete globalThis.__s66d;
+        return out;`, { timeout: 30000 });
+    /* At 180df61 Room Setup writes a row through `regionsByName()`, whose map keeps the LAST region of a name, and
+       the veto reads the FIRST (`isLocked`, movement.mjs): the lock lands on piece 2 and the walk into piece 1 is
+       let through. E12 C2a (V4): two pieces are one room, locked together. */
+    check("D1: a Kitchen of two pieces locked from Room Setup carries the lock on its second piece alone (E12 C2a)",
+        setD.seen?.box === true && J(setD.locks) === J([false, true]), J(setD));
+    check("D2: p1's walk from Dorm A into the Kitchen's first piece lands (E12 C2a)",
+        setD.room === "Dorm A" && walkD.room === "Kitchen" && walkD.at.x === 950, J({ setD, walkD }));
+
+    /* ------------------------------ E. projects and the gather, by the camera ------------------------------ */
+    phase("E: what p1 knows of a project, and the gather, with the camera elsewhere", { flow: "projects" });
+    const setE = await gm.eval(`${SCENES}
+        const P = await import("${repoUrl}/scripts/projects.mjs"), F = await import("${repoUrl}/scripts/fog.mjs");
+        canvas.scene = academy;
+        await F.applyDiscoveryChanges(academy, [{ actorId: "${IDS.aiko}", room: "Dorm A", value: true }]);
+        const made = await P.createProject({ name: "E12 C0 66 Dorm A's project", target: 6, room: "Dorm A" });
+        return { id: made?.id ?? null, found: F.discoveredFor(academy.id, "${IDS.aiko}") };`, { timeout: 60000 });
+    await settle(800);
+    const KNOWS = `${SCENES} const P = await import("${repoUrl}/scripts/projects.mjs");
+        const view = canvas.scene, read = scene => { canvas.scene = scene; return P.knowsProject("${setE.id}"); };
+        let out;
+        try { out = [read(academy), read(annex), read(null)]; } finally { canvas.scene = view; }
+        return out;`;
+    const knowsP1 = await p1.eval(KNOWS), knowsGm = await gm.eval(KNOWS);
+    const gather = await gm.eval(`${SCENES} const W = await import("${repoUrl}/scripts/call-world.mjs");
+        const asked = game.i18n.format("DRPG.Calls.noSuchRoom", { room: "Dorm A" }), told = () => globalThis.__notifications.filter(n => n.msg === asked).length;
+        const before = told(), out = [];
+        try { for (const scene of [annex, null]) { canvas.scene = scene; out.push((await W.scheduleGather("Dorm A"))?.sceneId ?? null); } }
+        finally { canvas.scene = academy; }
+        return { orders: out, warned: told() - before };`, { timeout: 30000 });
+    /* At 180df61 `knowsProject` asks the discovery ledger of the camera's scene: p1 knows the project while looking
+       at Floor 1 and not while looking at the Annex or at nothing; a GM knows every project. `scheduleGather` looks
+       the room up on the GM's camera and refuses with a warning on the Annex and on nothing. E12 C5 (V5, R118):
+       the project's scene and the room's own scene. */
+    check("E1: p1 knows the Dorm A project with its camera on Floor 1, not on the Annex nor on nothing; the GM knows it on all three (E12 C5)",
+        Boolean(setE.id) && setE.found.includes("Dorm A") && J(knowsP1) === J([true, false, false]) && J(knowsGm) === J([true, true, true]),
+        J({ setE, knowsP1, knowsGm }));
+    check("E2: the gather ordered to Dorm A with the GM's camera on the Annex and on nothing is refused twice with a warning (E12 C5)",
+        J(gather.orders) === J([null, null]) && gather.warned === 2, J(gather));
+    await gm.eval(`if ("${setE.id}") await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject("${setE.id}"); return true;`, { timeout: 30000 });
+
+    /* ------------------------------ F. an actor on two scenes ------------------------------ */
+    phase("F: Aiko on two scenes, and a murder judged with the camera on the Annex", { flow: "murder-incident" });
+    const setF = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        canvas.scene = academy;
+        const aiko = game.actors.get("${IDS.aiko}");
+        const [twin] = await annex.createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: aiko.id, actorLink: true, x: 300, y: 300, width: 1, height: 1,
+            hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 }]);
+        const where = scene => { canvas.scene = scene; const at = M.locateActor(aiko); return at ? [at.scene?.id ?? null, at.room ?? null] : null; };
+        let out;
+        try { out = { onAnnex: where(annex), onFloor: where(academy) }; } finally { canvas.scene = academy; }
+        globalThis.__s66f = { twin: twin?.id ?? null,
+            at: Object.fromEntries(["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map(id => { const t = academy.tokens.find(x => x.actorId === id); return [t.id, { x: t.x, y: t.y }]; })) };
+        return out;`, { timeout: 30000 });
+    const eclipse = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        canvas.scene = academy;
+        await academy.updateEmbeddedDocuments("Token", ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map((id, i) => {
+            const t = academy.tokens.find(x => x.actorId === id);
+            return { _id: t.id, x: 300 + 100 * i, y: 400 };
+        }), { teleport: true, movementAction: "displace", animate: false });
+        const rooms = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map(id => M.roomOfToken(academy.tokens.find(x => x.actorId === id)));
+        const nobody = game.i18n.localize("DRPG.Action.murderNobody"), seen = new Set(game.messages.contents.map(m => m.id));
+        const started = Boolean(await E.startEclipse());
+        const parked = Boolean(await E.parkDirectMurder({ killerId: "${IDS.aiko}", room: "Dorm A", note: "E12 C0 66 F" }));
+        canvas.scene = annex;
+        try { await E.endEclipse({ advance: false }); } finally { canvas.scene = academy; }
+        await new Promise(r => setTimeout(r, 500));
+        /* The GMs' whisper is a secret card (secret.mjs): its words are asked for, not read off the stub. */
+        const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+        const told = (await Promise.all(fresh.map(m => wordsOf(m, 1500)))).map(w => String(w ?? "")).filter(w => w.includes(foundry.utils.escapeHTML(game.actors.get("${IDS.aiko}").name)));
+        return { rooms, started, parked, eclipse: E.isEclipse?.() ?? null, murder: Boolean(game.drpg.murderState()),
+            nobody: told.some(c => c.includes(nobody)), told: told.map(c => c.replace(/<[^>]+>/g, " ").trim().slice(0, 200)) };`, { timeout: 90000 });
+    await gm.eval(`${SCENES} const was = globalThis.__s66f;
+        await academy.updateEmbeddedDocuments("Token", Object.entries(was.at).map(([_id, at]) => ({ _id, ...at })), { teleport: true, movementAction: "displace", animate: false });
+        if (was.twin) await annex.deleteEmbeddedDocuments("Token", [was.twin]);
+        delete globalThis.__s66f;
+        return true;`, { timeout: 30000 });
+    /* At 180df61 `locateActor` asks the actor's active tokens first and then the scenes from the camera's on: with
+       the GM's camera on the Annex it answers the Annex's twin (in no room), on Floor 1 the Academy's Aiko in Dorm A.
+       The harness's `getActiveTokens` lists the tokens of every scene, not the viewed one's alone as Foundry's does
+       (lib/shim.mjs; found here, not changed by C0), but another scene's entry is the bare document, with no
+       `.document`, so `locateActor` passes it by and the reading is the one Foundry's would give. E12 C3: where an
+       actor is is not asked of the camera. */
+    check("F1: locateActor puts Aiko on the scene the GM's camera shows: the Annex's twin there, Dorm A on Floor 1 (E12 C3)",
+        J(setF.onAnnex) === J([IDS.annex, null]) && J(setF.onFloor) === J([IDS.scene, "Dorm A"]), J(setF));
+    /* At 180df61 `judgePendingMurders` counts who is in the killer's room on the GM's canvas (`othersInRoom`): with the
+       GM looking at the Annex nobody is, and the murder in a room of three is cancelled as one with nobody to kill.
+       E12 C3: judged on the killer's own scene - cancelled for the two witnesses. */
+    check("F2: a murder parked in Dorm A with Botan and Chie there, judged with the GM's camera on the Annex, is cancelled as one with nobody present (E12 C3)",
+        J(eclipse.rooms) === J(["Dorm A", "Dorm A", "Dorm A"]) && eclipse.started && eclipse.parked && eclipse.murder === false && eclipse.nobody === true,
+        J(eclipse));
+
+    /* ------------------------------ G. two floors ------------------------------ */
+    phase("G: a scene of two floors", { flow: "levels-floor" });
+    const setG = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const tower = game.scenes.get("${towerId}"), aiko = game.actors.get("${IDS.aiko}");
+        const [t] = await tower.createEmbeddedDocuments("Token", [{ name: "Aiko", actorId: aiko.id, actorLink: true, x: 300, y: 300, width: 1, height: 1,
+            hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level: "${L1}" }]);
+        const lab = M.roomOfToken(t);
+        await t.update({ x: 1300, y: 300 }, { teleport: true, movementAction: "displace", animate: false });
+        globalThis.__s66g = { token: t.id, actions: game.drpg.actionsLeft(aiko) };
+        if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
+        return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
+    const climb = await p1.eval(`const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
+        game._viewScene(tower, { level: "${L1}" });
+        const t = tower.tokens.get("${setG.token}"), first = globalThis.__notifications.length;
+        let threw = null;
+        try { await t.update({ level: "${L2}" }); } catch (err) { threw = String(err?.message ?? err); }
+        await new Promise(r => setTimeout(r, 1200));
+        const out = { level: t.level, threw, told: globalThis.__notifications.slice(first).map(n => n.level + ": " + n.msg) };
+        game._viewScene(academy);
+        return out;`, { timeout: 30000 });
+    await settle(800);
+    const afterG = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const tower = game.scenes.get("${towerId}"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66g, t = tower.tokens.get(was.token);
+        const out = { level: t?.level ?? null, room: M.roomOfToken(t), actions: game.drpg.actionsLeft(aiko) };
+        await game.drpg.setActions(aiko, was.actions);
+        await tower.delete();
+        delete globalThis.__s66g;
+        return out;`, { timeout: 30000 });
+    /* At 180df61 a room is told apart by its footprint alone (`roomAt`; the shim's regions ignore floors as Foundry's
+       `testPoint` does without elevation): the token on the lower floor reads the alphabetically first region under it.
+       E12 C9: `roomAt` per level, so the lower floor's Lab. */
+    check("G1: a token on the ground floor under the Attic reads the Attic as its room, not the Lab it stands in (E12 C9)",
+        setG.lab === "Attic" && setG.level === L1, J(setG));
+    /* At 180df61 `onPreUpdateToken` judges a change of x or y and returns at once for a change of the level alone: p1's
+       move from the Corridor up into the locked Vault is let through and costs no action. E12 C9 (V8): refused with
+       the lock's words; (V7) a stair crossing is charged as a door, per Q1. */
+    check("G2: p1's level-only move from the Corridor up into the locked Vault lands and costs no action (E12 C9)",
+        climb.threw === null && climb.level === L2 && afterG.level === L2 && afterG.actions === setG.actions
+            && !climb.told.some(line => line.startsWith("warn")), J({ setG, climb, afterG }));
+
+    /* ------------------------------ H. the migration's room clause ------------------------------ */
+    phase("H: the room-marking clause asked for by name");
+    const migrated = await gm.eval(`${SCENES} const MG = await import("${repoUrl}/scripts/migrate.mjs");
+        const whispers = () => game.messages.filter(m => (m.whisper ?? []).length).length, before = whispers();
+        const report = await MG.migrate1_2_0({ only: ["markRooms"], force: true });
+        await new Promise(r => setTimeout(r, 500));
+        return { clauses: Object.keys(report?.clauses ?? {}), changed: report?.changed ?? null, stamp: academy.getFlag("${MOD}", "roomsMarkedAt") ?? null,
+            whispers: whispers() - before };`, { timeout: 60000 });
+    /* At 180df61 no clause is called markRooms: the migration asked for it runs nothing and stamps no scene. E12 C1:
+       the clause flags each scene's rooms once, stamps `roomsMarkedAt` and whispers one report to the primary. */
+    check("H1: the migration asked for markRooms alone runs no clause, changes nothing, stamps no scene and whispers nothing (E12 C1)",
+        J(migrated.clauses) === J([]) && migrated.changed === 0 && migrated.stamp === null && migrated.whispers === 0, J(migrated));
+
+    /* ------------------------------ I. a jump into a locked room ------------------------------ */
+    phase("I: a body in a locked room, and a player's jump in beside it", { flow: "body-discovery" });
+    /* Who walked in is in the GMs' console alone (`checkBodyFound`, chapter.mjs), not on the card nor on the stamp, and a
+       client's console reaches the harness's stdout, not `logSink` - so the GM's own console is kept from here to the find. */
+    const setI = await gm.eval(`${SCENES} ${LOCKED} const M = await import("${repoUrl}/scripts/movement.mjs"), C = await import("${repoUrl}/scripts/chapter.mjs");
+        canvas.scene = academy;
+        const storage = academy.regions.find(r => r.name === "Storage");
+        await storage.setFlag("${MOD}", ROOM_FLAGS.locked, true);
+        const place = async (id, room) => { const t = academy.tokens.find(x => x.actorId === id);
+            await t.update(M.positionIn(room, t), { teleport: true, movementAction: "displace", animate: false });
+            await new Promise(r => setTimeout(r, 1200)); return M.roomOfToken(t); };
+        const daichi = await place("${IDS.daichi}", "Storage");
+        const kept = Boolean(await C.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));
+        const botan = await place("${IDS.botan}", "Storage"), aiko = await place("${IDS.aiko}", "Hall");
+        const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;
+        globalThis.__s66i = { cards: cards(), log: console.log, lines: [] };
+        console.log = (...args) => { globalThis.__s66i.lines.push(args.map(String).join(" ")); return globalThis.__s66i.log.apply(console, args); };
+        return { locked: locked(storage), daichi, kept, botan, aiko, cards: cards(), neighbours: M.neighbouringRooms("Hall"),
+            names: { aiko: game.actors.get("${IDS.aiko}").name, botan: game.actors.get("${IDS.botan}").name } };`, { timeout: 60000 });
+    const jump = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = canvas.scene.tokens.get("TOKAIKO000000000");
+        await t.update(M.positionIn("Storage", t), { drpgRevert: true, teleport: true, movementAction: "displace", animate: false });
+        return M.roomOfToken(t);`, { timeout: 30000 });
+    const foundI = await gm.eval(`const S = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + 8000; while (!S.bodyDiscovery() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 800));
+        const cards = game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length - globalThis.__s66i.cards;
+        const rows = (S.bodiesFoundIn?.(S.getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
+        console.log = globalThis.__s66i.log;
+        const finders = globalThis.__s66i.lines.filter(line => line.includes("Body found in Storage:"));
+        delete globalThis.__s66i;
+        return { held: Boolean(S.bodyDiscovery()), cards, rows, finders };`, { timeout: 30000 });
+    /* At 180df61 the discovery counts every student standing in the room when a token arrives (`witnessesOf`), however
+       they got there: p1's jump from the Hall into the locked Storage, the veto skipped as a revert skips it, makes Aiko
+       the second witness, and the body is found. E12 C12 (Q5a): a token that reached the room unlawfully is not a
+       witness - Botan alone, no card. */
+    check("I1: Aiko jumped from the Hall into the locked Storage by her player is counted a witness: the body is found by Aiko and Botan (E12 C12)",
+        setI.locked && setI.kept && setI.daichi === "Storage" && setI.botan === "Storage" && setI.aiko === "Hall" && setI.cards === 0
+            && !setI.neighbours.includes("Storage") && jump === "Storage" && foundI.held && foundI.cards === 1
+            && foundI.rows.some(row => row.room === "Storage" && row.by === "witnesses")
+            && foundI.finders.length === 1 && foundI.finders[0].includes(setI.names.aiko) && foundI.finders[0].includes(setI.names.botan),
+        J({ setI, jump, foundI }));
+}
