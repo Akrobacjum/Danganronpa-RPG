@@ -44,7 +44,7 @@ import { carriableCategories } from "./inventory.mjs";
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 // A leaf: which named regions no GM has decided yet (E12 C1).
-import { unmarkedRegions, roomRegions } from "./rooms.mjs";
+import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
@@ -331,7 +331,10 @@ function steps() {
         },
         {
             key: "rooms",
-            done: (workingScene()?.regions?.size ?? 0) > 0,
+            /* A ROOM, NOT A REGION (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This was done
+               on `regions.size`, so a scene holding only a Teleport, or a player's region, passed
+               it; it asks rooms.mjs now, the question the row's words ask. */
+            done: sceneHoldsRooms(workingScene()),
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
             /*
@@ -897,11 +900,14 @@ function tickedIn(root) {
  */
 const CAST_TO = Object.freeze(["stay", "bedroom", "point"]);
 
-/** Every named room on every map, by scene and region id - the GM's camera is no part of the answer (ITEM-16). */
+/**
+ * Every room on every map, by scene and the id of its first piece - the GM's camera is no part of the
+ * answer (ITEM-16). Until E12 fix r1-G5 (review goal-r1 N1) every named region was offered, a
+ * Teleport's and a player's among them, and a room of two pieces twice.
+ */
 function castPoints() {
-    return game.scenes.contents.flatMap(scene => [...(scene.regions ?? [])]
-        .filter(region => region.name?.trim())
-        .map(region => ({ value: `${scene.id}.${region.id}`, label: `${scene.name}: ${region.name}` })));
+    return game.scenes.contents.flatMap(scene => [...piecesByName(scene)]
+        .map(([name, pieces]) => ({ value: `${scene.id}.${pieces[0].id}`, label: `${scene.name}: ${name}` })));
 }
 
 /** The cast's choice in the window's words, for the reset's report: the bedrooms' label, or the room's as its list drew it. */
@@ -1265,7 +1271,8 @@ export async function placeCast(choice, actors = studentActors()) {
 
     const bedrooms = to === "bedroom" ? allBedroomsAnywhere() : [];
     const pointScene = to === "point" ? game.scenes.get(choice.scene) : null;
-    const pointRegion = [...(pointScene?.regions ?? [])].find(region => region.id === choice.region);
+    // A room's piece only (E12 fix r1-G5): the window offers no other, and a choice naming one is no point.
+    const pointRegion = pointScene ? roomPieces(pointScene).find(region => region.id === choice.region) : null;
     const point = pointRegion ? { scene: pointScene, region: pointRegion } : null;
     const tokensOf = (actor, scene) => [...(scene?.tokens ?? [])].filter(token => token.actorId === actor.id);
     const batches = new Map();
@@ -1555,8 +1562,8 @@ async function wipeSeason(plan) {
             const { ROOM_FLAGS } = await import("./movement.mjs");
             const { startLocked } = await import("./vault.mjs");
             for (const scene of game.scenes) {
-                // A room is a region with a name; the rest are shapes somebody drew.
-                for (const region of Array.from(scene.regions ?? []).filter(r => r.name)) {
+                // Every piece of every room (rooms.mjs); a region that is no room keeps whatever it carries.
+                for (const region of roomPieces(scene)) {
                     const shouldBe = startLocked(region);
                     if (Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked)) !== shouldBe) {
                         await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, shouldBe);

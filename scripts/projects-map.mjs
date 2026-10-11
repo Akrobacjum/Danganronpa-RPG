@@ -35,7 +35,7 @@ import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProje
     from "./projects.mjs";
 import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
 import { boundsOf } from "./movement.mjs";
-import { sceneOfRoom } from "./rooms.mjs";
+import { sceneOfRoom, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
@@ -145,15 +145,16 @@ async function ensureProjectActor() {
  */
 function centreOfRoom(scene, room) {
     if (!scene || !room) return null;
-    for (const region of scene.regions ?? []) {
-        if (region.name !== room) continue;
-        const box = boundsOf(region);
-        if (!box) return null;
-        const grid = scene.grid?.size ?? canvas?.grid?.size ?? 100;
-        const half = (PROJECT_TOKEN.size * grid) / 2;
-        return { x: Math.round(box.x + box.w / 2 - half), y: Math.round(box.y + box.h / 2 - half) };
-    }
-    return null;
+    /* THE ROOM'S LARGEST PIECE (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This took the first
+       region of the name, a Teleport's or a player's as readily as the room's, and of a room in
+       pieces the first drawn, however small. The pieces are the room's (rooms.mjs), and the
+       largest box is the one a two-square token most likely fits. */
+    const boxes = roomRegions(scene, room).map(boundsOf).filter(Boolean);
+    const box = boxes.reduce((best, b) => (!best || b.w * b.h > best.w * best.h ? b : best), null);
+    if (!box) return null;
+    const grid = scene.grid?.size ?? canvas?.grid?.size ?? 100;
+    const half = (PROJECT_TOKEN.size * grid) / 2;
+    return { x: Math.round(box.x + box.w / 2 - half), y: Math.round(box.y + box.h / 2 - half) };
 }
 
 /**

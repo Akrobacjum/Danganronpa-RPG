@@ -365,7 +365,7 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         await t.update({ x: 1300, y: 300 }, { teleport: true, movementAction: "displace", animate: false });
         globalThis.__s66g = { token: t.id, actions: game.drpg.actionsLeft(aiko) };
         if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
-        return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
+        return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko), vaultLocked: M.isLocked(tower, "Vault") };`, { timeout: 30000 });
     const climb = await p1.eval(`const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
         game._viewScene(tower, { level: "${L1}" });
         const t = tower.tokens.get("${setG.token}"), first = globalThis.__notifications.length;
@@ -540,4 +540,10 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
             && J(readK.annex) === J(readK.floor1) && J(readK.nothing) === J(readK.floor1)
             && J(readK.noScene.known) === J([]) && unexplored(readK.noScene.doors),
         J({ stoodK, readK }));
+
+    /* G2's premises, read where G set them up (E12 fix r1-G5; review EARLY-C0-2): until this check nothing asserted that
+       Aiko's climb starts in the Corridor or that the Vault above it is locked, so G2 could read a climb from anywhere
+       into an open room as the one it names. */
+    check("G3: G2's climb starts with Aiko in the Corridor on the ground floor, under a Vault that is locked (E12 fix r1-G5)",
+        setG.corridor === "Corridor" && setG.level === L1 && setG.vaultLocked === true, J(setG));
 }

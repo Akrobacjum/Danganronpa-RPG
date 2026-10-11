@@ -3615,7 +3615,7 @@
         "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
-        "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
+        "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
         "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (karta Drzwi). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
@@ -3686,7 +3686,7 @@
       "resetButton": "Zresetuj sezon",
       "resetMistyped": "Nie zresetowano - musisz wpisać dokładnie {word}.",
       "resetDone": "Sezon zresetowany. Obsada i mapy nietknięte.",
-      "roomGuide": "Najpierw ściany, potem jeden nazwany region na pokój, rysowany do nich z włączonym przyciąganiem. Region bez nazwy nie jest pokojem i nigdy nie liczy się jako sąsiad. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
+      "roomGuide": "Najpierw ściany, potem region na każdy pokój, rysowany do nich z włączonym przyciąganiem; pokój można narysować jako kilka regionów o jednej nazwie. Region jest pokojem dopiero wtedy, gdy GM zaznaczy przy nim „To jest pokój” w Ustawieniach pokoi (karta Drzwi): region, którego nikt nie zaznaczył, przejście (region, który teleportuje żeton albo zmienia jego poziom) i region narysowany przez gracza nie są pokojami i nigdy nie liczą się jako sąsiedzi. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "roomCountLine": "Pokoje: {rooms}. Gracze: {players}. Podręcznik sugeruje około {want}.",
@@ -3886,6 +3886,7 @@
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
       "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
+      "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem, a ten GM nie miał zapisu oznaczenia sprzed zmiany, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi (karta Drzwi).",
       "pieceSplit": "Region „{name}” na scenie {scene} był jednym z kilku kawałków pokoju {room}, dopóki nie zmieniono mu nazwy. To, co niósł dla tego pokoju ({carried}), zostało z niego zdjęte: zatrzymują to pozostałe kawałki pokoju {room}, a „{name}” zaczyna bez niczego z tego."
     },
     "Migrate": {

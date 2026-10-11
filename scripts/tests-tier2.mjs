@@ -46872,6 +46872,15 @@ const SCENARIOS = [
          * and is no room though it carries the mark; a player's change naming the mark of a GM's room
          * leaves it a room, and the GMs are told once. Red before C1 on its first check: no setting
          * records a player's region.
+         * E12 fix r1-G5 (11.10.2026; review EARLY-C1-1, SEC-4, EARLY-C1-4): the change is now made, not
+         * only told - the Gym is unticked on the document before the hook, so a put-back that writes
+         * nothing reads false here (until then the hook was handed `false` over a region that still
+         * held `true`, and deleting the put-back left this green). The Gym arrives with its scene, so
+         * no `createRegion` of its own primes the GM's memory: until this fix the memory had no entry,
+         * read "never seen" as "seen unset" and unset the GM's mark. And a Shed recorded as a player's
+         * through the setting alone - as after a GM's reload, when the memory of the create is gone -
+         * takes its author's write to its flags without a put-back or a word to the GMs; until this
+         * fix it was unset and told.
          */
         ok(Boolean(SETTINGS.playerRegions) && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`),
             "no world setting records the regions a player created - a region a player drew and named is a room");
@@ -46887,26 +46896,34 @@ const SCENARIOS = [
         const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         let scene = null, read = null;
         try {
-            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false });
-            const [kept, drawn] = await scene.createEmbeddedDocuments("Region", [
-                { name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
-                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }]);
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false,
+                regions: [{ name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }] });
+            const kept = scene.regions.find(r => r.name === "SUITE E12 C1 Gym");
+            must(kept?.getFlag(MODULE_ID, R.ROOM_FLAG) === true, "the scene was not made with its marked Gym - this would measure nothing");
+            const [drawn, shed] = await scene.createEmbeddedDocuments("Region", [
+                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
+                { name: "SUITE E12 C1 Shed", shapes: [{ type: "rectangle", x: 1200, y: 0, width: 400, height: 400 }], flags: {}, behaviors: [] }]);
             const wasRoom = R.isRoom(drawn);
             Hooks.callAll("createRegion", drawn, {}, player.id);
             const recorded = await until(() => R.playerRegionIds().has(drawn.id));
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...R.playerRegionIds(), shed.id]);
             const from = game.messages.size;
-            const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes("SUITE E12 C1 Gym"));
+            const told = name => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(name));
+            shed.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } });
+            Hooks.callAll("updateRegion", shed, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } }, {}, player.id);
+            kept.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } });
             Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } }, {}, player.id);
-            await until(() => told().length > 0);
+            await until(() => told("SUITE E12 C1 Gym").length > 0);
             await settle();
-            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG), told().length];
+            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Gym").length,
+                shed.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Shed").length];
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
             await scene?.delete();
         }
-        equal(stableJson(read), stableJson([true, true, false, true, true, 1]),
-            `${player.name}'s region and ${player.name}'s change to a GM's room ([the region a room before its creation was judged, recorded as a player's, `
-            + "a room after, the GM's room a room, its mark, the GMs told])");
+        equal(stableJson(read), stableJson([true, true, false, true, true, 1, true, 0]),
+            `${player.name}'s region and ${player.name}'s changes to a GM's room and to a region of ${player.name}'s ([the region a room before its creation `
+            + "was judged, recorded as a player's, a room after, the GM's room a room, its mark, the GMs told; the Shed's mark as its author left it, the GMs told])");
     }],
 
     ["two pieces are one room: Room Setup writes both and the lock and the seal and the neighbours read either piece", async () => {
@@ -48224,6 +48241,99 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([read?.[0], false, "the body is not in the killer's room", 0, home?.id ?? null, read?.[0]]),
             `[the body's room, bodyIsHere, the GM's refusal, ${killer.name}'s Sanity marks, the body's scene and room] with the killer in a room of that name on another scene`);
+    }],
+
+    ["a room drawn in touching and overlapping pieces is outlined round its outside only and named inside its largest piece", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review EARLY-C2b-1, EARLY-C2b-2, plan-E12 3.1 ("the outline and
+         * the fog's reveal union the pieces"). E12 C2b handed the outline every piece of a room
+         * (fog-geometry `piecesAsOne`) without joining them, so where two pieces touch or overlap
+         * each piece's own border was drawn across the room's floor, and the name sat at the middle
+         * of the box round every piece - in none of them when the pieces lie apart. Here a Kitchen
+         * on a scene of its own: A and B touching along x = 400, E overlapping B's corner, and a
+         * larger C far off. The outline is traced as the room's outline is (`doorwayEdges`, then
+         * `traceOutlineGapped`, with no margin and no shortest run) into a recorder, so it reads the
+         * same in Foundry and on the harness; nothing else stands on the scene, so no edge opens.
+         * Read: the length stroked, the strokes with the room's floor two pixels either side, and
+         * where the name is drawn (fog-reveal `labelPoint`). The outside of A, B and E is 3400 px and
+         * C's 2400. Red before this fix: 7200 px stroked, the shared line and the overlaps among them.
+         */
+        const fog = await import("./fog.mjs");
+        const reveal = await import("./fog-reveal.mjs");
+        const { doorwayEdges, traceOutlineGapped } = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        const NAME = "SUITE E12 r1-G5 pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const boxes = [[0, 0, 400, 400], [400, 0, 400, 400], [700, 200, 400, 400], [2000, 0, 600, 600]];
+        const inFloor = (x, y) => boxes.some(([bx, by, w, h]) => x > bx && x < bx + w && y > by && y < by + h);
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", boxes.map(([x, y, width, height]) => ({ name: K,
+                shapes: [{ type: "rectangle", x, y, width, height }], flags: mark, behaviors: [] })));
+            const shape = fog.roomShapeOn(scene, K);
+            must(shape?.pieces?.length === 4, "the Kitchen was not handed as one room of four pieces - this would measure nothing");
+            const strokes = [];
+            let pen = null;
+            const recorder = { line: { width: 4 }, moveTo(x, y) { pen = { x, y }; }, lineTo(x, y) { strokes.push([pen.x, pen.y, x, y]); pen = { x, y }; } };
+            traceOutlineGapped(recorder, doorwayEdges(shape), { x: 0, y: 0 }, 0, 0);
+            const across = strokes.filter(([x1, y1, x2, y2]) => {
+                const length = Math.hypot(x2 - x1, y2 - y1);
+                if (length < 1) return false;
+                const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, nx = -(y2 - y1) / length * 2, ny = (x2 - x1) / length * 2;
+                return inFloor(mx + nx, my + ny) && inFloor(mx - nx, my - ny);
+            });
+            read = [Math.round(strokes.reduce((sum, [x1, y1, x2, y2]) => sum + Math.hypot(x2 - x1, y2 - y1), 0)), across.length,
+                typeof reveal.labelPoint === "function" ? reveal.labelPoint(shape) : null];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([5800, 0, { x: 2300, y: 300 }]),
+            "a Kitchen of four pieces, two touching, one overlapping and one apart ([the length its outline strokes, the strokes across its own floor, "
+            + "where its name is drawn])");
+    }],
+
+    ["a cast point that is no room moves nobody: a Teleport, a player's region or a region nobody marked", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review goal-r1 N1, audit S07-06. The reset's "everyone to one
+         * room" offered every named region of every map (season-setup.mjs `castPoints`), and
+         * `placeCast` moved the cast into whichever region the choice named: a Teleport's, a region a
+         * player drew, a region no GM marked a room. Both read rooms.mjs now. Here a scene of the
+         * suite's own holds a Teleport marked a room, a region marked a room and recorded as a
+         * player's, and a named region nobody marked, with a student of the suite's own (no player
+         * owns it, so no client follows a move) standing outside them. Read: whom `placeCast` moves
+         * and where the token stands after each. Red before this fix: moved each time.
+         */
+        const { placeCast } = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
+        const NAME = "SUITE E12 r1-G5 cast", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const region = (name, x, flags, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags, behaviors });
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        let scene = null, actor = null, read = null;
+        try {
+            [actor] = await Actor.createDocuments([{ name: "SUITE E12 r1-G5 student", type: "character" }]);
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1200, grid: { size: 100 }, active: false, navigation: false });
+            const points = await scene.createEmbeddedDocuments("Region", [
+                region("SUITE Lift", 0, mark, [{ type: "teleportToken", name: "Up", system: { destination: null } }]),
+                region("SUITE Den", 600, mark), region("SUITE Shed", 1200, {})]);
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...playersBefore, points[1].id]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 2000, y: 800, width: 1, height: 1 }]);
+            must(points.every(point => !R.isRoom(point)), "a point of the test is a room - this would measure nothing");
+            read = [];
+            for (const point of points) {
+                const placed = await placeCast({ to: "point", scene: scene.id, region: point.id }, [actor]);
+                await settle();
+                const t = scene.tokens.get(token.id);
+                read.push([point.name, placed?.moved?.length ?? null, placed?.stayed?.length ?? null, `${t?.x},${t?.y}`]);
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+            await actor?.delete();
+        }
+        equal(stableJson(read), stableJson([["SUITE Lift", 0, 1, "2000,800"], ["SUITE Den", 0, 1, "2000,800"], ["SUITE Shed", 0, 1, "2000,800"]]),
+            "the cast sent to a point that is no room ([the point, moved, stayed, where the token stands after])");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

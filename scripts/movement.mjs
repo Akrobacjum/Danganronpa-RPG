@@ -82,7 +82,8 @@ export function registerMovement() {
     // what reaches a rule names them where they are registered.
     Hooks.on("createRegion", (region, options, userId) => noteRegionCreated(region, userId));
     Hooks.on("updateRegion", (region, changes, options, userId) => judgeRoomFlagChange(region, changes, userId));
-    Hooks.once("ready", primeRoomFlags);
+    Hooks.once("ready", () => primeRoomFlags(game.scenes ?? []));
+    Hooks.on("createScene", scene => primeRoomFlags([scene]));
 }
 
 /* ==========================================================================
@@ -93,7 +94,14 @@ export function registerMovement() {
  * Whether Foundry v14 lets a player create or update a Region outside
  * Daggerheart's relay has not been read off a live table (LIVE-E12-04), so
  * both are answered here, on the primary GM, from the user id Foundry hands
- * the document hook - Foundry's, not a packet's claim.
+ * the document hook - Foundry's, not a packet's claim - and only while a GM is
+ * connected: no hook runs on a client that is not there. A region drawn, or a
+ * mark changed, while no GM is connected is judged by nobody; the next GM's
+ * ready pass (`primeRoomFlags`) takes the mark as it finds it for one a GM left,
+ * and a region a player drew then is never recorded as a player's (read in the
+ * code, 11.10.2026; the harness keeps its GM connected, so it is not measured).
+ * Whether v14's `_stats.lastModifiedBy` could let the primary judge them at
+ * ready is a live check (LIVE-E12-04).
  *
  * A REGION A PLAYER DREW is recorded in `SETTINGS.playerRegions`, and
  * rooms.mjs `canBeRoom` refuses it whatever its flag says. Nothing is put
@@ -104,10 +112,28 @@ export function registerMovement() {
  * GMs are told. "Last left" is remembered (`roomFlagSeen`), not read off the
  * change: an update hook carries the new value only, and a write made with
  * `diff: false` repeats the old one, so a flip read off the change could be
- * steered. Every GM primes the memory at ready and keeps it on a GM's create
- * and update; the primary writes the old value back, and that write, a GM's,
- * is what moves every GM's memory. A change that names the mark and leaves it
- * as it was is told and needs nothing put back.
+ * steered. Every GM primes the memory at ready and on a scene's creation (a
+ * scene made or imported with its regions brings no `createRegion` of its own -
+ * recalled of Foundry, and the harness's shim does the same) and keeps it on a
+ * GM's create and update; the primary writes the old value back, and that
+ * write, a GM's, is what moves every GM's memory. A change that names the mark
+ * and leaves it as it was is told and needs nothing put back. A region this GM
+ * has no memory of is not guessed at: "never seen" was read as "seen unset"
+ * until E12 fix r1-G5 (review SEC-4), so a player's write to the mark of a
+ * region that came with its scene unset the mark a GM gave it. Now nothing is
+ * written and the GMs are told it went unjudged.
+ *
+ * Only the mark is judged. A player who can write a GM's region at all could
+ * also rename it, reshape it or give it a behaviour, and none of that is put
+ * back here (review EARLY-C1-3): whether v14 lets a player write a Region
+ * outside Daggerheart's relay is LIVE-E12-04, and the relay refuses one.
+ *
+ * "Drawn by a player" is read from `SETTINGS.playerRegions`, which only the
+ * primary writes, as well as from this client's memory of the creates it saw:
+ * the memory alone forgot a player's region on a GM's reload, and the next
+ * write to its flags was put back and told as if it were a GM's room (review
+ * EARLY-C1-4). The setting, not a flag on the region: the region is its
+ * author's own document, and a flag on it is the author's to unset.
  * ========================================================================== */
 
 /** regionId -> the room flag as a GM last left it (`null` never decided), on every GM. */
@@ -119,10 +145,13 @@ let playerRegionWrites = Promise.resolve();
 
 const roomFlagOf = region => region.getFlag(MODULE_ID, ROOM_FLAG) ?? null;
 
-function primeRoomFlags() {
+/** Remember the mark of every region of these scenes this GM has not seen yet. */
+function primeRoomFlags(scenes) {
     if (!game.user?.isGM) return;
-    for (const scene of game.scenes ?? []) {
-        for (const region of scene.regions ?? []) roomFlagSeen.set(region.id, roomFlagOf(region));
+    for (const scene of scenes) {
+        for (const region of scene?.regions ?? []) {
+            if (!roomFlagSeen.has(region.id)) roomFlagSeen.set(region.id, roomFlagOf(region));
+        }
     }
 }
 
@@ -169,25 +198,31 @@ export function judgeRoomFlagChange(region, changes, userId) {
         roomFlagSeen.set(region.id, now);
         return null;
     }
-    if (!changes?.flags || drawnByPlayer.has(region.id)) return null;
-    const was = roomFlagSeen.has(region.id) ? roomFlagSeen.get(region.id) : null;
+    if (!changes?.flags || drawnByPlayer.has(region.id) || playerRegionIds().has(region.id)) return null;
+    if (!roomFlagSeen.has(region.id)) return keepRoomFlag(region, undefined, false, author);
+    const was = roomFlagSeen.get(region.id);
     if (now === was && !namesRoomFlag(changes)) return null;
     return keepRoomFlag(region, was, now !== was, author);
 }
 
-/** On the primary: put the mark back to `was` when it moved, log it, tell the GMs. */
+/**
+ * On the primary: put the mark back to `was` when it moved, log it, tell the GMs. `was` undefined:
+ * this GM has no memory of the region, so nothing is written and the GMs are told it went unjudged.
+ */
 async function keepRoomFlag(region, was, moved, author) {
     if (!isPrimaryGm()) return null;
+    const unknown = was === undefined;
     try {
-        if (moved) {
+        if (moved && !unknown) {
             if (was === null) await region.unsetFlag(MODULE_ID, ROOM_FLAG);
             else await region.setFlag(MODULE_ID, ROOM_FLAG, was);
         }
-        log(`${author.name} changed whether "${region.name}" on "${region.parent?.name}" is a room; ${moved ? "put back" : "nothing moved"}.`);
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rooms.flagKept", {
+        log(`${author.name} changed whether "${region.name}" on "${region.parent?.name}" is a room; `
+            + `${unknown ? "no memory of its mark, so it was left as it is" : moved ? "put back" : "nothing moved"}.`);
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format(unknown ? "DRPG.Rooms.flagUnjudged" : "DRPG.Rooms.flagKept", {
             user: author.name, region: region.name, scene: region.parent?.name ?? ""
         }))}</p>`);
-        return { moved };
+        return { moved, unknown };
     } catch (err) {
         error(`Could not put back the room mark of "${region.name}"`, err);
         return null;
