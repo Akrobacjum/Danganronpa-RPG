@@ -1849,6 +1849,7 @@
       "endPhaseMoved": "This End of chapter window was opened in {opened}, and the clock has read {now} since - the phase changed after the window was drawn, so what it offered to close is not what is sitting now. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
       "endPrimaryOnly": "Only the primary GM, {name}, can end the chapter, so that one browser counts it once. Ask {name}, or end it when you are the only GM connected.",
       "endFailed": "The end of the chapter did not finish: {steps}. Everything else was done - finish those by hand rather than ending the chapter again.",
+      "endStopped": "The phase changed from {opened} to {now} while the chapter was ending, so these did not run: {steps}. What ran stays done - finish the rest by hand when the table is ready for it, rather than ending the chapter again.",
       "step": {
         "reveal": "revealing the Truth Bullets",
         "sweep": "collecting the Truth Bullets",
@@ -3525,11 +3526,14 @@
       },
       "failed": "The reset did not finish: {groups}. Everything else went. Run the reset again with only those ticked.",
       "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
+      "stoppedPrimary": "The reset stopped: this browser is no longer the primary GM's - {name} is - so these did not run: {groups}. What ran stays done; {name} can finish the rest with another reset.",
       "reportCard": {
         "title": "The season reset did not finish",
         "failed": "Not cleared: {groups}.",
         "done": "Cleared: {groups}.",
         "kept": "Kept, as unticked: {groups}.",
+        "notRun": "Not run, because the primary GM changed while the reset ran: {groups}.",
+        "cast": "The cast's tokens, as chosen - {where}.",
         "titleCast": "Where the cast went after the season reset",
         "stayed": "Stayed where they were: {names}.",
         "titleLeft": "What the season reset left on the sheets",

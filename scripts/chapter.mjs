@@ -895,7 +895,20 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        and is then refused. The watcher names only a body still to discover, so this refuses only
        the GM's road. Tier 2 "a body already announced is marked in the GM's list and not
        announced twice in the chapter". */
-    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const { flagsHeldNow, judgedFor } = await import("./sheet-audit.mjs");
+    /* A NAMED DEATH THE MARK DOES NOT HOLD YET IS WAITED FOR (E11 fix r2-J1; r2-H1's doubt). A death
+       already public is read off the primary's mark, and the GM's write that made it public reaches the
+       mark only when its judgement comes up on that student's queue: behind another write still being
+       judged, the named victim read no death here, the stamp named none (`deaths` null), and once the
+       mark caught up the same body was a body to find again - tier 2 "a death made public while its
+       student's queue is busy is stamped by its discovery and not found again" read [true, false, true]
+       for [the mark lagged, the stamp names the death, a body to find after] with the code before this
+       (11.10.2026, e11run/r2j1red). So the named
+       victim's queue is drained first, before any of the reads below, when the mark holds no death for
+       them; a kept death is read off the GMs' row and waits for nothing. The wait holds up nothing that
+       holds it up: sheet-audit.mjs imports nothing of this file, so no judgement waits for a discovery
+       (read in the code). The walk-in road names only a body the mark already holds dead. */
+    if (victim && !deathRecordFor(flagsHeldNow(victim))) await judgedFor(victim.id);
     if (victim && announcedAlready(victim, flagsHeldNow, { clock, epoch })) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name }));
         return null;
@@ -1725,8 +1738,8 @@ export async function openChapterEndDialog() {
        session and the day as they stood when the GM was shown this window are what the GM chose
        against; `applyChapterEnd` refuses the end when any of them has moved since. And the phase
        (E11 fix r2-H3; round 2's sec S3): "Close the trial" is drawn disabled when no trial sits, so a
-       Class Trial another GM opened while this window stood could not be closed from it, and the
-       morning - with them ticked, the session and the chapter - went on over it. */
+       Class Trial another GM opened while this window stood could not be closed from it, and whatever
+       else was ticked - the next morning, the next session, the next chapter - went on over that trial. */
     const opened = endMark(getClock());
 
     // The SAME test the reveal itself applies, or the preview promises work the
@@ -1827,9 +1840,13 @@ function endMark(clock) {
 /**
  * THE CHAPTER'S END, ONE ORDERED LIST (E11 C5, 1.2.73; audit S06-13, S06-40; the plan's p10change).
  *
- * Each step is `{ key, run }`; `run({ choices, ending, failed })` answers the line the GMs' card reports, null
+ * Each step is `{ key, asked, run }`; `run({ choices, ending, failed })` answers the line the GMs' card reports, null
  * when it had nothing to do, or false when it failed without throwing (`closeTrial` answers false
  * when its clock write threw, E10 C12); `failed` holds the keys of the steps before it that failed.
+ * `asked` (E11 fix r2-J1) says, from the same argument, whether the GM's choices ask the step for any work:
+ * an end that stops part-way names the steps it did not run, and only those the GM asked for. A step
+ * that moves the phase itself writes the phase it leaves on `ending.stands` (the clock's move out of
+ * the Investigation, the trial's close), which the next step's check compares against.
  * `applyChapterEnd` runs them in this order, one try/catch each: a step that fails is logged and named,
  * and the steps after it still run - the morning aside, which does not open over a trial that did not close. Until 1.2.73 the same
  * work was one function of nine steps, three of them in a try/catch and six not, so a clock move
@@ -1862,16 +1879,16 @@ function endMark(clock) {
  * reads unchanged, across an end.
  */
 export const CHAPTER_END_STEPS = [
-    { key: "reveal", run: async ({ choices }) => choices.reveal
+    { key: "reveal", asked: ({ choices }) => Boolean(choices.reveal), run: async ({ choices }) => choices.reveal
         ? plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }) : null },
-    { key: "sweep", run: async ({ choices }) => choices.sweep
+    { key: "sweep", asked: ({ choices }) => Boolean(choices.sweep), run: async ({ choices }) => choices.sweep
         ? plural("DRPG.Chapter.doneSweep", { n: (await sweepTruthBullets()).removed }) : null },
-    { key: "faint", run: async ({ choices }) => {
+    { key: "faint", asked: ({ choices }) => Boolean(choices.faint), run: async ({ choices }) => {
         if (!choices.faint) return null;
         const { clearFaintRemnants } = await import("./remnants.mjs");
         return plural("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() });
     } },
-    { key: "keys", run: async ({ choices, ending }) => choices.keys
+    { key: "keys", asked: ({ choices }) => Boolean(choices.keys), run: async ({ choices, ending }) => choices.keys
         ? plural("DRPG.Chapter.doneKeys", { n: await clearChapterKeyRemnants(ending.chapter) }) : null },
     // The Cleaning Tools the chapter's clean-ups used (E32+E07 C12; cleanup.mjs
     // `noteCleaningTool`) are for its own discovery: a row the next chapter reads
@@ -1895,7 +1912,7 @@ export const CHAPTER_END_STEPS = [
        after two ends with the code before this (10.10.2026). The phase goes back to Daily Life in the same write as the counters.
        A Class Trial is not left here: `closeTrial` below does that, after the move, and only when
        the GM ticked it. */
-    { key: "clock", run: async ({ choices, ending }) => {
+    { key: "clock", asked: ({ choices }) => Boolean(choices.nextChapter || choices.nextSession), run: async ({ choices, ending }) => {
         const clock = getClock();
         const move = {};
         if (choices.nextChapter) move.chapter = clock.chapter + 1;
@@ -1904,6 +1921,7 @@ export const CHAPTER_END_STEPS = [
         if (ending.phase === "investigation") move.phase = "dailyLife";
         const { setClock } = await import("./clock.mjs");
         if (!(await setClock(move))) return false;
+        if (move.phase) ending.stands = move.phase;
         const moved = game.i18n.format("DRPG.Chapter.moved", {
             chapter: move.chapter ?? clock.chapter,
             session: move.session ?? clock.session
@@ -1926,10 +1944,12 @@ export const CHAPTER_END_STEPS = [
        `closeTrial` answers false when its clock write threw (E10 C12): the floor is shut and nothing
        announced. That is this step failing, and the GMs are told so (tier 2 "a chapter end step that
        fails is named and no morning opens over a trial that did not close"). */
-    { key: "trial", run: async ({ choices, ending }) => {
+    { key: "trial", asked: ({ choices, ending }) => Boolean(choices.endTrial) && ending.phase === "classTrial", run: async ({ choices, ending }) => {
         if (!choices.endTrial || ending.phase !== "classTrial") return null;
         const { closeTrial } = await import("./trial-floor-ui.mjs");
-        return (await closeTrial()) ? game.i18n.localize("DRPG.Chapter.doneEndTrial") : false;
+        if (!(await closeTrial())) return false;
+        ending.stands = "dailyLife";
+        return game.i18n.localize("DRPG.Chapter.doneEndTrial");
     } },
     /* AND THE NEXT CHAPTER OPENS THE FOLLOWING MORNING.
 
@@ -1954,7 +1974,7 @@ export const CHAPTER_END_STEPS = [
        morning opens over a trial that did not close" read the day moved on in a trial with the code
        before this (11.10.2026). It is left undone and named with the failed steps, for the GM to open by
        hand once the trial is closed. */
-    { key: "morning", run: async ({ choices, failed }) => {
+    { key: "morning", asked: ({ choices }) => Boolean(choices.nextMorning), run: async ({ choices, failed }) => {
         if (!choices.nextMorning) return null;
         if (failed.includes("trial")) return false;
         const { setTimeOfDay } = await import("./clock.mjs");
@@ -2054,9 +2074,28 @@ async function endChapterNow(choices) {
         return null;
     }
 
-    const ending = { chapter: now.chapter, phase: now.phase };
-    const done = [], failed = [];
+    const ending = { chapter: now.chapter, phase: now.phase, stands: now.phase };
+    const done = [], failed = [], notRun = [];
+    /* THE PHASE HOLDS FOR THE WHOLE LIST, NOT ONLY AT ITS FIRST STEP (E11 fix r2-J1; r2-H3's open
+       road, the orchestrator's ruling of 11.10.2026). The comparison above runs once, and the reveal,
+       the sweep, the Remnants and the tools await documents after it: a Class Trial another GM opened
+       meanwhile got the morning over it, and an end begun in the Investigation had its clock step write
+       `phase: "dailyLife"` over that trial with nothing closing it - 65-season J1 read the session
+       counted, the day moved on and the phase back in Daily Life over the trial the second GM had just
+       opened, and no word to the GMs, with the code before this (11.10.2026, e11run/r2j1red: session
+       and day 1 to 2). So the phase is read again before every step, against the one this end
+       began on or the one its own clock and trial steps left (`ending.stands`); moved, the end stops
+       there. What ran stays done and nothing is rolled back; the steps the GM asked for that did not
+       run are named. The tools and the hold are never named: the tools go with the chapter's move,
+       which did not run either, and any phase change takes the hold (C2). */
+    let stopped = null;
     for (const step of CHAPTER_END_STEPS) {
+        const phase = getClock().phase;
+        if (!stopped && phase !== ending.stands) stopped = { from: ending.stands, to: phase };
+        if (stopped) {
+            if (step.asked?.({ choices, ending, failed })) notRun.push(step.key);
+            continue;
+        }
         try {
             const line = await step.run({ choices, ending, failed });
             if (line === false) failed.push(step.key);
@@ -2078,6 +2117,14 @@ async function endChapterNow(choices) {
         });
         ui.notifications.error(text);
         report = `<p class="drpg-warning">${esc(text)}</p>`;
+    }
+    if (notRun.length) {
+        const text = game.i18n.format("DRPG.Chapter.endStopped", {
+            opened: phaseLabel(stopped.from), now: phaseLabel(stopped.to),
+            steps: notRun.map(key => game.i18n.localize(`DRPG.Chapter.step.${key}`)).join(", ")
+        });
+        ui.notifications.warn(text);
+        report += `<p class="drpg-warning">${esc(text)}</p>`;
     }
     if (!done.length && !report) return null;
 

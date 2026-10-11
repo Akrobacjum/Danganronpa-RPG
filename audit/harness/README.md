@@ -240,6 +240,17 @@ makes a critical certain, no rally die), and every roll at a table.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).
+- **The fog's texture is never built** (E11 fix r2-J1). The shim's
+  `canvas.app.renderer` is a screen size and a view, with no `render()`, so
+  every fog redraw logs the module's own "Could not build the fog texture"
+  (`renderer.render is not a function`, fog.mjs `buildFogTexture`'s catch):
+  counted in the fast set's logs of 90c1692 (e11run/r2h6, 11.10.2026), 9 at
+  the boot of the four clients, 220 in all of 65-season, 185 in 30-security,
+  111 in 40-flow. It is left an error, not stubbed: a `render()` that drew
+  nothing would let a fog check pass by measuring nothing (CLAUDE.md), and the
+  catch is what a table whose renderer failed would log. The fog's checks read
+  its ledgers, its regions and its listeners, never pixels; 65-season V3 counts
+  a different message (the fog's "reveal on arrival").
 - **CSS** (E30, `lib/css.mjs`). The six stylesheets are attached as one inline
   sheet of `@import ... layer(modules)` in module.json's order, served from the
   checkout (nothing else loads: any other address is a 404), and a client whose

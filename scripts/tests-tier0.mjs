@@ -7723,6 +7723,10 @@ const REGRESSIONS = [
          * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's and C10b's two
          * places and fix r1-G2's two - 74 rows counted in the source on 11.10.2026 (28 PACKET, 4 SOCKET,
          * 1 CHAT, 33 SHEET, 8 STORE), and this test passed against them on the merged tree.
+         * E11 fix r2-J1 (1.2.73) added one place, chapter.mjs `runDiscovery` (SHEET): it now awaits
+         * `judgedFor` of the named victim and reads `flagsHeldNow` itself, so the reader sees it; the test
+         * failed on it in the fast set of 11.10.2026 (e11run/r2j1: `unclassified` held exactly that one
+         * place) and passed once the row was in.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7771,6 +7775,7 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
             ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
             ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3), with each one's `deathId` for the stamp (E11 fix r1-G1; read in that pass, before any is published, since fix r2-H1 - read after, it waited for no judgement of the publication's own write). On the primary because a discovery runs there only (`discoverBody` refuses on any other GM, E11 fix r1-G2), and the stamp names only the bodies whose publication took; since fix r2-H1 so do the card, the hold and the cleaning tools the discovery breaks [1b.2]"],
+            ["SHEET chapter.mjs#runDiscovery", "judged (E11 fix r2-J1): on the primary, the one browser a discovery runs on (`discoveryHere`); a named victim the mark holds no death for is waited for (`judgedFor`) before any read, then `announcedAlready` and the stamp read the death as the GMs hold it (`flagsHeldNow`); the walk-in road names only a body the mark already holds dead [1b.2]"],
             ["SHEET chapter.mjs#announcedAlready", "judged (E11 fix r1-G2): the death's record (`deathRecordFor`) of the flags it is handed - `runDiscovery` and `openBodyDiscoveryDialog` hand it `flagsHeldNow`, on the primary, the one browser a discovery runs on (`discoveryHere`) - against this chapter's stamps (`announcedIn`) [1b.2]"],
             ["SHEET events.mjs#bodyCard", "judged (E11 fix r1-G2): the card draws only the bodies of the stamp or the hold that are dead as the GMs hold them (`isDeceased` of `flagsHeldNow`: the primary's mark there, the document on every other browser, which is what the table knows) [1b.2]"],
             ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],

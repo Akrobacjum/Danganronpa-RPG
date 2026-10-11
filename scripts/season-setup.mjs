@@ -875,6 +875,13 @@ function castPoints() {
         .map(region => ({ value: `${scene.id}.${region.id}`, label: `${scene.name}: ${region.name}` })));
 }
 
+/** The cast's choice in the window's words, for the reset's report: the bedrooms' label, or the room's as its list drew it. */
+function castPlace(choice) {
+    if (choice?.to === "bedroom") return game.i18n.localize("DRPG.Season.resetCastBedroom");
+    const point = castPoints().find(entry => entry.value === `${choice?.scene}.${choice?.region}`);
+    return `${game.i18n.localize("DRPG.Season.resetCastPoint")} ${point?.label ?? "?"}`;
+}
+
 /** The window's answer to "where the cast goes", bounded: anything else is (a). */
 function castChoiceIn(root) {
     const to = root?.querySelector('[name="castTo"]:checked')?.value;
@@ -1277,6 +1284,8 @@ async function wipeSeason(plan) {
     const stayed = [];
     // The experiences `advancement` kept because nothing told a Level Up's from the GM's (E11 C11): named likewise.
     const left = [];
+    // The steps a lost primacy stopped before they ran (E11 fix r2-J1): named on the report, never rolled back.
+    const notRun = [];
 
     /*
      * THE CUT FIRST, AND OUTSIDE EVERY STEP (E04 C10; the design's 2.10, D12 option 1).
@@ -1629,14 +1638,31 @@ async function wipeSeason(plan) {
      * 4fcc2b4 scenario 65 F measured a reset whose chat could not be deleted reporting
      * success. The rest still runs, and the cut stays written: a group already cut
      * reads empty, so running the reset again with only the failed groups ticked is safe.
+     *
+     * THE PRIMARY'S TO THE LAST STEP (E11 fix r2-J1; r2-H4's open road, the orchestrator's ruling of
+     * 11.10.2026). `resetSeason` asks before its window and again as it closes; the steps after the
+     * cut await documents for seconds, and a GM with a lower id connecting meanwhile made another
+     * browser the primary while this one went on - the deaths step dropped this browser's rows
+     * instead of clearing the store, and the clock was counted on from a browser that no longer
+     * answers for the table: 65-season U2 read the deaths and the clock cleared there, the cast's
+     * step failed and the season counted on, with the code before this (11.10.2026, e11run/r2j1red).
+     * So every step asks again, a kept one too (the Key Remnant plan's trim
+     * writes); lost, the reset stops there. What ran stays done, nothing is rolled back, and the steps
+     * still asked for are named as not run, for the primary GM to finish with another reset.
      */
+    let stopped = false;
     const step = async key => {
+        const choice = RESET_CHOICES.includes(key);
         // A choice's step (E11 C10b) is asked for by its choice; left at "stay" it runs nothing and keeps nothing.
-        if (RESET_CHOICES.includes(key)) {
-            if ((plan.cast?.to ?? "stay") === "stay") return;
-        } else if (!plan.groups.has(key)) {
+        if (choice && (plan.cast?.to ?? "stay") === "stay") return;
+        stopped ||= !isPrimaryGm();
+        if (!choice && !plan.groups.has(key)) {
             kept.push(key);
-            await keeping[key]?.();
+            if (!stopped) await keeping[key]?.();
+            return;
+        }
+        if (stopped) {
+            notRun.push(key);
             return;
         }
         try {
@@ -1651,7 +1677,8 @@ async function wipeSeason(plan) {
     for (const key of RESET_STEPS) await step(key);
 
     log(`Season reset. Cleared: ${done.join(", ") || "nothing"}.${
-        kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}`);
+        kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}${
+        notRun.length ? ` Not run (no longer the primary GM's): ${notRun.join(", ")}.` : ""}`);
     const label = key => RESET_CHOICES.includes(key) ? game.i18n.localize("DRPG.Season.resetCastTitle") : groupLabel(key);
     const names = keys => keys.map(label).join("; ");
     /* THE CAST'S MOVE IS NOT A TICK (E11 fix r2-H6; the words r2-H4 left owed). `DRPG.Season.failed` tells the GM
@@ -1663,8 +1690,19 @@ async function wipeSeason(plan) {
     // Who stayed where they were, by name (E11 C10b): on the card and in a warning of its own.
     const stayedLine = stayed.length ? game.i18n.format("DRPG.Season.reportCard.stayed",
         { names: stayed.map(id => game.actors.get(id)?.name ?? id).join(", ") }) : "";
-    if (failed.length) {
-        ui.notifications.error([groupsFailed.length ? game.i18n.format("DRPG.Season.failed", { groups: names(groupsFailed) }) : "",
+    const stoppedLine = notRun.length ? game.i18n.format("DRPG.Season.stoppedPrimary",
+        { name: game.users.get(primaryGmId())?.name ?? "?", groups: names(notRun) }) : "";
+    /* WHERE THE TOKENS WENT, ON A LINE OF ITS OWN (E11 fix r2-J1; r2-H6's doubt). The cast's step was
+       listed with the groups under "Cleared:", as "Where the cast's tokens go" - and a move clears
+       nothing: 65-season J2 read "Cleared: Where the cast's tokens go; The clock, ..." with the code before
+       this (11.10.2026, e11run/r2j1red). The groups' lines name groups;
+       the move says where it sent the tokens, in the window's own words for the choice. */
+    const castLine = done.some(key => RESET_CHOICES.includes(key))
+        ? game.i18n.format("DRPG.Season.reportCard.cast", { where: castPlace(plan.cast) }) : "";
+    const groupsDone = done.filter(key => !RESET_CHOICES.includes(key));
+    if (failed.length || notRun.length) {
+        ui.notifications.error([stoppedLine,
+            groupsFailed.length ? game.i18n.format("DRPG.Season.failed", { groups: names(groupsFailed) }) : "",
             castFailed].filter(Boolean).join(" "));
     } else {
         ui.notifications.info(kept.length
@@ -1678,20 +1716,22 @@ async function wipeSeason(plan) {
     const leftLine = left.length ? game.i18n.format("DRPG.Season.reportCard.experiences",
         { list: left.map(entry => `${entry.name}: ${entry.experiences.join(", ")}`).join("; ") }) : "";
     if (leftLine) log(`Season reset: ${leftLine}`);
-    if (failed.length || stayedLine || leftLine) {
+    const unfinished = failed.length || notRun.length;
+    if (unfinished || stayedLine || leftLine) {
         try {
             const line = (key, keys) => keys.length
                 ? `<p>${esc(game.i18n.format(`DRPG.Season.reportCard.${key}`, { groups: names(keys) }))}</p>` : "";
             // The card says the reset did not finish only when it did not; one that finished and left
             // somebody standing has a title of its own, and one that left experiences on a sheet another.
-            const title = failed.length ? "DRPG.Season.reportCard.title"
+            const title = unfinished ? "DRPG.Season.reportCard.title"
                 : leftLine ? "DRPG.Season.reportCard.titleLeft" : "DRPG.Season.reportCard.titleCast";
             await whisperToGms(`<h3>${esc(game.i18n.localize(title))}</h3>
-                ${failed.length ? `${line("failed", groupsFailed)}${castFailed ? `<p>${esc(castFailed)}</p>` : ""}${line("done", done)}${line("kept", kept)}` : ""}${
-                stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}${leftLine ? `<p>${esc(leftLine)}</p>` : ""}`);
+                ${notRun.length ? `<p>${esc(game.i18n.format("DRPG.Season.reportCard.notRun", { groups: names(notRun) }))}</p>` : ""}${
+                unfinished ? `${line("failed", groupsFailed)}${castFailed ? `<p>${esc(castFailed)}</p>` : ""}${line("done", groupsDone)}${line("kept", kept)}` : ""}${
+                castLine ? `<p>${esc(castLine)}</p>` : ""}${stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}${leftLine ? `<p>${esc(leftLine)}</p>` : ""}`);
         } catch (err) {
             error("Season reset: could not post its report", err);
         }
     }
-    return { cleared: done, kept, failed, stayed, left };
+    return { cleared: done, kept, failed, stayed, left, notRun };
 }

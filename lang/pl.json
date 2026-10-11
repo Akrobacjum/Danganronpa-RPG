@@ -1919,6 +1919,7 @@
       "endPhaseMoved": "To okno końca rozdziału otwarto w fazie {opened}, a zegar od tego czasu pokazuje {now} - faza zmieniła się po otwarciu okna, więc to, co okno proponowało zamknąć, nie jest tym, co trwa teraz. Nic nie wykonano: otwórz koniec rozdziału ponownie, żeby wybrać według zegara takiego, jaki jest teraz.",
       "endPrimaryOnly": "Rozdział kończy tylko główny GM, {name}, żeby jedna przeglądarka policzyła go raz. Poproś o to GM-a {name} albo zakończ go, gdy będziesz jedynym połączonym GM-em.",
       "endFailed": "Koniec rozdziału nie dobiegł końca: {steps}. Cała reszta została wykonana - dokończ to ręcznie, zamiast kończyć rozdział jeszcze raz.",
+      "endStopped": "Faza zmieniła się z {opened} na {now}, gdy rozdział się kończył, więc nie wykonano: {steps}. To, co się wykonało, zostaje - resztę dokończ ręcznie, gdy stół będzie na to gotowy, zamiast kończyć rozdział jeszcze raz.",
       "step": {
         "reveal": "ujawnianie Truth Bullets",
         "sweep": "zbieranie Truth Bullets",
@@ -3716,11 +3717,14 @@
       },
       "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
       "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
+      "stoppedPrimary": "Reset się zatrzymał: ta przeglądarka nie jest już przeglądarką głównego GM-a - jest nim {name} - więc nie wykonano: {groups}. To, co się wykonało, zostaje; {name} może dokończyć resztę kolejnym resetem.",
       "reportCard": {
         "title": "Reset sezonu się nie dokończył",
         "failed": "Niewyczyszczone: {groups}.",
         "done": "Wyczyszczone: {groups}.",
         "kept": "Zostawione, bo odznaczone: {groups}.",
+        "notRun": "Niewykonane, bo główny GM zmienił się w trakcie resetu: {groups}.",
+        "cast": "Żetony obsady, zgodnie z wyborem - {where}.",
         "titleCast": "Dokąd trafiła obsada po resecie sezonu",
         "stayed": "Zostali na miejscu: {names}.",
         "titleLeft": "Co reset sezonu zostawił na kartach",

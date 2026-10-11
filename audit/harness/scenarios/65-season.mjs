@@ -73,11 +73,16 @@
  *   U  the reset on the primary from its first step to its report (E11 fix r2-H4): four resets of the clock alone that
  *      send the cast to one room - the Hall, with the players' cameras read; the word typed in lower case; a returning
  *      GM (`gm0`, its id sorting before the seeded GM's) connecting while the window stands; and the same GM connecting
- *      after the reset's cut is written, before the cast's step.
+ *      after the reset's cut is written, before its first step (the deaths', since E11 fix r2-J1).
  *   V  the close and the first load (E11 fix r2-H5): Chie's suicide at Stage 6 again and a reset of the incident group alone
  *      with that group's cut held back on the GM, so the close reads the whole incident - who dies of it and who is told;
  *      then a world stamped before 1.2.73's clause holding an orphan, loaded in Foundry's boot order (the scene drawn
  *      before `ready`): who sweeps the orphan and whether the GM is told how many went; and the fog's failures of the run.
+ *   J  what round 2's fixes left open (E11 fix r2-J1): an End of chapter answered in the Investigation, held in its Faint
+ *      Remnants' step while the second GM opens a Class Trial - what the end did and what it told; a reset that moves the
+ *      cast while the chat cannot be deleted - the report card's lines; a cast's step that throws on the primary - its
+ *      words; the reset window drawn for a world whose only remembered exception was the cast's sheet notes; and a chapter
+ *      ended from its own Class Trial with the next morning - whether its trial step's move stops it.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -560,7 +565,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             castAnswer, stayed: result?.stayed ?? null, at: { before: atBefore, after: at() }, castCards: castCards() - castCardsBefore,
             warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").map(n => n.msg),
             experiences: { aiko: experiences("${IDS.aiko}"), botan: experiences("${IDS.botan}"), listed: aiko.getFlag("${MOD}", "levelUpExperiences") ?? null },
-            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore) };`;
+            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore), notRun: result?.notRun ?? null };`;
     const RESET = resetRun();
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
@@ -1084,12 +1089,13 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             season: [windowU1.seasonBefore, windowU1.season], warned: windowU1.warned, at: windowU1.at } }), { flow: "season-reset" });
 
     /* U2: the same GM connecting after the window closed: the reset's first clock write (the cut) is held until this browser
-       reads the returning GM as the primary, and then the steps run - the cast's next. */
+       reads the returning GM as the primary, and then the steps run - the deaths' first (E11 fix r2-J1: ticked with the
+       clock, so the step whose other branch drops this browser's rows is the one a primacy lost after the cut meets). */
     await gm.eval(`${UNTIL} const U = await import("${repoUrl}/scripts/utils.mjs"); await until(() => U.isPrimaryGm(), 15000); return true;`, { timeout: 30000 });
     const pendingU2 = gm.eval(`${U} const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
         const set = game.settings.set;
         globalThis.__u = { held: false, put: () => { game.settings.set = set; } };
-        ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Storage"),
+        ${resetRun({ ticked: J(["deaths", "clock"]), cast: pickRoom("Storage"),
             answer: `game.settings.set = async function (...args) { const out = await set.apply(this, args);
                 if (!globalThis.__u.held && args[1] === KEYS.clock) { globalThis.__u.held = true; globalThis.__u.put();
                     await until(() => U.primaryGmId() !== game.user.id, 15000); }
@@ -1098,8 +1104,12 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         // E11 fix r2-H6: the report card's words for the cast's step - its own, not "Not cleared: Where the cast's tokens go".
         // Escaped as the card writes them (esc): "cast's" is "cast&#x27;s" there, and the bare words would match nothing.
         const cards = words => game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length;
+        // E11 fix r2-J1: the steps not run, as the error and the card name them (X is resetRun's season-exceptions.mjs).
+        const notRunNames = [X.groupLabel("deaths"), game.i18n.localize("DRPG.Season.resetCastTitle"), X.groupLabel("clock")].join("; ");
         return { ...read, primaryThen: U.primaryGmId(), castCards: cards(game.i18n.localize("DRPG.Season.failedCast")),
-            notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })) };`, { timeout: 120000 });
+            notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })),
+            stoppedWords: game.i18n.format("DRPG.Season.stoppedPrimary", { name: ${J(GM0.name)}, groups: notRunNames }),
+            notRunCards: cards(game.i18n.format("DRPG.Season.reportCard.notRun", { groups: notRunNames })) };`, { timeout: 120000 });
     const heldU2 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.held, 15000));`, { timeout: 30000 });
     let cutU2 = null;
     await connect("gm0");
@@ -1108,16 +1118,21 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     } finally {
         await disconnect("gm0");
     }
-    /* The words (E11 fix r2-H6): r2-H4 named the cast's step under DRPG.Season.failed, "run the reset again with only those
-       ticked", and a reset with nothing ticked does not run - so the error and the card now carry the cast's own words, to
-       move the tokens by hand, and neither the groups' advice nor "Not cleared: Where the cast's tokens go". */
-    check("U2: a GM with a lower id arriving after the reset's cut leaves the cast unplaced, and the reset files that step failed; its error and its report say to move the tokens by hand, not to run the reset again (E11 fix r2-H4, r2-H6)",
-        heldU2 === true && cutU2?.primaryThen === GM0.id && J(cutU2.cleared) === J(["clock"]) && J(cutU2.failed) === J(["placeCast"])
-            && cutU2.errors.includes(WORDS.failedCast) && !cutU2.errors.includes(WORDS.failed) && cutU2.castCards === 1 && cutU2.notCleared === 0
-            && cutU2.reports === 1 && cutU2.season === cutU2.seasonBefore + 1
+    /* E11 fix r2-H4 made this check: the cast's step answered null off the primary and was filed done, with nobody named;
+       r2-H6 gave its failure the cast's own words. E11 fix r2-J1 (r2-H4's open road, the orchestrator's ruling of
+       11.10.2026): the primary is asked before every step, so the reset stops at its first step after the cut - the
+       deaths, the cast and the clock do not run, the season is not counted, and the error and the card name the three
+       with the primary GM. Before this the deaths and the clock were cleared on a browser that was no longer the primary,
+       and the cast's step failed. The cast's own words for a failed move are read in J3, on a road that still reaches them. */
+    check("U2: a GM with a lower id arriving after the reset's cut stops the reset there - the deaths, the cast and the clock are not run, the season is not counted, and the error and the report name what did not run and the primary GM (E11 fix r2-H4, r2-J1)",
+        heldU2 === true && cutU2?.primaryThen === GM0.id && J(cutU2.cleared) === "[]" && J(cutU2.failed) === "[]"
+            && J(cutU2.notRun) === J(["deaths", "placeCast", "clock"])
+            && cutU2.errors.length === 1 && cutU2.errors[0].includes(cutU2.stoppedWords) && cutU2.castCards === 0 && cutU2.notCleared === 0
+            && cutU2.reports === 1 && cutU2.notRunCards === 1 && cutU2.season === cutU2.seasonBefore
             && still(cutU2, IDS.aiko, IDS.botan, IDS.chie),
-        J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, errors: cutU2.errors,
-            castCards: cutU2.castCards, notCleared: cutU2.notCleared, reports: cutU2.reports, season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
+        J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, notRun: cutU2.notRun, errors: cutU2.errors,
+            castCards: cutU2.castCards, notCleared: cutU2.notCleared, reports: cutU2.reports, notRunCards: cutU2.notRunCards,
+            season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
 
     phase("V: a reset's close of a running incident the cut does not reach, and the first load of 1.2.73 in Foundry's boot order", { flow: "season-reset" });
     /* V1 (E11 fix r2-H5; the round-2 reviews' open item 3: C9's mutant m7, the reset's close concluding the incident,
@@ -1216,4 +1231,123 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         .filter(row => /reveal on arrival/.test(row.message)).reduce((n, row) => n + row.count, 0);`)));
     check("V3: no client at the table logged a Fog \"reveal on arrival\" failure this session (E11 fix r2-H5)",
         fogFailures.every(n => n === 0), J({ gm: fogFailures[0], players: fogFailures.slice(1) }), { flow: "season-reset" });
+
+    /* ------------------- J. what round 2's fixes left open ------------------- */
+    phase("J: a trial opened while the chapter's end runs, the reset card's cast line, a cast step that throws, a memory of the sheet notes alone, an end from the trial", { flow: "clock-day" });
+    /* J1 (E11 fix r2-J1 (a); r2-H3's open road). H3's guard compares the window's phase once, before the steps; the reveal,
+       the sweep, the Remnants and the tools await documents after it. Here the primary answers its End of chapter window in
+       the Investigation with the next session and the next morning, its Faint Remnants' step is held until the second GM
+       (at the table since H) has opened a Class Trial, and the end goes on. Read: what the end answered, the session, the
+       day and the phase against the clock it began on, and the GMs' whisper naming what did not run. */
+    const heldJ = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        await setClock({ phase: "investigation" });
+        const faint = C.CHAPTER_END_STEPS.find(step => step.key === "faint"), run = faint.run;
+        // The notifications counted from here: the end warns as it stops, before the read below starts.
+        globalThis.__j = { held: false, told: globalThis.__notifications.length, before: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase } };
+        faint.run = async (...args) => { globalThis.__j.held = true; await until(() => getClock().phase === "classTrial", 15000); return run(...args); };
+        globalThis.__dialogAnswers.push(async () => ({ reveal: false, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: true, nextMorning: true }));
+        globalThis.__j.end = C.openChapterEndDialog().finally(() => { faint.run = run; });
+        return Boolean(await until(() => globalThis.__j.held, 15000));`, { timeout: 30000 });
+    const trialJ = await gm2.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const floor = await F.startFloor({ confirmNewTrial: true });
+        return { floor: Boolean(floor), phase: getClock().phase };`, { timeout: 30000 });
+    const endJ = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const told = globalThis.__j.told;
+        const ended = await globalThis.__j.end.catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const steps = ["clock", "morning"].map(key => game.i18n.localize(\`DRPG.Chapter.step.\${key}\`)).join(", ");
+        const words = game.i18n.format("DRPG.Chapter.endStopped", { opened: phaseLabel("investigation"), now: phaseLabel("classTrial"), steps });
+        const read = { before: globalThis.__j.before, ended: ended ?? null, after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            told: game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length,
+            warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === words).length };
+        await (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).closeTrial();
+        return read;`, { timeout: 60000 });
+    check("J1: a Class Trial a second GM opens while the primary's End of chapter runs stops the end before its clock - the session, the day and the trial's phase stand, and the GMs are told which steps did not run (E11 fix r2-J1)",
+        heldJ === true && trialJ.phase === "classTrial" && endJ.before.phase === "investigation" && endJ.ended === null
+            && J(endJ.after) === J({ session: endJ.before.session, day: endJ.before.day, phase: "classTrial" }) && endJ.told === 1 && endJ.warned === 1,
+        J({ heldJ, trialJ, endJ }), { flow: "clock-day" });
+
+    /* J2 (E11 fix r2-J1 (d); r2-H6's doubt). A reset of the chat's cards and the clock, the cast sent to the Storage room and
+       the chat's deletion throwing, as F throws it, so the card is posted: its "Cleared:" line and the cast's own. */
+    const cardJ = await gm.eval(`const deleting = ChatMessage.deleteDocuments;
+        ChatMessage.deleteDocuments = async () => { throw new Error("E11 fix r2-J1 65 J2: the chat cannot be deleted"); };
+        try { ${resetRun({ ticked: J(["cards", "clock"]), cast: pickRoom("Storage") })}
+            const E = foundry.utils.escapeHTML, title = E(game.i18n.localize("DRPG.Season.reportCard.title"));
+            const card = game.messages.map(m => String(contentOf(m))).filter(c => c.includes(title)).at(-1) ?? "";
+            return { ...read, card, hasTitle: card.includes(E(game.i18n.localize("DRPG.Season.resetCastTitle"))),
+                doneLine: card.includes(E(game.i18n.format("DRPG.Season.reportCard.done", { groups: X.groupLabel("clock") }))),
+                castLine: card.includes(E(game.i18n.format("DRPG.Season.reportCard.cast",
+                    { where: game.i18n.localize("DRPG.Season.resetCastPoint") + " Academy - Floor 1: Storage" }))) };
+        } finally { ChatMessage.deleteDocuments = deleting; }`, { timeout: 120000 });
+    check("J2: a reset that moved the cast and did not finish says where the tokens went on a line of its own, and its \"Cleared:\" line names the groups alone (E11 fix r2-J1)",
+        J(cardJ.failed) === J(["cards"]) && J(cardJ.cleared) === J(["placeCast", "clock"]) && cardJ.reports === 1
+            && cardJ.doneLine === true && cardJ.castLine === true && cardJ.hasTitle === false && room(cardJ, IDS.aiko) === "Storage",
+        J({ cardJ: { cleared: cardJ.cleared, failed: cardJ.failed, reports: cardJ.reports, doneLine: cardJ.doneLine, castLine: cardJ.castLine,
+            hasTitle: cardJ.hasTitle, card: cardJ.card, at: cardJ.at.after } }), { flow: "season-reset" });
+
+    /* J3 (E11 fix r2-J1; r2-H6's words, read in U2 until r2-J1 stopped that road before the cast's step). The cast's step
+       failing on the primary: the Hall's teleport and the scene's own token update both throwing, as a write the server
+       refuses would. The error and the card carry the cast's words - move the tokens by hand - and not the groups'. */
+    const castJ = await gm.eval(`const { contentOf: seen } = await import("${repoUrl}/scripts/secret.mjs");
+        const castCount = () => game.messages.filter(m => String(seen(m)).includes(foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.failedCast")))).length;
+        const castBefore = castCount(), academy = game.scenes.get("${IDS.scene}"), hall = [...academy.regions].find(r => r.name === "Hall");
+        const own = [[hall, "teleportTokens"], [academy, "updateEmbeddedDocuments"]].map(([doc, name]) => [doc, name, Object.getOwnPropertyDescriptor(doc, name)]);
+        hall.teleportTokens = async () => { throw new Error("E11 fix r2-J1 65 J3: the region cannot teleport"); };
+        academy.updateEmbeddedDocuments = async () => { throw new Error("E11 fix r2-J1 65 J3: the tokens cannot move"); };
+        try { ${resetRun({ ticked: J(["clock"]), cast: pickRoom("Hall") })}
+            const cards = words => game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length;
+            // The cards this reset posted with the cast's words - U2's road posted one too before E11 fix r2-J1.
+            return { ...read, castCards: castCount() - castBefore,
+                notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })) };
+        } finally { for (const [doc, name, desc] of own) { if (desc) Object.defineProperty(doc, name, desc); else delete doc[name]; } }`, { timeout: 120000 });
+    check("J3: a cast's step that throws on the primary is filed failed; its error and its report say to move the tokens by hand, not to run the reset again (E11 fix r2-H6, r2-J1)",
+        J(castJ.cleared) === J(["clock"]) && J(castJ.failed) === J(["placeCast"]) && castJ.errors.length === 1 && castJ.errors[0].includes(WORDS.failedCast)
+            && !castJ.errors[0].includes(WORDS.failed) && castJ.castCards === 1 && castJ.notCleared === 0 && castJ.reports === 1
+            && castJ.season === castJ.seasonBefore + 1 && still(castJ, IDS.aiko, IDS.botan, IDS.chie),
+        J({ castJ: { cleared: castJ.cleared, failed: castJ.failed, errors: castJ.errors, castCards: castJ.castCards, notCleared: castJ.notCleared,
+            reports: castJ.reports, season: [castJ.seasonBefore, castJ.season], at: castJ.at } }), { flow: "season-reset" });
+
+    /* J4 (E11 fix r2-J1 (c); r2-H4's open item, a measurement). A world whose only remembered exception was the cast's
+       sheet notes, a group r2-H4 removed: the window drawn and cancelled. Its GM last chose every group but that one,
+       so every group that still exists should be drawn ticked. */
+    const memoryJ = await gm.eval(`const R = await import("${repoUrl}/scripts/season-setup.mjs"); const X = await import("${repoUrl}/scripts/season-exceptions.mjs");
+        const { SETTINGS: KEYS } = await import("${repoUrl}/scripts/settings.mjs");
+        const before = game.settings.get("${MOD}", KEYS.seasonExceptions);
+        let boxes = null, remembered = null;
+        await game.settings.set("${MOD}", KEYS.seasonExceptions, ["sheetNotes"]);
+        globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            boxes = [...(c?.querySelectorAll?.('.drpg-reset-groups input[type="checkbox"]') ?? [])].map(box => [box.name.slice("wipe.".length), box.checked]);
+            return "cancel"; });
+        try { remembered = X.rememberedExceptions(); await R.resetSeason(); } finally { await game.settings.set("${MOD}", KEYS.seasonExceptions, before); }
+        return { boxes, groups: X.RESET_GROUPS.map(g => g.key), remembered: { keys: [...remembered.keys], dropped: remembered.dropped } };`, { timeout: 60000 });
+    check("J4: a world whose only remembered exception was the cast's sheet notes is offered every group that still exists ticked, as its GM last chose them (E11 fix r2-J1, a measurement)",
+        J((memoryJ.boxes ?? []).map(([key]) => key)) === J(memoryJ.groups) && (memoryJ.boxes ?? []).every(([, checked]) => checked === true)
+            && J(memoryJ.remembered) === J({ keys: [], dropped: 1 }),
+        J(memoryJ), { flow: "season-reset" });
+
+    /* J5 (E11 fix r2-J1 (a), the other side of J1). The end's own trial step moves the phase too - it closes the trial into
+       Daily Life - and the steps after it must read that as the end's own move, not a GM's. A Class Trial opened by the
+       primary and ended with the trial, the next session and the next morning: read what the end answered, the session,
+       the day and the phase against the clock it began on, and any whisper saying the end stopped. */
+    const trialEndJ = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"); const F = await import("${repoUrl}/scripts/trial-floor.mjs");
+        await F.startFloor({ confirmNewTrial: true });
+        const before = { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase };
+        const opened = { chapter: getClock().chapter, session: before.session, day: before.day };
+        const words = game.i18n.format("DRPG.Chapter.endStopped", { opened: phaseLabel("classTrial"), now: phaseLabel("dailyLife"),
+            steps: game.i18n.localize("DRPG.Chapter.step.morning") });
+        const ended = await C.applyChapterEnd({ endTrial: true, nextSession: true, nextMorning: true, opened }).catch(err => "threw: " + err?.message);
+        await new Promise(r => setTimeout(r, 500));
+        const read = { before, ended: typeof ended === "string" ? ended : Boolean(ended), after: { session: getClock().session, day: getClock().day ?? 1, phase: getClock().phase },
+            floor: Boolean(F.trialFloor()), told: game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length };
+        if (F.trialFloor()) await F.endFloor();
+        return read;`, { timeout: 60000 });
+    check("J5: a chapter ended from its Class Trial with the trial, the next session and the next morning closes the trial and opens the morning - its own trial step's move does not stop it (E11 fix r2-J1)",
+        trialEndJ.before.phase === "classTrial" && trialEndJ.ended === true && trialEndJ.floor === false && trialEndJ.told === 0
+            && J(trialEndJ.after) === J({ session: trialEndJ.before.session + 1, day: trialEndJ.before.day + 1, phase: "dailyLife" }),
+        J(trialEndJ), { flow: "clock-day" });
 }

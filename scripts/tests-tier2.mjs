@@ -46673,6 +46673,103 @@ const SCENARIOS = [
             + "([the glass's dim-bone rule reaches each note], the glass's bone rule reaches a warning)");
     }],
 
+    ["a death made public while its student's queue is busy is stamped by its discovery and not found again", async () => {
+        /*
+         * E11 fix r2-J1, 1.2.73; r2-H1's doubt. r2-H1 read a kept death's `deathId` off the GMs' row before the
+         * publication, so a kept body's discovery names its death whatever its student's queue holds. A death
+         * already public has no row: the discovery reads it off the primary's mark, and the GM's write that made
+         * it public reaches the mark only when its judgement comes up on that student's queue (sheet-audit.mjs
+         * `inOrder`). Here the player's own character: a write of that player's is handed to the judge and its
+         * judgement held at its write of the mark, the GM kills the character in the open (the death's write
+         * queued behind it), and the GM announces the body by name in a room no region has (nobody is gathered).
+         * The judgement is let go 1.5 s into the announcement - a save at a table takes its round trip - and
+         * whether the mark still lagged when the announcement began is read too, so the case measures something.
+         * Read: whether the stamp names the death the sheet carries, and whether the watcher's body rule
+         * (`bodiesToDiscover` as `checkBodyFound` calls it) names the student once the hold is answered.
+         * With the code before this: [true, false, true] - the stamp named no death and the body was one to
+         * find again (11.10.2026, e11run/r2j1red).
+         */
+        needs(env.primaryGm(), "a discovery and the GMs' audit run on the primary GM alone");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the waiting write is a player's, on their own character");
+        const { player, theirs } = playerAndCharacters();
+        const { killCharacter, discoverBody, reviveCharacter, isDeadForGm, bodiesToDiscover, announcedIn } = await import("./chapter.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse, bodiesFoundIn, deathRecord, deathRecordFor } = await import("./settings.mjs");
+        const { flagsHeldNow, judgeWrite, AUDIT_ASIDE, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const ROOM = "SUITE E11 J1 a room no region has";
+        const HOPE = "system.resources.hope.value";
+        const scene = canvas?.scene ?? null;
+        must(studentActors().some(a => a.id === theirs.id) && !isDeadForGm(theirs),
+            "the player's character is not a living student - this would measure nothing");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const ownPatch = Object.hasOwn(sheetMarkStore, "patch") ? sheetMarkStore.patch : null;
+        const patch = sheetMarkStore.patch;
+        let release = () => {};
+        let judged = null, read = null;
+        const unhold = () => {
+            release();
+            if (ownPatch) sheetMarkStore.patch = ownPatch;
+            else delete sheetMarkStore.patch;
+        };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            const hope = Number(foundry.utils.getProperty(theirs, HOPE) ?? 0);
+            const write = { [HOPE]: hope > 0 ? hope - 1 : hope + 1 };
+            await theirs.update(write, { [AUDIT_ASIDE]: true });
+            const gate = new Promise(resolve => { release = resolve; });
+            let held = false;
+            sheetMarkStore.patch = async function (id, ...rest) {
+                if (!held && id === theirs.id) {
+                    held = true;
+                    // Bounded: a road that waited for this queue and was never let go would otherwise never return.
+                    await Promise.race([gate, wait(8000)]);
+                }
+                return patch.call(this, id, ...rest);
+            };
+            // Not awaited: the judgement holds the student's queue while the death and the announcement run.
+            judged = judgeWrite("updateActor", theirs, foundry.utils.expandObject(write), player.id, {});
+            must(await until(() => held), `the judgement of ${player.name}'s write never wrote the mark - this would measure nothing`);
+            must(await killCharacter(theirs, { secret: false, keepBullets: true }), `${theirs.name}'s death was not made public`);
+            const lagged = !deathRecordFor(flagsHeldNow(theirs));
+            const letGo = setTimeout(() => unhold(), 1500);
+            await discoverBody({ room: ROOM, victim: theirs, scene });
+            clearTimeout(letGo);
+            unhold();
+            await judged;
+            await sheetAuditIdle();
+            await settle();
+            const stamp = bodiesFoundIn(getClock().chapter, seasonEpoch()).findLast(row => row?.victimIds?.includes?.(theirs.id));
+            const death = deathRecord(theirs)?.deathId ?? null;
+            await clearBodyDiscovery();
+            const clock = getClock(), epoch = seasonEpoch();
+            const again = bodiesToDiscover({ actors: [theirs], clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow }).includes(theirs.id);
+            read = [lagged, Boolean(death) && stamp?.deaths?.[theirs.id] === death, again];
+        } finally {
+            unhold();
+            await judged?.catch?.(() => null);
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (theirs && isDeadForGm(theirs)) await reviveCharacter(theirs, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, false]),
+            "a public death whose write was still waiting on its student's queue was stamped with no death or another one, or was a body "
+            + "to find again once the hold was answered ([the mark lagged when the announcement began, the stamp names the death on the sheet, "
+            + "a body to find after the hold])");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID
