@@ -47624,7 +47624,14 @@ const SCENARIOS = [
          * once both carry the new name, everything names the new one - read through the rules' own
          * readers (`stashItemsIn`, `mayEnterBedroom`, `hasFoundStash`, `discoveredFor`) - and the GMs
          * were told. Red before C8: after the second rename the new name read [0, false, false, false].
+         * The new name with one piece renamed reads "may enter" since E12 fix r1-G1: the piece renamed
+         * off the room carries no owner any more (vault.mjs `clearSplitPiece`), so it is nobody's
+         * bedroom and `mayEnterBedroom` lets anybody in without asking for a key - measured by the k2
+         * suite on 8109466 (11.10.2026, [0, true, false, false] there), which expected the C8 reading
+         * of a piece that still carried the owner. The primary does the carry (E12 fix r2-H4, early
+         * review EARLY-C8-4).
          */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const F = await import("./fog.mjs");
@@ -47670,7 +47677,7 @@ const SCENARIOS = [
             await scene?.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson([[1, true, true, true], [0, false, false, false], [0, true, false, false], [1, true, true, true], true]),
+        equal(stableJson(read), stableJson([[1, true, true, true], [0, true, false, false], [0, true, false, false], [1, true, true, true], true]),
             "the old name and the new one, each as [the owner's things in its stash, whether the key holder may enter, whether the finder "
             + "has found the owner's stash there, whether the key holder has discovered it], with one piece renamed and then both; "
             + "and whether the GMs were told");
@@ -49445,6 +49452,154 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[stood.room, false], true, 0, true]),
             `[[the room ${other.name} stands in, lawfully] after a send-back from ${away} into ${stood.room} locked; whether the "alone" trap there spoke for `
                 + `${student.name}'s crossing; how often the GM was asked about a murder at the lights; whether the GMs were told it came to nothing with nobody there]`);
+    }],
+    ["a GM's rename of a bedroom onto another bedroom's name carries nothing into it and takes its room off the piece", async () => {
+        /*
+         * E12 fix r2-H4, 11.10.2026; early review EARLY-C8-1 widened by the correctness review r2, the
+         * fix list's decision. E12 C8 carried a room's keys, stashes and discovery when its last piece
+         * took a new name, and asked only that a room of that name stood afterwards - which a room
+         * already there passed. Here the first student's one-piece bedroom, drawn before the second's,
+         * with a stashed thing in it; the third holds its key and has discovered it. The GM renames it
+         * onto the second student's bedroom's name, and then back. Read through the rules' own readers:
+         * the joined room's owner and stashes, whether the key holder may enter it, the key's and the
+         * stashed thing's room, the discovery, and whether the GMs were told; then, after the rename
+         * back, the key, the thing and the discovery again. Red at 5a4ba6f (this fix's parent): the key
+         * holder entered the second bedroom, whose owner read as the first student (`flagOver` reads the
+         * first piece in region order) with the first student's stash, and the rename back carried
+         * nothing home, so the key named a room the first student no longer had.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [aiko, ben, holder] = cast(3);
+        const DORM_A = "SUITE E12 H4 Dorm A", DORM_B = "SUITE E12 H4 Dorm B";
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
+        const messagesBefore = new Set(game.messages.contents.map(m => m.id));
+        // The join's whisper is the one with a warning's class that names both rooms (vault.mjs `clearSplitPiece`).
+        const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
+            .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
+        let scene = null, key = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 H4 two bedrooms", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [dormA] = await scene.createEmbeddedDocuments("Region", [{ name: DORM_A, shapes: box(100), flags: room(aiko), behaviors: [] },
+                { name: DORM_B, shapes: box(500), flags: room(ben), behaviors: [] }]);
+            const keyRoom = () => V.keyRoomOf(holder.items.get(key?.id));
+            const drawer = () => aiko.items.get(item?.id)?.getFlag(MODULE_ID, INV.ITEM_FLAGS.stashRoom) ?? null;
+            const found = name => F.discoveredFor(scene.id, holder.id).includes(name);
+            await E.withGmStoreWorld(`suite-e12-h4a-${foundry.utils.randomID(8)}`, async () => {
+                key = await V.grantBedroomKey(holder, DORM_A, { silent: true, scene });
+                item = await INV.grantItem(aiko, { name: "SUITE E12 H4 a box", category: "usable", tier: 1, override: true, quiet: true });
+                if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: DORM_A });
+                await F.applyDiscoveryChanges(scene, [{ actorId: holder.id, room: DORM_A, value: true }]);
+                await until(() => found(DORM_A), 4000);
+                must(key && item && keyRoom() === DORM_A && drawer() === DORM_A && found(DORM_A) && V.vaultOwnerOf(DORM_B, scene) === ben.id
+                    && V.mayEnterBedroom(holder, DORM_A, scene) && !V.mayEnterBedroom(holder, DORM_B, scene),
+                    "the two bedrooms, the key, the stashed box and the discovery did not stand before the rename - this would measure nothing");
+                await dormA.update({ name: DORM_B });
+                await until(() => told() > 0 || keyRoom() === DORM_B, 4000);
+                await settle();
+                const joined = [V.vaultOwnerOf(DORM_B, scene) === ben.id, V.stashesIn(DORM_B, scene).map(entry => entry.actorId === aiko.id ? "first" : "other"),
+                    V.mayEnterBedroom(holder, DORM_B, scene), keyRoom() === DORM_A, drawer() === DORM_A, found(DORM_B), told()];
+                await dormA.update({ name: DORM_A });
+                await settle();
+                read = [joined, [keyRoom() === DORM_A, drawer() === DORM_A, found(DORM_A)]];
+            });
+        } finally {
+            for (const [actor, made] of [[holder, key], [aiko, item]]) if (made) await actor.items.get(made.id)?.delete();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, [], false, true, true, false, 1], [true, true, true]]),
+            "[[the second bedroom's owner is the second student, its stashes, whether the key holder may enter it, whether the key and the stashed box "
+            + "still name the first bedroom, whether the key holder has discovered the second, how often the GMs were told of the join] after the first "
+            + "was renamed onto it; [the key, the box and the discovery name the first again] after the rename back]");
+    }],
+
+    ["a GM's two renames in a row carry a room's project and plant and the Mastermind's room and assembly and the Neighbours lists naming it", async () => {
+        /*
+         * E12 fix r2-H4, 11.10.2026; early review EARLY-C8-2, EARLY-C8-3, EARLY-C14-3, goal review r2 N7
+         * (audit S07-25: public projects left the players' knowledge). A Lab of the suite's own on a
+         * scene of its own holds a project's room, a trap's plant, the Mastermind's room and a called
+         * assembly, and the Hall's Neighbours list names it; the first student has a stashed thing in it
+         * and the second has discovered it. The GM renames a third room (an Annex) and, while that
+         * carry runs, the Lab twice in a row: to a Middle name and at once to an End. Read: where each
+         * record points once the renames are carried. Red at 5a4ba6f (this fix's parent): the project,
+         * the plant, the Mastermind's room, the assembly and the Hall's list stayed on the Lab, a name no
+         * room has; and the two renames in a row were judged when their turn came, after both had
+         * landed, so the stashed thing and the discovery stayed on the Lab too.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const T = await import("./traps.mjs");
+        const MM = await import("./mastermind.mjs");
+        const PS = await import("./projects-secrecy.mjs");
+        const { trapPlantStore, trapLedgerStore } = await import("./gm-stores.mjs");
+        const [owner, finder] = cast(2);
+        const LAB = "SUITE E12 H4 Lab", MID = "SUITE E12 H4 Middle", END = "SUITE E12 H4 End", HALL = "SUITE E12 H4 Hall",
+            ANNEX = "SUITE E12 H4 Annex", WING = "SUITE E12 H4 Wing", DEN = "SUITE E12 H4 Den";
+        const PROJECT = `suiteH4${foundry.utils.randomID(9)}`;
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const metaBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {});
+        const gatherBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.pendingGather) ?? {});
+        let scene = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 H4 a renamed lab", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const marked = (extra = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...extra } });
+            const [lab, , annex] = await scene.createEmbeddedDocuments("Region", [
+                { name: LAB, shapes: box(100), flags: marked({ [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: true }] }), behaviors: [] },
+                { name: HALL, shapes: box(500), flags: marked({ drpgNeighbours: `${LAB}, ${DEN}` }), behaviors: [] },
+                { name: ANNEX, shapes: box(900), flags: marked(), behaviors: [] }]);
+            const plantAt = name => Boolean(trapPlantStore.entries()[`${scene.id}::${name}`]);
+            const drawer = () => owner.items.get(item?.id)?.getFlag(MODULE_ID, INV.ITEM_FLAGS.stashRoom) ?? null;
+            const reading = name => [PS.metaFor(PROJECT).room === name, plantAt(name), MM.mastermindLair() === name,
+                game.settings.get(MODULE_ID, SETTINGS.pendingGather)?.room === name, drawer() === name, F.discoveredFor(scene.id, finder.id).includes(name)];
+            await E.withGmStoreWorld(`suite-e12-h4b-${foundry.utils.randomID(8)}`, async () => {
+                try {
+                    item = await INV.grantItem(owner, { name: "SUITE E12 H4 a jar", category: "usable", tier: 1, override: true, quiet: true });
+                    if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: LAB });
+                    await PS.setProjectMeta(PROJECT, { room: LAB });
+                    await T.plantItem(PROJECT, LAB, { sceneId: scene.id, name: "SUITE E12 H4 a note" });
+                    await MM.setMastermindLair(LAB);
+                    const clock = getClock();
+                    await game.settings.set(MODULE_ID, SETTINGS.pendingGather, { room: LAB, sceneId: scene.id, by: "", chapter: clock.chapter,
+                        session: clock.session, timeOfDay: clock.timeOfDay, at: Date.now() });
+                    await F.applyDiscoveryChanges(scene, [{ actorId: finder.id, room: LAB, value: true }, { actorId: finder.id, room: ANNEX, value: true }]);
+                    await until(() => reading(LAB).every(Boolean) && F.discoveredFor(scene.id, finder.id).includes(ANNEX), 4000);
+                    must(item && stableJson(reading(LAB)) === stableJson([true, true, true, true, true, true]),
+                        `the Lab's project, plant, Mastermind's room, assembly, stashed jar and discovery did not stand before the rename (${stableJson(reading(LAB))}) - this would measure nothing`);
+                    // The Annex's carry is under way (its discovery row) when the Lab's two renames land, one after the other.
+                    const annexRenamed = annex.update({ name: WING });
+                    await lab.update({ name: MID });
+                    await lab.update({ name: END });
+                    await annexRenamed;
+                    await until(() => reading(END).every(Boolean) && R.roomFlag(scene, HALL, "drpgNeighbours") === `${END}, ${DEN}`, 6000);
+                    await settle();
+                    read = [reading(END), reading(LAB), reading(MID), R.roomFlag(scene, HALL, "drpgNeighbours")];
+                } finally {
+                    await Promise.all([trapPlantStore.dropMany([`${scene.id}::${LAB}`, `${scene.id}::${MID}`, `${scene.id}::${END}`]),
+                        trapLedgerStore.dropMany(Object.keys(trapLedgerStore.entries()).filter(id => trapLedgerStore.entries()[id]?.projectId === PROJECT))]);
+                }
+            });
+        } finally {
+            if (item) await owner.items.get(item.id)?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, metaBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.pendingGather, gatherBefore);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true, true, true, true, true], [false, false, false, false, false, false],
+            [false, false, false, false, false, false], `${END}, ${DEN}`]),
+            "[the project's room, the plant, the Mastermind's room, the assembly's room, the stashed jar's room, the discovery] on the End, the Lab "
+            + "and the Middle once the Lab was renamed twice in a row; and the Hall's Neighbours list");
     }],
     ...GRID
 ];

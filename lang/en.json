@@ -3720,8 +3720,10 @@
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
       "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
-      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}.",
+      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbours lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}.",
       "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room Setup (the Doors tab).",
+      "renameJoined": "“{room}” on {scene} was renamed “{name}”, the name of a room that was already there, so it is now one more piece of that room. Nothing that named “{room}” was carried: its keys, stashed items, notes of a stash found and discovery still name “{room}”. Taken off the region, so that it adds nothing to “{name}”: {carried}.",
+      "carriedNothing": "nothing",
       "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
     },
     "Migrate": {

@@ -59,6 +59,9 @@
  *      her inside it; then p1's console jumps her in from the Hall and gm0 arrives: where each primary reads her standing,
  *      and how gm0 judges a token of hers a player drops before it has judged any (E12 fix r2-H3: review round 2 SEC2-4
  *      and SEC2-1, early review EARLY-C12-1).
+ *   Q  gm0 the primary again, the seeded GM renames a two-piece room on a scene made here to a new name piece by piece,
+ *      then a bedroom onto that name: what the primary carried and what the joined piece keeps (E12 fix r2-H4: early
+ *      review EARLY-C8-1 and the correctness review r2's widening of it).
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -99,6 +102,7 @@
  * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
  * E12 fix r2-H1 (O1-O3 added): 43 checks; their time is that commit's fast set's, in its message.
  * E12 fix r2-H3 (P1-P3 added, and gm0 with them): 46 checks; their time is that commit's fast set's, in its message.
+ * E12 fix r2-H4 (Q1 added): 47 checks; their time is that commit's fast set's, in its message.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -1142,4 +1146,55 @@ export async function run({ gm, gm0, p1, check, note, phase, settle, connect, di
     check("P3: a token of Aiko a player drops in a room her other token's room does not reach, judged by a new primary that holds no standing of hers, is judged from that room: unlawful, the GMs told so and not that it came from nowhere (E12 fix r2-H3)",
         sceneP.room === "66 Fore" && dropP?.room === "66 Back" && dropP.at === dropP.room && dropP.lawful === false && dropP.lawfulRoom === null && dropP.unlawful === 1 && dropP.dropped === 0,
         J({ sceneP, dropP, newP }));
+
+    /* ------------------------------ Q. renames written by a GM who is not the primary ------------------------------ */
+    phase("Q: a room renamed piece by piece, and a bedroom renamed onto it, by a GM who is not the primary");
+    /* E12 fix r2-H4 (early review EARLY-C8-1, widened by the correctness review r2). gm0 is the primary while it is here,
+       and the seeded GM writes: the client that writes a rename judges, before the update, whether the piece joins another
+       room (vault.mjs `clearSplitPiece`), and the primary, after it, whether to carry (fog.mjs `noteRegionName`) - each
+       from its own memory of which piece was renamed from which name (rooms.mjs `joinsAnotherRoom`). On a scene made
+       here: Aiko's bedroom, the 66 Den, drawn first, and Daichi's 66 Wing in two pieces with his stash; Aiko has
+       discovered both. The seeded GM renames the Wing's pieces to the 66 Q Hall one after the other, then the Den. */
+    const QNAMES = `const W = async (ok, ms = 6000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); };
+        const F = await import("${repoUrl}/scripts/fog.mjs"), U = await import("${repoUrl}/scripts/utils.mjs"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const joined = () => game.messages.filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Den")
+            && String(contentOf(m) ?? "").includes("66 Q Hall")).length;`;
+    let setQ = null, readQ = null;
+    await connect("gm0");
+    try {
+        await gm0.eval(`${QNAMES} await W(() => U.isPrimaryGm(), 10000); return U.isPrimaryGm();`, { timeout: 30000 });
+        setQ = await gm.eval(`${QNAMES}
+            const box = x => [{ type: "rectangle", x, y: 100, width: 300, height: 300 }];
+            const room = (owner, stash) => ({ "${MOD}": { room: true, drpgVaultOwner: owner, drpgStashes: stash ? [{ actorId: owner, concealed: true }] : [] } });
+            const scene = await Scene.create({ name: "66 Q renames", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [den, wing1, wing2] = await scene.createEmbeddedDocuments("Region", [{ name: "66 Den", shapes: box(100), flags: room("${IDS.aiko}", false), behaviors: [] },
+                { name: "66 Wing", shapes: box(500), flags: room("${IDS.daichi}", true), behaviors: [] },
+                { name: "66 Wing", shapes: box(800), flags: room("${IDS.daichi}", true), behaviors: [] }]);
+            await F.applyDiscoveryChanges(scene, [{ actorId: "${IDS.aiko}", room: "66 Den", value: true }, { actorId: "${IDS.aiko}", room: "66 Wing", value: true }]);
+            await W(() => ["66 Den", "66 Wing"].every(r => F.discoveredFor(scene.id, "${IDS.aiko}").includes(r)));
+            const primary = U.isPrimaryGm();
+            await wing1.update({ name: "66 Q Hall" });
+            await new Promise(r => setTimeout(r, 1000));
+            await wing2.update({ name: "66 Q Hall" });
+            await W(() => F.discoveredFor(scene.id, "${IDS.aiko}").includes("66 Q Hall"));
+            await den.update({ name: "66 Q Hall" });
+            await new Promise(r => setTimeout(r, 1500));
+            return { id: scene.id, primary };`, { timeout: 30000 });
+        readQ = await gm0.eval(`${QNAMES}
+            const scene = game.scenes.get("${setQ.id}");
+            const hall = scene.regions.filter(r => r.name === "66 Q Hall");
+            return { primary: U.isPrimaryGm(), pieces: hall.length, owners: hall.map(r => r.getFlag("${MOD}", "drpgVaultOwner") ?? null),
+                stashes: hall.flatMap(r => (r.getFlag("${MOD}", "drpgStashes") ?? []).map(e => e.actorId)),
+                found: [...F.discoveredFor(scene.id, "${IDS.aiko}")].sort(), joined: joined() };`, { timeout: 30000 });
+    } finally {
+        await disconnect("gm0");
+    }
+    await gm.eval(`await game.scenes.get(${J(setQ?.id ?? "")})?.delete(); return true;`, { timeout: 30000 });
+    /* At 5a4ba6f the Den's rename onto the Hall was carried as the Hall's own: Aiko's discovery of the Den moved onto the
+       Hall, and the Den's piece kept her as its owner, which the union readers read as the Hall's (the review measured the
+       same at e331c55 with two bedrooms on one GM). */
+    check("Q1: a GM who is not the primary renames a room's two pieces one after the other and the primary carries Aiko's discovery to the new name; then a bedroom renamed onto it carries nothing, keeps no owner and is told to the GMs (E12 fix r2-H4)",
+        setQ?.primary === false && readQ?.primary === true && readQ.pieces === 3 && J(readQ.owners) === J([null, null, IDS.daichi])
+            && J(readQ.stashes) === J([IDS.daichi]) && J(readQ.found) === J(["66 Den", "66 Q Hall"]) && readQ.joined === 1,
+        J({ setQ, readQ }));
 }

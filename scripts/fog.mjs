@@ -55,10 +55,10 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
-import { roomOfToken, boundsOf } from "./movement.mjs";
+import { roomOfToken, boundsOf, ROOM_FLAGS } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
-    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf } from "./rooms.mjs";
-import { isMastermind } from "./mastermind.mjs";
+    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, noteRenamedFrom, placeScenes } from "./rooms.mjs";
+import { isMastermind, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
@@ -578,10 +578,23 @@ function repaintRoomScene(scene) {
  * here, the sheets in vault.mjs `carryRoomOnSheets`; then the scene is repainted and the GMs
  * are told what moved. Tier 2 "a GM's rename of a room carries its stash, its keys, the notes
  * of its stash found and its discovery", scenario 66 L. Not carried, read in the code on
- * 11.10.2026: the other world records that name a room - a project's room (projects.mjs
- * `roomOf`), the sealed rooms (call-world.mjs `sealedRooms`), the bodies found
- * (chapter.mjs `recordBodyFound`) - so a project in a renamed room is known again only once
- * its manager names the new one.
+ * 11.10.2026: the sealed rooms (call-world.mjs `sealedRooms`) and the bodies found
+ * (chapter.mjs `recordBodyFound`).
+ *
+ * AND THE REST OF WHAT NAMES IT, AND NOTHING ONTO ANOTHER ROOM (E12 fix r2-H4, 11.10.2026; early
+ * review EARLY-C8-1 to C8-3, EARLY-C14-3, goal review r2 N7). Five more records named the room and
+ * stayed behind: a project's room - its public card left the players' tray (`knowsProject` asks
+ * for its room) and nobody could work it there until its manager named the new one -, a trap's
+ * plant (`carryPlant`), the Mastermind's lair, a called assembly (`carryGatherRoom`) and the
+ * Neighbours lists of the scene's other rooms, which dropped the room out of every list naming
+ * it. Each goes with the room now (`carryRoomInWorld`): a project, a plant and an assembly where
+ * they stood on this scene, the lair (a name with no scene, as a key) when no place scene still
+ * has a room of the old name. And a rename onto a room that stands on the scene already is no
+ * rename of a room but a piece joining another: nothing is carried, the piece's room flags come
+ * off it and the GMs are told (vault.mjs `clearSplitPiece`, rooms.mjs `joinsAnotherRoom`) - C8
+ * carried every key of Aiko's bedroom into Ben's. Tier 2 "a GM's rename of a bedroom onto another
+ * bedroom's name carries nothing into it ..." and "a GM's two renames in a row carry a room's
+ * project and plant ...", scenario 66 Q.
  *
  * The old name is remembered, not read off the change: an update hook carries the new value
  * only. Every GM primes the memory at ready and with every scene created (a scene's regions
@@ -591,7 +604,10 @@ function repaintRoomScene(scene) {
  * room is what a GM made it (E12 C1), and a GM's later rename carries from the name a GM left
  * (scenario 66 L2).
  * Whether a player can rename a Region at all on v14 is LIVE-E12-04's question, not read here.
- * Renames run one after another, so a second one starts from the first one's stores.
+ * Renames run one after another, so a second one starts from the first one's stores; and whether
+ * a rename carries, and the room it carries to, are read at its hook (E12 fix r2-H4, EARLY-C8-2):
+ * read when its turn came, a second rename landing before then (A to B, then B to C) found no B
+ * and carried nothing, and the second found nothing named B.
  */
 const regionNameSeen = new Map();
 let renames = Promise.resolve();
@@ -606,19 +622,23 @@ function noteRegionName(region, userId, changes) {
     if (!game.user?.isGM || !game.users?.get(userId)?.isGM) return null;
     const was = regionNameSeen.get(region.id), now = region.name ?? "";
     regionNameSeen.set(region.id, now);
-    if (!changes || !Object.hasOwn(changes, "name") || !was || !now || was === now || !isPrimaryGm()) return null;
+    if (!changes || !Object.hasOwn(changes, "name") || !was || !now || was === now) return null;
     const scene = region.parent;
-    renames = renames.then(() => carryRename(scene, was, now));
+    const pieces = roomRegions(scene, now);
+    const carries = pieces.length > 0 && !roomRegions(scene, was).length && !joinsAnotherRoom(scene, region, was, now);
+    noteRenamedFrom(region.id, was);
+    if (!carries || !isPrimaryGm()) return null;
+    renames = renames.then(() => carryRename(scene, was, now, pieces));
     return renames;
 }
 
-/** On the primary: what named the room `from` on `scene` names `to`. Answers the counts, or null when nothing was carried. */
-async function carryRename(scene, from, to) {
+/** On the primary: what named the room `from` on `scene` names `to`, its `pieces` as the hook found them. Answers the counts, or null when nothing was carried. */
+async function carryRename(scene, from, to, pieces) {
     if (!isPrimaryGm()) return null;
     try {
-        if (roomRegions(scene, from).length || !roomRegions(scene, to).length) return null;
         const { carryRoomOnSheets } = await import("./vault.mjs");
-        const sheets = await carryRoomOnSheets(scene, from, to);
+        const sheets = await carryRoomOnSheets(scene, from, to, pieces);
+        const world = await carryRoomInWorld(scene, from, to);
         await discoveryStore.whenHydrated();
         const cells = {};
         for (const [actorId, rooms] of Object.entries(allDiscovered()[scene.id] ?? {})) {
@@ -627,9 +647,10 @@ async function carryRename(scene, from, to) {
         }
         await writeCells(cells);
         repaintRoomScene(scene);
-        const moved = { ...sheets, cells: Object.keys(cells).length };
+        const moved = { ...sheets, cells: Object.keys(cells).length, ...world };
         log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
-            + `${moved.found} found note(s) and ${moved.cells} discovery row(s) carried.`);
+            + `${moved.found} found note(s), ${moved.cells} discovery row(s), ${moved.projects} project(s), ${moved.plants} plant(s), `
+            + `${moved.lists} Neighbours list(s), ${moved.lair} lair and ${moved.gather} assembly carried.`);
         if (Object.values(moved).some(Boolean)) {
             await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
         }
@@ -638,6 +659,48 @@ async function carryRename(scene, from, to) {
         error(`Could not carry the rename of "${from}" to "${to}" on "${scene?.name}"`, err);
         return null;
     }
+}
+
+/**
+ * On the primary: the world records that name the room `from` on `scene` name `to` (the note above).
+ * Whether a record with no scene of its own stood here is read as the readers read it: a project's
+ * and an old assembly's room is the first place scene holding a room of the name (rooms.mjs
+ * `sceneOfRoom`), so it stood here when no place scene before this one holds the old name.
+ */
+async function carryRoomInWorld(scene, from, to) {
+    const [{ projectMeta, setProjectMeta }, { carryPlant }, { carryGatherRoom }] = await Promise.all([
+        import("./projects-secrecy.mjs"), import("./traps.mjs"), import("./call-world.mjs")]);
+    const places = placeScenes(), at = places.indexOf(scene);
+    const firstHere = at >= 0 && !places.slice(0, at).some(s => roomRegions(s, from).length);
+    let projects = 0;
+    for (const [id, meta] of Object.entries(projectMeta())) {
+        if (meta?.room !== from) continue;
+        if (meta.tokenId && meta.tokenScene ? meta.tokenScene !== scene.id : !firstHere) continue;
+        await setProjectMeta(id, { room: to });
+        projects++;
+    }
+    const lists = await carryNeighbourLists(scene, from, to);
+    const lairGoes = mastermindLair() === from && !places.some(s => roomRegions(s, from).length);
+    if (lairGoes) await setMastermindLair(to);
+    return { projects, plants: await carryPlant(scene.id, from, to), lists, lair: lairGoes ? 1 : 0,
+        gather: await carryGatherRoom(scene, from, to, firstHere) };
+}
+
+/** On the primary: every Neighbours list on `scene` that names `from` names `to`, in one update. Answers how many rooms' lists changed. */
+async function carryNeighbourLists(scene, from, to) {
+    if (!isPrimaryGm()) return 0;
+    const updates = [], rooms = new Set();
+    // Every named region, marked or not: a room write lands on both (rooms.mjs `writablePieces`).
+    for (const region of namedRegions(scene)) {
+        const list = region.getFlag?.(MODULE_ID, ROOM_FLAGS.neighbours);
+        if (typeof list !== "string") continue;
+        const names = list.split(",").map(name => name.trim()).filter(Boolean);
+        if (!names.includes(from)) continue;
+        updates.push({ _id: region.id, [`flags.${MODULE_ID}.${ROOM_FLAGS.neighbours}`]: [...new Set(names.map(name => (name === from ? to : name)))].join(", ") });
+        rooms.add(region.name);
+    }
+    if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
+    return rooms.size;
 }
 
 /** Flag holding a scene's vision settings from before the module changed them. */

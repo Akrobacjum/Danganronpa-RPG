@@ -170,6 +170,32 @@ export function piecesByName(scene) {
     return map;
 }
 
+/*
+ * A RENAME ONTO A ROOM THAT STANDS THERE (E12 fix r2-H4, 11.10.2026; early review EARLY-C8-1, widened
+ * by the correctness review r2). E12 C8 carried a room's keys, stashes and discovery to its new name
+ * when its last piece was renamed, and asked only that a room of the new name stood afterwards - which
+ * a room already there passed: measured by the review at e331c55, Aiko's "Dorm A" renamed "Dorm B"
+ * (Ben's bedroom) made every Dorm A key a Dorm B key, and the renamed piece kept Aiko's owner and
+ * stash, which the union readers (`flagOver`, `stashesOver`) read as Dorm B's. A piece of the new name
+ * is the renamed room's own only when a GM renamed it from the same old name - the first pieces of a
+ * room renamed piece by piece; any other is another room, and the rename joins it. Which piece came
+ * from which name is remembered on every GM (fog.mjs `noteRegionName` writes it), because the client
+ * that writes the rename judges it before the update (vault.mjs `clearSplitPiece`) and the primary
+ * judges the carry after it, and they need not be the same GM (scenario 66 Q).
+ */
+const renamedFrom = new Map();
+
+/** A GM's rename of a region, seen on this GM: the name it had before. */
+export function noteRenamedFrom(regionId, was) {
+    if (regionId && was) renamedFrom.set(regionId, was);
+}
+
+/** Whether renaming `region` from `was` to `now` on `scene` makes it a piece of another room standing there (the note above). */
+export function joinsAnotherRoom(scene, region, was, now) {
+    if (!scene || !now || now === was) return false;
+    return roomRegions(scene, now).some(piece => piece.id !== region?.id && renamedFrom.get(piece.id) !== was);
+}
+
 /**
  * The regions of the name `name` on this scene that a GM's room write lands on: every one that can
  * be a room (`canBeRoom`), marked or not - Room Setup is where a named region becomes a room, so a

@@ -178,6 +178,20 @@ export async function gatherSceneOf(actor) {
 }
 
 /**
+ * The order's room renamed (E12 fix r2-H4, 11.10.2026; early review EARLY-C8-3). The order names its
+ * room, and a GM's rename of it before the assembly was held left the order for a room that was gone:
+ * `runPendingGather` then clears it and says so. fog.mjs `carryRename` moves the room's name on the
+ * primary, for an order on the renamed room's scene (one written with no scene: when `firstHere`, the
+ * scene `sceneOfRoom` gave it was this one). Answers 1 when the order moved, else 0.
+ */
+export async function carryGatherRoom(scene, from, to, firstHere = false) {
+    const order = pendingGather();
+    if (!game.user?.isGM || !scene || !order || order.room !== from || !to || from === to) return 0;
+    if (order.sceneId ? order.sceneId !== scene.id : !firstHere) return 0;
+    return (await writeGather({ ...order, room: to })) ? 1 : 0;
+}
+
+/**
  * Call one. Public, loudly, with the room named.
  *
  * The room is checked against the scene HERE rather than at the moment it

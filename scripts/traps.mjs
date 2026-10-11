@@ -396,6 +396,23 @@ function plants() {
 const plantKey = (room, sceneId) => `${sceneId ?? "-"}::${room}`;
 
 /**
+ * A plant's room renamed (E12 fix r2-H4, 11.10.2026; early review EARLY-C8-3). The key names the
+ * room, so a GM's rename of it left the plant where no search could name it again, and the trap's
+ * object was never found. fog.mjs `carryRename` moves it on the primary, keyed as before by the
+ * room's scene; a room of the new name that already holds a plant keeps its own, as `restorePlant`
+ * keeps the newer one. Answers 1 when a plant moved, else 0.
+ */
+export async function carryPlant(sceneId, from, to) {
+    if (!game.user?.isGM || !sceneId || !from || !to || from === to) return 0;
+    const was = plantKey(from, sceneId), now = plantKey(to, sceneId);
+    const plant = plants()[was];
+    if (!plant || plants()[now]) return 0;
+    await Promise.all([trapPlantStore.drop(was), trapPlantStore.patch(now, structuredClone(plant))]);
+    log(`The plant in ${from} went with the room's rename to ${to}.`);
+    return 1;
+}
+
+/**
  * Put a plant back where `takePlant` found it - the reply carrying it reached a
  * player who had already stopped waiting (review of ACT-03). Same identity, same
  * ledger entry, so the trap still knows its own object. A room that has been

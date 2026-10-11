@@ -44,7 +44,7 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
-    roomRegions, flagOver, listOver, piecesByName, writablePieces } from "./rooms.mjs";
+    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom } from "./rooms.mjs";
 // Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
 // its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
 import { REST_FLAGS } from "./rest.mjs";
@@ -792,7 +792,8 @@ export function bedroomOwnerAnywhere(room) {
  * at nothing; and the next sweep (`reconcileBedroomKeys`) hands the owner a key of the new name
  * beside the dead one (read in the code, not run).
  * fog.mjs `carryRename` calls this on the primary, for a GM's rename of the room's last piece
- * of that name on `scene`, and does the discovery record itself. Answers how many keys, stashed
+ * of that name on `scene` onto a name no other room there has (E12 fix r2-H4), with the room's
+ * pieces as the rename's hook found them, and does the discovery record itself. Answers how many keys, stashed
  * items and found notes now name `to`.
  *
  * Neither an item's room nor a key's names a scene, so each goes with the rename only where it
@@ -807,12 +808,14 @@ export function bedroomOwnerAnywhere(room) {
  * `grantBedroomKey` gave it is renamed with it. The notes are read off the document, as
  * `hasFoundStash` reads them: the GMs keep no mark of them.
  */
-export async function carryRoomOnSheets(scene, from, to) {
+export async function carryRoomOnSheets(scene, from, to, pieces = roomRegions(scene, to)) {
     if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
     const elsewhere = [...(game.scenes ?? [])].filter(s => s.id !== scene.id);
-    const stashed = new Set(roomPieces(scene).filter(r => r.name === to).flatMap(r => stashesOn(r).map(entry => entry.actorId)));
+    // The room's pieces as the rename's hook found them (E12 fix r2-H4, EARLY-C8-2): a second rename
+    // landing while this one waits must not empty the room it carries to.
+    const stashed = new Set(pieces.flatMap(r => stashesOn(r).map(entry => entry.actorId)));
     const itemsGo = id => stashed.has(id) && !elsewhere.some(s => stashesIn(from, s).some(entry => entry.actorId === id));
-    const keysGo = Boolean(vaultOwnerOf(to, scene)) && !elsewhere.some(s => vaultOwnerOf(from, s));
+    const keysGo = Boolean(flagOver(pieces, VAULT_FLAGS.owner)) && !elsewhere.some(s => vaultOwnerOf(from, s));
     const named = item => keyRoomOf(item) === from || (isStashed(item) && item.getFlag?.(MODULE_ID, ITEM_FLAGS.stashRoom) === from);
     const actors = [...(game.actors ?? [])].filter(actor => actor.items?.some?.(named));
     await judgedFor(...actors.map(actor => actor.id));
@@ -955,7 +958,8 @@ export async function setVaultRoom(room, {
  * rename of a piece whose old name keeps other room pieces now takes the room's flags off that
  * piece in the same update, and the GMs are told what it carried; the room keeps all of it on
  * its other pieces. A rename of a room's only piece is the room's own rename and keeps its flags
- * (E12 C8 carries the rest of the room with it). Judged in `preUpdateRegion`, which runs on the
+ * (E12 C8 carries the rest of the room with it) - unless its new name is a room that stands on the
+ * scene already: then the piece joins that room and its flags come off the same way (E12 fix r2-H4). Judged in `preUpdateRegion`, which runs on the
  * client that writes the update and hands it the old name beside the changes before they are
  * sent; a write that skips the hooks (`noHook`) is not seen, and a player's rename is not judged
  * here (what v14 lets a player write to a Region is LIVE-E12-04).
@@ -987,23 +991,34 @@ export function registerRoomPieces() {
 }
 
 /**
- * A GM's rename of one piece of a room of several: the piece's room flags are set to none in the
- * update itself (the note above), and the GMs told. Answers the flags taken off, or null.
+ * A GM's rename of one piece of a room of several, or onto a room that stands on the scene: the
+ * piece's room flags are set to none in the update itself (the note above), and the GMs told.
+ * Answers the flags taken off, or null.
  */
 export function clearSplitPiece(region, changes, userId) {
     if (!game.user?.isGM || userId !== game.user.id) return null;
     const was = region?.name, now = changes?.name;
     if (!was || now === undefined || now === was) return null;
     const scene = region.parent;
-    if (!roomRegions(scene, was).some(piece => piece.id !== region.id)) return null;
+    /* A rename onto a room that stands on the scene (E12 fix r2-H4, rooms.mjs `joinsAnotherRoom`): the
+       piece joins that room, so what it carried for its old one comes off it as a split piece's does, and
+       fog.mjs carries nothing. A room's piece that was the last of its name is told even when it carried
+       nothing, because then the old room is gone and what named it (keys, stashes, discovery) still does.
+       A region no GM made a room is told only of what it carried: naming a new piece after a room is how
+       a room gains one. */
+    const joins = joinsAnotherRoom(scene, region, was, now);
+    const split = roomRegions(scene, was).some(piece => piece.id !== region.id);
+    if (!joins && !split) return null;
     const written = changes.flags?.[MODULE_ID] ?? {};
     const carried = pieceData().filter(([key]) => !(key in written) && carriesValue(region.getFlag(MODULE_ID, key)));
-    if (!carried.length) return null;
-    changes.flags = { ...(changes.flags ?? {}), [MODULE_ID]: { ...written, ...Object.fromEntries(carried.map(([key]) => [key, null])) } };
+    if (!carried.length && !(joins && !split && isRoom(region))) return null;
+    if (carried.length) changes.flags = { ...(changes.flags ?? {}), [MODULE_ID]: { ...written, ...Object.fromEntries(carried.map(([key]) => [key, null])) } };
     const keys = carried.map(([key]) => key);
-    log(`"${was}" on "${scene?.name}" renamed "${now}" was one piece of several: it no longer carries ${keys.join(", ")}.`);
-    const labels = [...new Set(carried.map(([, label]) => game.i18n.localize(label)))].join(", ");
-    whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rooms.pieceSplit", {
+    log(`"${was}" on "${scene?.name}" renamed "${now}" ${joins ? "joined a room of that name" : "was one piece of several"}: `
+        + `it no longer carries ${keys.join(", ") || "anything"}.`);
+    const labels = [...new Set(carried.map(([, label]) => game.i18n.localize(label)))].join(", ")
+        || game.i18n.localize("DRPG.Rooms.carriedNothing");
+    whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format(joins ? "DRPG.Rooms.renameJoined" : "DRPG.Rooms.pieceSplit", {
         name: now, room: was, scene: scene?.name ?? "", carried: labels
     }))}</p>`).catch(err => error(`Could not tell the GMs what "${now}" no longer carries`, err));
     return keys;
