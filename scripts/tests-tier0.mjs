@@ -9914,6 +9914,141 @@ const REGRESSIONS = [
             .filter(([file, name]) => camera(fnSource(sources.get(file), name))).map(([file, name]) => `${file}#${name}`);
         equal(JSON.stringify(read), JSON.stringify([]),
             "the room cache or a Remnant's card reads the tokens this browser draws (`canvas` or `getActiveTokens`) instead of the world's");
+    }],
+    ["R431 - the handbooks say what a GM's rename carries, that the stairs ride the connected-rooms rule and where a room is read, as the code does, in English and in Polish", async () => {
+        /*
+         * E12 fix r2-H5, 11.10.2026; review round 2 EARLY-C16-1, EARLY-C16-2, EARLY-C16-3, O15 and the
+         * correctness review's R2-2. The handbooks C16 wrote were overtaken by the fix line and the
+         * round-2 groups, and said five things the code no longer did: the stairs as absolute ("No
+         * stairs, no climb") while `crossingVerdict` asks them only below the *Crossing rooms costs a
+         * Move* gate outside an Eclipse, and only under a counted allowance in one; a rename that
+         * carried every key and stash at once, and carried no project's room, while
+         * `carryRoomOnSheets` and `carryRoomInWorld` carry on the room's last piece, with the two
+         * limits a name with no scene needs, and the room of a project, a plant, an assembly, the lair
+         * and the Neighbours lists (E12 fix r2-H4); "renaming a region orphans" the keys; Apply telling
+         * of a name "no region" carries, where it tells of one no room carries (E12 fix r2-H2); and
+         * the room-drawing guide as it read before E12 fix r1-G5 reworded the key it copies. Each
+         * claim is a pair, as R387's: what the code does, read from its function with comments
+         * blanked, and the sentences that say it in each book that says it; two claims are copies of
+         * a lang key (`roomGuide`, and the last two sentences of `neighboursNote`), read from the
+         * lang file of the book's own language. The old sentences fail wherever they come back. Each
+         * book and lang file is asserted to have loaded and each function to have been cut
+         * (`fnSource` fails on a renamed one), so nothing passes on an empty read. Whether a player
+         * can rename a Region at all on v14 is LIVE-E12-04 and is not read here.
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const movement = code("movement.mjs"), fog = code("fog.mjs"), vault = code("vault.mjs"), api = code("api.mjs");
+        const verdict = fnSource(movement, "crossingVerdict");
+        const at = text => verdict.indexOf(text), refusal = "crossingRefused(scene, from, to, floors)";
+        const gate = at("if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return true;");
+        const sheets = fnSource(vault, "carryRoomOnSheets"), world = fnSource(fog, "carryRoomInWorld"), split = fnSource(vault, "clearSplitPiece");
+        const facts = {
+            stairsGate: gate > 0 && at("if (allowance !== null) {") > 0 && at("if (allowance !== null) {") < at(refusal)
+                && at(refusal) < gate && verdict.lastIndexOf(refusal) > gate,
+            playerStairs: /passageBehaviour\(region\) === "changeLevel" && !players\.has\(region\.id\)/.test(fnSource(movement, "stairLinks")),
+            renameLast: /!roomRegions\(scene, was\)\.length && !joinsAnotherRoom\(scene, region, was, now\)/.test(fnSource(fog, "noteRegionName")),
+            renameLimits: /!elsewhere\.some\(s => stashesIn\(from, s\)\.some\(entry => entry\.actorId === id\)\)/.test(sheets)
+                && /Boolean\(flagOver\(pieces, VAULT_FLAGS\.owner\)\) && !elsewhere\.some\(s => vaultOwnerOf\(from, s\)\)/.test(sheets),
+            keysCarried: /changes\[`flags\.\$\{MODULE_ID\}\.\$\{KEY_FLAG\}`\] = to;/.test(sheets),
+            renameWorld: /return \{ projects, plants: await carryPlant\(scene\.id, from, to\), lists, lair: lairGoes \? 1 : 0,/.test(world)
+                && /mastermindLair\(\) === from && !places\.some\(s => roomRegions\(s, from\)\.length\)/.test(world),
+            joins: /const joins = joinsAnotherRoom\(scene, region, was, now\);/.test(split)
+                && /const split = roomRegions\(scene, was\)\.some\(piece => piece\.id !== region\.id\);/.test(split)
+                && /\[ROOM_FLAGS\.neighbours, "DRPG\.Vault\.neighboursColumn"\]/.test(fnSource(vault, "pieceData")),
+            oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
+                && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
+                && /return sameRoom\(actor, victim\);/.test(fnSource(code("cleanup.mjs"), "bodyIsHere"))
+                && /DRPG\.Panel\.noSceneNamed/.test(fnSource(api, "sceneNamed"))
+                && /if \(room && game\.user\?\.isGM && !sceneOfRoom\(room\)\)/.test(fnSource(api, "createProjectNamed")),
+            putBack: /if \(!roomFlagSeen\.has\(region\.id\)\) return keepRoomFlag\(region, undefined, false, author\);/.test(fnSource(movement, "judgeRoomFlagChange"))
+                && /unknown \? "DRPG\.Rooms\.flagUnjudged" : "DRPG\.Rooms\.flagKept"/.test(fnSource(movement, "keepRoomFlag")),
+            witness: /counted\.has\(actor\.id\)/.test(fnSource(code("chapter.mjs"), "witnessesOf"))
+                && /DRPG\.Movement\.droppedFromNowhere/.test(fnSource(movement, "tellDropped"))
+        };
+        const SAYS = {
+            en: {
+                guide: "> **How rooms must be drawn** (the guide printed in the row): ",
+                gm: {
+                    stairsGate: [/^- the Eclipse's crossing cap and connected-rooms rule, the stairs included \(section 9\.4\)\.$/,
+                        /and, outside an Eclipse, the connected-rooms rule with the stairs, to run by hand\./,
+                        /The stairs are part of the connected-rooms rule: turning \*Crossing rooms costs a Move\* off hands them to you with it, and an Eclipse applies them wherever it applies that rule - in every Eclipse but one that lets everybody pick any room \(section 12\)\./],
+                    playerStairs: [/Stairs a player drew link nothing\./],
+                    renameLast: [/carries what pointed at the old name over to the new one once the room's last piece of the old name on that scene has the new one - until then a room of the old name still stands and keeps it all\./],
+                    renameLimits: [/the keys when the room is a bedroom and no other scene has a bedroom of the old name, a character's stashed items when no other scene has a stash of theirs in a room of the old name\./],
+                    keysCarried: [/^> Keys name their room in a flag: a GM's rename of the room carries them \(section 9\.1 says when\)/],
+                    renameWorld: [/the room of a project, of a planted item and of a called assembly that stood there, the Mastermind's room once no scene has a room of the old name, and the other rooms' Neighbours lists naming it/],
+                    joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
+                        /Renaming one piece of a room of several takes the room's values off that piece the same way; the other pieces keep them\./],
+                    oneScene: [/a project is listed, worked and sabotaged in its room on the scene of its map token/, /a trap built as a project springs only there/,
+                        /Move the body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
+                        /`placeRemnant` and `applySceneVisionMode` given none do nothing and say so, and `createProject` refuses a room no scene has and says so\./],
+                    putBack: [/A player's change to the mark is put back to what a GM last left, and the GMs are told; when the GM's browser has no record of the mark from before the change, nothing is put back/],
+                    witness: [/One student is one witness, however many of their tokens stand in the room\. A token a player drops onto the map is judged from where that student last stood on the scene; a student who had stood nowhere there yet counts where the token landed, and the GMs are whispered so\./]
+                },
+                player: {
+                    stairsGate: [/^Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse\.$/]
+                },
+                stale: [/renaming a region orphans/i, /A project's room, a seal, a body found there/, /a name no region on the scene carries/, /one named Region per room/, /^- \*\*No stairs, no climb\.\*\*.*as before 1\.2\.74\.$/]
+            },
+            pl: {
+                guide: "> **Jak rysować pokoje** (instrukcja z wiersza): ",
+                gm: {
+                    stairsGate: [/^- limit przejść Eclipse i zasada połączonych pokoi, razem ze schodami \(sekcja 9\.4\)\.$/,
+                        /oraz, poza Eclipse, zasadę połączonych pokoi razem ze schodami, do prowadzenia ręcznie\./,
+                        /Schody należą do zasady połączonych pokoi: wyłączenie ustawienia \*przejście między pokojami kosztuje Move\* oddaje ci je razem z nią, a Eclipse stosuje je wszędzie tam, gdzie stosuje tę zasadę - w każdym Eclipse poza takim, w którym każdy wybiera dowolny pokój \(sekcja 12\)\./],
+                    playerStairs: [/Schody narysowane przez gracza niczego nie łączą\./],
+                    renameLast: [/przenosi na nową nazwę to, co wskazywało na starą, kiedy ostatni kawałek pokoju o starej nazwie na tej scenie dostanie nową - do tego czasu pokój o starej nazwie wciąż stoi i wszystko zatrzymuje\./],
+                    renameLimits: [/klucze, gdy pokój jest sypialnią, a żadna inna scena nie ma sypialni o starej nazwie, przedmioty postaci, gdy żadna inna scena nie ma jej skrytki w pokoju o starej nazwie\./],
+                    keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GMa je przenosi \(kiedy - mówi sekcja 9\.1\)/],
+                    renameWorld: [/pokój projektu, podłożonego przedmiotu i zwołanego zebrania, które tam były, pokój Masterminda, gdy żadna scena nie ma już pokoju o starej nazwie, i listy Sąsiadów innych pokoi, które go wymieniają/],
+                    joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
+                        /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
+                    oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
+                        /Move the body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
+                        /`placeRemnant` i `applySceneVisionMode` bez sceny nic nie robią i to mówią, a `createProject` odrzuca pokój, którego nie ma żadna scena, i mówi dlaczego\./],
+                    putBack: [/Zmianę oznaczenia przez gracza cofa się do tego, co zostawił GM, a GMowie dostają o tym szept; gdy przeglądarka GMa nie ma zapisu oznaczenia sprzed zmiany, nic się nie cofa/],
+                    witness: [/Jeden uczeń to jeden świadek, ile by jego tokenów nie stało w pokoju\. Token, który gracz upuści na mapę, ocenia się od miejsca, w którym ten uczeń ostatnio stał na tej scenie; uczeń, który jeszcze nigdzie tam nie stał, liczy się tam, gdzie token wylądował, a GMowie dostają o tym szept\./]
+                },
+                player: {
+                    stairsGate: [/^GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse\.$/]
+                },
+                stale: [/zmiana nazwy regionu je osieroca/i, /Nie przenosi pokoju projektu/, /której nie nosi żaden region sceny/, /jeden nazwany region na pokój/, /^- \*\*Bez schodów nie ma wspinaczki\.\*\*.*jak przed 1\.2\.74\.$/]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG);
+            const guide = keys?.Season?.roomGuide ?? "", note = keys?.Vault?.neighboursNote ?? "";
+            ok(guide.length > 0 && note.length > 0, `lang/${lang}.json has no roomGuide or neighboursNote - this test measured nothing`);
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            // The copies: the guide whole, its first letter lowered after the colon; the note's last two sentences.
+            const tail = note.split(/(?<=\.) /).slice(-2).join(" ");
+            measured.copies = [lines.gm.includes(says.guide + guide[0].toLowerCase() + guide.slice(1)),
+                tail.length > 40 && lines.gm.some(l => l.includes(tail))];
+            expected.copies = [true, true];
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks say of a rename, the stairs or a room's scene what the code does not do, a copied guide differs from its key, or an old sentence is back (each claim: [the code, ...its sentences])`);
+        }
     }]
 ];
 

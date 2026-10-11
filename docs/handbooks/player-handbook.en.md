@@ -126,6 +126,8 @@ You are turned back by:
 | being in a **murder** while it runs | nobody walks out of an incident |
 | a **Class Trial** in session | nobody leaves the courtroom |
 
+Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
+
 ### What you can see
 
 - The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.

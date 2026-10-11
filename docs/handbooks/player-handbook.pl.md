@@ -126,6 +126,8 @@ Zawraca cię:
 | **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu |
 | **Class Trial** w toku | nikt nie opuszcza sali rozpraw |
 
+GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
+
 ### Co widzisz
 
 - Pokój, w którym jesteś, jest w pełnym kolorze. Pokoje, w których już byłeś, prześwitują zza zasłony. Reszta szkoły tonie we mgle, dopóki do niej nie wejdziesz - pokój odkrywa się wejściem, raz, per postać. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną.
