@@ -2650,6 +2650,8 @@ function recreationDataFor(token) {
         itemIdentity: d.itemIdentity ?? null,
         room: d.room ?? null,
         chapter: d.chapter ?? null,
+        // And of which season (E11 C12): `placeRemnant` keeps it for a trace put back under its id.
+        epoch: d.epoch ?? null,
         day: d.day ?? null,
         timeOfDay: d.timeOfDay ?? null,
         // How old it is: a trace put back is not a fresh one (E03 third review).

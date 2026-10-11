@@ -33,7 +33,7 @@ import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.m
 import { getClock } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
-    deadIn, seasonEpoch, bodiesFoundIn, recordBodyFound
+    deadIn, seasonEpoch, sameSeason, bodiesFoundIn, recordBodyFound
 } from "./settings.mjs";
 import {
     TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
@@ -695,9 +695,9 @@ export async function openDeathDialog({ actor = null } = {}) {
  * The Faint Prep traces a discovery in `chapter` asks about: Faint, Prep, not tied to the crime
  * already, and left in this chapter (E11 C4, 1.2.73; audit S06-44: the list offered the Faint
  * Prep of every earlier chapter as well). A trace with no chapter - placed by hand, or from before
- * traces carried one - is taken as this chapter's, as every trace was before. A trace carries no
- * season: the reset's Remnants group (season-setup.mjs `wipeSeason`) removes them when ticked, and
- * a season stamp on chapter-stamped records is E11 C12's.
+ * traces carried one - is taken as this chapter's, as every trace was before. And of this season
+ * (E11 C12; the early review of C4): a reset that leaves the Remnants group unticked keeps last
+ * season's traces, and its chapter of the same number is not this one (settings.mjs `sameSeason`).
  */
 export function faintPrepCandidates(chapter = getClock().chapter) {
     const candidates = [];
@@ -707,7 +707,7 @@ export function faintPrepCandidates(chapter = getClock().chapter) {
             if (!data?.faint) continue;
             if (data.type !== "prep") continue;
             if (data.tiedToCrime) continue;
-            if ((data.chapter ?? chapter) !== chapter) continue;
+            if ((data.chapter ?? chapter) !== chapter || !sameSeason(data)) continue;
             candidates.push({ token, data, scene });
         }
     }
@@ -1496,7 +1496,10 @@ export async function sweepTruthBullets({ actors = null } = {}) {
  *
  * Scoped to the chapter that is ending, so a clue planted early for a later chapter stays,
  * and the ledger row goes with the token rather than being left behind as a trace a GM can
- * see and not read (the same pairing `removeRemnant` makes).
+ * see and not read (the same pairing `removeRemnant` makes). And to this season's chapter (E11
+ * C12, 1.2.73; audit S06-42): after a reset that kept the traces, the new chapter 1's end took
+ * last season's chapter-1 clues as well. Those stay for the Remnants group or a GM's hand, and the
+ * window's count (`openChapterEndDialog`) asks the same question, so it counts what this takes.
  */
 export async function clearChapterKeyRemnants(chapter) {
     if (!game.user.isGM) return 0;
@@ -1505,7 +1508,7 @@ export async function clearChapterKeyRemnants(chapter) {
     for (const scene of game.scenes) {
         const doomed = remnantsOn(scene).filter(t => {
             const info = remnantData(t);
-            return info?.type === "key" && info.chapter === chapter;
+            return info?.type === "key" && info.chapter === chapter && sameSeason(info);
         });
         if (!doomed.length) continue;
         for (const token of doomed) await dropRemnantSecret(token);
@@ -1592,7 +1595,7 @@ export async function openChapterEndDialog() {
             const info = remnantData(token);
             if (!info) continue;
             if (info.faint && !info.reinforced && !info.tiedToCrime) faintable++;
-            if (info.type === "key" && info.chapter === endingChapter) keyable++;
+            if (info.type === "key" && info.chapter === endingChapter && sameSeason(info)) keyable++;
         }
     }
 

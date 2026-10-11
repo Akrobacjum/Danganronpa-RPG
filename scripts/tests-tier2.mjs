@@ -44786,6 +44786,80 @@ const SCENARIOS = [
             + "moved and the phase)");
     }],
 
+    ["last season's chapter is not this one", async () => {
+        /*
+         * E11 C12, 1.2.73; audit S06-42 (its rest: E11 C1 stamped the bodies found, E10 C10 counts the
+         * seasons); the ledger's D2; the early review of C4 (`faintPrepCandidates`). A reset sends the clock
+         * back to chapter 1 and keeps what the GM left unticked - the traces, the motive - and those named
+         * only their chapter, so the new season's chapter 1 read last season's as its own: its Final Truth
+         * placed, its motive in force, its Faint Prep traces offered at the first discovery, its Key Remnants
+         * taken at the chapter's end. A reset is not the suite's to run (the plan's M10): the new season here
+         * is the clock's `seasonStartedAt` moved on, as `resetCutPatch` moves it, and the chapter is one no
+         * trace of this world names, so the chapter's end below can take nothing of the GM's. Scenario 65's S
+         * plays it through a real reset, in chapter 1. Placed in the season before: a Key Remnant, a Final
+         * Truth, two Faint Prep traces (one then made a trace from before 1.2.73: no season, placed before the
+         * new one began) and the motive; in the new season, a Key Remnant and a Faint Prep trace. Read: the
+         * Final Truth placed, the motive in force, which Faint Prep traces are offered, what the chapter's end
+         * takes and which Key Remnants stand. The new season's stamp is set an hour back, so the records' own
+         * real-time stamps (`placedAt`, the motive's `at`), which `sameSeason` reads only for a record with no
+         * season, cannot answer for them: their season does; the trace from before 1.2.73 is given a `placedAt`
+         * before that stamp. Red at the parent: all of last season's read as this one's.
+         */
+        const R = await import("./remnants.mjs");
+        const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
+        const { motive, setMotive } = await import("./rules.mjs");
+        const { faintPrepCandidates, clearChapterKeyRemnants } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        must(scene, "there is no scene to place the traces on");
+        const named = new Set(game.scenes.contents.flatMap(s => R.remnantsOn(s).map(t => R.remnantData(t)?.chapter)));
+        let chapter = 1000;
+        while (named.has(chapter)) chapter++;
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const placed = [];
+        const place = async (type, faint = false) => {
+            const token = await R.placeRemnant({ type, visibility: "evident", faint, tiedToCrime: null, x: 0, y: 0, scene, chapter,
+                note: `SUITE E11 C12 a ${type} trace` });
+            must(token?.id, `could not place the fixture ${type} trace`);
+            placed.push(token);
+            return token;
+        };
+        const offered = () => faintPrepCandidates(chapter).map(c => placed.findIndex(t => t.id === c.token.id)).filter(i => i >= 0).sort((a, b) => a - b);
+        const TEXT = "SUITE E11 C12 last season's motive";
+        let read = null;
+        try {
+            await setClock({ chapter });
+            const oldKey = await place("key");
+            await place("final");
+            await place("prep", true);
+            const before1273 = await place("prep", true);
+            await setMotive({ text: TEXT, timesOfDay: 3 });
+            await gmStoresIdle();
+            const before = [finalTruthPlacedThisChapter(), motive()?.text ?? null, offered()];
+            must(stableJson(before) === stableJson([true, TEXT, [2, 3]]),
+                `the season before does not read its own records as this chapter's - this would measure nothing: ${stableJson(before)}`);
+            const next = Math.max(Date.now() - 3600_000, (Number(clockBefore.seasonStartedAt) || 0) + 1);
+            await R.setRemnantSecret(before1273, { epoch: null, placedAt: next - 1 });
+            await setClock({ seasonStartedAt: next });
+            const newKey = await place("key");
+            await place("prep", true);
+            await gmStoresIdle();
+            read = { final: finalTruthPlacedThisChapter(), motive: motive()?.text ?? null, offered: offered(),
+                cleared: await clearChapterKeyRemnants(chapter), standing: [oldKey, newKey].map(t => Boolean(scene.tokens.get(t.id))) };
+        } finally {
+            for (const token of placed) {
+                if (!scene.tokens.get(token.id)) continue;
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ final: false, motive: null, offered: [5], cleared: 1, standing: [true, false] }),
+            "last season's records of this chapter read as this season's (read in the new season: the Final Truth placed, the motive "
+            + "in force, the Faint Prep traces offered by the order they were placed, the Key Remnants the chapter's end took, and "
+            + "whether last season's and this season's Key Remnant stand)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

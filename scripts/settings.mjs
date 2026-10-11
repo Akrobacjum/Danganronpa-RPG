@@ -2212,6 +2212,30 @@ export function seasonEpoch() {
     }
 }
 
+/**
+ * Was a chapter-stamped record written in the season now running? (E11 C12, 1.2.73; audit S06-42.)
+ * A reset sends the clock back to chapter 1 and may keep what the GM left unticked - the traces,
+ * the motive - so "chapter 1" alone named last season's chapter 1 as well: its Key Remnants were
+ * counted and taken off the map at the new chapter 1's end, its Final Truth read as placed, its
+ * motive was in force, and its Faint Prep traces were offered at the new season's first discovery.
+ * The writers stamp `epoch: seasonEpoch()` beside `chapter` (remnants.mjs `placeRemnant`, rules.mjs
+ * `setMotive`) - a death's record carries it since E11 C1 - and every reader that asks "this chapter"
+ * asks this as well.
+ *
+ * A record from before 1.2.73 carries no epoch. Its own real-time stamp answers instead - a trace's
+ * `placedAt`, the motive's `at` - against the season's start: an older one is last season's, and
+ * one with neither compares by chapter, as before. The two stamps are two clocks (`placedAt` and
+ * `at` are the writing GM's `Date.now()`, `seasonStartedAt` the GM store's, the server's time where
+ * Foundry gives it), so a record written within their difference of a reset is the one this can
+ * misjudge. Read in the code; the difference between them has not been measured at a table.
+ */
+export function sameSeason(record, epoch = seasonEpoch()) {
+    if (!record) return false;
+    if (record.epoch !== undefined && record.epoch !== null) return record.epoch === epoch;
+    const at = Number(record.placedAt ?? record.at);
+    return !(epoch > 0 && Number.isFinite(at) && at > 0 && at < epoch);
+}
+
 export function incidentParticipants() {
     const cast = incidentCast();
     return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);

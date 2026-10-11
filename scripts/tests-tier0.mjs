@@ -7537,7 +7537,7 @@ const REGRESSIONS = [
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
-            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter (`isDeadForGm` and `deathRecordFor`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
+            ["SHEET trial-floor-ui.mjs#readTrial", "out of scope: the trial console's display (R4, GM only, C12): the register's count (`blackenedIds`) and whether a student died this chapter of this season (`isDeadForGm`, `deathRecordFor` and since E11 C12 `sameSeason`, a death the GMs keep included), to warn of an empty register; it decides nothing - `manageClassTrial`, its only caller, answers a player with a warning before anything is read"],
             ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; since C10 the trial console's verdict opens it in a Final Trial (`TRIAL_ACTIONS.verdict`)"],
             ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40; C10 adds two GM writes, the trial's record (`verdictApplied` and a `verdict` with `final: true` that names nobody) and the clock's `finalTrial: false`"],
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
@@ -8143,6 +8143,48 @@ const REGRESSIONS = [
         ok(/levelUpsMarked: true/.test(fnSource(character, "stampStartingSheet")),
             "the season's starting sheet does not say that its Level Ups are written down - a reset would treat it as made before 1.2.73");
         for (const key of ["reportCard.titleLeft", "reportCard.experiences"]) ok(game.i18n.has(`DRPG.Season.${key}`), `DRPG.Season.${key} is missing`);
+    }],
+
+    ["R356 - a chapter-stamped trace or motive names its season, and every reader of this chapter's records asks it", async () => {
+        /*
+         * E11 C12, 1.2.73; audit S06-42 (its rest: E11 C1 stamped the bodies found, E10 C10 counts the seasons); the
+         * ledger's D2 and the early review of C4. A reset sends the clock back to chapter 1 and keeps what the GM left
+         * unticked, and the traces and the motive named only their chapter, so the new season's chapter 1 read last
+         * season's as its own. The guard on the promise, in the source: the two writers stamp the season beside the
+         * chapter, a trace put back under its id keeps its own, and each of the seven readers that asks "this chapter"
+         * of a trace or the motive asks `sameSeason` as well - and the trial console's "a student died this chapter",
+         * of a death record, which carries its season since E11 C1 (the census row of `deathRecordFor` names C12 for
+         * it). What the readers answer is tier 2's "last season's chapter is not this one" and scenario 65's S (a real
+         * reset of the clock alone, in chapter 1); the planner's leftover count, a clean-up's copy and the console's
+         * line are read here only.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const [chapter, remnants, investigation, rules, mastermind] = ["chapter.mjs", "remnants.mjs", "investigation.mjs", "rules.mjs", "mastermind.mjs"].map(src);
+        ok(chapter.length > 1000 && remnants.length > 1000 && investigation.length > 1000 && rules.length > 1000 && mastermind.length > 1000,
+            "a source file did not load - the reads below would measure nothing");
+        const readers = [
+            ["chapter.mjs faintPrepCandidates", fnSource(chapter, "faintPrepCandidates"), /\(data\.chapter \?\? chapter\) !== chapter \|\| !sameSeason\(data\)/],
+            ["chapter.mjs clearChapterKeyRemnants", fnSource(chapter, "clearChapterKeyRemnants"), /info\.chapter === chapter && sameSeason\(info\)/],
+            ["chapter.mjs openChapterEndDialog", fnSource(chapter, "openChapterEndDialog"), /info\.chapter === endingChapter && sameSeason\(info\)\) keyable\+\+/],
+            ["remnants.mjs tieChapterTraces", fnSource(remnants, "tieChapterTraces"), /data\.chapter !== chapter \|\| !sameSeason\(data\)/],
+            ["mastermind.mjs finalTruthPlacedThisChapter", fnSource(mastermind, "finalTruthPlacedThisChapter"), /data\.chapter === chapter && sameSeason\(data\)/],
+            ["rules.mjs motive", fnSource(rules, "motive"), /stored\.chapter !== getClock\(\)\.chapter \|\| !sameSeason\(stored\)/],
+            ["investigation.mjs the leftover Key Remnants", investigation, /r\.data\.chapter !== plan\.chapter \|\| !sameSeason\(r\.data\)/],
+            ["trial-floor-ui.mjs readTrial", fnSource(src("trial-floor-ui.mjs"), "readTrial"), /record\?\.chapter === chapter && sameSeason\(record\)/]
+        ];
+        const blind = readers.filter(([, body, asks]) => !asks.test(body)).map(([name]) => name);
+        equal(blind.join(", "), "", "a reader of this chapter's traces, motive or deaths takes last season's chapter of the same number for this one (S06-42)");
+        const place = fnSource(remnants, "placeRemnant");
+        ok(/epoch: keepId && Number\.isFinite\(data\.epoch\) \? data\.epoch : seasonEpoch\(\)/.test(place),
+            "a trace's ledger row does not name its season, or takes it off the packet rather than only for a trace put back under its id");
+        ok(/epoch: entry\.epoch \?\? null/.test(fnSource(remnants, "remnantData")) && /epoch: d\.epoch \?\? null/.test(fnSource(src("cleanup.mjs"), "recreationDataFor")),
+            "the GM's reading of a trace, or a clean-up's copy of one, drops its season - a trace put back is this season's");
+        ok(/chapter: getClock\(\)\.chapter,\s*epoch: seasonEpoch\(\)/.test(fnSource(rules, "setMotive")), "the motive does not name its season");
+        // Read last: before 1.2.73 there was no such reader, and `fnSource` throws for a function it cannot find.
+        const same = fnSource(src("settings.mjs"), "sameSeason");
+        ok(/return record\.epoch === epoch/.test(same) && /record\.placedAt \?\? record\.at/.test(same),
+            "settings.mjs `sameSeason` does not compare the season, or a record from before 1.2.73 by its own stamp");
     }],
 
     ["R312 - the ballots are a GM store and the vote's GM road is gmOnly", async () => {

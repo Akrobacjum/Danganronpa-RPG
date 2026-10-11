@@ -55,6 +55,9 @@
  *   P  where the cast goes (C10b): each student in a room of their own, Daichi killed and kept, bedrooms
  *      on both maps and the GM looking at the Annex; a reset sending everyone to their bedrooms, one
  *      sending everyone to the Cafeteria, and the step on a second GM's browser.
+ *   S  last season's chapter 1 (C12): in chapter 1 a Key Remnant, a Final Truth, a Faint Prep trace and a motive, a
+ *      reset of the clock alone, then a Key Remnant and a Faint Prep trace of the new season: the Final Truth placed,
+ *      the motive in force, the Faint Prep question, the End of chapter window's Key count, a death's tie, the chapter's end.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -69,7 +72,9 @@
  * left it, 25 checks, took 35.0 s in one run; with P, 30 checks took 41.6-42.5 s in the eight runs that
  * went through every phase (two green, five mutants, one at the parent), 45.6 s with the boot in the
  * one timed - still no `timeoutMs`. E11 C11 (11.10.2026): 31 checks, 47.5 s, 57.1 s with the boot, in one
- * run beside other trees' harnesses on the same machine - still none.
+ * run beside other trees' harnesses on the same machine - still none. E11 C12 (11.10.2026): with S, 32 checks took
+ * 42.6-43.5 s in five runs beside other trees' harnesses (one green, one with a draft's misread tie, three
+ * mutants) - still none.
  */
 export const layers = ["ci"];
 // The second GM of G3 (E11 C8), as 61 declares its own.
@@ -774,4 +779,47 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
     }
     check("P3: on a second GM's browser the cast's step moves nobody (E11 C10b)",
         second?.primary === false && second.result === null && second.same === true, J(second), { flow: "season-reset" });
+
+    phase("S: last season's chapter 1 after a reset that keeps the traces and the motive", { flow: "season-reset" });
+    /* E11 C12. P's resets leave the clock in chapter 1. Placed there: a Key Remnant, a Final Truth, a Faint Prep trace and a
+       motive; then a reset of the clock alone, so they stay and the chapters start again at 1; then a Key Remnant and a Faint
+       Prep trace of the new season. Read before and after: the Final Truth placed, the motive in force, which of these Faint
+       Prep traces a discovery asks about, the count on the End of chapter window's Key Remnants box (answered Cancel), what
+       a death's tie in chapter 1 ties, what the chapter's end takes, and which Key Remnants stand. Before C12 the new
+       season's chapter 1 read every one of last season's as its own. */
+    const SEASON = `const R = await import("${repoUrl}/scripts/remnants.mjs"); const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const MM = await import("${repoUrl}/scripts/mastermind.mjs"); const RU = await import("${repoUrl}/scripts/rules.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        const academy = game.scenes.get("${IDS.scene}");
+        const place = async (type, faint = false) => (await R.placeRemnant({ type, visibility: "evident", faint, tiedToCrime: null, x: 0, y: 0,
+            sceneId: academy.id, chapter: getClock().chapter, note: "65 S " + type }))?.id ?? null;
+        const boxCount = async () => { let n = null; globalThis.__dialogAnswers.push(config => { const c = config?.content;
+            const m = /Key Remnants off the map \\((\\d+)\\)/.exec(typeof c === "string" ? c : c?.textContent ?? ""); n = m ? Number(m[1]) : null; return null; });
+            await C.openChapterEndDialog(); return n; };
+        const ours = ids => C.faintPrepCandidates().map(c => ids.indexOf(c.token.id)).filter(i => i >= 0).sort();
+        const reading = async ids => ({ chapter: getClock().chapter, final: MM.finalTruthPlacedThisChapter(), motive: RU.motive()?.text ?? null,
+            offered: ours(ids), box: await boxCount() });`;
+    const seasonBefore = await gm.eval(`${SEASON}
+        const ids = [await place("key"), await place("final"), await place("prep", true)];
+        await RU.setMotive({ text: "65 S last season's motive", timesOfDay: 3 });
+        await gmStoresIdle();
+        globalThis.__seasonS = ids;
+        return { ids, ...(await reading(ids)) };`, { timeout: 60000 });
+    const seasonReset = await gm.eval(`${resetRun({ ticked: J(["clock"]) })} return { cleared: read.cleared, failed: read.failed };`, { timeout: 120000 });
+    const seasonAfter = await gm.eval(`${SEASON}
+        const ids = [...globalThis.__seasonS, await place("key"), await place("prep", true)];
+        await gmStoresIdle();
+        const read = await reading(ids);
+        await R.tieChapterTraces(1);
+        await gmStoresIdle();
+        const tied = [ids[2], ids[4]].map(id => { const d = R.remnantData(academy.tokens.get(id)); return d ? d.tiedToCrime : "gone"; });
+        const taken = await C.clearChapterKeyRemnants(1);
+        return { ...read, tied, taken, standing: [ids[0], ids[3]].map(id => Boolean(academy.tokens.get(id))) };`, { timeout: 60000 });
+    check("S1: after a reset of the clock alone, last season's chapter 1 is not this one - its Final Truth is not placed, its motive not in force, its Faint Prep trace not offered nor tied, and the chapter's end counts and takes only this season's Key Remnant (E11 C12)",
+        seasonBefore.ids.every(Boolean) && seasonBefore.chapter === 1 && seasonBefore.final === true && seasonBefore.motive === "65 S last season's motive"
+            && J(seasonBefore.offered) === "[2]" && seasonBefore.box >= 1
+            && J(seasonReset.cleared) === J(["clock"]) && J(seasonReset.failed) === "[]"
+            && seasonAfter.chapter === 1 && seasonAfter.final === false && seasonAfter.motive === null && J(seasonAfter.offered) === "[4]"
+            && seasonAfter.box === 1 && J(seasonAfter.tied) === J([null, true]) && seasonAfter.taken === 1 && J(seasonAfter.standing) === J([true, false]),
+        J({ seasonBefore, seasonReset, seasonAfter }), { flow: "season-reset" });
 }

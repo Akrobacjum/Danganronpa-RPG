@@ -27,7 +27,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, myMastermindLair } from "./settings.mjs";
+import { SETTINGS, myMastermindLair, sameSeason } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
@@ -755,13 +755,17 @@ export async function placeFinalRemnant({ room, visibility = "evident", note = "
     return token;
 }
 
-/** Has a Final Truth Remnant been placed this chapter, on any scene? */
+/**
+ * Has a Final Truth Remnant been placed this chapter, on any scene? This season's chapter (E11 C12,
+ * 1.2.73; audit S06-42): after a reset that kept the traces, last season's Final Truth of the same
+ * chapter read as placed, and the Case window stopped warning that this one had none.
+ */
 export function finalTruthPlacedThisChapter() {
     const chapter = getClock().chapter;
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
-            if (data?.type === "final" && data.chapter === chapter) return true;
+            if (data?.type === "final" && data.chapter === chapter && sameSeason(data)) return true;
         }
     }
     return false;

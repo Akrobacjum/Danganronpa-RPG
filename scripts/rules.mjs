@@ -17,7 +17,7 @@
  */
 
 import { MODULE_ID, MOTIVE } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, seasonEpoch, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, dialogContent, log, error, plural, tableDialog, esc} from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -71,7 +71,9 @@ export function motive() {
         // earlier chapter simply stops being the current one. The guide's outer
         // bound ("maksymalnie do końca rozdziału") survives the countdown being
         // added inside it - a motive can run out early, never late.
-        if (stored.chapter !== getClock().chapter) return null;
+        // And of this season (E11 C12): a reset that keeps the motive starts the clock at
+        // chapter 1 again, where last season's chapter-1 motive read as in force.
+        if (stored.chapter !== getClock().chapter || !sameSeason(stored)) return null;
         return { ...stored, due: (stored.remaining ?? 0) <= 0 };
     } catch {
         return null;
@@ -125,6 +127,7 @@ export async function setMotive(input) {
         timesOfDay,
         remaining: timesOfDay,
         chapter: getClock().chapter,
+        epoch: seasonEpoch(),
         at: Date.now()
     };
     await game.settings.set(MODULE_ID, SETTINGS.motive, record);

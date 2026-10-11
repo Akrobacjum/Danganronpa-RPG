@@ -26,7 +26,7 @@
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
-import { SETTINGS, isEclipse } from "./settings.mjs";
+import { SETTINGS, isEclipse, sameSeason } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
@@ -1884,9 +1884,10 @@ function caseKeyPanel({ plan, status, placed, limit }) {
                "0 of 5 found" can be true of the plan and false of the map at the same
                time. Counted off the map rather than the plan, which is the only place
                the answer is. A counted sentence since E09 C14 (audit S05-35): "Key Remnant(s)"
-               read wrong in both languages, and Polish took the wrong case of the number. */
+               read wrong in both languages, and Polish took the wrong case of the number.
+               Last season's clue of the same chapter is a leftover too (E11 C12, `sameSeason`). */
             const old = placed.filter(r => r.data.chapter != null
-                && r.data.chapter !== plan.chapter).length;
+                && (r.data.chapter !== plan.chapter || !sameSeason(r.data))).length;
             return old ? `<p class="notes drpg-warning">${
                 plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
         })()}
