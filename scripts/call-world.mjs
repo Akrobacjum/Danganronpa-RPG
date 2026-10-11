@@ -155,7 +155,7 @@ async function writeGather(record) {
     if (!game.user.isGM) return null;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.pendingGather, record ?? {});
-        return record ?? null;
+        return true;
     } catch (err) {
         error("Could not write the pending assembly", err);
         return null;
@@ -231,7 +231,12 @@ export async function cancelGather() {
     const order = pendingGather();
     if (!order) return null;
 
-    await writeGather(null);
+    /* CALLED OFF ONLY WHEN IT IS (E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3). `writeGather` answered null for a
+       cleared order whether the write landed or threw, and this posted "called off" either way: the order stood,
+       held at the next time of day, after the table had been told it was off (tier 2 "an assembly whose calling
+       off was not written is not announced as called off" read the card posted with the code before this,
+       11.10.2026). The failed write is logged by `writeGather`; the order stands and nothing is announced. */
+    if (!(await writeGather(null))) return null;
 
     await announce({
         flags: { [MODULE_ID]: {

@@ -733,7 +733,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
     // The dashboard's confirm is answered no, the End of chapter panel with its sweep alone; both read before.
     const ended = await gm.eval(`${TB} const C = await import("${repoUrl}/scripts/chapter.mjs");
-        const I = await import("${repoUrl}/scripts/investigation.mjs"), { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const I = await import("${repoUrl}/scripts/investigation.mjs");
         const actor = game.actors.get("${IDS.aiko}"), made = [];
         for (const [name, data] of [["Faint", { faint: true }], ["Neutral", {}], ["Final", { realType: "final", shownType: "neutral", analyzed: false, analyzedText: ${J(MARK.eFinalReading)} }]]) {
             made.push((await TB.createTruthBullet(actor, { name: "S62 " + name, playerText: ${J(MARK.playerText)}, ...data }))?.id ?? null);
@@ -746,7 +746,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         globalThis.__dialogAnswers.push(cfg => {
             shown.panel = numberIn(cfg?.content?.querySelector?.('input[name="sweep"]')?.closest?.("label"));
             return { reveal: false, sweep: true, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false,
-                nextMorning: false, endingChapter: getClock().chapter };
+                nextMorning: false };
         });
         const before = held(), done = await C.openChapterEndDialog();
         return { made, shown, before, after: held(), done, kept: made.map(id => actor.items.has(id)) };`, { timeout: 60000 });
@@ -770,7 +770,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         globalThis.__dialogAnswers.push(cfg => {
             shown.push(numberIn(cfg?.content?.querySelector?.('input[name="reveal"]')?.closest?.("label")?.textContent));
             return { reveal: true, sweep: false, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false,
-                nextMorning: false, endingChapter: getClock().chapter };
+                nextMorning: false };
         });
         const done = (await C.openChapterEndDialog()) ?? [];
         return { key: key?.id ?? null, shown, done: numberIn(done[0]), chapter: getClock().chapter };`, { timeout: 60000 });
@@ -789,13 +789,12 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         Boolean(panelled.key) && J(keyOnP1.key) === J([true, MARK.eKeyReading, true]) && J(keyOnP1.faint) === J([false, true])
             && J(keyOnP1.final) === J([false, true, "final", "", false]) && panelled.shown[0] === panelled.done && panelled.done > 0, J({ panelled, keyOnP1 }));
     const swept = await gm.eval(`${TB} const C = await import("${repoUrl}/scripts/chapter.mjs");
-        const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
         const numberIn = text => Number(/\\d+/.exec(text ?? "")?.[0] ?? NaN);
         const shown = [];
         globalThis.__dialogAnswers.push(cfg => {
             shown.push(numberIn(cfg?.content?.querySelector?.('input[name="reveal"]')?.closest?.("label")?.textContent));
             return { reveal: true, sweep: true, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false,
-                nextMorning: false, endingChapter: getClock().chapter };
+                nextMorning: false };
         });
         await C.openChapterEndDialog();
         return { shown };`, { timeout: 60000 });

@@ -342,6 +342,19 @@ export function caseKeyCount(chapter = getClock().chapter) {
     return own ? live.keyRemnants : null;
 }
 
+/**
+ * How many of a chapter's case's Key Remnants are not on the map yet (E11 fix r1-G4; audit S13-14): the
+ * case's count (`caseKeyCount`) less the chapter's Key Remnants standing on any scene, the plan's and any
+ * placed off it, an unstamped one read as this chapter's as `keyPlanStatus` reads it - or 0 with no case.
+ * What the GM panel's next line asks for after a body is announced (gm-panel.mjs `nextStep`).
+ */
+export function keysToPlace(chapter = getClock().chapter) {
+    const count = caseKeyCount(chapter);
+    if (!Number.isFinite(count)) return 0;
+    const placed = placedKeyRemnants().filter(r => Number(r.data?.chapter ?? chapter) === Number(chapter)).length;
+    return Math.max(0, count - placed);
+}
+
 /** Every Key Remnant currently on the map, across every scene. */
 function placedKeyRemnants() {
     const out = [];

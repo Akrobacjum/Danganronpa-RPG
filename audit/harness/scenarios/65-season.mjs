@@ -60,6 +60,10 @@
  *      the motive in force, the Faint Prep question, the End of chapter window's Key count, a death's tie, the chapter's end.
  *   W  the End of chapter window (C13): a Truth Bullet with no answer key on Aiko, the window opened and cancelled - the
  *      reveal box and its count against what the reveal would do, and whether the warning names who holds the bullet.
+ *   H  a second GM (`gm2`, a late account whose id sorts after the seeded GM's, so the seeded
+ *      GM stays the primary) ends the chapter while the primary's end runs, held in its first
+ *      step until the primary's move has landed - the interleaving round 1's COR-2 named and
+ *      did not run; then opens its End of chapter window (E11 fix r1-G5).
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -77,9 +81,14 @@
  * run beside other trees' harnesses on the same machine - still none. E11 C12 (11.10.2026): with S, 32 checks took
  * 42.6-43.5 s in five runs beside other trees' harnesses (one green, one with a draft's misread tie, three
  * mutants) - still none. E11 C13 (11.10.2026): with W, 33 checks took 43.3 s in one run - still none.
+ * On the side fix line, with H (E11 fix r1-G5, a fifth
+ * client booted) its 23 checks took 34.7 s in a2's fast set on 11.10.2026, beside two other
+ * lanes - still none of its own. Merged (11.10.2026), G to W then H: 35 checks took 52.8 s in the
+ * merge's fast set beside two other lanes - still none.
  */
 export const layers = ["ci"];
-// The second GM of G3 (E11 C8), as 61 declares its own.
+// The second GM of G3 (E11 C8) and of H (E11 fix r1-G5), as 61 declares its own: its id sorts after the
+// seeded GM's (USERGM0000000000), so the seeded GM stays the primary while it is at the table.
 export const accounts = [
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
 ];
@@ -225,12 +234,18 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         await until(() => bodyDiscovery());
         await new Promise(r => setTimeout(r, 800));
         const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
-        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps,
-            line: await nextLine(), holdLine: game.i18n.localize("DRPG.Panel.nextBodyFound") };`, { timeout: 60000 });
-    // E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold.
-    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold",
+        const R = await import("${repoUrl}/scripts/remnants.mjs"), { caseKeyCount } = await import("${repoUrl}/scripts/investigation.mjs");
+        const keyCase = caseKeyCount(getClock().chapter), keysOnMap = game.scenes.contents.flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.type === "key").length;
+        const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps, keyCase, keysOnMap,
+            line: await nextLine(), keysLine: [plural("DRPG.Panel.nextKeysToPlace", { n: (keyCase ?? 0) - keysOnMap }), "investigation"] };`, { timeout: 60000 });
+    /* E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold;
+       E11 fix r1-G4 (audit S13-14): the case's Key Remnants, none on the map yet, before "start the Investigation" - at 09e01b7
+       the line said "A body has been found. Start the Investigation when the room is ready." with the case's Keys unplaced. */
+    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold names the case's Key Remnants still to place",
         blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
-            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]) && J(found.line) === J([found.holdLine, "startInvestigation"]),
+            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }])
+            && found.keyCase > 0 && found.keysOnMap === 0 && J(found.line) === J(found.keysLine),
         J({ blow, found }), { flow: "body-discovery" });
     const asked = await gm.eval(`${UNTIL} await until(() => globalThis.__c4?.asked, 6000);
         const c4 = globalThis.__c4, D = foundry.applications.api.DialogV2;
@@ -852,4 +867,47 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
         endWindow.seen !== null && endWindow.typeless >= 1 && offered === endWindow.hidden
             && endWindow.seen.checked === (endWindow.hidden > 0) && endWindow.seen.disabled === (endWindow.hidden === 0)
             && String(endWindow.seen.warning ?? "").includes(endWindow.name), J({ endWindow, offered }), { flow: "clock-day" });
+
+    /* ------------------------------ H. two GMs end one chapter ------------------------------ */
+    phase("H: a second GM ends the chapter while the primary's end runs, then opens its window", { flow: "clock-day" });
+    await connect("gm2");
+    await settle(500);
+    const MARK = `const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const mark = () => ({ chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1 });`;
+    const opened = await gm.eval(`${MARK} return mark();`);
+    /* The second GM's Do it on a window opened on the same clock, before the primary's: its end is started and
+       held in its first step until the primary's move has reached this browser, as a second GM's end whose
+       guard was passed before that move landed. With the code before E11 fix r1-G5 it then counted the session
+       again (session 1 to 3, measured 11.10.2026; the day moved once, both mornings having read day 1). */
+    await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const first = C.CHAPTER_END_STEPS[0], run = first.run, opened = ${J(opened)};
+        first.run = async args => { await until(() => getClock().session !== opened.session, 8000); return run(args); };
+        globalThis.__h = { restore: () => { first.run = run; }, told: globalThis.__notifications.length,
+            end: C.applyChapterEnd({ nextSession: true, nextMorning: true, opened }) };
+        return true;`, { timeout: 30000 });
+    const primary = await gm.eval(`${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const ended = await C.applyChapterEnd({ nextSession: true, nextMorning: true, opened: ${J(opened)} });
+        return { ended: Boolean(ended), after: mark() };`, { timeout: 60000 });
+    const secondGm = await gm2.eval(`${UNTIL} ${MARK} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { primaryGmId } = await import("${repoUrl}/scripts/utils.mjs");
+        const ended = await globalThis.__h.end.catch(err => "threw: " + err?.message);
+        globalThis.__h.restore();
+        const refusal = game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" });
+        const warned = globalThis.__notifications.slice(globalThis.__h.told).filter(n => n.level === "warn" && n.msg === refusal).length;
+        await until(() => JSON.stringify(mark()) === ${J(J(primary.after))}, 4000);
+        const atEnd = mark();
+        const told = globalThis.__notifications.length, asked = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push(() => null);
+        const window = await C.openChapterEndDialog();
+        globalThis.__dialogAnswers.length = 0;
+        return { ended: ended === null ? null : String(ended), warned, atEnd, window: window ?? null,
+            asked: globalThis.__dialogLog.slice(asked).map(d => d.title),
+            windowWarned: globalThis.__notifications.slice(told).filter(n => n.level === "warn" && n.msg === refusal).length };`, { timeout: 60000 });
+    const after = await gm.eval(`${UNTIL} ${MARK} await new Promise(r => setTimeout(r, 500)); return mark();`, { timeout: 30000 });
+    check("H1: a second GM's End of chapter started on the same clock while the primary's runs is refused and told whose the end is, and the chapter's end counts one session and one day (E11 fix r1-G5)",
+        primary.ended === true && secondGm.ended === null && secondGm.warned === 1
+            && after.chapter === opened.chapter && after.session === opened.session + 1 && after.day === opened.day + 1
+            && J(primary.after) === J(after) && J(secondGm.atEnd) === J(after), J({ opened, primary, second: secondGm, after }), { flow: "clock-day" });
+    check("H2: the second GM's End of chapter window is refused before anything is asked, and told whose the end is (E11 fix r1-G5)",
+        secondGm.window === null && J(secondGm.asked) === J([]) && secondGm.windowWarned === 1, J(secondGm), { flow: "clock-day" });
 }

@@ -1792,6 +1792,9 @@
       "whereBody": "Which room?",
       "whoseBody": "Whose body? (optional)",
       "unnamedVictim": "Do not name them",
+      "victimAnnounced": "{name} (announced this chapter)",
+      "bodyAnnouncedAlready": "{name}'s body was already announced in this chapter, so nothing was announced again. To announce another body in that room, leave the body unnamed.",
+      "bodyPrimaryOnly": "Only the primary GM, {name}, can announce a body, so that one browser decides which bodies the table has found. Ask {name}, or announce it when you are the only GM connected.",
       "noRooms": "This scene has no room regions to gather anyone into.",
       "bodyNote": "Everyone is called to the room. The phase does not change until you start the Investigation.",
       "bodyNoteLater": "Everyone is called to the room. The phase does not change.",
@@ -1841,7 +1844,8 @@
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
       "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
       "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
-      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock has moved since - another End of chapter got there first. Nothing was done twice.",
+      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
+      "endPrimaryOnly": "Only the primary GM, {name}, can end the chapter, so that one browser counts it once. Ask {name}, or end it when you are the only GM connected.",
       "endFailed": "The end of the chapter did not finish: {steps}. Everything else was done - finish those by hand rather than ending the chapter again.",
       "step": {
         "reveal": "revealing the Truth Bullets",
@@ -2812,8 +2816,14 @@
       "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
       "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
+      "nextKeysToPlace": {
+        "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
+        "other": "{n} Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab."
+      },
+      "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
       "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",

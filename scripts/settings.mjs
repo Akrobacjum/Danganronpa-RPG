@@ -825,6 +825,12 @@ export const DEFAULT_CLOCK = {
      */
     timeOfDayStartedAt: null,
     /**
+     * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
+     * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
+     * (`bodyFoundSinceTrial`) so a chapter's second Investigation is not the first trial's body.
+     */
+    trialEndedAt: null,
+    /**
      * When the game was paused, as `Date.now()`, or `null` while it runs. The
      * elapsed timer freezes here, and `timeOfDayStartedAt` is pushed forward by
      * the length of the break when play resumes - a pause is not time the table
@@ -2457,13 +2463,13 @@ export function deadIn(actor, held) {
     return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
 }
 
-/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1). */
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day, time of day, phase and season (E11 C1) and its `deathId` (fix r1-G1). */
 export function deathRecordFor(actor) {
     const flag = deathRecord(actor);
     if (flag) return flag;
     const row = pendingDeath(actor);
     return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-        phase: row.phase ?? null, epoch: row.epoch ?? null } : null;
+        phase: row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null } : null;
 }
 
 /*
@@ -2633,6 +2639,21 @@ export function bodyAnnounced(actorId, epoch = seasonEpoch()) {
 /** Has a body been found in `chapter` of this season? */
 export function chapterBodyFound(chapter, epoch = seasonEpoch()) {
     return bodiesFoundIn(chapter, epoch).length > 0;
+}
+
+/**
+ * The latest discovery of the clock's chapter made since its last Class Trial ended, or null:
+ * the body the case now open is about (E11 fix r1-G3; early review EARLY-C2-1, goal K1). The
+ * chapter's last stamp alone named the first trial's body in a second Investigation of the same
+ * chapter, which the GM can open with no new discovery (Edit campaign, `setPhase`). Both stamps
+ * are `serverNow()` (a discovery's `at`, chapter.mjs `runDiscovery`; `clock.trialEndedAt`,
+ * `setClock`), so two GMs' machines compare on one clock. A stamp without `at` counts as before
+ * any trial: none is written without one. Tier 2 "a chapter's second Investigation reads its own
+ * body on the card and in a discard".
+ */
+export function bodyFoundSinceTrial(clock = getClock(), epoch = seasonEpoch()) {
+    const stamp = bodiesFoundIn(clock?.chapter, epoch).at(-1) ?? null;
+    return stamp && (Number(stamp.at) || 0) > (Number(clock?.trialEndedAt) || 0) ? stamp : null;
 }
 
 /**

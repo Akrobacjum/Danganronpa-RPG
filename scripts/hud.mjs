@@ -1204,9 +1204,10 @@ function buildTimeRow(clock, isGM) {
         const free = ECLIPSE_FREE_PLACEMENT.includes(incoming);
 
         // Dimmed over a body nobody has answered, and named why: `startEclipse` refuses there
-        // (E11 C3, audit S06-05). Still pressable, so the press says it too - a disabled
-        // button would also be re-enabled by `releaseControls` after the next press.
-        const held = !eclipseRunning && Boolean(bodyDiscovery());
+        // (E11 C3, audit S06-05) - and, as there, not in the Investigation (E11 fix r1-G3). Still
+        // pressable, so the press says it too - a disabled button would also be re-enabled by
+        // `releaseControls` after the next press.
+        const held = !eclipseRunning && Boolean(bodyDiscovery()) && clock.phase !== "investigation";
         const tooltip = eclipseRunning
             ? game.i18n.localize("DRPG.Hud.endEclipse")
             : held ? game.i18n.localize("DRPG.Eclipse.bodyFirst")

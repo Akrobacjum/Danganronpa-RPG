@@ -15,7 +15,7 @@ import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
-    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
+    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, watchLog, cast, systemSheetsAvailable
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -773,6 +773,8 @@ async function withBetrayalWindows(note, run) {
  * is the first one in each line's text; the panel's is NaN where it was not drawn.
  */
 async function sweepCountsShown() {
+    const { isPrimaryGm } = await import("./utils.mjs");
+    must(isPrimaryGm(), "this client is not the primary GM, whose alone the End of chapter panel is - its count would not be drawn");
     const { confirmSweepBullets } = await import("./investigation.mjs");
     const { openChapterEndDialog } = await import("./chapter.mjs");
     const D = foundry.applications.api.DialogV2;
@@ -24783,7 +24785,8 @@ const SCENARIOS = [
             `after a murder a discard should leave the Tamper type, not "${BROKEN_ITEMS.remnantTypeAfter}"`);
 
         const settings = await import("./settings.mjs");
-        const hadBody = settings.bodyDiscovery();
+        // Since E11 fix r1-G3 also a discovery of this chapter made since its last trial ended (goal K1).
+        const hadBody = settings.bodyDiscovery() || settings.bodyFoundSinceTrial?.();
         const murder = await import("./murder.mjs");
         const running = Boolean(murder.murderState()?.active);
 
@@ -27894,6 +27897,8 @@ const SCENARIOS = [
         const UI = await import("./trial-floor-ui.mjs");
         const M = await import("./murder.mjs");
         const { openChapterEndDialog } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const floor = await import("./trial-floor.mjs");
         const D = foundry.applications.api.DialogV2;
         const loc = key => game.i18n.localize(key);
@@ -33181,6 +33186,8 @@ const SCENARIOS = [
          * make the failure harder to read.
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { startFloor, trialFloor } = await import("./trial-floor.mjs");
         const clock = foundry.utils.deepClone(getClock());
         try {
@@ -36471,6 +36478,8 @@ const SCENARIOS = [
         const { killCharacter, publishDeath, discoverBody, isDeceased, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const ROOM = "SUITE E09 G1 a room nobody stands in";
         const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        // And the discovery's stamps (E11 fix r1-G1; early review EARLY-C1-1): a stamp left behind names a cast student.
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
         let trace = null, copy = null;
@@ -36502,6 +36511,7 @@ const SCENARIOS = [
             if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
                 await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
             }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await copy?.drop();
             if (trace) await dropTrace(trace);
         }
@@ -44564,6 +44574,8 @@ const SCENARIOS = [
          * refused were told to the GMs (`endTwice`).
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { contentOf } = await import("./secret.mjs");
         const clock = foundry.utils.deepClone(getClock());
         try {
@@ -44585,17 +44597,22 @@ const SCENARIOS = [
         }
     }],
 
-    ["a chapter end step that fails is named, and the steps after it still run", async () => {
+    ["a chapter end step that fails is named and no morning opens over a trial that did not close", async () => {
         /*
          * E11 C5, 1.2.73 (the plan's section 3.4 for the chapter's end). A step that threw stopped
          * the chapter's end where it stood, with nothing said to the GM, and `closeTrial`'s false
          * (its clock write threw, E10 C12) was taken as nothing to say: no line, no word, the trial
          * still sitting. Here two of the clock's writes are refused - the session's move (the step
-         * throws) and the trial's close (`closeTrial` answers false) - and the morning's is let
+         * throws) and the trial's close (`closeTrial` answers false) - and the morning's would be let
          * through. Read: what the GM was shown as an error, whether the end answered anything (or
          * threw), how far the session and the day moved, the phase, and whether the floor is open.
+         * Since E11 fix r1-G5 (round 1's EARLY-C5-1) the morning is not opened over the trial that
+         * did not close, and is named with the failed steps: with C5's code the day moved on with the
+         * trial sitting ([0, 1, "classTrial", false], measured 11.10.2026).
          */
         const { applyChapterEnd } = await import("./chapter.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose alone the chapter's end is - this would measure nothing");
         const { startFloor, trialFloor, endFloor } = await import("./trial-floor.mjs");
         const clock = foundry.utils.deepClone(getClock());
         const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
@@ -44632,10 +44649,12 @@ const SCENARIOS = [
             await settle();
         }
         const L = key => game.i18n.localize(`DRPG.Chapter.step.${key}`);
-        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}` });
-        equal(stableJson([errors, Array.isArray(ended), after]), stableJson([[failed], true, [0, 1, "classTrial", false]]),
-            "a step that threw or a trial that would not close was not named to the GM, or the steps after them did not run "
-            + "([the errors shown, the end answered, [sessions on, days on, the phase, the floor open]])");
+        const failed = game.i18n.format("DRPG.Chapter.endFailed", { steps: `${L("clock")}, ${L("trial")}, ${L("morning")}` });
+        // Nothing of this end is done, so it answers null (the morning was its one line before the fix); a throw reads as text.
+        equal(stableJson([errors, ended, after]), stableJson([[failed], null, [0, 0, "classTrial", false]]),
+            "a step that threw or a trial that would not close was not named to the GM, the steps after them did not run, "
+            + "or the morning opened over the trial still sitting "
+            + "([the errors shown, the end's answer, [sessions on, days on, the phase, the floor open]])");
     }],
 
     ["Edit campaign moving the time back calls nobody", async () => {
@@ -44650,6 +44669,10 @@ const SCENARIOS = [
          * the other road to the same harm). Read per road: the cards posted after the write that carry Monokuma's
          * banner (an assembly held), the order still standing, the called-off cards. Red at C5's tree (A1, 10.10.2026): the time put back and the session alone each held the
          * assembly ([1, false, 0]: the four students' tokens moved into the room), the rewind called it off.
+         * Since E11 fix r1-G5 (round 1's EARLY-C6-1, EARLY-C6-2) two roads more: the next day at the same hour with
+         * the session on, a correction (held with C6's code, measured 11.10.2026); and Night to the next day's morning
+         * with the session on, the hour passing, which still holds the assembly - nothing measured that before, so
+         * a window that called off every write passed this test. The tokens the held road moves are put back.
          */
         const CE = await import("./call-effects.mjs");
         const { rewindTimeOfDay } = await import("./clock.mjs");
@@ -44671,15 +44694,20 @@ const SCENARIOS = [
             return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter), day: c.day ?? 1, phase: c.phase,
                 session: c.session, timeOfDay: c.timeOfDay, reset: false, ...answer };
         };
+        const nextDay = () => ({ day: Number(getClock().day ?? 1) + 1, session: Number(getClock().session) + 1 });
         const roads = {
             back: () => { answer = { timeOfDay: "morning" }; return openClockDialog(); },
             session: () => { answer = { session: Number(getClock().session) + 1 }; return openClockDialog(); },
+            daySession: () => { answer = nextDay(); return openClockDialog(); },
+            onward: () => { answer = { ...nextDay(), timeOfDay: "morning" }; return openClockDialog(); },
             rewind: () => rewindTimeOfDay()
         };
+        const from = { onward: "night" };
+        const where = canvas.scene.tokens.map(t => ({ _id: t.id, x: t.x, y: t.y }));
         const readings = {};
         try {
             for (const [road, run] of Object.entries(roads)) {
-                await setClock({ timeOfDay: "afternoon" });
+                await setClock({ timeOfDay: from[road] ?? "afternoon" });
                 await settle();
                 must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
                 const seen = new Set(game.messages.keys());
@@ -44693,9 +44721,11 @@ const SCENARIOS = [
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             if (CE.pendingGather()) await CE.cancelGather();
             await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await canvas.scene.updateEmbeddedDocuments("Token", where.filter(w => canvas.scene.tokens.has(w._id)));
             await settle();
         }
-        equal(stableJson(readings), stableJson({ back: [0, false, 1], session: [0, false, 1], rewind: [0, false, 1] }),
+        equal(stableJson(readings), stableJson({ back: [0, false, 1], session: [0, false, 1], daySession: [0, false, 1],
+            onward: [1, false, 0], rewind: [0, false, 1] }),
             "a correction of the clock held the assembly called for the next time of day, or left it standing, or did not "
             + "say it was called off (read per road: cards with Monokuma's banner after the write, the order standing, "
             + "the called-off cards)");
@@ -44858,6 +44888,1037 @@ const SCENARIOS = [
             "last season's records of this chapter read as this season's (read in the new season: the Final Truth placed, the motive "
             + "in force, the Faint Prep traces offered by the order they were placed, the Key Remnants the chapter's end took, and "
             + "whether last season's and this season's Key Remnant stand)");
+    }],
+
+    ["a living convict the verdict executes after End the trial is no body to find", async () => {
+        /*
+         * E11 fix r1-G1, 1.2.73; round 1's cor COR-1 (= early EARLY-C1-2). The trial console offers the
+         * verdict after End the trial (trial-floor-ui.mjs `trialNextStep`), and `executeSentenced` killed a
+         * living convict with the clock's phase, Daily Life by then: the next two students walking past the
+         * body announced it as a body found, gathered the cast and held the chapter (measured by the review
+         * at 0d860df). C1's test above executes only a death the GMs held. A living convict, the right
+         * verdict executing them as the window's `read` gives it, the phase Daily Life as End the trial
+         * leaves it; then the body and two living students stood in a room nobody else is in, one after
+         * another (`maybeBodyFound` on `updateToken`). Read: the executed record's phase, the discovery
+         * cards since the walk, the hold, this chapter's stamps since the walk, the room each token read as
+         * it arrived. The gather is the discovery's, after its stamp (`runDiscovery`): no stamp, no gather.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const [convict, first, second] = cast(3);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeceased, isDeadForGm } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, isEclipse, deathRecord, bodiesFoundIn } = await import("./settings.mjs");
+        const { offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const scene = canvas?.scene;
+        const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
+        must(!isDeadForGm(convict), `${convict.name} is dead before the verdict - this would measure nothing`);
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const stamps = () => bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+        // Every token on the scene: a discovery's gather moves the cast.
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => V.applyVerdict({ correct: true, executedIds: [convict.id], blackenedIds: [convict.id] })));
+            await settle();
+            must(isDeceased(convict) && getClock().phase === "dailyLife",
+                "the verdict did not execute the living convict, or the phase is not Daily Life - this would measure nothing");
+            const phase = deathRecord(convict)?.phase ?? null;
+            const before = [cards(), stamps()], stood = [];
+            for (const t of tokens) {
+                await t.update(positionIn(room, t), PLACE);
+                await settle();
+                stood.push(roomOfToken(t));
+            }
+            await wait(600);
+            // `stood` is read as each token arrives, so a walk that never reached the room fails here rather than passing.
+            equal(stableJson([phase, cards() - before[0], Boolean(bodyDiscovery()), stamps() - before[1], stood]),
+                stableJson(["classTrial", 0, false, 0, [room, room, room]]),
+                `a living convict executed after End the trial was discovered as a body, or the walk did not stand the three in ${room} `
+                + "(the executed record's phase, the discovery cards since the walk, the hold, this chapter's stamps since the walk, "
+                + "the room each token read as it arrived)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(convict)) await reviveCharacter(convict, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            for (const a of studentActors()) if (offerStore.has(a.id)) await offerStore.drop(a.id);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["a student revived and killed again in the chapter is found again - once", async () => {
+        /*
+         * E11 fix r1-G1, 1.2.73; early review EARLY-C1-1. A discovery's stamp named a student, not a
+         * death, for the whole chapter, and nothing takes it back when the death is undone
+         * (`reviveCharacter`): a student whose body was found, revived by the GM and killed again in the
+         * same chapter was never found the second time. In Daily Life, the student stood alone in a room
+         * nobody else is in: a death the GMs keep, found by the GM's road (`discoverBody`, named in a room
+         * no region has, so nobody is gathered) and the hold answered; revived, a second death the GMs
+         * keep, then made known by the GM's hand (`publishDeath`), then two living students stood in the
+         * room one after another (the watcher) and the hold answered; revived, a third death, public at
+         * once. Read: after each step, whether the watcher's body rule names the student (chapter.mjs
+         * `bodiesToDiscover` as `checkBodyFound` calls it) - found once, then a body again, then found -
+         * and the walk's discovery cards and the room each walker read as they arrived. Each writer of
+         * a death's record is the last death once: the GMs' row, its publication, the table's flag.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const [victim, first, second] = cast(3);
+        const { killCharacter, publishDeath, discoverBody, reviveCharacter, isDeadForGm, bodiesToDiscover, announcedIn } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const ROOM = "SUITE E11 G1 a room no region has";
+        const scene = canvas?.scene;
+        const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const toFind = () => {
+            const clock = getClock(), epoch = seasonEpoch();
+            return bodiesToDiscover({ actors: [victim], clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow }).includes(victim.id);
+        };
+        // Every token on the scene: the walk's discovery gathers the cast.
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const read = [];
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            await tokens[0].update(positionIn(room, tokens[0]), PLACE);
+            await settle();
+            must(roomOfToken(tokens[0]) === room, `${victim.name} was not stood in ${room} - this would measure nothing`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s first death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene });
+            await settle();
+            await clearBodyDiscovery();
+            read.push(toFind());
+            must(await reviveCharacter(victim, { quiet: true }), `${victim.name} was not revived after the first death`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s second death was not kept by the GMs`);
+            read.push(toFind());
+            must(await publishDeath(victim), `${victim.name}'s second death was not made known`);
+            await settle();
+            read.push(toFind());
+            const before = cards(), stood = [];
+            for (const t of tokens.slice(1)) {
+                await t.update(positionIn(room, t), PLACE);
+                // Read as the move returns: the discovery's gather moves the second walker on (measured 10.10.2026: null after it).
+                stood.push(roomOfToken(t));
+                await settle();
+            }
+            await wait(600);
+            read.push(cards() - before, stood);
+            await clearBodyDiscovery();
+            read.push(toFind());
+            must(await reviveCharacter(victim, { quiet: true }), `${victim.name} was not revived after the second death`);
+            must(await killCharacter(victim, { secret: false, keepBullets: true }), `${victim.name}'s third death was not recorded`);
+            await settle();
+            read.push(toFind());
+            equal(stableJson(read), stableJson([false, true, true, 1, [room, room], false, true]),
+                `a student revived and killed again in the chapter was not a body again, or a found body was one still, or the walk did not stand the two in ${room} `
+                + "(the body rule names them: after the first death's discovery, at the second death kept, made known; "
+                + "the walk's discovery cards, the room each walker read; after the walk; at the third death, public)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["a GM who is not the primary announces no body and is told whose it is", async () => {
+        /*
+         * E11 fix r1-G2, 1.2.73; round 1's sec F1 (and goal K6, the same root). The GM's announcement
+         * (`discoverBody`) ran on whichever GM pressed it, and on a GM that is not the primary
+         * `flagsHeldNow` reads the document: a player's own `deceased` write the primary's audit had
+         * not put back yet was stamped as a found body and named on every Investigation card
+         * (measured by the review at 0d860df). The harness has one GM, so a GM whose id sorts first
+         * is put in this browser's list of users - the primary as `primaryGmId` reads it - for the
+         * press and taken out after, as E10 G1's verdict test does. While it is there, a student
+         * standing beside a death the GMs keep gets a `deceased` flag on the document only (this
+         * browser, not the primary then, judges nothing), and this GM announces the kept body in
+         * that room and then opens the GM's window. Read: the stamp rows the press added, whether one
+         * names the student with the unjudged flag, the discovery cards since, the hold, whether the
+         * window drew its form, and how often this GM was told the primary's name. Then, the other
+         * GM gone and this one the primary, the same announcement: the bodies its stamp names, read
+         * off the primary's mark, where the unjudged flag makes nobody a body. 17-assistant F1
+         * measures two GM browsers announcing one body at once.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const [victim, bystander] = cast(2);
+        const { killCharacter, discoverBody, openBodyDiscoveryDialog, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const scene = canvas?.scene;
+        const tokens = [victim, bystander].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const other = { id: "!E11G2otherGM", name: "E11 G2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const rows = () => bodiesFoundIn(getClock().chapter, seasonEpoch());
+        // Every token on the scene: a discovery's gather moves the cast.
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const warned = [], warn = ui.notifications.warn;
+        let read = null, drawn = false;
+        try {
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (el.querySelector('select[name="room"]')) drawn = true;
+                return null;
+            };
+            await setClock({ phase: "dailyLife" });
+            for (const t of tokens) {
+                await t.update(positionIn(room, t), PLACE);
+                await settle();
+            }
+            must(tokens.every(t => roomOfToken(t) === room), `the two were not stood in ${room} - this would measure nothing`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const before = [cards(), rows().length];
+            const clock = getClock();
+            game.users.set(other.id, other);
+            ui.notifications.warn = (message, ...rest) => {
+                warned.push(String(message));
+                return warn.call(ui.notifications, message, ...rest);
+            };
+            try {
+                await bystander.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay,
+                    phase: "dailyLife", epoch: seasonEpoch() });
+                await discoverBody({ room, victim, scene });
+                await openBodyDiscoveryDialog();
+                await settle();
+            } finally {
+                game.users.delete(other.id);
+                ui.notifications.warn = warn;
+            }
+            const added = rows().slice(before[1]);
+            read = [added.length, added.some(row => row?.victimIds?.includes(bystander.id)), cards() - before[0], Boolean(bodyDiscovery()),
+                drawn, warned.filter(line => line.includes(other.name)).length];
+            const mid = rows().length;
+            await discoverBody({ room, victim, scene });
+            await settle();
+            read.push(rows().slice(mid).map(row => [...(row?.victimIds ?? [])]));
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (bystander.getFlag(MODULE_ID, FLAGS.deceased)) await bystander.unsetFlag(MODULE_ID, FLAGS.deceased);
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([0, false, 0, false, false, 2, [[victim.id]]]),
+            "a GM who is not the primary announced a body, or was not told whose the announcement is, or the primary's stamp named the student whose "
+            + "flag nobody judged (off the primary: the stamp rows the press added, one naming that student, the discovery cards since, the hold, "
+            + "the window's form drawn, told the primary's name; then on the primary: the bodies its stamp names)");
+    }],
+
+    ["a body already announced is marked in the GM's list and not announced twice in the chapter", async () => {
+        /*
+         * E11 fix r1-G2, 1.2.73; round 1's goal K5. The GM's "A body is discovered" window listed
+         * every dead student, a body this chapter had announced unmarked among them, and announcing
+         * it again posted a second card and wrote a second stamp row. In Daily Life, a death the GMs
+         * keep, announced by the GM's road (`discoverBody`, named in a room no region has, so nobody
+         * is gathered) and the hold answered; then the window as it is drawn, answered with the same
+         * body in the same room. Read: the body's line in the window's list, the discovery cards and
+         * stamp rows both presses added, the hold, and whether the GM was told why nothing happened.
+         */
+        needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, openBodyDiscoveryDialog, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, the one browser a discovery runs on - this would measure nothing");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const ROOM = "SUITE E11 G2 a room no region has";
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const rows = () => bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const warned = [], warn = ui.notifications.warn;
+        let label = null, read = null;
+        try {
+            D.confirm = async () => false;
+            // The body window answered with the same body in the same room; any other window (the Prep question) closed.
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                const list = el.querySelector('select[name="victim"]');
+                if (!list) return null;
+                label = list.querySelector(`option[value="${victim.id}"]`)?.textContent?.trim() ?? null;
+                return { room: ROOM, victimId: victim.id };
+            };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const before = [cards(), rows()];
+            await discoverBody({ room: ROOM, victim, scene: canvas?.scene ?? null });
+            await settle();
+            await clearBodyDiscovery();
+            must(cards() - before[0] === 1 && rows() - before[1] === 1, "the first announcement posted no card or wrote no stamp - this would measure nothing");
+            ui.notifications.warn = (message, ...rest) => {
+                warned.push(String(message));
+                return warn.call(ui.notifications, message, ...rest);
+            };
+            try {
+                await openBodyDiscoveryDialog();
+                await settle();
+            } finally {
+                ui.notifications.warn = warn;
+            }
+            read = [label, cards() - before[0], rows() - before[1], Boolean(bodyDiscovery()),
+                warned.includes(game.i18n.format("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name }))];
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([game.i18n.format("DRPG.Chapter.victimAnnounced", { name: victim.name }), 1, 1, false, true]),
+            "a body this chapter announced was listed unmarked or announced a second time (its line in the window, the cards and stamp rows "
+            + "both presses added, the hold, the GM told why)");
+    }],
+
+    ["a body whose publication failed is neither stamped as found nor drawn on the card", async () => {
+        /*
+         * E11 fix r1-G2, 1.2.73; early review EARLY-C1-3 and EARLY-C2-2. `publishFoundBodies` stamped
+         * every body it meant to publish, whether or not the publication took, and the body card
+         * (events.mjs `bodyCard`, drawn on every client) named every id the stamp or the hold gave it:
+         * a death the GMs still held was named to the table and read as announced for the rest of the
+         * chapter. In Daily Life, a death the GMs keep whose publication fails (this actor's own
+         * `setFlag` throws, so `markDeceased` answers null and the GMs' row stays), announced by the
+         * GM's road in a room no region has. Read: whether the stamp names it, and whether the card
+         * names it during the hold and in the Investigation. Then a stamp row naming a living student,
+         * as a stamp written before this fix could, and the Investigation card: whether it names them.
+         */
+        const [victim, living] = cast(2);
+        const { killCharacter, discoverBody, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { bodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { bodyCard } = await import("./events.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, the one browser a discovery runs on - this would measure nothing");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
+        const ROOM = "SUITE E11 G2 a room no region has";
+        const names = (phase, who) => String(bodyCard({ ...getClock(), phase })?.sub ?? "").includes(who.name);
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        let read = null;
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            victim.setFlag = async () => {
+                throw new Error("SUITE E11 G2: the publication's write is refused");
+            };
+            const before = bodiesFoundIn(getClock().chapter, seasonEpoch()).length;
+            try {
+                await discoverBody({ room: ROOM, victim, scene: canvas?.scene ?? null });
+                await settle();
+            } finally {
+                delete victim.setFlag;
+            }
+            const added = bodiesFoundIn(getClock().chapter, seasonEpoch()).slice(before);
+            must(added.length === 1 && isDeadForGm(victim) && !victim.getFlag(MODULE_ID, FLAGS.deceased),
+                "the announcement wrote no stamp, or the publication took - this would measure nothing");
+            read = [added[0]?.victimIds?.includes(victim.id) ?? null, names("dailyLife", victim), names("investigation", victim)];
+            const key = `${seasonEpoch()}:${getClock().chapter}`;
+            const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []),
+                { at: Date.now(), room: ROOM, sceneId: null, victimIds: [living.id], by: "gm" }] });
+            read.push(names("investigation", living));
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (Object.hasOwn(victim, "setFlag")) delete victim.setFlag;
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, false, false, false]),
+            "a death whose publication failed was stamped as found or named on the body card, or the card named a living student a stamp gave it "
+            + "(the stamp names it; the card names it during the hold, in the Investigation; the card in the Investigation names the living one)");
+    }],
+
+    ["an earlier chapter's dead in the room is no body and no witness to a walk-in", async () => {
+        /*
+         * E11 fix r1-G2, 1.2.73; round 1's goal S06-14 (a test gap: R348 reads only the filter). Until
+         * E11 C1 a dead student's token standing in the room counted as a witness, so one living
+         * student walking in on a body beside an earlier victim's was "two witnesses"; and before
+         * 17.09 the earlier victim was a body found again. In Daily Life, in a room nobody else is
+         * in: a student dead in the chapter before this one (`markDeceased` with that chapter's
+         * record) and a death the GMs keep, then two living students stood in the room one after the
+         * other (the watcher); then the hold answered, and both walkers out of the room and back
+         * in past the body that walk announced. Read: the discovery cards after the first walker and
+         * after the second, the bodies the walk's stamp names, the room each walker read as they
+         * arrived, and the cards after the walk back in (E11 fix r1-G2's other road to a body
+         * announced twice: the watcher's, which reads this chapter's stamps through `announcedIn`).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 4), "four students are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the four of them");
+        const [body, old, first, second] = cast(4);
+        const { killCharacter, markDeceased, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { allRooms, othersInNamedRoom, positionIn, roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, clearBodyDiscovery, isEclipse, bodiesFoundIn } = await import("./settings.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, the one browser the watcher runs on - this would measure nothing");
+        const scene = canvas?.scene;
+        const tokens = [body, old, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the four students has no token on the scene on screen");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        must(room, "every named room on the scene on screen has somebody in it");
+        must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
+        const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
+        const was = [...scene.tokens].map(t => [t, { x: t.x, y: t.y }]);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        let read = null;
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            for (const t of tokens.slice(0, 2)) {
+                await t.update(positionIn(room, t), PLACE);
+                await settle();
+            }
+            must(tokens.slice(0, 2).every(t => roomOfToken(t) === room), `the two bodies were not laid in ${room} - this would measure nothing`);
+            const clock = getClock();
+            must(await markDeceased(old, { record: { chapter: clock.chapter - 1, day: 1, timeOfDay: "morning", phase: "dailyLife",
+                epoch: seasonEpoch(), deathId: foundry.utils.randomID() } }), `${old.name}'s earlier death was not recorded`);
+            must(await killCharacter(body, { secret: true, keepBullets: true }), `${body.name}'s death was not kept by the GMs`);
+            const before = [cards(), bodiesFoundIn(clock.chapter, seasonEpoch()).length], seen = [], stood = [];
+            for (const t of tokens.slice(2)) {
+                await t.update(positionIn(room, t), PLACE);
+                // Read as the move returns: the discovery's gather moves the walkers on.
+                stood.push(roomOfToken(t));
+                await settle();
+                await wait(300);
+                seen.push(cards() - before[0]);
+            }
+            const stamp = bodiesFoundIn(clock.chapter, seasonEpoch()).slice(before[1]).at(-1) ?? null;
+            read = [seen, stamp?.victimIds ?? null, stood];
+            await clearBodyDiscovery();
+            // Both walkers out and back in, one after the other: the gather moved them on, and one
+            // living student back in the room is a lone finder, which announces nothing either way.
+            const again = cards(), away = tokens.slice(2).map(t => was.find(([w]) => w.id === t.id)?.[1]);
+            must(away.every(Boolean) && !bodyDiscovery(), "a walker has no place to step out to, or the hold was not answered - this would measure nothing");
+            for (const [i, t] of tokens.slice(2).entries()) {
+                await t.update(away[i], PLACE);
+                await settle();
+            }
+            for (const t of tokens.slice(2)) {
+                await t.update(positionIn(room, t), PLACE);
+                await settle();
+                await wait(300);
+            }
+            read.push(cards() - again);
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const a of [body, old]) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+            for (const [t, at] of was) if (scene.tokens.has(t.id) && (t.x !== at.x || t.y !== at.y)) await t.update(at, PLACE);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[0, 1], [body.id], [room, room], 0]),
+            `an earlier chapter's dead counted as a witness or was found again, or the walk did not stand the two in ${room}, or a walk back in `
+            + "announced the body again (the discovery cards after the first walker and after the second, the bodies the walk's stamp names, "
+            + "the room each walker read, the cards after the walk back in)");
+    }],
+
+    ["a body announced in the Investigation holds no Eclipse", async () => {
+        /*
+         * E11 fix r1-G3; early review EARLY-C3-1. A GM who moves the phase first and announces the
+         * body second writes the hold's record with Stage 7 already running (`runDiscovery` has no
+         * phase gate; the record is cleared only by the next phase change). C3's refusal read the
+         * record alone, so every Eclipse of that Investigation was refused with "start the
+         * Investigation first" and the HUD's chevron dimmed with it - while the GM panel and the body
+         * card read the hold as the record AND a phase that is not the Investigation. The record is
+         * written here as a discovery writes it (`setBodyDiscovery`), in the Investigation. Read: the
+         * HUD's dimmed chevron as it is drawn, what `startEclipse` answers, whether an Eclipse runs
+         * and whether the GM was told the hold's words.
+         */
+        const E = await import("./eclipse.mjs");
+        const { renderHud } = await import("./hud.mjs");
+        const { bodyDiscovery, setBodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const first = game.i18n.localize("DRPG.Eclipse.bodyFirst");
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const warn = ui.notifications.warn, told = [];
+        try {
+            must(!isEclipse(), "an Eclipse is already running - this would measure nothing");
+            await setClock({ phase: "investigation" });
+            await setBodyDiscovery({ room: "SUITE E11 r1-G3 a room the Investigation is in" });
+            must(bodyDiscovery() && getClock().phase === "investigation", "the record was not written in the Investigation - this would measure nothing");
+            renderHud();
+            const chevron = document.querySelector("#drpg-hud .fa-chevron-right")?.closest(".drpg-hud-button");
+            must(chevron, "the HUD drew no Eclipse chevron - this would measure nothing");
+            const dimmed = chevron.getAttribute("aria-disabled") === "true" ? chevron.dataset.tooltip ?? "" : null;
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await E.startEclipse();
+            const read = [dimmed, answered !== null, isEclipse(), told.includes(first)];
+            equal(stableJson(read), stableJson([null, true, true, false]),
+                "an Eclipse was refused in the Investigation over a body announced there, or the HUD dimmed its chevron or the GM was told "
+                + "to start the Investigation first ([the dimmed chevron's words, answered, an Eclipse running, told])");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await settle();
+        }
+    }],
+
+    ["a chapter's second Investigation reads its own body on the card and in a discard", async () => {
+        /*
+         * E11 fix r1-G3; early review EARLY-C2-1 and goal K1. Two harms of one reading. In the
+         * Investigation the Event panel's body card read the chapter's last discovery stamp, so in a
+         * second Investigation of the same chapter - the trial ended, a second death, the GM opening
+         * the Investigation with no new discovery (Edit campaign, `setPhase`) - every client's card
+         * named the first trial's body. And a broken thing thrown away (`discardRemnantType`) was
+         * "after the murder" only while the incident ran or the hold stood, both gone once the
+         * Investigation starts, so a discard in the Investigation was filed as preparation. Two
+         * deaths the GMs keep, each found by the GM's own road in a room nobody stands in (the GM's
+         * windows closed at once). Read, each time as [the card's line and pulse, the discard's
+         * type]: in the first hold; in its Investigation; in Daily Life after its trial; in the
+         * second Investigation before the second body is announced; after it is announced there.
+         */
+        const [victim, second] = cast(2);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { renderEvents } = await import("./events.mjs");
+        const { discardRemnantType } = await import("./use-items.mjs");
+        const { BROKEN_ITEMS } = await import("./config.mjs");
+        const { bodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const ROOM = "SUITE E11 r1-G3 the first trial's room", ROOM2 = "SUITE E11 r1-G3 the second trial's room";
+        const drawn = () => {
+            renderEvents();
+            const signature = document.getElementById("drpg-events")?.dataset?.signature;
+            const card = signature ? JSON.parse(signature).find(c => c[0] === "body") : null;
+            return card ? [card[2], card[5]] : null;
+        };
+        const now = async () => [drawn(), await discardRemnantType()];
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            await setClock({ phase: "dailyLife" });
+            must(!bodyDiscovery() && !isEclipse() && !game.drpg?.murderState?.()?.active,
+                "a discovery, an Eclipse or an incident is open - the card and the discard would answer that first, and this would measure nothing");
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene: canvas.scene });
+            await settle();
+            must(bodyDiscovery()?.room === ROOM, "the first discovery left no hold - this would measure nothing");
+            const hold = await now();
+            await setClock({ phase: "investigation" });
+            const investigation = await now();
+            await setClock({ phase: "classTrial" });
+            await setClock({ phase: "dailyLife" });
+            const afterTrial = await now();
+            must(await killCharacter(second, { secret: true, keepBullets: true }), `${second.name}'s death was not kept by the GMs`);
+            await setClock({ phase: "investigation" });
+            const secondOpen = await now();
+            await discoverBody({ room: ROOM2, victim: second, scene: canvas.scene });
+            await settle();
+            const secondFound = await now();
+            const line = (actor, room) => game.i18n.format("DRPG.Events.bodySubRoom", { victim: actor.name, room });
+            const [after, before] = [BROKEN_ITEMS.remnantTypeAfter, BROKEN_ITEMS.remnantTypeBefore];
+            equal(stableJson([hold, investigation, afterTrial, secondOpen, secondFound]),
+                stableJson([[[line(victim, ROOM), true], after], [[line(victim, ROOM), false], after], [null, before], [null, before],
+                    [[line(second, ROOM2), false], after]]),
+                "the card named the first trial's body in the chapter's second Investigation, or a discard in an Investigation was filed as "
+                + "preparation ([the card's line and pulse, the discard's type] in the first hold, its Investigation, Daily Life after its trial, "
+                + "the second Investigation before its body is announced, and after)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const actor of [victim, second]) if (isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+        }
+    }],
+
+    ["the GM's next line tells a hidden body to be announced by hand", async () => {
+        /*
+         * E11 fix r1-G3; early review EARLY-C2-3. The GM panel's next line names a body nobody has
+         * found yet (E11 C2) and told the GM "Two witnesses find it" for every one of them - but a
+         * walk-in finds only a body whose token is on the walk's scene, not hidden and in a room
+         * (chapter.mjs `checkBodyFound`). A death the GMs keep, its token on the scene on screen in a
+         * room, then hidden on every scene. Read off the panel as it is drawn (`openGmPanel`, its
+         * window answered at once and its content kept): the line and its button before the token is
+         * hidden and after.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student's token on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { bodyDiscovery, isEclipse } = await import("./settings.mjs");
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        let panel = null;
+        const line = async () => {
+            panel = null;
+            await openGmPanel();
+            const next = panel?.querySelector?.(".drpg-gmp-next");
+            return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null,
+                next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null;
+        };
+        const tokens = game.scenes.contents.flatMap(scene => scene.tokens.filter(t => t.actor?.id === victim.id));
+        const hiddenBefore = new Map(tokens.map(t => [t, t.hidden]));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content;
+                return null;
+            };
+            await setClock({ phase: "dailyLife" });
+            must(!bodyDiscovery() && !isEclipse() && !game.drpg?.murderState?.()?.active,
+                "a discovery, an Eclipse or an incident is open - the line would answer that first, and this would measure nothing");
+            const here = tokens.find(t => t.parent?.id === canvas.scene?.id && !t.hidden);
+            const room = here ? roomOfToken(here) : null;
+            must(room, `${victim.name} has no token in a room on the scene on screen - this would measure nothing`);
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const seen = await line();
+            for (const t of tokens) if (!t.hidden) await t.update({ hidden: true });
+            await settle();
+            const hidden = await line();
+            equal(stableJson([seen, hidden]),
+                stableJson([[game.i18n.format("DRPG.Panel.nextBodyWaiting", { room }), "bodyDialog"],
+                    [game.i18n.localize("DRPG.Panel.nextBodyWaitingUnseen"), "bodyDialog"]]),
+                "the GM's next line told the GM two witnesses would find a body whose token is hidden, or did not name the room of one "
+                + "they could find ([text, button] with the token in a room on screen; with it hidden on every scene)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const [t, was] of hiddenBefore) if (t.parent?.tokens?.has?.(t.id) && t.hidden !== was) await t.update({ hidden: was });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await settle();
+        }
+    }],
+
+    ["after a body is announced the GM's next line names the Key Remnants to place and then the autopsy", async () => {
+        /*
+         * E11 fix r1-G4; audit S13-14. The after-incident window lists the Key Remnants still to place and
+         * the autopsy; once it was dismissed the GM panel's next line said "start the Investigation" and
+         * then "check what has been found", nothing of either. A death the GMs keep, this chapter's case
+         * one Key Remnant more than stand on the map, the body announced by the GM in a room nobody stands
+         * in. Read off the panel as it is drawn (`openGmPanel`, its window answered at once and its content
+         * kept): the line and its button during the hold, once a Key Remnant of this chapter is placed, in
+         * the Investigation, and once an autopsy of this chapter is issued.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture Key Remnant is placed on the scene on screen");
+        const [victim, living] = cast(2);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { recordCaseKeys } = await import("./investigation.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { bodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const { issueAutopsy, bulletsOf, secretOf, dropSecret } = await import("./truth-bullets.mjs");
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        const { plural } = await import("./utils.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE E11 r1-G4 a room nobody stands in";
+        const chapter = getClock().chapter;
+        const caseRow = `${chapter}:case`;
+        const caseBefore = foundry.utils.deepClone(keyPlanStore.get(caseRow) ?? null);
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        let panel = null;
+        const line = async () => {
+            panel = null;
+            await openGmPanel();
+            const next = panel?.querySelector?.(".drpg-gmp-next");
+            return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null,
+                next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null;
+        };
+        const keysOnMap = () => game.scenes.contents.flatMap(s => remnants.remnantsOn(s))
+            .filter(t => remnants.remnantData(t)?.type === "key" && Number(remnants.remnantData(t)?.chapter ?? chapter) === chapter).length;
+        const autopsies = () => game.actors.contents.flatMap(actor => bulletsOf(actor)
+            .filter(item => secretOf(item.uuid).realType === "autopsy" && Number(secretOf(item.uuid).chapter) === chapter));
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const placed = [];
+        let issued = [];
+        try {
+            D.confirm = async () => false;
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content;
+                return null;
+            };
+            await setClock({ phase: "dailyLife" });
+            must(!bodyDiscovery() && !isEclipse() && !game.drpg?.murderState?.()?.active,
+                "a discovery, an Eclipse or an incident is open - the line would answer that first, and this would measure nothing");
+            must(!autopsies().length, "an autopsy of this chapter is already held - the Investigation's line would measure nothing");
+            must(await recordCaseKeys(chapter, keysOnMap() + 1), "could not write this chapter's case count");
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene });
+            await settle();
+            const held = await line();
+            const key = await remnants.placeRemnant({ type: "key", visibility: "evident", faint: false, tiedToCrime: true,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE r1-G4 the last Key Remnant" });
+            placed.push(key);
+            must(key, "could not place the fixture Key Remnant");
+            await settle();
+            const keysPlaced = await line();
+            await setClock({ phase: "investigation" });
+            await settle();
+            const investigating = await line();
+            await issueAutopsy([living], { name: "SUITE r1-G4 autopsy" });
+            issued = autopsies();
+            await judgedFor(living.id);
+            await settle();
+            const autopsied = await line();
+            equal(stableJson([held, keysPlaced, investigating, autopsied?.[1] === "autopsy"]),
+                stableJson([[plural("DRPG.Panel.nextKeysToPlace", { n: 1 }), "investigation"],
+                    [game.i18n.localize("DRPG.Panel.nextBodyFound"), "startInvestigation"],
+                    [game.i18n.localize("DRPG.Panel.nextAutopsy"), "autopsy"], false]),
+                "the GM's next line did not say what comes after the announcement ([text, button] during the hold with a Key "
+                + "Remnant of the case not on the map; once it is placed; in the Investigation; whether it still asked for the "
+                + "autopsy once one was issued)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const item of issued) {
+                try { await dropSecret(item.uuid); } catch { /* nothing filed */ }
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (caseBefore) await keyPlanStore.patch(caseRow, caseBefore);
+            else if (keyPlanStore.get(caseRow)) await keyPlanStore.dropMany([caseRow]);
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["the body window's two fields share one width rule", async () => {
+        /*
+         * E11 fix r1-G4; audit S13-27. "Which room?" and "Whose body?" were two `<label>Name <select>`
+         * rows of a flex label each (`.drpg-panel label`), so each select started where its own label
+         * ended and the two came out of different widths; the murder window and Edit campaign had been
+         * laid out as one form for the same reason (E32+E07 C14). The window as it is asked for
+         * (`openBodyDiscoveryDialog`, answered at once), set in the frame those rules name (Foundry's
+         * own DialogV2 frame was not read for this, as their comment says): whether the stylesheet's
+         * subgrid row rule reaches both rows and its grid rule their common parent. The widths
+         * themselves need a browser's layout, which this does not measure.
+         */
+        needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        must(!isEclipse(), "an Eclipse is open - the window would refuse, and this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = null;
+        try {
+            D.wait = async config => {
+                if (config?.window?.title === game.i18n.localize("DRPG.Chapter.bodyTitle")) asked = config;
+                return null;
+            };
+            await openBodyDiscoveryDialog();
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(asked, "the body window was never asked for - this would measure nothing");
+        const frame = document.createElement("div");
+        frame.className = ["application", "dialog", ...(asked.classes ?? [])].join(" ");
+        const form = document.createElement("form");
+        form.className = "dialog-form";
+        if (typeof asked.content === "string") form.innerHTML = asked.content;
+        else form.append(asked.content.cloneNode(true));
+        frame.append(form);
+        const rows = [...frame.querySelectorAll("select")].map(select => select.closest("label"));
+        must(rows.length === 2 && rows.every(Boolean), `the window has ${rows.length} select rows, not the two it is about`);
+        const rules = [...(await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), body: m[2] }));
+        const selectors = shape => rules.filter(rule => shape.test(rule.body)).map(rule => rule.selector);
+        const rowRules = selectors(/grid-template-columns:\s*subgrid/);
+        const gridRules = selectors(/grid-template-columns:\s*max-content minmax\(0, 1fr\)/);
+        must(rowRules.length && gridRules.length, "the stylesheet has no form-layout rule left - this would measure nothing");
+        const reaches = (selectorList, el) => selectorList.some(selector => { try { return el.matches(selector); } catch { return false; } });
+        equal(stableJson([rows.map(row => reaches(rowRules, row)), rows[0].parentElement === rows[1].parentElement && reaches(gridRules, rows[0].parentElement)]),
+            stableJson([[true, true], true]),
+            "the body window's two rows are not laid out by the form rule - their selects keep the widths their own labels leave "
+            + "([the row rule reaches Which room?, Whose body?]; one parent the grid rule reaches)");
+    }],
+
+    ["the discovery is announced while the Prep question is still open", async () => {
+        /*
+         * E11 fix r1-G4; early review EARLY-C4-1. E11 C4 asks the Prep question last and does not await
+         * it, so the card, the gather and the next discovery do not wait on the GM's answer - and every
+         * test of it answered the question at once, so awaiting it again would have left them green. A
+         * death the GMs keep, announced by the GM in a room nobody stands in, with a Faint Prep trace of
+         * this chapter, the question left unanswered: whether the announcement came back while it was
+         * open, and the cards on the table by then; then the answer given, and what the question counted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE E11 r1-G4 an unanswered question";
+        const chapter = getClock().chapter;
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const isCard = m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound";
+        const cardsBefore = game.messages.filter(isCard).length;
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const placed = [];
+        let answer = null, asked = false, back = false, pending = null;
+        try {
+            const trace = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE r1-G4 an open question" });
+            placed.push(trace);
+            must(trace, "could not place the fixture trace");
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (!el.querySelector('input[name="promote"]')) return null;
+                asked = true;
+                return new Promise(resolve => { answer = resolve; });
+            };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            pending = discoverBody({ room: ROOM, victim, scene });
+            pending.then(() => { back = true; }, () => { back = true; });
+            must(await until(() => asked, 8000), "the Prep question was never asked - this would measure nothing");
+            const backWhileOpen = await until(() => back, 4000);
+            const cards = game.messages.filter(isCard).length - cardsBefore;
+            answer?.([]);
+            answer = null;
+            const result = await pending;
+            const promoted = await result?.promotion;
+            equal(stableJson([backWhileOpen, cards, promoted]), stableJson([true, 1, 0]),
+                "the announcement waited on the GM's answer to the Prep question, or the card was not on the table while it was "
+                + "open ([the announcement back while the question was open, cards on the table, traces the empty answer ticked])");
+        } finally {
+            answer?.([]);
+            if (pending) await pending.catch(() => null);
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["an Eclipse begun during Edit campaign's trial question keeps the rest of the window", async () => {
+        /*
+         * E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3. Edit campaign read the Eclipse before its two questions,
+         * which wait for the GM, and called the assembly off after them: an Eclipse begun while the trial's
+         * question stood made `setClock` refuse the whole write (no trial opens in an Eclipse, E10 fix r2-G5)
+         * after the assembly had been called off - the order gone and nothing of the window applied. Driven
+         * from Daily Life's afternoon with no verdict in the chapter and an assembly called in a named room of
+         * this scene: Edit campaign answered with the Class Trial, the morning (a correction, so the assembly
+         * goes) and a new name, and the trial's question answered yes once an Eclipse has begun. Read: the
+         * phase, the time of day, the name applied, the Eclipse, the order standing, the called-off cards and
+         * the held ones since the window, the floor open, the "End the Eclipse first" warnings.
+         */
+        const CE = await import("./call-effects.mjs");
+        const V = await import("./vote.mjs");
+        const floor = await import("./trial-floor.mjs");
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!getClock().eclipse && !CE.pendingGather(), "an Eclipse or an assembly was already standing - this would measure nothing");
+        const L = key => game.i18n.localize(key);
+        const jump = L("DRPG.Panel.jump"), trialTitle = L("DRPG.Clock.trialFromEditTitle"), eclipseFirst = L("DRPG.Floor.eclipseFirst");
+        const banner = L("DRPG.Calls.gatherBanner");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: foundry.utils.escapeHTML(room) });
+        const storedRecord = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const name = `${clockBefore.campaignName ?? ""} (G5)`;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownWarn = ui.notifications.warn;
+        const told = [];
+        D.wait = async cfg => {
+            const title = cfg?.window?.title;
+            if (title === trialTitle) {
+                await setClock({ eclipse: true });
+                return "ok";
+            }
+            if (title !== jump) return null;
+            const c = getClock();
+            return { campaignName: name, chapter: Number(c.chapter), day: c.day ?? 1, phase: "classTrial",
+                session: c.session, timeOfDay: "morning", reset: false };
+        };
+        ui.notifications.warn = function (message, ...rest) { told.push(message); return ownWarn.call(this, message, ...rest); };
+        let reading = null;
+        try {
+            if (floor.trialFloor()) await floor.endFloor();
+            await setClock({ phase: "dailyLife", timeOfDay: "afternoon" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+            await settle();
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            const seen = new Set(game.messages.keys());
+            const posted = text => game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(text)).length;
+            await openClockDialog();
+            await settle();
+            reading = [getClock().phase, getClock().timeOfDay, getClock().campaignName === name, getClock().eclipse === true,
+                Boolean(CE.pendingGather()), posted(calledOff), posted(banner), Boolean(floor.trialFloor()),
+                told.filter(m => m === eclipseFirst).length];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = ownWarn;
+            if (CE.pendingGather()) await CE.cancelGather();
+            if (floor.trialFloor()) await floor.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedRecord);
+            await settle();
+        }
+        equal(stableJson(reading), stableJson(["dailyLife", "morning", true, true, false, 1, 0, false, 1]),
+            "an Eclipse begun during Edit campaign's trial question dropped the rest of the window, opened the trial, or lost "
+            + "the assembly some other way (read: the phase, the time of day, the name applied, the Eclipse, the order "
+            + "standing, the called-off cards, the held ones, the floor open, the warnings told)");
+    }],
+
+    ["an assembly whose calling off was not written is not announced as called off", async () => {
+        /*
+         * E11 fix r1-G5, 1.2.73; round 1's EARLY-C6-3 (its related, older finding). `cancelGather` posted "called
+         * off" whatever its write did: `writeGather` answered null for a cleared order whether the write landed or
+         * threw, so the table was told the assembly was off while the order stood, to be held at the next time of
+         * day. An assembly called in a named room of this scene, then called off with the order's write refused.
+         * Read: whether the call off answered the order, the order standing, the called-off cards since.
+         */
+        const CE = await import("./call-effects.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        must(room, "this scene has no named region to call an assembly in - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly was already standing - this would measure nothing");
+        const calledOff = game.i18n.format("DRPG.Calls.gatherCancelled", { room: foundry.utils.escapeHTML(room) });
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        let reading = null;
+        try {
+            must(await CE.scheduleGather(room, "Suite"), "the assembly was not called - this would measure nothing");
+            const seen = new Set(game.messages.keys());
+            const set = game.settings.set;
+            game.settings.set = function (scope, key, value, ...rest) {
+                if (scope === MODULE_ID && key === SETTINGS.pendingGather) throw new Error("E11 fix r1-G5's test: the assembly's write refused");
+                return set.call(this, scope, key, value, ...rest);
+            };
+            let answer = null;
+            try {
+                answer = await CE.cancelGather();
+            } finally {
+                if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            }
+            await settle();
+            reading = [Boolean(answer), Boolean(CE.pendingGather()),
+                game.messages.filter(m => !seen.has(m.id) && String(contentOf(m) ?? "").includes(calledOff)).length];
+        } finally {
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet); else delete game.settings.set;
+            if (CE.pendingGather()) await CE.cancelGather();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([false, true, 0]),
+            "an assembly whose calling off was not written was announced as called off, or did not stand "
+            + "(read: the call off answered the order, the order standing, the called-off cards)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

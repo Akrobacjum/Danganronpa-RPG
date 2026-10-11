@@ -40,8 +40,8 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
-    from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
+    serverNow } from "./utils.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -114,16 +114,21 @@ export function livingStudentsForGm() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
-export async function markDeceased(actor, { record: when = null } = {}) {
+export async function markDeceased(actor, { record: when = null, phase = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
     // A death published after the kill carries the kill's chapter, day and time of day
     // (`publishDeath`), not the moment somebody found the body. And its phase and season
     // (E11 C1, 1.2.73): a death in the Class Trial is an execution, which no walk past the
     // body discovers, and a chapter 1 is only this season's when its epoch says so
-    // (`bodiesToDiscover`).
+    // (`bodiesToDiscover`). `phase` is the caller's when the clock's is not the death's: a
+    // verdict given after End the trial is still the trial's execution (E11 fix r1-G1).
+    // `deathId` names this death and no other, so a discovery's stamp counts for the death it
+    // announced and not for the next one of the same student (`announcedIn`); a random key and
+    // not the time, which would tell every console when a death the GMs kept happened.
     const clock = getClock();
-    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
+    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
+        deathId: foundry.utils.randomID() };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -144,7 +149,7 @@ export async function markDeceased(actor, { record: when = null } = {}) {
     return record;
 }
 
-export async function killCharacter(actor, { keepBullets = false, secret = null } = {}) {
+export async function killCharacter(actor, { keepBullets = false, secret = null, phase = null } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
@@ -181,7 +186,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
     let removed = 0;
     let record;
     if (secretly) {
-        record = await recordSecretDeath(actor, { keepBullets });
+        record = await recordSecretDeath(actor, { keepBullets, phase });
         if (!record) {
             warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
             secretly = false;
@@ -191,7 +196,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         if (!keepBullets) removed = await destroyBullets(actor);
         // The record and the token marker, which the Players window's repair
         // dropdown writes on its own (F16) - one place decides what deceased means.
-        record = await markDeceased(actor);
+        record = await markDeceased(actor, { phase });
     }
     if (!record) return null;
 
@@ -424,9 +429,10 @@ async function destroyBullets(actor) {
  * record, or null when the row did not take - and the caller then publishes the death as
  * before, since a death lost is worse than one told early.
  */
-async function recordSecretDeath(actor, { keepBullets = false } = {}) {
+async function recordSecretDeath(actor, { keepBullets = false, phase = null } = {}) {
     const clock = getClock();
-    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch() };
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: phase ?? clock.phase, epoch: seasonEpoch(),
+        deathId: foundry.utils.randomID() };
     let known = [];
     try {
         const { incidentKnowers } = await import("./murder.mjs");
@@ -498,7 +504,7 @@ export async function publishDeath(actor, { phase = null } = {}) {
        chapter's verdict instead was weighed and refused: a second trial blanks the record (D17). */
     const record = await markDeceased(actor, {
         record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null,
-            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null }
+            phase: phase ?? row.phase ?? null, epoch: row.epoch ?? null, deathId: row.deathId ?? null }
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
@@ -813,8 +819,8 @@ function enqueueBodyWork(work) {
 }
 
 /**
- * The body discovery announcement: call everyone to the scene, hold the game there
- * until the GM answers, then ask which Prep traces belong to the murder.
+ * The body discovery announcement: call everyone to the room and write the hold (until the
+ * Investigation starts), then ask, not awaited, which Prep traces belong to the murder.
  *
  * @param {object} options
  * @param {string} options.room     Where the body is.
@@ -823,7 +829,36 @@ function enqueueBodyWork(work) {
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    if (!discoveryHere()) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
+}
+
+/* THE DISCOVERY IS THE PRIMARY GM'S (E11 fix r1-G2, 1.2.73; round 1's sec F1 and goal K6). The
+   walk-in watcher has always run on the primary only (murder-rules.mjs, `updateToken`); the GM's
+   own announcement ran on whichever GM pressed it. On any other GM `flagsHeldNow` reads the
+   document, so a player's own `deceased` write the audit had not put back yet was stamped as a
+   found body and named on the Investigation card (measured by the review at 0d860df, with a
+   second GM put first in the users); and two GMs announcing one body at once each posted a card
+   and each wrote the stamp from its own copy (`bodyWorkQueue` orders one browser only; 17-assistant
+   F1). One browser decides, as the season's reset does (season-setup.mjs), and another GM is told
+   whose the announcement is. Refused rather than sent on to the primary: a forwarded press would
+   be a new GM-to-GM request with its own checks and census row, for a window the primary GM can
+   open just as well. Tier 2 "a GM who is not the primary announces no body and is told whose it is". */
+function discoveryHere() {
+    if (isPrimaryGm()) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyPrimaryOnly", { name }));
+    return false;
+}
+
+/* A BODY THIS CHAPTER HAS ANNOUNCED ALREADY (E11 fix r1-G2, 1.2.73; round 1's goal K5). The GM's
+   list offered every dead student, one announced this chapter unmarked among them, and announcing
+   it again posted a second card and wrote a second stamp row. `held` as `bodiesToDiscover` reads
+   it (the caller's `flagsHeldNow`), and the death's record is the flag or the GMs' row
+   (`deathRecordFor`); a death revived and given again is a new death, not yet announced
+   (`announcedIn`, E11 fix r1-G1). */
+function announcedAlready(actor, held, { clock = getClock(), epoch = seasonEpoch() } = {}) {
+    return announcedIn(clock.chapter, epoch)(actor.id, deathRecordFor(held(actor)));
 }
 
 async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
@@ -855,11 +890,22 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
         return null;
     }
 
+    /* A NAMED BODY THIS CHAPTER ALREADY ANNOUNCED IS NOT ANNOUNCED AGAIN (E11 fix r1-G2; goal K5).
+       Asked inside the queue, so a second press of the same body waits for the first one's stamp
+       and is then refused. The watcher names only a body still to discover, so this refuses only
+       the GM's road. Tier 2 "a body already announced is marked in the GM's list and not
+       announced twice in the chapter". */
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    if (victim && announcedAlready(victim, flagsHeldNow, { clock, epoch })) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.bodyAnnouncedAlready", { name: victim.name }));
+        return null;
+    }
+
     /* THE TABLE LEARNS OF THE DEATH HERE (E05 C10; audit S06-11): the named victim and every
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    const { found, victims } = await publishFoundBodies(room, victim, where, { clock, epoch });
+    const { found, victims, deaths } = await publishFoundBodies(room, victim, where, { clock, epoch });
 
     /* AND THE DISCOVERY IS STAMPED, ONCE, UNDER ITS CHAPTER AND SEASON (E11 C1, 1.2.73; audit
        S06-03, decision D8). The hold below is cleared at the next phase change, and it was the
@@ -867,9 +913,10 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        found before the trial again (65-season B4: a second card at 4aad1fd). The stamp outlives the
        hold; the watcher passes over a body it names (`bodiesToDiscover`). Written as soon as the
        deaths are the table's, before the gather and the card, so a failure in either leaves the
-       bodies known as found. */
-    await announceBody({ chapter: clock.chapter, epoch, at: Date.now(), room, sceneId: where?.id ?? null,
-        victimIds: victims, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
+       bodies known as found. Its `at` is the server's clock, as the trial's end it is compared
+       with is (`bodyFoundSinceTrial`; E11 fix r1-G3). */
+    await announceBody({ chapter: clock.chapter, epoch, at: serverNow(), room, sceneId: where?.id ?? null,
+        victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
        round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
@@ -964,7 +1011,8 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
         /* AS THE GMS HOLD THEM, IN ONE STEP (E11 C1; plan 1b.2, H3). Every death below is read
            off the primary's mark (`flagsHeldNow`), with nothing awaited between two reads, and
            before any of them is published: a player's own `deceased` write the audit has not put
-           back yet makes nobody a body. */
+           back yet makes nobody a body. That holds because a discovery runs on the primary GM
+           only (`discoveryHere`, E11 fix r1-G2): on another GM this reader reads the document. */
         const students = new Set(studentActors().map(a => a.id));
         const here = [...(scene?.tokens ?? [])].filter(t => t.actor?.id && roomOfToken(t) === room);
         const fresh = new Set(bodiesToDiscover({ actors: here.map(t => t.actor).filter(a => students.has(a.id)), clock, epoch,
@@ -982,12 +1030,24 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
-    return { found: [...found], victims: [...victims] };
+    /* ONLY WHAT WAS PUBLISHED IS STAMPED (E11 fix r1-G2; early review EARLY-C1-3). A publication
+       that failed leaves the GMs' row, and the death is still theirs alone; the stamp is
+       world-readable and the Investigation card draws it, so a body it named here was a death the
+       table did not know of, and read as announced for the rest of the chapter. Tier 2 "a body
+       whose publication failed is neither stamped as found nor drawn on the card". */
+    for (const id of [...victims]) if (deathStore.has(id)) victims.delete(id);
+    /* AND WHICH DEATH EACH OF THEM WAS (E11 fix r1-G1): the stamp names the death it announced
+       (`deathId`), read off the primary's mark in one step once they are published. */
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const deaths = Object.fromEntries([...victims].map(id => game.actors.get(id)).filter(Boolean)
+        .map(body => [body.id, deathRecordFor(flagsHeldNow(body))?.deathId ?? null]));
+    return { found: [...found], victims: [...victims], deaths };
 }
 
 /**
  * THE ONE WRITER OF THE DISCOVERY'S STAMP (E11 C1, 1.2.73; decision D8): `row` is
- * `{ chapter, epoch, at, room, sceneId, victimIds, by, day, timeOfDay }`, filed under its own
+ * `{ chapter, epoch, at, room, sceneId, victimIds, deaths, by, day, timeOfDay }` (`deaths`: each
+ * body's `deathId`, E11 fix r1-G1), filed under its own
  * chapter and season (settings.mjs `recordBodyFound`; tier 0 R349 holds that nothing else calls
  * it). Who walked in is not in it - the GMs' log has it (`checkBodyFound`). E19's channel, E13's
  * trial room and E70 read the stamp through `bodiesFoundIn`, `bodyAnnounced` and
@@ -1006,10 +1066,19 @@ export async function announceBody(row) {
     }
 }
 
-/** The ids of the bodies this chapter's discoveries announced, in the season `epoch` (a test on an id; the GM panel's next line reads it too). */
+/*
+ * THE DEATHS THIS CHAPTER'S DISCOVERIES ANNOUNCED, in the season `epoch`: a test on an id and its
+ * death's record (the GM panel's next line reads it too). A stamp counts only for the death it
+ * stamped (E11 fix r1-G1; early review EARLY-C1-1): C1 read the ids alone, so a student revived
+ * after their body was found and killed again in the same chapter was never found the second time
+ * - nothing takes a stamp back when a death is undone (`reviveCharacter`). A record with no
+ * `deathId` (from before 1.2.73) is matched by its id, as C1 did. Tier 2 "a student revived and
+ * killed again in the chapter is found again - once".
+ */
 export function announcedIn(chapter, epoch) {
-    const ids = new Set(bodiesFoundIn(chapter, epoch).flatMap(row => row?.victimIds ?? []));
-    return id => ids.has(id);
+    const rows = bodiesFoundIn(chapter, epoch);
+    return (id, record = null) => rows.some(row => row?.victimIds?.includes?.(id)
+        && (!record?.deathId || row.deaths?.[id] === record.deathId));
 }
 
 /*
@@ -1018,7 +1087,7 @@ export function announcedIn(chapter, epoch) {
  * this chapter (a record with no chapter is taken as this chapter's, as before) of this season (a
  * record with no `epoch` is taken as this season's), not in the Class Trial - an execution is the
  * trial's own ending, public at once, and no body to find - and not announced by a discovery of
- * this chapter (`announced`, a test on an id). A record from before 1.2.73 says no phase, so it
+ * this chapter (`announced`, a test on an id and the death's record: `announcedIn`). A record from before 1.2.73 says no phase, so it
  * cannot tell an execution from a murder: it counts only while the GMs still hold it, which an
  * execution never is. Measured at 4aad1fd: after End the trial a walk-in discovered Daichi,
  * found before the trial, again (65-season B4), and a verdict executing a death the GMs held
@@ -1032,11 +1101,12 @@ export function announcedIn(chapter, epoch) {
 export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seasonEpoch(), announced = () => false,
     held = actor => actor, pending = id => pendingDeath({ id }) } = {}) {
     return [...new Set([...actors].filter(actor => {
-        if (!actor?.id || announced(actor.id)) return false;
+        if (!actor?.id) return false;
         const view = held(actor);
         if (!view || !deadIn(view, pending) || view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
         const row = pending(actor.id);
         const record = view.getFlag(MODULE_ID, FLAGS.deceased) || row;
+        if (announced(actor.id, record)) return false;
         if ((record?.chapter ?? clock.chapter) !== clock.chapter) return false;
         if ((record?.epoch ?? epoch) !== epoch) return false;
         if (!record?.phase) return Boolean(row);
@@ -1217,6 +1287,8 @@ export async function openBodyDiscoveryDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Another GM is told whose the announcement is before a form it could not send (E11 fix r1-G2).
+    if (!discoveryHere()) return null;
 
     /*
      * REFUSED BEFORE THE FORM, NOT AFTER IT (F12).
@@ -1247,10 +1319,15 @@ export async function openBodyDiscoveryDialog() {
     }
 
     // The dead are the candidates here - the victim is normally already marked
-    // by the time anybody trips over them.
+    // by the time anybody trips over them. One this chapter has announced says so (E11 fix
+    // r1-G2): `runDiscovery` refuses it a second time.
     const dead = studentActors().filter(isDeadForGm);
-    const victims = dead
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const victims = dead.map(a => {
+        const name = foundry.utils.escapeHTML(a.name);
+        const label = announcedAlready(a, flagsHeldNow) ? game.i18n.format("DRPG.Chapter.victimAnnounced", { name }) : name;
+        return `<option value="${a.id}">${label}</option>`;
+    }).join("");
     /* THE NOTE SAYS WHAT THIS PRESS DOES NOW (E11 C4, 1.2.73; audit S13-27). One note said "the
        phase stays Daily Life ... until you start the Investigation" in every phase - from the
        Investigation's own footer too - and promised the doubtful Prep traces, which a world with
@@ -1261,7 +1338,8 @@ export async function openBodyDiscoveryDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.bodyTitle") },
-        classes: ["drpg-panel"],
+        // Its own class, for the stylesheet's form layout: "Which room?" and "Whose body?" one column (E11 fix r1-G4).
+        classes: ["drpg-panel", "drpg-window-body"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
                 <select name="room">${rooms
@@ -1595,6 +1673,8 @@ export async function openChapterEndDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // Before anything is asked or counted: the end is the primary GM's (`applyChapterEnd`, ONE BROWSER).
+    if (!chapterEndHere()) return null;
 
     /* AN INCIDENT STILL OPEN ASKS FIRST (E10 C12, 1.2.71; audit S06-18): the register takes its
        killers when it is closed. Since E09 fix r2-G4 the row goes under the chapter the incident
@@ -1712,14 +1792,15 @@ function endMark(clock) {
 /**
  * THE CHAPTER'S END, ONE ORDERED LIST (E11 C5, 1.2.73; audit S06-13, S06-40; the plan's p10change).
  *
- * Each step is `{ key, run }`; `run({ choices, ending })` answers the line the GMs' card reports, null
+ * Each step is `{ key, run }`; `run({ choices, ending, failed })` answers the line the GMs' card reports, null
  * when it had nothing to do, or false when it failed without throwing (`closeTrial` answers false
- * when its clock write threw, E10 C12). `applyChapterEnd` runs them in this order, one try/catch each:
- * a step that fails is logged and named, and the steps after it still run. Until 1.2.73 the same
+ * when its clock write threw, E10 C12); `failed` holds the keys of the steps before it that failed.
+ * `applyChapterEnd` runs them in this order, one try/catch each: a step that fails is logged and named,
+ * and the steps after it still run - the morning aside, which does not open over a trial that did not close. Until 1.2.73 the same
  * work was one function of nine steps, three of them in a try/catch and six not, so a clock move
  * that threw stopped the end there with the rest undone and the GM told nothing, and a trial that would not
  * close left no line on the GMs' card and no word to the GM (tier 2 "a chapter end step that fails
- * is named, ..." measured both with the code before this, 10.10.2026).
+ * is named ..." measured both with the code before this, 10.10.2026).
  *
  * THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
  * Reveal first - it publishes the bullets the sweep is about to take, shows a Final its kind, and
@@ -1809,7 +1890,7 @@ export const CHAPTER_END_STEPS = [
 
        `closeTrial` answers false when its clock write threw (E10 C12): the floor is shut and nothing
        announced. That is this step failing, and the GMs are told so (tier 2 "a chapter end step that
-       fails is named, and the steps after it still run"). */
+       fails is named and no morning opens over a trial that did not close"). */
     { key: "trial", run: async ({ choices, ending }) => {
         if (!choices.endTrial || ending.phase !== "classTrial") return null;
         const { closeTrial } = await import("./trial-floor-ui.mjs");
@@ -1830,9 +1911,17 @@ export const CHAPTER_END_STEPS = [
 
        LAST, AFTER THE TRIAL IS CLOSED. `closeTrial` puts the phase back to Daily Life and starts the
        elapsed clock; announcing a new morning before that would post the card into a Class Trial that
-       has not finished. */
-    { key: "morning", run: async ({ choices }) => {
+       has not finished.
+
+       AND NOT AT ALL WHEN THE TRIAL DID NOT CLOSE (E11 fix r1-G5, 1.2.73; round 1's EARLY-C5-1). C5 ran
+       this step after a `trial` step that had failed, so the morning was announced into the Class Trial
+       still sitting, against the paragraph above: tier 2 "a chapter end step that fails is named and no
+       morning opens over a trial that did not close" read the day moved on in a trial with the code
+       before this (11.10.2026). It is left undone and named with the failed steps, for the GM to open by
+       hand once the trial is closed. */
+    { key: "morning", run: async ({ choices, failed }) => {
         if (!choices.nextMorning) return null;
+        if (failed.includes("trial")) return false;
         const { setTimeOfDay } = await import("./clock.mjs");
         // One write for the day and the hour: each write is a full redraw on every client (CORE-12).
         await setTimeOfDay("morning", {
@@ -1866,9 +1955,10 @@ export const CHAPTER_END_STEPS = [
  * is scoped to "the chapter that is ending" and "is the trial sitting", and both
  * are facts about the moment the work runs, not about the moment the GM was asked.
  *
- * ONCE (E11 C5, 1.2.73; audit S06-40). Two guards, for two ways of pressing twice:
+ * ONCE (E11 C5, 1.2.73; audit S06-40). Three guards, for three ways of pressing twice:
  * - `opened`, the clock the window was shown on (`endMark`): an end whose chapter,
- *   session or day has moved since is refused whole and the GMs are told
+ *   session or day has moved since - by another end, by Edit campaign, or by the
+ *   time of day turning into a new day - is refused whole and the GMs are told
  *   (`endTwice`). Until 1.2.73 the window sent the chapter read when Do it was
  *   pressed and only a moved chapter was refused (CORE-17), which saw nothing when
  *   "next chapter" was unticked: 65-season C1 read two sessions on with the code
@@ -1876,10 +1966,18 @@ export const CHAPTER_END_STEPS = [
  * - one end at a time on this browser: a second call waits for the first to finish
  *   before it compares, so two in flight at once cannot both read the clock before
  *   either moves it (tier 2 "the chapter's end leaves the Investigation and counts
- *   once" starts two together). Two GMs' browsers have no such queue: a second
- *   GM's Do it pressed while the first's steps are still running reads the clock
- *   before the first's move lands. Read in the code, not measured - the harness
- *   has one GM.
+ *   once" starts two together).
+ * - ONE BROWSER: the primary GM's (E11 fix r1-G5; round 1's COR-2). Two GMs' browsers
+ *   share no queue, and the guard above compares once, before the steps: another GM's
+ *   end that passed it while the primary's was running read the chapter, the session
+ *   and the day again in its own steps, after the primary's move had landed, and
+ *   counted them again - 65-season H1 read session 1 to 3 with the code before this
+ *   (11.10.2026), the second GM's end held in its first step until the primary's move
+ *   arrived (the day moved once there: both mornings read day 1 before either landed;
+ *   a day counted twice would need only other timing - read in the code, not measured). So the end runs on the primary only, as the season reset
+ *   does (season-setup.mjs `resetSeason`), and another GM is told whose it is, both
+ *   here and at the window (`openChapterEndDialog`, which the panel and the trial
+ *   console's End the chapter open).
  *
  * @param {object} choices Which parts to do. Anything absent is not done, so a
  *   caller can ask for one step without knowing about the others. `opened` is
@@ -1887,13 +1985,21 @@ export const CHAPTER_END_STEPS = [
  *   compared.
  */
 export async function applyChapterEnd(choices = {}) {
-    if (!game.user.isGM) return null;
+    if (!game.user.isGM || !chapterEndHere()) return null;
     const run = chapterEnds.then(() => endChapterNow(choices));
     chapterEnds = run.catch(() => null);
     return run;
 }
 
 let chapterEnds = Promise.resolve();
+
+/** Whether this browser ends the chapter: the primary GM's does; another GM is told whose (`applyChapterEnd`, ONE BROWSER). */
+function chapterEndHere() {
+    if (isPrimaryGm()) return true;
+    const name = game.users.get(primaryGmId())?.name ?? "?";
+    ui.notifications.warn(game.i18n.format("DRPG.Chapter.endPrimaryOnly", { name }));
+    return false;
+}
 
 async function endChapterNow(choices) {
     const now = getClock();
@@ -1907,7 +2013,7 @@ async function endChapterNow(choices) {
     const done = [], failed = [];
     for (const step of CHAPTER_END_STEPS) {
         try {
-            const line = await step.run({ choices, ending });
+            const line = await step.run({ choices, ending, failed });
             if (line === false) failed.push(step.key);
             else if (line) done.push(line);
         } catch (err) {

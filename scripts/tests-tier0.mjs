@@ -3348,7 +3348,8 @@ const REGRESSIONS = [
 
         const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
-        ok(/await markDeceased\(actor\)/.test(kill),
+        // The caller's phase rides along since E11 fix r1-G1 (a verdict after End the trial is the trial's).
+        ok(/await markDeceased\(actor(?:, \{ phase \})?\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
@@ -7324,6 +7325,7 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
+            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter, over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
@@ -7500,6 +7502,12 @@ const REGRESSIONS = [
          * moved with them: `wipeSeason` read nothing of the sheet any more and its row went stale (on the
          * harness on 10.10.2026: 50 places against 51 rows). With the move, on the harness the same day:
          * 51 places against 51 rows - 15 PACKET, 5 SOCKET, 5 CHAT, 20 SHEET, 6 STORE.
+         * E11 fix r1-G2 (1.2.73) added events.mjs `bodyCard`, which reads the deaths of the bodies it draws
+         * since (R346 judges it for the season). Measured on the harness on 10.10.2026 on that line (from
+         * 0d860df): 52 places against 52 rows - 15 PACKET, 5 SOCKET, 5 CHAT, 21 SHEET, 6 STORE.
+         * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's `wipeStudent` and
+         * fix r1-G2's `bodyCard` - 52 rows counted in the source on 11.10.2026 (15 PACKET, 5 SOCKET,
+         * 5 CHAT, 21 SHEET, 6 STORE), and this test passed against them on the merged tree.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7525,13 +7533,14 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
+            ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5, fix r2-G3): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)) in all three, the Blackened's since fix r2-G3; `isDeadForGm` names only `unfound`, the kept Blackened whose death the GMs hold, for the rule's window on the GM [1b.2]"],
-            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3) [1b.2]"],
+            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
@@ -7545,7 +7554,7 @@ const REGRESSIONS = [
             ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` and `epoch: seasonEpoch()`; it reads nothing new [1b.1 death record]"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. Since E11 C1 the record it writes (through `markDeceased`, and the `deaths` row through `recordSecretDeath`) carries the death's `phase` (the caller's when it passes one: the verdict's `classTrial`, E11 fix r1-G1), `epoch: seasonEpoch()` and a random `deathId`; it reads nothing new [1b.1 death record]"],
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset's `wipeSeason` on the primary (E33 C1a's GM-side rows) and from tier 2's sandbox; it writes a student's values back (`deaths`: Health and Sanity, `despair`: Hope) and reads the death and the items off the document only to wipe them (E11 C10). The clock step (C10: `season` + 1, `finalTrial: false`) stays `wipeSeason`'s"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10: a Final Trial's verdict, `{ stage: \"done\", final: true, by, at }`, naming nobody [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
@@ -7706,6 +7715,14 @@ const REGRESSIONS = [
          * `seasonExperiences`) is a pure function over what the restore hands it; it rewrote the rows of
          * `restoreStartingSheet` (OPEN at the base, held now), `applyAdvancement`, `wipeStudent` and the
          * two `advancement.apply` packets.
+         * E11 fix r1-G2 (1.2.73) added two places: events.mjs `bodyCard` (named above), which reads
+         * the deaths of the bodies it draws since, and chapter.mjs `announcedAlready`, the death
+         * record the GM's announcement and its window compare with this chapter's stamps; on the
+         * harness on 10.10.2026 this test read 72 places (28 PACKET, 4 SOCKET, 1 CHAT, 31 SHEET,
+         * 8 STORE) against the 72 rows.
+         * The merge of E11's side fix line into its main line (1.2.73) holds both: C10's and C10b's two
+         * places and fix r1-G2's two - 74 rows counted in the source on 11.10.2026 (28 PACKET, 4 SOCKET,
+         * 1 CHAT, 33 SHEET, 8 STORE), and this test passed against them on the merged tree.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7741,21 +7758,23 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). Since E11 C10 the reset's `seals` group unsets the flag on every student (season-setup.mjs `wipeStudent`) and reads nothing [1b.1 pendingCall, 1b.2]"],
             ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
-            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:131) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is the plan's `senderOf(senderId)?.isGM`, and a player's packet pans nobody (65 B1b)"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
             ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
             ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
             ["SHEET chapter.mjs#livingStudentsForGm", "out of scope: rule B, the GM's judgement (`isDeadForGm`: the flag or the `deaths` store); no E11 commit changes it"],
-            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new. [1b.1 death record] (E11 C1)"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220), its head check `isDeadForGm`. C1 adds `phase` and `epoch: seasonEpoch()` to the record it writes (through `markDeceased` and the `deaths` row) and reads nothing new; fix r1-G1 a `phase` the caller passes (the verdict's) and a random `deathId`, which a discovery's stamp names. [1b.1 death record] (E11 C1)"],
             ["SHEET chapter.mjs#incidentVictimDied", "out of scope: a GM-gated check of the incident's victim (`isDeceased`); no E11 commit changes it"],
             ["SHEET chapter.mjs#bulletsHeldBy", "out of scope: Truth Bullets on a sheet at a death's publication (E05/E29 items audit); no E11 commit changes it"],
             ["SHEET chapter.mjs#destroyBullets", "out of scope: Truth Bullets destroyed at a death's publication (E05); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\")"],
+            ["SHEET chapter.mjs#publishDeath", "out of scope as a reader (GM gate; `isDeceased` of the document after the write). Since E11 C1 its record keeps the row's chapter, day, time of day, phase and season, and a verdict that executes a death the GMs hold (vote.mjs `executeSentenced`, E10 fix r1-G4) passes `phase: \"classTrial\"`, so the executed is no body to discover (tier 2 \"a body the verdict executed is not found again after the trial - a death the GMs held included\"); since E11 fix r1-G1 it keeps the row's `deathId` too"],
             ["SHEET chapter.mjs#reviveCharacter", "out of scope: a GM's undo of a death (GM gate); no E11 commit changes it"],
             ["SHEET chapter.mjs#openDeathDialog", "out of scope: a GM's window listing the living for the GM (`livingStudentsForGm`); no E11 commit changes it"],
-            ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3) [1b.2]"],
+            ["SHEET chapter.mjs#publishFoundBodies", "judged (E11 C1): the room's deaths read off the primary's mark (`flagsHeldNow`) in one synchronous pass before any is published, and the bodies the stamp names chosen by `bodiesToDiscover` in the same pass (H3); after they are published, each one's `deathId` for the stamp, off the same mark in one step (E11 fix r1-G1). On the primary because a discovery runs there only (`discoverBody` refuses on any other GM, E11 fix r1-G2), and the stamp names only the bodies whose publication took [1b.2]"],
+            ["SHEET chapter.mjs#announcedAlready", "judged (E11 fix r1-G2): the death's record (`deathRecordFor`) of the flags it is handed - `runDiscovery` and `openBodyDiscoveryDialog` hand it `flagsHeldNow`, on the primary, the one browser a discovery runs on (`discoveryHere`) - against this chapter's stamps (`announcedIn`) [1b.2]"],
+            ["SHEET events.mjs#bodyCard", "judged (E11 fix r1-G2): the card draws only the bodies of the stamp or the hold that are dead as the GMs hold them (`isDeceased` of `flagsHeldNow`: the primary's mark there, the document on every other browser, which is what the table knows) [1b.2]"],
             ["SHEET chapter.mjs#witnessesOf", "judged (E11 C1): a pure filter over the flags it is handed - `checkBodyFound` hands it `flagsHeldNow` and reads every token in one synchronous step after its imports (H3, H17); the dead who are not Monocubs are not witnesses (R348) [1b.2]"],
-            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
+            ["SHEET chapter.mjs#bodiesToDiscover", "judged (E11 C1): a pure rule over the flags and rows it is handed (`deadIn`, the record's chapter, `epoch` and `phase`, this chapter's stamps, each counted for the death it names - `deathId`, E11 fix r1-G1) - `checkBodyFound` and `publishFoundBodies` hand it `flagsHeldNow` in one synchronous step (R347), and since E11 C2 the GM panel's next line (gm-panel.mjs `bodyWaiting`, a GM's browser) does the same [1b.2]"],
             ["SHEET chapter.mjs#sweepPlan", "out of scope: E09 C1's chapter-end sweep of items; C5 only orders it as a step of `CHAPTER_END_STEPS`; no E11 commit changes it"],
             ["SHEET character.mjs#stampStartingSheet", "held (E10 C8): reads inside a `meansWrite` job from `numberHeld`; the snapshot C11's restore compares against"],
             ["SHEET character.mjs#restoreStartingSheet", "held (E11 C11; E10 C8's owed (3)): `sheetAtStart`, `levelUpExperiences` and the advances through `flagsHeldNow` and the experiences through `numberHeld`, in one `meansWrite` job before its one write - `flagsAsHeld`'s wait is the job's start; deletes a Level Up's experiences (`seasonExperiences`; Q1 (a) for a starting sheet stamped before 1.2.73). R355 [1b.2]"],
@@ -9086,6 +9105,30 @@ const REGRESSIONS = [
             equal(JSON.stringify(measured), JSON.stringify(expected),
                 `the ${lang} handbooks' Class Trial says what the code does not do (each claim: [the code, ...its sentences])`);
         }
+    }],
+
+    ["R375 - the hold's words say the Investigation has not started, and not that anything stopped", async () => {
+        /*
+         * E11 fix r1-G3; goal S03-28 (a test gap); the owner's Q4 as corrected (09.10.2026): the
+         * actions are not held after a body's discovery, only during the Class Trial, so the players'
+         * line under the hold (`DRPG.Events.bodyHoldMeta`, events.mjs's body card) says only that the
+         * Investigation has not started. Until E11 C3 it read "Everything has stopped. Nobody is
+         * searching yet." beside action tiles that still worked, and nothing read the words after
+         * C3 changed them: an edit could bring them back. Read off both language files as they ship:
+         * each says the Investigation has not started, and neither says that everything, the actions
+         * or the searching stopped.
+         */
+        const meta = {};
+        for (const code of ["en", "pl"]) {
+            meta[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Events?.bodyHoldMeta ?? null);
+        }
+        const says = { en: /Investigation has not started/, pl: /Investigation jeszcze nie trwa/ };
+        const stopped = { en: /stop|halt|frozen|everything|nobody|action/i, pl: /stanę|zatrzym|wstrzym|wszystk|nikt|akcj/i };
+        const read = Object.fromEntries(["en", "pl"].map(code =>
+            [code, [typeof meta[code] === "string", says[code].test(meta[code] ?? ""), stopped[code].test(meta[code] ?? "")]]));
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, false], pl: [true, true, false] }),
+            "the hold's words are missing, do not say the Investigation has not started, or say that the game, the actions or the "
+            + "searching stopped (per language: [the line, says not started, says stopped])");
     }]
 ];
 
