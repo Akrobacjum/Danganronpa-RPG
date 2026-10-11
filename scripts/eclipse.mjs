@@ -837,7 +837,7 @@ export function placementStatus() {
  * matter in practice:
  *
  *   Monokumas  walk the map freely and are bound by none of the Eclipse's
- *              rules (see `canCross` in movement.mjs), so telling their GM
+ *              rules (see `crossingVerdict` in movement.mjs), so telling their GM
  *              "you have 2 crossings" states a limit that does not apply.
  *   the dead   cannot move at all. They were being counted in the GM's
  *              "who has finished placing" table, which meant the table could

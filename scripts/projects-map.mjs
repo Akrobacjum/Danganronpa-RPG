@@ -35,7 +35,7 @@ import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProje
     from "./projects.mjs";
 import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
 import { boundsOf } from "./movement.mjs";
-import { sceneOfRoom } from "./rooms.mjs";
+import { sceneOfRoom, isMoveChange } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
@@ -456,7 +456,8 @@ export async function refreshProjectToken(countdownId) {
  */
 async function onProjectTokenMoved(tokenDoc, changes) {
     if (!isPrimaryGm()) return;
-    if (changes?.x === undefined && changes?.y === undefined) return;
+    // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+    if (!isMoveChange(changes)) return;
     const id = projectOwning(tokenDoc);
     if (!id) return;
 

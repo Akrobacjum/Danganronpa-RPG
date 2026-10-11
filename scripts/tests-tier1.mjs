@@ -6404,6 +6404,45 @@ const INVARIANTS = [
         JSON.stringify([["Bath", "Kitchen"], ["k1", "k2"], true, null, 0, ["k3"], true, true, false, false, 3]),
         "a room as a name on a scene: [its names, the Kitchen's pieces, the Kitchen's lock as OR over them, the Bath's, the Lift's pieces, "
             + "the regions no GM decided, the scene holds a room, is a place, a scene of no marked room holds one, is a place, the Kitchen's named regions]");
+    }],
+
+    ["R384 - a room is read on the token's floor, and the hit test's fallback names no room on another floor or outside a shape it can ask", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45 and S07-22. Until 1.2.74 a footprint was a room
+         * on every floor: `roomOfToken` took Foundry's `token.regions` first (whether v14's keeps to the
+         * token's floor was not read) and `roomAt` asked every room piece of the scene, so a token on the ground floor under
+         * the Attic stood in the Attic. And when `testPoint` rejected a point everywhere, the fallback
+         * took the box of any piece on the scene - the room above, or the corner an L-shaped room does not
+         * cover. Read on a scene of plain objects, so the answer is the reader's and not a world's: an
+         * Attic on the upper floor whose `testPoint` says yes to its footprint whatever the floor (as the
+         * harness's regions and a v14 region asked without a level do), a Lab beside it on the ground
+         * floor, an Ell on the ground floor whose polygon tree says no where its box says yes, and a
+         * Stairwell on every floor; the other three's `testPoint` says no, so the ground floor's reading
+         * of the Attic's footprint goes through the fallback. Then the fields that make a move
+         * (rooms.mjs `isMoveChange`). Red before C9 on its first check: the Attic's footprint read the
+         * Attic on the ground floor, through the token's own list and through `roomAt`, and the Ell
+         * read the Ell.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const piece = (name, x, levels, answer, extra = {}) => ({ id: name, name, behaviors: [], levels: new Set(levels),
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => answer && point.x >= x && point.x <= x + 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined), ...extra });
+        const attic = piece("Attic", 0, [L2], true);
+        const scene = { grid: { size: 100 }, regions: new Set([attic, piece("Lab", 500, [L1], false),
+            piece("Ell", 1000, [L1], false, { polygonTree: { testPoint: () => false } }), piece("Stairwell", 1500, [], false)]) };
+        const token = (x, level) => ({ x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, regions: new Set([attic]) });
+        const room = (x, level) => M.roomAt(x, 100, token(x, level), level);
+        const read = [M.roomOfToken(token(100, L1)), M.roomOfToken(token(100, L2)), room(100, L1), room(100, L2), room(600, L1), room(600, L2),
+            room(1100, L1), room(1600, L1), room(1600, L2)];
+        equal(JSON.stringify(read), JSON.stringify([null, "Attic", null, "Attic", "Lab", null, null, "Stairwell", "Stairwell"]),
+            "the room of [a token on the ground floor under the Attic, one on the upper floor; and by `roomAt`: the Attic's footprint on "
+                + "the ground floor and the upper, the Lab's on each, the box of the Ell outside its shape, the Stairwell on each floor]");
+        const moves = typeof R.isMoveChange === "function"
+            ? [{ level: L2 }, { x: 1 }, { elevation: 5 }, { hidden: true }, {}].map(changes => R.isMoveChange(changes)) : "no isMoveChange";
+        equal(JSON.stringify(moves), JSON.stringify([true, true, true, false, false]),
+            "whether a change of [the level alone, x, the elevation, `hidden`, nothing] is a move");
     }]
 ];
 

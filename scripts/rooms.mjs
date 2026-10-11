@@ -201,6 +201,48 @@ export function placeRoomNames() {
 }
 
 /*
+ * FLOORS (E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45, S07-22). Foundry v14 puts a token on a
+ * level (`tokenDoc.level`) and a region on some (`region.levels`, none meaning every one), and
+ * asks `region.includedInLevel(level)`. Until 1.2.74 nothing here knew: a room was told apart by
+ * its footprint, so a token on the ground floor under the attic stood in the attic, and every
+ * listener that waits for a move asked whether x or y had changed - a token that only changed
+ * floor had not moved at all, into a locked room or anywhere else. These names are the plan's
+ * reading of v14 and the harness's model of it (audit/harness/lib/shim.mjs `LevelList`); what
+ * v14 holds there is LIVE-E12-02/03, not read off a table.
+ */
+
+/**
+ * The fields of a token whose change is a move: Foundry's own list (`BaseToken.MOVEMENT_FIELDS`)
+ * and, whatever that list says, x, y, elevation and level - whether v14's list names `level`
+ * was not read (LIVE-E12-03), and a floor change missed here is a move nothing judges.
+ */
+export const MOVE_FIELDS = Object.freeze([...new Set([
+    ...(globalThis.foundry?.documents?.BaseToken?.MOVEMENT_FIELDS ?? ["width", "height", "depth", "shape"]),
+    "x", "y", "elevation", "level"
+])]);
+
+/** Whether a token's update moves it - a change of any of `MOVE_FIELDS`, a floor's alone included. */
+export function isMoveChange(changes) {
+    return MOVE_FIELDS.some(field => changes?.[field] !== undefined);
+}
+
+/** The floor a token stands on, or null on a scene of one floor (or before v14). */
+export function levelOf(tokenDoc) {
+    return tokenDoc?.level ?? null;
+}
+
+/**
+ * Whether a region is on this floor: no floor asked, a region on no floor in particular (every
+ * floor), or one Foundry says it is on. A region that cannot be asked is on every floor - the
+ * module's rule wherever it cannot read a map (movement.mjs `neighbouringRooms`).
+ */
+export function onLevel(region, level) {
+    if (level === null || level === undefined || !region?.levels?.size) return true;
+    if (typeof region.includedInLevel === "function") return region.includedInLevel(level);
+    return region.levels.has(level?.id ?? level);
+}
+
+/*
  * THE CAMERA (E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15). The scene a browser has on
  * screen is a fact about that browser, and a rule judged on it answers differently on two
  * browsers looking at two maps. Before this commit 64 top-level declarations read the camera,

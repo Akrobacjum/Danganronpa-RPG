@@ -38,6 +38,8 @@ import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTIN
 // four reach hud.mjs, directly or through anything they import - eighteen
 // modules were walked to confirm it.
 import { roomOfToken, locateActor } from "./movement.mjs";
+// A leaf (config.mjs alone), so it reaches nothing that reaches hud.mjs.
+import { isMoveChange } from "./rooms.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
@@ -175,7 +177,8 @@ export function registerHud() {
     // GM that student's room instead of their Monokuma's. Comparing the room
     // before and after is the same trick movement.mjs plays with `lastRoom`.
     Hooks.on("updateToken", (doc, changes) => {
-        if (changes.x === undefined && changes.y === undefined) return;
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (!isMoveChange(changes)) return;
         const mine = hudActor();
         if (!mine || doc.actorId !== mine.id) return;
 

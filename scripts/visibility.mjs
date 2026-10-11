@@ -21,6 +21,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt } from "./movement.mjs";
+import { isMoveChange } from "./rooms.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
@@ -52,7 +53,8 @@ export function registerVisibility() {
         // `hidden` as well as a move: that is the write `revealRemnantToFinder`
         // makes, and it is the one moment a Remnant's visibility actually needs
         // recomputing for everyone who is not the finder.
-        if (changes.x !== undefined || changes.y !== undefined || changes.hidden !== undefined) applyAll();
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (isMoveChange(changes) || changes.hidden !== undefined) applyAll();
     });
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());

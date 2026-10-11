@@ -69,6 +69,7 @@ import {
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeadForGm } from "./settings.mjs";
+import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
@@ -2984,7 +2985,8 @@ export function registerMurder() {
     });
 
     Hooks.on("updateToken", (tokenDoc, changes) => {
-        if (changes.x === undefined && changes.y === undefined) return;
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (!isMoveChange(changes)) return;
         // One client decides, or several GMs would each write the same
         // participant in - the same rule movement.mjs applies to who pays.
         if (!isPrimaryGm()) return;

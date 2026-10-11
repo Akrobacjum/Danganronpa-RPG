@@ -47609,6 +47609,145 @@ const SCENARIOS = [
             + "and whether the GMs were told");
     }],
 
+    ["a move up the stairs costs a crossing like a door, a floor change inside one room is free, and the room is read on the token's floor", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2 and C9, audit S07-45, the owner's answer Q1 a. A scene of two
+         * floors in plain objects, as Foundry v14 draws one (a token's `level`, a region's `levels`, empty
+         * for every floor; the shapes asked through `testPoint`): a Lab under an Attic, a Hall under a
+         * Landing with stairs between them - a region carrying the Change Level behaviour, never a room -
+         * and a Stairwell drawn on both floors. Read: the room at the Lab's footprint on each floor
+         * (`roomAt` with the floor); the price of a step (`crossingCost`) up the stairs into another room,
+         * up the Stairwell, through a door on one floor and inside one room; and the rooms the stairs
+         * link (`stairLinks`), on this scene and on one with no stairs. A route is priced step by step on
+         * these (movement.mjs `crossingsAlong`); scenario 66 G3 drives a real climb through the charge.
+         * Red before C9 on its first check: `roomAt` asked every floor and read the Attic on the ground.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = [], room = true) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const rooms = [region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+            region("Stairwell", 1000, [])];
+        const levels = [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }];
+        const scene = { grid: { size: 100 }, levels, regions: new Set([...rooms, region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }], false)]) };
+        const flat = { grid: { size: 100 }, levels, regions: new Set(rooms) };
+        const at = level => M.roomAt(100, 100, { x: 100, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene }, level);
+        const step = (room, level) => ({ room, level });
+        const costs = typeof M.crossingCost === "function" ? [
+            M.crossingCost(step("Hall", L1), step("Landing", L2)), M.crossingCost(step("Stairwell", L1), step("Stairwell", L2)),
+            M.crossingCost(step("Lab", L1), step("Hall", L1)), M.crossingCost(step("Lab", L1), step("Lab", L1))] : "no crossingCost";
+        const links = typeof M.stairLinks === "function" ? [M.stairLinks(scene), M.stairLinks(flat)] : "no stairLinks";
+        equal(stableJson([at(L1), at(L2), costs, links]), stableJson(["Lab", "Attic", [1, 0, 1, 0], [[["Hall", "Landing"]], null]]),
+            "[the room at the Lab's footprint on the ground floor, on the upper; the crossings a step costs [up the stairs into another room, "
+                + "up the Stairwell, through a door, inside one room]; the rooms the stairs link here, and on a scene with no stairs]");
+    }],
+
+    ["a level-only move into a locked room on another floor is refused with the lock's words", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45 (V8). The veto (`onPreUpdateToken`) returned at
+         * once for a change naming neither x nor y, so a player's update of the level alone walked into a
+         * locked room upstairs and nothing was asked. Here the veto Foundry calls, taken off
+         * `Hooks.events` so no other module's listener sees the suite's plain token, is handed a student's
+         * token as a player's browser hands it (`asConsole`): from the Corridor up into the locked Vault
+         * above it; from the Lab up into the Attic on a scene whose stairs lead elsewhere; and up the
+         * Stairwell, one room on both floors. And `crossingVerdict` asked of the room the stairs do lead
+         * to. With the movement cost on (the stairs rule is part of adjacency, which that setting governs)
+         * and the clock out of a trial and an Eclipse; restore() puts both back. Red before C9 on its first
+         * check: the veto let the climb into the Vault through, and said nothing.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const [actor] = (await import("./monokuma.mjs")).studentActors();
+        const veto = (Hooks.events?.preUpdateToken ?? []).map(entry => entry.fn).find(fn => fn?.name === "onPreUpdateToken");
+        must(actor && veto, "no student, or no movement veto registered on preUpdateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, flags = {}, behaviors = []) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: !behaviors.length, ...flags }[key] : undefined) });
+        const levels = [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }];
+        const scene = { grid: { size: 100 }, levels, regions: new Set([region("Corridor", 0, [L1]), region("Vault", 0, [L2], { [M.ROOM_FLAGS.locked]: true }),
+            region("Lab", 500, [L1]), region("Attic", 500, [L2]), region("Hall", 1000, [L1]), region("Landing", 1000, [L2]),
+            region("Stairwell", 1500, []), region("Stairs", 1100, [L1, L2], {}, [{ type: "changeLevel" }])]) };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        const climb = x => {
+            const token = { id: "suite-e12-c9", x, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor };
+            const first = warned.length;
+            const answer = asConsole(() => veto(token, { level: L2 }, {}, game.user.id));
+            return [answer === false ? "refused" : "let through", warned.slice(first)];
+        };
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            const stairs = typeof M.crossingVerdict === "function"
+                ? M.crossingVerdict(actor, "Hall", "Landing", scene, { from: L1, to: L2 }) !== game.i18n.format("DRPG.Move.noStairs", { from: "Hall" })
+                : "no crossingVerdict";
+            read = [climb(0), climb(500), climb(1500), stairs];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([["refused", [game.i18n.localize("DRPG.Move.locked")]],
+            ["refused", [game.i18n.format("DRPG.Move.noStairs", { from: "Lab" })]], ["let through", []], true]),
+            "[a player's level-only move from the Corridor up into the locked Vault, from the Lab up into the Attic where no stairs lead, "
+                + "up the Stairwell - each as [the veto's answer, what the player was told]; and whether the crossing the stairs do lead along "
+                + "is refused for the stairs]");
+    }],
+
+    ["a crossing refused for its price puts the token back on the floor it left", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45. The charge (`onUpdateToken`) gated on x, y and
+         * the elevation, and remembered a token's place as x and y (`lastPosition`), so a send-back after
+         * a climb put the token back by x and y and left it upstairs. Here movement.mjs's charge, taken
+         * off `Hooks.events` as Foundry would call it (fog.mjs has a listener of the same name; this one
+         * settles a route), is handed a plain token of a plain character no connected player owns - so the
+         * primary GM pays, as for an absent player - with no Free Move, no action and no grant left. Its
+         * place is recorded as our own revert records it, then it climbs from the Lab to the Attic above
+         * by its level alone, as a player's update. Read: what the send-back wrote to the token, and what
+         * the GM was told. The whisper the refusal sends names the plain character to the GMs. Red before
+         * C9: the charge never looked at a level-only change, and nothing was written.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, levels) => ({ id: name, name, levels: new Set(levels), behaviors: [], bounds: { x: 0, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 0 && point.x <= 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e12-c9-scene", grid: { size: 100 }, levels: [{ id: L1 }, { id: L2 }], regions: new Set([region("Lab", [L1]), region("Attic", [L2])]) };
+        const actor = { id: "suite-e12-c9-actor", name: "SUITE E12 C9 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeMoveUsed ? true : undefined), testUserPermission: () => false };
+        const written = [];
+        const token = { id: `suite-e12-c9-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor,
+            update: async data => { written.push(data); return token; } };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            token.level = L2;
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+            read = [written, warned];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([[{ x: 0, y: 100, level: L1 }], [game.i18n.localize("DRPG.Move.noBudget")]]),
+            "[what the send-back wrote to a token that climbed from the Lab to the Attic with nothing to pay with, what the GM was told]");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

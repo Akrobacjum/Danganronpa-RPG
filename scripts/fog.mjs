@@ -56,7 +56,8 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
-import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene } from "./rooms.mjs";
+import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
+    isMoveChange } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
@@ -3130,7 +3131,8 @@ function hideLayer() {
  * ========================================================================== */
 
 async function onUpdateToken(tokenDoc, changes) {
-    if (changes.x === undefined && changes.y === undefined) return;
+    // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+    if (!isMoveChange(changes)) return;
 
     // Wait for the token to actually stop. v14 delivers a move as a series of
     // updates along the path, and repainting on each one rebuilt the fog three

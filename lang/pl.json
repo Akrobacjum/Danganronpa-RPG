@@ -2476,6 +2476,7 @@
       "notConnected": "{to} nie łączy się z: {from}. Stąd dojdziesz do: {rooms}",
       "noBudgetLong": "Brak Free Move i brak akcji - to przejście nie zostało opłacone. Token wraca; zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",
+      "noStairs": "Stąd ({from}) nie prowadzą na to piętro żadne schody.",
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {

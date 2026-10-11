@@ -24,7 +24,7 @@ import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
-// The darkening's own reader, and a leaf - see the note in `canCross`. Static
+// The darkening's own reader, and a leaf - see the note in `crossingVerdict`. Static
 // for the same reason as the two above: the crossing veto cannot await.
 import { overflowCrossings } from "./overflow.mjs";
 // `iAmTheMastermind` comes from settings.mjs - a leaf - for the same reason:
@@ -33,7 +33,8 @@ import { overflowCrossings } from "./overflow.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
-import { ROOM_FLAG, isRoomWith, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene } from "./rooms.mjs";
+import { ROOM_FLAG, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene,
+    isMoveChange, levelOf, onLevel, passageBehaviour } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -61,8 +62,18 @@ export const ROOM_FLAGS = {
 
 /** Last known room per token, so we only react to actual crossings. */
 const lastRoom = new Map();
-/** Last position inside that room, so a refused crossing can be undone. */
+/** Last position inside that room, so a refused crossing can be undone - its floor too (`spotOf`). */
 const lastPosition = new Map();
+
+/**
+ * Where a token stands, to be put back to: x and y, and its floor when it has one (E12 C9). A
+ * refused climb that put back x and y alone left the token upstairs, and a send-back that names
+ * no floor is the one the GM's record (`positionOf`) matches only on a scene of one floor.
+ */
+function spotOf(tokenDoc) {
+    const level = levelOf(tokenDoc);
+    return level === null ? { x: tokenDoc.x, y: tokenDoc.y } : { x: tokenDoc.x, y: tokenDoc.y, level };
+}
 
 export function registerMovement() {
     // Refuse the move BEFORE it is written, rather than teleporting the token
@@ -221,9 +232,10 @@ function positionOf(tokenDoc) {
     return {
         x: tokenDoc.x, y: tokenDoc.y,
         elevation: tokenDoc.elevation ?? 0,
-        // The v14 name of a token's level has not been read off a live table;
-        // whatever it is called, it is recorded as undefined here until then,
-        // and a send-back that names one is refused rather than guessed at.
+        // The token's floor under the plan's name for it (`tokenDoc.level`; what v14
+        // calls it is LIVE-E12-03), undefined on a scene of one floor. A send-back
+        // that names a floor matches only a record of the same one (`sendBackRefusal`),
+        // and the mover's browser names the floor it remembered (`spotOf`, E12 C9).
         level: tokenDoc.level ?? undefined
     };
 }
@@ -265,7 +277,7 @@ export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } =
     if (here) rooms.add(here);
     for (const spot of recentPositions(tokenDoc.id)) {
         if (now - spot.at > windowMs) continue;
-        const room = roomAt(spot.x, spot.y, tokenDoc);
+        const room = roomAt(spot.x, spot.y, tokenDoc, spot.level ?? levelOf(tokenDoc));
         if (room) rooms.add(room);
     }
     return rooms;
@@ -316,7 +328,11 @@ export function sendBackRefusal(position, { scene = null, history = [], centres 
 function onPreUpdateToken(tokenDoc, changes, options) {
     try {
         if (options?.[REVERT]) return;
-        if (changes.x === undefined && changes.y === undefined) return;
+        // A CHANGE OF FLOOR IS A MOVE (E12 C9, audit S07-45). Until 1.2.74 this returned on any change
+        // without x or y, so a player's update naming the level alone was never judged: scenario 66 G2
+        // read p1's move from the Corridor up into a locked Vault land and cost nothing (11.10.2026).
+        // rooms.mjs `isMoveChange` is the one list of the fields that move a token.
+        if (!isMoveChange(changes)) return;
 
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") return;
@@ -325,7 +341,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // A BODY STAYS WHERE IT FELL.
         //
         // Checked before anything else, and deliberately not through
-        // `canCross`: that function answers "may this character cross from one
+        // `crossingVerdict`: that function answers "may this character cross from one
         // room to another", and every path through it returns early on a move
         // inside a single room. A corpse being nudged three squares across the
         // floor it died on is not a crossing, and it is exactly the move that
@@ -346,17 +362,22 @@ function onPreUpdateToken(tokenDoc, changes, options) {
             return false;
         }
 
+        // Each end read on its own floor: the room under the token where it stands, and the room
+        // under where it is going on the floor it is going to (E12 C9).
+        const here = levelOf(tokenDoc);
+        const there = changes.level !== undefined ? changes.level : here;
         const from = roomOfToken(tokenDoc);
         const to = roomAt(
             changes.x ?? tokenDoc.x,
             changes.y ?? tokenDoc.y,
-            tokenDoc
+            tokenDoc,
+            there
         );
 
-        if (from === to) return;                       // same room: always free
+        if (from === to) return;                       // same room: always free, a stairwell's floors too
         if (!from && !to) return;                      // no regions here
 
-        const allowed = canCross(actor, from, to, tokenDoc.parent);
+        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there });
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -404,9 +425,13 @@ function isCorpse(actor) {
  * them - the free Move, then an action - answers to that setting, along with
  * ordinary-play adjacency, which is the same "handled by hand" bargain.
  *
+ * `floors` names the floor each end is on (E12 C9), for the stairs rule in `crossingRefused`; null
+ * reads both ends as one floor. Exported, and named for what it returns, so a GM's client can ask
+ * the same question of a crossing a player's veto let through.
+ *
  * @returns {true|string} true, or the reason it is refused.
  */
-function canCross(actor, from, to, scene) {
+export function crossingVerdict(actor, from, to, scene, floors = null) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -497,7 +522,7 @@ function canCross(actor, from, to, scene) {
     // they are in." Only the Eclipse used to check this, so during an ordinary
     // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
-    const notConnected = crossingRefused(scene, from, to);
+    const notConnected = crossingRefused(scene, from, to, floors);
     if (notConnected) return notConnected;
 
     /*
@@ -529,10 +554,28 @@ function canCross(actor, from, to, scene) {
  * rooms entirely, or arriving from outside them, is likewise not a crossing
  * this rule governs.
  *
+ * BETWEEN FLOORS, ONLY BY THE STAIRS (E12 C9, audit S07-45; owner's answer Q1 a). On a scene
+ * that has stairs - a region carrying Foundry's Change Level behaviour - a crossing from a room on
+ * one floor to a room on another is connected when the stairs link the two (`stairLinks`), and
+ * refused otherwise with a sentence that names only where you stand, as `notConnectedText` does
+ * for an unknown room. The footprints say nothing here: the Attic drawn over the Lab overlaps it,
+ * and the box test below would call every room a neighbour of the one under it. A scene with no
+ * stairs is judged by that test as before, so a map drawn with floors and no Change Level region
+ * is no dead end. Whether a v14 Change Level region moves a token through `preUpdateToken` as the
+ * player, so that this sees the climb at all, is LIVE-E12-02.
+ *
  * @returns {false|string} false when allowed, otherwise the reason.
  */
-function crossingRefused(scene, from, to) {
+function crossingRefused(scene, from, to, floors = null) {
     if (!from || !to) return false;
+
+    if (floors && levelKey(floors.from) !== levelKey(floors.to)) {
+        const stairs = stairLinks(scene);
+        if (stairs) {
+            const linked = stairs.some(([a, b]) => (a === from && b === to) || (a === to && b === from));
+            return linked ? false : game.i18n.format("DRPG.Move.noStairs", { from });
+        }
+    }
 
     const connected = neighbouringRooms(scene, from);
     if (!connected.length || connected.includes(to)) return false;
@@ -724,8 +767,13 @@ function bedroomShut(actor, scene, to) {
  * On the scene of the token it is asked for, and no other (E12 C2a): every
  * caller hands a token document in, and the camera's scene it fell back to
  * answered for a token on another map with the rooms of the map on screen.
+ *
+ * And on one floor (E12 C9, audit S07-45): `level`, the token's own unless the
+ * caller names the floor it is going to. A room on another floor is not
+ * asked. Until 1.2.74 a footprint was a room on every floor, and a token on the
+ * ground floor under the Attic read the Attic (scenario 66 G1, 11.10.2026).
  */
-export function roomAt(x, y, tokenDoc) {
+export function roomAt(x, y, tokenDoc, level = levelOf(tokenDoc)) {
     const scene = tokenDoc?.parent ?? null;
     if (!scene?.regions?.size) return null;
 
@@ -763,7 +811,7 @@ export function roomAt(x, y, tokenDoc) {
     // treated as the same thing. The chain below distinguishes them explicitly -
     // the bounding box is for a region that cannot be ASKED, not for one that
     // answered no.
-    const regions = regionsAt(scene, x, y, tokenDoc);
+    const regions = regionsAt(scene, x, y, tokenDoc, level);
     return regions.map(r => r.name).sort()[0] ?? null;
 }
 
@@ -776,15 +824,22 @@ export function roomAt(x, y, tokenDoc) {
  * that is no room - a Teleport, a level change, a player's area - is no room a
  * token stands in; until 1.2.74 any name made one.
  */
-function regionsAt(scene, x, y, tokenDoc) {
+function regionsAt(scene, x, y, tokenDoc, level = levelOf(tokenDoc)) {
     if (!scene?.regions?.size) return [];
 
     const size = scene.grid?.size ?? canvas?.grid?.size ?? 100;
     const cx = x + ((tokenDoc?.width ?? 1) * size) / 2;
     const cy = y + ((tokenDoc?.height ?? 1) * size) / 2;
     const elevation = Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0;
+    return piecesAt(scene, cx, cy, elevation, level);
+}
 
-    const named = roomPieces(scene);
+/**
+ * The room pieces on `level` (rooms.mjs `onLevel`; null is every floor) that hold the point
+ * (`cx`, `cy`) - `regionsAt` for a point that is already a centre, which `stairLinks` asks too.
+ */
+function piecesAt(scene, cx, cy, elevation, level) {
+    const named = roomPieces(scene).filter(region => onLevel(region, level));
     const found = [];
     let asked = 0;
 
@@ -815,9 +870,16 @@ function regionsAt(scene, x, y, tokenDoc) {
     // than a polygon and can name a neighbouring room at a corner; being
     // slightly wrong about which room is recoverable, and being certain there
     // are no rooms is not.
+    //
+    // NOT ACROSS FLOORS, AND NOT OUTSIDE A SHAPE THAT CAN BE ASKED (E12 C9, audit
+    // S07-22). Until 1.2.74 the fallback ran over every room piece on the scene:
+    // `testPoint` rejecting a point on the ground floor sent it to the box of the
+    // room above, and the box of an L-shaped room named the corner it does not
+    // cover. It runs over `named`, this floor's pieces, and asks a piece's own
+    // polygon tree (`insideShape`) before its box.
     if (!found.length && asked === named.length && named.length) {
         for (const region of named) {
-            if (containedBy(region, cx, cy)) found.push(region);
+            if (insideShape(region, cx, cy)) found.push(region);
         }
         if (found.length) {
             debug(`Region hit test rejected every room at (${Math.round(cx)}, ${Math.round(cy)}); `
@@ -826,6 +888,18 @@ function regionsAt(scene, x, y, tokenDoc) {
     }
 
     return found;
+}
+
+/**
+ * The fallback's own hit test: the piece's polygon tree when it has one that can be asked - it
+ * holds the shapes without the elevation band `testPoint` puts in front of them - and its box
+ * only when it has none. `polygonTree.testPoint` is the name the plan gives; whether a v14 region
+ * carries it was not read off a table (LIVE-E12-03), and a region without it is asked by its box.
+ */
+function insideShape(region, x, y) {
+    const tree = region?.polygonTree;
+    if (typeof tree?.testPoint === "function") return Boolean(tree.testPoint({ x, y }));
+    return containedBy(region, x, y);
 }
 
 /** Bounding-box fallback when a region cannot test a point itself. */
@@ -852,7 +926,7 @@ function primeRoomCache() {
     lastPosition.clear();
     for (const token of canvas?.tokens?.placeables ?? []) {
         lastRoom.set(token.document.id, roomOfToken(token.document));
-        lastPosition.set(token.document.id, { x: token.document.x, y: token.document.y });
+        lastPosition.set(token.document.id, spotOf(token.document));
     }
 }
 
@@ -894,7 +968,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
                 return;
             }
         }
-        if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+        if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
         return;
     }
 
@@ -903,7 +977,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // the setting back on would find every token's remembered room stale and
     // charge for a crossing that happened while it was off.
     if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) {
-        if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+        if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
         return;
     }
 
@@ -931,7 +1005,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // Our own revert: record where it landed, charge nothing.
         if (options?.[REVERT]) {
             lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
             return;
         }
 
@@ -944,12 +1018,12 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // did not.
         if (game.users.get(userId)?.isGM) {
             lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
             return;
         }
 
-        // Only position changes can cross a boundary.
-        if (changes.x === undefined && changes.y === undefined && changes.elevation === undefined) return;
+        // Only a move can cross a boundary - and a change of floor is one (E12 C9; the veto's note).
+        if (!isMoveChange(changes)) return;
 
         /* ONE CHARGE PER CROSSING - AND EVERY CROSSING ALONG THE WAY.
            -------------------------------------------------------------------
@@ -971,7 +1045,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
            so adjacency and locks were never fooled by a multi-waypoint route -
            only the price was. */
         if (tokenDoc.movement?.pending?.waypoints?.length) {
-            notePathRoom(tokenDoc.id, roomOfToken(tokenDoc));
+            notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
             return;
         }
 
@@ -988,7 +1062,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         const { isMonokuma } = await import("./monokuma.mjs");
         if (isMonokuma(actor)) {
             lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
             return;
         }
 
@@ -1002,20 +1076,21 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
 
         if (!known) {
             lastRoom.set(tokenDoc.id, after);
-            lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
             return;
         }
 
         // Every boundary this drag actually crossed, in the order it crossed
         // them. Ending where you started is no longer the same as going
         // nowhere: the route is what is charged for.
-        const crossings = crossingsAlong(before, path, after);
+        const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
+            { room: after, level: levelOf(tokenDoc) });
 
         // Nothing crossed - a move inside one room, or a scene with no regions
         // at all: free. Remember the new spot so a later refused crossing snaps
         // back to somewhere sensible.
         if (!crossings.length) {
-            lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
             lastRoom.set(tokenDoc.id, after);
             return;
         }
@@ -1044,15 +1119,18 @@ const pathRooms = new Map();
  * (into nowhere, and out of it again) for one ordinary walk between neighbours.
  * Leaving the rooms for real is judged from where the token STOPS, which is the
  * final update's own answer and not this function's business.
+ *
+ * A step is a room and the floor it was read on (E12 C9); a step to the same
+ * room on another floor - up a stairwell - is not noted, as it costs nothing.
  */
-function notePathRoom(tokenId, room) {
+function notePathRoom(tokenId, room, level = null) {
     if (!room) return;
     const seen = pathRooms.get(tokenId);
     if (!seen) {
-        pathRooms.set(tokenId, [room]);
+        pathRooms.set(tokenId, [{ room, level }]);
         return;
     }
-    if (seen[seen.length - 1] !== room) seen.push(room);
+    if (seen[seen.length - 1].room !== room) seen.push({ room, level });
 }
 
 /** The noted path for a token, removed as it is read. */
@@ -1070,15 +1148,61 @@ function takePath(tokenId) {
  * out. So a drag inside one room yields nothing, an ordinary walk to a
  * neighbour yields one, and a there-and-back route yields two - which is what
  * it costs at the table.
+ *
+ * Every step is `{room, level}` (E12 C9) and `crossingCost` prices it; the
+ * pairs handed on are room names, as before.
  */
 function crossingsAlong(before, path, after) {
     const route = [before, ...path, after];
     const crossings = [];
     for (let i = 1; i < route.length; i++) {
-        if (route[i - 1] === route[i]) continue;
-        crossings.push([route[i - 1], route[i]]);
+        if (crossingCost(route[i - 1], route[i]) === 0) continue;
+        crossings.push([route[i - 1].room, route[i].room]);
     }
     return crossings;
+}
+
+/**
+ * What one step of a route costs, in crossings: `from` and `to` are `{room, level}`.
+ *
+ * THE STAIRS ARE A DOOR (E12 C9; the owner's answer Q1 a, 11.10.2026). A step into
+ * another room costs one crossing - the free Move, then a Sprint, then an action -
+ * whether it goes through a door or up the stairs; a step that changes floor
+ * inside one room, a stairwell drawn on both, costs nothing, as a step inside
+ * any room does. So the floor does not enter the price: the room does. Exported
+ * for tier 2, which reads the four cases off it.
+ */
+export function crossingCost(from, to) {
+    return (from?.room ?? null) === (to?.room ?? null) ? 0 : 1;
+}
+
+/**
+ * The rooms the stairs link, as sorted `[a, b]` name pairs; null when the scene has no stairs.
+ *
+ * Stairs are a region carrying Foundry's Change Level behaviour (rooms.mjs `passageBehaviour`;
+ * such a region is never a room). Each links the rooms under its centre on each of its floors -
+ * the floors it names when it names two or more, else every floor of the scene - read with the
+ * rooms' own hit test (`piecesAt`) at the elevation 0, as `regionsAt` reads a token with none.
+ * What Foundry's own Change Level behaviour stores, and where it puts a token, has not been read
+ * off a table (LIVE-E12-02); this reads only where the region stands. Exported for tier 2.
+ */
+export function stairLinks(scene) {
+    const stairs = Array.from(scene?.regions ?? []).filter(region => passageBehaviour(region) === "changeLevel");
+    if (!stairs.length) return null;
+    const every = Array.from(scene?.levels ?? []).map(level => level?.id ?? level);
+    const pairs = new Set();
+    for (const region of stairs) {
+        const box = boundsOf(region);
+        if (!box) continue;
+        const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+        const floors = region.levels?.size >= 2 ? Array.from(region.levels) : every;
+        const rooms = [...new Set(floors.map(level => piecesAt(scene, cx, cy, 0, level).map(r => r.name).sort()[0])
+            .filter(Boolean))].sort();
+        for (let i = 0; i < rooms.length; i++) {
+            for (let j = i + 1; j < rooms.length; j++) pairs.add(`${rooms[i]}\n${rooms[j]}`);
+        }
+    }
+    return [...pairs].sort().map(pair => pair.split("\n"));
 }
 
 /**
@@ -1128,7 +1252,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
             ? plural("DRPG.Move.wasSprint", { n: freeMovesLeft(actor) })
             : game.i18n.format("DRPG.Move.costAction", { left: actionsLeft(actor) });
 
-    if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+    if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
 
     // What the room looks like, when the GM has written it - the Description
     // tab in Room Setup. Walking in is the moment somebody wants to be told
@@ -1185,8 +1309,10 @@ async function sendBack(tokenDoc, previous, room) {
 
     const apply = async () => {
         try {
+            // Its floor too, when it had one (`spotOf`, E12 C9): a refused climb put back by x
+            // and y alone stays upstairs.
             await tokenDoc.update(
-                { x: previous.x, y: previous.y },
+                previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y },
                 { animate: false, [REVERT]: true }
             );
         } catch (err) {
@@ -1242,31 +1368,17 @@ export const REVERT = "drpgRevert";
  * ========================================================================== */
 
 /**
- * Name of the Scene Region a token document is inside, if any.
+ * Name of the room a token document stands in on its own floor, if any - measured, always.
  *
- * `token.regions` is maintained by Foundry as tokens move, but it is not always
- * populated: a token placed by script, one on a scene the client has not fully
- * initialised, or one whose region membership has not been recomputed yet all
- * arrive with an empty set. Falling back to a geometric test means "which room
- * am I in" answers correctly regardless - which is what Listen, Search and the
- * project rules all depend on.
+ * It read Foundry's `token.regions` first until E12 C9 (audit S07-45), and fell
+ * back to the measurement when that list was empty (a token placed by script, a
+ * scene not yet initialised). Whether v14's list keeps to the token's floor was
+ * not read (LIVE-E12-03); the harness's (lib/shim.mjs) has no floors, and through
+ * it a token on the ground floor under the Attic read the Attic (scenario 66 G1
+ * at the parent, 11.10.2026). `roomAt` asks the token's floor, so this asks only
+ * it - one reader where there were two that could disagree.
  */
 export function roomOfToken(tokenDoc) {
-    const regions = tokenDoc?.regions;
-
-    if (regions?.size) {
-        // Foundry's own list holds every region the token is in, a Teleport's too: rooms only (E12 C2a).
-        const players = playerRegionIds();
-        const names = Array.from(regions)
-            .map(r => (typeof r === "string" ? tokenDoc.parent?.regions?.get(r) : r))
-            .filter(r => r && isRoomWith(r, players))
-            .map(r => r.name)
-            .filter(Boolean)
-            .sort();
-        if (names.length) return names[0];
-    }
-
-    // Nothing recorded - measure it.
     if (tokenDoc && Number.isFinite(tokenDoc.x) && Number.isFinite(tokenDoc.y)) {
         return roomAt(tokenDoc.x, tokenDoc.y, tokenDoc);
     }
@@ -1302,9 +1414,8 @@ export function roomOfActor(actor) {
  * room with the GM's camera on the Annex, in Dorm A with it on Floor 1). It reads documents
  * only, so a player's browser and a GM's give the same answer for the same world.
  *
- * `level` is the token's floor as Foundry v14 stores it (`tokenDoc.level`), null where the
- * scene has none; what v14 holds there is LIVE-E12-03, and the room is not yet read per floor
- * (C9).
+ * `level` is the token's floor as Foundry v14 stores it (rooms.mjs `levelOf`), null where the
+ * scene has none, and `room` is read on it (E12 C9); what v14 holds there is LIVE-E12-03.
  *
  * @param {Actor} actor
  * @param {object} [options]
@@ -1322,7 +1433,7 @@ export function locateActor(actor, { sceneId = null } = {}) {
     }
     const place = chosenPlace(places, sceneId);
     if (!place) return null;
-    return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomOfToken(place.tokenDoc), level: place.tokenDoc.level ?? null };
+    return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomOfToken(place.tokenDoc), level: levelOf(place.tokenDoc) };
 }
 
 /** `locateActor`'s choice among several tokens, in the order its comment gives. */
@@ -1368,11 +1479,10 @@ export function placesOf(actor) {
  *
  * Same scene is part of it. Two rooms called "Kitchen" on two different maps
  * are not one room, and comparing names alone would let a handover reach across
- * the whole world. Same floor too (plan-E12 3.2): until C9 reads a room per
- * floor, a token on the upper floor standing over a lower room's outline reads
- * as in that room, and the floor keeps the two apart. A room whose pieces span
- * two floors is one room for a crossing (C9) but not, here, for a hand reaching
- * between its floors - read in the plan, not yet measured on a v14 scene.
+ * the whole world. Same floor too (plan-E12 3.2): the room is read on each
+ * one's floor since E12 C9, and a room whose pieces span two floors - a
+ * stairwell - is one room for a crossing (`crossingCost`) but not, here, for a
+ * hand reaching between its floors. Read in the plan, not measured on a v14 scene.
  */
 export function sameRoom(a, b) {
     const here = locateActor(a);

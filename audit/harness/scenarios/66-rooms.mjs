@@ -27,9 +27,10 @@
  *   F  Aiko's second token on the Annex: where `locateActor` puts her with the GM's camera on
  *      either scene; a direct murder parked in Dorm A before two others, judged at the end of the
  *      Eclipse with the GM looking at the Annex (C3).
- *   G  a two-floor scene built here (Lab under Attic, Corridor under a locked Vault): the room of
- *      a token on the lower floor; a player's level-only move into the locked Vault and the actions
- *      it costs (V7, V8, C9).
+ *   G  a two-floor scene built here (Lab under Attic, Corridor under a locked Vault, a Stairwell on
+ *      both): the room of a token on the lower floor; a player's level-only move into the locked Vault
+ *      and the actions it costs; a climb from the Lab into the Attic and one inside the Stairwell,
+ *      and the crossings each was charged (V7, V8, C9).
  *   H  the room-marking clause of the migration asked for by name over a scene made here, and again after an untick
  *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
@@ -61,6 +62,8 @@
  * ran; not measured alone. Under C7's mutants and the red-first copy, 18.7-31.7 s in three runs on the same lane.
  * E12 C8 (L1, L2 added): 26 checks in 19.6 s, one run under lane A's lock on 11.10.2026; whether other lanes ran then
  * was not read.
+ * E12 C9 (G1, G2 rewritten; G3 added): 27 checks in 25.1-27.0 s, two runs under the harness lock on 11.10.2026, and
+ * 25.1-27.9 s in two with C9's code taken back (24 passed); whether other lanes ran then was not read.
  */
 export const layers = ["ci"];
 
@@ -368,37 +371,68 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
             hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level: "${L1}" }]);
         const lab = M.roomOfToken(t);
         await t.update({ x: 1300, y: 300 }, { teleport: true, movementAction: "displace", animate: false });
-        globalThis.__s66g = { token: t.id, actions: game.drpg.actionsLeft(aiko) };
+        globalThis.__s66g = { token: t.id, actions: game.drpg.actionsLeft(aiko), free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null };
         if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
-        return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
-    const climb = await p1.eval(`const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
+        return { token: t.id, lab, corridor: M.roomOfToken(t), level: t.level, actions: game.drpg.actionsLeft(aiko),
+            charge: game.settings.get("${MOD}", "chargeMovement") };`, { timeout: 30000 });
+    /* p1 moves the token by its level alone, on the tower's canvas (`canvasReady` primes movement.mjs's memory of where
+       each token stands) and waits there for its own charge; `drpgRoomCrossed` is the one announcement of a crossing paid. */
+    const CLIMB = `const tower = game.scenes.get("${towerId}"), academy = game.scenes.get("${IDS.scene}");
         game._viewScene(tower, { level: "${L1}" });
-        const t = tower.tokens.get("${setG.token}"), first = globalThis.__notifications.length;
+        const t = tower.tokens.get("${setG.token}"), first = globalThis.__notifications.length, crossed = [];
+        const note = ({ from, to }) => crossed.push([from, to]);
+        Hooks.on("drpgRoomCrossed", note);
         let threw = null;
         try { await t.update({ level: "${L2}" }); } catch (err) { threw = String(err?.message ?? err); }
-        await new Promise(r => setTimeout(r, 1200));
-        const out = { level: t.level, threw, told: globalThis.__notifications.slice(first).map(n => n.level + ": " + n.msg) };
+        await new Promise(r => setTimeout(r, 1500));
+        Hooks.off("drpgRoomCrossed", note);
+        const out = { level: t.level, threw, crossed, told: globalThis.__notifications.slice(first).map(n => n.level + ": " + n.msg) };
         game._viewScene(academy);
-        return out;`, { timeout: 30000 });
+        return out;`;
+    const climb = await p1.eval(CLIMB, { timeout: 30000 });
     await settle(800);
-    const afterG = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+    /* The GM puts the token on the ground floor (a GM's move is free and moves every client's memory of it): in the
+       Lab, then in the Stairwell, each followed by p1's climb. */
+    const MOVE_TO = (x, read) => `const M = await import("${repoUrl}/scripts/movement.mjs");
+        const tower = game.scenes.get("${towerId}"), aiko = game.actors.get("${IDS.aiko}"), t = tower.tokens.get(globalThis.__s66g.token);
+        const out = ${read ? `{ level: t?.level ?? null, room: M.roomOfToken(t), actions: game.drpg.actionsLeft(aiko) }` : "null"};
+        await t.update({ x: ${x}, y: 300, level: "${L1}" }, { teleport: true, movementAction: "displace", animate: false });
+        return out;`;
+    const afterG = await gm.eval(MOVE_TO(300, true), { timeout: 30000 });
+    await settle(500);
+    const up = await p1.eval(CLIMB, { timeout: 30000 });
+    await settle(500);
+    await gm.eval(MOVE_TO(2300, false), { timeout: 30000 });
+    await settle(500);
+    const well = await p1.eval(CLIMB, { timeout: 30000 });
+    await settle(500);
+    const endG = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const tower = game.scenes.get("${towerId}"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66g, t = tower.tokens.get(was.token);
-        const out = { level: t?.level ?? null, room: M.roomOfToken(t), actions: game.drpg.actionsLeft(aiko) };
+        const out = { level: t?.level ?? null, room: M.roomOfToken(t) };
         await game.drpg.setActions(aiko, was.actions);
+        if (was.free === null) await aiko.unsetFlag("${MOD}", "freeMoveUsed"); else await aiko.setFlag("${MOD}", "freeMoveUsed", was.free);
         await tower.delete();
         delete globalThis.__s66g;
         return out;`, { timeout: 30000 });
     /* At 180df61 a room is told apart by its footprint alone (`roomAt`; the shim's regions ignore floors as Foundry's
-       `testPoint` does without elevation): the token on the lower floor reads the alphabetically first region under it.
-       E12 C9: `roomAt` per level, so the lower floor's Lab. */
-    check("G1: a token on the ground floor under the Attic reads the Attic as its room, not the Lab it stands in (E12 C9)",
-        setG.lab === "Attic" && setG.level === L1, J(setG));
-    /* At 180df61 `onPreUpdateToken` judges a change of x or y and returns at once for a change of the level alone: p1's
-       move from the Corridor up into the locked Vault is let through and costs no action. E12 C9 (V8): refused with
-       the lock's words; (V7) a stair crossing is charged as a door, per Q1. */
-    check("G2: p1's level-only move from the Corridor up into the locked Vault lands and costs no action (E12 C9)",
-        climb.threw === null && climb.level === L2 && afterG.level === L2 && afterG.actions === setG.actions
-            && !climb.told.some(line => line.startsWith("warn")), J({ setG, climb, afterG }));
+       `testPoint` does without elevation): the token on the lower floor read the alphabetically first region under it,
+       the Attic. E12 C9: `roomAt` per level, and `roomOfToken` through it alone. */
+    check("G1: a token on the ground floor under the Attic reads the Lab it stands in (E12 C9)",
+        setG.lab === "Lab" && setG.corridor === "Corridor" && setG.level === L1, J(setG));
+    /* At 180df61 `onPreUpdateToken` judged a change of x or y and returned at once for a change of the level alone: p1's
+       move from the Corridor up into the locked Vault landed and cost no action (C0's reading, 11.10.2026). E12 C9 (V8):
+       a change of floor is a move (`isMoveChange`), and the Vault's lock refuses it on p1's browser. */
+    check("G2: p1's level-only move from the Corridor up into the locked Vault is refused with the lock's words and costs nothing (E12 C9)",
+        climb.threw === null && climb.level === L1 && afterG.level === L1 && afterG.room === "Corridor" && afterG.actions === setG.actions
+            && climb.crossed.length === 0 && climb.told.includes("warn: The door is locked."), J({ setG, climb, afterG }));
+    /* E12 C9 (V7, the owner's answer Q1 a): a climb into another room is a crossing like a door - one paid crossing, read
+       off the announcement; a climb inside the Stairwell, drawn on both floors, is a step inside one room and costs
+       nothing. The tower has no Change Level region, so its floors are linked by their footprints (the stairs rule is
+       tier 2's "a level-only move into a locked room"). At 180df61 neither climb was charged: the charge gated on x/y. */
+    check("G3: p1's climb from the Lab into the Attic is one paid crossing, and a climb inside the Stairwell is none (E12 C9)",
+        J(up.crossed) === J([["Lab", "Attic"]]) && up.level === L2 && up.threw === null
+            && J(well.crossed) === J([]) && well.level === L2 && J(endG) === J({ level: L2, room: "Stairwell" }),
+        J({ up, well, endG }));
 
     /* ------------------------------ H. the migration's room clause ------------------------------ */
     phase("H: the room-marking clause asked for by name");

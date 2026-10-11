@@ -696,7 +696,7 @@ export const SETTINGS = {
      * the only thing about the Mastermind that ever reaches a player's client
      * at all - see mastermind.mjs's `notifyDoorAccess`.
      *
-     * Exists because `canCross()` in movement.mjs runs synchronously inside a
+     * Exists because `crossingVerdict()` in movement.mjs runs synchronously inside a
      * `preUpdateToken` veto, on the client dragging the token - there is no
      * chance to ask a GM mid-hook, and `isMastermind()` itself always answers
      * `false` off a GM client by construction. A GM setting the Mastermind
@@ -2551,7 +2551,7 @@ export function eclipseId(clock = null) {
  * The crossings a character has used in the running Eclipse: the GMs' store on a
  * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
  * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
- * import eclipse.mjs (the cycle is noted at `canCross`).
+ * import eclipse.mjs (the cycle is noted at `crossingVerdict`).
  */
 export function eclipseMovesUsed(actorId, clock = null) {
     try {
@@ -2747,7 +2747,7 @@ export function setSetting(key, value) {
  * looks innocent.
  *
  * Nothing about this predicate needed mastermind.mjs. It reads a copy, and the
- * copy exists precisely so `canCross()` can ask synchronously inside a
+ * copy exists precisely so `crossingVerdict()` can ask synchronously inside a
  * `preUpdateToken` veto - which is the note already written above the key
  * itself. Moving the reader next to what it reads is what removes the edge, and
  * with it both cycles; the GM-side Mastermind machinery stays where it is. The

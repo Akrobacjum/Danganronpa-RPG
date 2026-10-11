@@ -136,10 +136,11 @@ export const FLOWS = Object.freeze([
     // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
-    // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G), each check today's
-    // reading; the flow stays planned until E12 C9 and C10 judge a move and draw a fog by floor.
+    // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
+    // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
+    // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
-        entry: {}, scenarios: ["66-rooms"], status: "planned", stage: "E39" },
+        entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts

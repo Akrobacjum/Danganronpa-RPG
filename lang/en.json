@@ -2382,6 +2382,7 @@
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "noBudgetLong": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
       "locked": "The door is locked.",
+      "noStairs": "No stairs lead from {from} to that floor.",
       "dead": "They are dead. The body stays where it fell."
     },
     "Project": {

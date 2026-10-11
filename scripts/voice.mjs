@@ -42,7 +42,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
-import { roomPieces } from "./rooms.mjs";
+import { roomPieces, isMoveChange } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
@@ -71,7 +71,8 @@ const HEARTBEAT_MS = 60000;
 export function registerVoice() {
     Hooks.on("updateToken", (doc, changes) => {
         if (!followsVoice(doc)) return;
-        if (changes.x !== undefined || changes.y !== undefined) scheduleReconcile();
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (isMoveChange(changes)) scheduleReconcile();
     });
     // A token dragged onto the map from the sidebar is a `createToken`, not an
     // `updateToken`, and placing one during an Eclipse is the single most common
