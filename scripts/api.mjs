@@ -82,7 +82,7 @@ import {
 import { performAction, currentRoom } from "./action-rolls.mjs";
 import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor,
     tableNameCandidates, refreshTableCopy } from "./tables.mjs";
-import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
+import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf, locateActor } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
 import {
@@ -428,6 +428,8 @@ export const DrpgApi = {
     /** Which room region the character's token is standing in. */
     currentRoom,
     roomOfActor,
+    /** Where a character stands, without the camera: `{ tokenDoc, scene, room, level }` - what the project lists take. */
+    locateActor,
     roomOfToken,
     othersInRoom,
     allRooms,

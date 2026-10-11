@@ -33,8 +33,9 @@ import { projectSecretStore } from "./gm-stores.mjs";
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
 import { discoveredFor } from "./fog.mjs";
-// A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5).
-import { placeScenes, roomRegions } from "./rooms.mjs";
+// A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
+// and the one it stands on, for `projectScene` (E12 fix r1-G3).
+import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
 import {
     DH, COUNTDOWNS, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, makeSecret, isSecret, rawCountdown, writeCountdown
@@ -76,6 +77,30 @@ export function tokenRefOf(countdownId) {
     return meta.tokenId && meta.tokenScene
         ? { sceneId: meta.tokenScene, tokenId: meta.tokenId }
         : null;
+}
+
+/*
+ * THE SCENE A PROJECT STANDS ON (E12 fix r1-G3, 11.10.2026; review round 1 SEC-1). Its token's
+ * scene, else the scene `placeProjectToken` would put it on - the first place scene holding a room
+ * of its name (rooms.mjs `sceneOfRoom`); null for a project with no room, or a room no place scene
+ * has. Until this fix the lists a character builds where they stand and the GM's guards of a Work
+ * and a Sabotage compared the room's NAME only, so a character in the Annex's "Kitchen" was offered
+ * the project standing in Floor 1's, and its progress and sabotage passed (the tier-2 test "a
+ * project is reached only on its own scene and not through a room of its name on another").
+ */
+export function projectScene(countdownId) {
+    const ref = tokenRefOf(countdownId);
+    return (ref ? game.scenes?.get(ref.sceneId) : null) ?? sceneOfRoom(roomOf(countdownId));
+}
+
+/**
+ * Whether a character standing at `place` (movement.mjs `locateActor`'s `{ room, scene }`) stands
+ * at this project: in its room, on its scene. False for a project with no room - there is nothing
+ * to stand at - and for nobody located.
+ */
+export function standsAtProject(place, countdownId) {
+    const room = roomOf(countdownId);
+    return Boolean(room && place?.room === room && place.scene?.id && place.scene.id === projectScene(countdownId)?.id);
 }
 
 /**
@@ -303,16 +328,18 @@ export function isComplete(project) {
 
 /**
  * Every project this character can SEE from where they are standing - finished
- * ones included.
+ * ones included. `place` is where they stand, `locateActor`'s `{ room, scene }`:
+ * a project in a room is listed on its own scene only (`standsAtProject`; E12 fix
+ * r1-G3 - a room's name alone matched a room of that name on any scene).
  *
  * The picker's list, and the reason it is not `projectsAvailableIn`: a finished
  * project has to be visible and struck through rather than quietly absent.
  * Absent, it looks like the project was cleared away, and the obvious next move
  * is to ask a GM what happened to it.
  */
-export function projectsListedIn(room, user = game.user) {
+export function projectsListedIn(place, user = game.user) {
     return visibleProjects(user)
-        .filter(p => !p.room || (room && p.room === room))
+        .filter(p => !p.room || standsAtProject(place, p.id))
         .filter(p => !isFrozen(p.id));
 }
 
@@ -326,8 +353,8 @@ export function projectsListedIn(room, user = game.user) {
  * the HUD's room block, the Work on Project tile's own dimming, and the guard
  * inside the action. All three were counting a finished project as work.
  */
-export function projectsAvailableIn(room, user = game.user) {
-    return projectsListedIn(room, user).filter(p => !isComplete(p));
+export function projectsAvailableIn(place, user = game.user) {
+    return projectsListedIn(place, user).filter(p => !isComplete(p));
 }
 
 /**
@@ -340,7 +367,7 @@ export function projectsAvailableIn(room, user = game.user) {
  * no room set, which is why some projects could be sabotaged and others could
  * not, with no explanation for the difference.
  */
-export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = {}) {
+export function sabotageTargetsIn(place, { anyRoom = false, user = game.user } = {}) {
     return visibleProjects(user)
         // YOU HAVE TO BE STANDING AT THE THING TO BREAK IT.
         //
@@ -356,7 +383,10 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
         //
         // A Monokuma still reaches everywhere (`anyRoom`) - they are not
         // standing in the players' geography at all.
-        .filter(p => anyRoom || (room && p.room === room))
+        //
+        // In the project's room ON ITS SCENE (E12 fix r1-G3): a room of the same
+        // name on another map is another room (`standsAtProject`).
+        .filter(p => anyRoom || standsAtProject(place, p.id))
         .filter(p => !isFrozen(p.id))
         .filter(p => !repairs(p.id));   // repairing a repair makes no sense
 }

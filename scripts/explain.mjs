@@ -144,7 +144,7 @@ async function roomBlock() {
     // the same call for the same reason: this window is open while people
     // share a screen, and a project's name is between its owner and the GM.
     const { projectsAvailableIn } = await import("./projects.mjs");
-    lines.push(esc(t(projectsAvailableIn(room, game.user).length
+    lines.push(esc(t(projectsAvailableIn(place, game.user).length
         ? "DRPG.Hud.roomProject" : "DRPG.Hud.roomNoProject")));
 
     return section(t("DRPG.Explain.room.title"), lines);

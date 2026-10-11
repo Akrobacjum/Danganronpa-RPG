@@ -920,7 +920,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const own = Object.getPrototypeOf(actor).rollTrait;
         actor.rollTrait = async function (key, options) { rolled.push(key); return own.call(actor, key, options); };
         const traitNow = () => P.allProjects().find(p => p.id === "${workProject}")?.trait ?? null;
-        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).roomOfActor(actor)).map(p => p.id), err: null };
+        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).locateActor(actor)).map(p => p.id), err: null };
         try {
             await game.drpg.performAction(actor, "project", {});
             out.first = [...rolled];
@@ -1208,7 +1208,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             thrown.push(closed ? "closed" : key);
             return closed ? null : own.call(actor, key, options);
         };
-        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).roomOfActor(actor)).map(p => p.id), err: null };
+        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).locateActor(actor)).map(p => p.id), err: null };
         try {
             await game.drpg.performAction(actor, "project", {});
         } catch (e) { out.err = String(e?.stack ?? e).slice(0, 300); }

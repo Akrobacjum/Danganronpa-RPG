@@ -43867,8 +43867,10 @@ const SCENARIOS = [
         const here = game.scenes.viewed ?? game.scenes.contents[0];
         const there = game.scenes.contents.find(scene => scene.id !== here.id);
         const RECT = { width: 600, height: 600 };
+        // Marked rooms (E12 fix r1-G3; k1, 11.10.2026): a region drawn after the migration is a room only when a GM marked
+        // it (E12 C1), and the unmarked bedrooms were no bedrooms from E12 C2a on, so the choice moved nobody.
         const room = (name, x, owner) => ({ name, shapes: [{ type: "rectangle", x, y: 0, ...RECT }],
-            flags: owner ? { [MODULE_ID]: { [V.VAULT_FLAGS.owner]: owner } } : {} });
+            flags: { [MODULE_ID]: { room: true, ...(owner ? { [V.VAULT_FLAGS.owner]: owner } : {}) } } });
         let actors = [], made = [];
         try {
             actors = await Actor.createDocuments(["A", "B", "C"].map(n => ({ name: `SUITE E11 C10b student ${n}`, type: "character" })));
@@ -47977,6 +47979,64 @@ const SCENARIOS = [
         }
         equal(stableJson(reading), stableJson([true, null, 1]),
             `game.drpg.setStash for "${LARDER}" and game.drpg.placeRemnant at a point, both with no scene ([the stash written on the room's scene, what the placement answered, the warnings naming it])`);
+    }],
+
+    ["a project is reached only on its own scene and not through a room of its name on another", async () => {
+        /*
+         * E12 fix r1-G3, 11.10.2026; review round 1 SEC-1. The lists a character builds where they
+         * stand (projects.mjs `projectsListedIn`, `sabotageTargetsIn`) and the GM's guards of a Work,
+         * a Sabotage and a trait ruling for a project (bridge-guards.mjs `guardProjectRoom`,
+         * `guardSabotageRoom`, `projectWithinReach`) compared the project's room by its name, so a
+         * character standing in a room of that name on another scene was offered the project, and its
+         * progress and sabotage passed. Here a connected player's character stands in a room on its
+         * scene, and a scene of the suite's own holds a room of the same name. Two public projects in
+         * that room: one stands on the suite's scene (its token put there, as a project placed by
+         * `sceneOfRoom` on another floor stands), one on the character's own. Read for each, as that
+         * player: whether the Work list and the Sabotage list offer it (the lists took the room's name
+         * until this fix, its place since), whether a trait ruling for it is refused as out of reach,
+         * the GM's answer to +1 progress naming a roll the record says came to 13 and the bar after,
+         * then to a Sabotage naming one at 13 and the freeze. Red on 0e49709: the project on the other
+         * scene is listed, the ruling passes its reach and both requests pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await projectPackets(player, actor);
+        const OUT_OF_REACH = "that project is not one the character can work on or break here";
+        let other = null, reading = null;
+        try {
+            other = await Scene.create({ name: "SUITE E12 fix r1-G3 a floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const away = await F.project(where.room), here = await F.project(where.room);
+            for (const [id, scene] of [[away, other], [here, where.scene]]) {
+                if (PM.projectTokenOf(id)?.parent?.id !== scene.id) {
+                    await PM.removeProjectToken(id);
+                    await PM.placeProjectToken(id, { scene });
+                }
+                must(PM.projectTokenOf(id)?.parent?.id === scene.id, `a project's token is not on ${scene.name} - this would measure nothing`);
+            }
+            const at = F.P.projectScene ? where : where.room;
+            const lists = id => [F.P.projectsListedIn(at, player).some(p => p.id === id), F.P.sabotageTargetsIn(at, { user: player }).some(p => p.id === id)];
+            const ruling = async id => (await G.guardTraitRuling(player, { actorId: actor.id, kind: "project", key: id, variant: null }, {})) === OUT_OF_REACH;
+            reading = [];
+            for (const id of [away, here]) reading.push([...lists(id), await ruling(id)]);
+            for (const [n, id] of [away, here].entries()) {
+                const worked = await F.rolled(13);
+                reading[n].push(await F.ask("project.progress", { countdownId: id, amount: 1, rollId: worked.id }), F.progress(id));
+                const broke = await F.rolled(13, "sabotage");
+                reading[n].push(await F.ask("project.sabotage", { targetId: id, difficulty: 8, rollId: broke.id, penalty: 0, relief: 0 }), F.P.isFrozen(id));
+            }
+        } finally {
+            await F.putBack();
+            await other?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([[false, false, true, "notThere", 0, "notThere", false], [true, true, false, null, 1, null, true]]),
+            `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
