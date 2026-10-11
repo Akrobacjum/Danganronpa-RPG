@@ -490,6 +490,13 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * Lab's border does not open onto the Attic drawn above it. Null is every floor, as before
  * 1.2.74. `region` is the caller's to cut to that floor (fog.mjs `roomShapeOn`). Which doorway
  * edges open is not measured headless (the harness's polygons contain no point - E12 C2b).
+ * The walls likewise (E12 fix r2-S2, 11.10.2026; review EARLY-C10-3): only those on that floor
+ * close a border (`onLevel`, which v14's typings give a wall as they give a region: `levels`,
+ * `includedInLevel` - read in the typings, not at a table, LIVE-E12-02), so a wall of the Attic
+ * drawn along the Lab's border below no longer shuts the Lab's doorway. A wall that names no floor
+ * stands on every floor, as every wall did before. Not measured here: a doorway is opened or shut only
+ * where a room lies beyond, and the harness's polygons contain no point; scenario 66 X1 reads the
+ * same filter in the map check (fog-diagnostics.mjs `checkRegions`, `adriftCheck`).
  */
 export function doorwayEdges(region, level = null) {
     try {
@@ -517,7 +524,7 @@ export function doorwayEdges(region, level = null) {
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
-        const walls = Array.from(scene.walls ?? []);
+        const walls = Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level));
 
         const edges = [];
         for (let ring = 0; ring < own.length; ring++) {

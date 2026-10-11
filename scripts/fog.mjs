@@ -57,7 +57,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
-    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf } from "./rooms.mjs";
+    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, regionPatches } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
@@ -313,10 +313,22 @@ export function registerFog() {
      * somebody moved a token. Inline, each one line, so the census of what reaches a rule
      * names them where they are registered (R379). A GM's rename of a room rides the update
      * (E12 C8, `carryRename`).
+     *
+     * Two more roads to the same change (E12 fix r2-S2, 11.10.2026; review EARLY-C7-3 and O6).
+     * A behaviour is a document of its own: a Teleport taken off a marked region makes it a room
+     * (rooms.mjs `canBeRoom`) and one added unmakes it, and neither is a Region event, so the
+     * scene stayed on Foundry's vision and nobody's fog moved until a draw or a move. And a region
+     * changed through its scene's own update (`scene.update({ regions: [...] })`) fires no
+     * `updateRegion`: the harness's shim does that (client-entry.mjs `rebuildEmbedded`; it drops a
+     * region the update does not already hold), and what v14 fires is LIVE-E12-03. Scenario 66 X3
+     * and X4 read the behaviours, X5 the scene's update.
      */
     Hooks.on("createRegion", (region, options, userId) => regionChanged(region, userId));
     Hooks.on("updateRegion", (region, changes, options, userId) => regionChanged(region, userId, changes));
     Hooks.on("deleteRegion", (region, options, userId) => regionChanged(region, userId));
+    Hooks.on("createRegionBehavior", (behavior, options, userId) => regionChanged(behavior?.parent, userId));
+    Hooks.on("deleteRegionBehavior", (behavior, options, userId) => regionChanged(behavior?.parent, userId));
+    Hooks.on("updateScene", (scene, changes, options, userId) => regionsReplaced(scene, changes, userId));
 
 
     // The Eclipse hides everyone from everyone (see eclipse.mjs /
@@ -368,6 +380,7 @@ export function registerFog() {
     // `canvasReady` still covers the scene in front of the GM; this covers the
     // ones nobody has opened yet, which is where the trap was.
     Hooks.once("ready", () => step("prepare scenes", () => prepareScenes()));
+    Hooks.once("ready", () => step("remember which scenes hold rooms", () => primeHeldRooms()));
     Hooks.once("ready", () => step("remember the regions' names", () => primeRegionNames()));
     Hooks.on("createScene", scene => step("remember the regions' names", () => primeRegionNames([scene])));
 
@@ -505,12 +518,24 @@ function visionForDrawnScene() {
 }
 
 /**
- * Whether each scene held a room when the primary last looked (`prepareScenes`, or a region
- * event), by scene id. Read only by `prepareRoomScene`, so a region event prepares a scene
- * when it gives the scene its first room, and not on every edit of a room the scene already
- * had - the plan's "when `sceneHoldsRooms` changes" (plan-E12 C7).
+ * Whether each scene held a room when this GM last looked (`primeHeldRooms` at ready,
+ * `prepareScenes`, or a GM's region event), by scene id. Read only by `prepareRoomScene`, so a
+ * region event prepares a scene when it gives the scene its first room, and not on every edit
+ * of a room the scene already had - the plan's "when `sceneHoldsRooms` changes" (plan-E12 C7).
+ *
+ * ON EVERY GM, not the primary alone (E12 fix r2-S2, 11.10.2026; review EARLY-C7-2). It was
+ * filled by `prepareScenes`, which returns before it on a GM who is not the primary at ready:
+ * that GM, become the primary when the first one left, found no memory of the school, and the
+ * first reshape of one of its rooms put the scene back into room-based vision over a GM who had
+ * turned Token Vision on by hand. Scenario 66 X6 reads that handover.
  */
 const heldRooms = new Map();
+
+/** Every scene's answer to `sceneHoldsRooms`, as this GM finds it at ready. */
+function primeHeldRooms() {
+    if (!game.user?.isGM) return;
+    for (const scene of game.scenes ?? []) heldRooms.set(scene.id, sceneHoldsRooms(scene));
+}
 
 /** A region was created, changed (`changes`) or deleted (E12 C7; the hooks in `registerFog`). */
 function regionChanged(region, userId, changes = null) {
@@ -521,10 +546,20 @@ function regionChanged(region, userId, changes = null) {
     step("repaint", () => repaintRoomScene(scene));
 }
 
+/** A scene's update that changed its regions (`changes.regions`): what a region's own update does, each region with its patch. */
+function regionsReplaced(scene, changes, userId) {
+    const patches = regionPatches(scene, changes);
+    if (!patches.length) return;
+    for (const [region, patch] of patches) step("a room renamed", () => noteRegionName(region, userId, patch));
+    step("scene vision mode", () => prepareRoomScene(scene, userId));
+    step("repaint", () => repaintRoomScene(scene));
+}
+
 /**
  * The primary's half: a scene a region event has just given its first room is put into
  * room-based vision at once (`applySceneVisionMode`), on the scene the region is on - not
- * the scene on anybody's screen.
+ * the scene on anybody's screen. Every GM keeps the memory (`heldRooms`); only the primary
+ * writes.
  *
  * A GM's event only, by the user id Foundry hands the hook. A region a player draws or marks
  * is answered by movement.mjs (E12 C1: recorded, or its mark put back, on the primary); the
@@ -537,10 +572,10 @@ function regionChanged(region, userId, changes = null) {
  * when the setting goes off, as before 1.2.74.
  */
 function prepareRoomScene(scene, userId) {
-    if (!isPrimaryGm() || !game.users?.get(userId)?.isGM) return false;
+    if (!game.user?.isGM || !game.users?.get(userId)?.isGM) return false;
     const holds = sceneHoldsRooms(scene), held = heldRooms.get(scene.id);
     heldRooms.set(scene.id, holds);
-    if (!holds || held === true) return false;
+    if (!isPrimaryGm() || !holds || held === true) return false;
     return applySceneVisionMode(scene);
 }
 
@@ -2010,8 +2045,13 @@ export function diagnoseFog() {
         // Counted through the SAME reader the fog draws with, so this cannot
         // report geometry that the drawing code then fails to read. A region
         // whose points are in a format `flattenPoints` rejects shows up here
-        // as missing, which is the fact worth knowing.
-        regionsWithGeometry: regions.filter(r => regionShapes(r, { x: 0, y: 0 }).length).length,
+        // as missing, which is the fact worth knowing. The pieces of the floor
+        // on screen alone (`fogRegionsFor`), as the repaint reads them: counted
+        // over every floor, a floor whose every piece is unreadable read as
+        // readable beside the repaint's "none exposed usable polygons" (E12 fix
+        // r2-S2; review EARLY-C10-2; scenario 66 X2). `roomPieces` above stays
+        // the whole scene's count.
+        regionsWithGeometry: fogRegionsFor(scene, viewedLevel()).filter(r => regionShapes(r, { x: 0, y: 0 }).length).length,
         layerMounted: Boolean(container && !container.destroyed),
         layerParent: container?.parent === canvas?.rendered ? "canvas.rendered"
             : container?.parent === canvas?.stage ? "canvas.stage (stale)"
@@ -2126,7 +2166,7 @@ export function doorwayReport() {
             neighbour: found?.name ?? "-",
             insideOf: overlapping?.name ?? "-",
             wallAlong: wallAlongEdge(mx, my, edge.dx / edge.length, edge.dy / edge.length,
-                Array.from(scene.walls ?? []), grid * DOORWAY_WALL_NEAR, edge.trend),
+                Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level)), grid * DOORWAY_WALL_NEAR, edge.trend),
             clear: target
                 ? nothingInTheWay({ x: mx - edge.nx * back, y: my - edge.ny * back },
                                   { x: mx + edge.nx * reach, y: my + edge.ny * reach })
@@ -2152,7 +2192,7 @@ export function doorwayReport() {
                 let best = Infinity;
                 for (const w of scene.walls ?? []) {
                     const c = w.c;
-                    if (!c || c.length < 4 || w.move === NONE) continue;
+                    if (!c || c.length < 4 || w.move === NONE || !onLevel(w, level)) continue;
                     best = Math.min(best, distanceToSegment(mx, my, c[0], c[1], c[2], c[3]));
                 }
                 return Number.isFinite(best) ? Math.round(best / grid * 100) / 100 : "-";
@@ -2341,7 +2381,12 @@ function clearLayerLeftovers(container) {
  * floor already reads), so a room found on the floor above is veiled there exactly as a room
  * found on the floor the token stands on, a room never visited stays under full fog on every
  * floor, and a room stood in is clear on every floor its pieces reach. Viewing another floor reads
- * nothing one floor does not. Taken out of `buildFogTexture`, which draws what this answers, so
+ * nothing one floor does not. "Any floor" is the harness's: the viewer's tokens are read off
+ * `canvas.tokens.placeables` (`myCurrentRooms`), which the shim fills with the whole scene, and
+ * v14's token layer may hold only the floor on screen (its typings point readers at a
+ * level-aware `viewedDocuments()`) - then a stairwell the viewer stands in on the floor below
+ * reads veiled from the floor above, stricter and not a leak; not measured, LIVE-E12-02 (E12 fix
+ * r2-S2; review EARLY-C11-1). Taken out of `buildFogTexture`, which draws what this answers, so
  * the answer can be read without a canvas: tier 2 "a room on another floor looks as it does on
  * yours" compares it on two floors, and scenario 66 G8 reads it (`diagnoseFog().shading`) on a
  * floor a player's console put on screen.
@@ -2392,7 +2437,12 @@ export function fogRegionsFor(scene, level) {
  * every floor the switcher shows (plan-E12 3.5). A door is asked on both of its
  * sides (`doorSides`), a fifth of a square out (`DOORWAY_PROBE_IN`): a wall drawn
  * with the wall tool sits ON the border of the rooms it divides, so its midpoint
- * is in both or neither. Either side in such a room shows it - the door out of the
+ * is in both or neither. And again `DOORWAY_WALL_NEAR` out (E12 fix r2-S2,
+ * 11.10.2026; review EARLY-C13-1): the map check takes a border up to that far
+ * from its wall for the wall's, so a room drawn a third of a square inside its
+ * walls passed it clean while both points at a fifth fell in the gap, and the
+ * player in that room lost the control of every door of it (R386's Den). Either
+ * side in such a room shows it - the door out of the
  * room you are in, onto a corridor that is no room, is shown; the door between two
  * rooms you have never been in is not. A secret door on a floor the fog shaded
  * is not shown to a player at all: the audit's claim that Foundry shows those too
@@ -2409,18 +2459,20 @@ export function fogRegionsFor(scene, level) {
  * -------------------------------------------------------------------------- */
 
 /**
- * The two points a door is asked on: `size` (a grid square) times `DOORWAY_PROBE_IN` out from
- * the middle of the wall `c` = [x0, y0, x1, y1], one on each side; the middle alone for a wall of
- * no length.
+ * The points a door is asked on: `size` (a grid square) times `DOORWAY_PROBE_IN`, then times
+ * `DOORWAY_WALL_NEAR`, out from the middle of the wall `c` = [x0, y0, x1, y1], one of each on
+ * each side; the middle alone for a wall of no length.
  */
 export function doorSides(c, size) {
     const [x0, y0, x1, y1] = c;
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
     const length = Math.hypot(x1 - x0, y1 - y0);
     if (!(length > 0)) return [{ x: mx, y: my }];
-    const out = (size * DOORWAY_PROBE_IN) / length;
-    const nx = -(y1 - y0) * out, ny = (x1 - x0) * out;
-    return [{ x: mx + nx, y: my + ny }, { x: mx - nx, y: my - ny }];
+    return [DOORWAY_PROBE_IN, DOORWAY_WALL_NEAR].flatMap(depth => {
+        const out = (size * depth) / length;
+        const nx = -(y1 - y0) * out, ny = (x1 - x0) * out;
+        return [{ x: mx + nx, y: my + ny }, { x: mx - nx, y: my - ny }];
+    });
 }
 
 /**

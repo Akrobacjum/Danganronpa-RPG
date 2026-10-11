@@ -34,7 +34,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
-    isMoveChange, levelOf, onLevel, passageBehaviour } from "./rooms.mjs";
+    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -109,6 +109,9 @@ export function registerMovement() {
     Hooks.on("updateRegion", (region, changes, options, userId) => judgeRoomFlagChange(region, changes, userId));
     Hooks.once("ready", () => primeRoomFlags(game.scenes ?? []));
     Hooks.on("createScene", scene => primeRoomFlags([scene]));
+    // A region changed through its scene's own update fires no `updateRegion`: each is judged as that hook judges it (E12 fix
+    // r2-S2; review O6; fog.mjs `regionsReplaced`) - a GM's mark remembered, a player's change put back.
+    Hooks.on("updateScene", (scene, changes, options, userId) => regionPatches(scene, changes).forEach(([region, patch]) => judgeRoomFlagChange(region, patch, userId)));
 }
 
 /* ==========================================================================

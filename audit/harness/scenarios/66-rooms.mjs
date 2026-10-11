@@ -53,6 +53,11 @@
  *      SEC-2). Every room of the scene stands in for her doors: the harness measures no neighbour of the Hall on p1.
  *   O  p1 drags Aiko's school token from the Hall into a Porch beside it with p1's camera on the Annex: whether the crossing
  *      is announced (E12 fix r2-S1, review round 2 O3).
+ *   X  what the second review found (E12 fix r2-S2): a tower whose upper floor alone is walled, with a room of Foundry's
+ *      name, under the GM's map check and the fog's report on each floor (EARLY-C10-3, O4, EARLY-C10-2); a Teleport
+ *      taken off a marked Hall and put back, with p1 looking at it (EARLY-C7-3); a region marked and renamed through its
+ *      scene's own update (O6); and a second GM that becomes the primary when the seeded GM leaves (EARLY-C7-2) - last, since
+ *      the seeded GM does not come back.
  * Not readable headless (the plan's M10): what the fog draws on either floor - G4 reads the pieces
  * `repaintFog` chose (`diagnoseFog().lastDrawn`) and G8 its shading (`diagnoseFog().shading`), since the harness renders
  * no fog texture -, whether the
@@ -89,12 +94,19 @@
  * C13's red first and mutants (one or four checks failing); whether other lanes ran then was not read.
  * E12 C14 (M1, M2 added): 38 checks in 35.4 s, one run under the harness lock on 11.10.2026, and 34.1-41.1 s in seven runs
  * of C14's red first and mutants (one or two checks failing); whether other lanes ran then was not read.
+ * E12 fix r1-G4 (K1 added on the side fix line, from C6): 23 checks in 22.2 s, one run of its fast set on 11.10.2026
+ * (e12run/r1g4/FAST.txt); whether other lanes ran then was not read.
  * The merge of the E12 fix line (r1-G4's K1 and r1-G5's G3, renamed N1 and G10 because C7 and C9 had taken those names on
- * the main line): 40 checks; their time is the merge commit's fast set's, in its message.
+ * the main line): 40 checks in 37.2 s, one run of the merge commit's fast set (its message); whether other lanes ran then
+ * was not read.
  * E12 fix r2-S1 (O1 added): 41 checks in 44.5 s, one run of the side line's fast set on 11.10.2026 while two other harness
  * lanes ran, and 44.6 s and 41.0 s in its red first and one mutant (O1 failing).
+ * E12 fix r2-S2 (X1-X6 added; X6 connects a second GM and disconnects the seeded one, so X stays last): 47 checks in
+ * 58.7 s, one run of the side line's fast set on 11.10.2026 while its other two lanes and another group's run were busy.
  */
 export const layers = ["ci"];
+/* X6's second GM: seeded inactive and brought to the table there, as 61 brings its own (E12 fix r2-S2). */
+export const accounts = [{ who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
@@ -103,7 +115,7 @@ const L1 = "LEVELGROUND00000", L2 = "LEVELUPPER000000";
 /* The two floors G's stack adds above L1 (E12 C11). */
 const F2 = "LEVELMIDDLE00000", F3 = "LEVELROOF0000000";
 
-export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
     const SCENES = `const academy = game.scenes.get("${IDS.scene}"), annex = game.scenes.get("${IDS.annex}");`;
     const rect = (x, y, width = 600, height = 600) => J([{ type: "rectangle", x, y, width, height }]);
     /* Room Setup answered as a GM answers it: the window's own form with one lock ticked, then its Apply button's
@@ -1012,4 +1024,145 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         setO.room === "Hall" && moveO.camera === IDS.annex && moveO.threw === null && moveO.room === "66 O Porch"
             && J(moveO.crossed) === J([["Hall", "66 O Porch"]]),
         J({ setO, moveO }));
+
+    /* ------------------------------ X. the second review's findings ------------------------------ */
+    phase("X: one floor's walls, a room of Foundry's name, a Teleport taken off and put on, regions in a scene's update, a GM's handover");
+    /* A tower of two floors made here: a Lab on the ground floor under a Loft of the same footprint, the Loft's four walls
+       drawn on the upper floor alone, and a room left with the name Foundry gives a second region. The GM runs the map
+       check over it and counts the readable pieces of each floor (E12 fix r2-S2; review EARLY-C10-3, O4, EARLY-C10-2). */
+    const XG = "LEVELXGROUND0000", XU = "LEVELXUPPER00000";
+    const ROOM = `{ "${MOD}": { room: true } }`;
+    const towerX = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs"), academy = game.scenes.get("${IDS.scene}");
+        const tower = await Scene.create({ name: "66 X Tower", width: 2000, height: 1500, grid: { size: 100 }, active: false,
+            levels: [{ id: "${XG}", name: "Ground", elevation: 0 }, { id: "${XU}", name: "Upper", elevation: 10 }] });
+        await tower.createEmbeddedDocuments("Region", [
+            { name: "Lab X", shapes: ${rect(200, 200)}, levels: ["${XG}"], flags: ${ROOM}, behaviors: [] },
+            { name: "Loft X", shapes: ${rect(200, 200)}, levels: ["${XU}"], flags: ${ROOM}, behaviors: [] },
+            { name: "Region (2)", shapes: ${rect(1000, 200, 300, 300)}, levels: ["${XG}"], flags: ${ROOM}, behaviors: [] }]);
+        await tower.createEmbeddedDocuments("Wall", [[200, 200, 800, 200], [800, 200, 800, 800], [800, 800, 200, 800], [200, 800, 200, 200]]
+            .map(c => ({ c, move: 20, levels: ["${XU}"] })));
+        await tower.view();
+        const rows = F.checkRegions().map(r => [r.room, r.floor, r.problem]);
+        // The primary's write of the tower's vision (its first rooms, E12 C7) lands before the tower goes.
+        await new Promise(r => setTimeout(r, 1000));
+        const counted = level => { game._viewScene(tower, { level }); return F.diagnoseFog().regionsWithGeometry; };
+        const geometry = { upper: counted("${XU}"), ground: counted("${XG}") };
+        await academy.view();
+        await tower.delete();
+        return { rows, geometry, back: canvas.scene?.id ?? null };`, { timeout: 30000 });
+    const rowX = (room, floor, problem) => towerX.rows.some(r => J(r) === J([room, floor, problem]));
+    const ADRIFT = "Border runs away from the walls", DEFAULT = "Room still has the name Foundry gave it";
+    /* Until E12 fix r2-S2 the map check asked every wall of the scene about every floor's borders: the Loft's walls stood
+       beside the Lab below and hid its warning, and nothing warned of a room called "Region (2)". */
+    check("X1: the map check warns of the Lab's border with no wall on its own floor, not of the walled Loft above, and of a room still named Region (2) (E12 fix r2-S2)",
+        rowX("Lab X", "Ground", ADRIFT) && !rowX("Loft X", "Upper", ADRIFT) && rowX("Region (2)", null, DEFAULT)
+            && !towerX.rows.some(r => r[2] === DEFAULT && r[0] !== "Region (2)") && towerX.back === IDS.scene, J(towerX));
+    /* Until then `regionsWithGeometry` counted every floor's pieces, 3 on either floor, beside a repaint that reads one floor's. */
+    check("X2: the fog's report counts the readable room pieces of the floor on screen: one upstairs, two on the ground (E12 fix r2-S2)",
+        J(towerX.geometry) === J({ upper: 1, ground: 2 }), J(towerX));
+
+    /* A scene with Foundry's vision on and one marked region carrying a Teleport (a passage, no room - E12 C1). The GM takes
+       the Teleport off: the region is the scene's first room. Then p1 puts the scene on screen and the GM puts a Teleport
+       back on: the scene holds no room again (review EARLY-C7-3). */
+    const hallX = await gm.eval(`const scene = await Scene.create({ name: "66 X Hall", width: 2000, height: 1000, grid: { size: 100 }, active: false,
+            navigation: false, tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const [hall] = await scene.createEmbeddedDocuments("Region", [{ name: "Hall X", shapes: ${rect(200, 200)}, flags: ${ROOM},
+            behaviors: [{ type: "teleportToken", name: "Out", system: { destination: null } }] }]);
+        await new Promise(r => setTimeout(r, 1000));
+        const before = scene.tokenVision;
+        await hall.deleteEmbeddedDocuments("RegionBehavior", Array.from(hall.behaviors, b => b.id));
+        const end = Date.now() + 6000;
+        while (scene.tokenVision !== false && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { scene: scene.id, hall: hall.id, before, after: scene.tokenVision, behaviours: hall.behaviors.size };`, { timeout: 30000 });
+    const viewX = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        await game.scenes.get("${hallX.scene}").view();
+        await new Promise(r => setTimeout(r, 500));
+        return { scene: canvas.scene?.id ?? null, before: F.diagnoseFog().lastReason };`, { timeout: 30000 });
+    const putX = await gm.eval(`const hall = game.scenes.get("${hallX.scene}").regions.get("${hallX.hall}");
+        await hall.createEmbeddedDocuments("RegionBehavior", [{ type: "teleportToken", name: "Out", system: { destination: null } }]);
+        return { behaviours: hall.behaviors.size };`, { timeout: 30000 });
+    const readX = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const end = Date.now() + 6000;
+        while (!/has no room/.test(F.diagnoseFog().lastReason) && Date.now() < end) await new Promise(r => setTimeout(r, 250));
+        const after = F.diagnoseFog().lastReason;
+        await game.scenes.get("${IDS.scene}").view();
+        return { after, back: canvas.scene?.id ?? null };`, { timeout: 30000 });
+    /* Until E12 fix r2-S2 nothing listened to a behaviour: the Hall kept Foundry's vision with its first room in it, and p1's
+       fog went on reading a room the Teleport had taken away, until a region was drawn or a token moved. */
+    check("X3: the Teleport taken off the marked Hall puts its scene into room-based vision at once (E12 fix r2-S2)",
+        hallX.before === true && hallX.behaviours === 0 && hallX.after === false, J(hallX));
+    check("X4: p1, with the Hall on screen, repaints its fog when the GM puts a Teleport back on the Hall (E12 fix r2-S2)",
+        viewX.scene === hallX.scene && !/has no room/.test(viewX.before ?? "") && putX.behaviours === 1
+            && /has no room/.test(readX.after ?? "") && readX.back === IDS.scene, J({ viewX, putX, readX }));
+
+    /* A scene with Foundry's vision on and an unmarked region on it. The GM marks the region a room and then renames it, both
+       through the scene's own update - the harness's shim fires `updateScene` for that and no `updateRegion`
+       (client-entry.mjs `rebuildEmbedded`; v14's way is LIVE-E12-03) - and between the two a player's unmarking of it is
+       judged as the `updateRegion` hook would judge it (review O6). */
+    const wardX = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = await Scene.create({ name: "66 X Ward", width: 2000, height: 1000, grid: { size: 100 }, active: false,
+            navigation: false, tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const [ward] = await scene.createEmbeddedDocuments("Region", [{ name: "Ward X", shapes: ${rect(200, 200)}, flags: {}, behaviors: [] }]);
+        await new Promise(r => setTimeout(r, 500));
+        const before = scene.tokenVision;
+        await scene.update({ regions: [{ _id: ward.id, flags: ${ROOM} }] });
+        let end = Date.now() + 6000;
+        while (scene.tokenVision !== false && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const marked = ward.getFlag("${MOD}", "room") ?? null, vision = scene.tokenVision;
+        const judged = await M.judgeRoomFlagChange(ward, { flags: { "${MOD}": { room: false } } }, "${IDS.p1}");
+        const kept = ward.getFlag("${MOD}", "room") ?? null;
+        const said = [], was = console.log;
+        console.log = (...args) => { said.push(args.join(" ")); return was.apply(console, args); };
+        try {
+            await scene.update({ regions: [{ _id: ward.id, name: "Ward Y" }] });
+            end = Date.now() + 4000;
+            while (!said.some(line => line.includes("was renamed")) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        } finally { console.log = was; }
+        const out = { before, marked, vision, judged, kept, name: ward.name, renamed: said.filter(line => line.includes("was renamed")) };
+        await scene.delete();
+        return out;`, { timeout: 30000 });
+    /* Until E12 fix r2-S2 a region changed that way was nobody's news: the scene kept Foundry's vision with a room in it, the
+       guard remembered the mark as unset and took the player's change for none while "putting back" the unset one
+       (`moved: true`, the GM's mark gone), and the rename carried nothing. */
+    check("X5: a GM's mark and rename of a region through its scene's update prepare the scene, are what the guard and the rename remember (E12 fix r2-S2)",
+        wardX.before === true && wardX.marked === true && wardX.vision === false && J(wardX.judged) === J({ moved: false, unknown: false })
+            && wardX.kept === true && wardX.name === "Ward Y" && wardX.renamed.length === 1
+            && wardX.renamed[0].includes(`"Ward X" on "66 X Ward" was renamed "Ward Y"`), J(wardX));
+
+    /* The handover (review EARLY-C7-2). Two schools with a room each, put into room-based vision by the seeded GM, who then
+       turns Token Vision back on by hand on both: the first school before the second GM connects, the second after. The
+       seeded GM leaves, and the second GM - now the primary - reshapes a room of each. */
+    await gm.eval(`await game.scenes.get("${hallX.scene}")?.delete(); return true;`, { timeout: 30000 });
+    const SCHOOL = `const school = async name => {
+            const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false,
+                navigation: false, tokenVision: true, environment: { globalLight: { enabled: false } } });
+            await scene.createEmbeddedDocuments("Region", [{ name: "Room of " + name, shapes: ${rect(200, 200)}, flags: ${ROOM}, behaviors: [] }]);
+            const end = Date.now() + 6000;
+            while (scene.tokenVision !== false && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            const prepared = scene.tokenVision === false;
+            await scene.update({ tokenVision: true });
+            return { id: scene.id, prepared };
+        };`;
+    const firstX = await gm.eval(`${SCHOOL} return await school("66 X School A");`, { timeout: 30000 });
+    await connect("gm2");
+    await settle(1500);
+    const secondX = await gm.eval(`${SCHOOL} return await school("66 X School B");`, { timeout: 30000 });
+    await settle(800);
+    await disconnect("gm");
+    await settle(1000);
+    const handX = await gm2.eval(`const { isPrimaryGm } = await import("${repoUrl}/scripts/utils.mjs");
+        const ids = ["${firstX.id}", "${secondX.id}"], primary = isPrimaryGm();
+        for (const id of ids) {
+            const room = game.scenes.get(id).regions.contents[0];
+            await room.update({ shapes: ${rect(200, 200, 700, 600)} });
+        }
+        await new Promise(r => setTimeout(r, 1500));
+        const vision = ids.map(id => game.scenes.get(id).tokenVision);
+        for (const id of ids) await game.scenes.get(id).delete();
+        return { primary, vision };`, { timeout: 30000 });
+    /* Until E12 fix r2-S2 only the primary remembered which scenes held rooms: the second GM, primary once the first had
+       gone, met each school as one whose first room had just been drawn and put it back into room-based vision over the
+       Token Vision a GM had turned on. */
+    check("X6: a second GM, become the primary, leaves the Token Vision a GM turned on in both schools when it reshapes their rooms (E12 fix r2-S2)",
+        firstX.prepared && secondX.prepared && handX.primary === true && J(handX.vision) === J([true, true]), J({ firstX, secondX, handX }));
 }

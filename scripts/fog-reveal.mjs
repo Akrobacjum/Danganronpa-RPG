@@ -933,9 +933,15 @@ export function flashOutline(fx, region, rect, level = null) {
     // MEASURED OFF THE WIDER PASS, like `gapPad`, and for the same reason:
     // if the ink dropped a stretch the bone kept, the bone line would stand
     // there with no keyline under it.
+    /* NO EDGES, ONE SHAPE (E12 fix r2-S2, 11.10.2026; review O5). `doorwayEdges` answers [] for a
+       region with no shape or when it threw; the fallback strokes each shape whole, which for a
+       room of several shapes - pieces handed as one, or one region of overlapping shapes - draws
+       the lines inside it that the edges would have left out. Such a room gets no line then, its
+       name and glow as ever; one shape is its own outline, as before. Not measured: the harness
+       draws no outline for a player (66's header) and nothing there makes `doorwayEdges` throw. */
     const trace = () => {
         if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, stubFloor);
-        else traceRegionPathsAt(outline, region, rect);
+        else if (regionShapes(region, { x: 0, y: 0 }).length === 1) traceRegionPathsAt(outline, region, rect);
     };
 
     if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }

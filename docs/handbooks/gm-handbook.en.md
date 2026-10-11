@@ -922,7 +922,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `diagnoseScenes()` | lists the scenes with rooms and whether each is ready |
 | `prepareScenes()` | fixes them all |
 | `whyBlack()` | lists what the fog layer has on screen while the picture is wrong |
-| `checkRegions()` | checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a named region that is not a room (and why), and corners off the map's own lattice; on a scene of several floors each floor is checked apart and named in the `floor` column (the `level` column is the finding's weight: error, warning or info) |
+| `checkRegions()` | checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a room still bearing the name Foundry gave it, a named region that is not a room (and why), and corners off the map's own lattice; on a scene of several floors each floor is checked apart and named in the `floor` column (the `level` column is the finding's weight: error, warning or info) |
 | `doorwayReport()` | explains each stretch of the current room's border |
 | `fogPeek()` | hides the fog for a few seconds |
 | `fogAnimations(false)` | turns the reveal off mid-session |

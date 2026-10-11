@@ -43862,17 +43862,30 @@ const SCENARIOS = [
          * (its centre within the rectangle the test drew) or where it stood. What a body does is
          * scenario 65's P1; the window and the step's place are R354's. Red at the parent (C10) on its
          * first check, no `placeCast` (measured on the harness, 10.10.2026).
+         * The other map is the test's own (E12 fix r2-S2, 11.10.2026; k2 on 8109466): since E12 C7 the
+         * first room a GM draws on a scene puts that scene into room-based vision, and the bedrooms
+         * were the Annex's first rooms - deleting them leaves the scene prepared, as it leaves a GM's
+         * (fog.mjs `prepareRoomScene`), and the suite's restore read the Annex's Token Vision, global
+         * light and fog as left behind. The hook is right to prepare a scene nobody views (Room Setup
+         * writes to the scene it was opened on, E12 C4). Given back with `restoreSceneVisionMode`,
+         * the harness's Annex still read changed: its seed holds none of the three fields, and after
+         * the restore each held a value (the suite's restore, read on 11.10.2026). So the bedrooms go
+         * on a scene made here and deleted after, and the scene on screen, whose start point could
+         * prepare it in a world where it holds no room, is put back and read as found.
          */
         const { placeCast } = await import("./season-setup.mjs");
         ok(typeof placeCast === "function", "season-setup.mjs has no step that places the cast (`placeCast`) - the reset leaves every token where it was");
         if (typeof placeCast !== "function") return;
-        needs(world.atLeast("scenes", 2), "a bedroom on another map than the one on screen");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
         const V = await import("./vault.mjs");
         const here = game.scenes.viewed ?? game.scenes.contents[0];
-        const there = game.scenes.contents.find(scene => scene.id !== here.id);
         const RECT = { width: 600, height: 600 };
+        const { restoreSceneVisionMode } = await import("./fog.mjs");
+        const visionOf = scene => stableJson([scene.tokenVision, scene.environment?.globalLight?.enabled ?? null,
+            scene.fog?.mode ?? scene.fog?.exploration ?? null, scene.getFlag(MODULE_ID, "visionBefore") ?? null]);
+        const visionFound = visionOf(here), unprepared = here.getFlag(MODULE_ID, "visionBefore") === undefined;
+        let visionLeft = null, there = null;
         // Marked rooms (E12 fix r1-G3; k1, 11.10.2026): a region drawn after the migration is a room only when a GM marked
         // it (E12 C1), and the unmarked bedrooms were no bedrooms from E12 C2a on, so the choice moved nobody.
         const room = (name, x, owner) => ({ name, shapes: [{ type: "rectangle", x, y: 0, ...RECT }],
@@ -43880,6 +43893,7 @@ const SCENARIOS = [
         let actors = [], made = [];
         try {
             actors = await Actor.createDocuments(["A", "B", "C"].map(n => ({ name: `SUITE E11 C10b student ${n}`, type: "character" })));
+            there = await Scene.create({ name: "SUITE E11 C10b another map", width: 4000, height: 3000, grid: { size: 100 }, active: false, navigation: false });
             const [a, b, c] = actors;
             const [bedA, bedC] = await there.createEmbeddedDocuments("Region", [room("SUITE E11 C10b A's bedroom", 0, a.id), room("SUITE E11 C10b C's bedroom", 700, c.id)]);
             const [point] = await here.createEmbeddedDocuments("Region", [room("SUITE E11 C10b the start point", 0, null)]);
@@ -43923,7 +43937,12 @@ const SCENARIOS = [
                 if (left.length) await scene.deleteEmbeddedDocuments(kind, left);
             }
             if (actors.length) await Actor.deleteDocuments(actors.map(actor => actor.id));
+            if (there) await there.delete();
+            if (unprepared && here.getFlag(MODULE_ID, "visionBefore") !== undefined) await restoreSceneVisionMode(here);
+            visionLeft = visionOf(here);
         }
+        equal(visionLeft, visionFound, "the vision of the scene on screen (Token Vision, global light, fog, the record of the vision before), "
+            + "as the test found it and as it left it");
     }],
     ["a reset takes a Level Up's experience and keeps the GM's", async () => {
         /*
@@ -47564,6 +47583,8 @@ const SCENARIOS = [
          */
         const F = await import("./fog.mjs");
         const R = await import("./rooms.mjs");
+        // The scene is prepared on the primary alone (`prepareRoomScene`): elsewhere the wait below would lapse (E12 fix r2-S2; review EARLY-C7-1).
+        needs(env.primaryGm(), "the primary GM's write of a scene's vision");
         must(F.fogEnabled(), "the room fog is switched off in this world - nothing would prepare a scene, and this would measure nothing");
         const home = canvas?.scene ?? null;
         const box = x => [{ type: "rectangle", x, y: 100, width: 600, height: 600 }];

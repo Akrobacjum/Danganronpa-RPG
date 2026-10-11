@@ -281,6 +281,17 @@ export function levelOf(tokenDoc) {
 }
 
 /**
+ * The regions a scene's own update changed, each with its patch, as `[region, patch]` (E12 fix r2-S2,
+ * 11.10.2026; review O6): `changes.regions` as the update hook hands it - a list of patches by `_id`
+ * in the harness (client-entry.mjs), not read on v14 (LIVE-E12-03). A patch naming no region the
+ * scene holds is left out. Read by fog.mjs `regionsReplaced` and movement.mjs's `updateScene` hook.
+ */
+export function regionPatches(scene, changes) {
+    const patches = Array.isArray(changes?.regions) ? changes.regions : [];
+    return patches.map(patch => [scene?.regions?.get?.(patch?._id) ?? null, patch]).filter(([region]) => region);
+}
+
+/**
  * Whether a region is on this floor: no floor asked, a region on no floor in particular (every
  * floor), or one Foundry says it is on. A region that cannot be asked is on every floor - the
  * module's rule wherever it cannot read a map (movement.mjs `neighbouringRooms`).
@@ -335,8 +346,8 @@ export function floorsOf(scene) {
  * not read `canvas.tokens`, `getActiveTokens()` or a user's `viewedScene` property, which
  * are the camera by other roads. Two of those, movement.mjs `occupantsOf` and
  * `roomsKnownToMe`, read a named scene's documents since E12 fix r1-G4; tier 2 moves the
- * camera under the first ("who stands in a room is counted on the scene ..."), scenario 66 K1
- * under the second.
+ * camera under the first ("who stands in a room is counted on the scene ..."), scenario 66 N1
+ * under the second (K1 on the fix line, renamed at the merge; this line named K1 until E12 fix r2-S2).
  */
 
 /** The scene this browser has on screen, or null. Only for a function `CAMERA_READERS` lists. */

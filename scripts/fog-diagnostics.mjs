@@ -256,6 +256,21 @@ export function whatIsHere(x = null, y = null) {
  * is no room gets a note saying which of the three reasons holds, since the fog now leaves it
  * out and a room the migration left undecided would otherwise just go dark.
  */
+/*
+ * A ROOM NAMED BY FOUNDRY (E12 fix r2-S2, 11.10.2026; review O4, audit S07-06). The audit asked the
+ * map check to warn of regions left with Foundry's own name. Since E12 C1 a region is a room only
+ * when a GM marked it, so the warning is asked of rooms alone - and the migration marks a plain
+ * region of Foundry's name too (review goal-r2, G-a). Foundry names a new document by its
+ * kind and, when that name is taken, a number ("Region", "Region (2)"): recalled from Foundry's
+ * `defaultName`, not read in v14's source here; the kind's word is asked in both its English and
+ * the world's language. Scenario 66 X1 reads the row.
+ */
+function foundryDefaultName(name) {
+    const kinds = new Set(["Region", game.i18n?.localize?.("DOCUMENT.Region")].filter(Boolean));
+    const numbered = /^(.*) \(\d+\)$/.exec(name ?? "");
+    return kinds.has(name) || Boolean(numbered && kinds.has(numbered[1]));
+}
+
 function roomsToCheck(scene, add) {
     const players = playerRegionIds();
     const pieces = new Map();
@@ -270,6 +285,11 @@ function roomsToCheck(scene, add) {
         if (!isRoomWith(region, players)) {
             add("info", region.name, game.i18n.localize("DRPG.Fog.notRoom.problem"), notRoomWhy(region, players), pointOf(region));
             continue;
+        }
+        if (foundryDefaultName(region.name)) {
+            add("warning", region.name, "Room still has the name Foundry gave it",
+                "A room is its name: players read it on the map, and keys, stashes and Room Setup all "
+                + "name it. Give it the room's own name before play.", pointOf(region));
         }
         if (!regionShapes(region, { x: 0, y: 0 }).length) {
             add("error", region.name, "No geometry the fog can read",
@@ -527,6 +547,9 @@ export function checkRegions() {
     for (const floor of floors.length ? floors : [null]) {
         const addHere = addOn(floor);
         const here = floor ? asChecked(rooms.map(list => list.filter(region => onLevel(region, floor)))) : named;
+        // The walls of this floor alone, as `doorwayEdges` reads them (E12 fix r2-S2; review EARLY-C10-3):
+        // a wall of the floor above along a border hid "Border runs away from the walls" below. Scenario 66 X1.
+        const wallsHere = floor ? walls.filter(wall => onLevel(wall, floor)) : walls;
 
         overlapCheck(here, grid, addHere);
 
@@ -534,7 +557,7 @@ export function checkRegions() {
         for (const { region } of here) {
             const edges = doorwayEdges(region, floor);
 
-            adriftCheck(region, edges, walls, grid, addHere);
+            adriftCheck(region, edges, wallsHere, grid, addHere);
             noWayOutCheck(scene, region, edges, grid, addHere, floor);
 
             // 3. (there is no check on how LONG an opening is. A doorway has no
