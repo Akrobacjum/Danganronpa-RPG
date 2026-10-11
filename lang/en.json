@@ -1831,8 +1831,8 @@
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
-        "one": "1 Truth Bullet not analysed has no real type recorded, so revealing cannot touch it - {who} holds it. Set it from Give / take items.",
-        "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Set them from Give / take items."
+        "one": "1 Truth Bullet not analysed has no real type recorded, so revealing cannot touch it - {who} holds it. Take it, and give one with its type from Give / take items.",
+        "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Take them, and give ones with their types from Give / take items."
       },
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",
@@ -3524,6 +3524,7 @@
         "other": "The season has been reset, with {n} exceptions left as they were."
       },
       "failed": "The reset did not finish: {groups}. Everything else went. Run the reset again with only those ticked.",
+      "failedCast": "The reset did not move every token of the cast where you chose. Move them by hand: a reset with nothing ticked does not run, so it cannot be run again for the tokens alone.",
       "reportCard": {
         "title": "The season reset did not finish",
         "failed": "Not cleared: {groups}.",

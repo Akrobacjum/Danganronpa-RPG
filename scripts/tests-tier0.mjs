@@ -2580,7 +2580,7 @@ const REGRESSIONS = [
         ok(/endMurder\(\{[^}]*\bconclude: false\b[^}]*\}\)/.test(bodyOf(runs, "incident:", { until: "seals:" })),
             "the reset's incident step concludes the incident it should abandon (endMurder without conclude: false)");
         // A step that fails is told (S06-49's report, the plan's 3.4): the line and the card.
-        for (const key of ["DRPG.Season.failed", "DRPG.Season.reportCard.title", "DRPG.Season.reportCard.failed"]) {
+        for (const key of ["DRPG.Season.failed", "DRPG.Season.failedCast", "DRPG.Season.reportCard.title", "DRPG.Season.reportCard.failed"]) {
             ok(game.i18n.has(key), `${key} is missing`);
         }
 

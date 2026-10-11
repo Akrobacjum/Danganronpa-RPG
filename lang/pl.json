@@ -1884,10 +1884,10 @@
       "optNextMorning": "Otwórz następny rozdział rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami",
       "moved": "Zegar wskazuje teraz rozdział {chapter}, sesję {session}.",
       "typeless": {
-        "one": "1 nieprzeanalizowany Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie - ma go {who}. Ustaw go w Daj / zabierz przedmioty.",
-        "few": "{n} nieprzeanalizowane Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty.",
-        "many": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty.",
-        "other": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty."
+        "one": "1 nieprzeanalizowany Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie - ma go {who}. Zabierz go i daj taki z jego typem w Daj / zabierz przedmioty.",
+        "few": "{n} nieprzeanalizowane Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty.",
+        "many": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty.",
+        "other": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty."
       },
       "optSweep": "Zbierz Truth Bullets ({n} zniknie, Faint i Final zostają)",
       "optFaint": "Wyczyść Faint Remnants ({n} zniknie)",
@@ -3715,6 +3715,7 @@
         "other": "Sezon zresetowany. {n} wyjątków pozostało bez zmian."
       },
       "failed": "Reset się nie dokończył: {groups}. Cała reszta poszła. Uruchom reset ponownie, zaznaczając tylko te grupy.",
+      "failedCast": "Reset nie przeniósł każdego żetonu obsady tam, gdzie wybrano. Przenieś je ręcznie: reset bez niczego zaznaczonego się nie uruchamia, więc nie da się go powtórzyć dla samych żetonów.",
       "reportCard": {
         "title": "Reset sezonu się nie dokończył",
         "failed": "Niewyczyszczone: {groups}.",

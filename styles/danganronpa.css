@@ -11254,13 +11254,17 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    against the 6.81 the glass's token is stated at (stained-glass.css). Under the glass only:
    `--drpg-sg-bone-dim` is defined on its body class, and Monokuma Legacy keeps its own
    `--drpg-dim` (4.84:1 as stated, `#cfc9d6` with high contrast on), which nothing here
-   re-measured. Under the glass a warning is not fine print, and is set in full bone. */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock)
+   re-measured. Under the glass a warning is not fine print, and is set in full bone. The body's
+   window joined the form rules above in E11 fix r1-G4 and not these two, so under the glass its
+   note read in `--drpg-dim` beside the murder window's dim bone (round 1's residue R7); it is here
+   since E11 fix r2-H6, read by tier 2's "the body window's fine print is in the glass's dim bone"
+   (which rule reaches the note; the contrast itself is not measurable headless). */
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body)
     .dialog-form .notes:not(.drpg-warning) {
     color: var(--drpg-sg-bone-dim);
 }
 
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock)
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body)
     .dialog-form .notes.drpg-warning {
     color: var(--drpg-sg-bone);
 }

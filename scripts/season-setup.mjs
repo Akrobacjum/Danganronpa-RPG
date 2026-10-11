@@ -1654,11 +1654,18 @@ async function wipeSeason(plan) {
         kept.length ? ` Kept: ${kept.join(", ")}.` : ""}${failed.length ? ` Failed: ${failed.join(", ")}.` : ""}`);
     const label = key => RESET_CHOICES.includes(key) ? game.i18n.localize("DRPG.Season.resetCastTitle") : groupLabel(key);
     const names = keys => keys.map(label).join("; ");
+    /* THE CAST'S MOVE IS NOT A TICK (E11 fix r2-H6; the words r2-H4 left owed). `DRPG.Season.failed` tells the GM
+       to run the reset again with only those ticked, and a reset with nothing ticked does not run (`resetNothing`,
+       above): a failed `placeCast`, named under those words since r2-H4 (65 U2), sent the GM down a road that
+       refuses. The groups keep their words; the cast's step has its own, which say to move the tokens by hand. */
+    const groupsFailed = failed.filter(key => !RESET_CHOICES.includes(key));
+    const castFailed = failed.some(key => RESET_CHOICES.includes(key)) ? game.i18n.localize("DRPG.Season.failedCast") : "";
     // Who stayed where they were, by name (E11 C10b): on the card and in a warning of its own.
     const stayedLine = stayed.length ? game.i18n.format("DRPG.Season.reportCard.stayed",
         { names: stayed.map(id => game.actors.get(id)?.name ?? id).join(", ") }) : "";
     if (failed.length) {
-        ui.notifications.error(game.i18n.format("DRPG.Season.failed", { groups: names(failed) }));
+        ui.notifications.error([groupsFailed.length ? game.i18n.format("DRPG.Season.failed", { groups: names(groupsFailed) }) : "",
+            castFailed].filter(Boolean).join(" "));
     } else {
         ui.notifications.info(kept.length
             ? plural("DRPG.Season.resetDoneKept", { n: kept.length })
@@ -1680,7 +1687,7 @@ async function wipeSeason(plan) {
             const title = failed.length ? "DRPG.Season.reportCard.title"
                 : leftLine ? "DRPG.Season.reportCard.titleLeft" : "DRPG.Season.reportCard.titleCast";
             await whisperToGms(`<h3>${esc(game.i18n.localize(title))}</h3>
-                ${failed.length ? `${line("failed", failed)}${line("done", done)}${line("kept", kept)}` : ""}${
+                ${failed.length ? `${line("failed", groupsFailed)}${castFailed ? `<p>${esc(castFailed)}</p>` : ""}${line("done", done)}${line("kept", kept)}` : ""}${
                 stayedLine ? `<p>${esc(stayedLine)}</p>` : ""}${leftLine ? `<p>${esc(leftLine)}</p>` : ""}`);
         } catch (err) {
             error("Season reset: could not post its report", err);

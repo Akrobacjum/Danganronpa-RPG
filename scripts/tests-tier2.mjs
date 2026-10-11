@@ -44522,6 +44522,7 @@ const SCENARIOS = [
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        needs(env.primaryGm(), "the body window opens on the primary GM alone (`discoveryHere`)");
         const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
         const { isEclipse } = await import("./settings.mjs");
         const remnants = await import("./remnants.mjs");
@@ -45702,6 +45703,7 @@ const SCENARIOS = [
          * themselves need a browser's layout, which this does not measure.
          */
         needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        needs(env.primaryGm(), "the body window opens on the primary GM alone (`discoveryHere`)");
         const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
         const { isEclipse } = await import("./settings.mjs");
         must(!isEclipse(), "an Eclipse is open - the window would refuse, and this would measure nothing");
@@ -46608,6 +46610,67 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, true]),
             "the GM panel's standing block was not drawn again when a token was placed, or when a row of the Key plan was written "
             + "(read: redrawn on the token, redrawn on the row)");
+    }],
+
+    ["the body window's fine print is in the glass's dim bone", async () => {
+        /*
+         * E11 fix r2-H6 (round 1's residue R7). Every module window sets its `.notes` in `--drpg-dim`, the palette's
+         * "spent, unavailable", and under Stained Glass the murder window and Edit campaign take theirs back to the
+         * glass's dim bone and a warning to full bone (E32+E07 C14's two rules, measured there at 3.0-4.1:1 before).
+         * The body's window joined their form layout in E11 fix r1-G4 and not those two rules, so its note - the
+         * hold's sentence, the Prep traces' - read as switched off. The window as it is asked for, in the frame the
+         * rules name, as "the body window's two fields share one width rule" builds it: whether each glass rule,
+         * read without its `body.drpg-theme-stained-glass` (this frame stands in no themed body), reaches the
+         * window's own note, and a warning set in the same form. Only a glass rule written the way the module's
+         * fine-print rule is - `.application.dialog`, then `.dialog-form` - counts: the glass's own
+         * `.drpg-panel .notes` (stained-glass.css) reaches every module window and loses to that rule, which is
+         * the harm, and with it counted this test stayed green with the body window taken out of the dim-bone rule
+         * (a mutant of E11 fix r2-H6, 11.10.2026). That the one counted outranks the module's is read (it carries
+         * the module's compounds and the theme's body class), not computed; the colours themselves need a browser.
+         */
+        needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        needs(env.primaryGm(), "the body window opens on the primary GM alone (`discoveryHere`)");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        must(!isEclipse(), "an Eclipse is open - the window would refuse, and this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = null;
+        try {
+            D.wait = async config => {
+                if (config?.window?.title === game.i18n.localize("DRPG.Chapter.bodyTitle")) asked = config;
+                return null;
+            };
+            await openBodyDiscoveryDialog();
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(asked, "the body window was never asked for - this would measure nothing");
+        const frame = document.createElement("div");
+        frame.className = ["application", "dialog", ...(asked.classes ?? [])].join(" ");
+        const form = document.createElement("form");
+        form.className = "dialog-form";
+        if (typeof asked.content === "string") form.innerHTML = asked.content;
+        else form.append(asked.content.cloneNode(true));
+        frame.append(form);
+        const notes = [...frame.querySelectorAll(".notes")];
+        must(notes.length, "the body window has no fine print - this would measure nothing");
+        const warning = document.createElement("p");
+        warning.className = "notes drpg-warning";
+        notes[0].after(warning);
+        const THEMED = "body.drpg-theme-stained-glass ";
+        const rules = [...(await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), body: m[2] }));
+        const glass = shape => rules.filter(rule => rule.selector.startsWith(THEMED) && shape.test(rule.body))
+            .map(rule => rule.selector.slice(THEMED.length))
+            .filter(selector => selector.startsWith(".application.dialog") && selector.includes(".dialog-form"));
+        const dimBone = glass(/color:\s*var\(--drpg-sg-bone-dim\)/).filter(s => /\.notes/.test(s));
+        const fullBone = glass(/color:\s*var\(--drpg-sg-bone\)/).filter(s => /\.notes\.drpg-warning/.test(s));
+        must(dimBone.length && fullBone.length, "the stylesheet has no glass rule for fine print left - this would measure nothing");
+        const reaches = (selectorList, el) => selectorList.some(selector => { try { return el.matches(selector); } catch { return false; } });
+        equal(stableJson([notes.map(note => reaches(dimBone, note)), reaches(fullBone, warning)]),
+            stableJson([notes.map(() => true), true]),
+            "under Stained Glass the body window's fine print is left in the module's --drpg-dim, which reads as switched off "
+            + "([the glass's dim-bone rule reaches each note], the glass's bone rule reaches a warning)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

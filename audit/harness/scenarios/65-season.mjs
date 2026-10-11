@@ -1055,7 +1055,8 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     const lowered = await gm.eval(`${resetRun({ ticked: J(["clock"]), typed: "word.toLowerCase()" })} return read;`, { timeout: 120000 });
     const WORDS = await gm.eval(`const word = game.i18n.localize("DRPG.Season.resetWord");
         return { mistyped: game.i18n.format("DRPG.Season.resetMistyped", { word }), primary: game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name: ${J(GM0.name)} }),
-            failed: game.i18n.format("DRPG.Season.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") }), word };`);
+            failed: game.i18n.format("DRPG.Season.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") }),
+            failedCast: game.i18n.localize("DRPG.Season.failedCast"), word };`);
     check("U3: the word typed in lower case resets nothing and the GM is told to type it exactly (E11 fix r2-H4)",
         WORDS.word !== WORDS.word.toLowerCase() && lowered.cleared === null && lowered.season === lowered.seasonBefore && lowered.warned.includes(WORDS.mistyped)
             && lowered.reports === 0,
@@ -1094,7 +1095,11 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
                     await until(() => U.primaryGmId() !== game.user.id, 15000); }
                 return out; };` })}
         globalThis.__u.put();
-        return { ...read, primaryThen: U.primaryGmId() };`, { timeout: 120000 });
+        // E11 fix r2-H6: the report card's words for the cast's step - its own, not "Not cleared: Where the cast's tokens go".
+        // Escaped as the card writes them (esc): "cast's" is "cast&#x27;s" there, and the bare words would match nothing.
+        const cards = words => game.messages.filter(m => String(contentOf(m)).includes(foundry.utils.escapeHTML(words))).length;
+        return { ...read, primaryThen: U.primaryGmId(), castCards: cards(game.i18n.localize("DRPG.Season.failedCast")),
+            notCleared: cards(game.i18n.format("DRPG.Season.reportCard.failed", { groups: game.i18n.localize("DRPG.Season.resetCastTitle") })) };`, { timeout: 120000 });
     const heldU2 = await gm.eval(`${UNTIL} return Boolean(await until(() => globalThis.__u?.held, 15000));`, { timeout: 30000 });
     let cutU2 = null;
     await connect("gm0");
@@ -1103,12 +1108,16 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     } finally {
         await disconnect("gm0");
     }
-    check("U2: a GM with a lower id arriving after the reset's cut leaves the cast unplaced, and the reset files that step failed and names it in its error and its report (E11 fix r2-H4)",
+    /* The words (E11 fix r2-H6): r2-H4 named the cast's step under DRPG.Season.failed, "run the reset again with only those
+       ticked", and a reset with nothing ticked does not run - so the error and the card now carry the cast's own words, to
+       move the tokens by hand, and neither the groups' advice nor "Not cleared: Where the cast's tokens go". */
+    check("U2: a GM with a lower id arriving after the reset's cut leaves the cast unplaced, and the reset files that step failed; its error and its report say to move the tokens by hand, not to run the reset again (E11 fix r2-H4, r2-H6)",
         heldU2 === true && cutU2?.primaryThen === GM0.id && J(cutU2.cleared) === J(["clock"]) && J(cutU2.failed) === J(["placeCast"])
-            && cutU2.errors.includes(WORDS.failed) && cutU2.reports === 1 && cutU2.season === cutU2.seasonBefore + 1
+            && cutU2.errors.includes(WORDS.failedCast) && !cutU2.errors.includes(WORDS.failed) && cutU2.castCards === 1 && cutU2.notCleared === 0
+            && cutU2.reports === 1 && cutU2.season === cutU2.seasonBefore + 1
             && still(cutU2, IDS.aiko, IDS.botan, IDS.chie),
         J({ heldU2, cutU2: cutU2 && { primaryThen: cutU2.primaryThen, cleared: cutU2.cleared, failed: cutU2.failed, errors: cutU2.errors,
-            reports: cutU2.reports, season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
+            castCards: cutU2.castCards, notCleared: cutU2.notCleared, reports: cutU2.reports, season: [cutU2.seasonBefore, cutU2.season], at: cutU2.at } }), { flow: "season-reset" });
 
     phase("V: a reset's close of a running incident the cut does not reach, and the first load of 1.2.73 in Foundry's boot order", { flow: "season-reset" });
     /* V1 (E11 fix r2-H5; the round-2 reviews' open item 3: C9's mutant m7, the reset's close concluding the incident,
