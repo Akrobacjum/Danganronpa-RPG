@@ -699,7 +699,7 @@ export function registerTraps() {
     };
 
     Hooks.on("drpgRoomCrossed", event => {
-        if (relay("crossing", { actorId: event?.actor?.id, to: event?.to })) return;
+        if (relay("crossing", { actorId: event?.actor?.id, to: event?.to, sceneId: event?.tokenDoc?.parent?.id ?? null })) return;
         onCrossed(event);
     });
     Hooks.on("drpgActionResolved", event => {
@@ -742,12 +742,13 @@ export const TRAP_ACTIONS = table({
         label: "DRPG.Bridge.what.trap.event",
         guards: [knownSender, guardRelayOwner, guardRelayActor, guardRelayRoom],
         sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
-            room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id }),
+            room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id, sceneId: as.id }),
         run: handleTrapEvent,
         answer: "none", quiet: true,
         claims: {
             actorId: guardRelayOwner,
-            projectId: "taken as sent: which project an action touched; the trap it could set off is found from it on this side"
+            projectId: "taken as sent: which project an action touched; the trap it could set off is found from it on this side",
+            sceneId: "a hint: it only chooses which of the character's own tokens crossed (`locateActor`), so a scene they have no token on changes nothing"
         }
     }
 });
@@ -762,7 +763,7 @@ function askTraps(action, payload) {
 async function handleTrapEvent(payload, sender, ctx) {
     const actor = game.actors.get(payload.actorId);
     switch (payload.kind) {
-        case "crossing": await onCrossed({ actor, to: payload.to }); break;
+        case "crossing": await onCrossed({ actor, to: payload.to, sceneId: payload.sceneId }); break;
         case "action": await onActionResolved({
             actor, actionKey: payload.actionKey,
             outcome: { success: payload.hit }, projectId: payload.projectId
@@ -822,8 +823,12 @@ export function usedItemRefusal({ author, actor, used, trap, owns }) {
     return null;
 }
 
-/** Triggers 1 and 2. One crossing, two questions. */
-async function onCrossed({ actor, to } = {}) {
+/**
+ * Triggers 1 and 2. One crossing, two questions. `tokenDoc` is the token that
+ * crossed, on the browser that moved it; a relayed crossing carries its scene's
+ * id instead (`sceneId`, a hint among the character's own tokens).
+ */
+async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
     try {
         if (!isPrimaryGm() || !to) return;
         const here = armedIn(to);
@@ -838,7 +843,7 @@ async function onCrossed({ actor, to } = {}) {
             if (!passesModifiers(trap, actor)) continue;
 
             if (kind === "alone") {
-                if (alone === null) alone = await isAlone(actor, to);
+                if (alone === null) alone = await isAlone(actor, to, { tokenDoc, sceneId });
                 if (!alone) continue;
             }
             await alert(trap, actor, game.i18n.localize(
@@ -858,11 +863,19 @@ async function onCrossed({ actor, to } = {}) {
  * room from the actor can answer about where they WERE. A trigger whose whole
  * subject is "and there was nobody else there" cannot afford to be asking about
  * the previous room.
+ *
+ * AND ON THE SCENE THE CROSSING HAPPENED ON (E12 fix r1-G4, 11.10.2026; review
+ * round 1 EARLY-C3-1). It counted the room on the scene `locateActor` chose, the
+ * school's when the character has a token there too, so a student walking alone
+ * into a room of the Annex was counted with whoever stood in the school's room
+ * of that name. The crossed token's scene now, else the one the relay names,
+ * chosen only among the character's own tokens.
  */
-async function isAlone(actor, room) {
+async function isAlone(actor, room, { tokenDoc = null, sceneId = null } = {}) {
     try {
-        const { othersInNamedRoom } = await import("./movement.mjs");
-        return othersInNamedRoom(room, actor).length === 0;
+        const { othersInNamedRoom, locateActor } = await import("./movement.mjs");
+        const scene = tokenDoc?.parent ?? locateActor(actor, { sceneId })?.scene ?? null;
+        return othersInNamedRoom(room, actor, scene).length === 0;
     } catch {
         // Cannot tell, so do not claim it. A trap that fires on "alone" when
         // the room was full is worse than one that misses a beat.

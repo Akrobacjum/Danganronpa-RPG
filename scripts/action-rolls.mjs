@@ -5208,15 +5208,17 @@ async function performListen(actor, def, options) {
 
     const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
     const here = roomOfActor(actor);
-    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's.
-    const neighbours = neighbouringRooms(locateActor(actor)?.scene, here);
+    // The rooms next to this one on the scene the character stands on (E12 C2a), not the camera's;
+    // who is in them and which of them this player has found, on the same scene (E12 fix r1-G4).
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = neighbouringRooms(scene, here);
 
     if (!neighbours.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Listen.noNeighbours"));
         return null;
     }
 
-    const labelOf = listenLabels(neighbours, roomsKnownToMe());
+    const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
 
     const options_ = neighbours
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
@@ -5270,7 +5272,7 @@ async function performListen(actor, def, options) {
     if (roll.isCritical) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
-            const who = occupantsOf(room, actor).map(a => a.name);
+            const who = occupantsOf(room, actor, scene).map(a => a.name);
             return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
@@ -5279,7 +5281,7 @@ async function performListen(actor, def, options) {
         outcome = { success: true, isCritical: true, rooms: neighbours };
     } else if (hit && hit.min >= namedFrom) {
         // Named.
-        const who = occupantsOf(target, actor).map(a => a.name);
+        const who = occupantsOf(target, actor, scene).map(a => a.name);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
             room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
@@ -5287,7 +5289,7 @@ async function performListen(actor, def, options) {
         outcome = { success: true, room: target, named: who };
     } else if (hit) {
         // Anonymous: a count, no identities.
-        const count = occupantsOf(target, actor).length;
+        const count = occupantsOf(target, actor, scene).length;
         lines.push(`<p>${count
             ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })
@@ -5321,8 +5323,9 @@ async function performRest(actor) {
     const variant = kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind, place?.scene);
-        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence`.
-        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene);
+        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence` - on the
+        // character's scene, the school's for one with no token (E12 fix r1-G4).
+        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, place?.scene ?? sceneOfActor(actor));
 
         return {
             value: kind,

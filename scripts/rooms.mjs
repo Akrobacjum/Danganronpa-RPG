@@ -267,7 +267,8 @@ export function placeRoomNames() {
  *   draw        paints, pans or animates this browser's canvas;
  *   window      a GM's window about "this scene", through utils.mjs `workingScene()`;
  *   diagnose    a console readout of what this browser shows;
- *   own         a player's view of their own map (the rooms they have found there).
+ *   own         a player's view of their own map (the rooms they have found there) - none
+ *               since E12 fix r1-G4: `roomsKnownToMe` takes the scene the character stands on.
  * None is a rule: nothing listed decides what a roll, a stash, a token or a trace does, and no
  * window listed writes on a scene its list did not show. Three did, until E12 fix r1-G2 (review
  * round 1 CR1-2, CR1-5, EARLY-C5-1): the Trap plant listed the camera's rooms and keyed the plant
@@ -279,7 +280,10 @@ export function placeRoomNames() {
  * longer reads the camera, and a kind not one of the five. It reads `canvas.scene`,
  * `canvas.level`, `game.scenes.current`/`.viewed` and calls of the three functions; it does
  * not read `canvas.tokens`, `getActiveTokens()` or a user's `viewedScene` property, which
- * are the camera by other roads.
+ * are the camera by other roads. Two of those, movement.mjs `occupantsOf` and
+ * `roomsKnownToMe`, read a named scene's documents since E12 fix r1-G4; tier 2 moves the
+ * camera under the first ("who stands in a room is counted on the scene ..."), scenario 66 K1
+ * under the second.
  */
 
 /** The scene this browser has on screen, or null. Only for a function `CAMERA_READERS` lists. */
@@ -323,7 +327,5 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#whyBlack": "diagnose",
     "search-tokens.mjs#showSearchTokens": "diagnose",
     "visibility.mjs#diagnoseVisibility": "diagnose",
-    "voice.mjs#competingModuleWarnings": "diagnose",
-
-    "movement.mjs#roomsKnownToMe": "own"
+    "voice.mjs#competingModuleWarnings": "diagnose"
 });

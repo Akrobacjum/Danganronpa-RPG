@@ -71,7 +71,7 @@ import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
-import { locateActor } from "./movement.mjs";
+import { locateActor, sameRoom } from "./movement.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -136,13 +136,23 @@ export function isCleaner(actor) {
     return cleanupBlocker(actor) === null;
 }
 
-/** Is the victim's body in the same room as this killer? Read by the sheet. */
+/**
+ * Is the victim's body in the same room as this killer? Read by the sheet, and
+ * asked on the killer's browser before Move the body is paid for and on the GM's
+ * before it is resolved.
+ *
+ * The same room on the same scene and floor (movement.mjs `sameRoom`; E12 fix
+ * r1-G4, 11.10.2026, review round 1 EARLY-C3-3). It compared the two rooms' names
+ * alone, so a killer in the Annex's Kitchen with the body in the school's passed
+ * both checks, paid the step, and `applyMoveBody`, which looks for the body on the
+ * killer's scene, found none: "The body would not move", and the step was gone.
+ * A body that cannot be placed is not here, and the action is refused before it
+ * is paid for.
+ */
 export function bodyIsHere(actor) {
     const victim = game.actors.get(murderState()?.victimId ?? "");
     if (!victim) return false;
-    const mine = locateActor(actor);
-    const theirs = locateActor(victim);
-    return Boolean(mine?.room) && mine.room === theirs?.room;
+    return sameRoom(actor, victim);
 }
 
 /** Say which of the four it is, and refuse. @returns {null} always. */

@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, neighbouringRooms, placesOf, allRooms, notConnectedText } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, placesOf, allRooms, notConnectedText, roomsKnownToMe } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -907,7 +907,7 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null) {
                 // The same sentence the veto uses, and it names only rooms the
                 // viewer has been in, the destination included (E06 C11) -
                 // `notConnectedText` in movement.mjs.
-                ui.notifications.warn(notConnectedText(from, to, connected));
+                ui.notifications.warn(notConnectedText(from, to, connected, roomsKnownToMe(scene)));
                 return false;
             }
         }

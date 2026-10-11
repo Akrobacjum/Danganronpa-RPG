@@ -36,6 +36,9 @@
  *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
  *      the discovery counts (Q5a, C12).
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
+ *   K  the rooms p1 knows on Aiko's scene, and the names Listen's labels give that scene's rooms, with p1's camera on
+ *      Floor 1, the Annex and nothing, and for a character with no scene (E12 fix r1-G4, review round 1 EARLY-C6-2 and
+ *      SEC-2). Every room of the scene stands in for her doors: the harness measures no neighbour of the Hall on p1.
  * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
  * is the first reader the harness can call; until then G records no fog), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
@@ -508,4 +511,33 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         drawJ.scene === IDS.scene && readJ.flag === true && readJ.isRoom === false && readJ.recorded && !readJ.rooms.includes("Den"), J({ drawJ, readJ }));
     check("J2: p1's untick of the Gym is put back by the primary and the GMs are told once (E12 C1)",
         readJ.gym === true && readJ.gymRoom && readJ.rooms.includes("Gym") && readJ.told === 1, J({ drawJ, readJ }));
+
+    /* ------------------------------ K. the rooms a player knows, whatever is on their screen ------------------------------ */
+    phase("K: the rooms p1 knows, read on Aiko's scene with p1's camera on Floor 1, the Annex and nothing");
+    /* Aiko is stood in the Hall first (she stood in no room after J, read on 11.10.2026) and put back after. */
+    const putK = to => gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = academy.tokens.find(x => x.actorId === "${IDS.aiko}"), was = { x: t.x, y: t.y };
+        await t.update(${to ? J(to) : `M.positionIn("Hall", t)`}, { teleport: true, movementAction: "displace", animate: false });
+        await new Promise(r => setTimeout(r, 1200)); return { was, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    const stoodK = await putK(null);
+    const readK = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const where = M.locateActor(game.actors.get("${IDS.aiko}")), doors = M.allRooms(where?.scene ?? null);
+        const read = scene => { const known = M.roomsKnownToMe(scene); return { known: known ? [...known].sort() : null, doors: [...A.listenLabels(doors, known).values()] }; };
+        const was = canvas.scene, out = { scene: where?.scene?.id ?? null, room: where?.room ?? null, names: doors };
+        try {
+            for (const [name, view] of [["floor1", academy], ["annex", annex], ["nothing", null]]) { canvas.scene = view; out[name] = read(where?.scene ?? null); }
+            out.noScene = read(null);
+        } finally { canvas.scene = was; }
+        return out;`, { timeout: 30000 });
+    await putK(stoodK.was);
+    /* Until E12 fix r1-G4 `roomsKnownToMe` read p1's camera: the Annex's ledger and tokens with the camera there, and
+       null - no filter, every door named - with nothing on screen. It reads the scene its caller names now (Listen and the
+       Rest list name the character's), and a player with no scene knows no room. */
+    const unexplored = list => list.every(label => !readK.names.includes(label));
+    check("K1: the rooms p1 knows on Aiko's scene and the names Listen gives its rooms do not follow p1's camera, and with no scene name no room (E12 fix r1-G4)",
+        stoodK.room === "Hall" && readK.scene === IDS.scene && readK.room === "Hall" && Array.isArray(readK.floor1.known) && readK.floor1.known.includes(readK.room)
+            && readK.names.length > readK.floor1.known.length && readK.floor1.doors.includes("Hall")
+            && J(readK.annex) === J(readK.floor1) && J(readK.nothing) === J(readK.floor1)
+            && J(readK.noScene.known) === J([]) && unexplored(readK.noScene.doors),
+        J({ stoodK, readK }));
 }

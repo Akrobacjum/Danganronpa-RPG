@@ -38056,10 +38056,14 @@ const SCENARIOS = [
          * so a token dragged onto a black patch came back with the name of the room under
          * it. `known` is what `roomsKnownToMe` answers on a player's browser; the suite runs
          * on a GM's, where it answers null and every name may be said. The Eclipse's
-         * refusal asks the same question and must use the same sentence.
+         * refusal asks the same question and must use the same sentence. Since E12 fix r1-G4 the
+         * veto's two refusals and the Eclipse's hand it the rooms found on the scene the token
+         * crossed on (`roomsKnownToMe(scene)`), not on the scene on screen - read in the source.
          */
         const M = await import("./movement.mjs");
-        const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
+        const sources = await moduleSources();
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const veto = stripComments(sources.get("movement.mjs") ?? "");
         const [here, there, next] = M.allRooms(canvas?.scene);
         must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
         const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
@@ -38067,8 +38071,10 @@ const SCENARIOS = [
         equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
             stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
             "a refusal named a destination the viewer has not found, or no longer names one they have");
-        ok(/notConnectedText\(from, to, connected\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+        ok(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
             "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
+        equal((veto.match(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/g) ?? []).length, 2,
+            "the crossing veto's two refusals do not filter by the rooms found on the scene the token crossed on");
     }],
 
     ["the Rest window names no rest room the viewer has not found", async () => {
@@ -48037,6 +48043,187 @@ const SCENARIOS = [
         }
         equal(stableJson(reading), stableJson([[false, false, true, "notThere", 0, "notThere", false], [true, true, false, null, 1, null, true]]),
             `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
+    }],
+
+    ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security
+         * review). `occupantsOf` counted the canvas's tokens, so what a Listen heard (action-rolls.mjs
+         * `performListen`, its Reroll's lines in reroll.mjs `heardLines`) and who received a Monocub's
+         * dice (private-rolls.mjs `sameRoomAudience`) were read on whichever map the browser had on
+         * screen: a GM looking at another scene counted a room of the same name there. Here a scene
+         * of the suite's own holds a room named as the student's, with another student's second
+         * token standing in it; the student has no token on it. Read with the camera on the
+         * student's scene and then on the suite's: who `occupantsOf` counts, the names a named
+         * Listen's line hears there, and the users a Monocub's roll would reach. Red before this
+         * fix: with the camera on the suite's scene the other student is counted, heard and reached.
+         */
+        const pool = cast(3), student = pool[0];
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const PR = await import("./private-rolls.mjs");
+        const { heardLines } = await import("./reroll.mjs");
+        const here = Mv.locateActor(student);
+        const home = canvas?.scene ?? null;
+        must(here?.room && here.scene === home, `${student.name} stands in no room of the scene on screen (${here?.scene?.name ?? "none"}) - the two readings would not differ by the camera`);
+        const other = pool.slice(1).find(a => !Mv.othersInNamedRoom(here.room, student, home).some(b => b.id === a.id)) ?? null;
+        must(other, `every other student of the cast stands in "${here.room}" - the other scene's token would not show`);
+        const reading = async () => [Mv.occupantsOf(here.room, student).map(a => a.id).sort(),
+            (await heardLines(student, [{ listen: { room: here.room, target: here.room, total: 99, isCritical: false } }])).some(line => line.includes(other.name)),
+            [...(typeof PR.sameRoomAudience === "function" ? PR.sameRoomAudience(student) : [])].sort()];
+        let read = null, first = null, scene = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: other.id, actorLink: true, name: other.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            must(Mv.locateActor(student)?.scene === home && Mv.othersInNamedRoom(here.room, null, scene).some(a => a.id === other.id),
+                `${student.name} is not placed on the scene on screen, or ${other.name}'s token on the suite's scene stands in no "${here.room}" - this would measure nothing`);
+            first = await reading();
+            await scene.view();
+            await settle();
+            must(canvas?.scene === scene, "the camera did not move to the suite's scene - this would measure nothing");
+            read = [first, await reading()];
+        } finally {
+            await home?.view();
+            await scene?.delete();
+            await settle();
+        }
+        ok(!first[0].includes(other.id) && first[1] === false, `${other.name} was counted in "${here.room}" with the camera on ${student.name}'s own scene`);
+        equal(stableJson(read), stableJson([first, first]),
+            `who stands in "${here.room}" beside ${student.name} (actor ids), whether a named Listen there hears ${other.name}, and a Monocub's dice audience (user ids), `
+            + "with the camera on the student's scene and then on a scene of the suite's own whose room of that name holds another student");
+    }],
+
+    ["a trap that waits for somebody alone counts the room on the scene the crossing happened on", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-1. traps.mjs `isAlone` counted the room a
+         * crossing named on the scene `locateActor` chose - the school's, when the character has a
+         * token there too - so a student who walked alone into a room of another scene was counted
+         * with whoever stood in the school's room of that name, and an "alone" trap there stayed
+         * quiet. Here a student with a player stands with another in a room of the scene on screen,
+         * and has a second token, alone, in a room of that name on a scene of the suite's own; a
+         * third student builds an "alone" trap in that room. Three crossings: on the scene on screen
+         * as the GM's own browser raises it (the other is there: quiet), on the suite's scene as the
+         * GM's own browser raises it (the token that crossed), and on the suite's scene as the
+         * player's browser relays it (judged on the primary, its `sceneId` a hint among the
+         * student's own tokens). The trap is re-armed after it speaks. Red before this fix: quiet
+         * on all three.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const pool = cast(3);
+        const student = pool.find(playerOf) ?? null;
+        const [builder, other] = pool.filter(a => a !== student);
+        must(student && builder && other, "three living students, one with a connected player - this would measure nothing");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = await import("./rooms.mjs");
+        const stood = await aloneTogether(student, other);
+        const home = canvas?.scene ?? null;
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let made = null, scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room to be alone in", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: stood.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            const mine = home?.tokens?.find(t => t.actorId === student.id) ?? null;
+            made = await P.createProject({ name: "SUITE r1-G4 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            must(made?.id && T.diagnoseTraps().armed === 1 && mine && away, "the trap is not watching, or a token of the student is missing - this would measure nothing");
+            const fires = async raise => {
+                const count = game.messages.size;
+                await raise();
+                const spoke = await until(() => game.messages.size > count, 3000);
+                if (spoke) {
+                    await until(() => T.diagnoseTraps().armed === 0);
+                    await T.rearmTrap(made.id);
+                    await until(() => T.diagnoseTraps().armed === 1);
+                }
+                return spoke;
+            };
+            read = [
+                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: mine })),
+                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away })),
+                await fires(() => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: stood.room, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} }))
+            ];
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([false, true, true]),
+            `the "alone" trap in "${stood.room}" spoke for ${student.name}'s crossing on the scene on screen (${other.name} there), on a scene of the suite's own (alone there) `
+            + "as the GM's browser raises it, and the same relayed by the player's browser");
+    }],
+
+    ["Move the body is refused before it is paid for when the body lies in a room of the same name on another scene", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-3. cleanup.mjs `bodyIsHere` compared the
+         * killer's room and the body's by name alone, so a killer standing in a room of the body's
+         * room's name on another scene passed the killer's browser's check and the GM's, and the GM's
+         * side charged its price (`resolveStageSix`, a packet that names no paid step) before
+         * `applyMoveBody` looked for the body on the killer's scene and found none. Here the killer
+         * kills in Stage 6's fixture, then stands, by their only token a GM has not hidden, in a room
+         * named as the body's on a scene of the suite's own. Read: `bodyIsHere`, the GM's answer to
+         * Move the body naming no paid step, the Sanity it marked, and the body's room. Red before this
+         * fix: the body is "here", the move is not refused and a Sanity step is taken; the body stays.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const R = await import("./rooms.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const home = canvas?.scene ?? null;
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => home?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const standing = livingStudents().filter(a => playerOf(a) && tokenOf(a) && locateActor(a)?.room);
+        const [killer, victim] = standing;
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(killer._source, STRESS)) || 0;
+        must(Number(killer.system.resources?.stress?.max) >= 2, `${killer.name}'s Sanity cannot take a step - this would measure nothing`);
+        const had = marks(), mine = tokenOf(killer);
+        let scene = null, read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            const body = locateActor(victim);
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the body's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: body.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: killer.id, actorLink: true, name: killer.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await mine.update({ hidden: true });
+            await killer.update({ [STRESS]: 0 });
+            await settle();
+            const there = locateActor(killer);
+            must(body.scene === home && there?.scene === scene && there.room === body.room,
+                `the killer is not placed in "${body.room}" on the suite's scene with the body on the scene on screen - this would measure nothing`);
+            const answer = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: null, total: 30, isCritical: false, withHope: true, price: null });
+            await settle();
+            read = [CL.bodyIsHere(killer), answer?.refused ?? null, marks(), locateActor(victim)?.scene?.id ?? null, locateActor(victim)?.room ?? null];
+            read.unshift(body.room);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (home?.tokens?.has(mine?.id)) await mine.update({ hidden: false });
+            await scene?.delete();
+            await killer.update({ [STRESS]: had });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([read?.[0], false, "the body is not in the killer's room", 0, home?.id ?? null, read?.[0]]),
+            `[the body's room, bodyIsHere, the GM's refusal, ${killer.name}'s Sanity marks, the body's scene and room] with the killer in a room of that name on another scene`);
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

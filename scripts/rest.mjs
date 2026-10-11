@@ -15,7 +15,7 @@
 
 import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
-import { locateActor, roomsKnownToMe } from "./movement.mjs";
+import { locateActor, roomsKnownToMe, sceneOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 // One room map for the whole module (audit C3): rooms.mjs, rooms only and on the scene it is
@@ -61,10 +61,10 @@ export function restRooms(kind, scene) {
  * or the Mastermind's, shows them all); a map whose rest rooms are all undiscovered says
  * so without naming one, and a map with none says what it always said. `key` is the
  * sentence the list goes into, `data` its other fields, `scene` the scene whose rest rooms
- * are listed (the character's); `known` is a parameter for the suite, which runs on a GM's
- * browser.
+ * are listed (the character's) and whose found rooms filter them - the camera's did until
+ * E12 fix r1-G4; `known` is a parameter for the suite, which runs on a GM's browser.
  */
-export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe()) {
+export function restRoomsSentence(kind, key, data, scene, known = roomsKnownToMe(scene)) {
     const rooms = restRooms(kind, scene);
     const shown = known ? rooms.filter(room => known.has(room)) : rooms;
     if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
@@ -188,7 +188,7 @@ export async function takeRest(actor, kind = "short", {
         const room = place?.room ?? null;
         if (!ignoreRoom && !roomAllows(room, kind, place?.scene)) {
             ui.notifications.warn(restRoomsSentence(kind, "DRPG.Rest.wrongRoom",
-                { kind: kindLabel(kind), room: room ?? "-" }, place?.scene));
+                { kind: kindLabel(kind), room: room ?? "-" }, place?.scene ?? sceneOfActor(actor)));
             return null;
         }
 

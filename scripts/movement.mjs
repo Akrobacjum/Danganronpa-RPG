@@ -482,7 +482,7 @@ function canCross(actor, from, to, scene) {
             if (from && to) {
                 const connected = neighbouringRooms(scene, from);
                 if (connected.length && !connected.includes(to)) {
-                    return notConnectedText(from, to, connected);
+                    return notConnectedText(from, to, connected, roomsKnownToMe(scene));
                 }
             }
         }
@@ -537,7 +537,7 @@ function crossingRefused(scene, from, to) {
     const connected = neighbouringRooms(scene, from);
     if (!connected.length || connected.includes(to)) return false;
 
-    return notConnectedText(from, to, connected);
+    return notConnectedText(from, to, connected, roomsKnownToMe(scene));
 }
 
 /**
@@ -552,7 +552,9 @@ function crossingRefused(scene, from, to) {
  * fog could be read one refused crossing at a time. An unknown destination gets a
  * sentence that names only where you stand. Exported for the Eclipse's refusal
  * (eclipse.mjs), which is the same question, and `known` is a parameter for the
- * suite, which runs on a GM's browser, where it is `null`.
+ * suite, which runs on a GM's browser, where it is `null`. Every caller hands in
+ * `roomsKnownToMe(scene)` for the scene the token crossed on (E12 fix r1-G4); the
+ * default, with no scene, knows no room on a player's browser and so names none.
  */
 export function notConnectedText(from, to, connected, known = roomsKnownToMe()) {
     if (known && !known.has(to)) return game.i18n.format("DRPG.Move.cannotReach", { from });
@@ -563,31 +565,40 @@ export function notConnectedText(from, to, connected, known = roomsKnownToMe()) 
 }
 
 /**
- * The rooms this viewer's own characters have discovered on the current
- * scene, plus wherever they stand; `null` for a GM or the Mastermind, who know
- * the whole map. Read off this client's own copy of the ledger (D2: a player's
+ * The rooms this viewer's own characters have discovered on `scene`, plus
+ * wherever they stand there; `null` for a GM or the Mastermind, who know the
+ * whole map. Read off this client's own copy of the ledger (D2: a player's
  * browser holds only their own rows), through settings.mjs, so this stays a
  * leaf and needs nothing from the fog.
+ *
+ * ON THE SCENE THE CALLER NAMES (E12 fix r1-G4, 11.10.2026; review round 1
+ * EARLY-C6-2 and SEC-2). It read the scene on screen and that screen's token
+ * placeables, while Listen's doors and the rest rooms came from the scene the
+ * character stands on - so a player whose camera was on another map was told
+ * "Unexplored room" for doors they had been through, and a player whose client
+ * had no scene on screen got `null`, the GM's "no filter", and Listen named
+ * every neighbour. The callers hand in the character's scene now, and a player
+ * with no scene, or one this cannot read, knows no room: an empty Set, never
+ * `null`.
  */
-export function roomsKnownToMe() {
+export function roomsKnownToMe(scene = null) {
     try {
         if (game.user.isGM || iAmTheMastermind()) return null;
-        const sceneId = canvas?.scene?.id;
-        if (!sceneId) return null;
-        const ledger = discoveryLedger();
         const known = new Set();
-        for (const [actorId, rooms] of Object.entries(ledger[sceneId] ?? {})) {
+        if (!scene?.id) return known;
+        const ledger = discoveryLedger();
+        for (const [actorId, rooms] of Object.entries(ledger[scene.id] ?? {})) {
             if (!game.actors.get(actorId)?.isOwner) continue;
             for (const room of rooms ?? []) known.add(room);
         }
-        for (const token of canvas?.tokens?.placeables ?? []) {
-            if (!token.isOwner) continue;
-            const room = roomOfToken(token.document);
+        for (const tokenDoc of scene.tokens ?? []) {
+            if (!tokenDoc.isOwner) continue;
+            const room = roomOfToken(tokenDoc);
             if (room) known.add(room);
         }
         return known;
     } catch {
-        return null;
+        return new Set();
     }
 }
 
@@ -1409,7 +1420,7 @@ const levelKey = level => level?.id ?? level ?? null;
  *             fiction is concerned.
  */
 function countsAsPresent(token) {
-    // A placeable (`occupantsOf`) or a token document (`othersInNamedRoom`, since E12 C3).
+    // A token document (both callers since E12 fix r1-G4); a placeable is read through its own.
     const doc = token?.document ?? token;
     const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
@@ -1624,12 +1635,14 @@ function overlaps(a, b, pad) {
  * This is what Listen reports, so it answers to exactly the same rule as
  * `othersInRoom` - see `countsAsPresent`. Listening at a wall does not tell you
  * about a body or about Monokuma.
+ *
+ * Counted on a scene's token documents since E12 fix r1-G4 (11.10.2026; review
+ * round 1 EARLY-C6-1), by `othersInNamedRoom`'s rule: the scene handed in, else
+ * the excluded actor's (`locateActor`), else the school. It read the canvas's
+ * tokens, so a Listen heard, or a Monocub's dice shared (private-rolls.mjs
+ * `sameRoomAudience`), on a browser looking at another map counted the room of
+ * that name there.
  */
-export function occupantsOf(room, exclude = null) {
-    if (!room) return [];
-    return (canvas?.tokens?.placeables ?? [])
-        .filter(t => !exclude || t.actor?.id !== exclude.id)
-        .filter(countsAsPresent)
-        .filter(t => roomOfToken(t.document) === room)
-        .map(t => t.actor);
+export function occupantsOf(room, exclude = null, scene = null) {
+    return othersInNamedRoom(room, exclude, scene);
 }
