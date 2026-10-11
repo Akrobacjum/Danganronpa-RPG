@@ -6355,6 +6355,55 @@ const INVARIANTS = [
             for (const key of Object.keys(flat).filter(key => /^DRPG\.Season\.(group\.sheetNotes|resetSheetNotes)/.test(key))) wrong.push(`${lang} ${key} is left`);
         }
         equal(JSON.stringify(wrong), "[]", "the reset window's groups and labels against what the reset clears");
+    }],
+
+    ["R380 - a room is a named region a GM marked, with no passage behaviour and not drawn by a player; a room is a name on a scene", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. Until 1.2.74 every named region was a room, so
+         * a Teleport's region, a staircase's level change and a region a player drew were rooms as soon as
+         * they had a name. rooms.mjs `isRoom` is the predicate: a name, the room flag set to true, no
+         * behaviour of `NOT_ROOM_BEHAVIOURS` (any other behaviour may stand in a room), not in the
+         * primary's record of regions a player created. Read on regions of plain objects - an id, a name,
+         * flags, a behaviour list - so the answer is the predicate's, not a world's; the record is handed
+         * in (`isRoomWith`) where the world's would otherwise be read. Then a room as a name on a scene:
+         * its pieces, its names sorted once each, a flag read as OR over its pieces, whether the scene
+         * holds a room (and so is a place, `isPlaceScene`, until E13 narrows it), and the named regions no
+         * GM has decided - the ones Season setup names and the migration marks. Red before C1 on its
+         * first check: the record of a player's regions is not a setting, so nothing could refuse one.
+         */
+        ok(game.settings.settings.has(`${MODULE_ID}.playerRegions`),
+            "no world setting records the regions a player created - a region a player drew and named would be a room");
+        const R = await import("./rooms.mjs").catch(() => null);
+        ok(typeof R?.isRoomWith === "function", "there is no rooms.mjs `isRoomWith` - a room is still any region with a name");
+        if (typeof R?.isRoomWith !== "function") return;
+        const region = (id, name, flags = {}, behaviours = []) => ({ id, name, behaviors: behaviours.map(type => ({ type })),
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const drawn = new Set(["drawn"]);
+        const CASES = [
+            ["marked", region("a", "Gym", { room: true }), true, true],
+            ["never decided", region("b", "Gym"), false, true],
+            ["unticked", region("c", "Gym", { room: false }), false, true],
+            ["a Teleport", region("d", "Lift", { room: true }, ["teleportToken"]), false, false],
+            ["a level change", region("e", "Stairs", { room: true }, ["changeLevel"]), false, false],
+            ["another behaviour", region("f", "Hall", { room: true }, ["executeScript"]), true, true],
+            ["no name", region("g", "", { room: true }), false, false],
+            ["a player's", region("drawn", "Den", { room: true }), false, false]];
+        equal(JSON.stringify(CASES.map(([what, r]) => [what, R.isRoomWith(r, drawn), R.canBeRoom(r, drawn)])),
+            JSON.stringify(CASES.map(([what, , room, may]) => [what, room, may])),
+            "a region is a room when, and only when, it has a name, a GM's mark, no passage behaviour and no player for its author ([case, is a room, may be one])");
+        equal(R.ROOM_FLAG, "room", "the room flag's key moved - every world marked by the migration carries `room`");
+
+        const scene = { regions: [
+            region("k1", "Kitchen", { room: true }), region("k2", "Kitchen", { room: true, drpgLocked: true }), region("k3", "Kitchen"),
+            region("b1", "Bath", { room: true }), region("a1", "Attic", { room: false }), region("l1", "Lift", { room: true }, ["teleportToken"]),
+            region("n1", "", { room: true }), region("s1", "Shed", {}, ["executeScript"])] };
+        const bare = { regions: [region("x", "Hall", { room: false }), region("y", "Yard")] };
+        equal(JSON.stringify([R.roomNames(scene), R.roomRegions(scene, "Kitchen").map(r => r.id), R.roomFlag(scene, "Kitchen", "drpgLocked"),
+            R.roomFlag(scene, "Bath", "drpgLocked"), R.roomRegions(scene, "Lift").length, R.unmarkedRegions(scene).map(r => r.id),
+            R.sceneHoldsRooms(scene), R.isPlaceScene(scene), R.sceneHoldsRooms(bare), R.isPlaceScene(bare), R.namedRegions(scene, "Kitchen").length]),
+        JSON.stringify([["Bath", "Kitchen"], ["k1", "k2"], true, null, 0, ["k3"], true, true, false, false, 3]),
+        "a room as a name on a scene: [its names, the Kitchen's pieces, the Kitchen's lock as OR over them, the Bath's, the Lift's pieces, "
+            + "the regions no GM decided, the scene holds a room, is a place, a scene of no marked room holds one, is a place, the Kitchen's named regions]");
     }]
 ];
 
@@ -6387,6 +6436,8 @@ const INVARIANTS = [
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
+    // E12 C1: the row that names the regions no GM has decided.
+    "DRPG.Season.step.roomsMarked", "DRPG.Season.hint.roomsMarked",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
     "DRPG.Monocub.help", "DRPG.Monocub.hinder",

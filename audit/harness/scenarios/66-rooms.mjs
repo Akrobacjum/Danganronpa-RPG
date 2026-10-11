@@ -17,9 +17,9 @@
  *   A  a project in the Gym, its manager saved while the GM looks at the Annex (V1, C5).
  *   B  Room Setup opened on Floor 1 and answered after the GM's camera moved to an Annex holding
  *      its own Gym: which Gym the lock lands on (V2, C4 / R119).
- *   C  a region named "Closet" carrying a Teleport behaviour: whether it is a room (V3, C1 and C2a).
- *   D  a "Kitchen" drawn in two pieces and locked from Room Setup: which piece holds the lock, and
- *      a player's walk into the other piece (V4, C2a).
+ *   C  a region named "Closet" carrying a Teleport behaviour and the room mark: whether it is a room (V3, C1 and C2a).
+ *   D  a "Kitchen" drawn in two pieces and locked from Room Setup: which piece holds the lock, the room
+ *      mark Apply writes (C1), and a player's walk into the other piece (V4, C2a).
  *   E  a project in a room Aiko has found: whether p1 knows it with its camera on Floor 1, the
  *      Annex and nothing; the gather ordered with the GM's camera on the Annex and on nothing
  *      (V5, C5 / R118).
@@ -29,10 +29,12 @@
  *   G  a two-floor scene built here (Lab under Attic, Corridor under a locked Vault): the room of
  *      a token on the lower floor; a player's level-only move into the locked Vault and the actions
  *      it costs (V7, V8, C9).
- *   H  the room-marking clause of the migration asked for by name (C1).
+ *   H  the room-marking clause of the migration asked for by name over a scene made here, and again after an untick
+ *      and a late region (C1).
  *   I  Daichi killed and kept in a locked Storage, Botan placed beside him by the GM, then Aiko
  *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
  *      the discovery counts (Q5a, C12).
+ *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
  * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
  * is the first reader the harness can call; until then G records no fog), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05. What G measures is the shim's model of levels
@@ -42,7 +44,8 @@
  * drafts, each through every phase, and this file: 12.8 s, 17.3 s with the boot); 12.6-13.5 s in fourteen runs under
  * C0's mutants of the module and the shim (two of them drafts that stayed green), and 20.9 s under the one that stops
  * the discovery (I waits up to 8 s for it) - against 61's 480 s and run-all's shared five minutes, so it states no
- * `timeoutMs` of its own.
+ * `timeoutMs` of its own. E12 C1 (C2, D3, H rewritten as H1-H2, J1-J2): 20 checks in 15.9 s, one run alone under the
+ * lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -150,17 +153,19 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
 
     /* ------------------------------ C. a Teleport region ------------------------------ */
     phase("C: a region with a Teleport behaviour");
-    const setC = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
-        const [closet] = await academy.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: ${rect(3000, 1200, 400, 400)}, flags: {},
-            behaviors: [{ type: "teleportToken", name: "To the roof", system: { destination: null } }] }]);
-        const rooms = M.allRooms(academy);
+    const setC = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), R = await import("${repoUrl}/scripts/rooms.mjs");
+        const [closet] = await academy.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: ${rect(3000, 1200, 400, 400)},
+            flags: { "${MOD}": { room: true } }, behaviors: [{ type: "teleportToken", name: "To the roof", system: { destination: null } }] }]);
+        const rooms = M.allRooms(academy), marked = R.roomNames(academy), isRoom = R.isRoom(closet), flag = closet.getFlag("${MOD}", R.ROOM_FLAG);
         await closet.delete();
-        return { rooms };`, { timeout: 30000 });
-    /* The behaviour's type, `teleportToken`, is Foundry's name as recalled: nothing in this tree reads a behaviour's type yet.
+        return { rooms, marked, isRoom, flag };`, { timeout: 30000 });
+    /* The behaviour's type, `teleportToken`, is Foundry's name as recalled (LIVE-E12-02); rooms.mjs reads it since E12 C1.
        At 180df61 every named region is a room. E12 C1 (V3) makes a room what a GM marked and `isRoom` refuses a
-       region carrying a Teleport or ChangeLevel behaviour; C2a moves the readers onto it. */
-    check("C1: a region named Closet carrying a Teleport behaviour is listed among Floor 1's rooms (E12 C1, C2a)",
+       region carrying a Teleport or ChangeLevel behaviour, the mark notwithstanding; C2a moves the readers onto it. */
+    check("C1: a region named Closet carrying a Teleport behaviour is listed among Floor 1's rooms (E12 C2a)",
         setC.rooms.includes("Closet"), J(setC));
+    check("C2: the Closet, marked a room by hand, is no room by isRoom: its Teleport makes it a passage (E12 C1)",
+        setC.flag === true && setC.isRoom === false && !setC.marked.includes("Closet") && setC.marked.includes("Gym"), J(setC));
 
     /* ------------------------------ D. a room of two pieces ------------------------------ */
     phase("D: a Kitchen drawn in two pieces, locked from Room Setup");
@@ -173,7 +178,8 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const aiko = game.actors.get("${IDS.aiko}"), t = academy.tokens.get("TOKAIKO000000000");
         globalThis.__s66d = { pieces: pieces.map(p => p.id), actions: game.drpg.actionsLeft(aiko), at: { x: t.x, y: t.y } };
         if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
-        return { ...answer, locks: pieces.map(locked), at: globalThis.__s66d.at, room: M.roomOfToken(t) };`, { timeout: 60000 });
+        return { ...answer, locks: pieces.map(locked), marks: pieces.map(p => p.getFlag("${MOD}", "room") ?? null), at: globalThis.__s66d.at,
+            room: M.roomOfToken(t) };`, { timeout: 60000 });
     /* Piece 1 stands a grid square's half from Dorm A, so it is Dorm A's neighbour; the walk is p1's own drag. */
     await p1.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 950, y: 300 }); return true;`, { timeout: 30000 });
     await settle(1500);
@@ -192,6 +198,10 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         setD.seen?.box === true && J(setD.locks) === J([false, true]), J(setD));
     check("D2: p1's walk from Dorm A into the Kitchen's first piece lands (E12 C2a)",
         setD.room === "Dorm A" && walkD.room === "Kitchen" && walkD.at.x === 950, J({ setD, walkD }));
+    /* At 180df61 Room Setup has no room column and writes no mark. E12 C1: the Kitchen, drawn after the load's pass and
+       so never decided, is drawn ticked "This is a room", and Apply marks both pieces. */
+    check("D3: Room Setup's Apply marks both pieces of the never-decided Kitchen a room (E12 C1)",
+        J(setD.marks) === J([true, true]), J(setD));
 
     /* ------------------------------ E. projects and the gather, by the camera ------------------------------ */
     phase("E: what p1 knows of a project, and the gather, with the camera elsewhere", { flow: "projects" });
@@ -319,16 +329,44 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
 
     /* ------------------------------ H. the migration's room clause ------------------------------ */
     phase("H: the room-marking clause asked for by name");
-    const migrated = await gm.eval(`${SCENES} const MG = await import("${repoUrl}/scripts/migrate.mjs");
+    /* A scene made here after the load's own pass stamped the seeded two: four named regions, a Teleport "Lift", a region
+       with no name and a "Den" recorded as a player's - the clause run by name marks the four on it alone. */
+    const migrated = await gm.eval(`${SCENES} const MG = await import("${repoUrl}/scripts/migrate.mjs"), R = await import("${repoUrl}/scripts/rooms.mjs");
+        const plain = (name, x) => ({ name, shapes: ${rect(0, 0, 400, 400)}.map(s => ({ ...s, x })), flags: {}, behaviors: [] });
+        const wing = await Scene.create({ name: "66 Wing", width: 4400, height: 1000, grid: { size: 100 }, active: false });
+        const made = await wing.createEmbeddedDocuments("Region", [plain("Ward A", 0), plain("Ward B", 500), plain("Office", 1000), plain("Lobby", 1500),
+            { ...plain("Lift", 2000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] }, plain("", 2500), plain("Den", 3000)]);
+        /* Asked whether it is registered, so that at 180df61 (no such setting) H reads what is there instead of throwing. */
+        const kept = game.settings.settings.has("${MOD}.playerRegions"), players = kept ? [...game.settings.get("${MOD}", "playerRegions")] : [];
+        if (kept) await game.settings.set("${MOD}", "playerRegions", [...players, made.at(-1).id]);
+        const whispers = () => game.messages.filter(m => (m.whisper ?? []).length).length, before = whispers();
+        const stamps = { academy: academy.getFlag("${MOD}", R.ROOMS_MARKED_FLAG) ?? null, annex: annex.getFlag("${MOD}", R.ROOMS_MARKED_FLAG) ?? null };
+        const report = await MG.migrate1_2_0({ only: ["markRooms"], force: true });
+        await new Promise(r => setTimeout(r, 500));
+        globalThis.__s66h = { wing: wing.id, players, kept };
+        return { clauses: Object.keys(report?.clauses ?? {}), done: report?.clauses?.markRooms ?? null, stamps, stamp: wing.getFlag("${MOD}", R.ROOMS_MARKED_FLAG) ?? null,
+            rooms: R.roomNames(wing), whispers: whispers() - before };`, { timeout: 60000 });
+    /* At 180df61 no clause is called markRooms: the migration asked for it ran nothing and stamped no scene. E12 C1: the
+       load's pass stamped the seeded scenes; asked again, the clause marks the new scene's four named regions with no
+       behaviour, leaves the Lift, the nameless region and the player's Den, stamps the scene and whispers one report. */
+    check("H1: the clause asked for by name marks the Wing's four plain regions alone, stamps it and whispers one report (E12 C1)",
+        J(migrated.clauses) === J(["markRooms"]) && J(migrated.done) === J({ scenes: 1, marked: 4 }) && typeof migrated.stamps.academy === "string"
+            && typeof migrated.stamps.annex === "string" && typeof migrated.stamp === "string" && J(migrated.rooms) === J(["Lobby", "Office", "Ward A", "Ward B"])
+            && migrated.whispers === 1, J(migrated));
+    const again = await gm.eval(`const MG = await import("${repoUrl}/scripts/migrate.mjs"), R = await import("${repoUrl}/scripts/rooms.mjs");
+        const wing = game.scenes.get(globalThis.__s66h.wing);
+        await wing.regions.find(r => r.name === "Office").setFlag("${MOD}", R.ROOM_FLAG, false);
+        const [late] = await wing.createEmbeddedDocuments("Region", [{ name: "Late", shapes: ${rect(3500, 0, 400, 400)}, flags: {}, behaviors: [] }]);
         const whispers = () => game.messages.filter(m => (m.whisper ?? []).length).length, before = whispers();
         const report = await MG.migrate1_2_0({ only: ["markRooms"], force: true });
         await new Promise(r => setTimeout(r, 500));
-        return { clauses: Object.keys(report?.clauses ?? {}), changed: report?.changed ?? null, stamp: academy.getFlag("${MOD}", "roomsMarkedAt") ?? null,
-            whispers: whispers() - before };`, { timeout: 60000 });
-    /* At 180df61 no clause is called markRooms: the migration asked for it runs nothing and stamps no scene. E12 C1:
-       the clause flags each scene's rooms once, stamps `roomsMarkedAt` and whispers one report to the primary. */
-    check("H1: the migration asked for markRooms alone runs no clause, changes nothing, stamps no scene and whispers nothing (E12 C1)",
-        J(migrated.clauses) === J([]) && migrated.changed === 0 && migrated.stamp === null && migrated.whispers === 0, J(migrated));
+        const out = { clauses: Object.keys(report?.clauses ?? {}), rooms: R.roomNames(wing), late: R.roomDecided(late), whispers: whispers() - before };
+        if (globalThis.__s66h.kept) await game.settings.set("${MOD}", "playerRegions", globalThis.__s66h.players);
+        await wing.delete();
+        delete globalThis.__s66h;
+        return out;`, { timeout: 60000 });
+    check("H2: asked again after the Office was unticked and a Late region drawn, the clause marks nothing and whispers nothing (E12 C1)",
+        J(again.clauses) === J([]) && J(again.rooms) === J(["Lobby", "Ward A", "Ward B"]) && again.late === false && again.whispers === 0, J(again));
 
     /* ------------------------------ I. a jump into a locked room ------------------------------ */
     phase("I: a body in a locked room, and a player's jump in beside it", { flow: "body-discovery" });
@@ -372,4 +410,37 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
             && foundI.rows.some(row => row.room === "Storage" && row.by === "witnesses")
             && foundI.finders.length === 1 && foundI.finders[0].includes(setI.names.aiko) && foundI.finders[0].includes(setI.names.botan),
         J({ setI, jump, foundI }));
+
+    /* ------------------------------ J. a player's region and a player's untick ------------------------------ */
+    phase("J: p1 draws a region marked a room and unticks the Gym");
+    /* The harness lets a player's Region write through (cluster.mjs `canWrite`; whether v14 does: LIVE-E12-04), so this
+       is the road the primary answers from the hook's user id: p1's own create and p1's own flag write. */
+    const drawJ = await p1.eval(`const [den] = await canvas.scene.createEmbeddedDocuments("Region", [{ name: "Den", shapes: ${rect(3000, 1800, 400, 400)},
+            flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        const gym = canvas.scene.regions.find(r => r.name === "Gym");
+        await new Promise(r => setTimeout(r, 800));
+        await gym.setFlag("${MOD}", "room", false);
+        return { den: den?.id ?? null, scene: canvas.scene.id, user: game.user.name };`, { timeout: 30000 });
+    await settle(1500);
+    const readJ = await gm.eval(`${SCENES} const R = await import("${repoUrl}/scripts/rooms.mjs"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const end = Date.now() + 6000;
+        const gym = () => academy.regions.find(r => r.name === "Gym");
+        while (gym()?.getFlag("${MOD}", R.ROOM_FLAG) !== true && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const den = academy.regions.get("${drawJ.den}");
+        const want = foundry.utils.escapeHTML(game.i18n.format("DRPG.Rooms.flagKept", { user: ${J(drawJ.user)}, region: "Gym", scene: academy.name }));
+        const told = game.messages.filter(m => String(contentOf(m) ?? "").includes(want)).length;
+        const out = { flag: den?.getFlag("${MOD}", R.ROOM_FLAG) ?? null, isRoom: den ? R.isRoom(den) : null, recorded: R.playerRegionIds().has("${drawJ.den}"),
+            rooms: R.roomNames(academy), gym: gym()?.getFlag("${MOD}", R.ROOM_FLAG) ?? null, gymRoom: R.isRoom(gym()), told };
+        if (den) await den.delete();
+        if (game.settings.settings.has("${MOD}.playerRegions")) {
+            await game.settings.set("${MOD}", "playerRegions", game.settings.get("${MOD}", "playerRegions").filter(id => id !== "${drawJ.den}"));
+        }
+        return out;`, { timeout: 30000 });
+    /* At 180df61 nothing records who drew a region and nothing reads the mark: p1's Den is a room by its name and the
+       Gym's untick stands. E12 C1: the primary records the Den as p1's, so its mark makes no room; it puts the Gym's
+       mark back and tells the GMs. */
+    check("J1: p1's Den, drawn with the room mark, is recorded as a player's and is no room (E12 C1)",
+        drawJ.scene === IDS.scene && readJ.flag === true && readJ.isRoom === false && readJ.recorded && !readJ.rooms.includes("Den"), J({ drawJ, readJ }));
+    check("J2: p1's untick of the Gym is put back by the primary and the GMs are told once (E12 C1)",
+        readJ.gym === true && readJ.gymRoom && readJ.rooms.includes("Gym") && readJ.told === 1, J({ drawJ, readJ }));
 }

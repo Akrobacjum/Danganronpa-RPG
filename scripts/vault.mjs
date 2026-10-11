@@ -42,6 +42,8 @@ import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
+// A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
+import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1906,6 +1908,7 @@ function stashMatrixRows(rooms, students, scene) {
  * the Apply callback below, identical whichever table a cell sits in -
  * Apply reads the whole form and never asks which tab was showing. */
 function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
+    const players = playerRegionIds();
     return rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
         const table = roomTable(room) ?? "";
@@ -1936,7 +1939,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
            name at all, and it can only copy a name the control already carries. Each
            says its column and its room: "Locked: Big IT Room", not "checkbox". */
         const COLUMN = {
-            owner: "DRPG.Vault.owner", locked: "DRPG.Vault.lockedColumn",
+            owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
             startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
             nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
             short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
@@ -1947,10 +1950,23 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const check = (name, on, title = "") => `<td style="text-align:center"${
             title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${escRoom}"${named(name)}
                 ${on ? "checked" : ""} /></td>`;
+        /*
+         * THIS IS A ROOM (E12 C1, 11.10.2026; rooms.mjs). Every region of the name, since a room is
+         * a name on a scene. Decided - every piece carries the flag - the box reads whether any
+         * piece is marked; undecided, whether a piece may be a room at all, which is what Apply then
+         * writes: the GM who applies this window has decided. No piece may be one (a passage's
+         * behaviour, a region a player drew): the box is drawn off and Apply writes nothing.
+         */
+        const pieces = namedRegions(scene, room);
+        const possible = pieces.some(piece => canBeRoom(piece, players));
+        const isRoomNow = pieces.length && pieces.every(roomDecided)
+            ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
             owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
+            isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
+                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"} /></td>`,
             concealed: check("concealed", isConcealed(room)),
             short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
@@ -2027,9 +2043,9 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
             ${panel("doors", `
                 <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
                 <p class="notes" data-drpg-ratio></p>
-                ${tableFor([th("DRPG.Vault.lockedColumn"), th("DRPG.Vault.lockedAtStartColumn"),
-                    th("DRPG.Vault.notSharedColumn")],
-                    ["locked", "startlocked", "notshared"])}
+                ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
+                    th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn")],
+                    ["isroom", "locked", "startlocked", "notshared"])}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             `)}
 
@@ -2083,6 +2099,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 function readRoomSetupForm(d, { rooms, students, categories }) {
     const f = d.element.querySelector("form");
     const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
+    // `null` when the box is drawn off: no piece of the name may be a room (`roomCells`).
+    const roomBox = box => box && !box.disabled ? box.checked : null;
     const roomRows = rooms.map(room => ({
         room,
         owner: pick(`owner:${room}`)?.value ?? "",
@@ -2092,6 +2110,7 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
         notShared: Boolean(pick(`notshared:${room}`)?.checked),
+        isRoom: roomBox(pick(`isroom:${room}`)),
         description: (pick(`desc:${room}`)?.value ?? "").trim(),
         table: pick(`table:${room}`)?.value ?? "",
         favours: categories
@@ -2389,6 +2408,10 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
         const wasLockedAtStart = startLocked(region);
         const wasSealed = Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
         const wasNotShared = Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.notShared));
+        // Settled when every piece of the name already says what the row says (E12 C1); the
+        // scene is the region's own, so the flag goes where the row was read.
+        const roomSettled = row.isRoom === null
+            || namedRegions(region.parent, row.room).every(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === row.isRoom);
 
         const same = before.owner === (row.owner || null)
             && before.table === (row.table || null)
@@ -2402,6 +2425,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
             && wasLockedAtStart === row.lockedAtStart
             && wasSealed === row.noSearch
             && wasNotShared === row.notShared
+            && roomSettled
             && before.description === row.description;
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
@@ -2437,6 +2461,9 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
         if (wasNotShared !== row.notShared) {
             await region.setFlag(MODULE_ID, VAULT_FLAGS.notShared, row.notShared);
         }
+
+        // Nothing announced: whether a region is a room is the GM's map, not news.
+        if (!roomSettled) await setRoomFlag(region.parent, row.room, ROOM_FLAG, row.isRoom);
 
         // Written whether or not it changed, because "unset" and "unset but
         // equal to the current lock" are the same thing to `startLocked` and

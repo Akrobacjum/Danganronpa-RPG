@@ -43,6 +43,8 @@ import { carriableCategories } from "./inventory.mjs";
 // synchronous - a `done` that had to await could not answer at all.
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
+// A leaf: which named regions no GM has decided yet (E12 C1).
+import { unmarkedRegions } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
@@ -331,6 +333,18 @@ function steps() {
              * half stops happening.
              */
             extra: () => roomGuideHtml()
+        },
+        {
+            /*
+             * EVERY NAMED REGION DECIDED (E12 C1, 11.10.2026; rooms.mjs). From 1.2.74 a region is
+             * a room only when a GM marked it; the migration marked what a world had once
+             * (`markRooms`), so a region drawn since is nobody's decision until a GM makes it.
+             * This row names them; the button opens Room Setup on the tab with the column.
+             */
+            key: "roomsMarked",
+            done: unmarkedRegions(workingScene()).length === 0,
+            missing: () => [...new Set(unmarkedRegions(workingScene()).map(region => region.name))],
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
         },
         {
             /*

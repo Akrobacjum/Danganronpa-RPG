@@ -1751,9 +1751,11 @@
       "noKeysToTake": "{actor} holds no key to anybody else's room.",
       "lockedAtStartColumn": "Locked at start",
       "lockedAtStartHint": "Whether this door is locked when a season begins. A season reset puts every door back to this.",
-      "notSharedColumn": "Not a room",
+      "isRoomColumn": "This is a room",
+      "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
+      "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“Not a room” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
+      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
     },
     "Chapter": {
       "deathTitle": "A character dies",
@@ -3458,6 +3460,8 @@
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",
       "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
+      "step.roomsMarked": "Every named region is decided: a room or not",
+      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room Setup (the Doors tab). These named regions have not been decided yet.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
       "step.mastermind": "The Mastermind (optional)",
@@ -3665,6 +3669,21 @@
       "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
       "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
       "checksScenes": "Scenes and rooms"
+    },
+    "Rooms": {
+      "reportTitle": "Rooms marked",
+      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room Setup's Doors tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
+      "migrated": {
+        "one": "{n} room marked: {names}.",
+        "other": "{n} rooms marked: {names}."
+      },
+      "skippedBehaviours": "Left for you to decide in Room Setup, because they carry behaviours: {names}.",
+      "skippedPlayer": "Never rooms, because a player drew them: {names}.",
+      "skippedNoName": {
+        "one": "{n} region without a name was left alone: a room needs a name.",
+        "other": "{n} regions without a name were left alone: a room needs a name."
+      },
+      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",

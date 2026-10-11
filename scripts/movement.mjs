@@ -32,7 +32,8 @@ import { overflowCrossings } from "./overflow.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, isPrimaryGm, debug, error, cardHead, plural } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
+import { ROOM_FLAG } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -77,6 +78,120 @@ export function registerMovement() {
     Hooks.on("updateToken", noteGmPosition);
     Hooks.on("createToken", token => gmSeen.set(token.id, positionOf(token)));
     Hooks.once("ready", primeGmPositions);
+    // Who may make a room (E12 C1; the note below). Inline, each one line, so the census of
+    // what reaches a rule names them where they are registered.
+    Hooks.on("createRegion", (region, options, userId) => noteRegionCreated(region, userId));
+    Hooks.on("updateRegion", (region, changes, options, userId) => judgeRoomFlagChange(region, changes, userId));
+    Hooks.once("ready", primeRoomFlags);
+}
+
+/* ==========================================================================
+ * WHO MAY MAKE A ROOM (E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06)
+ * --------------------------------------------------------------------------
+ * A room is a region a GM marked (rooms.mjs). Two roads could make one without
+ * a GM: a region a player draws, and a player's write to the mark itself.
+ * Whether Foundry v14 lets a player create or update a Region outside
+ * Daggerheart's relay has not been read off a live table (LIVE-E12-04), so
+ * both are answered here, on the primary GM, from the user id Foundry hands
+ * the document hook - Foundry's, not a packet's claim.
+ *
+ * A REGION A PLAYER DREW is recorded in `SETTINGS.playerRegions`, and
+ * rooms.mjs `canBeRoom` refuses it whatever its flag says. Nothing is put
+ * back: the region stays for whatever its author drew it for. An unknown
+ * user id (a user deleted since) is not judged.
+ *
+ * A PLAYER'S CHANGE TO THE MARK is put back to what a GM last left, and the
+ * GMs are told. "Last left" is remembered (`roomFlagSeen`), not read off the
+ * change: an update hook carries the new value only, and a write made with
+ * `diff: false` repeats the old one, so a flip read off the change could be
+ * steered. Every GM primes the memory at ready and keeps it on a GM's create
+ * and update; the primary writes the old value back, and that write, a GM's,
+ * is what moves every GM's memory. A change that names the mark and leaves it
+ * as it was is told and needs nothing put back.
+ * ========================================================================== */
+
+/** regionId -> the room flag as a GM last left it (`null` never decided), on every GM. */
+const roomFlagSeen = new Map();
+/** Regions this client saw a player create, before the setting that records them comes back. */
+const drawnByPlayer = new Set();
+/** The primary's writes of `SETTINGS.playerRegions`, one after another, so two creates keep both ids. */
+let playerRegionWrites = Promise.resolve();
+
+const roomFlagOf = region => region.getFlag(MODULE_ID, ROOM_FLAG) ?? null;
+
+function primeRoomFlags() {
+    if (!game.user?.isGM) return;
+    for (const scene of game.scenes ?? []) {
+        for (const region of scene.regions ?? []) roomFlagSeen.set(region.id, roomFlagOf(region));
+    }
+}
+
+/** A Region was created: a GM's is remembered as it is; a player's is recorded as never a room. */
+export function noteRegionCreated(region, userId) {
+    if (!game.user?.isGM) return null;
+    const author = game.users?.get(userId) ?? null;
+    if (!author || author.isGM) {
+        roomFlagSeen.set(region.id, roomFlagOf(region));
+        return null;
+    }
+    drawnByPlayer.add(region.id);
+    if (!isPrimaryGm()) return null;
+    playerRegionWrites = playerRegionWrites
+        .then(() => recordPlayerRegion(region, author))
+        .catch(err => error(`Could not record the region "${region.name}" as a player's`, err));
+    return playerRegionWrites;
+}
+
+async function recordPlayerRegion(region, author) {
+    if (!isPrimaryGm()) return;
+    const ids = game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [];
+    if (ids.includes(region.id)) return;
+    await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...ids, region.id]);
+    log(`The region "${region.name}" (${region.id}) on "${region.parent?.name}" was created by ${author.name}, who is no GM: it is never a room.`);
+}
+
+/** Whether a Region update's changes name the room flag (set or deleted). */
+function namesRoomFlag(changes) {
+    const ours = Object.entries(changes?.flags ?? {}).filter(([key]) => key.replace(/^-=/, "") === MODULE_ID);
+    return ours.some(([key, value]) => key.startsWith("-=") || value === null
+        || Object.keys(value ?? {}).some(flag => flag.replace(/^-=/, "") === ROOM_FLAG));
+}
+
+/**
+ * A Region was updated. A GM's update moves this client's memory of the mark; a player's that
+ * leaves the mark other than remembered, or names it at all, goes to `keepRoomFlag`.
+ */
+export function judgeRoomFlagChange(region, changes, userId) {
+    if (!game.user?.isGM) return null;
+    const author = game.users?.get(userId) ?? null;
+    const now = roomFlagOf(region);
+    if (!author || author.isGM) {
+        roomFlagSeen.set(region.id, now);
+        return null;
+    }
+    if (!changes?.flags || drawnByPlayer.has(region.id)) return null;
+    const was = roomFlagSeen.has(region.id) ? roomFlagSeen.get(region.id) : null;
+    if (now === was && !namesRoomFlag(changes)) return null;
+    return keepRoomFlag(region, was, now !== was, author);
+}
+
+/** On the primary: put the mark back to `was` when it moved, log it, tell the GMs. */
+async function keepRoomFlag(region, was, moved, author) {
+    if (!isPrimaryGm()) return null;
+    try {
+        if (moved) {
+            if (was === null) await region.unsetFlag(MODULE_ID, ROOM_FLAG);
+            else await region.setFlag(MODULE_ID, ROOM_FLAG, was);
+        }
+        log(`${author.name} changed whether "${region.name}" on "${region.parent?.name}" is a room; ${moved ? "put back" : "nothing moved"}.`);
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rooms.flagKept", {
+            user: author.name, region: region.name, scene: region.parent?.name ?? ""
+        }))}</p>`);
+        return { moved };
+    } catch (err) {
+        error(`Could not put back the room mark of "${region.name}"`, err);
+        return null;
+    }
 }
 
 /* ==========================================================================

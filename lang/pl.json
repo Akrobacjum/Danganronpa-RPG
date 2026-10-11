@@ -1796,9 +1796,11 @@
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
       "lockedAtStartHint": "Czy te drzwi są zamknięte na początku sezonu. Reset sezonu przywraca każde drzwi do tego stanu.",
-      "notSharedColumn": "To nie pokój",
+      "isRoomColumn": "To jest pokój",
+      "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
+      "notSharedColumn": "Bez prywatności",
       "notSharedHint": "Nie licz tego regionu do liczby pokoi na gracza. Nie zmienia żadnej zasady.",
-      "notSharedNote": "„To nie pokój” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
+      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
     },
     "Chapter": {
       "deathTitle": "Postać umiera",
@@ -3590,6 +3592,7 @@
         "liveKitSecret": "Sekretu serwera głosu nie ma w świecie",
         "sound": "Pliki dźwiękowe",
         "rooms": "Mapa ma pokoje",
+        "roomsMarked": "Każdy nazwany region rozstrzygnięty: pokój albo nie",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
         "mastermind": "Mastermind (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
@@ -3607,6 +3610,7 @@
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
+        "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (karta Drzwi). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
@@ -3845,6 +3849,25 @@
       "scenesFailed": "Nie udało się przełączyć tych scen na widoczność opartą na pokojach: {scenes}",
       "noRoomScenes": "Żadna scena nie ma nazwanych regionów, więc żadna nie używa widoczności opartej na pokojach.",
       "checksScenes": "Sceny i pokoje"
+    },
+    "Rooms": {
+      "reportTitle": "Oznaczone pokoje",
+      "reportNote": "Od tej wersji region jest pokojem tylko wtedy, gdy GM go tak oznaczy: kolumna „To jest pokój” na karcie Drzwi w Ustawieniach pokoi. Nazwane regiony poniżej oznaczono raz, żeby mapa zachowała pokoje; odznacz te, które pokojami nie są. Region narysowany od teraz oznaczasz sam.",
+      "migrated": {
+        "one": "Oznaczono {n} pokój: {names}.",
+        "few": "Oznaczono {n} pokoje: {names}.",
+        "many": "Oznaczono {n} pokoi: {names}.",
+        "other": "Oznaczono {n} pokoju: {names}."
+      },
+      "skippedBehaviours": "Do Twojej decyzji w Ustawieniach pokoi, bo mają zachowania: {names}.",
+      "skippedPlayer": "Nigdy nie są pokojami, bo narysował je gracz: {names}.",
+      "skippedNoName": {
+        "one": "Pominięto {n} region bez nazwy: pokój musi mieć nazwę.",
+        "few": "Pominięto {n} regiony bez nazwy: pokój musi mieć nazwę.",
+        "many": "Pominięto {n} regionów bez nazwy: pokój musi mieć nazwę.",
+        "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
+      },
+      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM."
     },
     "Migrate": {
       "gmOnly": "Tylko GM może uruchomić migrację danych.",

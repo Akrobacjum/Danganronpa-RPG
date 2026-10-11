@@ -88,8 +88,9 @@ Above the list sit three fields saved by **Save**: the campaign name (shown at t
 | Every student has a Monokuma watching | Every student feeds a Despair pool (one never assigned falls back to the first pool), or is set to "- nobody -" on purpose (an NPC-run character, a template), which counts as watched. Every player's browser can read who is set to "- nobody -", so assign the Mastermind like any other student | **Open** opens Despair Flow |
 | The students are split evenly between the pools (optional) | The living cast per pool differs by at most one student | Advice only: **Open** opens Despair Flow, where **Split evenly** deals them out. A cast that will not divide is a decision, not a mistake |
 | Sound files (optional) | At least one sound event has a file | **Open** opens the Sound window; the module ships no audio |
-| Enough rooms for the cast (optional) | Shared rooms (bedrooms and regions ticked "Not a room" in Room Setup > Doors excluded) against about 1.5 per player (`ROOMS_PER_PLAYER`), rounded by `roomsWantedFor` | Advice only: below the ratio, two private conversations cannot happen at once |
+| Enough rooms for the cast (optional) | Shared rooms (bedrooms and regions ticked "No privacy" in Room Setup > Doors excluded) against about 1.5 per player (`ROOMS_PER_PLAYER`), rounded by `roomsWantedFor` | Advice only: below the ratio, two private conversations cannot happen at once |
 | The map has rooms | The working scene has at least one Region | **Open** opens Room Setup. The row also carries the room-drawing guide and **Check the rooms on this scene** |
+| Every named region is decided: a room or not | No named region of the working scene without behaviours is still waiting for a GM's **This is a room** | **Open** opens Room Setup on Doors; the row names the regions waiting |
 | The GM's pointer is private (recommended) | Foundry's cursor sharing is off for the two GM roles | **Do it** edits core's permission matrix; players keep theirs |
 | The Mastermind (optional) | A Mastermind is set | **Open** opens the Mastermind window. A season without one is a legal season |
 | The Mastermind feeds a Despair pool (shown only when it does not) | The Mastermind is set to "- nobody -" in Despair Flow, which every player's browser can read; the case health check (`game.drpg.gmStoreHealth()`, `game.drpg.diagnoseGmStores()`) lists it too | **Open** opens Despair Flow |
@@ -376,7 +377,7 @@ Their **lair** is a room: <ins>while standing in it</ins> they see every token o
 
 ### 9.1 Rooms and Room Setup
 
-A room is a **named Scene Region**. Movement, Search, Listen, rests, voice and every incident are answered in terms of them. Neighbours are worked out from geometry (regions touching along an edge, within about a third of a grid square) unless you write an explicit list in the region's `drpgNeighbours` flag, comma-separated. Two regions with the same name are one room (a corridor drawn in two pieces).
+A room is a **named Scene Region a GM has marked as one** (Room Setup > Doors, **This is a room**). Movement, Search, Listen, rests, voice and every incident are answered in terms of them. A region carrying a Teleport or level-change behaviour, or one a player created, is never a room. The first load of 1.2.74 marks once, scene by scene, every named region with no behaviours that no player created, and whispers you what it marked and what it left and why; a region drawn after that is yours to mark, and Season setup names the ones waiting. Neighbours are worked out from geometry (regions touching along an edge, within about a third of a grid square) unless you write an explicit list in the region's `drpgNeighbours` flag, comma-separated. Two regions with the same name are one room (a corridor drawn in two pieces).
 
 **Room Setup** (Between sessions) is one table per kind of fact, and **Apply** saves every tab at once:
 
@@ -384,13 +385,13 @@ A room is a **named Scene Region**. Movement, Search, Listen, rests, voice and e
 |---|---|
 | Bedrooms | Whose bedroom each room is (one student, one bedroom). Owning a bedroom locks its door to everyone else and issues the owner a key |
 | Stashes | Who has a stash in which room and whether it is hidden. Click a cell to cycle none / open / hidden. A bedroom gives its owner an open stash automatically; a stash in somebody else's room gives no key to it. A stash with something in it cannot be removed; removing an empty one makes everybody who had located it forget it |
-| Doors | Which doors are locked now, and which start the season locked (the reset copies the second column over the first), and whether the region is Not a room (see below) |
+| Doors | Whether the region is a room at all (**This is a room**; greyed out for a region that cannot be one), which doors are locked now, and which start the season locked (the reset copies the third column over the second), and whether the room has No privacy (see below) |
 | Searching | Which RollTable the room draws from (or the global pool), how many search tokens it has left, a "cannot be searched" seal, and which categories the room favours (advantage on a Search aimed at one) or hinders (disadvantage); never both |
 | Rests | Whether a Short Rest and a Long Rest are allowed here |
 | Description | What the room looks like, in your words; shown on the move card when somebody walks in and behind the clock |
 | Fog | The discovery matrix - which rooms each character has already seen on this scene - with Discover all / Hide all, the percentage of the scene that belongs to no room, and the region check |
 
-The **Doors** tab also carries a **Not a room** column: tick it for corridors, stairwells and anywhere nobody can talk privately, and the region stops counting towards the rooms-per-player advice and nothing else.
+The **Doors** tab also carries a **No privacy** column: tick it for corridors, stairwells and anywhere nobody can talk privately, and the region stops counting towards the rooms-per-player advice and nothing else.
 
 Search tokens: **3 per room per time of day** (`ROOMS.searchTokensPerRoom`, editable in settings), restocked on every time-of-day change, one spent per Search.
 

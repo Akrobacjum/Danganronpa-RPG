@@ -88,8 +88,9 @@ Nad listą są trzy pola zapisywane przyciskiem **Zapisz**: nazwa kampanii (wido
 | Każdego ucznia pilnuje Monokuma | Każdy uczeń karmi jakąś pulę Despair (taki, którego nigdy nie przypisano, trafia do pierwszej puli) albo jest celowo ustawiony na "- nikt -" (postać prowadzona jako NPC, szablon), co liczy się jako pilnowany. Przeglądarka każdego gracza może odczytać, kto jest ustawiony na "- nikt -", więc Masterminda przypisz jak każdego innego ucznia | **Otwórz** otwiera Despair Flow |
 | Uczniowie są podzieleni po równo między pule (opcjonalne) | Liczba żyjących uczniów na pulę różni się najwyżej o jednego | Tylko rada: **Otwórz** otwiera Despair Flow, gdzie **Podziel po równo** ich rozdaje. Obsada, która nie dzieli się równo, to decyzja, nie błąd |
 | Pliki dźwiękowe (opcjonalne) | Co najmniej jedno zdarzenie ma plik | **Otwórz** otwiera okno Dźwięk; moduł nie zawiera żadnych dźwięków |
-| Dość pokoi dla obsady (opcjonalne) | Wspólne pokoje (bez sypialni i regionów z zaznaczonym "To nie pokój" w Ustawieniach pokoi > Drzwi) wobec około 1,5 na gracza (`ROOMS_PER_PLAYER`), zaokrąglone przez `roomsWantedFor` | Tylko rada: poniżej tej proporcji dwie prywatne rozmowy nie mogą toczyć się naraz |
+| Dość pokoi dla obsady (opcjonalne) | Wspólne pokoje (bez sypialni i regionów z zaznaczonym "Bez prywatności" w Ustawieniach pokoi > Drzwi) wobec około 1,5 na gracza (`ROOMS_PER_PLAYER`), zaokrąglone przez `roomsWantedFor` | Tylko rada: poniżej tej proporcji dwie prywatne rozmowy nie mogą toczyć się naraz |
 | Mapa ma pokoje | Robocza scena ma co najmniej jeden region | **Otwórz** otwiera Ustawienia pokoi. Wiersz niesie też instrukcję rysowania pokoi i przycisk **Sprawdź pokoje na tej scenie** |
+| Każdy nazwany region rozstrzygnięty: pokój albo nie | Żaden nazwany region roboczej sceny bez zachowań nie czeka już na **To jest pokój** od GMa | **Otwórz** otwiera Ustawienia pokoi na karcie Drzwi; wiersz wymienia czekające regiony |
 | Kursor GMa jest prywatny (zalecane) | Udostępnianie kursora w Foundry jest wyłączone dla dwóch ról GMa | **Zrób to** edytuje macierz uprawnień core; gracze zachowują swoje |
 | Mastermind (opcjonalnie) | Mastermind jest ustawiony | **Otwórz** otwiera okno Masterminda. Sezon bez niego to legalny sezon |
 | Mastermind zasila pulę Despair (widoczny tylko, gdy nie zasila) | Mastermind jest w Despair Flow ustawiony na "- nikt -", co odczyta przeglądarka każdego gracza; sprawdzenie sprawy (`game.drpg.gmStoreHealth()`, `game.drpg.diagnoseGmStores()`) też to wymienia | **Otwórz** otwiera Despair Flow |
@@ -376,7 +377,7 @@ Jego **pokój** (kryjówka) to region: <ins>stojąc w nim</ins> widzi każdy tok
 
 ### 9.1 Pokoje i Ustawienia pokoi
 
-Pokój to **nazwany region sceny**. Ruch, Search, Listen, odpoczynki, głos i każdy incydent są rozstrzygane w ich kategoriach. Sąsiedztwo wynika z geometrii (regiony stykające się krawędzią, z tolerancją około jednej trzeciej pola siatki), chyba że wpiszesz jawną listę we fladze `drpgNeighbours` regionu, po przecinku. Dwa regiony o tej samej nazwie to jeden pokój (korytarz narysowany w dwóch kawałkach).
+Pokój to **nazwany region sceny, który GM oznaczył jako pokój** (Ustawienia pokoi > Drzwi, **To jest pokój**). Ruch, Search, Listen, odpoczynki, głos i każdy incydent są rozstrzygane w ich kategoriach. Region z zachowaniem teleportu albo zmiany poziomu, albo utworzony przez gracza, nigdy nie jest pokojem. Pierwsze wczytanie 1.2.74 oznacza raz, scena po scenie, każdy nazwany region bez zachowań, którego nie utworzył gracz, i szepcze ci, co oznaczyło, co pominęło i dlaczego; region narysowany później oznaczasz sam, a Ustawienia sezonu wymieniają te, które czekają. Sąsiedztwo wynika z geometrii (regiony stykające się krawędzią, z tolerancją około jednej trzeciej pola siatki), chyba że wpiszesz jawną listę we fladze `drpgNeighbours` regionu, po przecinku. Dwa regiony o tej samej nazwie to jeden pokój (korytarz narysowany w dwóch kawałkach).
 
 **Ustawienia pokoi** (Między sesjami) to jedna tabela na rodzaj faktów, a **Zastosuj** zapisuje wszystkie zakładki naraz:
 
@@ -384,13 +385,13 @@ Pokój to **nazwany region sceny**. Ruch, Search, Listen, odpoczynki, głos i ka
 |---|---|
 | Sypialnie | Czyja jest każda sypialnia (jeden uczeń, jedna sypialnia). Posiadanie sypialni zamyka jej drzwi przed innymi i daje właścicielowi klucz |
 | Skrytki | Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknięcie komórki przełącza: brak / otwarta / ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie; skrytka w cudzym pokoju nie daje do niego klucza. Skrytki, w której coś leży, nie da się usunąć; usunięcie pustej sprawia, że zapomina o niej każdy, kto ją znalazł |
-| Drzwi | Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte (reset kopiuje drugą kolumnę na pierwszą) oraz czy region jest oznaczony jako To nie pokój (patrz niżej) |
+| Drzwi | Czy region w ogóle jest pokojem (**To jest pokój**; wyszarzone dla regionu, który nie może nim być), które drzwi są teraz zamknięte i które zaczynają sezon zamknięte (reset kopiuje trzecią kolumnę na drugą) oraz czy pokój jest oznaczony jako Bez prywatności (patrz niżej) |
 | Przeszukiwanie | Z której tabeli losuje pokój (albo pula globalna), ile ma Search Tokenów, blokada "nie do przeszukania", oraz kategorie, którym sprzyja (przewaga na Search o nie) i które utrudnia (utrudnienie); nigdy obie naraz |
 | Odpoczynki | Czy dozwolony jest Short Rest i Long Rest |
 | Opis | Jak wygląda pokój, twoimi słowami; pokazywany na karcie ruchu przy wejściu i za zegarem |
 | Mgła | Macierz odkryć - które pokoje każda postać już widziała na tej scenie - z Odkryj wszystko / Ukryj wszystko, procentem sceny nienależącym do żadnego pokoju i kontrolą regionów |
 
-Zakładka **Drzwi** ma też kolumnę **To nie pokój**: zaznacz ją dla korytarzy, klatek schodowych i każdego miejsca, gdzie nikt nie porozmawia na osobności, a region przestaje liczyć się do rady o liczbie pokoi na gracza i nic więcej.
+Zakładka **Drzwi** ma też kolumnę **Bez prywatności**: zaznacz ją dla korytarzy, klatek schodowych i każdego miejsca, gdzie nikt nie porozmawia na osobności, a region przestaje liczyć się do rady o liczbie pokoi na gracza i nic więcej.
 
 Search Tokens: **3 na pokój na porę dnia** (`ROOMS.searchTokensPerRoom`, edytowalne w ustawieniach), uzupełniane przy każdej zmianie pory dnia, jeden wydawany na Search.
 

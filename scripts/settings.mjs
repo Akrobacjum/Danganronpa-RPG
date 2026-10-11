@@ -520,6 +520,15 @@ export const SETTINGS = {
      */
     bodiesFound: "bodiesFound",
     /**
+     * THE REGIONS A PLAYER DREW (E12 C1, 1.2.74; plan-E12 3.1, audit S07-06): region ids, in
+     * the order the primary GM saw them created. A region in this list is never a room
+     * (rooms.mjs `canBeRoom`), whatever its flag says. One writer, movement.mjs
+     * `noteRegionCreated`, on the primary GM, from the `createRegion` hook's user id: that id
+     * is Foundry's, not a packet's claim. A region deleted later stays listed; an id is not
+     * reused, so a stale one costs a few bytes and answers nothing.
+     */
+    playerRegions: "playerRegions",
+    /**
      * The murder currently in progress - its WORLD HALF - or `{}`.
      *
      * World-scoped, so every browser holds it (D6: nothing world-scoped is
@@ -1635,6 +1644,15 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    // The regions a player drew (E12 C1; the key's note). Read by rooms.mjs when it decides
+    // what is a room; nothing redraws on it.
+    game.settings.register(MODULE_ID, SETTINGS.playerRegions, {
+        scope: "world",
+        config: false,
+        type: Array,
+        default: []
     });
 
     game.settings.register(MODULE_ID, SETTINGS.murderState, {

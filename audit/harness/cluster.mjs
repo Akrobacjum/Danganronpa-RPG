@@ -137,6 +137,16 @@ function canWrite(userId, op) {
                 return actor && actorOwned(actor, userId);
             });
         }
+        /*
+         * A PLAYER'S REGION (E12 C1, 11.10.2026). Whether v14 lets a player create, update or
+         * delete a Region on a scene is not known here (LIVE-E12-04: not read off Foundry's
+         * permission table, not tried at a table). A gate stricter than Foundry's would hide the
+         * road the module has to answer - a region a player drew, a player's change to the room
+         * flag (movement.mjs `noteRegionCreated`, `judgeRoomFlagChange`) - so this lets it
+         * through, and scenario 66 J drives it. What a real server refuses on that road, the
+         * module never sees.
+         */
+        if (action.startsWith("embedded-") && op.embeddedName === "Region") return true;
         return false;
     }
     // everything not allowed above is refused; per-permission creation (TRUSTED journals, player macros) is not modelled

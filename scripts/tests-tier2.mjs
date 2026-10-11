@@ -46770,6 +46770,98 @@ const SCENARIOS = [
             + "a body to find after the hold])");
     }],
 
+    ["the room-marking pass marks each named region of a scene once and tells why it left the others", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. From 1.2.74 a region is a room only when a GM
+         * marked it (rooms.mjs `isRoom`), so a world made before it is marked once by the migration's
+         * clause `markRooms`, or every map loses every room. That clause runs over every scene of the
+         * world; this test runs its pass (`markRoomsOn`) over a scene of its own, never the table's
+         * (scenario 66 H asks the clause itself, on the harness). The scene: four named regions with no
+         * behaviour, a "Lift" carrying a Teleport, a region with no name and a "Den" recorded as a
+         * player's. Read: what the pass marked and what it left with each reason, the scene's rooms and
+         * its stamp; then a GM unticks the Office, a "Late" is drawn, and the pass again marks nothing
+         * and the untick stands. Red before C1 on its first check, no `markRoomsOn`.
+         */
+        const MG = await import("./migrate.mjs");
+        ok(typeof MG.markRoomsOn === "function", "migrate.mjs has no room-marking pass (`markRoomsOn`) - a world made before 1.2.74 would lose every room");
+        if (typeof MG.markRoomsOn !== "function") return;
+        const R = await import("./rooms.mjs");
+        const NAME = "SUITE E12 C1 the marking";
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        const rect = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const plain = (name, x) => ({ name, shapes: rect(x), flags: {}, behaviors: [] });
+        let scene = null, read = null;
+        try {
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 4400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            const made = await scene.createEmbeddedDocuments("Region", [plain("Ward A", 0), plain("Ward B", 500), plain("Office", 1000),
+                plain("Lobby", 1500), { ...plain("Lift", 2000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] },
+                plain("", 2500), plain("Den", 3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...playersBefore, made.at(-1).id]);
+            const first = await MG.markRoomsOn([scene]);
+            const rooms = R.roomNames(scene), stamp = scene.getFlag(MODULE_ID, R.ROOMS_MARKED_FLAG) ?? null;
+            await scene.regions.find(r => r.name === "Office").setFlag(MODULE_ID, R.ROOM_FLAG, false);
+            const [late] = await scene.createEmbeddedDocuments("Region", [plain("Late", 3500)]);
+            const again = await MG.markRoomsOn([scene]);
+            read = [(first ?? []).map(({ sceneId, ...row }) => ({ ...row, here: sceneId === scene.id })), rooms, typeof stamp === "string",
+                again, R.roomNames(scene), R.roomDecided(late)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([[{ scene: NAME, marked: ["Ward A", "Ward B", "Office", "Lobby"], unnamed: 1, behaviours: ["Lift"], players: ["Den"], here: true }],
+            ["Lobby", "Office", "Ward A", "Ward B"], true, null, ["Lobby", "Ward A", "Ward B"], false]),
+        "the pass over a scene of four named regions, a Teleport, a nameless region and a player's, run twice around an untick and a late region "
+            + "([the report, the rooms, the scene stamped, the second report, the rooms after, the late region decided])");
+    }],
+
+    ["a region a player created is never a room and a player's change to the room mark is told and leaves the GM's mark", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. Whether v14 lets a player create or update a
+         * Region outside Daggerheart's relay has not been read (LIVE-E12-04), so movement.mjs answers both
+         * on the primary GM from the user id Foundry hands the hook (`noteRegionCreated`,
+         * `judgeRoomFlagChange`). A player's write cannot be made on the GM's client, so this hands the
+         * two hooks a player's id over regions the GM made - what reaches the primary when the write is
+         * real; scenario 66 J drives p1's own. Read: a region whose creation names a player is recorded
+         * and is no room though it carries the mark; a player's change naming the mark of a GM's room
+         * leaves it a room, and the GMs are told once. Red before C1 on its first check: no setting
+         * records a player's region.
+         */
+        ok(Boolean(SETTINGS.playerRegions) && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`),
+            "no world setting records the regions a player created - a region a player drew and named is a room");
+        if (!SETTINGS.playerRegions) return;
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose region is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone records a player's region and puts a mark back - this would measure nothing");
+        const { contentOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const NAME = "SUITE E12 C1 a player's region";
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        let scene = null, read = null;
+        try {
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            const [kept, drawn] = await scene.createEmbeddedDocuments("Region", [
+                { name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
+                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }]);
+            const wasRoom = R.isRoom(drawn);
+            Hooks.callAll("createRegion", drawn, {}, player.id);
+            const recorded = await until(() => R.playerRegionIds().has(drawn.id));
+            const from = game.messages.size;
+            const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes("SUITE E12 C1 Gym"));
+            Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } }, {}, player.id);
+            await until(() => told().length > 0);
+            await settle();
+            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG), told().length];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([true, true, false, true, true, 1]),
+            `${player.name}'s region and ${player.name}'s change to a GM's room ([the region a room before its creation was judged, recorded as a player's, `
+            + "a room after, the GM's room a room, its mark, the GMs told])");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

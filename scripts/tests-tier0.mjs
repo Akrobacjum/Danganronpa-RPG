@@ -7944,7 +7944,9 @@ const REGRESSIONS = [
          * row is keyed "#-", a handler that reads its packet only through a helper. On the harness
          * (11.10.2026, this test alone, twice) it read 101 places - 53 PACKET, 21 SOCKET, 14 HOOK,
          * 7 SHEET, 6 STORE - against the 101 rows, none either side: the 53 PACKET keys, which only
-         * the live `BRIDGE_ACTIONS` gives, are the census's.
+         * the live `BRIDGE_ACTIONS` gives, are the census's. E12 C1 added four rows, the region
+         * listeners of `registerMovement`, the room flag and `playerRegions`: 105 places - 53 PACKET,
+         * 21 SOCKET, 16 HOOK, 7 SHEET, 8 STORE - against 105 rows (harness, 11.10.2026, once).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8031,6 +8033,8 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "OPEN (C9, C12): the veto runs on the mover's browser (a claim; a GM returns early); C9 adds `level` (`isMoveChange`) and the stairs; C12 judges the arrival on the primary for the witness count [1b.1 a token's room / floor] MARKED (E12 C9, E12 C12)"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "OPEN (C9): the charge (`settleRoute`) gates on x/y at movement.mjs:830; C9 gates on `isMoveChange` and charges a stair crossing as a door (Q1 a) (E12 C9)"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the primary's record of positions `sendBackRefusal` compares against; C9 keeps `level` in it, C12's last-lawful map sits beside it (3.4) (E12 C9, E12 C12)"],
+            ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
+            ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
             ["HOOK movement.mjs#registerMovement#createToken:inline", "judged: `gmSeen` primes a dropped token's position (movement.mjs:78); C9 keeps `level` in `positionOf` (E12 C9)"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken:inline", "OPEN (C9, C12): on the primary, gates on x/y (murder-rules.mjs:2987) - C9 gates on `isMoveChange`; `maybeThirdParty`/`maybeBodyFound` take the arrival's standing (C12, Q3 a) (E12 C9, E12 C12)"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken:inline", "OPEN (C9): projects-map.mjs's `onProjectTokenMoved` road (primary only since E11 C8) gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
@@ -8046,7 +8050,9 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` (movement.mjs:1280-1281) of tokens in a room; C3 moves its caller `othersInRoom` to the located scene (E12 C3)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; C12 gives `maybeThirdParty` the arrival's standing (E12 C12)"],
             ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; C12's bedroom rule reads `itemsHeldNow` in the same synchronous step [1b.2] (E12 C12)"],
-            ["STORE Region#name", "not a source today: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Today every named region is a room; C1's flag makes a room what a GM marked and `isRoom` refuses a region the primary recorded as a non-GM's [1b.1 room flag] MARKED (E12 C1)"],
+            ["STORE Region#name", "not a source: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Since C1 a room is a named region a GM marked (rooms.mjs `isRoom`, which refuses a region the primary recorded as a non-GM's); the readers that still take every named region move onto it in C2a and C2b [1b.1 room flag] MARKED (E12 C2a, E12 C2b)"],
+            ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told; `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
+            ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`) [1b.1]"],
             ["STORE Region#vaultFlags", "not a source: a GM document written by Room Setup (a GM window); C4 writes to the scene it was opened on (R119); C14 writes Neighbours to every piece [1b.1 Room Setup] (E12 C4, E12 C14)"],
             ["STORE settings.mjs#discoveredRooms", "not a source: a world setting the primary writes through the ledger road (`guardFogShare`); C11 draws other floors from it with no new read (3.5); C8 renames its rooms (E12 C8, E12 C11)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; V1: the manager's save writes `room` unconditionally (projects-ui.mjs) - C5 writes it only when changed (E12 C5)"],
@@ -8068,7 +8074,9 @@ const REGRESSIONS = [
         // Where each field lives, found by the name that holds it in its file.
         const STORES = [["STORE Region#name", "vault.mjs", "regionsByName"], ["STORE Region#vaultFlags", "vault.mjs", "VAULT_FLAGS"],
             ["STORE settings.mjs#discoveredRooms", "settings.mjs", "discoveredRooms"], ["STORE projects-secrecy.mjs#projectMeta", "projects-secrecy.mjs", "projectMeta"],
-            ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"], ["STORE Item#keyRoom", "vault.mjs", "KEY_FLAG"]];
+            ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"], ["STORE Item#keyRoom", "vault.mjs", "KEY_FLAG"],
+            // E12 C1: the room flag and the record of a player's regions.
+            ["STORE Region#roomFlag", "rooms.mjs", "ROOM_FLAG"], ["STORE settings.mjs#playerRegions", "settings.mjs", "playerRegions"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
