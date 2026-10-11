@@ -61,7 +61,7 @@ export async function pickTarget(actor, call, kind) {
             case "player": return await pickPlayer(actor, call, kind);
             case "monocub": return await pickMonocub();
             case "project": return await pickProject(actor, kind, call);
-            case "room": return await pickRoom();
+            case "room": return await pickRoom(actor);
             case "item": return await pickItem();
             default: return {};
         }
@@ -295,9 +295,14 @@ async function pickProject(actor, kind = "hope", call = null) {
     return { project: id };
 }
 
-async function pickRoom() {
-    const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms(canvas?.scene ?? null);
+/* THE CALLER'S SCENE, NOT THE ONE ON SCREEN (E12 C5, 1.2.74; audit S16-07). The list, for every Call
+   that names a room, was the rooms of the scene this browser's camera showed. The GM who applies a
+   gather judges its room against the caller's own scene (call-effects.mjs `gatherRefusal`), so the
+   list is that scene's, read the same way from the same documents (call-world.mjs `gatherSceneOf`). */
+async function pickRoom(actor) {
+    const { gatherSceneOf } = await import("./call-world.mjs");
+    const { roomNames } = await import("./rooms.mjs");
+    const rooms = roomNames(await gatherSceneOf(actor));
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Rest.noRegions"));
         return null;

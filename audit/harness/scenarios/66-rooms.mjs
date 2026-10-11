@@ -23,7 +23,7 @@
  *      mark Apply writes (C1), and a player's walk into the other piece (V4, C2a).
  *   E  a project in a room Aiko has found: whether p1 knows it with its camera on Floor 1, the
  *      Annex and nothing; the gather ordered with the GM's camera on the Annex and on nothing
- *      (V5, C5 / R118).
+ *      (V5, C5 / R118); a Public Announcement for a room of the Annex, bought by the Monokuma on Floor 1 (C5).
  *   F  Aiko's second token on the Annex: where `locateActor` puts her with the GM's camera on
  *      either scene; a direct murder parked in Dorm A before two others, judged at the end of the
  *      Eclipse with the GM looking at the Annex (C3).
@@ -52,7 +52,7 @@
  * lock on 11.10.2026. E12 C2a (C1, D1, D2 rewritten; G's tower regions marked rooms): 20 checks in 15.6 s, one run alone
  * under the lock on 11.10.2026. E12 C2b (C3 added): 21 checks in 16.2 s, one run alone under the lock on 11.10.2026.
  * E12 C3 (F1, F2 rewritten): 21 checks in 15.9 s, one run alone under the lock on 11.10.2026. E12 C4 (B1 rewritten): 21
- * checks in 16.1 s, one run alone under the lock on 11.10.2026.
+ * checks in 16.1 s, one run alone under the lock on 11.10.2026. E12 C5 (A1, E1, E2 rewritten; E3 added): 22 checks in 16.1 s, one run alone under the lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -138,10 +138,10 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         if (made?.id) await P.deleteProject(made.id);
         return { id: made?.id ?? null, before, after };`, { timeout: 60000 });
     /* At 180df61 the manager's room select is filled from the camera's scene (`allRooms()`), which on the Annex
-       holds no Gym, and every row's room is written back from it: the project loses its room. E12 C5 (V1): a room
-       the manager did not change is kept. */
-    check("A1: the Gym's project saved from its manager with the GM's camera on the Annex has lost its room (E12 C5)",
-        Boolean(setA.id) && setA.before === "Gym" && setA.after === null, J(setA));
+       holds no Gym, and every row's room is written back from it: the project lost its room (A1 read `after: null`).
+       E12 C5 (V1): the select lists every place scene's rooms and a room the manager did not change is not written. */
+    check("A1: the Gym's project saved from its manager with the GM's camera on the Annex keeps its room (E12 C5)",
+        Boolean(setA.id) && setA.before === "Gym" && setA.after === "Gym", J(setA));
 
     /* ------------------------------ B. Room Setup's scene ------------------------------ */
     phase("B: Room Setup opened on Floor 1, applied with the camera on the Annex");
@@ -247,17 +247,54 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const asked = game.i18n.format("DRPG.Calls.noSuchRoom", { room: "Dorm A" }), told = () => globalThis.__notifications.filter(n => n.msg === asked).length;
         const before = told(), out = [];
         try { for (const scene of [annex, null]) { canvas.scene = scene; out.push((await W.scheduleGather("Dorm A"))?.sceneId ?? null); } }
-        finally { canvas.scene = academy; }
-        return { orders: out, warned: told() - before };`, { timeout: 30000 });
-    /* At 180df61 `knowsProject` asks the discovery ledger of the camera's scene: p1 knows the project while looking
-       at Floor 1 and not while looking at the Annex or at nothing; a GM knows every project. `scheduleGather` looks
-       the room up on the GM's camera and refuses with a warning on the Annex and on nothing. E12 C5 (V5, R118):
-       the project's scene and the room's own scene. */
-    check("E1: p1 knows the Dorm A project with its camera on Floor 1, not on the Annex nor on nothing; the GM knows it on all three (E12 C5)",
-        Boolean(setE.id) && setE.found.includes("Dorm A") && J(knowsP1) === J([true, false, false]) && J(knowsGm) === J([true, true, true]),
+        finally { canvas.scene = academy; await W.cancelGather(); }
+        return { orders: out, warned: told() - before, left: W.pendingGather() };`, { timeout: 30000 });
+    /* At 180df61 `knowsProject` asks the discovery ledger of the camera's scene: p1 knew the project while looking
+       at Floor 1 and not while looking at the Annex or at nothing (E1 read [true, false, false]); a GM knows every
+       project. `scheduleGather` looked the room up on the GM's camera and refused with a warning on the Annex and on
+       nothing (E2 read [null, null], warned 2). E12 C5 (V5, R118): the project's scene, and for an order the console
+       gives no scene, the room's own (`sceneOfRoom`); the order is called off here. */
+    check("E1: p1 knows the Dorm A project with its camera on Floor 1, on the Annex and on nothing; so does the GM (E12 C5)",
+        Boolean(setE.id) && setE.found.includes("Dorm A") && J(knowsP1) === J([true, true, true]) && J(knowsGm) === J([true, true, true]),
         J({ setE, knowsP1, knowsGm }));
-    check("E2: the gather ordered to Dorm A with the GM's camera on the Annex and on nothing is refused twice with a warning (E12 C5)",
-        J(gather.orders) === J([null, null]) && gather.warned === 2, J(gather));
+    check("E2: the gather ordered to Dorm A with the GM's camera on the Annex and on nothing is held on Floor 1 both times, unwarned (E12 C5)",
+        J(gather.orders) === J([IDS.scene, IDS.scene]) && gather.warned === 0 && gather.left === null, J(gather));
+    /* E3 (E12 C5): the Public Announcement as the Monokuma buys it, its token on Floor 1, with the GM's camera on an
+       Annex that holds a Boiler and Floor 1 none. The room is the picker's answer and the scene is the caller's
+       (`gatherSceneOf`), never the camera's nor a `sceneId` riding the choice: the Boiler is refused before the
+       Despair is paid (`spendDespairCallFor`: nothing paid, so nothing refunded) and again by the effect (`applyCall`,
+       the road after the payment), told both times; Dorm A is not refused. At C5's base (e925ca2, 11.10.2026) there was no `gatherRefusal`: the
+       Boiler was paid for (Despair 6 to 0) and its order held on the Annex, untold. */
+    const gatherE3 = await gm.eval(`${SCENES}
+        const CE = await import("${repoUrl}/scripts/call-effects.mjs"), W = await import("${repoUrl}/scripts/call-world.mjs");
+        const { DESPAIR_CALLS } = await import("${repoUrl}/scripts/config.mjs");
+        const call = DESPAIR_CALLS.publicAnnouncement, monokuma = game.actors.get("ACTORMONOKUMA000");
+        canvas.scene = academy;
+        const [boiler] = await annex.createEmbeddedDocuments("Region", [{ name: "Boiler", shapes: ${rect(200, 200)}, flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        const was = game.drpg.getDespair(game.user.id);
+        await game.drpg.setDespair(game.user.id, 6);
+        const told = game.i18n.format("DRPG.Calls.gatherNoRoom", { room: "Boiler", scene: academy.name });
+        const refunded = game.i18n.format("DRPG.Calls.refunded", { call: call.label, cost: call.cost });
+        const count = text => globalThis.__notifications.filter(n => n.msg === text).length, w0 = count(told), r0 = count(refunded);
+        const refuse = room => CE.gatherRefusal ? CE.gatherRefusal(call, { room }, monokuma) : "no gatherRefusal";
+        let out = null;
+        canvas.scene = annex;
+        try {
+            out = { refusals: [await refuse("Boiler"), await refuse("Dorm A")],
+                spent: await game.drpg.spendDespairCallFor(monokuma, "publicAnnouncement", { choice: { room: "Boiler", sceneId: annex.id } }),
+                despair: game.drpg.getDespair(game.user.id),
+                failed: (await CE.applyCall(monokuma, "publicAnnouncement", "despair", { room: "Boiler", sceneId: annex.id }))?.failed ?? null,
+                pending: W.pendingGather()?.sceneId ?? null };
+        } finally {
+            canvas.scene = academy;
+            await W.cancelGather();
+            await boiler.delete();
+            await game.drpg.setDespair(game.user.id, was);
+        }
+        return { ...out, warned: count(told) - w0, refunded: count(refunded) - r0, told };`, { timeout: 60000 });
+    check("E3: a Public Announcement for the Annex's Boiler, bought by the Monokuma on Floor 1 viewing the Annex, is refused before it is paid and by its effect (E12 C5)",
+        J(gatherE3.refusals) === J([gatherE3.told, null]) && gatherE3.spent === null && gatherE3.despair === 6 && gatherE3.failed === true
+            && gatherE3.pending === null && gatherE3.warned === 2 && gatherE3.refunded === 0, J(gatherE3));
     await gm.eval(`if ("${setE.id}") await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject("${setE.id}"); return true;`, { timeout: 30000 });
 
     /* ------------------------------ F. an actor on two scenes ------------------------------ */

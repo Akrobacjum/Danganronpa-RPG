@@ -708,12 +708,16 @@ export function finalRemnants() {
  * Lived on the Investigation Dashboard's third tab until now, which meant two
  * windows could write the same record. One entry, one place it is changed.
  */
-export async function placeFinalRemnant({ room, visibility = "evident", note = "",
+export async function placeFinalRemnant({ room, scene: onScene = null, visibility = "evident", note = "",
                                           name = "", text = "", analysis = "" } = {}) {
     if (!game.user.isGM || !room) return null;
 
-    const scene = canvas?.scene;
-    const { roomRegions } = await import("./rooms.mjs");
+    /* ON THE ROOM'S SCENE (E12 C5, 1.2.74; plan-E12 C5). The clue went to a room of that name
+       on whichever scene the GM's camera showed, or nowhere ("no such room") with another map on
+       screen. A caller may name the scene; otherwise it is the scene that holds the room, the
+       school first (rooms.mjs `sceneOfRoom`). */
+    const { roomRegions, sceneOfRoom } = await import("./rooms.mjs");
+    const scene = onScene ?? sceneOfRoom(room);
     const region = roomRegions(scene, room)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));

@@ -176,3 +176,26 @@ export function homeScene() {
     const pieces = new Map(scenes.map(s => [s, roomPieces(s).length]));
     return [...scenes].sort((a, b) => (pieces.get(b) - pieces.get(a)) || ((a.sort ?? 0) - (b.sort ?? 0)))[0];
 }
+
+/** Every place scene, the school (`homeScene`) first and the rest in the world's order. */
+export function placeScenes() {
+    const scenes = scenesWithRooms().filter(isPlaceScene);
+    const home = homeScene();
+    return home && scenes.includes(home) ? [home, ...scenes.filter(s => s !== home)] : scenes;
+}
+
+/**
+ * The scene a room of this name is on, for a reader that holds a name and no scene (a project's
+ * room, a gather order written before it carried one, the console's `discoverBody`): the school
+ * when it has the room, else the first other place scene that does (plan-E12 C5). Null when no
+ * place scene has it - never the scene on screen.
+ */
+export function sceneOfRoom(name) {
+    if (!name) return null;
+    return placeScenes().find(scene => roomRegions(scene, name).length > 0) ?? null;
+}
+
+/** The room names of every place scene, sorted and once each: a GM's list of where a thing may be. */
+export function placeRoomNames() {
+    return [...new Set(placeScenes().flatMap(roomNames))].sort((a, b) => a.localeCompare(b));
+}

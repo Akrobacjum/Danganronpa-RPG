@@ -32,7 +32,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { announce, log, warn, error, plural, isPrimaryGm } from "./utils.mjs";
-import { roomRegions } from "./rooms.mjs";
+import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
 
 /* ==========================================================================
  * ROOM EFFECTS AND RESTRICTIONS
@@ -165,22 +165,39 @@ async function writeGather(record) {
 }
 
 /**
+ * The scene a gather called by this actor happens on (E12 C5, 1.2.74; audit S16-07): where the
+ * caller's own token stands on a place scene (movement.mjs `locateActor`, which reads documents and
+ * never the camera), else the school (rooms.mjs `homeScene`) - a caller's actor may have no
+ * token at all, as a Monokuma's need not. Read on the GM who applies the Call, and on the caller's browser by the room
+ * picker, from the same documents, so the list a caller picks from is the list the GM accepts. A
+ * packet's own scene is never asked.
+ */
+export async function gatherSceneOf(actor) {
+    const { locateActor } = await import("./movement.mjs");
+    return locateActor(actor)?.scene ?? homeScene();
+}
+
+/**
  * Call one. Public, loudly, with the room named.
  *
  * The room is checked against the scene HERE rather than at the moment it
  * fires: an order for a room that does not exist would sit on the board for a
  * whole time of day and then fail silently in front of nobody.
  */
-export async function scheduleGather(room, by = null) {
+export async function scheduleGather(room, by = null, { scene: onScene = null } = {}) {
     if (!game.user.isGM) return null;
 
     /* THE ORDER REMEMBERS ITS SCENE (CALL-18, 20.09). The room is a REGION on one
        scene, and the order is carried out later by whichever GM is primary then -
        who may be looking at another scene entirely. Without this the assembly was
        looked for on that GM's current map, was not found, and the order had already
-       been cleared. Resolved here, where the room has just been checked against the
-       map the GM is actually working on. */
-    const scene = canvas?.scene ?? null;
+       been cleared.
+       AND THE SCENE IS THE CALLER'S, NOT THE CAMERA'S (E12 C5, 1.2.74; audit S16-07). It was
+       resolved from the map the GM had on screen, so an order bought while that GM looked at
+       the Annex was refused for a room of the school (scenario 66 E2 read two refusals at
+       180df61, 11.10.2026). The Call hands in its caller's scene (`gatherSceneOf`); a caller
+       that hands none - the console - gets the room's own scene (`sceneOfRoom`). */
+    const scene = onScene ?? sceneOfRoom(room);
     if (!roomRegions(scene, room).length) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return null;
@@ -305,7 +322,8 @@ export async function runPendingGather() {
      * be carried out at all; it is cleared and said out loud rather than left to
      * fire into nothing every time of day for the rest of the season.
      */
-    const scene = order.sceneId ? game.scenes.get(order.sceneId) : (canvas?.scene ?? null);
+    // An order written before CALL-18 carries no scene: its room's own (E12 C5), not the camera's.
+    const scene = order.sceneId ? game.scenes.get(order.sceneId) : sceneOfRoom(order.room);
     const region = roomRegions(scene, order.room)[0] ?? null;
     if (!region) {
         await writeGather(null);
@@ -344,14 +362,12 @@ export async function runPendingGather() {
  * announcement does to the cast.
  */
 export async function gatherEveryone(room, onScene = null) {
-    /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09), and it defaults to this
-       client's own. The caller that passes nothing - the immediate branch of Public
-       Announcement - runs on the client that has just chosen the room, so its own
-       view IS the right answer. A DEFERRED assembly is the case that is not: see
-       `runPendingGather`; and so is a body discovery, whose watcher runs on the
-       primary GM whatever it is looking at - it passes the body's scene since E05
-       fix r2-G3 (chapter.mjs `runDiscovery`). */
-    const scene = onScene ?? canvas?.scene ?? null;
+    /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09). A DEFERRED assembly passes its
+       order's (`runPendingGather`), a body discovery the body's (chapter.mjs
+       `runDiscovery`, since E05 fix r2-G3), and the immediate branch of a Call its
+       caller's (`gatherSceneOf`, E12 C5). The default was this client's own view until
+       E12 C5; a caller that passes nothing - the console - gets the room's own scene. */
+    const scene = onScene ?? sceneOfRoom(room);
     if (!game.user.isGM || !scene) return 0;
 
     const region = roomRegions(scene, room)[0];

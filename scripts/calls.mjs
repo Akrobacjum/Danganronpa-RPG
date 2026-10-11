@@ -429,9 +429,10 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         // already sealed, a track already full, Hope bought under the darkening
         // (DESP-04), a project that cannot move (CALL-10) - is turned away with
         // its reason, rather than paid, applied, refunded and only then
-        // explained. See `refusalBeforePaying` and `projectRefusal`.
-        const { refusalBeforePaying, projectRefusal } = await import("./call-effects.mjs");
-        const refusal = refusalBeforePaying(call, choice) ?? await projectRefusal(call, choice);
+        // explained. See `refusalBeforePaying`, `projectRefusal` and `gatherRefusal`.
+        const { refusalBeforePaying, projectRefusal, gatherRefusal } = await import("./call-effects.mjs");
+        const refusal = refusalBeforePaying(call, choice) ?? await projectRefusal(call, choice)
+            ?? await gatherRefusal(call, choice, actor);
         if (refusal) {
             ui.notifications.warn(refusal);
             return null;

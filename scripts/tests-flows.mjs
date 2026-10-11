@@ -68,8 +68,9 @@ export const FLOWS = Object.freeze([
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+    // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
-        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season"], status: "covered", stage: "<=1.2.50" },
+        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season", "66-rooms"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
     // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
@@ -180,9 +181,11 @@ export const FLOWS = Object.freeze([
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+    // E12 C5 (11.10.2026): 66-rooms's phases A and E (the manager's room, what a player knows of a project) are tagged
+    // with this flow and now named.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.

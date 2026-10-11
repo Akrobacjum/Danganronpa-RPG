@@ -41,8 +41,9 @@ import { confusionStore, confusionCopy, rollStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, ownsActor, replyForMe } from "./bridge-guards.mjs";
 import {
-    isSealed, sealRoom, isCallSilenced, isChained, restrict, scheduleGather, gatherEveryone
+    isSealed, sealRoom, isCallSilenced, isChained, restrict, scheduleGather, gatherEveryone, gatherSceneOf
 } from "./call-world.mjs";
+import { roomNames } from "./rooms.mjs";
 export { pickTarget } from "./call-pickers.mjs";
 export {
     sealedRooms, isSealed, restrictions, isCallSilenced, isChained, clearSeals, pendingGather, scheduleGather,
@@ -852,6 +853,25 @@ export function refusalBeforePaying(call, choice = {}) {
 }
 
 /**
+ * The gather half of `refusalBeforePaying`, which has to await (E12 C5, 1.2.74; audit S16-07): a
+ * room that is not a room of the caller's scene (`gatherSceneOf`) is refused before the pool is
+ * touched, with the reason. The room is the picker's answer, chosen on the caller's browser from
+ * the same scene; `gatherEffect` asks again, because the world can move between the two.
+ *
+ * @returns {Promise<string|null>}  Why not, ready to show; null when the gather can be held.
+ */
+export async function gatherRefusal(call, choice = {}, actor = null) {
+    if (!call?.gathersEveryone || !choice.room) return null;
+    return gatherRoomRefusal(choice.room, await gatherSceneOf(actor));
+}
+
+/** Why a gather in `room` cannot be held on `scene`, or null when the room is one of its rooms. */
+function gatherRoomRefusal(room, scene) {
+    if (scene && roomNames(scene).includes(room)) return null;
+    return game.i18n.format("DRPG.Calls.gatherNoRoom", { room, scene: scene?.name ?? "-" });
+}
+
+/**
  * The project half of `refusalBeforePaying`, which has to await (CALL-10).
  *
  * The API and a stale picker can both name a project that cannot move: a
@@ -1186,12 +1206,24 @@ async function motiveEffect(actor, call, choice, done) {
  * the cast because the fiction just did.
  */
 async function gatherEffect(actor, call, choice, done) {
+    /* ON THE CALLER'S SCENE (E12 C5, 1.2.74; audit S16-07). The order took the scene on the
+       applying GM's screen, and the immediate gather that GM's view: a gather bought while the GM
+       looked at the Annex was refused, or held on whichever scene of the name was on screen.
+       The scene is the caller's own (`gatherSceneOf`, from documents on this GM), and the room -
+       the picker's answer, a claim - must be one of its rooms, else nothing is done and the price
+       goes back (`NothingToDo`). Scenario 66 E2-E3. */
+    const scene = await gatherSceneOf(actor);
+    const refusal = gatherRoomRefusal(choice.room, scene);
+    if (refusal) {
+        ui.notifications.warn(refusal);
+        throw new NothingToDo();
+    }
     if (call.defers) {
-        const order = await scheduleGather(choice.room, actor?.name);
+        const order = await scheduleGather(choice.room, actor?.name, { scene });
         if (!order) throw new Error(`could not call an assembly in ${choice.room}`);
         done.push(game.i18n.format("DRPG.Calls.gatherCalled", { room: choice.room }));
     } else {
-        const moved = await gatherEveryone(choice.room);
+        const moved = await gatherEveryone(choice.room, scene);
         done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
     }
 }

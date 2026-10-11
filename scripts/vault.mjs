@@ -43,7 +43,7 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
-import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames }
+import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes }
     from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -2812,14 +2812,20 @@ export async function openVaultInspector() {
         return null;
     }
 
-    const vaults = allVaults().filter(v => v.owner);
-    if (!vaults.length) {
+    /* EVERY PLACE SCENE, AND EACH STASH ITS OWN THINGS (E12 C5, 1.2.74; audit S08-43). The window
+       read the stashes of the scene on the GM's screen, and under each it listed everything its
+       owner had stashed anywhere (`vaultContents`): a student with two stashes showed the same
+       things twice, and a stash on another scene not at all (read in the code). Each place scene is a heading when there is more than one
+       (the school first, rooms.mjs `placeScenes`), and a stash lists what lies in it
+       (`stashItemsIn` on that scene). */
+    const scenes = placeScenes().map(scene => ({ scene, vaults: allVaults(scene).filter(v => v.owner) }));
+    if (!scenes.some(entry => entry.vaults.length)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
         return null;
     }
 
-    const sections = vaults.map(v => {
-        const items = vaultContents(v.owner);
+    const section = scene => v => {
+        const items = stashItemsIn(v.owner, v.room, scene);
         const list = items.length
             ? items.map(i => `<li>${foundry.utils.escapeHTML(i.name)} - ${
                 foundry.utils.escapeHTML(
@@ -2832,7 +2838,12 @@ export async function openVaultInspector() {
             }</h4>
             <ul>${list}</ul>
         </div>`;
-    }).join("");
+    };
+    const sections = scenes.length === 1
+        ? scenes[0].vaults.map(section(scenes[0].scene)).join("")
+        : scenes.map(({ scene, vaults }) => `<h3>${foundry.utils.escapeHTML(scene.name ?? scene.id)}</h3>${vaults.length
+            ? vaults.map(section(scene)).join("")
+            : `<p class="notes">${game.i18n.localize("DRPG.Vault.noStashesOnScene")}</p>`}`).join("");
 
     return DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vault.inspectTitle") },

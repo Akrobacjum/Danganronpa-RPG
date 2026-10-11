@@ -47234,6 +47234,198 @@ const SCENARIOS = [
             + `the stashes (${stasher.name}'s cell, ${owner.name}'s as the new owner) and the owner, and the rooms Apply says it changed`);
     }],
 
+    ["a project's room is known on its own scene, whatever scene is on screen", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 V5, audit S16-06; the A5 project's R118, whose number the
+         * tier-0 guard carries (a tier-2 test is named, not numbered: tools/registry.mjs).
+         * `knowsProject` asked the discovery record of the scene this client's camera showed, so a
+         * player whose character had found a project's room knew the project while looking at that
+         * scene and not while looking at another (scenario 66 E1 read [true, false, false] for the
+         * school, the Annex and no scene at 180df61). Here one scene of the suite's own holds two
+         * rooms, a second scene another room, and a student of a player's has found the first room
+         * and not the second; a project in each. Read on this GM for that player
+         * (`knowsProject(id, user)`), viewing each scene: the found room's project known on both,
+         * the other on neither. In a GM-store world of the suite's own, as C4's test, so the
+         * discovery is the suite's and leaves with it.
+         */
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "a GM knows every project, so the reading would be \"yes\" whatever the scene");
+        const user = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const P = await import("./projects.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const FOUND = "SUITE E12 C5 found room", UNFOUND = "SUITE E12 C5 unfound room";
+        const LAYOUT = [["SUITE E12 C5 the projects' scene", [FOUND, UNFOUND]], ["SUITE E12 C5 another scene", ["SUITE E12 C5 another room"]]];
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c5-knows-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [], made = [];
+            try {
+                for (const [name, rooms] of LAYOUT) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", rooms.map((room, i) => ({ name: room,
+                        shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                }
+                await F.applyDiscoveryChanges(scenes[0], [{ actorId: student.id, room: FOUND, value: true }]);
+                for (const room of [FOUND, UNFOUND]) {
+                    const id = (await P.createProject({ name: `SUITE E12 C5 ${room}`, target: 6, room }))?.id ?? null;
+                    must(id, "could not create a project - this would measure nothing");
+                    made.push(id);
+                }
+                await settle();
+                must(F.discoveredFor(scenes[0].id, student.id).includes(FOUND), `${student.name} has not found "${FOUND}" - this would measure nothing`);
+                reading = [];
+                for (const scene of scenes) {
+                    await scene.view();
+                    await settle();
+                    reading.push(made.map(id => P.knowsProject(id, user)));
+                }
+            } finally {
+                await home?.view();
+                for (const id of made) await P.deleteProject(id);
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify([[true, false], [true, false]]),
+            `whether ${user.name} knows the project in the room ${student.name} found and the one in the room not found, viewing the projects' scene and another`);
+    }],
+
+    ["the project manager keeps a room it did not change, whatever scene is on screen", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 V1, audit S09-03. The manager's room select listed the rooms
+         * of the scene on the GM's screen, so a project whose room was on another scene had no option
+         * for it, the select fell to "any room", and Save wrote that back to every row (scenario 66
+         * A1 read the Gym's project's room null after a save viewing the Annex, at 180df61). Here a
+         * scene of the suite's own holds a room and a second scene another; three projects - one in
+         * the first room, one in a room on no scene, one in the first room that a GM moves to the
+         * second while the window is open. The window is opened viewing the second scene and answered
+         * as a GM answers it, changing nothing, by its Save button's own callback. Read: the value and
+         * the label chosen in the first two rows, and each project's room after the save. In a GM-store world of the suite's own, as C4's test; measured on the
+         * harness, where the window is answered without being drawn.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E12 C5 Gym", MOVED = "SUITE E12 C5 Hall", GONE = "SUITE E12 C5 a room on no scene";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c5-manager-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [], made = {};
+            try {
+                for (const [name, room] of [["SUITE E12 C5 the Gym's scene", ROOM], ["SUITE E12 C5 the Hall's scene", MOVED]]) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                for (const [key, room] of [["kept", ROOM], ["gone", GONE], ["moved", ROOM]]) {
+                    made[key] = (await P.createProject({ name: `SUITE E12 C5 ${key}`, target: 6, room }))?.id ?? null;
+                    must(made[key], "could not create a project - this would measure nothing");
+                }
+                await scenes[1].view();
+                await settle();
+                let seen = null;
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const select = id => form.querySelector(`[name="room.${CSS.escape(id)}"]`);
+                    must(Object.values(made).every(select), "the manager drew no room select for a project of this test - the answer would change nothing");
+                    const chosen = id => [select(id).value, select(id).selectedOptions[0]?.textContent ?? null];
+                    seen = [chosen(made.kept), chosen(made.gone)];
+                    await S.setProjectMeta(made.moved, { room: MOVED });
+                    const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                    return save.callback(new Event("click"), save, { element });
+                };
+                await UI.openProjectManager();
+                await settle();
+                reading = [seen, [made.kept, made.gone, made.moved].map(id => P.roomOf(id))];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                for (const id of Object.values(made)) if (id) await P.deleteProject(id);
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify([[[ROOM, ROOM], [GONE, game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE })]], [ROOM, GONE, MOVED]]),
+            "the manager saved viewing another scene: the value and label chosen in the Gym's row and in the row of a room on no scene, and each project's room after the save "
+            + "(the Gym's kept, the one on no scene kept, the one moved while the window was open left where it was moved)");
+    }],
+
+    ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up
+         * on the scene the GM had on screen when the order was written: an order bought while the GM
+         * looked at another map was refused for a room of the school, and one for a room of that map
+         * was held there (scenario 66 E2 read two refusals at 180df61). Since C5 the scene is the
+         * caller's (`gatherSceneOf`: where `locateActor` places the caller, else the school,
+         * `homeScene`), and a room it does not hold is refused by `gatherRefusal`, which
+         * `spendDespairCallFor` asks before the pool is touched and the effect asks again. Here the
+         * caller has no token - the school - and the GM views a scene of the suite's own holding a
+         * room the school has not. Read: the refusal before paying for that room and for a room of
+         * the school; then the effect itself (`applyCall`, the road after the payment) for each, and
+         * the order it leaves; and how often the refusal was told. In a GM-store world of the suite's
+         * own, as C4's test; the order this writes is called off before it ends.
+         */
+        const CE = await import("./call-effects.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const call = DESPAIR_CALLS.publicAnnouncement;
+        must(call?.gathersEveryone && call.defers, "the Public Announcement no longer orders a gather - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly is already pending - its order would be read as this test's");
+        needs(world.atLeast("namedRooms", 1), "the school is a scene of this world that holds a room");
+        ok(typeof CE.gatherRefusal === "function", "call-effects.mjs exports no gatherRefusal - a gather's room is not asked before the Despair is paid (E12 C5)");
+        const home = canvas?.scene ?? null;
+        const AWAY = "SUITE E12 C5 a room of another scene";
+        const seen = [];
+        const warn = ui.notifications.warn.bind(ui.notifications);
+        let reading = null, expected = null;
+        await G.withGmStoreWorld(`suite-c5-gather-${foundry.utils.randomID(8)}`, async () => {
+            let away = null;
+            try {
+                away = await Scene.create({ name: "SUITE E12 C5 another scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await away.createEmbeddedDocuments("Region", [{ name: AWAY, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                const school = R.homeScene();
+                must(school && school !== away, `the school is the suite's own scene (${school?.name ?? "none"}): no other scene holds a marked room - this would measure nothing`);
+                const room = R.roomNames(school).find(name => !R.roomRegions(away, name).length);
+                must(room, `${school.name} holds no room the suite's scene has not - this would measure nothing`);
+                await away.view();
+                await settle();
+                ui.notifications.warn = text => { seen.push(String(text)); return null; };
+                const refusals = [await CE.gatherRefusal(call, { room: AWAY }, null), await CE.gatherRefusal(call, { room }, null)];
+                const effects = [];
+                for (const where of [AWAY, room]) {
+                    const out = await CE.applyCall(null, "publicAnnouncement", "despair", { room: where });
+                    effects.push([Boolean(out?.failed), CE.pendingGather()?.sceneId ?? null]);
+                }
+                const told = game.i18n.format("DRPG.Calls.gatherNoRoom", { room: AWAY, scene: school.name });
+                reading = [refusals, effects, seen.filter(text => text === told).length];
+                expected = [[told, null], [[true, null], [false, school.id]], 1];
+            } finally {
+                ui.notifications.warn = warn;
+                await CE.cancelGather();
+                await home?.view();
+                await away?.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify(expected),
+            "a caller with no token (so the school's), viewing another scene: the refusal before paying for that scene's room and for the school's, "
+            + "what the effect did with each (failed, the order's scene), and how often the refusal was told");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

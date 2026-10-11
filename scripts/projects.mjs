@@ -33,6 +33,8 @@ import { projectSecretStore } from "./gm-stores.mjs";
    top and not dynamically: the import graph was checked in both directions
    (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
 import { discoveredFor } from "./fog.mjs";
+// A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5).
+import { placeScenes, roomRegions } from "./rooms.mjs";
 import {
     DH, COUNTDOWNS, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, makeSecret, isSecret, rawCountdown, writeCountdown
@@ -116,13 +118,21 @@ export function knowsProject(countdownId, user = game.user) {
     /* Any character this person holds having been there is enough. A player
        running two students knows what either of them has seen - the same rule
        `incidentWitness` uses for the incident's seats. */
-    const sceneId = canvas?.scene?.id ?? null;
-    if (!sceneId) return false;
+    /* ON THE PROJECT'S SCENE, NOT THE ONE ON SCREEN (E12 C5, 1.2.74; audit S16-06; R118). This
+       asked the discovery record of the scene this client's camera showed, so one player knew a
+       project while looking at Floor 1 and forgot it on the Annex or with no scene drawn (scenario
+       66 E1 read [true, false, false] at 180df61, 11.10.2026), and the tray and the map token, which
+       ask this, followed the view (read in the code). The project's scene is its token's; one with
+       no token yet is in the room of its name on every place scene that has one (the record is per
+       scene, and a room's name is the project's only place until the primary puts it on the map). */
+    const ref = tokenRefOf(countdownId);
+    const sceneIds = ref ? [ref.sceneId] : placeScenes().filter(s => roomRegions(s, room).length).map(s => s.id);
+    if (!sceneIds.length) return false;
     try {
         for (const actor of game.actors ?? []) {
             if (actor.type !== "character") continue;
             if (!actor.testUserPermission(user, "OWNER")) continue;
-            if (discoveredFor(sceneId, actor.id).includes(room)) return true;
+            if (sceneIds.some(sceneId => discoveredFor(sceneId, actor.id).includes(room))) return true;
         }
     } catch {
         // A world mid-migration, or a scene with no discovery recorded yet.

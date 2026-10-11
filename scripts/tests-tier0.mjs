@@ -2841,7 +2841,7 @@ const REGRESSIONS = [
         ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
         const gm = open.indexOf("game.user.isGM");
         const dark = open.indexOf("isEclipse()");
-        const rooms = open.indexOf("allRooms(");
+        const rooms = open.indexOf("placeScenes(");   // E12 C5: the room list is every place scene's, not `allRooms(canvas.scene)`
         ok(gm > 0 && dark > 0 && rooms > 0, "the body-discovery window lost one of its three guards");
         ok(gm < dark, "the body-discovery window asks about the Eclipse before it asks who is pressing");
         ok(dark < rooms,
@@ -8004,7 +8004,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#token.sendBack#tokenId", "judged: knownSender + ownsActorAt (the token's actor); `sendBackRefusal` (bridge-guards.mjs) compares the position with the GM's record (`gmSeen`, movement.mjs:123) [1b.1 a token's room]"],
             ["PACKET gm-bridge.mjs#token.sendBack#position", "OPEN (C9): the send-back's position whitelist drops `level` today; C9 accepts it, judged by `sendBackRefusal` (which compares it) [1b.1 a token's floor] (E12 C9)"],
             ["PACKET gm-bridge.mjs#call.arm#actorId", "out of scope: a Call's arming (`guardArm*`) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
-            ["PACKET gm-bridge.mjs#call.arm#call", "OPEN (C5): a gather's room rides the Call's choice, picked on the caller's browser (`pickRoom`, call-pickers.mjs:298; `gatherEffect` call-effects.mjs:1188); C5 takes the scene from `locateActor(caller)` on the GM and refuses, told (`DRPG.Call.gatherNoRoom`), a room not in `roomNames(scene)` [1b.1 the gather's room and scene] MARKED (E12 C5)"],
+            ["PACKET gm-bridge.mjs#call.arm#call", "judged on the GM (E12 C5): a gather's room rides a Call's choice, and the one Call that gathers (Public Announcement, a Despair Call) is spent on a GM's client, not armed through this packet (read in the code: `spendDespairCallFor`, calls.mjs); its scene is the caller's own (`gatherSceneOf`: `locateActor` on the GM, else `homeScene`), never the camera, and a room not on that scene is refused before the Despair is paid (`gatherRefusal`, `DRPG.Calls.gatherNoRoom`); scenario 66 E2/E3 [1b.1 the gather's room and scene] MARKED (E12 C5)"],
             ["PACKET gm-bridge.mjs#eclipse.move#actorId", "judged on the primary: knownSender + owns; the declared move's room `to` is judged by `judgePendingMurders`, which places the killer and counts the room on the killer's own scene since E12 C3, not on the viewed one (tier 2 \"where a student stands and the lights' verdict on a murder are the same viewing either scene\"; scenario 66 F2)"],
             ["PACKET gm-bridge.mjs#eclipse.move#to", "judged on the primary: knownSender + owns; the declared move's room `to` is judged by `judgePendingMurders`, which places the killer and counts the room on the killer's own scene since E12 C3, not on the viewed one (tier 2 \"where a student stands and the lights' verdict on a murder are the same viewing either scene\"; scenario 66 F2)"],
             ["SOCKET bridge-guards.mjs#registerBridgeReplies#-", "out of scope: the bridge's replies to the asker, read on that player's client (E31); no place field"],
@@ -8056,8 +8056,8 @@ const REGRESSIONS = [
             ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`) [1b.1]"],
             ["STORE Region#vaultFlags", "not a source: a GM document written by Room Setup (a GM window); C4 writes to the scene it was opened on (R119); C14 writes Neighbours to every piece [1b.1 Room Setup] (E12 C4, E12 C14)"],
             ["STORE settings.mjs#discoveredRooms", "not a source: a world setting the primary writes through the ledger road (`guardFogShare`); C11 draws other floors from it with no new read (3.5); C8 renames its rooms (E12 C8, E12 C11)"],
-            ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; V1: the manager's save writes `room` unconditionally (projects-ui.mjs) - C5 writes it only when changed (E12 C5)"],
-            ["STORE settings.mjs#bodiesFound", "not a source: a world setting only a GM writes (E11 C1 `recordBodyFound`); its `sceneId` is the discovery's scene - C5's `runDiscovery(tokenDoc.parent)` makes it the body's scene, not the camera's (E12 C5)"],
+            ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; the manager's save writes `room` only when the GM changed it (`applyProjectManager`, projects-ui.mjs), and lists every place scene's rooms, a room on none kept and labelled (`roomSelectOptions`); tier 2 \"the project manager keeps a room it did not change, whatever scene is on screen\", scenario 66 A1 (E12 C5)"],
+            ["STORE settings.mjs#bodiesFound", "not a source: a world setting only a GM writes (E11 C1 `recordBodyFound`); its `sceneId` is the body's scene since E12 C5 - `runDiscovery` takes the scene it is given, else the room's own (`sceneOfRoom`), and the body window sends the scene of the room picked - never the camera's (R118) (E12 C5)"],
             ["STORE Item#keyRoom", "item flags: a key on a player's sheet is the owner's own document (class 1; whether a write to these flags is put back: not read by the prep), read held on the GM's branch (`keysHeldBy`); C8 rewrites both flags on a rename, on the primary, in one write per store (E12 C8)"],
         ];
         const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
@@ -9543,6 +9543,68 @@ const REGRESSIONS = [
         equal(JSON.stringify([found, camera]), JSON.stringify([[], ["openRoomSetupDialog:workingScene"]]),
             `a call in Room Setup that takes a scene is not handed the window's (function:callee@line), or the camera is read `
             + `other than once where the window opens (function:read); read over ${bodies.map(([fn]) => fn).join(", ")}`);
+    }],
+
+    ["R118 - a project's room, a gather, a body and a Final Truth are placed on their own scene, never the one on screen", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 V1 and section 4's C5, audit S11-15; the A5 project's
+         * reserved R118, here because a tier-2 test carries no number (tools/registry.mjs) - the
+         * tier-2 "a project's room is known on its own scene, whatever scene the GM is looking at"
+         * and "the project manager keeps a room it did not change, whatever scene is on screen" read
+         * what the reads decide. Until C5 these roads took the scene from the camera: `knowsProject`
+         * looked for a room in the discoveries of the scene on screen (scenario 66 E1 read
+         * [true, false, false] for one player's known room, viewing the school, the annex and no
+         * scene, at 180df61); a gather order, a body's discovery, the Final Truth Remnant, a
+         * project's map token and the manager's room select each had `canvas?.scene` as a fallback;
+         * the Truth Bullet window read `workingScene()`; the stash inspector `allVaults()`'s
+         * camera default. This keeps the shape: none of the functions below reads `canvas.scene`,
+         * `canvas.level`, `game.scenes.current`/`viewed` or calls `workingScene(`, and none calls a
+         * function of the module whose parameter falls back to one of those without handing that
+         * parameter in. `knowsProject` asks the token's scene (`tokenRefOf`) or every place scene
+         * (`placeScenes`); the gather asks the caller's (`gatherSceneOf`). It reads text, comments
+         * and strings blanked; a camera read reached through a function that takes no scene
+         * parameter is not seen. Run as a node script on C5's base (e925ca2, 11.10.2026) it read 17
+         * camera reads in these functions and two of them missing; on C5's tree, none.
+         * The reader is run first on a fixture of one call that hands the scene and one that does not.
+         */
+        const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\bworkingScene\(|\bgame\.scenes\??\.(?:current|viewed)\b/g;
+        const plain = text => stripStrings(stripComments(text));
+        const declared = /^(?:export )?(?:async )?function (\w+)\(/gm;
+        // name -> the index of the parameter that falls back to the camera
+        const fallbacks = texts => new Map(texts.flatMap(text => {
+            const code = plain(text);
+            return [...code.matchAll(declared)].map(m => [m[1], callArgs(code, m.index + m[0].length - 1).args
+                .findIndex(a => new RegExp(CAMERA.source).test(code.slice(a.start, a.end)))]).filter(([, at]) => at >= 0);
+        }));
+        const reads = (fn, body, names) => [
+            ...[...body.matchAll(CAMERA)].map(m => `${fn}:${m[0]}`),
+            ...[...body.matchAll(/(?<![\w$.])(\w+)\(/g)].filter(m => names.has(m[1])
+                && callArgs(body, m.index + m[0].length - 1).args.length <= names.get(m[1])).map(m => `${fn}:${m[1]}()`)];
+        const FIXTURE = 'function w(room, scene = workingScene()) {}\nfunction f(room) {\n    w(room);\n    w(room, "(");\n    return canvas?.scene;\n}\n';
+        const fixNames = fallbacks([FIXTURE]);
+        equal(JSON.stringify([[...fixNames], reads("f", fnSource(plain(FIXTURE), "f"), fixNames)]),
+            JSON.stringify([[["w", 1]], ["f:canvas?.scene", "f:w()"]]),
+            "the reader does not find the camera read and the call without the scene in its fixture, or finds the call that hands it in");
+        const ROADS = { "projects.mjs": ["knowsProject"], "projects-map.mjs": ["placeProjectToken", "syncProjectTokens"],
+            "projects-ui.mjs": ["openProjectManager", "openProjectDialog", "openCreateDialog"],
+            "call-world.mjs": ["scheduleGather", "runPendingGather", "gatherEveryone", "gatherSceneOf"],
+            "call-effects.mjs": ["gatherRefusal", "gatherEffect"], "call-pickers.mjs": ["pickRoom"],
+            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant"],
+            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"] };
+        const sources = await moduleSources();
+        must(Object.keys(ROADS).every(file => sources.get(file)?.length), "the roads' files are among the module's sources - this would measure nothing");
+        const names = fallbacks([...sources.values()]);
+        must(["allVaults", "stashItemsIn", "remnantsOn"].every(name => names.has(name)),
+            `the reader no longer finds the camera fallbacks it was measured against (it finds ${[...names.keys()].join(", ") || "none"}) - this would measure nothing`);
+        // A road that is not declared is listed as `fn:missing` rather than thrown (fnSource), so the parent of C5, where
+        // `gatherSceneOf` and `gatherRefusal` do not exist yet, fails on this assertion with the camera reads beside it.
+        const bodies = Object.entries(ROADS).flatMap(([file, fns]) => fns.map(fn => [fn, topLevelFunction(plain(sources.get(file)), fn)]));
+        const body = name => bodies.find(([fn]) => fn === name)[1] ?? "";
+        equal(JSON.stringify([bodies.flatMap(([fn, text]) => text === null ? [`${fn}:missing`] : reads(fn, text, names)),
+            /\btokenRefOf\(/.test(body("knowsProject")) && /\bplaceScenes\(/.test(body("knowsProject")), /\bgatherSceneOf\(/.test(body("gatherEffect"))]),
+            JSON.stringify([[], true, true]),
+            "a road that places a project's room, a gather, a body or a Final Truth reads the camera (function:read), or `knowsProject` "
+            + "no longer asks the token's scene and the place scenes, or the gather the caller's scene");
     }]
 ];
 

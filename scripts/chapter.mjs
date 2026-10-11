@@ -43,6 +43,8 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow } from "./utils.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
+// A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
+import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -874,8 +876,12 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        marked done - measured on the harness (10-murder): with the GM looking at another scene,
        two witnesses walked in on two kept bodies and the one the watcher did not name stayed
        a death nobody had found. `checkBodyFound` passes the scene the walk happened on and the
-       GM's form the one it chose its room from. */
-    const where = scene ?? canvas?.scene ?? game.scenes?.active ?? null;
+       GM's form the one it chose its room from.
+       AND NEVER THE CAMERA (E12 C5, 1.2.74; audit S16-07). A caller that passed no scene - the
+       console's `discoverBody` - still fell back to the scene in view, then the active one; it
+       gets the scene that holds the room now (rooms.mjs `sceneOfRoom`: the school first), and
+       the stamp's `sceneId` is that scene, not the camera's. */
+    const where = scene ?? sceneOfRoom(room);
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
     // the note on `maybeBodyFound`. Two things refuse before this now:
@@ -1356,12 +1362,23 @@ export async function openBodyDiscoveryDialog() {
         return null;
     }
 
-    const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms(canvas?.scene ?? null);
-    if (!rooms.length) {
+    /* THE GM PICKS THE SCENE WITH THE ROOM (E12 C5, 1.2.74; audit S16-07). The rooms were the
+       scene on this GM's screen, and the discovery was handed that scene: a GM looking at another
+       map announced a body in a same-named room there, or had no room to pick. Every place
+       scene's rooms are offered, grouped under the scene's name when there is more than one, the
+       school's first and its first room chosen (rooms.mjs `placeScenes`, `homeScene`); the option
+       carries its scene, and the discovery is handed it. */
+    const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    if (!places.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.noRooms"));
         return null;
     }
+    const roomOption = (scene, r) => `<option value="${foundry.utils.escapeHTML(r)}" data-scene="${scene.id}">${
+        foundry.utils.escapeHTML(r)}</option>`;
+    const roomOptions = places.length === 1
+        ? places[0].rooms.map(r => roomOption(places[0].scene, r)).join("")
+        : places.map(({ scene, rooms }) => `<optgroup label="${foundry.utils.escapeHTML(scene.name ?? scene.id)}">${
+            rooms.map(r => roomOption(scene, r)).join("")}</optgroup>`).join("");
 
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
@@ -1387,9 +1404,7 @@ export async function openBodyDiscoveryDialog() {
         classes: ["drpg-panel", "drpg-window-body"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
-                <select name="room">${rooms
-                    .map(r => `<option value="${foundry.utils.escapeHTML(r)}">${
-                        foundry.utils.escapeHTML(r)}</option>`).join("")}</select></label>
+                <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
                 <select name="victim">
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
@@ -1402,7 +1417,7 @@ export async function openBodyDiscoveryDialog() {
                 action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { room: f.room.value, victimId: f.victim.value };
+                    return { room: f.room.value, sceneId: f.room.selectedOptions?.[0]?.dataset.scene ?? null, victimId: f.victim.value };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -1415,7 +1430,8 @@ export async function openBodyDiscoveryDialog() {
     return discoverBody({
         room: result.room,
         victim: result.victimId ? game.actors.get(result.victimId) : null,
-        scene: canvas?.scene ?? null
+        // The scene of the option chosen; an answer that names none (a caller of the window's own) gets the room's.
+        scene: game.scenes.get(result.sceneId ?? "") ?? sceneOfRoom(result.room)
     });
 }
 
