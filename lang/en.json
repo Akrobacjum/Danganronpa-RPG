@@ -3698,7 +3698,8 @@
         "one": "{n} region without a name was left alone: a room needs a name.",
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
-      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it."
+      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
+      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",

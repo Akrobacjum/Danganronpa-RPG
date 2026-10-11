@@ -38,6 +38,8 @@
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
  *   K  two scenes made here with Foundry's vision on: p1 views the Study and draws a region marked a room on the Den,
  *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
+ *   L  the Storage renamed by the GM, then by p1, then back by the GM: where Daichi's stashed item and Aiko's discovery
+ *      follow it, as p1 reads it, and whom the GMs' report reaches (C8).
  * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
  * is the first reader the harness can call; until then G records no fog), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
@@ -57,6 +59,8 @@
  * checks in 16.1 s, one run alone under the lock on 11.10.2026. E12 C5 (A1, E1, E2 rewritten; E3 added): 22 checks in 16.1 s, one run alone under the lock on 11.10.2026.
  * E12 C7 (K1, K2 added): 24 checks in 23.5 s, one run under lane C's lock on 11.10.2026 while two other harness lanes
  * ran; not measured alone. Under C7's mutants and the red-first copy, 18.7-31.7 s in three runs on the same lane.
+ * E12 C8 (L1, L2 added): 26 checks in 19.6 s, one run under lane A's lock on 11.10.2026; whether other lanes ran then
+ * was not read.
  */
 export const layers = ["ci"];
 
@@ -553,4 +557,50 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
     check("K2: p1, with the Study on screen, repaints its fog when the GM draws the Study's first room (E12 C7)",
         viewK.scene === setK.study && /has no room/.test(viewK.before ?? "") && !/has no room/.test(readK.after ?? "") && readK.back === IDS.scene,
         J({ viewK, readK }));
+
+    /* ------------------------------ L. a room renamed ------------------------------ */
+    phase("L: the Storage renamed, by the GM and then by p1");
+    /* The GM ticks Aiko as having found the Storage (she stands in it since I) and renames it: Daichi's seeded Spare
+       Screwdriver is stashed there by name, and p1 reads Aiko's discovery from its own copy of the ledger. Then p1 renames
+       it again (the harness lets the write through, as in J), and the GM puts the old name back. */
+    const NAMED = `const academy = game.scenes.get("${IDS.scene}"), F = await import("${repoUrl}/scripts/fog.mjs"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const drawer = () => game.actors.get("${IDS.daichi}").items.get("${IDS.stashedItem}")?.getFlag("${MOD}", "stashRoom") ?? null;
+        const told = () => game.messages.filter(m => String(contentOf(m) ?? "").includes("66 Storeroom"));
+        const wait = async (ok, ms = 6000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); };`;
+    const setL = await gm.eval(`${NAMED}
+        const had = F.discoveredFor(academy.id, "${IDS.aiko}").includes("Storage");
+        await F.applyDiscoveryChanges(academy, [{ actorId: "${IDS.aiko}", room: "Storage", value: true }]);
+        const before = { drawer: drawer(), told: told().length };
+        await academy.regions.find(r => r.name === "Storage").update({ name: "66 Storeroom" });
+        await wait(() => drawer() === "66 Storeroom" && told().length > before.told);
+        const gmIds = game.users.filter(u => u.isGM).map(u => u.id).sort();
+        globalThis.__s66l = { had };
+        return { had, before, drawer: drawer(), rooms: F.discoveredFor(academy.id, "${IDS.aiko}"), told: told().length - before.told,
+            toGms: told().every(m => JSON.stringify([...m.whisper].sort()) === JSON.stringify(gmIds)) };`, { timeout: 30000 });
+    const seenL = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const end = Date.now() + 6000;
+        while (!F.discoveredFor("${IDS.scene}", "${IDS.aiko}").includes("66 Storeroom") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const rooms = F.discoveredFor("${IDS.scene}", "${IDS.aiko}");
+        await canvas.scene.regions.find(r => r.name === "66 Storeroom").update({ name: "66 Pantry" });
+        return { rooms, scene: canvas.scene.id };`, { timeout: 30000 });
+    await settle(1500);
+    const afterL = await gm.eval(`${NAMED}
+        const now = { region: academy.regions.get("REGSTORAGE000000")?.name ?? null, drawer: drawer(), rooms: F.discoveredFor(academy.id, "${IDS.aiko}"), told: told().length };
+        await academy.regions.get("REGSTORAGE000000").update({ name: "Storage" });
+        await wait(() => drawer() === "Storage");
+        if (!globalThis.__s66l.had) await F.applyDiscoveryChanges(academy, [{ actorId: "${IDS.aiko}", room: "Storage", value: false }]);
+        delete globalThis.__s66l;
+        return { now, back: { region: academy.regions.get("REGSTORAGE000000")?.name ?? null, drawer: drawer() } };`, { timeout: 30000 });
+    /* At E12 C7 a rename carried nothing: the Screwdriver's drawer still read "Storage", a room no region was named, so it
+       left Daichi's stash, and Aiko's discovery named a room that was gone, so it fogged over. E12 C8 (S07-25, S08-18): a
+       GM's rename carries the drawer and the ledger on the primary and tells the GMs, whispered; a player's carries
+       nothing, and the GM's rename back carries from the name the GM left. */
+    check("L1: the GM's rename of the Storage carries Daichi's stashed item and Aiko's discovery to p1, and the GMs alone are told (E12 C8)",
+        setL.before.drawer === "Storage" && setL.drawer === "66 Storeroom" && setL.rooms.includes("66 Storeroom") && !setL.rooms.includes("Storage")
+            && setL.told === 1 && setL.toGms && seenL.scene === IDS.scene && seenL.rooms.includes("66 Storeroom") && !seenL.rooms.includes("Storage"),
+        J({ setL, seenL }));
+    check("L2: p1's rename of the room carries nothing, and the GM's rename back to the Storage carries all of it home (E12 C8)",
+        afterL.now.region === "66 Pantry" && afterL.now.drawer === "66 Storeroom" && afterL.now.rooms.includes("66 Storeroom")
+            && !afterL.now.rooms.includes("66 Pantry") && afterL.now.told === 1 && afterL.back.region === "Storage" && afterL.back.drawer === "Storage",
+        J({ setL, afterL }));
 }

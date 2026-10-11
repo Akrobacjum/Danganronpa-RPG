@@ -47543,6 +47543,72 @@ const SCENARIOS = [
             + "put back on by hand and kept through a reshape of its room");
     }],
 
+    ["a GM's rename of a room carries its stash, its keys, the notes of its stash found and its discovery", async () => {
+        /*
+         * E12 C8, 11.10.2026; plan-E12 C8, audit S08-18 and S07-25. A stashed item, a key, a note of a
+         * stash found and the discovery record each name a room by its name, and nothing followed a
+         * region renamed: a GM who corrected a room's name left the owner's things in a drawer nobody
+         * could open, every key to it opening nothing, the finders' notes pointing at nothing and the
+         * room fogged over for everyone who had found it. Here a room of the suite's own, drawn in two
+         * pieces on a scene of the suite's own and owned by the first of three students, who has a
+         * hidden stash in it with one thing inside; the second holds its key and has discovered it,
+         * the third has found the stash. The GM renames one piece, then the other. While one piece
+         * keeps the old name the room of that name is still there, and everything goes on naming it;
+         * once both carry the new name, everything names the new one - read through the rules' own
+         * readers (`stashItemsIn`, `mayEnterBedroom`, `hasFoundStash`, `discoveredFor`) - and the GMs
+         * were told. Red before C8: after the second rename the new name read [0, false, false, false].
+         */
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [owner, holder, finder] = cast(3);
+        const ROOM = "SUITE E12 C8 Gym", NEW = "SUITE E12 C8 Hall";
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const foundBefore = foundry.utils.deepClone(finder.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const messagesBefore = new Set(game.messages.contents.map(m => m.id));
+        // A whisper's words are read as the GM reads them: `contentOf`, not `content` (secret.mjs).
+        const told = () => game.messages.contents.some(m => !messagesBefore.has(m.id) && String(contentOf(m) ?? "").includes(NEW));
+        let scene = null, key = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 C8 a renamed room", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const flags = { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: true }] } };
+            const pieces = await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: box(100), flags, behaviors: [] },
+                { name: ROOM, shapes: box(500), flags, behaviors: [] }]);
+            const reading = name => [V.stashItemsIn(owner, name, scene).length, V.mayEnterBedroom(holder, name, scene),
+                V.hasFoundStash(finder, name, owner.id, scene), F.discoveredFor(scene.id, holder.id).includes(name)];
+            await E.withGmStoreWorld(`suite-e12-c8-${foundry.utils.randomID(8)}`, async () => {
+                key = await V.grantBedroomKey(holder, ROOM, { silent: true, scene });
+                item = await INV.grantItem(owner, { name: "SUITE E12 C8 a box", category: "usable", tier: 1, override: true, quiet: true });
+                if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: ROOM });
+                await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, [...(foundBefore ?? []), `${scene.id}::${ROOM}::${owner.id}`]);
+                await F.applyDiscoveryChanges(scene, [{ actorId: holder.id, room: ROOM, value: true }]);
+                await until(() => stableJson(reading(ROOM)) === stableJson([1, true, true, true]), 4000);
+                must(pieces.length === 2 && key && item && stableJson(reading(ROOM)) === stableJson([1, true, true, true]),
+                    `the room's stash, key, found note and discovery did not stand before the rename (${stableJson(reading(ROOM))}) - this would measure nothing`);
+                await pieces[0].update({ name: NEW });
+                await settle();
+                const onePiece = [reading(ROOM), reading(NEW)];
+                await pieces[1].update({ name: NEW });
+                await until(() => stableJson(reading(NEW)) === stableJson([1, true, true, true]) && told(), 4000);
+                await settle();
+                read = [...onePiece, reading(ROOM), reading(NEW), told()];
+            });
+        } finally {
+            for (const [actor, made] of [[holder, key], [owner, item]]) if (made) await actor.items.get(made.id)?.delete();
+            if (foundBefore === null) await finder.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+            else await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[1, true, true, true], [0, false, false, false], [0, true, false, false], [1, true, true, true], true]),
+            "the old name and the new one, each as [the owner's things in its stash, whether the key holder may enter, whether the finder "
+            + "has found the owner's stash there, whether the key holder has discovered it], with one piece renamed and then both; "
+            + "and whether the GMs were told");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

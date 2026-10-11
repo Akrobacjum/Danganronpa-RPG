@@ -59,7 +59,7 @@ import { roomOfToken, boundsOf } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene } from "./rooms.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
@@ -306,10 +306,11 @@ export function registerFog() {
      * in front of them left Foundry's vision on until that GM reloaded - the black screen the
      * handbook warns of - and a room drawn, reshaped or deleted showed nobody anything until
      * somebody moved a token. Inline, each one line, so the census of what reaches a rule
-     * names them where they are registered (R379).
+     * names them where they are registered (R379). A GM's rename of a room rides the update
+     * (E12 C8, `carryRename`).
      */
     Hooks.on("createRegion", (region, options, userId) => regionChanged(region, userId));
-    Hooks.on("updateRegion", (region, changes, options, userId) => regionChanged(region, userId));
+    Hooks.on("updateRegion", (region, changes, options, userId) => regionChanged(region, userId, changes));
     Hooks.on("deleteRegion", (region, options, userId) => regionChanged(region, userId));
 
 
@@ -362,6 +363,8 @@ export function registerFog() {
     // `canvasReady` still covers the scene in front of the GM; this covers the
     // ones nobody has opened yet, which is where the trap was.
     Hooks.once("ready", () => step("prepare scenes", () => prepareScenes()));
+    Hooks.once("ready", () => step("remember the regions' names", () => primeRegionNames()));
+    Hooks.on("createScene", scene => step("remember the regions' names", () => primeRegionNames([scene])));
 
     // Leaving a scene does not tear this layer down - `RenderedCanvasGroup`
     // sets `tearDownChildren = false` - so the texture would otherwise sit on
@@ -504,10 +507,11 @@ function visionForDrawnScene() {
  */
 const heldRooms = new Map();
 
-/** A region was created, changed or deleted (E12 C7; the hooks in `registerFog`). */
-function regionChanged(region, userId) {
+/** A region was created, changed (`changes`) or deleted (E12 C7; the hooks in `registerFog`). */
+function regionChanged(region, userId, changes = null) {
     const scene = region?.parent ?? null;
     if (!scene) return;
+    step("a room renamed", () => noteRegionName(region, userId, changes));
     step("scene vision mode", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
 }
@@ -552,6 +556,80 @@ function repaintRoomScene(scene) {
     clearTimeout(regionRepaint);
     regionRepaint = setTimeout(() => step("repaint", () => repaintFog()), 100);
     return true;
+}
+
+/*
+ * A ROOM RENAMED (E12 C8, 11.10.2026; audit S07-25, S08-18). A room is a name, and so is
+ * everything that points at one: the discovery record (a cell per character and room), a
+ * stashed item's drawer, a key's door and a note of a found stash. A GM who corrected "Libary"
+ * to "Library" mid-season cut all of them off at once - the room fogged over for everyone who
+ * had found it, the things stashed in it were in no stash anyone could open and its keys
+ * opened nothing - and nothing said so. A GM's rename now carries these four, on the primary, once the room's
+ * last piece of the old name on that scene has the new one (a piece renamed while another
+ * keeps the old name leaves a room of that name standing, and what names it stays): the record
+ * here, the sheets in vault.mjs `carryRoomOnSheets`; then the scene is repainted and the GMs
+ * are told what moved. Tier 2 "a GM's rename of a room carries its stash, its keys, the notes
+ * of its stash found and its discovery", scenario 66 L. Not carried, read in the code on
+ * 11.10.2026: the other world records that name a room - a project's room (projects.mjs
+ * `roomOf`), the sealed rooms (call-world.mjs `sealedRooms`), the bodies found
+ * (chapter.mjs `recordBodyFound`) - so a project in a renamed room is known again only once
+ * its manager names the new one.
+ *
+ * The old name is remembered, not read off the change: an update hook carries the new value
+ * only. Every GM primes the memory at ready and with every scene created (a scene's regions
+ * arrive with it), and keeps it on a GM's create and rename, as
+ * movement.mjs keeps the room mark (`roomFlagSeen`), so a GM who becomes the primary
+ * mid-session knows the names too. A non-GM's rename moves neither the memory nor a store: a
+ * room is what a GM made it (E12 C1), and a GM's later rename carries from the name a GM left
+ * (scenario 66 L2).
+ * Whether a player can rename a Region at all on v14 is LIVE-E12-04's question, not read here.
+ * Renames run one after another, so a second one starts from the first one's stores.
+ */
+const regionNameSeen = new Map();
+let renames = Promise.resolve();
+
+function primeRegionNames(scenes = game.scenes) {
+    if (!game.user?.isGM) return;
+    for (const scene of scenes ?? []) for (const region of namedRegions(scene)) regionNameSeen.set(region.id, region.name);
+}
+
+/** A GM's region event moves the memory; a GM's rename of a named region goes to `carryRename`. */
+function noteRegionName(region, userId, changes) {
+    if (!game.user?.isGM || !game.users?.get(userId)?.isGM) return null;
+    const was = regionNameSeen.get(region.id), now = region.name ?? "";
+    regionNameSeen.set(region.id, now);
+    if (!changes || !Object.hasOwn(changes, "name") || !was || !now || was === now || !isPrimaryGm()) return null;
+    const scene = region.parent;
+    renames = renames.then(() => carryRename(scene, was, now));
+    return renames;
+}
+
+/** On the primary: what named the room `from` on `scene` names `to`. Answers the counts, or null when nothing was carried. */
+async function carryRename(scene, from, to) {
+    if (!isPrimaryGm()) return null;
+    try {
+        if (roomRegions(scene, from).length || !roomRegions(scene, to).length) return null;
+        const { carryRoomOnSheets } = await import("./vault.mjs");
+        const sheets = await carryRoomOnSheets(scene, from, to);
+        await discoveryStore.whenHydrated();
+        const cells = {};
+        for (const [actorId, rooms] of Object.entries(allDiscovered()[scene.id] ?? {})) {
+            // The old name unticked, at the same stamp as the new one ticked: a copy still holding it cannot bring it back (E04).
+            if (rooms.includes(from)) cells[cellKey(scene.id, actorId)] = { [from]: false, [to]: true };
+        }
+        await writeCells(cells);
+        repaintRoomScene(scene);
+        const moved = { ...sheets, cells: Object.keys(cells).length };
+        log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
+            + `${moved.found} found note(s) and ${moved.cells} discovery row(s) carried.`);
+        if (Object.values(moved).some(Boolean)) {
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
+        }
+        return moved;
+    } catch (err) {
+        error(`Could not carry the rename of "${from}" to "${to}" on "${scene?.name}"`, err);
+        return null;
+    }
 }
 
 /** Flag holding a scene's vision settings from before the module changed them. */

@@ -57,8 +57,9 @@ export const ITEM_FLAGS = {
      *
      * A NAME rather than a region id, to match how every other room reference
      * in this module works (`roomOfActor`, the key flag, the fog mirror). The
-     * cost is that renaming a region orphans them, which is the same cost the
-     * bedroom keys already pay and is documented at `KEY_FLAG`.
+     * cost was that renaming a region orphaned them, as it did the bedroom
+     * keys; since E12 C8 (1.2.74) a GM's rename carries both, on the primary
+     * (vault.mjs `carryRoomOnSheets`, from fog.mjs's region listener).
      */
     stashRoom: "stashRoom",
     /**

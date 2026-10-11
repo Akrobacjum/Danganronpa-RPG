@@ -3884,7 +3884,8 @@
         "many": "Pominięto {n} regionów bez nazwy: pokój musi mieć nazwę.",
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
-      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM."
+      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}."
     },
     "Migrate": {
       "gmOnly": "Tylko GM może uruchomić migrację danych.",

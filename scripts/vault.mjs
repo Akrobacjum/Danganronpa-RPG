@@ -40,7 +40,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes }
@@ -165,8 +165,12 @@ export const VAULT_FLAGS = {
  * shows up in the inventory of whoever is holding it. A permission list would
  * have been the GM's to edit and invisible to everyone else.
  *
- * The key names its room in a flag rather than in its name, because a GM can
- * rename a region and a key that stopped matching would silently stop working.
+ * The key names its room in a flag rather than in its name, so that what it
+ * opens is read off one place. The flag is still a NAME: until 1.2.74 a GM who
+ * renamed the room left every key naming the old one, and the door stayed shut
+ * to all of them (audit S08-18; this note said the flag guarded against it,
+ * which it never did). A GM's rename now carries the keys with it, on the
+ * primary - `carryRoomOnSheets` below, reached from fog.mjs's region listener.
  * ========================================================================== */
 
 /** The flag that makes an item a key, holding the room it opens. Declared in
@@ -757,6 +761,77 @@ export function bedroomOwnerAnywhere(room) {
         if (id) return id;
     }
     return null;
+}
+
+/**
+ * A ROOM RENAMED, ON THE SHEETS (E12 C8, 11.10.2026; audit S08-18). A stashed item names its
+ * stash's room (`ITEM_FLAGS.stashRoom`), a key the room it opens (`KEY_FLAG`), and a note of a
+ * found stash `sceneId::room::ownerId` (`foundKey`) - all by name, so a GM who renamed a room
+ * left the items in a drawer nobody could open, the keys opening nothing and the notes pointing
+ * at nothing; and the next sweep (`reconcileBedroomKeys`) hands the owner a key of the new name
+ * beside the dead one (read in the code, not run).
+ * fog.mjs `carryRename` calls this on the primary, for a GM's rename of the room's last piece
+ * of that name on `scene`, and does the discovery record itself. Answers how many keys, stashed
+ * items and found notes now name `to`.
+ *
+ * Neither an item's room nor a key's names a scene, so each goes with the rename only where it
+ * cannot mean a room of the same name on another scene: a stashed item when its owner has a
+ * stash in this room and none in a room of the old name elsewhere, a key when this room is a
+ * bedroom and no other scene holds a bedroom of the old name. A found note does name its scene;
+ * a note written with none (`?`) goes with this scene's, as `forgetStashFound` takes it for
+ * any scene, and keeps its `?`. The items are read as the GMs hold them (`itemsHeldNow`),
+ * after every write queued on their owners has been judged (`judgedFor`), and in one
+ * synchronous pass; each is one write
+ * (`trustedWrite`: the stash's room is a protected flag), and a key whose name is still the one
+ * `grantBedroomKey` gave it is renamed with it. The notes are read off the document, as
+ * `hasFoundStash` reads them: the GMs keep no mark of them.
+ */
+export async function carryRoomOnSheets(scene, from, to) {
+    if (!isPrimaryGm() || !scene || !from || !to || from === to) return { keys: 0, items: 0, found: 0 };
+    const elsewhere = [...(game.scenes ?? [])].filter(s => s.id !== scene.id);
+    const stashed = new Set(roomPieces(scene).filter(r => r.name === to).flatMap(r => stashesOn(r).map(entry => entry.actorId)));
+    const itemsGo = id => stashed.has(id) && !elsewhere.some(s => stashesIn(from, s).some(entry => entry.actorId === id));
+    const keysGo = Boolean(vaultOwnerOf(to, scene)) && !elsewhere.some(s => vaultOwnerOf(from, s));
+    const named = item => keyRoomOf(item) === from || (isStashed(item) && item.getFlag?.(MODULE_ID, ITEM_FLAGS.stashRoom) === from);
+    const actors = [...(game.actors ?? [])].filter(actor => actor.items?.some?.(named));
+    await judgedFor(...actors.map(actor => actor.id));
+
+    const writes = [];
+    let keys = 0, items = 0;
+    for (const actor of actors) {
+        for (const held of itemsHeldNow(actor)) {
+            const key = keysGo && keyRoomOf(held) === from;
+            const stash = itemsGo(actor.id) && isStashed(held) && held.getFlag?.(MODULE_ID, ITEM_FLAGS.stashRoom) === from;
+            if (!key && !stash) continue;
+            const changes = {};
+            if (key) {
+                changes[`flags.${MODULE_ID}.${KEY_FLAG}`] = to;
+                if (held.name === game.i18n.format("DRPG.Vault.keyName", { room: from })) changes.name = game.i18n.format("DRPG.Vault.keyName", { room: to });
+                keys++;
+            }
+            if (stash) {
+                changes[`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`] = to;
+                items++;
+            }
+            writes.push([actor.items.get(held.id), changes]);
+        }
+    }
+    for (const [item, changes] of writes) if (item) await trustedWrite(item, changes, { reason: "setup" });
+
+    let found = 0;
+    const renamed = [`${scene.id}::${from}::`, `?::${from}::`];
+    for (const actor of game.actors ?? []) {
+        const notes = stashesFoundBy(actor);
+        const next = notes.map(note => {
+            const at = renamed.find(head => String(note).startsWith(head));
+            return at ? `${at.split("::")[0]}::${to}::${String(note).slice(at.length)}` : note;
+        });
+        const moved = next.filter((note, i) => note !== notes[i]).length;
+        if (!moved) continue;
+        await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, next);
+        found += moved;
+    }
+    return { keys, items, found };
 }
 
 /**
