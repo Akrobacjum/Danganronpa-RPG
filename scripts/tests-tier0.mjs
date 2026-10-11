@@ -9715,6 +9715,113 @@ const REGRESSIONS = [
             calls("stand", "disarmRendererFailsafe")]), JSON.stringify([false, true, true]),
             "registerFog sets the renderer's colour itself (on canvasReady), repaintFog does not set it right after the fog is "
             + "swapped in, or stand does not give it back");
+    }],
+
+    ["R387 - the handbooks describe floors, the stairs, the floor switcher and the region check as the code does, and not 'openings too long', in English and in Polish", async () => {
+        /*
+         * E12 C16, 11.10.2026; audit S07-37 and the stage's doneWhen (decision D18: the GM's handbook describes Levels,
+         * and the one-sentence shortcut D18 rejected - a scene is a level - is never written; the regexes below spell it
+         * with `\s*` so that `git grep` for the sentence itself stays at 0 hits, as the stage's ledger row D3 reads it).
+         * Until this commit neither handbook had a word on floors, and the GM's said `checkRegions()` reports "openings
+         * too long to be doorways" - a check fog-diagnostics.mjs does not make (a doorway has no upper size, its own note
+         * says) - while it can add seven findings and, since E12 C10, names the floor of each. Each claim is a pair, as R321's: what the code does, read
+         * from its function with comments blanked (rooms.mjs `onLevel` and `floorsOf`, movement.mjs `crossingCost`
+         * called on three plain steps and `crossingRefused`, fog.mjs `floorOffer` and `roomShading`, fog-diagnostics.mjs
+         * `checkRegions` and the findings it can add), and the sentences that say it, one per handbook that says it. A
+         * code fact that changes fails here with its sentences; a sentence rewritten without the code fails too; and the
+         * two stale sentences fail wherever they come back in either book. Each book is asserted to have loaded and each
+         * function to have been cut (`fnSource` fails on a renamed one), so nothing passes on an empty read. What v14
+         * itself does with levels is not read here, nor anywhere in the harness (LIVE-E12-02, LIVE-E12-03).
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const rooms = code("rooms.mjs"), movement = code("movement.mjs"), fog = code("fog.mjs"), diag = code("fog-diagnostics.mjs");
+        const { crossingCost } = await import("./movement.mjs");
+        const onLevel = fnSource(rooms, "onLevel"), offer = fnSource(fog, "floorOffer"), check = fnSource(diag, "checkRegions");
+        const FINDINGS = ["Region with no name", "DRPG.Fog.notRoom.problem", "No geometry the fog can read", "Overlaps \"",
+            "Border runs away from the walls", "No way out", "Corners off the map's own lattice"];
+        const facts = {
+            levels: /if \(level === null \|\| level === undefined \|\| !region\?\.levels\?\.size\) return true;/.test(onLevel),
+            order: /\(a\?\.elevation \?\? 0\) - \(b\?\.elevation \?\? 0\)/.test(fnSource(rooms, "floorsOf")),
+            stairs: JSON.stringify([crossingCost({ room: "Lab", level: "L1" }, { room: "Attic", level: "L2" }),
+                crossingCost({ room: "Stairwell", level: "L1" }, { room: "Stairwell", level: "L2" }),
+                crossingCost({ room: "Lab", level: "L1" }, { room: "Hall", level: "L1" })]) === "[1,0,1]",
+            noStairs: /return linked \? false : game\.i18n\.format\("DRPG\.Move\.noStairs", \{ from \}\);/.test(fnSource(movement, "crossingRefused")),
+            offer: [/if \(floors\.length < 2 \|\| !isPlaceScene\(scene\)\) return \[\];/, /if \(viewer\.everyFloor\) return floors\.map/,
+                /viewer\.owns\(tokenDoc\)/, /viewer\.discovered\.has\(region\.name\)/].every(re => re.test(offer)),
+            sameRule: /export function roomShading\(\{ regions, current, discovered \}\)/.test(fog),
+            regionCheck: [...diag.matchAll(/\badd\("(?:error|warning|info)"/g)].length === FINDINGS.length
+                && FINDINGS.every(problem => diag.includes(problem)),
+            floorColumn: /floor: floor\?\.name \|\| floor\?\.id \|\| null/.test(check)
+                && /for \(const floor of floors\.length \? floors : \[null\]\)/.test(check)
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    levels: [/^### 9\.4 Floors \(Foundry's Levels\)/, /a region that names none is on every floor\. The module reads a room on the token's own floor/],
+                    order: [/Floors are ordered by their elevation, lowest first\./],
+                    stairs: [/Going up or down the stairs from one room into another costs one crossing, exactly like a door\. A room drawn on two floors, a stairwell, is one room, and changing floor inside it is free\./],
+                    noStairs: [/a change of floor between two rooms they do not link is refused, and the refusal names only the room you stand in/],
+                    offer: [/offers a player the floors their own tokens stand on and every floor holding a room they have found, lowest first, and a GM or the Mastermind every floor; it appears only on a scene of two floors or more/],
+                    sameRule: [/A player sees the rooms their character has discovered on every floor exactly as on their own: under the veil, with nobody else's token in them\. A room they have never been in stays under full fog on every floor\./],
+                    regionCheck: [/\| `checkRegions\(\)` \| checks the rooms of the scene on screen and lists, gravest first: a room whose shape cannot be read, two rooms overlapping, a border that runs away from its walls, a room with no way out, a region with no name, a named region that is not a room \(and why\), and corners off the map's own lattice;/],
+                    floorColumn: [/`checkRegions\(\)` checks each floor apart and names it in its `floor` column/,
+                        /each floor is checked apart and named in the `floor` column \(the `level` column is the finding's weight: error, warning or info\)/]
+                },
+                player: {
+                    offer: [/The \*\*Floors\*\* buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first\./],
+                    sameRule: [/A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor\./],
+                    stairs: [/\| Up or down the stairs into another room \| a crossing like any other; changing floor inside a stairwell is moving inside your own room \|/],
+                    noStairs: [/\| a \*\*floor\*\* the stairs do not lead to from your room \|/]
+                },
+                stale: [/openings too long/i, /one scene\s*=\s*one level/i]
+            },
+            pl: {
+                gm: {
+                    levels: [/^### 9\.4 Piętra \(Levels w Foundry\)/, /a region, który żadnego nie wymienia, leży na każdym\. Moduł czyta pokój na piętrze tokenu/],
+                    order: [/Piętra są uporządkowane według wysokości \(elevation\), od najniższego\./],
+                    stairs: [/Wejście albo zejście po schodach z jednego pokoju do innego kosztuje jedno przejście, dokładnie jak drzwi\. Pokój narysowany na dwóch piętrach, klatka schodowa, to jeden pokój, a zmiana piętra w nim jest darmowa\./],
+                    noStairs: [/zmiana piętra między dwoma pokojami, których schody nie łączą, jest odrzucana, a odmowa wymienia tylko pokój, w którym stoisz/],
+                    offer: [/proponuje graczowi piętra, na których stoją jego tokeny, i każde piętro z pokojem, który odkrył, od najniższego, a GMowi i Mastermindowi każde piętro; pojawia się tylko na scenie o co najmniej dwóch piętrach/],
+                    sameRule: [/Gracz widzi pokoje odkryte przez swoją postać na każdym piętrze dokładnie tak jak na własnym: za zasłoną, bez cudzych tokenów\. Pokój, w którym nigdy nie był, zostaje pod pełną mgłą na każdym piętrze\./],
+                    regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
+                    floorColumn: [/`checkRegions\(\)` sprawdza każde piętro osobno i podaje je w kolumnie `floor`/,
+                        /sprawdza każde piętro osobno i podaje je w kolumnie `floor` \(kolumna `level` to waga ustalenia: error, warning albo info\)/]
+                },
+                player: {
+                    offer: [/Przyciski \*\*Piętra\*\* obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego\./],
+                    sameRule: [/Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle\./],
+                    stairs: [/\| Po schodach w górę lub w dół do innego pokoju \| przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju \|/],
+                    noStairs: [/\| \*\*piętro\*\*, na które schody z twojego pokoju nie prowadzą \|/]
+                },
+                stale: [/przerwy za długie na drzwi/i, /jedna scena\s*=\s*jeden poziom/i]
+            }
+        };
+        for (const [lang, says] of Object.entries(SAYS)) {
+            const lines = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+                ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const said = (book, re) => lines[book].some(l => re.test(l));
+            const measured = {}, expected = {};
+            for (const book of ["gm", "player"]) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(re => said(book, re))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(re => ["gm", "player"].some(book => said(book, re)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lang} handbooks' floors and region check say what the code does not do, or a stale sentence is back (each claim: [the code, ...its sentences])`);
+        }
     }]
 ];
 

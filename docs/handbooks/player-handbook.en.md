@@ -107,6 +107,7 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | Moving inside your own room | free, always |
 | First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
+| Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
 | A crossing bought with the Sprint Hope Call | free |
 
 Drag your token; the cost is applied when you arrive. A crossing that you cannot pay for is refused and the token goes back.
@@ -116,6 +117,7 @@ You are turned back by:
 | Cause | Details |
 |---|---|
 | a room that is **not connected** to yours | the refusal names only the neighbouring rooms you have already been in |
+| a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
@@ -127,6 +129,8 @@ You are turned back by:
 ### What you can see
 
 - The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
+- On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
+- You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Ultimate, Health, Sanity, what they hold ready and how many Experiences they have. Nothing else.

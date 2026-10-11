@@ -69,6 +69,7 @@ export const FLOWS = Object.freeze([
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
+    // E12 C12 (11.10.2026): its I1-I4 read whom the discovery counts when a student reached the room past the rules.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season", "66-rooms"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
@@ -141,6 +142,10 @@ export const FLOWS = Object.freeze([
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
     // E12 C11 (11.10.2026): G offers a player their own floor and the floors of rooms they found, sends a view of any
     // other floor back, and shades a floor a console put on screen by the rule of one floor.
+    // E12 C16 (11.10.2026): still partial. Since C12 the primary judges every player's arrival again by the veto's
+    // rules, the stairs included (movement.mjs `judgeArrival`), and 66 I drives that judge on one floor only - no check
+    // drives a floor change past it; what a crossing costs is judged on the mover's browser until E39 (layer two); and
+    // G measures the harness's model of levels (lib/shim.mjs `LevelList`), not v14's (LIVE-E12-02, LIVE-E12-03).
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
