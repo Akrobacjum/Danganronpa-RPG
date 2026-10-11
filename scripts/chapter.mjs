@@ -819,8 +819,8 @@ function enqueueBodyWork(work) {
 }
 
 /**
- * The body discovery announcement: call everyone to the scene, hold the game there
- * until the GM answers, then ask which Prep traces belong to the murder.
+ * The body discovery announcement: call everyone to the room and write the hold (until the
+ * Investigation starts), then ask, not awaited, which Prep traces belong to the murder.
  *
  * @param {object} options
  * @param {string} options.room     Where the body is.
@@ -1338,7 +1338,8 @@ export async function openBodyDiscoveryDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.bodyTitle") },
-        classes: ["drpg-panel"],
+        // Its own class, for the stylesheet's form layout: "Which room?" and "Whose body?" one column (E11 fix r1-G4).
+        classes: ["drpg-panel", "drpg-window-body"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
                 <select name="room">${rooms

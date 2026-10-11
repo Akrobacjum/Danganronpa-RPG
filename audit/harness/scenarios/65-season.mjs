@@ -191,12 +191,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }
         await until(() => bodyDiscovery());
         await new Promise(r => setTimeout(r, 800));
         const stamps = (bodiesFoundIn?.(getClock().chapter) ?? []).map(row => ({ by: row.by, room: row.room, victimIds: row.victimIds }));
-        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps,
-            line: await nextLine(), holdLine: game.i18n.localize("DRPG.Panel.nextBodyFound") };`, { timeout: 60000 });
-    // E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold.
-    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold",
+        const R = await import("${repoUrl}/scripts/remnants.mjs"), { caseKeyCount } = await import("${repoUrl}/scripts/investigation.mjs");
+        const keyCase = caseKeyCount(getClock().chapter), keysOnMap = game.scenes.contents.flatMap(s => R.remnantsOn(s)).filter(t => R.remnantData(t)?.type === "key").length;
+        const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        return { room, before, cards: cards(), hold: bodyDiscovery()?.room ?? null, flag: game.drpg.isDeceased(daichi), stamps, keyCase, keysOnMap,
+            line: await nextLine(), keysLine: [plural("DRPG.Panel.nextKeysToPlace", { n: (keyCase ?? 0) - keysOnMap }), "investigation"] };`, { timeout: 60000 });
+    /* E11 C1: the discovery is stamped once, by the witnesses, naming the body they found. E11 C2: the line during the hold;
+       E11 fix r1-G4 (audit S13-14): the case's Key Remnants, none on the map yet, before "start the Investigation" - at 09e01b7
+       the line said "A body has been found. Start the Investigation when the room is ready." with the case's Keys unplaced. */
+    check("B1: Aiko and Botan walk in on Daichi, kept: one discovery card, the death the table's, the hold on his room, one stamp by the witnesses naming him, the GM's line on the hold names the case's Key Remnants still to place",
         blow.dead === true && blow.flag === false && found.before === 0 && found.cards === 1 && found.flag === true && found.hold === found.room
-            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }]) && J(found.line) === J([found.holdLine, "startInvestigation"]),
+            && J(found.stamps) === J([{ by: "witnesses", room: found.room, victimIds: [IDS.daichi] }])
+            && found.keyCase > 0 && found.keysOnMap === 0 && J(found.line) === J(found.keysLine),
         J({ blow, found }), { flow: "body-discovery" });
     const asked = await gm.eval(`${UNTIL} await until(() => globalThis.__c4?.asked, 6000);
         const c4 = globalThis.__c4, D = foundry.applications.api.DialogV2;

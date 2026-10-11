@@ -11209,8 +11209,12 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    tag: the harness's DialogV2 (shim.mjs, "as Foundry's") parses either window's content into
    a `.dialog-content` inside the dialog's own form and drops the content's `<form>`, and
    Foundry's own was not read for this, so either parent is matched. None of it is measured
-   here - the harness has no layout; LIVE-E07-08 is the murder window on a Polish client. */
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+   here - the harness has no layout; LIVE-E07-08 is the murder window on a Polish client.
+   The body's window joined them in E11 fix r1-G4 (audit S13-27): its "Which room?" and "Whose
+   body?" selects each started where their own label ended, so the two were of different widths.
+   That both its rows are reached by these rules is tier 2's "the body window's two fields share
+   one width rule"; the widths themselves are not measurable headless. */
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
     :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -11218,19 +11222,19 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     align-items: center;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
     :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) > * {
     grid-column: 1 / -1;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
     :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) {
     display: grid;
     grid-template-columns: subgrid;
     align-items: center;
 }
 
-.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock, .drpg-window-body) .dialog-form
     :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) > * {
     grid-column: 2;
 }

@@ -14,12 +14,13 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
-import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
-import { flagsHeldNow } from "./sheet-audit.mjs";
+import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { keyPlanStatus } from "./investigation.mjs";
-import { caseMark, caseWarning, healthLine } from "./gm-stores.mjs";
+import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
+import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
+import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -323,6 +324,11 @@ const EXTRA_ACTIONS = {
         key: "bodyDialog",
         run: () => import("./chapter.mjs").then(m => m.openBodyDiscoveryDialog())
     },
+    // The autopsy, for the Next line once the Investigation is on (E11 fix r1-G4).
+    autopsy: {
+        key: "autopsy",
+        run: () => import("./gm-items.mjs").then(m => m.issueAutopsyDialog())
+    },
     // The trial console, for the Next line once the Investigation is done.
     trial: {
         key: "trial",
@@ -478,13 +484,17 @@ export async function openGmPanel() {
  * Every input to both answers is either a flag on an actor (actions left, the
  * free Move, dead or a Monocub) or one of this module's world settings (the
  * clock, the incident, the Eclipse, the trial's floor and progress), which is
- * exactly what `keepLive` listens to.
+ * exactly what `keepLive` listens to. Since E11 fix r1-G4 the next line also reads
+ * the students' items (an autopsy issued), the Key Remnants' tokens and the case's
+ * Key count in the Key plan's store (`keysToPlace`), so the standing block watches
+ * those three as well (tier 0 R19 asks the items of a window that reads bullets;
+ * the redraw on a token or a store row is read in the code, not measured).
  */
 function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-standing",
         build: () => buildPanelContent(),
-        watch: { actors: true }
+        watch: { actors: true, items: true, tokens: true, stores: [keyPlanStore] }
     });
 
     keepLive(dialog, {
@@ -1154,11 +1164,39 @@ export function nextStep(clock) {
        and the room, since `endMurder` wipes the incident before any of this), but the game is
        not waiting on anybody - and a "Do it" that calls `setPhase("investigation")` when the
        phase is already investigation is a button that does nothing. */
-    if (bodyDiscovery() && clock.phase !== "investigation") {
+    const holding = bodyDiscovery() && clock.phase !== "investigation";
+
+    /* WHAT COMES AFTER THE ANNOUNCEMENT (E11 fix r1-G4; audit S13-14). The issue's harm runs on past
+       the body: the after-incident window lists the Key Remnants still to place and the autopsy, and
+       once it was dismissed this line said only "start the Investigation" and then "check what has
+       been found" - nothing of four Key Remnants not on the map or an autopsy nobody had issued. Both
+       come now in the handbook's order ("Place the remaining Key Remnants", then "Body found: ...
+       start the Investigation ... Issue the autopsy"), each with the window that does it: the Key
+       Remnants from the moment the body is announced, until the case's count (`caseKeyCount`)
+       stands on the map; the autopsy once the Investigation is on, until a student holds one of this
+       chapter. Only after an announcement - the hold, or an Investigation with a discovery since the
+       chapter's last trial (`bodyFoundSinceTrial`) - because both are about a body (tier 2 "after a
+       body is announced the GM's next line names the Key Remnants to place and then the autopsy";
+       65-season B1). */
+    const announced = holding || (clock.phase === "investigation" && Boolean(bodyFoundSinceTrial(clock)));
+    if (announced) {
+        let keys = 0;
+        try {
+            keys = keysToPlace(clock.chapter);
+        } catch {
+            keys = 0;
+        }
+        if (keys > 0) return { text: plural("DRPG.Panel.nextKeysToPlace", { n: keys }), action: "investigation" };
+    }
+
+    if (holding) {
         return { text: game.i18n.localize("DRPG.Panel.nextBodyFound"), action: "startInvestigation" };
     }
 
     if (clock.phase === "investigation") {
+        if (announced && !autopsyIssued(clock.chapter)) {
+            return { text: game.i18n.localize("DRPG.Panel.nextAutopsy"), action: "autopsy" };
+        }
         // Once every planned Key Remnant has been found the one step that ends
         // the phase is the trial (CORE-19); the line used to describe the
         // Investigation for the whole of it.
@@ -1223,6 +1261,19 @@ function bodyWaiting(clock) {
     const epoch = seasonEpoch();
     const [id] = bodiesToDiscover({ actors: studentActors(), clock, epoch, announced: announcedIn(clock.chapter, epoch), held: flagsHeldNow });
     return id ? game.actors.get(id) ?? null : null;
+}
+
+/**
+ * Whether a student holds an Autopsy Truth Bullet of `chapter`, by the GMs' answer keys (`secretOf`: the
+ * real type and the chapter `createTruthBullet` wrote with it) over the items as the GMs hold them
+ * (`itemsHeldNow`, the key fee's reading in `keyFeeOf`). GM-side; a player's console cannot write an answer key.
+ */
+function autopsyIssued(chapter) {
+    return studentActors().some(actor => itemsHeldNow(actor).some(item => {
+        if (!isTruthBullet(item)) return false;
+        const secret = secretOf(actor.items.get(item.id)?.uuid);
+        return secret.realType === "autopsy" && Number(secret.chapter) === Number(chapter);
+    }));
 }
 
 /** Current standing: where the clock is and what everyone has left. */

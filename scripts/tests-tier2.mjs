@@ -15,7 +15,7 @@ import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
-    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
+    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, watchLog, cast, systemSheetsAvailable
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -44865,6 +44865,234 @@ const SCENARIOS = [
             }
             for (const [t, was] of hiddenBefore) if (t.parent?.tokens?.has?.(t.id) && t.hidden !== was) await t.update({ hidden: was });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await settle();
+        }
+    }],
+
+    ["after a body is announced the GM's next line names the Key Remnants to place and then the autopsy", async () => {
+        /*
+         * E11 fix r1-G4; audit S13-14. The after-incident window lists the Key Remnants still to place and
+         * the autopsy; once it was dismissed the GM panel's next line said "start the Investigation" and
+         * then "check what has been found", nothing of either. A death the GMs keep, this chapter's case
+         * one Key Remnant more than stand on the map, the body announced by the GM in a room nobody stands
+         * in. Read off the panel as it is drawn (`openGmPanel`, its window answered at once and its content
+         * kept): the line and its button during the hold, once a Key Remnant of this chapter is placed, in
+         * the Investigation, and once an autopsy of this chapter is issued.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture Key Remnant is placed on the scene on screen");
+        const [victim, living] = cast(2);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { recordCaseKeys } = await import("./investigation.mjs");
+        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { bodyDiscovery, isEclipse } = await import("./settings.mjs");
+        const { issueAutopsy, bulletsOf, secretOf, dropSecret } = await import("./truth-bullets.mjs");
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        const { plural } = await import("./utils.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE E11 r1-G4 a room nobody stands in";
+        const chapter = getClock().chapter;
+        const caseRow = `${chapter}:case`;
+        const caseBefore = foundry.utils.deepClone(keyPlanStore.get(caseRow) ?? null);
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        }
+        let panel = null;
+        const line = async () => {
+            panel = null;
+            await openGmPanel();
+            const next = panel?.querySelector?.(".drpg-gmp-next");
+            return next ? [next.querySelector(".drpg-gmp-next-text")?.textContent?.trim() ?? null,
+                next.querySelector(".drpg-gmp-next-go")?.dataset?.drpgRun ?? null] : null;
+        };
+        const keysOnMap = () => game.scenes.contents.flatMap(s => remnants.remnantsOn(s))
+            .filter(t => remnants.remnantData(t)?.type === "key" && Number(remnants.remnantData(t)?.chapter ?? chapter) === chapter).length;
+        const autopsies = () => game.actors.contents.flatMap(actor => bulletsOf(actor)
+            .filter(item => secretOf(item.uuid).realType === "autopsy" && Number(secretOf(item.uuid).chapter) === chapter));
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const placed = [];
+        let issued = [];
+        try {
+            D.confirm = async () => false;
+            D.wait = async config => {
+                if (config?.classes?.includes?.("drpg-gm-panel-window")) panel = config.content;
+                return null;
+            };
+            await setClock({ phase: "dailyLife" });
+            must(!bodyDiscovery() && !isEclipse() && !game.drpg?.murderState?.()?.active,
+                "a discovery, an Eclipse or an incident is open - the line would answer that first, and this would measure nothing");
+            must(!autopsies().length, "an autopsy of this chapter is already held - the Investigation's line would measure nothing");
+            must(await recordCaseKeys(chapter, keysOnMap() + 1), "could not write this chapter's case count");
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await discoverBody({ room: ROOM, victim, scene });
+            await settle();
+            const held = await line();
+            const key = await remnants.placeRemnant({ type: "key", visibility: "evident", faint: false, tiedToCrime: true,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE r1-G4 the last Key Remnant" });
+            placed.push(key);
+            must(key, "could not place the fixture Key Remnant");
+            await settle();
+            const keysPlaced = await line();
+            await setClock({ phase: "investigation" });
+            await settle();
+            const investigating = await line();
+            await issueAutopsy([living], { name: "SUITE r1-G4 autopsy" });
+            issued = autopsies();
+            await judgedFor(living.id);
+            await settle();
+            const autopsied = await line();
+            equal(stableJson([held, keysPlaced, investigating, autopsied?.[1] === "autopsy"]),
+                stableJson([[plural("DRPG.Panel.nextKeysToPlace", { n: 1 }), "investigation"],
+                    [game.i18n.localize("DRPG.Panel.nextBodyFound"), "startInvestigation"],
+                    [game.i18n.localize("DRPG.Panel.nextAutopsy"), "autopsy"], false]),
+                "the GM's next line did not say what comes after the announcement ([text, button] during the hold with a Key "
+                + "Remnant of the case not on the map; once it is placed; in the Investigation; whether it still asked for the "
+                + "autopsy once one was issued)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const item of issued) {
+                try { await dropSecret(item.uuid); } catch { /* nothing filed */ }
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (caseBefore) await keyPlanStore.patch(caseRow, caseBefore);
+            else if (keyPlanStore.get(caseRow)) await keyPlanStore.dropMany([caseRow]);
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+            await settle();
+        }
+    }],
+
+    ["the body window's two fields share one width rule", async () => {
+        /*
+         * E11 fix r1-G4; audit S13-27. "Which room?" and "Whose body?" were two `<label>Name <select>`
+         * rows of a flex label each (`.drpg-panel label`), so each select started where its own label
+         * ended and the two came out of different widths; the murder window and Edit campaign had been
+         * laid out as one form for the same reason (E32+E07 C14). The window as it is asked for
+         * (`openBodyDiscoveryDialog`, answered at once), set in the frame those rules name (Foundry's
+         * own DialogV2 frame was not read for this, as their comment says): whether the stylesheet's
+         * subgrid row rule reaches both rows and its grid rule their common parent. The widths
+         * themselves need a browser's layout, which this does not measure.
+         */
+        needs(world.atLeast("namedRooms", 1), "the window opens only on a scene with rooms");
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        must(!isEclipse(), "an Eclipse is open - the window would refuse, and this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = null;
+        try {
+            D.wait = async config => {
+                if (config?.window?.title === game.i18n.localize("DRPG.Chapter.bodyTitle")) asked = config;
+                return null;
+            };
+            await openBodyDiscoveryDialog();
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(asked, "the body window was never asked for - this would measure nothing");
+        const frame = document.createElement("div");
+        frame.className = ["application", "dialog", ...(asked.classes ?? [])].join(" ");
+        const form = document.createElement("form");
+        form.className = "dialog-form";
+        if (typeof asked.content === "string") form.innerHTML = asked.content;
+        else form.append(asked.content.cloneNode(true));
+        frame.append(form);
+        const rows = [...frame.querySelectorAll("select")].map(select => select.closest("label"));
+        must(rows.length === 2 && rows.every(Boolean), `the window has ${rows.length} select rows, not the two it is about`);
+        const rules = [...(await moduleStyles()).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), body: m[2] }));
+        const selectors = shape => rules.filter(rule => shape.test(rule.body)).map(rule => rule.selector);
+        const rowRules = selectors(/grid-template-columns:\s*subgrid/);
+        const gridRules = selectors(/grid-template-columns:\s*max-content minmax\(0, 1fr\)/);
+        must(rowRules.length && gridRules.length, "the stylesheet has no form-layout rule left - this would measure nothing");
+        const reaches = (selectorList, el) => selectorList.some(selector => { try { return el.matches(selector); } catch { return false; } });
+        equal(stableJson([rows.map(row => reaches(rowRules, row)), rows[0].parentElement === rows[1].parentElement && reaches(gridRules, rows[0].parentElement)]),
+            stableJson([[true, true], true]),
+            "the body window's two rows are not laid out by the form rule - their selects keep the widths their own labels leave "
+            + "([the row rule reaches Which room?, Whose body?]; one parent the grid rule reaches)");
+    }],
+
+    ["the discovery is announced while the Prep question is still open", async () => {
+        /*
+         * E11 fix r1-G4; early review EARLY-C4-1. E11 C4 asks the Prep question last and does not await
+         * it, so the card, the gather and the next discovery do not wait on the GM's answer - and every
+         * test of it answered the question at once, so awaiting it again would have left them green. A
+         * death the GMs keep, announced by the GM in a room nobody stands in, with a Faint Prep trace of
+         * this chapter, the question left unanswered: whether the announcement came back while it was
+         * open, and the cards on the table by then; then the answer given, and what the question counted.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE E11 r1-G4 an unanswered question";
+        const chapter = getClock().chapter;
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const isCard = m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound";
+        const cardsBefore = game.messages.filter(isCard).length;
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = SETTINGS.bodiesFound ? foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}) : null;
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const placed = [];
+        let answer = null, asked = false, back = false, pending = null;
+        try {
+            const trace = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, chapter, subject: "SUITE r1-G4 an open question" });
+            placed.push(trace);
+            must(trace, "could not place the fixture trace");
+            D.confirm = async () => false;
+            D.wait = async config => {
+                const el = document.createElement("div");
+                if (typeof config?.content === "string") el.innerHTML = config.content;
+                else if (config?.content) el.append(config.content.cloneNode(true));
+                if (!el.querySelector('input[name="promote"]')) return null;
+                asked = true;
+                return new Promise(resolve => { answer = resolve; });
+            };
+            await setClock({ phase: "dailyLife" });
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            pending = discoverBody({ room: ROOM, victim, scene });
+            pending.then(() => { back = true; }, () => { back = true; });
+            must(await until(() => asked, 8000), "the Prep question was never asked - this would measure nothing");
+            const backWhileOpen = await until(() => back, 4000);
+            const cards = game.messages.filter(isCard).length - cardsBefore;
+            answer?.([]);
+            answer = null;
+            const result = await pending;
+            const promoted = await result?.promotion;
+            equal(stableJson([backWhileOpen, cards, promoted]), stableJson([true, 1, 0]),
+                "the announcement waited on the GM's answer to the Prep question, or the card was not on the table while it was "
+                + "open ([the announcement back while the question was open, cards on the table, traces the empty answer ticked])");
+        } finally {
+            answer?.([]);
+            if (pending) await pending.catch(() => null);
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            if (stampsBefore) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
             await settle();
         }
     }],

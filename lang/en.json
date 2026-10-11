@@ -2805,6 +2805,11 @@
       "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
       "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
+      "nextKeysToPlace": {
+        "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
+        "other": "{n} Key Remnants of this case are not on the map yet. Place them from the Investigation window's Key Remnants tab."
+      },
+      "nextAutopsy": "The autopsy Truth Bullet has not been issued this chapter. Issue it to everyone alive.",
       "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",

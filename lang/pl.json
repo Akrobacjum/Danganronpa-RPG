@@ -2911,6 +2911,13 @@
       "nextNoFloor": "Class Trial toczy się w dyskusji. Otwórz debatę, gdy sala będzie na nią gotowa.",
       "nextFloor": "Debata otwarta - {mode}.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
+      "nextKeysToPlace": {
+        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnants okna Investigation.",
+        "few": "{n} Key Remnants tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
+        "many": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
+        "other": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation."
+      },
+      "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
       "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego żeton jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",

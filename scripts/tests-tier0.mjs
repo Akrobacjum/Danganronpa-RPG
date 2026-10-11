@@ -7282,6 +7282,7 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
             ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
+            ["ITEM gm-panel.mjs#autopsyIssued", "judged (E11 fix r1-G4): the answer key (secretOf, the GMs' store) names the autopsy and its chapter, over itemsHeldNow per student in one synchronous pass (H3); the GM panel's next line, a display that writes nothing"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
