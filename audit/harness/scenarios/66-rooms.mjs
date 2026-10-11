@@ -36,6 +36,8 @@
  *      jumped by her player from the Hall, the room veto skipped as a revert skips it: who
  *      the discovery counts (Q5a, C12).
  *   J  p1 draws a region carrying the room mark and unticks the Gym: what the primary records and puts back (C1).
+ *   K  two scenes made here with Foundry's vision on: p1 views the Study and draws a region marked a room on the Den,
+ *      then the GM draws the Study's first room: which scene the primary prepares, and whether p1's fog repaints (C7).
  * Not readable headless (the plan's M10): what the fog draws on either floor (C10's `fogRegionsFor`
  * is the first reader the harness can call; until then G records no fog), Foundry's own level
  * control and door controls - LIVE-E12-02/03/05; and the outline a player is shown on walking into a
@@ -53,6 +55,8 @@
  * under the lock on 11.10.2026. E12 C2b (C3 added): 21 checks in 16.2 s, one run alone under the lock on 11.10.2026.
  * E12 C3 (F1, F2 rewritten): 21 checks in 15.9 s, one run alone under the lock on 11.10.2026. E12 C4 (B1 rewritten): 21
  * checks in 16.1 s, one run alone under the lock on 11.10.2026. E12 C5 (A1, E1, E2 rewritten; E3 added): 22 checks in 16.1 s, one run alone under the lock on 11.10.2026.
+ * E12 C7 (K1, K2 added): 24 checks in 23.5 s, one run under lane C's lock on 11.10.2026 while two other harness lanes
+ * ran; not measured alone. Under C7's mutants and the red-first copy, 18.7-31.7 s in three runs on the same lane.
  */
 export const layers = ["ci"];
 
@@ -508,4 +512,45 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         drawJ.scene === IDS.scene && readJ.flag === true && readJ.isRoom === false && readJ.recorded && !readJ.rooms.includes("Den"), J({ drawJ, readJ }));
     check("J2: p1's untick of the Gym is put back by the primary and the GMs are told once (E12 C1)",
         readJ.gym === true && readJ.gymRoom && readJ.rooms.includes("Gym") && readJ.told === 1, J({ drawJ, readJ }));
+
+    /* ------------------------------ K. a room drawn in play ------------------------------ */
+    phase("K: a room drawn in play, on the scene p1 has on screen");
+    /* Two scenes made here with Foundry's vision on, as a new scene has it: p1 views the Study and draws a region marked
+       a room on the Den (the harness lets the write through, as in J); then the GM draws the Study's first room. */
+    const VISION = `const vision = s => [s.tokenVision, s.environment?.globalLight?.enabled ?? null, s.getFlag("${MOD}", "visionBefore") !== undefined];`;
+    const setK = await gm.eval(`const data = name => ({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const study = await Scene.create(data("66 Study")), den = await Scene.create(data("66 Den"));
+        return { study: study.id, den: den.id };`, { timeout: 30000 });
+    const viewK = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        await game.scenes.get("${setK.study}").view();
+        const before = F.diagnoseFog().lastReason;
+        const [den] = await game.scenes.get("${setK.den}").createEmbeddedDocuments("Region", [{ name: "Den", shapes: ${rect(200, 200)},
+            flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        return { scene: canvas.scene?.id ?? null, before, den: den?.id ?? null };`, { timeout: 30000 });
+    await settle(1500);
+    const drawK = await gm.eval(`${VISION} const study = game.scenes.get("${setK.study}"), den = game.scenes.get("${setK.den}");
+        await study.createEmbeddedDocuments("Region", [{ name: "Study", shapes: ${rect(200, 200)}, flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        const end = Date.now() + 6000;
+        while (study.tokenVision !== false && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { study: vision(study), den: vision(den) };`, { timeout: 30000 });
+    const readK = await p1.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        const end = Date.now() + 6000;
+        while (/has no room/.test(F.diagnoseFog().lastReason) && Date.now() < end) await new Promise(r => setTimeout(r, 250));
+        const after = F.diagnoseFog().lastReason;
+        await game.scenes.get("${IDS.scene}").view();
+        return { after, back: canvas.scene?.id ?? null };`, { timeout: 30000 });
+    await gm.eval(`for (const id of ["${setK.study}", "${setK.den}"]) await game.scenes.get(id)?.delete();
+        if (game.settings.settings.has("${MOD}.playerRegions")) {
+            await game.settings.set("${MOD}", "playerRegions", game.settings.get("${MOD}", "playerRegions").filter(id => id !== "${viewK.den}"));
+        }`, { timeout: 30000 });
+    /* At E12 C6 nothing listened to a region: the Study kept Foundry's vision until a GM's canvas drew it or the
+       primary reloaded, and p1's fog still said "no room". E12 C7: the primary prepares a scene a GM's region gives its
+       first room, and only a GM's (p1's marked Den is no room once recorded, and is not one to the hook either); every
+       client repaints the scene it has on screen. */
+    check("K1: the Study's first room, drawn by the GM, puts the Study into room-based vision at once; p1's marked Den leaves the Den's vision alone (E12 C7)",
+        J(drawK.study) === J([false, true, true]) && J(drawK.den) === J([true, false, false]) && Boolean(viewK.den), J({ viewK, drawK }));
+    check("K2: p1, with the Study on screen, repaints its fog when the GM draws the Study's first room (E12 C7)",
+        viewK.scene === setK.study && /has no room/.test(viewK.before ?? "") && !/has no room/.test(readK.after ?? "") && readK.back === IDS.scene,
+        J({ viewK, readK }));
 }

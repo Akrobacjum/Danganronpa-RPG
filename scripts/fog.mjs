@@ -270,7 +270,6 @@ export function registerFog() {
 
     Hooks.on("canvasReady", () => {
         step("scene vision mode", () => visionForDrawnScene());
-        step("renderer failsafe", () => armRendererFailsafe());
         // Before the first paint, so a character who has been standing in a
         // room since before this client connected is not shown their own floor
         // under full fog for one frame.
@@ -299,6 +298,19 @@ export function registerFog() {
         step("seed discovery", () => seedDiscovery(tokenDoc?.parent ?? null));
     });
     Hooks.on("deleteToken", () => repaintFog());
+
+    /*
+     * A ROOM DRAWN IN PLAY (E12 C7, 11.10.2026; audit S07-11, S07-12). Until 1.2.74 nothing
+     * listened to a region: a scene was given room-based vision when a GM's canvas drew it and
+     * once a session on the primary (`prepareScenes`), so the first rooms a GM drew on the scene
+     * in front of them left Foundry's vision on until that GM reloaded - the black screen the
+     * handbook warns of - and a room drawn, reshaped or deleted showed nobody anything until
+     * somebody moved a token. Inline, each one line, so the census of what reaches a rule
+     * names them where they are registered (R379).
+     */
+    Hooks.on("createRegion", (region, options, userId) => regionChanged(region, userId));
+    Hooks.on("updateRegion", (region, changes, options, userId) => regionChanged(region, userId));
+    Hooks.on("deleteRegion", (region, options, userId) => regionChanged(region, userId));
 
 
     // The Eclipse hides everyone from everyone (see eclipse.mjs /
@@ -427,9 +439,13 @@ export function fogEnabled() {
  * `visibility.mjs` still hides other characters' TOKENS to their own room, so
  * a lit corridor never means "you can see who is standing in it".
  *
- * GM-side and idempotent: it only writes when a value actually differs, so it
- * does not fight a GM editing scene config, and it never touches a scene when
- * the setting is off.
+ * GM-side and idempotent: it only writes when a value actually differs, and it
+ * never touches a scene when the setting is off. It does override a GM: Token
+ * Vision switched back on by hand on a scene with rooms is switched off again the
+ * next time this is asked - when a GM's canvas draws the scene, on the primary's
+ * load and when the setting comes on (`prepareScenes`), and when a region gives
+ * the scene its first room (`prepareRoomScene`, E12 C7). That is the setting's
+ * contract (audit S07-11); until 1.2.74 this comment said it did not fight a GM.
  */
 export async function applySceneVisionMode(scene) {
     if (!game.user.isGM || !scene) return false;
@@ -480,6 +496,64 @@ function visionForDrawnScene() {
     return applySceneVisionMode(viewedScene());
 }
 
+/**
+ * Whether each scene held a room when the primary last looked (`prepareScenes`, or a region
+ * event), by scene id. Read only by `prepareRoomScene`, so a region event prepares a scene
+ * when it gives the scene its first room, and not on every edit of a room the scene already
+ * had - the plan's "when `sceneHoldsRooms` changes" (plan-E12 C7).
+ */
+const heldRooms = new Map();
+
+/** A region was created, changed or deleted (E12 C7; the hooks in `registerFog`). */
+function regionChanged(region, userId) {
+    const scene = region?.parent ?? null;
+    if (!scene) return;
+    step("scene vision mode", () => prepareRoomScene(scene, userId));
+    step("repaint", () => repaintRoomScene(scene));
+}
+
+/**
+ * The primary's half: a scene a region event has just given its first room is put into
+ * room-based vision at once (`applySceneVisionMode`), on the scene the region is on - not
+ * the scene on anybody's screen.
+ *
+ * A GM's event only, by the user id Foundry hands the hook. A region a player draws or marks
+ * is answered by movement.mjs (E12 C1: recorded, or its mark put back, on the primary); the
+ * record is a world setting that lands after this hook has run, so for a moment a player's
+ * marked region reads as a room, and the scene would have been taken over for it. The GM's
+ * write that puts a mark back is an event of its own and is read here like any other.
+ *
+ * A scene whose last room is deleted keeps the vision the module gave it: the plan asks for
+ * the scene to be prepared when it gains rooms, and `restoreScenes` gives every scene back
+ * when the setting goes off, as before 1.2.74.
+ */
+function prepareRoomScene(scene, userId) {
+    if (!isPrimaryGm() || !game.users?.get(userId)?.isGM) return false;
+    const holds = sceneHoldsRooms(scene), held = heldRooms.get(scene.id);
+    heldRooms.set(scene.id, holds);
+    if (!holds || held === true) return false;
+    return applySceneVisionMode(scene);
+}
+
+/**
+ * Every client's half: the scene on this screen, when a region of it changed, is repainted
+ * once the batch has landed - Room Setup's Apply writes every region of a scene in one
+ * update, which is one hook per region in the same tick, so one timer answers them all.
+ * 100 ms is a choice, not a reading. The cached answer to "can a region be read" and the
+ * last paint's signature are dropped first: both are keyed by the scene and its count of
+ * rooms, and a room reshaped or renamed keeps the count, so the repaint would otherwise be
+ * answered "unchanged" with the old shapes on screen.
+ */
+let regionRepaint = 0;
+function repaintRoomScene(scene) {
+    if (readableCache.sceneId === scene.id) readableCache = { sceneId: null, count: -1, readable: 0 };
+    if (viewedScene()?.id !== scene.id) return false;
+    lastPaintSignature = "";
+    clearTimeout(regionRepaint);
+    regionRepaint = setTimeout(() => step("repaint", () => repaintFog()), 100);
+    return true;
+}
+
 /** Flag holding a scene's vision settings from before the module changed them. */
 const VISION_BEFORE = "visionBefore";
 
@@ -502,7 +576,8 @@ export async function prepareScenes() {
     let changed = 0;
     const failed = [];
     for (const scene of game.scenes ?? []) {
-        if (!sceneHoldsRooms(scene)) continue;
+        heldRooms.set(scene.id, sceneHoldsRooms(scene));
+        if (!heldRooms.get(scene.id)) continue;
         try {
             if (await applySceneVisionMode(scene)) changed++;
         } catch (err) {
@@ -1752,16 +1827,38 @@ function placeLayer(parent, container) {
  * edge of `canvas.dimensions.rect`, are painted by the renderer's OWN clear
  * colour whenever nothing else has drawn there yet. Setting it to the
  * palette's darkest ink means that gap reads as "more of our fog", not as
- * bare Foundry, even for the one frame before the fog itself has painted.
+ * bare Foundry.
+ *
+ * ONLY WHILE THE FOG IS ON SCREEN (E12 C7, 11.10.2026; audit S07-11). It was
+ * set on every `canvasReady`, with the setting off and on a scene with no room
+ * as much as on the school, and nothing gave the colour back. It is set now
+ * after a paint that put the fog on screen, and `stand` puts back the colour it
+ * replaced. What Foundry itself writes to the renderer's background when it
+ * draws another scene was not read here (no renderer in the harness): if it
+ * writes its own, the colour put back is the one replaced on the first paint.
  */
+let rendererBefore = null;
 function armRendererFailsafe() {
     try {
         const renderer = canvas?.app?.renderer;
         if (!renderer?.background) return;
+        if (rendererBefore === null) rendererBefore = renderer.background.color;
         renderer.background.color = colourOf("--drpg-ink", 0x0d0b12);
     } catch (err) {
         debug("Could not set the renderer's failsafe background", err);
     }
+}
+
+/** The fog stood down: the renderer's own background colour back, if the failsafe replaced it. */
+function disarmRendererFailsafe() {
+    if (rendererBefore === null) return;
+    try {
+        const renderer = canvas?.app?.renderer;
+        if (renderer?.background) renderer.background.color = rendererBefore;
+    } catch (err) {
+        debug("Could not put the renderer's background back", err);
+    }
+    rendererBefore = null;
 }
 
 /**
@@ -2230,6 +2327,7 @@ export function repaintFog() {
 
         clearLayerLeftovers(container);
         swapInFog(container, built.texture, built.maskTexture, rect);
+        armRendererFailsafe();
         // The Eclipse's own dimming stands down while this is on - see the
         // ECLIPSE section of danganronpa.css.
         /* `toggle(name, true)`, not `add(name)`: in Chromium `add` queues a MutationRecord
@@ -2268,6 +2366,7 @@ function stand(reason) {
     lastLedgerSeen = null;
     readableCache = { sceneId: null, count: -1, readable: 0 };
     hideLayer();
+    disarmRendererFailsafe();
     return false;
 }
 

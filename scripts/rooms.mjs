@@ -247,6 +247,7 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#visionForDrawnScene": "draw",
     "fog.mjs#rememberMine": "draw",
     "fog.mjs#repaintFog": "draw",
+    "fog.mjs#repaintRoomScene": "draw",
     "fog.mjs#revealStartingRooms": "draw",
     "fog.mjs#announceRoom": "draw",
     "fog.mjs#playDiscoveryAnimation": "draw",

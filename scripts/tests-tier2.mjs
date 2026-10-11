@@ -47481,6 +47481,68 @@ const SCENARIOS = [
             + "with the camera on their scene and then on a scene of the suite's own that holds a room of the same name");
     }],
 
+    ["a room drawn in play prepares its scene and repaints the fog of the scene on screen; a scene with only a Teleport region is left alone", async () => {
+        /*
+         * E12 C7, 11.10.2026; plan-E12 C7, audit S07-11 and S07-12. A scene was put into
+         * room-based vision only when a GM's canvas drew it or once a session on the primary, and
+         * nothing listened to a region: the first rooms a GM drew on the map in front of them left
+         * Foundry's vision on - a black screen for players on v14 - until that GM reloaded, and the
+         * fog of the scene on screen was not repainted until a token moved. Here two scenes of the
+         * suite's own, both with Foundry's vision on: the GM views the first, draws a room on it,
+         * and draws a region with a Teleport behaviour, marked a room by hand, on the second; then
+         * the GM views the second. The first must be prepared and its fog repainted (the reason
+         * the fog last gave is no longer "no room"); the second, a passage and no room, must keep
+         * its vision whichever road asks - the region's hook, or the GM's canvas drawing it. Last,
+         * Token Vision is put back on the first by hand and its room reshaped: a scene that held a
+         * room already is not prepared again by a region's event (plan-E12 C7, "when
+         * `sceneHoldsRooms` changes").
+         * Red before C7: the first scene kept Token Vision on and its fog still read "no room".
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - nothing would prepare a scene, and this would measure nothing");
+        const home = canvas?.scene ?? null;
+        const box = x => [{ type: "rectangle", x, y: 100, width: 600, height: 600 }];
+        const vision = scene => [scene.tokenVision, scene.environment?.globalLight?.enabled ?? null, scene.getFlag(MODULE_ID, "visionBefore") !== undefined];
+        const data = name => ({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            tokenVision: true, environment: { globalLight: { enabled: false } } });
+        let study = null, closet = null, read = null;
+        try {
+            study = await Scene.create(data("SUITE E12 C7 a room drawn in play"));
+            closet = await Scene.create(data("SUITE E12 C7 a Teleport and no room"));
+            must(stableJson([vision(study), vision(closet)]) === stableJson([[true, false, false], [true, false, false]]),
+                "the suite's scenes were not created with Foundry's vision on - the module's write would not show");
+            await study.view();
+            await settle();
+            must(canvas?.scene === study, "the camera did not move to the suite's scene - the repaint would measure nothing");
+            const before = F.diagnoseFog().lastReason;
+            await closet.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: box(100),
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [{ type: "teleportToken", name: "Out", system: { destination: null } }] }]);
+            await study.createEmbeddedDocuments("Region", [{ name: "Study", shapes: box(100), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await until(() => study.tokenVision === false, 4000);
+            await settle();
+            const after = F.diagnoseFog().lastReason;
+            await closet.view();
+            await settle();
+            const prepared = vision(study);
+            // Token Vision put back on by hand, then the room reshaped, with the camera elsewhere: the scene held a
+            // room already, so the region's event is not one that prepares it.
+            await study.update({ tokenVision: true });
+            await study.regions.find(r => r.name === "Study")?.update({ shapes: box(200) });
+            await settle();
+            read = [prepared, vision(closet), /has no room/.test(before), /has no room/.test(after), study.tokenVision];
+        } finally {
+            await home?.view();
+            await study?.delete();
+            await closet?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[false, true, true], [true, false, false], true, false, true]),
+            "the scene a room was drawn on (Token Vision, global light, the module's record of the scene before) and the Teleport's scene, "
+            + "whether the fog on screen said \"no room\" before the room was drawn and after it, and the first scene's Token Vision "
+            + "put back on by hand and kept through a reshape of its room");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

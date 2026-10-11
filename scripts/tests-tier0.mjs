@@ -7948,6 +7948,8 @@ const REGRESSIONS = [
          * the live `BRIDGE_ACTIONS` gives, are the census's. E12 C1 added four rows, the region
          * listeners of `registerMovement`, the room flag and `playerRegions`: 105 places - 53 PACKET,
          * 21 SOCKET, 16 HOOK, 7 SHEET, 8 STORE - against 105 rows (harness, 11.10.2026, once).
+         * E12 C7 added three, the region listeners of `registerFog`: 108 places - 53 PACKET, 21 SOCKET,
+         * 19 HOOK, 7 SHEET, 8 STORE - against 108 rows (harness, 11.10.2026, once).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8036,6 +8038,9 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the primary's record of positions `sendBackRefusal` compares against; C9 keeps `level` in it, C12's last-lawful map sits beside it (3.4) (E12 C9, E12 C12)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
+            ["HOOK fog.mjs#registerFog#createRegion:inline", "out of scope: no rule reads it; on the primary a GM's region that gives its scene its first room puts that scene into room-based vision (`prepareRoomScene` -> `applySceneVisionMode(region.parent)`), a non-GM's is left to movement.mjs's record; every client repaints the scene it views (`repaintRoomScene`); since E12 C7"],
+            ["HOOK fog.mjs#registerFog#updateRegion:inline", "out of scope: as createRegion; C8's rename rides it or its own listener on the primary (E12 C8)"],
+            ["HOOK fog.mjs#registerFog#deleteRegion:inline", "out of scope: as createRegion; a scene that loses its last room keeps the vision the module gave it until the setting goes off; since E12 C7"],
             ["HOOK movement.mjs#registerMovement#createToken:inline", "judged: `gmSeen` primes a dropped token's position (movement.mjs:78); C9 keeps `level` in `positionOf` (E12 C9)"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken:inline", "OPEN (C9, C12): on the primary, gates on x/y (murder-rules.mjs:2987) - C9 gates on `isMoveChange`; `maybeThirdParty`/`maybeBodyFound` take the arrival's standing (C12, Q3 a) (E12 C9, E12 C12)"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken:inline", "OPEN (C9): projects-map.mjs's `onProjectTokenMoved` road (primary only since E11 C8) gates on x/y (a `level`-only move is not seen); C9 gates it on `isMoveChange` [1b.1 a token's floor] (E12 C9)"],
@@ -9674,6 +9679,28 @@ const REGRESSIONS = [
             "a function reads the camera without a row in rooms.mjs CAMERA_READERS (unregistered), a row names a function that no "
             + "longer reads it (stale), or a row's kind is not definition, draw, window, diagnose or own (kinds)");
         log(`R382: ${sources.length} files, ${found.length} camera readers, ${Object.keys(CAMERA_READERS).length} rows`);
+    }],
+
+    ["R383 - the renderer's background is the fog's ink only while the fog is on screen: set after a paint, given back when the fog stands down", async () => {
+        /*
+         * E12 C7, 11.10.2026; audit S07-11. `armRendererFailsafe` set the renderer's clear colour to
+         * the palette's ink on every `canvasReady` - with the room fog switched off, and on a scene
+         * with no room, as much as on the school - and nothing gave the colour back. `repaintFog`
+         * sets it now, after `swapInFog` has put the fog on screen, and `stand`, where every repaint
+         * that does not put the fog up ends, gives back the colour it replaced
+         * (`disarmRendererFailsafe`). The harness's renderer has no background (client-entry.mjs:
+         * a screen size and a view), so no test there can read the colour itself; this reads the
+         * text of the three functions, comments blanked. A colour written from anywhere else is
+         * not seen.
+         */
+        const fog = stripComments((await moduleSources()).get("fog.mjs") ?? "");
+        must(fog.length, "fog.mjs is not among the module's sources - this would measure nothing");
+        const calls = (name, callee) => new RegExp(`\\b${callee}\\(\\)`).test(fnSource(fog, name));
+        equal(JSON.stringify([calls("registerFog", "armRendererFailsafe"),
+            /\bswapInFog\([^;]*\);\s*armRendererFailsafe\(\);/.test(fnSource(fog, "repaintFog")),
+            calls("stand", "disarmRendererFailsafe")]), JSON.stringify([false, true, true]),
+            "registerFog sets the renderer's colour itself (on canvasReady), repaintFog does not set it right after the fog is "
+            + "swapped in, or stand does not give it back");
     }]
 ];
 
