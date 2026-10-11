@@ -573,7 +573,7 @@ const READ_ON_ANALYZE = ["key", "final"];
  * @param {string} [data.sceneId]
  * @param {string} [data.room]         Where it was picked up. Pass this when the
  *   creating client is not the one looking at the character's scene - the room
- *   lookup below is canvas-bound, and Observe runs on the GM's client.
+ *   lookup below was canvas-bound until E12 C3, and Observe runs on the GM's client.
  * @param {boolean} [data.analyzed]    Override. `null` derives it from the type,
  *   which is what a fresh find wants; a copy passes the original's state so
  *   handing over identified evidence hands over what the giver knows.

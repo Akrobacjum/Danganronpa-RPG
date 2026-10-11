@@ -689,7 +689,7 @@ async function judgePendingMurders(id, taken = new Map()) {
     if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
 
-    const { othersInRoom, roomOfActor } = await import("./movement.mjs");
+    const { othersInNamedRoom, locateActor } = await import("./movement.mjs");
     const { openMurder, murderState } = await import("./murder.mjs");
     const { whisperToOwner, whisperToGms } = await import("./utils.mjs");
 
@@ -701,9 +701,14 @@ async function judgePendingMurders(id, taken = new Map()) {
         const killer = game.actors.get(killerId);
         if (!killer) continue;
 
+        /* Where the killer stands and who stands with them, on the killer's own scene (E12 C3,
+           11.10.2026; audit S10-14): `roomOfActor` and `othersInRoom` read the canvas until then,
+           so the primary GM looking at another scene at the end of the Eclipse judged a murder in
+           a room of three as one with nobody there (scenario 66 F2). One placing for both. */
         const parked = all[killerId];
-        const room = roomOfActor(killer) ?? parked.room;
-        const present = othersInRoom(killer);
+        const where = locateActor(killer);
+        const room = where?.room ?? parked.room;
+        const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene) : [];
 
         // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
         // actor and their player at the moment the lights judged them.

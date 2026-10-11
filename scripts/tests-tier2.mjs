@@ -46966,6 +46966,187 @@ const SCENARIOS = [
             + `the Shed's shape, the Lift's, the rooms seeded for ${student.name} standing in piece 2])`);
     }],
 
+    ["where a student stands and the lights' verdict on a murder are the same viewing either scene", async () => {
+        /*
+         * E12 C3, 11.10.2026; plan-E12 V9 (its documents' half; the table's is LIVE-E12-01), audit
+         * S11-15 and S10-14, decision D7. `locateActor` took the rendered token and then the scene the
+         * reader was looking at first, and `othersInRoom` counted the canvas's tokens, so the primary
+         * GM judging the declared murders at the end of an Eclipse judged them on whatever scene it had
+         * on screen. Here a killer stands with two others in one room of the scene on screen and has a
+         * second token, in a room alone, on a scene of the suite's own that holds a room (a place
+         * scene, `isPlaceScene`). Viewing each scene in turn (`Scene#view`), read where `locateActor`
+         * puts the killer (and the room `roomOfActor` names, which read the rendered tokens first and
+         * the canvas's after them until C3), then open an Eclipse, declare the murder in the killer's room and end it:
+         * which reason the GMs are told it came to nothing for - two witnesses, or nobody there. The
+         * same on both scenes, and the room of three. In a GM-store world of the suite's own
+         * (`withGmStoreWorld`): a token made on a scene with rooms seeds its discovery there (fog.mjs,
+         * E12 C2b), and the real ledger is not to keep a row for a scene this deletes. Red before C3:
+         * viewing the suite's scene the killer was placed there, in its room, and the murder came to
+         * nothing with nobody present. Measured on the harness only: what `Scene#view` does at a
+         * table beyond the camera (the user's viewed scene, the fog's redraw) is not read here.
+         */
+        const [killer, first, second] = cast(3);
+        needs(world.atLeast("studentTokensOnScreen", 3), "the killer and two witnesses are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const Ev = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { plural } = await import("./utils.mjs");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const home = canvas?.scene ?? null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const NAME = "SUITE E12 C3 the other scene", ROOM = "SUITE Annex room", NOTE = "SUITE E12 C3 declared in the dark";
+        const stood = await aloneTogether(killer, first, { asked: true });
+        const third = home?.tokens?.find(t => t.actorId === second.id) ?? null;
+        const was = third ? { x: third.x, y: third.y } : null;
+        const readings = [];
+        try {
+            ok(third, `${second.name} has no token on the scene on screen`);
+            if (!third) return;
+            await third.update(Mv.positionIn(stood.room, third), PLACE);
+            await settle();
+            await G.withGmStoreWorld(`suite-c3-${foundry.utils.randomID(8)}`, async () => {
+                let scene = null;
+                try {
+                    scene = await Scene.create({ name: NAME, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                    await scene.createEmbeddedDocuments("Token", [{ actorId: killer.id, actorLink: true, name: killer.name, x: 300, y: 300, width: 1, height: 1 }]);
+                    await settle();
+                    must(R.homeScene() === home, "the school (`homeScene`) is not the scene on screen - which of the killer's two tokens counts is then another question");
+                    for (const view of [home, scene]) {
+                        await view.view();
+                        await settle();
+                        const where = Mv.locateActor(killer);
+                        const from = game.messages.size;
+                        await Ev.startEclipse();
+                        await settle();
+                        must(Ev.isEclipse(), `the Eclipse did not open viewing ${view.name}`);
+                        await Ev.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE });
+                        await Ev.endEclipse({ advance: false });
+                        await settle();
+                        const kept = game.messages.contents.slice(from).map(m => contentOf(m));
+                        const told = reason => kept.some(c => c.includes(game.i18n.format("DRPG.Action.murderCancelled", {
+                            killer: foundry.utils.escapeHTML(killer.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(reason) })));
+                        readings.push([where?.scene?.id ?? null, where?.room ?? null, Mv.roomOfActor(killer),
+                            told(plural("DRPG.Action.murderWitness", { n: 1 })), told(game.i18n.localize("DRPG.Action.murderNobody"))]);
+                    }
+                } finally {
+                    await home?.view();
+                    if (Ev.isEclipse()) await Ev.endEclipse({ advance: false }).catch(() => {});
+                    await scene?.delete();
+                    await settle();
+                }
+            });
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.dropMany([killer.id]);
+            if (third && was && home?.tokens?.has(third.id)) await third.update(was, PLACE);
+            await stood.back();
+        }
+        const expected = [home?.id ?? null, stood.room, stood.room, true, false];
+        equal(stableJson(readings), stableJson([expected, expected]),
+            `where ${killer.name} stands (scene, room; \`roomOfActor\`'s room) and what the GMs were told the murder came to nothing for (two witnesses, nobody), `
+            + `viewing the scene on screen and then a scene of the suite's own holding ${killer.name}'s second token`);
+    }],
+
+    ["a theft is refused across two scenes whose rooms share a name", async () => {
+        /*
+         * E12 C3, 11.10.2026; audit S08-39 (the plan's other road for C3). `stealFromPerson` and
+         * `plantOnPerson` compared the thief's room with the victim's by name, with no scene, so a
+         * student in another scene's room of the same name could be robbed from here. They ask
+         * `sameRoom` now (scene, floor and room). Here the victim's tokens on every place scene are
+         * hidden and a token of theirs stands, shown, on a scene of the suite's own in a room named
+         * as the thief's: `locateActor` puts the victim there (the one token a GM has not hidden),
+         * `sameRoom` says no and the theft - a failed roll, so a mutant that lets it through takes
+         * nothing - is refused before anything is read off the victim (null). Without the room's
+         * refusal a failed theft answers `{ took: false, ... }`. In a GM-store world of the suite's
+         * own, as the test above, for the token's seeded discovery. Red before C3: the victim was
+         * placed on the scene on screen, in the thief's room, and the theft went through to its roll.
+         */
+        const [thief, victim] = cast(2);
+        const Mv = await import("./movement.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const here = Mv.locateActor(thief);
+        must(here?.room, `${thief.name} stands in no room - the theft would be refused before the rooms are compared`);
+        const shown = Array.from(game.scenes).filter(s => R.isPlaceScene(s))
+            .flatMap(s => Array.from(s.tokens).filter(t => t.actorId === victim.id && !t.hidden));
+        let read = null;
+        await G.withGmStoreWorld(`suite-c3-steal-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                for (const t of shown) await t.update({ hidden: true });
+                scene = await Scene.create({ name: "SUITE E12 C3 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: victim.id, actorLink: true, name: victim.name, x: 300, y: 300, width: 1, height: 1 }]);
+                await settle();
+                const there = Mv.locateActor(victim);
+                const stolen = await V.stealFromPerson({ thiefId: thief.id, victimId: victim.id, total: 0, isCritical: false, unseenTotal: 0, unseenCritical: false });
+                read = [there?.scene?.id === scene.id, there?.room ?? null, Mv.sameRoom(thief, victim), stolen];
+            } finally {
+                await scene?.delete();
+                for (const t of shown) if (t.parent?.tokens?.has(t.id)) await t.update({ hidden: false });
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson([true, here.room, false, null]),
+            `${victim.name} on a scene of the suite's own, in a room named as ${thief.name}'s "${here.room}" `
+            + "(placed there, the room, the same room, what the theft answered)");
+    }],
+
+    ["a stash taken away is forgotten on its own scene only", async () => {
+        /*
+         * E12 C3, 11.10.2026; audit S08-39. A finder's note about a stash is keyed
+         * `sceneId::room::ownerId` (vault.mjs `foundKey`), and taking a stash away
+         * (`setStash(..., { present: false })`) cleared every note whose key ENDED in
+         * `::room::ownerId` - so the same owner's stash in another scene's room of the same
+         * name was forgotten with it, and its finder paid to find it again. `forgetStashFound`
+         * clears the one scene's key now (and a key with no scene, `?`, which names none). Here
+         * a finder holds two notes about the owner's stash in the owner's room, one on the
+         * owner's scene and one on a scene id of the suite's own (no scene document is needed:
+         * the note is a string); the stash is set and taken away on the owner's scene, and the
+         * other scene's note must stay. Red before C3: both notes went.
+         */
+        const V = await import("./vault.mjs");
+        const Mv = await import("./movement.mjs");
+        const [owner, finder] = cast(2);
+        const here = Mv.locateActor(owner);
+        must(here?.room, `${owner.name} stands in no room`);
+        const region = V.regionsByName(here.scene).get(here.room);
+        must(region, `"${here.room}" has no region on ${here.scene.name}`);
+        must(!V.stashItemsIn(owner, here.room, here.scene).length, `${owner.name}'s stash in "${here.room}" holds something - it could not be taken away`);
+        const other = { id: `SUITE-E12C3-${foundry.utils.randomID(8)}` };
+        const notes = [`${here.scene.id}::${here.room}::${owner.id}`, `${other.id}::${here.room}::${owner.id}`];
+        const listBefore = foundry.utils.deepClone(region.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
+        const foundBefore = foundry.utils.deepClone(finder.getFlag(MODULE_ID, V.VAULT_FLAGS.found));
+        let read = null;
+        try {
+            await V.setStash(here.room, owner.id, { present: true, scene: here.scene });
+            await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, notes);
+            await settle();
+            must(V.hasFoundStash(finder, here.room, owner.id, here.scene) && V.hasFoundStash(finder, here.room, owner.id, other),
+                "the two notes are not read as `foundKey` writes them - the test's keys no longer match the module's");
+            await V.setStash(here.room, owner.id, { present: false, scene: here.scene });
+            await settle();
+            read = [V.hasFoundStash(finder, here.room, owner.id, here.scene), V.hasFoundStash(finder, here.room, owner.id, other)];
+        } finally {
+            if (foundBefore === undefined) await finder.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+            else await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            if (listBefore === undefined) await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: forcedDeletion() });
+            else await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: listBefore });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true]),
+            `${finder.name}'s notes about ${owner.name}'s stash in "${here.room}" after it was taken away on ${here.scene.name} (this scene's, the other scene's)`);
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

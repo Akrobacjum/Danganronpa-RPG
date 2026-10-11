@@ -555,9 +555,10 @@ export async function guardTraitRuling(sender, payload, ctx) {
 /** Whether `projectId` is one the sender sees and the character may work on or sabotage in the room they stand in. */
 async function projectWithinReach(actor, projectId, sender) {
     const { projectsAvailableIn, sabotageTargetsIn } = await import("./projects.mjs");
-    const { roomOfActor } = await import("./movement.mjs");
+    const { locateActor } = await import("./movement.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
-    const room = roomOfActor(actor);
+    // Where the character stands on its own scene, not on the one this GM views (E12 C3).
+    const room = locateActor(actor)?.room ?? null;
     return [...(room ? projectsAvailableIn(room, sender) : []),
         ...sabotageTargetsIn(room, { anyRoom: isMonokuma(actor), user: sender })].some(p => p.id === projectId);
 }

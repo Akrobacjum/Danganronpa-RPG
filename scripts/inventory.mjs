@@ -671,8 +671,12 @@ export async function grantItem(actor, {
             // exists: an unaddressed item would otherwise be read as living in
             // whichever stash `primaryStashRoom` happens to answer later, and
             // that answer can change when a GM adds or removes one.
+            // On the scene the character stands on, else the school's (E12 C3): the camera's
+            // until then, so the overflow went to whatever stash the granting GM had on screen.
             const { primaryStashRoom } = await import("./vault.mjs");
-            overflowRoom = primaryStashRoom(actor);
+            const { locateActor } = await import("./movement.mjs");
+            const { homeScene } = await import("./rooms.mjs");
+            overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene());
             if (overflowRoom) {
                 location = LOCATIONS.vault;
                 await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {

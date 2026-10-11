@@ -1022,8 +1022,8 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
         gmNote: data.note ?? "",
         remnantId: token.id,
         sceneId: scene?.id ?? null,
-        // Passed explicitly for the reason Observe passes it: the room
-        // lookup is canvas-bound, and this may not be the scene on screen.
+        // Passed explicitly, as Observe passes it: without it the bullet
+        // takes the room its holder stands in (truth-bullets.mjs `roomOfActor`).
         room: data.room ?? null,
         // Both into the bullet's secret; public on the item only once it is
         // identified, like every other tie.

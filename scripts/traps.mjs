@@ -387,7 +387,13 @@ function plants() {
     return game.user?.isGM ? trapPlantStore.entries() : {};
 }
 
-const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-"}::${room}`;
+/* A plant's key is the scene its caller names and the room. The scene fell back to the one the
+   GM's browser was viewing (`game.scenes.current`) until E12 C3 (11.10.2026; audit S08-15), so a
+   plant and its search keyed on two different scenes whenever the GM had moved the camera between
+   them. Now the caller names it: the plant window the scene whose rooms it listed, a search the
+   scene its token was spent on (search-tokens.mjs `takePlant`, whose default is C6's to move off
+   the camera); a key with no scene is "-", the same for its plant and its take. */
+const plantKey = (room, sceneId) => `${sceneId ?? "-"}::${room}`;
 
 /**
  * Put a plant back where `takePlant` found it - the reply carrying it reached a
@@ -469,7 +475,7 @@ export async function takePlant(room, sceneId = null, { actorId = null, rollId =
     await trapPlantStore.drop(key);
     if (roll) {
         await rolls.noteFactOn(roll, { plant: {
-            name: found.name ?? null, identity: found.drpgItemId ?? null, room, sceneId: sceneId ?? game.scenes?.current?.id ?? null
+            name: found.name ?? null, identity: found.drpgItemId ?? null, room, sceneId: sceneId ?? null
         } });
     }
 
@@ -528,7 +534,9 @@ export async function openPlantDialog(projectId) {
     const { allRooms } = await import("./movement.mjs");
 
     const meta = metaFor(projectId);
-    const rooms = allRooms(canvas?.scene ?? null);
+    // The rooms of the scene on screen, and the plant keyed on that same scene (E12 C3).
+    const scene = canvas?.scene ?? null;
+    const rooms = allRooms(scene);
     const roomOptions = rooms.map(r =>
         `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");
 
@@ -584,7 +592,7 @@ export async function openPlantDialog(projectId) {
      * that changed nothing. Storing the two dead fields would only invite the
      * next reader to believe they still decide something.
      */
-    await plantItem(projectId, answer.room, { name: answer.name });
+    await plantItem(projectId, answer.room, { sceneId: scene?.id ?? null, name: answer.name });
 
     await import("./utils.mjs").then(m => m.whisperToGms(
         `<p>${game.i18n.format("DRPG.Trap.planted", {
@@ -816,8 +824,8 @@ async function onCrossed({ actor, to } = {}) {
         const here = armedIn(to);
         if (!here.length) return;
 
-        // Asked once for the whole room rather than once per trap: `othersInRoom`
-        // reads the canvas and there is no reason to read it twice.
+        // Asked once for the whole room rather than once per trap: there is no
+        // reason to count the room's tokens twice.
         let alone = null;
         for (const trap of here) {
             const kind = trap.trigger.kind;

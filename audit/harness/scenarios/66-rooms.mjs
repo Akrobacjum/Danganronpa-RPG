@@ -51,6 +51,7 @@
  * `timeoutMs` of its own. E12 C1 (C2, D3, H rewritten as H1-H2, J1-J2): 20 checks in 15.9 s, one run alone under the
  * lock on 11.10.2026. E12 C2a (C1, D1, D2 rewritten; G's tower regions marked rooms): 20 checks in 15.6 s, one run alone
  * under the lock on 11.10.2026. E12 C2b (C3 added): 21 checks in 16.2 s, one run alone under the lock on 11.10.2026.
+ * E12 C3 (F1, F2 rewritten): 21 checks in 15.9 s, one run alone under the lock on 11.10.2026.
  */
 export const layers = ["ci"];
 
@@ -276,6 +277,7 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         }), { teleport: true, movementAction: "displace", animate: false });
         const rooms = ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].map(id => M.roomOfToken(academy.tokens.find(x => x.actorId === id)));
         const nobody = game.i18n.localize("DRPG.Action.murderNobody"), seen = new Set(game.messages.contents.map(m => m.id));
+        const witnesses = foundry.utils.escapeHTML((await import("${repoUrl}/scripts/utils.mjs")).plural("DRPG.Action.murderWitness", { n: 1 }));
         const started = Boolean(await E.startEclipse());
         const parked = Boolean(await E.parkDirectMurder({ killerId: "${IDS.aiko}", room: "Dorm A", note: "E12 C0 66 F" }));
         canvas.scene = annex;
@@ -285,25 +287,27 @@ export async function run({ gm, p1, check, phase, settle, IDS, repoUrl }) {
         const fresh = game.messages.contents.filter(m => !seen.has(m.id));
         const told = (await Promise.all(fresh.map(m => wordsOf(m, 1500)))).map(w => String(w ?? "")).filter(w => w.includes(foundry.utils.escapeHTML(game.actors.get("${IDS.aiko}").name)));
         return { rooms, started, parked, eclipse: E.isEclipse?.() ?? null, murder: Boolean(game.drpg.murderState()),
-            nobody: told.some(c => c.includes(nobody)), told: told.map(c => c.replace(/<[^>]+>/g, " ").trim().slice(0, 200)) };`, { timeout: 90000 });
+            nobody: told.some(c => c.includes(nobody)), witnesses: told.some(c => c.includes(witnesses)),
+            told: told.map(c => c.replace(/<[^>]+>/g, " ").trim().slice(0, 200)) };`, { timeout: 90000 });
     await gm.eval(`${SCENES} const was = globalThis.__s66f;
         await academy.updateEmbeddedDocuments("Token", Object.entries(was.at).map(([_id, at]) => ({ _id, ...at })), { teleport: true, movementAction: "displace", animate: false });
         if (was.twin) await annex.deleteEmbeddedDocuments("Token", [was.twin]);
         delete globalThis.__s66f;
         return true;`, { timeout: 30000 });
-    /* At 180df61 `locateActor` asks the actor's active tokens first and then the scenes from the camera's on: with
-       the GM's camera on the Annex it answers the Annex's twin (in no room), on Floor 1 the Academy's Aiko in Dorm A.
-       The harness's `getActiveTokens` lists the tokens of every scene, not the viewed one's alone as Foundry's does
-       (lib/shim.mjs; found here, not changed by C0), but another scene's entry is the bare document, with no
-       `.document`, so `locateActor` passes it by and the reading is the one Foundry's would give. E12 C3: where an
-       actor is is not asked of the camera. */
-    check("F1: locateActor puts Aiko on the scene the GM's camera shows: the Annex's twin there, Dorm A on Floor 1 (E12 C3)",
-        J(setF.onAnnex) === J([IDS.annex, null]) && J(setF.onFloor) === J([IDS.scene, "Dorm A"]), J(setF));
-    /* At 180df61 `judgePendingMurders` counts who is in the killer's room on the GM's canvas (`othersInRoom`): with the
-       GM looking at the Annex nobody is, and the murder in a room of three is cancelled as one with nobody to kill.
+    /* At 180df61 `locateActor` asked the actor's active tokens first and then the scenes from the camera's on: with
+       the GM's camera on the Annex it answered the Annex's twin (in no room), on Floor 1 the Academy's Aiko in Dorm A
+       (C0's reading). The harness's `getActiveTokens` lists the tokens of every scene, not the viewed one's alone as
+       Foundry's does (lib/shim.mjs; found by C0, not changed), but another scene's entry is the bare document, with
+       no `.document`, so that reading was the one Foundry's would give. E12 C3: the candidates are her tokens on the
+       place scenes (scenes holding a room - the Annex holds none by F), so the camera chooses nothing. */
+    check("F1: locateActor puts Aiko in Dorm A on Floor 1 with the GM's camera on either scene (E12 C3)",
+        J(setF.onAnnex) === J([IDS.scene, "Dorm A"]) && J(setF.onFloor) === J([IDS.scene, "Dorm A"]), J(setF));
+    /* At 180df61 `judgePendingMurders` counted who is in the killer's room on the GM's canvas (`othersInRoom`): with the
+       GM looking at the Annex nobody was, and the murder in a room of three was cancelled as one with nobody to kill.
        E12 C3: judged on the killer's own scene - cancelled for the two witnesses. */
-    check("F2: a murder parked in Dorm A with Botan and Chie there, judged with the GM's camera on the Annex, is cancelled as one with nobody present (E12 C3)",
-        J(eclipse.rooms) === J(["Dorm A", "Dorm A", "Dorm A"]) && eclipse.started && eclipse.parked && eclipse.murder === false && eclipse.nobody === true,
+    check("F2: a murder parked in Dorm A with Botan and Chie there, judged with the GM's camera on the Annex, is cancelled for its two witnesses (E12 C3)",
+        J(eclipse.rooms) === J(["Dorm A", "Dorm A", "Dorm A"]) && eclipse.started && eclipse.parked && eclipse.murder === false
+            && eclipse.witnesses === true && eclipse.nobody === false,
         J(eclipse));
 
     /* ------------------------------ G. two floors ------------------------------ */

@@ -179,9 +179,9 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
      * screenshots of one the victim's clock said DINNER HALL and the killer's MAIN HALL (the
      * audit allowed that its own script may have stood them there; the window said nothing
      * either way). Said, not refused - a GM may have moved the fiction ahead of the tokens.
-     * Read off the scene documents (`locateActor`, as `sameRoom` does) rather than
-     * `roomOfActor`, which reads the canvas and answers "no room" for both when the GM is
-     * looking at another scene.
+     * Read off the scene documents (`locateActor`, as `sameRoom` does); `roomOfActor` read
+     * the canvas until E12 C3 and answered "no room" for both when the GM was looking at
+     * another scene.
      * Nothing is said when either stands in no named room: that is not a measurement.
      */
     const roomsApart = (killer, victim) => {

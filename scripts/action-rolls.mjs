@@ -463,7 +463,7 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
      * cleaning up - but walking into the next room first is a real alternative,
      * and a player can only choose it if they know it is one.
      *
-     * Counted from the canvas, like the roll itself, AND THROUGH THE SAME FILTER
+     * Counted where the roll counts it (`othersInRoom`), AND THROUGH THE SAME FILTER
      * (T-1): `witnessesTo` exempts a killer's accomplices, so counting everybody
      * in the room told a killer with a partner standing next to them that the
      * concealment would cost Sanity when no concealment was going to happen at

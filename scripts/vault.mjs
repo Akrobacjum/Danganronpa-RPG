@@ -573,7 +573,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
     // `return` above it until 22.09, so it never ran.
     if (present === false) {
         try {
-            await forgetStashFound(room, actorId);
+            await forgetStashFound(room, actorId, scene);
         } catch (err) {
             error("Could not clear who had found a removed stash", err);
         }
@@ -581,13 +581,19 @@ export async function setStash(room, actorId, { present = undefined, concealed =
     return list;
 }
 
-/** Every finder's note about one stash, gone. */
-async function forgetStashFound(room, ownerId) {
-    const suffix = `::${room}::${ownerId}`;
+/**
+ * Every finder's note about one stash, gone - the stash of that owner in that room ON THAT
+ * SCENE. A note is keyed `sceneId::room::ownerId` (`foundKey`); this matched the end of the key
+ * until E12 C3 (11.10.2026; audit S08-39), so taking away a stash in one scene's Kitchen also
+ * made every finder forget the same owner's stash in another scene's Kitchen. A note written
+ * with no scene (`?`) names none, so it goes with any of them.
+ */
+async function forgetStashFound(room, ownerId, scene) {
+    const gone = new Set([foundKey(room, ownerId, scene), foundKey(room, ownerId, null)]);
     for (const actor of game.actors) {
         const found = actor.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
         if (!Array.isArray(found) || !found.length) continue;
-        const kept = found.filter(key => !String(key).endsWith(suffix));
+        const kept = found.filter(key => !gone.has(String(key)));
         if (kept.length === found.length) continue;
         await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, kept);
     }
@@ -1161,10 +1167,10 @@ export async function stealFromVault({
      * item id took anything from anyone: from across the map, from a stash the
      * thief had never found, from one still concealed by its owner's project.
      *
-     * `locateActor`, not `roomOfActor`: this runs on a GM's client, which is
-     * usually looking at a different scene from the theft, and the canvas-bound
-     * lookup would report the thief as standing nowhere and refuse every honest
-     * attempt instead.
+     * `locateActor`: this runs on a GM's client, which is usually looking at a
+     * different scene from the theft, and a canvas-bound lookup - `roomOfActor`
+     * was one until E12 C3 - would report the thief as standing nowhere and
+     * refuse every honest attempt instead.
      */
     const { locateActor } = await import("./movement.mjs");
     const where = locateActor(thief);
@@ -1377,15 +1383,16 @@ export async function stealFromPerson({
     /*
      * AND YOU HAVE TO BE STANDING NEXT TO THEM.
      *
-     * `locateActor`, not `roomOfActor`: this runs on a GM's client, which is
-     * usually looking at a different scene from the theft, and the canvas-bound
-     * lookup would report both of them as standing nowhere.
+     * Both placed by `locateActor`, never by the camera: this runs on a GM's
+     * client, which is usually looking at a different scene from the theft.
+     * `sameRoom` since E12 C3 (11.10.2026; audit S08-39): the names alone were
+     * compared, so a victim in another scene's room of the same name could be
+     * robbed from here.
      */
-    const { locateActor } = await import("./movement.mjs");
+    const { locateActor, sameRoom } = await import("./movement.mjs");
     const here = locateActor(thief);
-    const there = locateActor(victim);
     if (!here?.room) return refuse("they are not standing in any room");
-    if (here.room !== there?.room) {
+    if (!sameRoom(thief, victim)) {
         return refuse(`${victim.name} is not in "${here.room}"`);
     }
 
@@ -1585,11 +1592,11 @@ export async function plantOnPerson({
     // allowed, so the reason exists in one place.
     if (isDeadForGm(victim)) return refuse(`${victim.name} is dead`);
 
-    const { locateActor } = await import("./movement.mjs");
+    // `sameRoom`, as a theft's (E12 C3): the same scene and floor as well as the room's name.
+    const { locateActor, sameRoom } = await import("./movement.mjs");
     const here = locateActor(planter);
-    const there = locateActor(victim);
     if (!here?.room) return refuse("they are not standing in any room");
-    if (here.room !== there?.room) return refuse(`${victim.name} is not in "${here.room}"`);
+    if (!sameRoom(planter, victim)) return refuse(`${victim.name} is not in "${here.room}"`);
 
     /*
      * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) - and

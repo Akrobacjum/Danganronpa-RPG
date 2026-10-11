@@ -3986,9 +3986,9 @@ function roomBlockFor(actor, key) {
             return game.i18n.localize("DRPG.Listen.noNeighbours");
 
         // Palm needs a pocket, and a pocket needs somebody standing in it -
-        // true of both directions. The same question `performPalm` asks;
-        // `othersInRoom` reads the canvas, so this is the tile telling the
-        // truth about the room the player is looking at rather than guessing.
+        // true of both directions. The same question `performPalm` asks, on
+        // the scene the character stands on (`othersInRoom`, E12 C3), so the
+        // tile tells the truth about the room rather than guessing.
         if (key === "palm" && othersInRoom(actor).length === 0)
             return game.i18n.localize("DRPG.Steal.nobodyHere");
 

@@ -33,7 +33,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
-import { ROOM_FLAG, isRoomWith, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames } from "./rooms.mjs";
+import { ROOM_FLAG, isRoomWith, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -1274,78 +1274,67 @@ export function roomOfToken(tokenDoc) {
 }
 
 /**
- * Room a character is currently standing in.
+ * Room a character is currently standing in: the room of the token `locateActor` chooses.
  *
- * `getActiveTokens()` only finds tokens linked to the actor. An unlinked token -
- * which is what dragging an actor onto a scene produces unless the prototype
- * says otherwise - is not in that list, so Listen kept reporting that the player
- * was in no room at all. The canvas is searched as well, by actor id.
+ * It asked the rendered tokens and then `canvas.tokens.placeables` until E12 C3 (11.10.2026;
+ * audit S11-15), so on a GM's browser it answered for the scene that GM was looking at - "no
+ * room" for everybody standing anywhere else - and every rule that runs there inherited it.
  */
 export function roomOfActor(actor) {
-    if (!actor) return null;
-
-    const linked = actor.getActiveTokens?.() ?? [];
-    for (const token of linked) {
-        const room = roomOfToken(token.document ?? token);
-        if (room) return room;
-    }
-
-    const placed = (canvas?.tokens?.placeables ?? []).filter(t => t.actor?.id === actor.id);
-    for (const token of placed) {
-        const room = roomOfToken(token.document);
-        if (room) return room;
-    }
-
-    return null;
+    return locateActor(actor)?.room ?? null;
 }
 
 /**
- * Where a character is, without asking the canvas.
+ * Where a character is, without asking the camera.
  *
- * `roomOfActor` answers "which room" for the client that is looking at the map,
- * and both of its lookups - `getActiveTokens()` and `canvas.tokens.placeables` -
- * only see the scene currently rendered. That is fine for a player acting on
- * their own screen, and wrong for the GM's client resolving somebody else's
- * action while looking at a different scene: the character reads as standing
- * nowhere at all.
+ * E12 C3 (11.10.2026; audit S11-15, plan-E12 3.2, decision D7). The candidates are the
+ * character's tokens on the place scenes (rooms.mjs `isPlaceScene`: in E12 a scene that holds
+ * a room; E13 takes its trial scene out of that list, where the students keep tokens all
+ * season). One token answers. Of several, the first rule that names one decides:
+ *   - the scene `sceneId` names. It is a hint, often a player's packet, and it only chooses
+ *     among the character's own tokens: a scene they have no token on changes nothing;
+ *   - the one token a GM has not hidden;
+ *   - the token on `homeScene()`, then the one on the active scene, then the first in the
+ *     world's order of scenes.
+ * Until C3 it took the hinted scene, then the rendered token, then the scene the reader was
+ * looking at, then any scene - so the GM's browser judging a theft, a murder at the lights or
+ * a search answered for whichever scene that GM had on screen (scenario 66 F read Aiko in no
+ * room with the GM's camera on the Annex, in Dorm A with it on Floor 1). It reads documents
+ * only, so a player's browser and a GM's give the same answer for the same world.
  *
- * This walks the scene documents instead, so the answer does not depend on what
- * anybody happens to be looking at. Used by Observe, which is scored on the GM's
- * client - see observe.mjs.
- *
- * A CHARACTER ON SEVERAL SCENES. When the caller passes the scene a player's
- * request names (`sceneId`) and the character has a token there, that scene
- * wins, so the check is made on the scene the player acted on rather than the
- * one the GM is looking at (the E03 review). Only the search spend
- * (search-tokens.mjs) and a player's trace (gm-bridge.mjs) pass it; no other
- * caller does yet, and like any call without `sceneId` they take the rendered
- * token, then the scene being viewed, then any scene.
+ * `level` is the token's floor as Foundry v14 stores it (`tokenDoc.level`), null where the
+ * scene has none; what v14 holds there is LIVE-E12-03, and the room is not yet read per floor
+ * (C9).
  *
  * @param {Actor} actor
  * @param {object} [options]
- * @param {string|null} [options.sceneId]  The scene to look on first.
- * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null}|null}
+ * @param {string|null} [options.sceneId]  The scene to prefer, among the character's own.
+ * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null, level: *}|null}
  */
 export function locateActor(actor, { sceneId = null } = {}) {
     if (!actor) return null;
-
-    const named = sceneId ? game.scenes?.get(sceneId) : null;
-    const there = named?.tokens?.find(t => t.actorId === actor.id);
-    if (there) return { tokenDoc: there, scene: named, room: roomOfToken(there) };
-
-    // The rendered token first when there is one: it is the freshest position,
-    // and it is the common case for a player acting on their own screen.
-    const active = actor.getActiveTokens?.()?.[0]?.document;
-    if (active?.parent) {
-        return { tokenDoc: active, scene: active.parent, room: roomOfToken(active) };
+    const places = [];
+    for (const scene of game.scenes ?? []) {
+        if (!isPlaceScene(scene)) continue;
+        for (const tokenDoc of scene.tokens ?? []) {
+            if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene });
+        }
     }
+    const place = chosenPlace(places, sceneId);
+    if (!place) return null;
+    return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomOfToken(place.tokenDoc), level: place.tokenDoc.level ?? null };
+}
 
-    const scenes = canvas?.scene ? [canvas.scene, ...game.scenes] : Array.from(game.scenes);
-    for (const scene of scenes) {
-        const tokenDoc = scene?.tokens?.find(t => t.actorId === actor.id);
-        if (tokenDoc) return { tokenDoc, scene, room: roomOfToken(tokenDoc) };
-    }
-    return null;
+/** `locateActor`'s choice among several tokens, in the order its comment gives. */
+function chosenPlace(places, sceneId) {
+    if (places.length <= 1) return places[0] ?? null;
+    const hinted = sceneId ? places.find(place => place.scene.id === sceneId) : null;
+    if (hinted) return hinted;
+    const shown = places.filter(place => !place.tokenDoc.hidden);
+    const pool = shown.length ? shown : places;
+    if (pool.length === 1) return pool[0];
+    const home = homeScene(), active = game.scenes?.active ?? null;
+    return pool.find(place => place.scene === home) ?? pool.find(place => place.scene === active) ?? pool[0];
 }
 
 /** Every place this character has a token, on every scene - `locateActor` for all of them. */
@@ -1361,24 +1350,31 @@ export function placesOf(actor) {
 }
 
 /**
- * Are these two standing in the same room, on the same scene?
+ * Are these two standing in the same room, on the same scene and floor?
  *
- * `othersInRoom` answers the same question from the canvas, which is right for
- * the player building a list of who is next to them. This is the version the GM
- * uses to CHECK that claim before acting on it: a socket payload is a claim,
- * not a fact, and the GM's canvas is very often somewhere else entirely.
+ * The version the GM uses to CHECK a claim before acting on it: a socket
+ * payload is a claim, not a fact. Both are placed by `locateActor`, never by
+ * the camera.
  *
  * Same scene is part of it. Two rooms called "Kitchen" on two different maps
  * are not one room, and comparing names alone would let a handover reach across
- * the whole world.
+ * the whole world. Same floor too (plan-E12 3.2): until C9 reads a room per
+ * floor, a token on the upper floor standing over a lower room's outline reads
+ * as in that room, and the floor keeps the two apart. A room whose pieces span
+ * two floors is one room for a crossing (C9) but not, here, for a hand reaching
+ * between its floors - read in the plan, not yet measured on a v14 scene.
  */
 export function sameRoom(a, b) {
     const here = locateActor(a);
     const there = locateActor(b);
     if (!here?.room || !there?.room) return false;
     if (here.scene?.id !== there.scene?.id) return false;
+    if (levelKey(here.level) !== levelKey(there.level)) return false;
     return here.room === there.room;
 }
+
+/** A floor as `locateActor` hands it - an id or a Level document - as one comparable id. */
+const levelKey = level => level?.id ?? level ?? null;
 
 /**
  * Does this token count as a person standing in a room?
@@ -1403,18 +1399,26 @@ export function sameRoom(a, b) {
  *             fiction is concerned.
  */
 function countsAsPresent(token) {
-    const actor = token?.actor;
+    // A placeable (`occupantsOf`) or a token document (`othersInNamedRoom`, since E12 C3).
+    const doc = token?.document ?? token;
+    const actor = doc?.actor;
     if (!actor || actor.type !== "character") return false;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
     if (isDeadForGm(actor)) return false;
-    return !token.document.hidden;
+    return !doc.hidden;
 }
 
-/** Every *student* sharing a room with this one. See `countsAsPresent`. */
+/**
+ * Every *student* sharing a room with this one, on the scene `locateActor` puts
+ * them on. See `countsAsPresent`. It read the canvas's tokens until E12 C3, so a
+ * GM's browser counted the people in the room on the scene it was looking at -
+ * nobody, for a room on any other scene (scenario 66 F2: the lights judged a
+ * murder in a room of three as one with nobody to kill).
+ */
 export function othersInRoom(actor) {
-    const room = roomOfActor(actor);
-    if (!room) return [];
-    return othersInNamedRoom(room, actor);
+    const where = locateActor(actor);
+    if (!where?.room) return [];
+    return othersInNamedRoom(where.room, actor, where.scene);
 }
 
 /**
@@ -1424,17 +1428,22 @@ export function othersInRoom(actor) {
  * Split out for E21's "somebody is alone in the room" trigger, and the split is
  * the point rather than a convenience. That trigger is answered from a crossing
  * event which already says which room was entered; asking `othersInRoom(actor)`
- * would go back to the canvas for a second opinion on where the actor is, and
- * during a crossing those two can disagree - the token document has moved and
- * the placeable it is drawn from may not have caught up. The event is the more
- * reliable witness, so the caller passes what it knows.
+ * would ask a second time where the actor is, and during a crossing those two
+ * could disagree - written when the second answer came from the canvas
+ * placeable, which had not always caught up with the moved token document. The
+ * event is the more reliable witness, so the caller passes what it knows.
+ *
+ * Counted on a scene's token documents since E12 C3: the one handed in, else
+ * the actor's (`locateActor`), else `homeScene()` - never the camera's.
  */
-export function othersInNamedRoom(room, actor = null) {
+export function othersInNamedRoom(room, actor = null, scene = null) {
     if (!room) return [];
-    return (canvas?.tokens?.placeables ?? [])
-        .filter(t => !actor || t.actor?.id !== actor.id)
+    // The scene handed in; else the actor's; else the school (E12 C3) - never the camera's.
+    const on = scene ?? (actor ? locateActor(actor)?.scene : null) ?? homeScene();
+    return Array.from(on?.tokens ?? [])
+        .filter(t => !actor || t.actorId !== actor.id)
         .filter(countsAsPresent)
-        .filter(t => roomOfToken(t.document) === room)
+        .filter(t => roomOfToken(t) === room)
         .map(t => t.actor);
 }
 
