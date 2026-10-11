@@ -687,10 +687,10 @@
       "critPrompt": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
       "critNothingMore": "Nic więcej do dodania",
       "analyseBulletHint": {
-        "one": "Ustal, czym naprawdę jest twój jedyny niezidentyfikowany Truth Bullet.",
-        "few": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
-        "many": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
-        "other": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów."
+        "one": "Ustal, czym naprawdę jest twój jedyny nieprzeanalizowany Truth Bullet.",
+        "few": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+        "many": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów.",
+        "other": "Ustal, czym naprawdę jest jeden z twoich {n} nieprzeanalizowanych Truth Bulletów."
       },
       "askHintHint": "Brak dowodów w ręku - poproś GM-a, by cię gdzieś skierował.",
       "findStash": "Znajdź ukrytą skrytkę",
@@ -857,7 +857,7 @@
       "started": "Final Trial się rozpoczął.",
       "ended": "Flaga Final Trial zdjęta.",
       "finalTruthPlaced": "Final Truth Remnant został już umieszczony w tym rozdziale.",
-      "finalTruthReminder": "W tym rozdziale nie ma jeszcze Final Truth Remnant. Jeden na rozdział, wskazujący Masterminda - postaw go zwykłymi narzędziami do Remnantów, typ „Final Truth Remnant”.",
+      "finalTruthReminder": "W tym rozdziale nie ma Final Truth Remnant. Dodaj go poniżej - wskazuje Masterminda.",
       "verdictTitle": "Werdykt Final Trial",
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
@@ -881,8 +881,8 @@
       "finalAnnounce": "To ostatni. Na stole leży wszystko, co wam powiedziano o tym miejscu - i ten, kto wam to mówił.",
       "finalRemnantsTitle": "Final Truth Remnants",
       "finalRemnantsNote": "Remnanty, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
-      "noFinals": "Jeszcze nic nie postawiono.",
-      "finalAddNote": "Zostaw pokój pusty, by niczego nie zmieniać. Remnant staje na scenie, na którą patrzysz, gdzieś wewnątrz pokoju.",
+      "finalPickRoom": "Wybierz pokój, by go postawić",
+      "finalAddNote": "Zapisz stawia go na scenie, na którą patrzysz, gdzieś wewnątrz wybranego pokoju. Bez wybranego pokoju Zapisz niczego nie stawia.",
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Floor": {
@@ -1880,10 +1880,10 @@
       "optNextMorning": "Otwórz następny rozdział rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami",
       "moved": "Zegar wskazuje teraz rozdział {chapter}, sesję {session}.",
       "typeless": {
-        "one": "1 Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie. Ustaw go w Daj / zabierz przedmioty.",
-        "few": "{n} Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty.",
-        "many": "{n} Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty.",
-        "other": "{n} Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie. Ustaw je w Daj / zabierz przedmioty."
+        "one": "1 nieprzeanalizowany Truth Bullet nie ma zapisanego prawdziwego typu, więc ujawnienie go nie tknie - ma go {who}. Ustaw go w Daj / zabierz przedmioty.",
+        "few": "{n} nieprzeanalizowane Truth Bullets nie mają zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty.",
+        "many": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty.",
+        "other": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Ustaw je w Daj / zabierz przedmioty."
       },
       "optSweep": "Zbierz Truth Bullets ({n} zniknie, Faint i Final zostają)",
       "optFaint": "Wyczyść Faint Remnants ({n} zniknie)",
@@ -1906,7 +1906,8 @@
         "many": "Zdjęto z mapy {n} Key Remnants.",
         "other": "Zdjęto z mapy {n} Key Remnants."
       },
-      "optEndTrial": "Zamknij Class Trial i przywróć salę do Daily Life",
+      "optEndTrial": "Zamknij Class Trial i przywróć wszystkich do Daily Life",
+      "finalTruthMissing": "W tym rozdziale nie postawiono Final Truth Remnant. Jeden na rozdział wskazuje Masterminda: postaw go w Sprawa > Investigation, w zakładce Final Truth Remnants.",
       "doneEndTrial": "Class Trial zamknięty; kampania wraca do Daily Life.",
       "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
       "doneInvestigationOver": "Investigation zakończone; kampania wraca do Daily Life.",
@@ -3732,10 +3733,10 @@
         "keyPlan": "Plan Key Remnants",
         "searchTokens": "Search Tokens wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
-        "bodyFound": "Znalezione ciało, które czeka na odpowiedź",
+        "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
         "deaths": "Śmierci i Monocuby - zmarli wracają, a Health i Sanity każdego ucznia są znów pełne",
         "items": "Co nosi obsada - klucz do każdej sypialni od razu wraca do jej właściciela",
-        "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza",
+        "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza, i doświadczenia, które dodał Level Up",
         "actions": "Budżet akcji odnowiony, a odpoczynki i okno zdrady każdego ucznia wyczyszczone",
         "preNotes": "Notatki przed sesją dla GM-ów",
         "sheetNotes": "Notatki, które obsada zapisała na własnych arkuszach",

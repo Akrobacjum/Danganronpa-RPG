@@ -2689,6 +2689,14 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     margin-block: 0.3rem;
 }
 
+/* A box that cannot be ticked reads as one (E11 C13, 1.2.73; audit S13-06): the End of chapter window's
+   disabled boxes kept full white labels, so "nothing to do here" looked like an offer. Half the label's
+   ink, as the audit asked; what it looks like in each theme is not measured here (the harness lays out
+   nothing) - LIVE-E11-08. */
+.drpg-panel .drpg-checkbox:has(> input:disabled) {
+    opacity: 0.5;
+}
+
 /* ==========================================================================
    PIXEL FONT  (opt-in: "Pixel font" in module settings)
    --------------------------------------------------------------------------

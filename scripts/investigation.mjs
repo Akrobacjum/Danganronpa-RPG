@@ -1894,8 +1894,19 @@ function caseKeyPanel({ plan, status, placed, limit }) {
     </div>`;
 }
 
-/** The Final Key Remnant tab: what is placed, who has it, and the form to plant one. */
-function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
+/**
+ * The Final Key Remnant tab: what is placed, who has it, and the form to plant one.
+ *
+ * ONE EMPTY STATE, AND A FORM THAT SAYS WHAT IT DOES (E11 C13, 1.2.73; audit S13-08; tier 1 R358). With nothing
+ * placed the tab said "None placed yet.", then a box telling the GM to drop a Final Truth Remnant "with the ordinary
+ * Remnant tools", with this tab's own form right under it, then "Leave the room empty to change nothing" over a Room
+ * field whose empty option read "-": three ways in and the GM could not tell which was meant. Now an empty list says
+ * nothing of its own and the reminder is the one empty state, pointing at the form below. The plan asked for a Room
+ * field with no empty option; it keeps one, named for what it does: the form rides the dashboard's one Save
+ * (`placeFinalFromDashboard` runs on any Save whose `finalRoom` is set, read in the code), so a field that always
+ * held a room would place a Final on every Save of a trace or a Key row. Exported for R358.
+ */
+export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter }) {
     return `<div data-drpg-panel="final" style="display:none">
         <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
         ${(() => {
@@ -1917,14 +1928,14 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
                             ? esc(who.join(", "))
                             : `<em>${game.i18n.localize("DRPG.Investigation.finalNobody")}</em>`}</span>
                 </li>`; }).join("")}</ul>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
+                : "";
         })()}
         <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
             finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
                 : "DRPG.Mastermind.finalTruthReminder")}</p>
         <label>${game.i18n.localize("DRPG.Investigation.room")}
             <select name="finalRoom">
-                <option value="">-</option>
+                <option value="">${esc(game.i18n.localize("DRPG.Mastermind.finalPickRoom"))}</option>
                 ${roomOptions}
             </select></label>
         <label>${game.i18n.localize("DRPG.Investigation.visibility")}

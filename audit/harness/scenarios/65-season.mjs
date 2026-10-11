@@ -58,6 +58,8 @@
  *   S  last season's chapter 1 (C12): in chapter 1 a Key Remnant, a Final Truth, a Faint Prep trace and a motive, a
  *      reset of the clock alone, then a Key Remnant and a Faint Prep trace of the new season: the Final Truth placed,
  *      the motive in force, the Faint Prep question, the End of chapter window's Key count, a death's tie, the chapter's end.
+ *   W  the End of chapter window (C13): a Truth Bullet with no answer key on Aiko, the window opened and cancelled - the
+ *      reveal box and its count against what the reveal would do, and whether the warning names who holds the bullet.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -74,7 +76,7 @@
  * one timed - still no `timeoutMs`. E11 C11 (11.10.2026): 31 checks, 47.5 s, 57.1 s with the boot, in one
  * run beside other trees' harnesses on the same machine - still none. E11 C12 (11.10.2026): with S, 32 checks took
  * 42.6-43.5 s in five runs beside other trees' harnesses (one green, one with a draft's misread tie, three
- * mutants) - still none.
+ * mutants) - still none. E11 C13 (11.10.2026): with W, 33 checks took 43.3 s in one run - still none.
  */
 export const layers = ["ci"];
 // The second GM of G3 (E11 C8), as 61 declares its own.
@@ -822,4 +824,32 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, connect, 
             && seasonAfter.chapter === 1 && seasonAfter.final === false && seasonAfter.motive === null && J(seasonAfter.offered) === "[4]"
             && seasonAfter.box === 1 && J(seasonAfter.tied) === J([null, true]) && seasonAfter.taken === 1 && J(seasonAfter.standing) === J([true, false]),
         J({ seasonBefore, seasonReset, seasonAfter }), { flow: "season-reset" });
+
+    phase("W: the End of chapter window over a Truth Bullet nobody can reveal", { flow: "clock-day" });
+    /* E11 C13 (audit S13-06). A Truth Bullet the GM makes on Aiko with no answer key - what the window's warning counts:
+       not analysed, no real type recorded - and the End of chapter window opened over it and answered Cancel. Read: the
+       reveal box (ticked, disabled) and the count on it, against what the reveal would do (`revealPlan`), and whether the
+       warning names Aiko. Before C13 the box was ticked whatever it counted, and the warning said how many and not whose. */
+    const endWindow = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const [made] = await aiko.createEmbeddedDocuments("Item", [{ name: "65 W a bullet with no answer key", type: "loot",
+            flags: { "${MOD}": { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+        try {
+            const plan = C.revealPlan();
+            let seen = null;
+            globalThis.__dialogAnswers.push(config => {
+                const c = config?.content, div = typeof c === "string" ? Object.assign(document.createElement("div"), { innerHTML: c }) : c;
+                const box = div?.querySelector?.('input[name="reveal"]');
+                seen = { checked: box?.checked ?? null, disabled: box?.disabled ?? null,
+                    label: box?.closest("label")?.textContent?.replace(/\\s+/g, " ").trim() ?? null,
+                    warning: (div?.querySelector?.("[data-drpg-typeless]") ?? div?.querySelector?.(".drpg-warning"))?.textContent ?? null };
+                return null; });
+            await C.openChapterEndDialog();
+            return { hidden: plan.reveal.length, typeless: plan.typeless, name: aiko.name, seen };
+        } finally { await made?.delete(); }`, { timeout: 60000 });
+    const offered = Number(/\((\d+)/.exec(endWindow.seen?.label ?? "")?.[1] ?? NaN);
+    check("W1: the End of chapter window offers the reveal only when there is something to reveal, counts what the reveal would do, and names who holds the bullet it cannot touch (E11 C13)",
+        endWindow.seen !== null && endWindow.typeless >= 1 && offered === endWindow.hidden
+            && endWindow.seen.checked === (endWindow.hidden > 0) && endWindow.seen.disabled === (endWindow.hidden === 0)
+            && String(endWindow.seen.warning ?? "").includes(endWindow.name), J({ endWindow, offered }), { flow: "clock-day" });
 }

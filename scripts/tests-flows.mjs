@@ -231,8 +231,12 @@ export const FLOWS = Object.freeze([
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
+    // E11 C13 (11.10.2026): covered. 65-season drives `resetSeason` through its window on a world holding a season (E11 C0-C12:
+    // phases A, D, R, F, G, P and S, whose 28 checks carry this flow) and reads the world after it. 61-gmstore-case resets
+    // too (three `resetSeason` calls), but tags those checks gm-store, the flow it is about, so it is no longer named here:
+    // tools/registry.mjs asks a covered flow's scenarios to tag a check with it.
     { id: "season-reset", what: "The season reset, from the GM panel",
-        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["61-gmstore-case", "65-season"], status: "planned", stage: "E40" },
+        entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: ["65-season"], status: "covered", stage: "1.2.73" },
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",

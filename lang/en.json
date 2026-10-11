@@ -700,8 +700,8 @@
       "critPrompt": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
       "critNothingMore": "Nothing more to add",
       "analyseBulletHint": {
-        "one": "Work out what your one unidentified Truth Bullet really is.",
-        "other": "Work out what one of your {n} unidentified Truth Bullets really is."
+        "one": "Work out what your one Truth Bullet not analysed yet really is.",
+        "other": "Work out what one of your {n} Truth Bullets not analysed yet really is."
       },
       "askHintHint": "No evidence in hand - ask the GM to point you somewhere instead.",
       "findStash": "Locate a hidden stash",
@@ -868,7 +868,7 @@
       "started": "The Final Trial has begun.",
       "ended": "The Final Trial flag is cleared.",
       "finalTruthPlaced": "A Final Truth Remnant has already been placed this chapter.",
-      "finalTruthReminder": "No Final Truth Remnant this chapter yet. One a chapter, pointing at the Mastermind - drop it with the ordinary Remnant tools, type “Final Truth Remnant”.",
+      "finalTruthReminder": "No Final Truth Remnant this chapter. Add one below - it points at the Mastermind.",
       "verdictTitle": "Final Trial verdict",
       "verdictIntro": "Only you know whether the vote named the Mastermind. Say who was accused and pick the outcome.",
       "alreadyDeadNote": "The Mastermind died earlier this season. The same rule applies whoever was accused: reveal the truth, execute nobody new.",
@@ -892,8 +892,8 @@
       "finalAnnounce": "This is the last one. Everything you have been told about this place is on the table, and so is whoever has been telling it to you.",
       "finalRemnantsTitle": "Final Truth Remnants",
       "finalRemnantsNote": "The Remnants the endgame turns on. Their type reinforces them, so nobody can clean one away.",
-      "noFinals": "None placed yet.",
-      "finalAddNote": "Leave the room empty to change nothing. The Remnant is placed on the scene you are looking at, somewhere inside the room.",
+      "finalPickRoom": "Pick a room to place it",
+      "finalAddNote": "Save places it on the scene you are looking at, somewhere inside the room you pick. With no room picked, Save places none.",
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
     "Floor": {
@@ -1827,8 +1827,8 @@
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
-        "one": "1 Truth Bullet has no real type recorded, so revealing cannot touch it. Set it from Give / take items.",
-        "other": "{n} Truth Bullets have no real type recorded, so revealing cannot touch them. Set them from Give / take items."
+        "one": "1 Truth Bullet not analysed has no real type recorded, so revealing cannot touch it - {who} holds it. Set it from Give / take items.",
+        "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Set them from Give / take items."
       },
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",
@@ -1836,7 +1836,8 @@
       "doneSweep": { "one": "Collected {n} Truth Bullet.", "other": "Collected {n} Truth Bullets." },
       "doneFaint": { "one": "Cleared {n} Faint Remnant.", "other": "Cleared {n} Faint Remnants." },
       "doneKeys": { "one": "Took {n} Key Remnant off the map.", "other": "Took {n} Key Remnants off the map." },
-      "optEndTrial": "Close the trial and put the room back into Daily Life",
+      "optEndTrial": "Close the trial and return everyone to Daily Life",
+      "finalTruthMissing": "No Final Truth Remnant was placed this chapter. One a chapter points at the Mastermind: place it from The case > Investigation, on the Final Truth Remnants tab.",
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
       "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
       "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
@@ -3541,10 +3542,10 @@
         "keyPlan": "The Key Remnant plan",
         "searchTokens": "Search tokens spent in each room",
         "discovered": "Which rooms have been discovered",
-        "bodyFound": "The body waiting to be answered",
+        "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
         "deaths": "Deaths and Monocubs - the dead come back, and every student's Health and Sanity whole again",
         "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
-        "advancement": "Advancement - traits and maxima back to the starting sheet",
+        "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
         "actions": "The action budget refilled, and each student's rests and betrayal window cleared",
         "preNotes": "The GMs' pre-session notes",
         "sheetNotes": "The notes the cast wrote on their own sheets",

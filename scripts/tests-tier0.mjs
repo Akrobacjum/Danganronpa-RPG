@@ -1740,7 +1740,9 @@ const REGRESSIONS = [
         ok(/export async function closeTrial\s*\(/.test(ui),
             "trial-floor-ui.mjs no longer exports `closeTrial`, so nothing but its own "
             + "button can put the room back into Daily Life");
-        ok(/name="endTrial"/.test(chapter),
+        /* E11 C13 (11.10.2026): the window's form is `chapterEndForm`, whose `box(name, n)` helper writes the
+           `<input name=...>` once for every box, so the box is named at its call and not in a literal. */
+        ok(/name="endTrial"/.test(chapter) || /\bbox\("endTrial"/.test(chapter),
             "the End of chapter screen has lost the checkbox that offers to close the "
             + "trial, so the step below can only be reached from the console");
         ok(/trialProgressChapter/.test(panel),

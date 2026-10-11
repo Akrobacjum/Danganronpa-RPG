@@ -1330,17 +1330,22 @@ function allBullets(actors = null) {
  * one in this one synchronous pass before the first write. The set is every character's bullets on this browser
  * (`allBullets`), by design: a bullet whose answer key names no kind is passed over, so an item a player made, which
  * has no answer key, is never revealed (read in the code). Answers `reveal` (the item, its answer key and the held
- * copy, for `publishReading`) and `typeless`, the bullets still unanalysed whose answer key names no kind, which the
- * panel warns of.
+ * copy, for `publishReading`), `typeless`, the bullets still not analysed whose answer key names no kind, which the
+ * panel warns of, and `typelessHolders`, the names of the characters holding them, which the warning gives (E11 C13,
+ * audit S13-06: "2 Truth Bullets have no real type recorded" sent the GM looking through every sheet for them).
  */
 export function revealPlan({ actors = null } = {}) {
-    if (!game.user.isGM) return { reveal: [], typeless: 0 };
+    if (!game.user.isGM) return { reveal: [], typeless: 0, typelessHolders: [] };
     const reveal = [];
     let typeless = 0;
-    for (const { item } of allBullets(actors)) {
+    const holders = new Set();
+    for (const { actor, item } of allBullets(actors)) {
         const held = bulletAsHeld(item), secret = secretOf(item.uuid);
         if (!secret.realType) {
-            if (!held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) typeless++;
+            if (!held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) {
+                typeless++;
+                holders.add(actor.name);
+            }
             continue;
         }
         if (secret.realType === "final") {
@@ -1352,7 +1357,7 @@ export function revealPlan({ actors = null } = {}) {
             && held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) continue;
         reveal.push({ item, secret, held });
     }
-    return { reveal, typeless };
+    return { reveal, typeless, typelessHolders: [...holders] };
 }
 
 /**
@@ -1529,6 +1534,62 @@ function backupReminder() {
     });
 }
 
+/**
+ * THE END OF CHAPTER WINDOW'S FORM, FROM ITS COUNTS (E11 C13, 1.2.73; audit S13-06; tier 1 R357, scenario 65 W1).
+ *
+ * The audit's screenshot showed one window and three numbers for the same bullets: "Reveal ... (0 still
+ * unidentified)", ticked, over a box saying "2 Truth Bullets have no real type recorded", while the
+ * Investigation dashboard's column read "NOT ANALYSED 2" - and the GM could not tell whether the reveal would do
+ * anything. Since E09 C8 the option has counted what the reveal does (`revealPlan`); what was left is that it stayed
+ * ticked and live at 0, and that the box said how many and not whose. Now every box here follows one rule: a box
+ * whose count is 0 is unticked and disabled, the reveal's as the three clean-ups' always were; and the warning
+ * names the characters holding the bullets it counts, in the dashboard's own term ("not analysed"). Pure: the
+ * counts come in, so R357 reads it on numbers it chooses and `openChapterEndDialog` on the world's.
+ */
+export function chapterEndForm({ chapter, session, day, hidden = 0, typeless = 0, holders = [], sweepable = 0,
+    faintable = 0, keyable = 0, trialSitting = false, lastChapter = false, finalTruthPlaced = false, backup = "" } = {}) {
+    const box = (name, n) => `<input type="checkbox" name="${name}"${n ? " checked" : " disabled"} />`;
+    return `<form>
+            <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter })}</p>
+            <label class="drpg-checkbox">
+                ${box("reveal", hidden)}
+                ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
+            ${typeless ? `<p class="notes drpg-warning" data-drpg-typeless>${
+                plural("DRPG.Chapter.typeless", { n: typeless, who: esc(holders.join(", ")) })}</p>` : ""}
+            <hr />
+            <label class="drpg-checkbox">
+                ${box("sweep", sweepable)}
+                ${game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable })}</label>
+            <label class="drpg-checkbox">
+                ${box("faint", faintable)}
+                ${game.i18n.format("DRPG.Chapter.optFaint", { n: faintable })}</label>
+            <label class="drpg-checkbox">
+                ${box("keys", keyable)}
+                ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
+            <hr />
+            <label class="drpg-checkbox">
+                ${box("endTrial", trialSitting)}
+                ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
+                ${game.i18n.format("DRPG.Chapter.optNextChapter", { from: chapter, to: chapter + 1 })}</label>
+            ${lastChapter ? `<p class="notes drpg-warning">${game.i18n.format("DRPG.Chapter.lastChapter", {
+                    n: chapter, next: chapter + 1 })}</p>` : ""}
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextSession" checked />
+                ${game.i18n.format("DRPG.Chapter.optNextSession", { from: session, to: session + 1 })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextMorning" checked />
+                ${game.i18n.format("DRPG.Chapter.optNextMorning", { day: day + 1 })}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
+            <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
+                finalTruthPlaced ? "DRPG.Mastermind.finalTruthPlaced" : "DRPG.Chapter.finalTruthMissing")}</p>
+            <p class="notes">${esc(backup)}
+                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupTile"))}</button></p>
+        </form>`;
+}
+
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -1563,7 +1624,7 @@ export async function openChapterEndDialog() {
     // tool had worked. And the difference is worth saying out loud rather than
     // swallowing: a bullet nobody assigned a type to is a loose end, not a
     // rounding error (`typeless`).
-    const { reveal: revealable, typeless } = revealPlan();
+    const { reveal: revealable, typeless, typelessHolders } = revealPlan();
     const hidden = revealable.length;
 
     const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
@@ -1602,50 +1663,11 @@ export async function openChapterEndDialog() {
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter: getClock().chapter })}</p>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="reveal" checked />
-                ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.revealKeeps")}</p>
-            ${typeless ? `<p class="notes drpg-warning">${
-                plural("DRPG.Chapter.typeless", { n: typeless })}</p>` : ""}
-            <hr />
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="sweep"${sweepable ? " checked" : " disabled"} />
-                ${game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable })}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="faint"${faintable ? " checked" : " disabled"} />
-                ${game.i18n.format("DRPG.Chapter.optFaint", { n: faintable })}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="keys"${keyable ? " checked" : " disabled"} />
-                ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
-            <hr />
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="endTrial"${trialSitting ? " checked" : " disabled"} />
-                ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
-                ${game.i18n.format("DRPG.Chapter.optNextChapter", {
-                    from: getClock().chapter, to: getClock().chapter + 1 })}</label>
-            ${lastChapter ? `<p class="notes drpg-warning">${game.i18n.format("DRPG.Chapter.lastChapter", {
-                    n: getClock().chapter, next: getClock().chapter + 1 })}</p>` : ""}
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="nextSession" checked />
-                ${game.i18n.format("DRPG.Chapter.optNextSession", {
-                    from: getClock().session, to: getClock().session + 1 })}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="nextMorning" checked />
-                ${game.i18n.format("DRPG.Chapter.optNextMorning", {
-                    day: (getClock().day ?? 1) + 1 })}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
-            <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
-                finalTruthPlaced
-                    ? "DRPG.Mastermind.finalTruthPlaced"
-                    : "DRPG.Mastermind.finalTruthReminder")}</p>
-            <p class="notes">${esc(backupReminder())}
-                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupTile"))}</button></p>
-        </form>`),
+        content: dialogContent(chapterEndForm({
+            chapter: getClock().chapter, session: getClock().session, day: getClock().day ?? 1,
+            hidden, typeless, holders: typelessHolders, sweepable, faintable, keyable, trialSitting, lastChapter,
+            finalTruthPlaced, backup: backupReminder()
+        })),
         // The case's backup, from the window a chapter closes in (E04): the answer
         // keys it is about to reveal and sweep live in GM browsers, not the world.
         render: (event, dialog) => {

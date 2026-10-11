@@ -6268,6 +6268,64 @@ const INVARIANTS = [
         ]), "the count convicts a name short of the majority, calls a tie among names that carried the room a missing "
             + "majority, takes one name for two, or accuses somebody with nobody's ballot (each: the counts, "
             + "noMajority, tied, the accused, the majority)");
+    }],
+
+    ["R357 - the chapter end counts one thing once: a reveal with nothing to reveal is not offered, and the bullets it cannot touch are named by who holds them", async () => {
+        /*
+         * E11 C13, 11.10.2026; audit S13-06, the ledger's G-c (its C13 half). The audit's End of chapter window
+         * offered "Reveal ... (0 still unidentified)" ticked, over "2 Truth Bullets have no real type recorded",
+         * while the Investigation dashboard read "NOT ANALYSED 2": three numbers, and the GM could not tell
+         * whether pressing Do it would reveal anything, nor where the two were. Read on the window's form
+         * (chapter.mjs `chapterEndForm`, from counts this test chooses), twice: nothing to reveal and two bullets
+         * with no type, held by two characters; three to reveal and none without a type. Each reading is the
+         * reveal box [ticked, disabled], whether the warning names both holders, whether it says the dashboard's
+         * own term (`DRPG.Investigation.unidentified`, lower case; the count of 2 picks the Polish form that
+         * term is), and whether the box's label carries the count. The world's half - `revealPlan` naming a
+         * real holder, and the window counting what the reveal does - is scenario 65's W1.
+         */
+        const C = await import("./chapter.mjs");
+        ok(typeof C.chapterEndForm === "function",
+            "chapter.mjs has no chapterEndForm: the End of chapter window's form is not built from its counts");
+        const term = game.i18n.localize("DRPG.Investigation.unidentified").toLowerCase();
+        const read = counts => {
+            const div = document.createElement("div");
+            div.innerHTML = C.chapterEndForm({ chapter: 2, session: 7, day: 4, ...counts });
+            const input = div.querySelector('input[name="reveal"]');
+            const warning = (div.querySelector("[data-drpg-typeless]")?.textContent ?? "").toLowerCase();
+            return [input?.checked ?? null, input?.disabled ?? null,
+                warning.includes("suite aiko") && warning.includes("suite botan"), warning.includes(term),
+                new RegExp(`\\b${counts.hidden}\\b`).test(input?.closest("label")?.textContent ?? "")];
+        };
+        equal(JSON.stringify([read({ hidden: 0, typeless: 2, holders: ["Suite Aiko", "Suite Botan"] }), read({ hidden: 3 })]),
+            JSON.stringify([[false, true, true, true, true], [true, false, false, false, true]]),
+            "the End of chapter window offers a reveal with nothing to reveal, or keeps one it has, or its warning "
+            + "does not say whose bullets they are or in the dashboard's term (each: the reveal box ticked, disabled, "
+            + "both holders named, the term, the count on the box)");
+    }],
+
+    ["R358 - the Final Truth tab has one empty state, and its Room field says what picking a room does", async () => {
+        /*
+         * E11 C13, 11.10.2026; audit S13-08. With nothing placed the tab said "None placed yet.", then told the
+         * GM to drop one "with the ordinary Remnant tools", with its own form under it, and then "Leave the room
+         * empty to change nothing" over a Room field whose empty option read "-". Read on the tab's markup
+         * (investigation.mjs `caseFinalPanel`) with no Final Truth Remnant anywhere and none this chapter: the
+         * notes that are neither the tab's intro nor the form's own line (the empty states), and the Room
+         * field's empty option, which stays (the form rides the dashboard's one Save; see `caseFinalPanel`) and
+         * must say what picking does.
+         */
+        const I = await import("./investigation.mjs");
+        ok(typeof I.caseFinalPanel === "function", "investigation.mjs does not export caseFinalPanel, so it cannot be read");
+        const div = document.createElement("div");
+        div.innerHTML = I.caseFinalPanel({ roomOptions: `<option value="Suite room">Suite room</option>`, visOptions: "",
+            finalRemnants: () => [], finalTruthPlacedThisChapter: () => false });
+        const own = ["DRPG.Mastermind.finalRemnantsNote", "DRPG.Mastermind.finalAddNote"].map(key => game.i18n.localize(key));
+        const empty = [...div.querySelectorAll("p.notes")].map(p => p.textContent.trim()).filter(text => !own.includes(text));
+        const blank = div.querySelector('select[name="finalRoom"] option[value=""]');
+        equal(JSON.stringify([empty, (blank?.textContent ?? "").trim()]),
+            JSON.stringify([[game.i18n.localize("DRPG.Mastermind.finalTruthReminder")],
+                game.i18n.localize("DRPG.Mastermind.finalPickRoom")]),
+            "the empty Final Truth tab says more than one thing about being empty, or its Room field's empty option "
+            + "does not say what picking a room does (the empty states, then the empty option's words)");
     }]
 ];
 
