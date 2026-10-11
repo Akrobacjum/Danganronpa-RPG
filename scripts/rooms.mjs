@@ -268,7 +268,13 @@ export function placeRoomNames() {
  *   window      a GM's window about "this scene", through utils.mjs `workingScene()`;
  *   diagnose    a console readout of what this browser shows;
  *   own         a player's view of their own map (the rooms they have found there).
- * None is a rule: nothing listed decides what a roll, a stash, a token or a trace does.
+ * None is a rule: nothing listed decides what a roll, a stash, a token or a trace does, and no
+ * window listed writes on a scene its list did not show. Three did, until E12 fix r1-G2 (review
+ * round 1 CR1-2, CR1-5, EARLY-C5-1): the Trap plant listed the camera's rooms and keyed the plant
+ * on them while a Search takes it on the searcher's scene, the Mastermind window's lair list
+ * cleared a lair it did not show, and the Case dashboard's Final Truth listed the camera's rooms
+ * and placed on the school's. They list every place scene now and write on the room picked, and
+ * are not rows here. A row says only that a reader is allowed; R118 and tier 2 read what one does.
  * R382 reads every module file and fails on a reader not listed, a row whose function no
  * longer reads the camera, and a kind not one of the five. It reads `canvas.scene`,
  * `canvas.level`, `game.scenes.current`/`.viewed` and calls of the three functions; it does
@@ -305,10 +311,7 @@ export const CAMERA_READERS = Object.freeze({
     "investigation.mjs#openNewTrace": "window",
     "investigation.mjs#openKeyRemnantHere": "window",
     "investigation.mjs#placeKeyRow": "window",
-    "investigation.mjs#openInvestigationDashboard": "window",
-    "mastermind.mjs#openMastermindDialog": "window",
     "season-setup.mjs#steps": "window",
-    "traps.mjs#openPlantDialog": "window",
     "vault.mjs#openRoomSetupDialog": "window",
 
     "diagnostics.mjs#diagnoseVoice": "diagnose",

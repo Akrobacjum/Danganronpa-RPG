@@ -2917,15 +2917,23 @@ export async function openVaultInspector() {
        owner had stashed anywhere (`vaultContents`): a student with two stashes showed the same
        things twice, and a stash on another scene not at all (read in the code). Each place scene is a heading when there is more than one
        (the school first, rooms.mjs `placeScenes`), and a stash lists what lies in it
-       (`stashItemsIn` on that scene). */
+       (`stashItemsIn` on that scene).
+       ONCE, UNDER THE FIRST SCENE (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-2). A stashed
+       thing carries the name of its room (`ITEM_FLAGS.stashRoom`) and no scene, so a student with a
+       "Storage" stash on Floor 1 and another on the Annex had each thing listed under both, and an
+       unstamped one under each scene's primary stash. Which of the two holds it is not written
+       anywhere this window could read, so each thing is listed once: under the first scene in
+       `placeScenes`' order whose stash of its owner and room takes it, and not again below. */
     const scenes = placeScenes().map(scene => ({ scene, vaults: allVaults(scene).filter(v => v.owner) }));
+    const listed = new Set();
     if (!scenes.some(entry => entry.vaults.length)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noneSet"));
         return null;
     }
 
     const section = scene => v => {
-        const items = stashItemsIn(v.owner, v.room, scene);
+        const items = stashItemsIn(v.owner, v.room, scene).filter(i => !listed.has(`${v.owner.id}.${i.id}`));
+        items.forEach(i => listed.add(`${v.owner.id}.${i.id}`));
         const list = items.length
             ? items.map(i => `<li>${foundry.utils.escapeHTML(i.name)} - ${
                 foundry.utils.escapeHTML(

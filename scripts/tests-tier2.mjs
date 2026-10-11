@@ -459,6 +459,42 @@ async function withAnsweredWindows(answer, run) {
 }
 
 /**
+ * Every window `run` opens through DialogV2.wait answered through its own form (E12 fix r1-G2,
+ * 11.10.2026): the content is drawn into a detached element, `choose(element, n)` sets its fields
+ * (`n` counts the windows from 0) and answers true to press the default button, whose callback reads
+ * the drawn form as a click would, or false to close the window. A browser's form answers its
+ * controls by name (`form.room`) and jsdom's does not (measured 11.10.2026: `form.name` is the
+ * form's own name attribute there), so each named control is set on its form as that. Answers the
+ * elements drawn, in order; Foundry's own `wait` is put back.
+ */
+async function withFormAnswered(choose, run) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const drawn = [];
+    D.wait = async cfg => {
+        const element = document.createElement("div");
+        if (typeof cfg?.content === "string") element.innerHTML = cfg.content;
+        else if (cfg?.content) element.append(cfg.content.cloneNode(true));
+        for (const form of element.querySelectorAll("form")) {
+            for (const control of form.querySelectorAll("[name]")) {
+                Object.defineProperty(form, control.getAttribute("name"), { value: control, configurable: true });
+            }
+        }
+        drawn.push(element);
+        if (!choose(element, drawn.length - 1)) return null;
+        const button = (cfg?.buttons ?? []).find(b => b.default) ?? null;
+        return button?.callback ? button.callback(new Event("click"), button, { element }) : (button?.action ?? null);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own);
+        else delete D.wait;
+    }
+    return drawn;
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -47672,6 +47708,275 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1]),
             "a piece of a two-piece Kitchen renamed Pantry, and a one-piece Den renamed Study ([the Pantry's owner, stashes, long rest, table, lock, seal, "
             + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry])");
+    }],
+
+    ["the Case dashboard's Final Truth goes to the room picked on the scene picked whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-1 and CR1-6. The dashboard's Final Truth
+         * select listed the rooms of the scene on the GM's screen (`allRooms(workingScene())`) and Save
+         * handed the placement a room name only, which E12 C5 looks up on the school first
+         * (`sceneOfRoom`): a GM viewing the Annex who picked its Kitchen had the Final Truth placed in
+         * the school's Kitchen, and a room only the school has was not offered. Here a scene of the
+         * suite's own holds a room named as one of the school's; with the camera on it the dashboard
+         * is opened, that scene's room of the name is picked and Save pressed. Read: the scene the new
+         * Final Truth stands on, and whether every school room was offered. Red on 8eb3801: placed on
+         * the school, and the school's other rooms missing from the list.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        must(ROOM, "no scene holds a room - the school has nothing to place a Final Truth in");
+        let annex = null, reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-final-${foundry.utils.randomID(8)}`, async () => {
+            let placed = [];
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 the Annex", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's Annex - this would measure nothing");
+                const before = new Set(MM.finalRemnants().map(f => f.token.id));
+                let offered = [];
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const options = [...element.querySelectorAll('select[name="finalRoom"] option')];
+                    offered = options.map(o => o.value);
+                    const pick = options.find(o => o.value === ROOM && (o.dataset.scene ?? annex.id) === annex.id);
+                    if (pick) pick.selected = true;
+                    return Boolean(pick);
+                }, () => openInvestigationDashboard());
+                await settle();
+                placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
+                reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
+            } finally {
+                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.delete();
+                await home?.view();
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[annex.id], true]),
+            `the Case dashboard saved with the camera on a scene of the suite's own and its "${ROOM}" picked ([the scenes the new Final Truth stands on, `
+            + "whether every room of the school was offered])");
+    }],
+
+    ["a Trap plant ruled with another scene on screen is found by a Search in the project's room", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-2 and CR1-6. The plant window listed the
+         * rooms of the scene on the GM's screen and keyed the plant on it, while a Search takes a
+         * plant on the scene its searcher stands on (action-rolls.mjs `searchDraw`): a GM ruling a
+         * Trap whose project is in the school's room, with another map holding a room of that name
+         * on screen, found that room chosen and planted it there, and the Search in the school's
+         * room never found it. Here a project is made in a school room and a scene of the suite's
+         * own holds a room of the same name; with the camera on it the plant window is answered as
+         * drawn (the room it chose) with an item's name, and a Search's take is asked on the school.
+         * Read: the plant's name the take gets. Red on 8eb3801: nothing.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        const ITEM = "SUITE E12 fix r1-G2 a planted kit";
+        must(ROOM, "no scene holds a room - a project has nowhere to be");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-plant-${foundry.utils.randomID(8)}`, async () => {
+            let annex = null, id = null;
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 a room of the project's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                id = (await P.createProject({ name: "SUITE E12 fix r1-G2 a Trap", target: 6, room: ROOM }))?.id ?? null;
+                must(id, "could not create a project - this would measure nothing");
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's scene - this would measure nothing");
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const name = element.querySelector('input[name="name"]');
+                    if (name) name.value = ITEM;
+                    return Boolean(name);
+                }, () => T.openPlantDialog(id));
+                const taken = await T.takePlant(ROOM, school.id);
+                reading = [taken?.name ?? null];
+            } finally {
+                if (annex) await T.takePlant(ROOM, annex.id);
+                await home?.view();
+                if (id) await P.deleteProject(id);
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([ITEM]),
+            `a plant ruled with the camera on a scene of the suite's own holding a "${ROOM}", taken by a Search in the school's "${ROOM}" ([the plant's name])`);
+    }],
+
+    ["Season setup names a region nobody decided on a scene that is not on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-4 and CR1-6. The Pre-season row "every named
+         * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
+         * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
+         * suite's own holds one named region nobody marked, and the camera stays where it is; the
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         */
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
+        const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
+        const home = canvas?.scene ?? null;
+        let floor = null, reading = null;
+        try {
+            floor = await Scene.create({ name: "SUITE E12 fix r1-G2 a floor not on screen", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
+            await settle();
+            must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
+            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const row = [...(drawn[0]?.querySelectorAll(".drpg-setup-step") ?? [])].find(li => li.querySelector("strong")?.textContent === title);
+            must(row, "the checklist drew no row for the named regions - this would measure nothing");
+            reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
+        } finally {
+            await floor?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
+    }],
+
+    ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
+         * of the scene on the GM's screen, and Apply writes the select whenever it differs from the
+         * store: opened with a map on screen that has no room of the lair's name, the select read "-"
+         * and Apply cleared the lair. Here, in a GM-store world of the suite's own, a student is the
+         * Mastermind with a school room for a lair, then a lair no scene has; each time the window is
+         * opened with the camera on a scene of the suite's own (one room of another name) and applied
+         * as drawn. Read: the lair option the window chose (its label: a school room by its name, a
+         * lair on no scene marked so) and the lair after each. Red on 8eb3801: "-" chosen and the
+         * lair cleared both times.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const MM = await import("./mastermind.mjs");
+        const [student] = cast(1);
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const LAIR = school ? R.roomNames(school)[0] ?? null : null, GONE = "SUITE E12 fix r1-G2 a lair on no scene";
+        must(LAIR, "no scene holds a room - there is no lair to keep");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-lair-${foundry.utils.randomID(8)}`, async () => {
+            let other = null;
+            try {
+                other = await Scene.create({ name: "SUITE E12 fix r1-G2 a scene with no lair", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await other.createEmbeddedDocuments("Region", [{ name: "SUITE E12 fix r1-G2 a hall", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await other.view();
+                await settle();
+                must(canvas?.scene === other, "the camera did not move to the suite's scene - this would measure nothing");
+                reading = [];
+                for (const lair of [LAIR, GONE]) {
+                    await S.mastermindStore.patch("record", { actorId: student.id, room: lair });
+                    must(MM.mastermindActor()?.id === student.id && MM.mastermindLair() === lair, `${student.name} is not the Mastermind with "${lair}" for a lair - this would measure nothing`);
+                    let chosen = null;
+                    await withFormAnswered((element, n) => {
+                        chosen = n === 0 ? element.querySelector('select[name="lair"]')?.selectedOptions?.[0]?.textContent ?? null : chosen;
+                        return n === 0;
+                    }, () => MM.openMastermindDialog());
+                    await settle();
+                    reading.push([chosen, MM.mastermindLair()]);
+                }
+            } finally {
+                await home?.view();
+                await other?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[LAIR, LAIR], [game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE }), GONE]]),
+            "the Mastermind window applied as drawn with the camera on a scene with no room of the lair's name ([the lair option it chose, the lair after it], "
+            + "for a school room and for a room on no scene)");
+    }],
+
+    ["the stash window lists a thing once when its owner keeps stashes of one name on two scenes", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-2. A stashed thing carries its room's
+         * name and no scene, and since E12 C5 the stash window lists every place scene's stashes, each
+         * with what lies in it (`stashItemsIn` on its scene): a student with a "Storage" stash on two
+         * scenes had each thing in it listed twice. Here two scenes of the suite's own each hold a
+         * room of one name with the student's stash, and the student a thing stashed there. Read: how
+         * often the window names it. Red on 8eb3801: twice.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const [owner] = cast(1);
+        const STORE = "SUITE E12 fix r1-G2 Storage", ITEM = "SUITE E12 fix r1-G2 a stashed lamp";
+        const scenes = [];
+        let thing = null, reading = null;
+        try {
+            for (const name of ["SUITE E12 fix r1-G2 Floor 1", "SUITE E12 fix r1-G2 Floor 2"]) {
+                const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                scenes.push(scene);
+                await scene.createEmbeddedDocuments("Region", [{ name: STORE, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: false }] } }, behaviors: [] }]);
+            }
+            [thing] = await owner.createEmbeddedDocuments("Item", [moduleItemData(ITEM, { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: STORE })],
+                { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+            await settle();
+            must(scenes.every(scene => V.stashItemsIn(owner, STORE, scene).some(i => i.id === thing?.id)),
+                `${owner.name}'s stashed thing does not read as lying in "${STORE}" on both scenes - this would measure nothing`);
+            const drawn = await withFormAnswered(() => false, () => V.openVaultInspector());
+            reading = [(drawn[0]?.textContent ?? "").split(ITEM).length - 1];
+        } finally {
+            if (thing && owner.items.has(thing.id)) await thing.delete({ [AUDIT_ASIDE]: true });
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([1]), `the stash window with ${owner.name}'s "${STORE}" stash on two scenes and one thing in it ([how often it names the thing])`);
+    }],
+
+    ["the console's room setters take the room's scene and a placement that names no scene is told", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4. Since E12 C6 nothing defaults to the
+         * scene on screen, and `game.drpg`'s setters returned null in silence to a console or a macro
+         * that named no scene (scenarios 10 and 72 fell into it). The room setters take the room's
+         * scene now (`sceneOfRoom`, as `tokensLeft` does), and a placement, which names a point and no
+         * room to look a scene up by, warns the GM. Here a scene of the suite's own holds a room no
+         * other scene has; `game.drpg.setStash` is called for it with no scene, and
+         * `game.drpg.placeRemnant` with a point and no scene. Read: whether the stash was written, what
+         * the placement answered and how many warnings name it. Red on 8eb3801: no stash, no warning.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const [owner] = cast(1);
+        const LARDER = "SUITE E12 fix r1-G2 Larder";
+        const warned = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G2 the larder's scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: LARDER, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await settle();
+            must(R.sceneOfRoom(LARDER) === scene, `"${LARDER}" is not found on the suite's scene - this would measure nothing`);
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message ?? "")); return own?.value?.call(ui.notifications, message, ...rest); };
+            await game.drpg.setStash(LARDER, owner.id, { concealed: false });
+            const placed = await game.drpg.placeRemnant({ x: 100, y: 100, room: LARDER, type: "prep", visibility: "obvious" });
+            reading = [V.stashesIn(LARDER, scene).some(entry => entry.actorId === owner.id), placed ?? null,
+                warned.filter(m => m.includes("placeRemnant")).length];
+        } finally {
+            if (own) Object.defineProperty(ui.notifications, "warn", own);
+            else delete ui.notifications.warn;
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true, null, 1]),
+            `game.drpg.setStash for "${LARDER}" and game.drpg.placeRemnant at a point, both with no scene ([the stash written on the room's scene, what the placement answered, the warnings naming it])`);
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

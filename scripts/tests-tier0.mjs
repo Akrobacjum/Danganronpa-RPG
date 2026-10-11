@@ -9569,6 +9569,13 @@ const REGRESSIONS = [
          * parameter is not seen. Run as a node script on C5's base (e925ca2, 11.10.2026) it read 17
          * camera reads in these functions and two of them missing; on C5's tree, none.
          * The reader is run first on a fixture of one call that hands the scene and one that does not.
+         * E12 fix r1-G2 (11.10.2026; review round 1 CR1-6, EARLY-C5-1, CR1-2, CR1-5) adds the three
+         * windows whose list and write took two scenes: the Case dashboard's Final Truth (its markup,
+         * the dashboard and the placement it hands the picked option's scene), the Trap plant and
+         * the Mastermind window's lair, with the select they share (utils.mjs `placeRoomOptions`)
+         * and Season setup's undecided regions. On 8eb3801 this read `openPlantDialog`,
+         * `openMastermindDialog` and `openInvestigationDashboard` reading the camera; the harm
+         * itself (the list's scene is the write's) is read by four tier-2 tests of r1-G2.
          */
         const CAMERA = /\bcanvas\??\.(?:scene|level)\b|\bworkingScene\(|\bgame\.scenes\??\.(?:current|viewed)\b/g;
         const plain = text => stripStrings(stripComments(text));
@@ -9592,8 +9599,10 @@ const REGRESSIONS = [
             "projects-ui.mjs": ["openProjectManager", "openProjectDialog", "openCreateDialog"],
             "call-world.mjs": ["scheduleGather", "runPendingGather", "gatherEveryone", "gatherSceneOf"],
             "call-effects.mjs": ["gatherRefusal", "gatherEffect"], "call-pickers.mjs": ["pickRoom"],
-            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant"],
-            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"] };
+            "chapter.mjs": ["runDiscovery", "openBodyDiscoveryDialog"], "mastermind.mjs": ["placeFinalRemnant", "openMastermindDialog"],
+            "vault.mjs": ["openVaultInspector"], "gm-items.mjs": ["giveTruthBulletDialog", "bulletFromRemnant"],
+            "investigation.mjs": ["caseHtml", "openInvestigationDashboard", "placeFinalFromDashboard"],
+            "traps.mjs": ["openPlantDialog"], "utils.mjs": ["placeRoomOptions"], "season-setup.mjs": ["undecidedRegionNames"] };
         const sources = await moduleSources();
         must(Object.keys(ROADS).every(file => sources.get(file)?.length), "the roads' files are among the module's sources - this would measure nothing");
         // The fixture above is what proves this reader. It used to be shown `allVaults`,

@@ -150,6 +150,21 @@ function roomGuideHtml() {
     </div>`;
 }
 
+/**
+ * Every named region of every scene nobody has decided, once per name, as the Pre-season row
+ * names them: "Scene: Region" when they lie on more than one scene (E12 fix r1-G2, 11.10.2026;
+ * review round 1 CR1-4). The row read the scene on screen, so a GM viewing another floor saw it
+ * done while regions drawn on the school since the migration were nobody's rooms. Every scene
+ * rather than every place scene: a place scene is one that holds a room (rooms.mjs
+ * `isPlaceScene`), and a floor drawn since the migration with nothing marked holds none, so it
+ * would be the one left out.
+ */
+function undecidedRegionNames() {
+    const found = Array.from(game.scenes ?? []).flatMap(scene => unmarkedRegions(scene).map(region => ({ scene, region })));
+    const several = new Set(found.map(({ scene }) => scene)).size > 1;
+    return [...new Set(found.map(({ scene, region }) => several ? `${scene.name}: ${region.name}` : region.name))];
+}
+
 function steps() {
     const roster = studentActors();
     const clock = getClock();
@@ -342,8 +357,8 @@ function steps() {
              * This row names them; the button opens Room Setup on the tab with the column.
              */
             key: "roomsMarked",
-            done: unmarkedRegions(workingScene()).length === 0,
-            missing: () => [...new Set(unmarkedRegions(workingScene()).map(region => region.name))],
+            done: undecidedRegionNames().length === 0,
+            missing: undecidedRegionNames,
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
         },
         {

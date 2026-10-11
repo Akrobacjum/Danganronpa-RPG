@@ -248,6 +248,21 @@ import {
     log
 } from "./utils.mjs";
 
+/*
+ * A SHORTHAND WITH NO SCENE SAYS SO (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4). Since
+ * E12 C6 nothing a rule calls defaults to the scene on screen, and these five did nothing, in
+ * silence, for a console or a macro that named none (scenarios 10, 72 and 83 placed traces so
+ * until C6 handed them the scene). The
+ * three that name a room take the room's scene, the school's room of the name first, as
+ * `tokensLeft` does (rooms.mjs `sceneOfRoom`) - the answer the module gives everywhere it holds a
+ * name and no scene. `placeRemnant` names a point and `applySceneVisionMode` a scene, so there is
+ * nothing to look a scene up by: they, and a room no place scene has, are told to the GM instead.
+ */
+function sceneNamed(fn, scene) {
+    if (!scene && game.user?.isGM) ui.notifications.warn(game.i18n.format("DRPG.Panel.noSceneNamed", { fn }));
+    return scene ?? null;
+}
+
 export const DrpgApi = {
     /** Static rules data straight from the guide. */
     config: DRPG,
@@ -480,13 +495,15 @@ export const DrpgApi = {
     takeRest,
     roomAllows,
     restRooms,
-    setRestRoom,
+    setRestRoom: (roomName, options = {}) =>
+        setRestRoom(roomName, { ...options, scene: sceneNamed("setRestRoom", options.scene ?? sceneOfRoom(roomName)) }),
 
     /* ---- remnants & inventory ------------------------------------------ */
 
     /** Drop a Remnant where a character stands: hidden, translucent, under tokens. */
     dropRemnant,
-    placeRemnant,
+    placeRemnant: async (data = {}, options = {}) => (game.user.isGM && !sceneNamed("placeRemnant", data?.scene
+        ?? (data?.sceneId ? game.scenes.get(data.sceneId) : null))) ? null : placeRemnant(data, options),
     remnantsOn,
     remnantsInRoom,
     revealRemnant,
@@ -549,7 +566,8 @@ export const DrpgApi = {
     stashRoomsFor,
     stashItemsIn,
     primaryStashRoom,
-    setStash,
+    setStash: (room, actorId, options = {}) =>
+        setStash(room, actorId, { ...options, scene: sceneNamed("setStash", options.scene ?? sceneOfRoom(room)) }),
     allBedrooms,
     myStashHere,
     rifleStash: rifleStashDialog,
@@ -607,7 +625,8 @@ export const DrpgApi = {
     favoursCategory,
     roomHinders,
     hindersCategory,
-    setVaultRoom,
+    setVaultRoom: (room, options = {}) =>
+        setVaultRoom(room, { ...options, scene: sceneNamed("setVaultRoom", options.scene ?? sceneOfRoom(room)) }),
 
     /** Owner, concealment, table and favoured categories, on one screen. */
     roomSetup: openRoomSetupDialog,
@@ -1293,7 +1312,7 @@ export const DrpgApi = {
     /** Repaint now, after editing the fog table or a Region by hand. */
     repaintFog,
     /** GM: put this scene into room-based visibility (token vision off). */
-    applySceneVisionMode,
+    applySceneVisionMode: scene => applySceneVisionMode(sceneNamed("applySceneVisionMode", scene)),
     /** Primary GM: do the same for EVERY scene that has rooms drawn on it. */
     prepareScenes,
     /** GM: give one scene back the vision settings it had before the module. */

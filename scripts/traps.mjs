@@ -60,7 +60,7 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions } from "./utils.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
 import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
@@ -390,7 +390,7 @@ function plants() {
 /* A plant's key is the scene its caller names and the room. The scene fell back to the one the
    GM's browser was viewing (`game.scenes.current`) until E12 C3 (11.10.2026; audit S08-15), so a
    plant and its search keyed on two different scenes whenever the GM had moved the camera between
-   them. Now the caller names it: the plant window the scene whose rooms it listed, a search the
+   them. Now the caller names it: the plant window the scene of the room picked (fix r1-G2), a search the
    scene its token was spent on (search-tokens.mjs `takePlant`, whose default is C6's to move off
    the camera); a key with no scene is "-", the same for its plant and its take. */
 const plantKey = (room, sceneId) => `${sceneId ?? "-"}::${room}`;
@@ -530,15 +530,19 @@ export async function pruneTrapsFor(keep = null) {
 export async function openPlantDialog(projectId) {
     if (!game.user.isGM) return null;
 
-    const { metaFor } = await import("./projects.mjs");
-    const { allRooms } = await import("./movement.mjs");
+    const { metaFor, tokenRefOf } = await import("./projects.mjs");
+    const { sceneOfRoom } = await import("./rooms.mjs");
 
+    /* THE ROOM'S OWN SCENE (E12 fix r1-G2, 11.10.2026; review round 1 CR1-2). Since E12 C3 the
+       window listed the rooms of the scene on the GM's screen and keyed the plant on it, while a
+       Search takes a plant on the scene the searcher stands on: a GM ruling a Floor 1 Trap with the
+       Annex on screen found the project's room chosen in the Annex's list and planted it there, and
+       the Search in Floor 1's room never found it. Every place scene's rooms are listed now, the
+       project's room on the scene of its map token (else the school's room of the name, rooms.mjs
+       `sceneOfRoom`) chosen, and the plant is keyed on the scene of the option picked. */
     const meta = metaFor(projectId);
-    // The rooms of the scene on screen, and the plant keyed on that same scene (E12 C3).
-    const scene = canvas?.scene ?? null;
-    const rooms = allRooms(scene);
-    const roomOptions = rooms.map(r =>
-        `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");
+    const roomOptions = placeRoomOptions({ room: meta.room,
+        sceneId: tokenRefOf(projectId)?.sceneId ?? sceneOfRoom(meta.room)?.id ?? null });
 
     const DialogV2 = foundry.applications.api.DialogV2;
     const { dialogContent } = await import("./utils.mjs");
@@ -562,7 +566,8 @@ export async function openPlantDialog(projectId) {
                     const f = d.element.querySelector("form");
                     return {
                         name: f.name.value.trim(),
-                        room: f.room.value
+                        room: f.room.value,
+                        sceneId: f.room.selectedOptions?.[0]?.dataset.scene ?? null
                     };
                 }
             },
@@ -592,7 +597,7 @@ export async function openPlantDialog(projectId) {
      * that changed nothing. Storing the two dead fields would only invite the
      * next reader to believe they still decide something.
      */
-    await plantItem(projectId, answer.room, { sceneId: scene?.id ?? null, name: answer.name });
+    await plantItem(projectId, answer.room, { sceneId: answer.sceneId || null, name: answer.name });
 
     await import("./utils.mjs").then(m => m.whisperToGms(
         `<p>${game.i18n.format("DRPG.Trap.planted", {

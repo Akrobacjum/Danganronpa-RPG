@@ -4,7 +4,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
-import { viewedScene } from "./rooms.mjs";
+import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -266,6 +266,25 @@ export function plural(key, data = {}, countOn = "n") {
  */
 export function workingScene() {
     return viewedScene() ?? game.scenes.active ?? null;
+}
+
+/**
+ * A GM's room select that a write follows (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-1,
+ * CR1-2): every room of every place scene, grouped under its scene's name when there is more than
+ * one (the school first, rooms.mjs `placeScenes`), each option carrying its scene in `data-scene`,
+ * and the one of `room` on `sceneId` chosen. The Case dashboard's Final Truth and the Trap plant
+ * listed the rooms of the scene on screen and wrote elsewhere - the Final Truth on the school's room
+ * of the name (`sceneOfRoom`), the plant on the camera's while a Search takes it on the searcher's -
+ * so the list and the write took two scenes whenever the GM viewed another map. The window reads
+ * the chosen option's `data-scene` and hands that scene to its write.
+ */
+export function placeRoomOptions({ room = null, sceneId = null } = {}) {
+    const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    const option = (scene, r) => `<option value="${esc(r)}" data-scene="${esc(scene.id)}"${
+        r === room && scene.id === sceneId ? " selected" : ""}>${esc(r)}</option>`;
+    if (places.length === 1) return places[0].rooms.map(r => option(places[0].scene, r)).join("");
+    return places.map(({ scene, rooms }) => `<optgroup label="${esc(scene.name ?? scene.id)}">${
+        rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");
 }
 
 export function ownerOf(actor) {
