@@ -889,7 +889,7 @@ The gear in the bottom-right corner opens **Settings** (`scripts/look.mjs`): eve
 
 The same switches are in Foundry's module settings.
 
-Foundry's scene navigation, the Scenes tab of its sidebar and the macro hotbar stay on a GM's screen under both themes, and are hidden on a player's - on a GM's also when the module refused to start for a missing required module (whether Foundry v14 still loads the module's stylesheet then is not yet measured at a table: LIVE-E13-11).
+The Scenes tab of Foundry's sidebar stays on a GM's screen under both themes, and is hidden on a player's - on a GM's also when the module refused to start for a missing required module (whether Foundry v14 still loads the module's stylesheet then is not yet measured at a table: LIVE-E13-11). Foundry's scene navigation and the macro hotbar are hidden on every screen, a GM's included: scenes switch from the Scenes tab, and macros run from the Macro Directory.
 
 > [!TIP]
 > **Glass blurs the map** is the theme's most expensive effect: the first thing to turn off if the interface stutters, and `game.drpg.perf()` says what it costs on that machine.

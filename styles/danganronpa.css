@@ -7738,15 +7738,14 @@ html body {
 
 /* --- surfaces this game does not use ------------------------------------ */
 
-/* No macros for a player: every action in this game is a button on the sheet
-   or a tile in the GM panel, and the bar was 60px of screen explaining
-   nothing. The GM keeps it (E13 C7, 12.10.2026; S12-18): the repository
-   carries five macro scripts (macros/) and a GM's own macros need the bar,
-   which had gone for the GM as well. `drpg-gm-hotbar` is the element class
-   the GM's client puts on it (GM_CHROME in gm-panel.mjs), the scene
-   navigation's pattern below - hidden unless the class is there, so a client
-   the module never ran on hides it. */
-#hotbar:not(.drpg-gm-hotbar) {
+/* No macro bar for anybody: every action in this game is a button on the
+   sheet or a tile in the GM panel, and the bar was 60px of screen explaining
+   nothing. E13 C7 (12.10.2026; S12-18) gave it back to the GM by an element
+   class (`drpg-gm-hotbar`); the owner had it gone again the same day (DZ5,
+   "niepotrzebne", on a tablet), so it is hidden for everybody in every theme
+   as in 1.2.73. The five macros the repository carries (macros/) and a GM's
+   own run from the Macro Directory. */
+#hotbar {
     display: none !important;
 }
 
@@ -7872,7 +7871,9 @@ html body {
    scene the GM builds and links in Room Setup > Scenes (D7), so the GM keeps it
    in every theme (E13 C7, 12.10.2026; S12-18: until then only Stained Glass gave
    it back). A player has no tiles at all; the class is put on the button by the
-   GM's client (GM_CHROME in gm-panel.mjs), as on the scene navigation below. */
+   GM's client (GM_CHROME in gm-panel.mjs). Since DZ5 (the owner, 12.10.2026)
+   the scene navigation is hidden for the GM too, so this tab is now the GM's
+   one door to the scenes. */
 #sidebar-tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes),
 #sidebar .tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes) {
     display: none !important;
@@ -13788,54 +13789,23 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* ---- the scene button, and the rest of the left rail's geometry --------- */
 
-/* The scene navigation is the GM's - a player has one scene and no business
-   being reminded of the others. Hidden by DEFAULT and shown by the class the
-   GM's own client puts on it (GM_CHROME, gm-panel.mjs) - the fail-safe
-   direction: a client where the module never ran shows a player nothing
-   extra, and the ancestor-class trap documented on the rail above cannot
-   reopen it. */
+/* The scene navigation is hidden for everybody in every theme (DZ5, the
+   owner, 12.10.2026: "niepotrzebne"). A player has one scene and no business
+   being reminded of the others; the GM had it under Legacy by an element
+   class (`drpg-gm-nav`, E13 C7) and under Stained Glass not at all, and now
+   switches scenes from the Scenes tab, which stays the GM's (above). Its
+   dress rules (the scene buttons, the player dots) went with the class:
+   nothing shows the bar any more. */
 #scene-navigation {
-    display: none !important;
-}
-
-#scene-navigation.drpg-gm-nav {
-    display: flex !important;
-}
-
-/* Module dress for the scene buttons: transparent, red, a hairline - the
-   launcher's palette at rail volume. The player dots are hidden: who is
-   standing on which scene is the roster question again, and the corner
-   already stopped answering it (see the players gauge). */
-#scene-navigation .ui-control.scene {
-    background: transparent !important;
-    border: 1px solid rgba(var(--drpg-eye-rgb), 0.45) !important;
-    border-radius: 3px !important;
-    color: var(--drpg-eye) !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-}
-
-#scene-navigation .ui-control.scene:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.1) !important;
-    border-color: var(--drpg-eye) !important;
-    color: var(--drpg-eye-light) !important;
-}
-
-#scene-navigation .ui-control.scene.active {
-    border-color: var(--drpg-eye) !important;
-    color: var(--drpg-eye-light) !important;
-}
-
-#scene-navigation .scene-players {
     display: none !important;
 }
 
 /* The whole left flank starts where the right flank does. Measured: the
-   right column and the Despair bars sit at y=22, the left column and the
-   scene navigation at y=16 - six pixels of visible disagreement across the
-   top of the screen. Same top, same 16px side margins both flanks. */
-#ui-left-column-1,
-#scene-navigation {
+   right column and the Despair bars sit at y=22, the left column (and the
+   scene navigation, while it showed) at y=16 - six pixels of visible
+   disagreement across the top of the screen. Same top, same 16px side
+   margins both flanks. */
+#ui-left-column-1 {
     margin-top: 6px;
 }
 

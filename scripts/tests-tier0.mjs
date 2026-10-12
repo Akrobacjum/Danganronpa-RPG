@@ -10665,19 +10665,22 @@ const REGRESSIONS = [
                 `the ${lang} handbooks say of a rename, the stairs or a room's scene what the code does not do, a copied guide differs from its key, or an old sentence is back (each claim: [the code, ...its sentences])`);
         }
     }],
-    ["R438 - the Scenes tab, the scene navigation and the hotbar are shown to a GM in every theme and hidden for a player", async () => {
+    ["R438 - the Scenes tab is shown to a GM in every theme and hidden for a player; the scene navigation and the hotbar are hidden for everybody in every theme", async () => {
         /*
-         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab and the hotbar
-         * from everybody, the GM included, and Stained Glass alone gave the tab back to the GM - by a body class,
-         * the selector shape the rail's comment records as failing on a long-lived client - while taking the
-         * scene navigation away from the GM. Under Legacy a GM had no scene directory to build the trial hall in
-         * (D7). Each of the three is now hidden unless the element itself carries the class the GM's client puts
-         * on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides one of them
-         * either leaves out the GM's class (`:not(.drpg-gm-...)`) or has a twin - the same selector with the class
-         * on the element - that shows it; no rule hides the element WITH the class, and none shows it by a body
-         * class. The jsdom half (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
+         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab from everybody,
+         * the GM included, and Stained Glass alone gave it back to the GM - by a body class, the selector shape the
+         * rail's comment records as failing on a long-lived client. Under Legacy a GM had no scene directory to build
+         * the trial hall in (D7). The tab is now hidden unless the element itself carries the class the GM's client
+         * puts on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides it either
+         * leaves out the GM's class (`:not(.drpg-gm-scenes)`) or has a twin - the same selector with the class on the
+         * element - that shows it; no rule hides the element WITH the class, and none shows it by a body class.
+         * E13 C7 gave the GM the scene navigation and the hotbar the same way; DZ5 (the owner, 12.10.2026, E81 fix
+         * r1-G6) hides both for everybody in every theme again: the base sheet hides each with the element alone as
+         * the subject (no class, no `:not(`), NO rule in any sheet gives either a display other than none (whatever
+         * the selector, body class or element class), and GM_CHROME neither names nor re-stamps them. The jsdom half
+         * (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
          */
-        const TARGETS = [["#hotbar", "drpg-gm-hotbar"], ["#scene-navigation", "drpg-gm-nav"], ['[data-tab="scenes"]', "drpg-gm-scenes"]];
+        const TARGETS = [['[data-tab="scenes"]', "drpg-gm-scenes"]], HIDDEN = ["#hotbar", "#scene-navigation"];
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const rules = [];
         for (const href of manifest.styles ?? []) {
@@ -10709,20 +10712,27 @@ const REGRESSIONS = [
             }
             defaults[element] = hides.some(r => r.sheet === "styles/danganronpa.css" && !/(^|\s)body\b/.test(r.sel));
         }
+        for (const element of HIDDEN) {
+            const about = rules.filter(r => r.subject.includes(element));
+            for (const r of about.filter(r => r.display !== "none")) problems.push(`${r.sheet}: "${r.sel}" shows ${element} (display: ${r.display})`);
+            defaults[element] = about.some(r => r.sheet === "styles/danganronpa.css" && r.display === "none" && r.sel === element);
+        }
         equal(JSON.stringify({ defaults, problems }),
-            JSON.stringify({ defaults: Object.fromEntries(TARGETS.map(([element]) => [element, true])), problems: [] }),
-            "the base sheet no longer hides one of the three from a player, or a rule hides it from the GM in a theme");
+            JSON.stringify({ defaults: Object.fromEntries([...TARGETS.map(([element]) => element), ...HIDDEN].map(element => [element, true])), problems: [] }),
+            "the base sheet no longer hides the Scenes tab from a player or the navigation or the hotbar from everybody, or a rule shows the navigation or the hotbar, or hides the tab from the GM, in a theme");
 
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" }).split("\n");
+        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" });
         const mark = fnSource(panel, "markGmChrome");
         equal(JSON.stringify({
-            stamped: TARGETS.map(([element, cls]) => chrome.some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            stamped: TARGETS.map(([element, cls]) => chrome.split("\n").some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            unstamped: [...HIDDEN, "drpg-gm-hotbar", "drpg-gm-nav"].filter(name => chrome.includes(name)),
             gmOnly: /^\s*if \(!game\.user\?\.isGM\) return;/m.test(mark) && mark.indexOf("isGM") < mark.indexOf("classList.add"),
-            hooks: ["renderSidebar", "renderSceneNavigation", "renderHotbar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            hooks: ["renderSidebar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            unhooked: ["renderSceneNavigation", "renderHotbar"].filter(hook => panel.includes(`"${hook}"`)),
             launcher: /markGmChrome\(\)/.test(fnSource(panel, "injectLauncher"))
-        }), JSON.stringify({ stamped: [true, true, true], gmOnly: true, hooks: [true, true, true], launcher: true }),
-            "a GM's client no longer puts the class on one of the three, puts it on a player's, or stops doing it when the sidebar, the navigation or the hotbar draws again");
+        }), JSON.stringify({ stamped: [true], unstamped: [], gmOnly: true, hooks: [true], unhooked: [], launcher: true }),
+            "a GM's client no longer puts the class on the Scenes tab, puts it on a player's, stops doing it when the sidebar draws again, or names or re-stamps the navigation or the hotbar");
     }],
     ["R440 - the handbooks state the table's rule beside Start the Class Trial and in the player's trial, and name the trial hall's tab, doors and calls as the module does, in English and in Polish", async () => {
         /*

@@ -130,9 +130,9 @@ Hooks.once("init", () => {
      * Projects and characters worth protecting. See relay-guard.mjs.
      */
     safely("the Daggerheart relay guard", registerRelayGuard);
-    // Before the check as well, for the GM's own sake: the stylesheet hides the Scenes tab, the
-    // scene navigation and the hotbar unless this stamps them, and a module that stops below
-    // would otherwise take them from the GM too (E13 fix r1-F3; S12-18; R470). It reads no setting.
+    // Before the check as well, for the GM's own sake: the stylesheet hides the Scenes tab unless
+    // this stamps it, and a module that stops below would otherwise take it from the GM too (E13
+    // fix r1-F3; S12-18; R470). It reads no setting.
     safely("the GM's chrome", registerGmChrome);
 
     // THREE MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
