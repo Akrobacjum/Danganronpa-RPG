@@ -1852,9 +1852,10 @@ export function keepOpeningNotice(message) {
 export async function retireOpeningNotices() {
     const ids = Object.keys(castStore.record()?.openingNotices ?? {});
     if (!ids.length) return;
+    // Withdrawn: a request taken back leaves every browser's notice history as well as its screen (E81 C5).
     for (const id of ids) {
         try {
-            await game.messages.get(id)?.delete();
+            await game.messages.get(id)?.delete({ [MODULE_ID]: { withdraw: true } });
         } catch {
             // A card another GM cleared first is not a problem.
         }

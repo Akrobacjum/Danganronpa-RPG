@@ -20,8 +20,8 @@
  * THE STORE (E81 C1), THE CLEANING (C2) AND THE RECORDER (C3). Every card `showPopup` draws
  * is recorded here as it is drawn (popup.mjs, `record` and its siblings), its snapshot kept
  * up while the card is on screen and its state moved when it is closed (`updateNotice`); the
- * direct calls and `sayNotDone` are C4, the marks C5, giving way to the other stores C6 and
- * the window C7. What is here:
+ * direct calls and `sayNotDone` are C4, giving way to the other stores C6 and the window C7.
+ * What is here:
  * - the entry's shape and its budgets (a JSON length, never a byte count: the engine
  *   cannot read what a browser's quota counts);
  * - the epoch: a section written before the season's last reset is cleared when it is
@@ -32,7 +32,10 @@
  * - the suite's hold, under which nothing reaches the setting (`holdNoticeHistory`), and an
  *   entry recorded with `persist: "session"`, which this page keeps and never writes;
  * - the cleaning: what a card showed is kept as `inertCopy(cleanCardHtml(html))`, and drawn
- *   again only through `noticeSnapshot`, which cleans the stored string a second time.
+ *   again only through `noticeSnapshot`, which cleans the stored string a second time;
+ * - what happens to a card after it was shown (E81 C5): a card the module takes back is gone from
+ *   the history as from the screen, any other deletion leaves the entry marked `deleted`, and a
+ *   Reroll or a GM's ruling marks it `rerolled` or `settled` - a mark, never a new snapshot.
  *
  * WHAT ANOTHER LOGIN CAN READ. Every account's section is in one value of this browser's
  * storage, so anybody at this browser's console reads every section in it, a GM's and a
@@ -43,7 +46,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
 import { debug, warn } from "./utils.mjs";
-import { cleanCardHtml } from "./secret.mjs";
+import { cleanCardHtml, cardFlag } from "./secret.mjs";
+import { MESSENGER_FLAGS } from "./messenger.mjs";
 
 const FORMAT = 1;
 
@@ -74,10 +78,12 @@ export const EPOCH_GROUPS = Object.freeze(["clock", "incident", "cards", "chatRe
  * The texts an entry or the store's state carries; the window (E81 C7) draws them. `source` names where an entry
  * came from, for the three sources whose entry says it nowhere else (E81 C4; the A7 design's P12-3): a request
  * not carried out (its entry's title too, `sayNotDone`), a day summary and a player's card. A safeword entry
- * says it in its title (`DRPG.Safeword.banner`).
+ * says it in its title (`DRPG.Safeword.banner`). `mark` names what became of an entry's chat card after it was
+ * shown (E81 C5): deleted, rerolled or settled.
  */
 export const NOTICE_TEXTS = Object.freeze({
     notSaved: "DRPG.Notices.notSaved", clipped: "DRPG.Notices.clipped",
+    mark: Object.freeze({ deleted: "DRPG.Notices.mark.deleted", rerolled: "DRPG.Notices.mark.rerolled", settled: "DRPG.Notices.mark.settled" }),
     source: Object.freeze({ notDone: "DRPG.Notices.source.notDone", summary: "DRPG.Notices.source.summary", player: "DRPG.Notices.source.player" })
 });
 
@@ -331,7 +337,8 @@ export function noticeSnapshot(html, { gm = Boolean(game.user?.isGM) } = {}) {
  * value in memory.
  *
  * env: worldId(), userId(), isGM(), now(), randomId(), clock() -> the campaign clock,
- * userExists(id), clean(html) -> the html as it may be kept (the module's engine: `cleanNoticeHtml`),
+ * userExists(id), messageExists(id) -> whether the chat card is still in the log (optional: without it nothing is
+ * marked deleted at `open`), clean(html) -> the html as it may be kept (the module's engine: `cleanNoticeHtml`),
  * text(html) -> the words of html `clean` gave back (optional: without it an entry keeps the text its caller gave),
  * storage { read() -> the stored value as JSON text or null, write(value) -> Promise },
  * timers { set(fn, ms), clear(handle) }, log { warn, debug }.
@@ -597,10 +604,18 @@ export function createNoticeEngine(env) {
         let dirty = applyEpoch(value);
         const stored = normalizeSection(value.sections[ownKey]);
         mine = stored ?? emptySection();
+        /* A card deleted while this page was closed (E81 C5): no hook told this browser, so the log does - an
+           entry whose chat card is gone from it is marked as the deletion would have marked it. Withdrawn or not
+           cannot be told any more; the entry stays, as the rule keeps every deletion but the module's own. */
         for (const entry of atReady ? mine.entries : []) {
-            if (entry.state !== "open") continue;
-            entry.state = "unread";
-            dirty = true;
+            if (entry.state === "open") {
+                entry.state = "unread";
+                dirty = true;
+            }
+            if (entry.messageId !== null && entry.mark !== "deleted" && env.messageExists?.(entry.messageId) === false) {
+                entry.mark = "deleted";
+                dirty = true;
+            }
         }
         for (const entry of pending.splice(0)) add(entry);
         if (dirty) schedule();
@@ -689,10 +704,55 @@ export function createNoticeEngine(env) {
         return true;
     }
 
+    /**
+     * Every entry of one chat card through `change` (E81 C5): its answer is the entry as it is to be, or null to
+     * take it out with a tombstone, so another tab's copy does not bring it back. Answers whether any moved.
+     */
+    function byMessage(messageId, change) {
+        if (!ID.test(str(messageId))) return false;
+        const list = mine?.entries ?? pending;
+        let moved = false;
+        for (let i = list.length - 1; i >= 0; i--) {
+            if (list[i].messageId !== messageId) continue;
+            const next = change({ ...list[i] });
+            if (next === null) {
+                if (mine) mine.gone[list[i].id] = env.now();
+                list.splice(i, 1);
+                moved = true;
+            } else if (JSON.stringify(next) !== JSON.stringify(list[i])) {
+                list[i] = next;
+                moved = true;
+            }
+        }
+        if (!moved) return false;
+        if (mine) schedule();
+        changed();
+        return true;
+    }
+
+    /**
+     * A chat card deleted (E81 C5): withdrawn by the module, its entries go; deleted any other way they stay,
+     * marked `deleted`, and one still open is unread - it was on screen and is not.
+     */
+    function deleted(messageId, { withdraw = false } = {}) {
+        return byMessage(messageId, entry => (withdraw ? null : { ...entry, state: entry.state === "open" ? "unread" : entry.state, mark: "deleted" }));
+    }
+
+    /**
+     * A chat card changed after it was shown (E81 C5): `rerolled` or `settled`, and nothing else - the snapshot is
+     * what the card showed, and stays it. A deleted card's mark is not taken back by a late update.
+     */
+    function mark(messageId, value) {
+        if (value !== "rerolled" && value !== "settled") return false;
+        return byMessage(messageId, entry => (entry.mark === "deleted" ? entry : { ...entry, mark: value }));
+    }
+
     return {
         open,
         record,
         update,
+        deleted,
+        mark,
         flush,
         /** This login's entries, oldest first, as copies. */
         entries: () => structuredClone(mine?.entries ?? pending),
@@ -706,7 +766,7 @@ export function createNoticeEngine(env) {
             schedule();
             changed();
         },
-        /** Take one entry out (E81 C5's withdraw): a tombstone, so another tab's copy does not bring it back. */
+        /** Take one entry out by its id: a tombstone, so another tab's copy does not bring it back (R292). */
         remove(id) {
             if (!mine || !mine.entries.some(entry => entry.id === id)) return false;
             mine.gone[id] = env.now();
@@ -767,6 +827,8 @@ const engine = createNoticeEngine({
     randomId: () => foundry.utils.randomID(16),
     clock: () => getClock(),
     userExists: id => Boolean(game.users?.get(id)),
+    // No log to read is no answer: nothing is marked deleted then.
+    messageExists: id => (game.messages ? game.messages.has(id) : true),
     clean: html => cleanNoticeHtml(html),
     text: html => keptWords(html),
     storage: {
@@ -793,6 +855,35 @@ export const onNoticeHistoryChange = fn => engine.onChange(fn);
 /** Suite only (tests.mjs, beside `gmStoreHold`): while held the history is kept in memory and the setting is not written; awaited, the hold has written what was waiting. */
 export const holdNoticeHistory = on => engine.hold(on);
 
+/*
+ * THE WITHDRAW OPTION (E81 C5; the A7 design's P5-0). The module's own option on a chat deletion
+ * that takes a card back: `message.delete({ [MODULE_ID]: { withdraw: true } })`, at the two places
+ * that do (murder-rules.mjs `undoLastCrisis`, a rerolled action's old outcome; incident-store.mjs
+ * `retireOpeningNotices`, the opening's request cards). The rule is the other way round from the
+ * obvious one - remove on a deletion, keep on Clear chat - because Foundry 14.365 takes `deleteAll`
+ * out of the options before the hook (client-backend.mjs:439, :466; the design's reading of Foundry's
+ * file, not this repository's, and on a real 14.x LIVE-E81-11), so a cleared log and the reset's
+ * batches (season-setup.mjs `deleteMessages`) reach the hook as single deletions do. Only the option
+ * removes an entry; every other deletion leaves it, marked `deleted`. Registered by
+ * `registerNoticeHistory` on `deleteChatMessage`, after the popups' own hook has taken the card off
+ * the screen (popup.mjs `onDeleteChatMessage`).
+ */
+export function noticeCardDeleted(message, options) {
+    return engine.deleted(message?.id, { withdraw: options?.[MODULE_ID]?.withdraw === true });
+}
+
+/**
+ * A chat card changed after it was shown (E81 C5; the A7 design's P5-1): a Reroll's mark on the card it
+ * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, gm-bridge.mjs
+ * `settleCall`), read as this browser can know them - the document's flag, or for a private card the meta
+ * that came with its words (`cardFlag`), which is why it runs on `drpgSecretStored` as well as on
+ * `updateChatMessage`. A mark is one of a closed list; what the card showed is not drawn again from it.
+ */
+export function noticeCardChanged(message) {
+    const value = cardFlag(message, "rerolled") ? "rerolled" : cardFlag(message, MESSENGER_FLAGS.settled) ? "settled" : null;
+    return value ? engine.mark(message?.id, value) : false;
+}
+
 /**
  * A notice's time of day as the module's language writes it. The interface E66 takes over: its date
  * helper replaces this body, and every caller keeps the call.
@@ -803,16 +894,20 @@ export function noticeTime(at) {
 
 /**
  * Called from `init`, after the popups: the history opens at `ready` (the clock, and so the epoch, is
- * read then), follows another tab's writes and the clock's resets, and writes what waits at once when
- * the page hides - a reload right after a card would otherwise lose it to the debounce. Whether Foundry
- * 14's client setting reaches localStorage before `pagehide` returns is the design's reading of
- * Foundry's client-settings.mjs, not measured here (LIVE-E81-03).
+ * read then), follows another tab's writes, the clock's resets and what becomes of a chat card after it
+ * was shown (E81 C5), and writes what waits at once when the page hides - a reload right after a card
+ * would otherwise lose it to the debounce. Whether Foundry 14's client setting reaches localStorage
+ * before `pagehide` returns is the design's reading of Foundry's client-settings.mjs, not measured
+ * here (LIVE-E81-03).
  */
 export function registerNoticeHistory() {
     Hooks.once("ready", () => engine.open());
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) engine.checkEpoch();
     });
+    Hooks.on("deleteChatMessage", noticeCardDeleted);
+    Hooks.on("updateChatMessage", noticeCardChanged);
+    Hooks.on("drpgSecretStored", noticeCardChanged);
     window.addEventListener("storage", event => {
         if (event.key === `${MODULE_ID}.${SETTINGS.noticeHistory}`) engine.external();
     });

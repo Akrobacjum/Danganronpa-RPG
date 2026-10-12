@@ -618,6 +618,10 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
     const message = game.messages?.get(id);
     const thread = cardFlag(message, "thread");
     if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
+    /* The words and their meta are this browser's now (E81 C5): a private card's `rerolled` and `settled`
+       travel here and not on the document, so the notice history reads its marks after this, not on
+       `updateChatMessage` (notice-history.mjs `noticeCardChanged`). */
+    if (message) Hooks.callAll("drpgSecretStored", message);
 }
 
 /** A card the store must never age out: a messenger thread's. */

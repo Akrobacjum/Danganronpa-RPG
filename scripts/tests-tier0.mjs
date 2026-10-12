@@ -8489,6 +8489,11 @@ const REGRESSIONS = [
          * E81 C4 (12.10.2026) added the call in `sayNotDone`, through a dynamic import (bridge-guards.mjs): one RECORD road
          * more, 44 against 44 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 8 FLAG, 3 DELETE, 3 HOOK, 5 STORE, none either side - on
          * the harness (this test alone, once, its own log line), and 44 sources in the parse-only census.
+         * E81 C5 (12.10.2026) added the history's three chat hooks (`deleteChatMessage`, `updateChatMessage`,
+         * `drpgSecretStored`) and the two flags its marks read, in `noticeCardChanged` rather than in
+         * `registerNoticeHistory` as the census's PLANNED rows had them (an exported handler R295 can call): 49 against
+         * 49 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 6 HOOK, 5 STORE, none either side - on the
+         * harness (this test alone, once, its own log line), and 49 sources in the parse-only census.
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
@@ -8527,12 +8532,17 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown, as its own (R297)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`): a player's insisted whisper draws, and so keeps, nothing on a GM (R297)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
+            ["FLAG notice-history.mjs#noticeCardChanged#rerolled", "a Reroll's mark on the card it replaced, written by a GM (reroll.mjs `markReplacedCard`), read through `cardFlag`: only the closed mark `rerolled`, no snapshot change (R295)"],
+            ["FLAG notice-history.mjs#noticeCardChanged#MESSENGER_FLAGS.settled", "a GM's ruling on a call (gm-bridge.mjs `settleCall`), read through `cardFlag`: only the closed mark `settled`, no snapshot change (R295)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
-            ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards; the deletion becomes a withdraw that removes the entry (E81 C5)"],
-            ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card; the deletion becomes a withdraw that removes the entry (E81 C5)"],
-            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option: its epoch clears every section of this world at the next read or write since E81 C1 (R297); until then an entry stays, marked deleted (E81 C5)"],
+            ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
+            ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
+            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
-            ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen; only the withdraw option will remove its entry, any other deletion marks it (E81 C5)"],
+            ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option takes the entry out with a tombstone; any other deletion, `deleteAll` in the options or not, leaves it marked deleted and an open one unread (R295, 73-notice-history B)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a document's `rerolled` or `settled` flag marks the entry; the snapshot and the state do not move (R295)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeCardChanged` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel there, not on the document; only a mark (R295). New words on an open card are its observer's (R293)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
             ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
             ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],

@@ -651,12 +651,20 @@ export function registerPopups() {
        roll has resolved, a rerolled action's old outcome - stayed in the corner after the
        chat log had dropped it, asking for a roll already made: measured in 13-murder-signals
        with the opening's cards deleted and this hook absent, the killer's notice stayed, and
-       after a second murder there were two. Closed as its own close button closes it. */
-    Hooks.on("deleteChatMessage", message => {
-        for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
-            if (card.dataset.drpgMessage === message?.id) card.querySelector(".drpg-popup-close")?.click();
-        }
-    });
+       after a second murder there were two. */
+    Hooks.on("deleteChatMessage", onDeleteChatMessage);
+}
+
+/**
+ * A deleted chat card takes its notice off the screen, closed as "withdrawn" (E81 C5). It used to be closed
+ * by a click on its own X, which is its reader's close: the history read a card nobody had read as read.
+ * Whether its entry stays is the history's (notice-history.mjs `noticeCardDeleted`): only the module's
+ * withdraw option takes it out; this closes every card of the message whatever the option.
+ */
+export function onDeleteChatMessage(message) {
+    for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
+        if (card.dataset.drpgMessage === message?.id) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "withdrawn" } }));
+    }
 }
 
 /**

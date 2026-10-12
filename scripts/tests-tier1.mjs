@@ -7958,6 +7958,125 @@ const INVARIANTS = [
         JSON.stringify([["R293 kept", "R293 this page"], ["R293 kept"], true]),
         "[this page's entries; the written ones; showPopup hands its persist to recordNotice]");
     }],
+    ["R295 - a card the module takes back leaves the notice history, any other deletion leaves its entry marked deleted, and a Reroll or a ruling marks an entry without moving what it showed", async () => {
+        /*
+         * E81 C5, 12.10.2026; the A7 design's A7-4 (P5-0, P5-1, T3). A notice was a copy of a chat card, and the card
+         * could go after it was shown: the module takes some back (a rerolled action's old outcome, the opening's
+         * request once the roll resolved), a GM clears the log, the season's reset deletes it in batches. Before C5 the
+         * history kept every one of them as its reader had left it, and the popups' deletion hook closed the card by
+         * clicking its X - a reader's close, so a card nobody read was kept as read. Read in the source with comments
+         * blanked: the two places that take a card back delete it with the module's withdraw option and no other file
+         * passes it (the reset's `deleteMessages` deletes without it); the popups' deletion hook is a named function
+         * that clicks nothing, and the history listens on `deleteChatMessage`, `updateChatMessage` and
+         * `drpgSecretStored`, which the private-card store calls once a card's words and meta are stored. On this
+         * client's module engine, held as R473 holds it: five cards drawn for stand-in chat ids; the withdrawn one is
+         * gone from the history and closing, the one deleted without the option is kept, unread and marked deleted, its
+         * snapshot unmoved, and so is one deleted with `deleteAll` in the options (Foundry 14.365 takes that out before
+         * the hook - the design's reading of Foundry's client-backend.mjs, LIVE-E81-11 at a table - so the rule may
+         * not rest on it). `rerolled` and `settled` mark an entry and move neither its snapshot nor its state; a card
+         * with neither flag moves nothing, and a deleted entry keeps its mark. On `noticeBench`'s engine: an entry whose
+         * chat card is not in the log when the page opens is marked deleted, one whose card is there is not, and an
+         * engine that cannot read the log marks nothing; a withdrawn entry does not come back from another tab's copy.
+         * The handlers are called directly with stand-in messages, not through `Hooks.callAll`: a tier-1 test
+         * writes nothing, and every other module's deletion hook would be handed a document that is not one.
+         * A real deletion, withdrawn or cleared, on four browsers: 73-notice-history B and 13-murder-signals.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a deletion back from");
+        const P = await import("./popup.mjs");
+        const sources = await moduleSources();
+        const code = file => stripComments(sources.get(file) ?? "");
+        const WITHDRAW = /messages\.get\([^)]*\)\?\.delete\(\{\s*\[MODULE_ID\]:\s*\{\s*withdraw:\s*true\s*\}\s*\}\)/;
+        const sites = [["murder-rules.mjs", "undoLastCrisis"], ["incident-store.mjs", "retireOpeningNotices"]]
+            .map(([file, fn]) => WITHDRAW.test(fnSource(code(file), fn)));
+        const passing = [...sources.keys()].filter(file => file.endsWith(".mjs") && !file.startsWith("tests") && /\bwithdraw:\s*true\b/.test(code(file))).sort();
+        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-setup.mjs"), "deleteMessages"))]),
+            JSON.stringify([[true, true], ["incident-store.mjs", "murder-rules.mjs"], false]),
+            "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
+        const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
+        const remember = fnSource(code("secret.mjs"), "remember");
+        equal(JSON.stringify([/Hooks\.on\("deleteChatMessage", onDeleteChatMessage\)/.test(popups), /\.click\(\)/.test(popups + fnSource(code("popup.mjs"), "onDeleteChatMessage")),
+            ["deleteChatMessage, noticeCardDeleted", "updateChatMessage, noticeCardChanged", "drpgSecretStored, noticeCardChanged"].map(hook => history.includes(`Hooks.on("${hook.replace(", ", "\", ")})`)),
+            remember.indexOf('Hooks.callAll("drpgSecretStored", message)') > remember.indexOf("await saving")]),
+        JSON.stringify([true, false, [true, true, true], true]),
+        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks; the private-card store tells it after the words are stored]");
+
+        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1" };
+        const entryOf = messageId => NH.noticeEntries().find(entry => entry.messageId === messageId) ?? null;
+        const drawn = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            const cards = {};
+            for (const [key, messageId] of Object.entries(ids)) {
+                P.showPopup(`<p>R295 ${key} words</p>`, { title: `R295 ${key}`, messageId });
+                cards[key] = document.querySelector(`.drpg-popup[data-drpg-message="${messageId}"]`);
+                if (cards[key]) drawn.push(cards[key]);
+            }
+            must(Object.values(ids).every(entryOf) && drawn.length === 5, "the five stand-in cards were not drawn and kept - the deletions would be measured on nothing");
+            const before = Object.fromEntries(Object.entries(ids).map(([key, messageId]) => [key, entryOf(messageId).html]));
+
+            P.onDeleteChatMessage({ id: ids.withdrawn });
+            NH.noticeCardDeleted({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } });
+            P.onDeleteChatMessage({ id: ids.deleted });
+            NH.noticeCardDeleted({ id: ids.deleted }, {});
+            NH.noticeCardDeleted({ id: ids.cleared }, { deleteAll: true });
+            const after = key => {
+                const entry = entryOf(ids[key]);
+                return entry && [entry.state, entry.mark, entry.html === before[key]];
+            };
+            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared")]),
+                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true]]),
+                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll]");
+
+            const flags = more => ({ flags: { [MODULE_ID]: more } });
+            const moved = [
+                NH.noticeCardChanged({ id: ids.rerolled, ...flags({ rerolled: { from: 3, to: 9, at: 1 } }) }),
+                NH.noticeCardChanged({ id: ids.settled, ...flags({ settled: true }) }),
+                NH.noticeCardChanged({ id: ids.withdrawn, ...flags({ settled: true }) }),
+                NH.noticeCardChanged({ id: ids.deleted, ...flags({ rerolled: { from: 1, to: 2, at: 1 } }) }),
+                NH.noticeCardChanged({ id: ids.cleared, ...flags({ popupTitle: "R295 not a mark" }) })
+            ];
+            equal(JSON.stringify([moved, after("rerolled"), after("settled"), after("deleted"), after("cleared")]),
+                JSON.stringify([[true, true, false, false, false], ["open", "rerolled", true], ["open", "settled", true], ["unread", "deleted", true], ["unread", "deleted", true]]),
+                "[which changes moved an entry; the rerolled entry; the settled one; a deleted one a late Reroll reached; one a flag that is no mark reached]");
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+
+        /* At `open`: the log decides what a deletion while the page was closed would have; another tab's copy. */
+        const store = { raw: null, writes: 0, fail: 0 }, at = { now: 5_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const W = "suite-world", U = "SuitePlayerR29501", HERE = "R295MessageHere1", GONE = "R295MessageGone1";
+        const card = (title, messageId) => ({ source: "mine", kind: "info", title, text: title, html: `<p>${title}</p>`, messageId });
+        const first = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        first.open();
+        first.record(card("R295 here", HERE));
+        at.now++;
+        first.record(card("R295 gone", GONE));
+        await first.flush();
+        const marksAtOpen = messageExists => {
+            const page = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock, messageExists });
+            page.open();
+            return page.entries().map(entry => [entry.title, entry.state, entry.mark]);
+        };
+        const opened = [marksAtOpen(id => id === HERE), marksAtOpen(undefined)];
+        const one = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        const two = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        one.open();
+        two.open();
+        at.now++;
+        one.deleted(HERE, { withdraw: true });
+        await one.flush();
+        await two.flush();
+        two.external();
+        await two.flush();
+        const titles = engine => engine.entries().map(entry => entry.title);
+        equal(JSON.stringify([...opened, titles(one), titles(two), JSON.parse(store.raw).sections[`${W}.${U}`].entries.map(entry => entry.title)]),
+            JSON.stringify([[["R295 here", "unread", null], ["R295 gone", "unread", "deleted"]], [["R295 here", "unread", null], ["R295 gone", "unread", null]],
+                ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
+            "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
+    }],
 ];
 
 /**
@@ -8016,14 +8135,15 @@ const LITERAL_KEYS = [
  * Nothing is debounced - a test flushes - and the time and the clock are the caller's objects to move. Ids are
  * numbered across every engine made here, so two tabs never draw the same one. The html is kept as given unless
  * the caller hands the bench a cleaner (E81 C2): the store's tests weigh lengths, and R294 measures the cleaning
- * on the module's own engine.
+ * on the module's own engine. `messageExists` is the chat log the engine reads at `open` (E81 C5, R295); without
+ * one nothing is marked deleted there.
  */
 let noticeIds = 0;
-function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock, clean = html => html }) {
+function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock, clean = html => html, messageExists }) {
     return createNoticeEngine({
         worldId: () => world, userId: () => user, isGM: () => gm, now: () => at.now,
         randomId: () => `SuiteNotice${String(++noticeIds).padStart(5, "0")}`,
-        clock: () => clock.value, userExists: () => true, clean,
+        clock: () => clock.value, userExists: () => true, clean, messageExists,
         storage: {
             read: () => store.raw,
             write: async value => {

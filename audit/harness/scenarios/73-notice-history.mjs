@@ -15,7 +15,13 @@
  * player's; the public card is one safeword entry of the same words on the GM, the caller and another
  * player. N (C4): a request not carried out - `murder.cleanup` with nothing spent, kept like the rest
  * (the owner's Q4) - is one notDone entry, read, of the toast's words in that player's stored value and
- * in nobody else's. C5, C7 and C8 add the GM's clearing of the log, the window and the corner badge.
+ * in nobody else's. B (C5): three cards whispered to a player; one deleted with the module's withdraw option
+ * (as `undoLastCrisis` and `retireOpeningNotices` delete) leaves that player's history and screen, one deleted
+ * without it leaves the screen and stays, unread and marked deleted; one deleted while the player's page was
+ * closed is marked deleted when the page is back (the log read at `ready`); and the GM's Clear chat
+ * (`deleteDocuments([], { deleteAll: true })`, the option taken out before the hook as Foundry 14.365 does by
+ * the design's reading - the harness's shim mirrors it, LIVE-E81-11 at a table) leaves every entry on two
+ * players, each of a chat card marked deleted. C7 and C8 add the window and the corner badge.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -26,7 +32,9 @@
 export const layers = ["ci"];
 /* Measured alone on 12.10.2026 (C3's phase A, two runs): 11.5 and 11.7 s from the cluster's start to its end, the checks
    7.3 s of it (A5 waits to 4.5 s after the cards were posted, for the veiled card's words p2 never gets). A fifth of
-   run-all's shared five minutes, stated so that C5, C7 and C8, which add phases here, raise it with a reading of their own. */
+   run-all's shared five minutes, stated so that C5, C7 and C8, which add phases here, raise it with a reading of their own.
+   C5's phase B (12.10.2026, alone, once): 22.4 s from start to end by the results file, the checks 16.4 s of it (phases N
+   and S came between, so the rise is not B's alone and was not split by phase). Still well inside 60 s, so it stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -164,4 +172,61 @@ export async function run({ gm, p2, p4, check, phase, settle, connect, disconnec
     check("N1: murder.cleanup not carried out is one notDone entry, read, of the toast's words in the asker's stored value - there after a reload - and in nobody else's",
         typeof said.text === "string" && said.text.length > 0 && J(notDone) === J([["error", "read", true]]) && elsewhere.length === 0,
         J({ said: said.text, notDone, elsewhere }));
+
+    phase("B: a card the module takes back leaves the history; any other deletion, one while the page was closed and a cleared log leave the entry, marked");
+    const GONE = { withdrawn: "S73 withdrawn words", deleted: "S73 deleted words", away: "S73 away words" };
+    const which = text => Object.keys(GONE).find(key => String(text ?? "").includes(GONE[key])) ?? null;
+    const readMarks = `const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        return { user: game.user.id, world: game.world.id, entries: NH.noticeEntries().map(e => ({ text: e.text, state: e.state, mark: e.mark, messageId: e.messageId })) };`;
+    const gone = entries => Object.fromEntries(entries.filter(e => which(e.text)).map(e => [which(e.text), [e.state, e.mark]]));
+    const sent = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const out = {};
+        for (const [key, words] of Object.entries(${J(GONE)})) out[key] = (await U.announce({ content: "<p>" + words + "</p>", whisper: ["${P4}"] }))?.id ?? null;
+        return out;`);
+    const onScreen = `${UNTIL}
+        const shown = key => [...document.querySelectorAll(".drpg-popup:not(.leaving) .drpg-popup-body")].some(b => b.textContent.includes(${J(GONE)}[key]));`;
+    const drawn = await p4.eval(`${onScreen} return await until(() => ["withdrawn", "deleted", "away"].every(shown));`);
+    check("B0: the GM whispered the player three cards and the player is shown them", Object.values(sent).every(Boolean) && drawn === true, J({ sent, drawn }));
+
+    // The module's own withdraw, as undoLastCrisis and retireOpeningNotices delete; and a deletion without it.
+    await gm.eval(`await game.messages.get("${sent.withdrawn}")?.delete({ "${MOD}": { withdraw: true } });
+        await game.messages.get("${sent.deleted}")?.delete();
+        return true;`);
+    const afterDelete = await p4.eval(`${onScreen}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const has = words => NH.noticeEntries().some(e => e.text.includes(words));
+        await until(() => !has(${J(GONE.withdrawn)}) && NH.noticeEntries().some(e => e.text.includes(${J(GONE.deleted)}) && e.mark === "deleted") && !shown("withdrawn") && !shown("deleted"));
+        return { shown: ["withdrawn", "deleted", "away"].filter(shown) };`);
+    const marked1 = gone((await p4.eval(readMarks)).entries);
+    check("B1: the withdrawn card is gone from the player's history and screen; the one deleted without the option leaves the screen and stays, unread and marked deleted",
+        J(marked1) === J({ deleted: ["unread", "deleted"], away: ["open", null] }) && J(afterDelete.shown) === J(["away"]),
+        J({ marked1, afterDelete }));
+
+    // Past the history's 400 ms write; the card deleted while the page is closed is told by the log at `ready`.
+    await settle(800);
+    await disconnect("p4");
+    const closedAt = await storageOf("p4");
+    await gm.eval(`await game.messages.get("${sent.away}")?.delete(); return true;`);
+    await connect("p4", { storage: closedAt });
+    const marked2 = gone((await p4.eval(readMarks)).entries);
+    check("B2: back after a reload, a card deleted while the page was closed is marked deleted, the deleted one still is and the withdrawn one did not come back",
+        J(marked2) === J({ deleted: ["unread", "deleted"], away: ["unread", "deleted"] }), J(marked2));
+
+    // The GM's Clear chat: Foundry's `deleteDocuments([], { deleteAll: true })`, the option taken out before the hook.
+    const before = { p4: await p4.eval(readMarks), p2: await p2.eval(readMarks) };
+    await p4.eval(`globalThis.__s73Options = []; Hooks.on("deleteChatMessage", (m, options) => globalThis.__s73Options.push(Object.keys(options ?? {}).sort().join()));
+        return true;`);
+    const cleared = await gm.eval(`await ChatMessage.deleteDocuments([], { deleteAll: true }); return game.messages.size;`);
+    await settle(1500);
+    const after = { p4: await p4.eval(readMarks), p2: await p2.eval(readMarks) };
+    const options = await p4.eval(`return globalThis.__s73Options;`);
+    const stored = { p4: await storageOf("p4"), p2: await storageOf("p2") };
+    const unmarked = who => after[who].entries.filter(e => e.messageId !== null && e.mark !== "deleted").length;
+    const storedUnmarked = who => storedEntries(stored[who], `${after[who].world}.${after[who].user}`).filter(e => e.messageId !== null && e.mark !== "deleted").length;
+    check("B3: the GM clears the log - every entry stays on both players, each of a chat card marked deleted, in memory and as stored; the hook was never handed deleteAll",
+        cleared === 0 && ["p4", "p2"].every(who => after[who].entries.length === before[who].entries.length && after[who].entries.some(e => e.messageId !== null)
+            && unmarked(who) === 0 && storedUnmarked(who) === 0)
+        && options.length > 0 && !options.some(keys => keys.split(",").includes("deleteAll")),
+        J({ cleared, count: ["p4", "p2"].map(who => [before[who].entries.length, after[who].entries.length]), unmarked: ["p4", "p2"].map(unmarked),
+            stored: ["p4", "p2"].map(storedUnmarked), options: [...new Set(options)] }));
 }

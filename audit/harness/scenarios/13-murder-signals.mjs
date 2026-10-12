@@ -185,7 +185,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const settled = () => ${asked ? "shown() > 0" : "shown() === 0 && kept(yours)[1] === 0"};
         const end = Date.now() + 4000;
         while (!settled() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
-        return { request: kept(yours), line: kept(line), result: kept("<p>${total} "), shown: shown() };`;
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const history = words => NH.noticeEntries().filter(e => ids(words).includes(e.messageId)).length;
+        return { request: kept(yours), line: kept(line), result: kept("<p>${total} "), shown: shown(), history: [history(yours), history(line)] };`;
     for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
     await p3.eval(NOTICE_NET);
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dice3dOff = game.dice3d; delete game.dice3d; return true;`);
@@ -237,6 +239,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify([noticeAsked.request, noticeAsked.line, noticeAsked.shown]) === JSON.stringify([[1, 1], [1, 1], 1])
         && JSON.stringify([noticeFailed.request, noticeFailed.line, noticeFailed.result, noticeFailed.shown]) === JSON.stringify([[1, 0], [1, 0], [1, 1], 0]),
         JSON.stringify({ noticeAsked, noticeFailed }), { flow: "murder-incident" });
+    /* THE REQUEST LEAVES THE HISTORY TOO (E81 C5; the A7 design's P5-0). The killer's browser keeps every card it
+       draws (E81 C3), and a request the opening took back stayed there, readable after the roll it asked for. The
+       opening's cards are deleted with the module's withdraw option (incident-store.mjs `retireOpeningNotices`). */
+    check("opening: the request a failed opening takes back leaves the killer's notice history as well as their corner",
+        noticeAsked.history[0] === 1 && noticeFailed.history[0] === 0,
+        JSON.stringify({ asked: noticeAsked.history, failed: noticeFailed.history }), { flow: "murder-incident" });
     const castsAfterFail = await p1.eval(CAST_NET);
     check("opening: a failed opening leaves the victim holding nothing, and sends them no cast, not even an empty one",
         heldFirst === 1 && failed.success === false && failed.running === false

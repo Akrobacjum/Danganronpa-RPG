@@ -1397,7 +1397,14 @@ function applyRemote(msg) {
         const doc = c.get(msg.docId);
         if (!doc) return;
         c.delete(msg.docId);
-        if (!options.noHook) hooks.callAll(`delete${collName}`, doc, options, userId);
+        /* WITHOUT `deleteAll`, AS FOUNDRY HANDS IT (E81 C5, 12.10.2026; the A7 design's P5-0). Foundry 14.365
+           takes `deleteAll` out of the options before the delete hooks run (client-backend.mjs:439, :466 - the
+           design's reading of Foundry's file, not re-read here; whether a real 14.x still does is LIVE-E81-11),
+           so a hook cannot tell a cleared log from a single deletion. The harness passed it through, and a
+           history that kept entries on `deleteAll` would have passed here and failed at a table. */
+        const hookOptions = { ...options };
+        delete hookOptions.deleteAll;
+        if (!options.noHook) hooks.callAll(`delete${collName}`, doc, hookOptions, userId);
         return;
     }
     if (action.startsWith("embedded-")) {

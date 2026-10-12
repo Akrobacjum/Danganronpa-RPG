@@ -5167,6 +5167,11 @@
     "Notices": {
       "notSaved": "Ta przeglądarka nie mogła zapisać historii powiadomień: powiadomienia pokazane od teraz zostaną tylko do zamknięcia lub przeładowania tej strony.",
       "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",
+      "mark": {
+        "deleted": "Usunięte z dziennika czatu",
+        "rerolled": "Przerzucone",
+        "settled": "Rozstrzygnięte przez GM-a"
+      },
       "source": {
         "notDone": "Niewykonane",
         "summary": "Podsumowanie pory dnia",
