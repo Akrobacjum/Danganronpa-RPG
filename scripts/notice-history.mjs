@@ -35,7 +35,9 @@
  *   again only through `noticeSnapshot`, which cleans the stored string a second time;
  * - what happens to a card after it was shown (E81 C5): a card the module takes back is gone from
  *   the history as from the screen, any other deletion leaves the entry marked `deleted`, and a
- *   Reroll or a GM's ruling marks it `rerolled` or `settled` - a mark, never a new snapshot.
+ *   Reroll or a GM's ruling marks it `rerolled` or `settled` - a mark, never a new snapshot;
+ * - giving way (E81 C6): when another of the module's stores finds this browser's storage full
+ *   (`keepRoom`), the history gives its room back before that store tries again.
  *
  * WHAT ANOTHER LOGIN CAN READ. Every account's section is in one value of this browser's
  * storage, so anybody at this browser's console reads every section in it, a GM's and a
@@ -95,8 +97,9 @@ export const NOTICE_TEXTS = Object.freeze({
  * characters, a GM's 150 and 100 000; the whole value 500 000. A section holds at most 4
  * full day summaries (E37 gives one at every boundary of a time of day), and at most 40
  * cards from each player author. None of these is a measurement of a browser's quota:
- * localStorage is shared with the private cards and the GM stores, and C6 is to make the
- * history give way to them when it runs out.
+ * localStorage is shared with the private cards and the GM stores, and the history gives way
+ * to them when it runs out (`keepRoom`, below): from then on, for the rest of the session, every
+ * one of these but the entry's own is halved.
  */
 const BUDGET = Object.freeze({
     title: 200, text: 600,
@@ -340,7 +343,8 @@ export function noticeSnapshot(html, { gm = Boolean(game.user?.isGM) } = {}) {
  * userExists(id), messageExists(id) -> whether the chat card is still in the log (optional: without it nothing is
  * marked deleted at `open`), clean(html) -> the html as it may be kept (the module's engine: `cleanNoticeHtml`),
  * text(html) -> the words of html `clean` gave back (optional: without it an entry keeps the text its caller gave),
- * storage { read() -> the stored value as JSON text or null, write(value) -> Promise },
+ * storage { read() -> the stored value as JSON text or null, write(value) -> Promise, writeNow(value) -> written
+ * before it returns, or throws (giving way, E81 C6) },
  * timers { set(fn, ms), clear(handle) }, log { warn, debug }.
  */
 export function createNoticeEngine(env) {
@@ -353,6 +357,7 @@ export function createNoticeEngine(env) {
     let saving = true;             // false: the value is kept in memory only (a write failed twice, or a newer format)
     let timer = null;
     let flushing = null, again = false;
+    let room = 1;                  // the share of the section's and the value's budgets this session keeps: 1/2 once it gave way
     const listeners = new Set();
 
     const epochNow = () => noticeEpoch(env.clock());
@@ -492,9 +497,10 @@ export function createNoticeEngine(env) {
         }
         if (drop.size) section.entries = section.entries.filter(entry => !drop.has(entry));
         const cap = env.isGM() ? BUDGET.gm : BUDGET.player;
-        if (section.entries.length > cap.entries) section.entries.splice(0, section.entries.length - cap.entries);
+        const most = Math.floor(cap.entries * room), chars = cap.chars * room;
+        if (section.entries.length > most) section.entries.splice(0, section.entries.length - most);
         let size = sizeOf(section);
-        while (size > cap.chars && section.entries.length) size -= sizeOf(section.entries.shift()) + 1;
+        while (size > chars && section.entries.length) size -= sizeOf(section.entries.shift()) + 1;
     }
 
     /**
@@ -503,18 +509,19 @@ export function createNoticeEngine(env) {
      * oldest entries.
      */
     function trimValue(value) {
+        const total = BUDGET.total * room;
         let size = sizeOf(value);
-        if (size <= BUDGET.total) return;
+        if (size <= total) return;
         const world = env.worldId();
         const byTouched = (a, b) => num(a[1]?.touched) - num(b[1]?.touched);
         const others = Object.entries(value.sections).filter(([key]) => key !== ownKey);
         for (const [key] of [...others.filter(([key]) => worldOfKey(key) !== world).sort(byTouched),
             ...others.filter(([key]) => worldOfKey(key) === world).sort(byTouched)]) {
-            if (size <= BUDGET.total) return;
+            if (size <= total) return;
             delete value.sections[key];
             size = sizeOf(value);
         }
-        while (size > BUDGET.total && mine.entries.length) {
+        while (size > total && mine.entries.length) {
             size -= sizeOf(mine.entries.shift()) + 1;
             value.sections[ownKey] = mine;
         }
@@ -532,6 +539,23 @@ export function createNoticeEngine(env) {
     function schedule() {
         if (held || !saving || timer !== null) return;
         timer = env.timers.set(() => { timer = null; void flush(); }, DEBOUNCE_MS);
+    }
+
+    /**
+     * The value as this client is to write it: what the epoch ended cleared, another tab's copy of this
+     * login's section merged in, and the budgets kept - after the older half of the section is let go,
+     * when `halve` (giving way).
+     */
+    function gather(value, { halve = false } = {}) {
+        applyEpoch(value);
+        if (mine.epoch !== epochNow()) mine = emptySection();
+        const theirs = normalizeSection(value.sections[ownKey]);
+        mergeInto(mine, theirs?.epoch === mine.epoch ? theirs : null);
+        if (halve) mine.entries.splice(0, Math.ceil(mine.entries.length / 2));
+        trimSection(mine);
+        mine.touched = env.now();
+        value.sections[ownKey] = mine;
+        trimValue(value);
     }
 
     /**
@@ -553,14 +577,7 @@ export function createNoticeEngine(env) {
                 changed();
                 return;
             }
-            applyEpoch(value);
-            if (mine.epoch !== epochNow()) mine = emptySection();
-            const theirs = normalizeSection(value.sections[ownKey]);
-            mergeInto(mine, theirs?.epoch === mine.epoch ? theirs : null);
-            trimSection(mine);
-            mine.touched = env.now();
-            value.sections[ownKey] = mine;
-            trimValue(value);
+            gather(value);
             for (let attempt = 0; ; attempt++) {
                 try {
                     await env.storage.write({ v: FORMAT, sections: forStorage(value.sections) });
@@ -586,6 +603,38 @@ export function createNoticeEngine(env) {
             again = false;
             await flush();
         }
+    }
+
+    /**
+     * GIVING WAY (E81 C6; the A7 design's 1e). Another of the module's stores found this browser's storage
+     * full (`keepRoom`, on `drpgStorageFull`) and is about to try once more: the history gives its room back
+     * first, and synchronously, because that second try follows this call without waiting for anything.
+     * Every other world's section goes, then the older half of this login's section, and the budgets are
+     * halved for the rest of the session, so the next write does not take the room back. Another account's
+     * section of this world stays (Q9). The smaller value is written through `storage.writeNow` - also when
+     * the history had stopped saving after its own writes failed, since its old value still holds the room -
+     * but not under the suite's hold, nor over a value a newer build wrote. Answers how many characters of
+     * JSON the stored value lost; what that frees in a browser's own count is not measured here.
+     */
+    function giveWay() {
+        if (held) return 0;
+        room = 0.5;
+        if (!opened) return 0;
+        const value = readValue();
+        if (value.newer) return 0;
+        const before = sizeOf({ v: FORMAT, sections: value.sections });
+        const world = env.worldId();
+        for (const key of Object.keys(value.sections)) if (worldOfKey(key) !== world) delete value.sections[key];
+        gather(value, { halve: true });
+        const next = { v: FORMAT, sections: forStorage(value.sections) };
+        try {
+            env.storage.writeNow(next);
+        } catch (err) {
+            env.log.warn("The notice history could not give its room back in this browser's storage.", err);
+            return 0;
+        }
+        changed();
+        return Math.max(0, before - sizeOf(next));
     }
 
     /* ------------------------------- the API ------------------------------ */
@@ -754,6 +803,7 @@ export function createNoticeEngine(env) {
         deleted,
         mark,
         flush,
+        giveWay,
         /** This login's entries, oldest first, as copies. */
         entries: () => structuredClone(mine?.entries ?? pending),
         /** Clear: nothing kept so far comes back from another tab (`clearedAt` and a tombstone each). */
@@ -833,7 +883,10 @@ const engine = createNoticeEngine({
     text: html => keptWords(html),
     storage: {
         read: () => game.settings?.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.${SETTINGS.noticeHistory}`) ?? null,
-        write: value => game.settings.set(MODULE_ID, SETTINGS.noticeHistory, value)
+        write: value => game.settings.set(MODULE_ID, SETTINGS.noticeHistory, value),
+        /* Straight into the client storage, under the key and in the JSON `read` takes back: `game.settings.set` is
+           async, and whether Foundry 14's writes the item before its first await is not read here. */
+        writeNow: value => game.settings.storage.get("client").setItem(`${MODULE_ID}.${SETTINGS.noticeHistory}`, JSON.stringify(value))
     },
     timers: { set: (fn, ms) => setTimeout(fn, ms), clear: handle => clearTimeout(handle) },
     log: { warn: (...a) => warn(...a), debug: (...a) => debug(...a) }
@@ -854,6 +907,25 @@ export const noticeHistoryStatus = () => engine.status();
 export const onNoticeHistoryChange = fn => engine.onChange(fn);
 /** Suite only (tests.mjs, beside `gmStoreHold`): while held the history is kept in memory and the setting is not written; awaited, the hold has written what was waiting. */
 export const holdNoticeHistory = on => engine.hold(on);
+
+/** A browser's "this origin's storage is full": `QuotaExceededError`, by its name or by its legacy code 22. */
+const storageFull = err => err?.name === "QuotaExceededError" || err?.code === 22;
+
+/**
+ * GIVING WAY (E81 C6). A store of the module whose write `err` stopped calls this before it gives up: on a
+ * full storage the history gives its room back (`drpgStorageFull`, answered by the engine's `giveWay`
+ * before this returns) and the answer is true - the caller then writes once more, and only once; on any
+ * other error nothing happens and the answer is false. The callers are the private cards (secret.mjs
+ * `write`), every GM store (gm-store.mjs's flush, the Remnant and Truth Bullet ledgers among them, through
+ * the engine's `keepRoom`) and the drawn rolls kept readable (private-rolls.mjs `keepReadable`). How a
+ * real Foundry 14 hands a full storage back from `game.settings.set` is not measured here: the harness's
+ * jsdom throws the DOMException this reads.
+ */
+export function keepRoom(err) {
+    if (!storageFull(err)) return false;
+    Hooks.callAll("drpgStorageFull");
+    return true;
+}
 
 /*
  * THE WITHDRAW OPTION (E81 C5; the A7 design's P5-0). The module's own option on a chat deletion
@@ -895,7 +967,7 @@ export function noticeTime(at) {
 /**
  * Called from `init`, after the popups: the history opens at `ready` (the clock, and so the epoch, is
  * read then), follows another tab's writes, the clock's resets and what becomes of a chat card after it
- * was shown (E81 C5), and writes what waits at once when the page hides - a reload right after a card
+ * was shown (E81 C5), gives way to the module's other stores (E81 C6), and writes what waits at once when the page hides - a reload right after a card
  * would otherwise lose it to the debounce. Whether Foundry 14's client setting reaches localStorage
  * before `pagehide` returns is the design's reading of Foundry's client-settings.mjs, not measured
  * here (LIVE-E81-03).
@@ -908,6 +980,7 @@ export function registerNoticeHistory() {
     Hooks.on("deleteChatMessage", noticeCardDeleted);
     Hooks.on("updateChatMessage", noticeCardChanged);
     Hooks.on("drpgSecretStored", noticeCardChanged);
+    Hooks.on("drpgStorageFull", () => { engine.giveWay(); });
     window.addEventListener("storage", event => {
         if (event.key === `${MODULE_ID}.${SETTINGS.noticeHistory}`) engine.external();
     });

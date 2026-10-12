@@ -3985,7 +3985,8 @@
           "other": "{n} old rows were stamped after the moment this browser took them over - a clock that ran ahead - and were taken at that moment."
         },
         "skew": "Stamps from ahead of this browser's clock: {names}.",
-        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
+        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all, its notice history aside.",
+        "notices": "The notice history takes {notices} KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.",
         "lastBackup": "Last backup: {when} ({who}).",
         "neverBackedUp": "This case has never been backed up.",
         "traceOrphans": {

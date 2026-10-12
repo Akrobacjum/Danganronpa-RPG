@@ -8494,6 +8494,9 @@ const REGRESSIONS = [
          * `registerNoticeHistory` as the census's PLANNED rows had them (an exported handler R295 can call): 49 against
          * 49 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 6 HOOK, 5 STORE, none either side - on the
          * harness (this test alone, once, its own log line), and 49 sources in the parse-only census.
+         * E81 C6 (12.10.2026) added the history's `drpgStorageFull` hook, by which it gives way to the module's other
+         * stores: 50 against 50 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 7 HOOK, 5 STORE, none either
+         * side - on the harness (this test by name, once, its own log line), and 50 sources in the parse-only census.
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
@@ -8543,6 +8546,7 @@ const REGRESSIONS = [
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option takes the entry out with a tombstone; any other deletion, `deleteAll` in the options or not, leaves it marked deleted and an open one unread (R295, 73-notice-history B)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a document's `rerolled` or `settled` flag marks the entry; the snapshot and the state do not move (R295)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeCardChanged` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel there, not on the document; only a mark (R295). New words on an open card are its observer's (R293)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "another of the module's stores found the storage full (`keepRoom`: the private cards, every GM store, the drawn rolls kept readable): the history gives its room back before that store's one more try - every other world's section, then the older half of this login's, the budgets halved for the session - and writes nothing of anybody's text that it did not hold (R298)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
             ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
             ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],

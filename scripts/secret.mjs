@@ -438,7 +438,21 @@ async function write(next) {
     cache = next;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.secretCards, next);
-    } catch (err) {
+    } catch (failed) {
+        let err = failed;
+        /* A FULL STORAGE TAKES THE NOTICE HISTORY'S ROOM FIRST (E81 C6): `keepRoom` has the history give
+           back its room before it answers, and the store is written once more. Imported here rather than
+           at the top, because notice-history.mjs imports this file (its cleaner) and a static import back
+           is the cycle R161 fails. */
+        try {
+            const { keepRoom } = await import("./notice-history.mjs");
+            if (keepRoom(err)) {
+                await game.settings.set(MODULE_ID, SETTINGS.secretCards, next);
+                return;
+            }
+        } catch (again) {
+            err = again;
+        }
         error("Could not keep a private card", err);
         cache = null;
         /* OUT LOUD FOR A GM (S11-28). The usual cause is a full localStorage, and

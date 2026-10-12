@@ -5278,7 +5278,8 @@
           "other": "{n} starego wiersza miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą."
         },
         "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
-        "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB.",
+        "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB, nie licząc historii powiadomień.",
+        "notices": "Historia powiadomień zajmuje ponadto {notices} KB pamięci tej przeglądarki: gdy pamięć się zapełni, oddaje miejsce magazynom sprawy i kartom prywatnym.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
         "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
         "traceOrphans": {

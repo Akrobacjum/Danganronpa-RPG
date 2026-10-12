@@ -29,6 +29,7 @@ import {
     raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection
 } from "./gm-store.mjs";
 import { plainWhat } from "./relay-guard.mjs";
+import { keepRoom } from "./notice-history.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -1249,7 +1250,7 @@ let compacting = null, marking = null;
 export function openGmStores() {
     opening ??= (async () => {
         configureGmStore({
-            activeGmIds, primaryGmId, getClock, clockKey: SETTINGS.clock, warn, error, debug,
+            activeGmIds, primaryGmId, getClock, clockKey: SETTINGS.clock, warn, error, debug, keepRoom,
             upgradeMark: () => upgradeMark(),
             // A counted sentence is a plural family (.one/.other, and .few/.many in Polish).
             text: (key, data = {}) => (game.i18n.has(`${key}.other`) ? plural(key, data) : game.i18n.format(key, data))
@@ -1873,6 +1874,7 @@ export async function gmStoreHealth() {
     const status = gmStoreStatus();
     add("bytes", status.total > 3 * 1024 * 1024 ? "conflict" : "info", "DRPG.Case.row.bytes",
         { stores: Math.round(status.stores / 1024), total: Math.round(status.total / 1024) });
+    add("notices", "info", "DRPG.Case.row.notices", { notices: Math.round(status.notices / 1024) });
     const mark = caseMark();
     add("lastBackup", "info", mark.lastBackupAt ? "DRPG.Case.row.lastBackup" : "DRPG.Case.row.neverBackedUp",
         { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
@@ -1909,18 +1911,26 @@ export function healthLine(row) {
     return game.i18n.has(`${row.key}.other`) ? plural(row.key, row.data) : game.i18n.format(row.key, row.data);
 }
 
-/** The bytes this browser's GM stores hold, and everything the module keeps in its localStorage. */
-export function gmStoreStatus() {
+/**
+ * The bytes this browser's GM stores hold (`stores`), everything else the module keeps in its localStorage
+ * (`total`) and the notice history apart (`notices`, E81 C6): the history gives its room back when a store
+ * finds the storage full (notice-history.mjs `keepRoom`), so counting it in `total` would turn the case's
+ * health red over room the case can have back. `client` is the storage read (the suite hands in its own).
+ */
+export function gmStoreStatus(client = game.settings?.storage?.get?.("client")) {
     const perStore = gmStoreHandles().map(h => h.status());
-    let total = 0;
+    const history = `${MODULE_ID}.${SETTINGS.noticeHistory}`;
+    let total = 0, notices = 0;
     try {
-        const client = game.settings.storage.get("client");
         for (let i = 0; i < client.length; i++) {
             const key = client.key(i);
-            if (key?.startsWith(`${MODULE_ID}.`)) total += key.length + (client.getItem(key)?.length ?? 0);
+            if (!key?.startsWith(`${MODULE_ID}.`)) continue;
+            const size = key.length + (client.getItem(key)?.length ?? 0);
+            if (key === history) notices += size;
+            else total += size;
         }
     } catch { /* no client storage to read: nothing counted */ }
-    return { stores: perStore.reduce((n, s) => n + s.bytes, 0), total, perStore };
+    return { stores: perStore.reduce((n, s) => n + s.bytes, 0), total, notices, perStore };
 }
 
 let lastHealth = null;

@@ -8077,6 +8077,147 @@ const INVARIANTS = [
                 ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
             "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
     }],
+    ["R298 - the notice history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+        /*
+         * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
+         * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
+         * card and '+N' are C8, C9 and C11's). One localStorage per origin holds the private cards, every GM store (the
+         * Truth Bullet and Remnant ledgers among them), the drawn rolls kept readable and, since E81, a history of up to
+         * 500 000 characters: a store that found it full lost its write while the history kept its own. Four parts.
+         * (1) The engine over a value in memory (`noticeBench`): `giveWay` writes before it returns - no await between
+         * the call and the reading - a value without another world's sections, with this world's other account's
+         * section as it was (Q9) and the newer half of this login's; then the budgets are halved for the session, so a
+         * player's section filled again keeps 125 entries, not 250; a history that had stopped saving after two failed
+         * writes still shrinks what it left stored; under the suite's hold and before `open` it writes nothing.
+         * (2) `keepRoom`: a QuotaExceededError fires `drpgStorageFull` before it answers true, any other error fires
+         * nothing and answers false - under the module's own hold, so this client's history gives back nothing.
+         * (3) The GM store's engine on fakes, as R186 builds it: a write that finds the storage full once is written on
+         * the second try with no notice; full twice, one more try only and the notice; another error, no second try.
+         * (4) In the source with comments blanked: the private cards' `write` and `keepReadable` ask `keepRoom` and set
+         * their setting once more, gm-stores.mjs hands `keepRoom` to the engine, the history listens on
+         * `drpgStorageFull` and the case's health has its info row; and `gmStoreStatus` over a stand-in storage counts
+         * the history's key in `notices`, not in `total`. What a browser's quota counts is not measured here: the
+         * lengths are JSON's. A real full storage, jsdom's: 61-gmstore-case X.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
+            "the notice history cannot give its room back: a full storage loses a private card or a GM store's row while the history keeps its own");
+        const J = JSON.stringify;
+        const W = "suite-world", U = "SuitePlayerR29801", KEY = `${W}.${U}`, OTHER = `${W}.SuitePlayerR29802`;
+        const at = { now: 7_000_000 }, clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const card = n => ({ source: "mine", kind: "info", title: `R298 card ${n}`, text: `R298 text ${n}`, html: `<p>R298 card ${n}</p>` });
+        const titles = entries => entries.map(entry => entry.title);
+        const filled = async (store, n) => {
+            const e = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+            e.open();
+            for (let i = 1; i <= n; i++, at.now++) e.record(card(i));
+            await e.flush();
+            return e;
+        };
+        /* Another world's sections and another account's of this one beside this login's, as another browser wrote them. */
+        const crowd = (store, own) => {
+            const value = { v: 1, sections: { [KEY]: own } };
+            for (const key of ["another-world.SuitePlayerR29801", "third-world.SuitePlayerR29803"]) value.sections[key] = { epoch: "", touched: 1, clearedAt: 0, gone: {}, entries: [], pad: "R298".repeat(500) };
+            value.sections[OTHER] = structuredClone(own);
+            store.raw = J(value);
+            return store.raw.length;
+        };
+
+        const store = { raw: null, writes: 0, fail: 0, now: 0 };
+        const e = await filled(store, 10);
+        const before = crowd(store, JSON.parse(store.raw).sections[KEY]);
+        const writes = store.writes;
+        const freed = e.giveWay();
+        const given = JSON.parse(store.raw);
+        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER].entries.length,
+            store.now, store.writes - writes, freed > 0 && freed === before - store.raw.length];
+        for (let i = 1; i <= 300; i++, at.now++) e.record(card(100 + i));
+        await e.flush();
+        right.push(JSON.parse(store.raw).sections[KEY].entries.length);
+        equal(J(right), J([[OTHER, KEY].sort(), ["6", "7", "8", "9", "10"].map(n => `R298 card ${n}`), ["6", "7", "8", "9", "10"].map(n => `R298 card ${n}`), 10,
+            1, 0, true, 125]),
+            "[the sections left; this login's, stored and in memory; the other account's; written at once; written later; what it answered; a section filled after it]");
+
+        const quiet = { raw: null, writes: 0, fail: 2, now: 0 };
+        const stopped = await filled(quiet, 4);
+        crowd(quiet, { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: [] });
+        const stoppedSaving = stopped.status().saving;
+        stopped.giveWay();
+        const held = { raw: null, writes: 0, fail: 0, now: 0 };
+        const holding = await filled(held, 4);
+        const heldRaw = held.raw;
+        await holding.hold(true);
+        crowd(held, JSON.parse(heldRaw).sections[KEY]);
+        const crowded = held.raw;
+        const heldAnswer = holding.giveWay();
+        const unopened = { raw: heldRaw, writes: 0, fail: 0, now: 0 };
+        const shut = noticeBench(NH.createNoticeEngine, { store: unopened, user: U, world: W, at, clock });
+        equal(J([stoppedSaving, Object.keys(JSON.parse(quiet.raw).sections).sort(), quiet.now, heldAnswer, held.raw === crowded, held.now, shut.giveWay(), unopened.raw === heldRaw, unopened.now]),
+            J([false, [OTHER, KEY].sort(), 1, 0, true, 0, 0, true, 0]),
+            "[the history had stopped saving; what it left stored after giving way; written at once; under the hold: the answer, the value, writes; before open: the same]");
+
+        /* (2) keepRoom, under the module's hold: the hook is heard here, and this client's history writes nothing. */
+        await NH.holdNoticeHistory(true);
+        let heard = 0;
+        const hook = Hooks.on("drpgStorageFull", () => { heard++; });
+        let asked;
+        try {
+            const full = NH.keepRoom(new globalThis.DOMException("R298: the suite's full storage", "QuotaExceededError"));
+            const heardThen = heard;
+            asked = [full, heardThen, NH.keepRoom(new Error("R298: another failure")), NH.keepRoom(undefined), heard];
+        } finally {
+            Hooks.off("drpgStorageFull", hook);
+            await NH.holdNoticeHistory(false);
+        }
+        equal(J(asked), J([true, 1, false, false, 1]),
+            "[a full storage: the answer; the hook heard before it answered; another error; no error; the hook in all]");
+
+        /* (3) The GM store's engine on fakes: its flush asks `keepRoom` and tries once more. */
+        const G = await import("./gm-store.mjs");
+        const full = () => new globalThis.DOMException("R298: the suite's full storage", "QuotaExceededError");
+        const gmStoreWith = async failures => {
+            const kept = new Map(), flushes = [], notices = [], asked = [];
+            let tries = 0;
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R298A", isGM: () => true, isPrimary: () => true, worldId: () => "R298WORLD",
+                activeGmIds: () => ["R298A"], primaryGmId: () => "R298A", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => kept.get(k) ?? null, write: async (k, v) => { tries++; const err = failures.shift(); if (err) throw err; kept.set(k, J(v)); } },
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} },
+                notify: (level, text) => notices.push(text), text: key => key,
+                keepRoom: err => { asked.push(err?.name ?? null); return err?.name === "QuotaExceededError"; }
+            });
+            const handle = eng.define({ name: "r298", key: "r298Key", kind: "ledger", sync: true, backup: true });
+            await handle.patch("x", { v: 1 });
+            for (let i = 0; i < 4; i++) await Promise.all(flushes);
+            return [tries, asked, kept.has("r298Key"), notices];
+        };
+        equal(J([await gmStoreWith([full()]), await gmStoreWith([full(), full()]), await gmStoreWith([new Error("R298: another failure")])]),
+            J([[2, ["QuotaExceededError"], true, []], [2, ["QuotaExceededError"], false, ["DRPG.GmStore.saveFailedAlone"]],
+                [1, ["Error"], false, ["DRPG.GmStore.saveFailedAlone"]]]),
+            "[full once; full twice; another error] as [writes tried, what keepRoom was asked, stored, notices]");
+
+        /* (4) The callers in the source, and the case's count. */
+        const sources = await moduleSources();
+        const code = file => stripComments(sources.get(file) ?? "");
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const write = fnSource(code("secret.mjs"), "write"), readable = fnSource(code("private-rolls.mjs"), "keepReadable");
+        equal(J([/\bkeepRoom\(err\)/.test(write), count(write, /game\.settings\.set\(MODULE_ID, SETTINGS\.secretCards, next\)/g),
+            /\bkeepRoom\(err\)/.test(readable), count(readable, /game\.settings\.set\(MODULE_ID, SETTINGS\.readableRolls, all\)/g),
+            /configureGmStore\(\{[^}]*\bkeepRoom\b/.test(fnSource(code("gm-stores.mjs"), "openGmStores")),
+            /Hooks\.on\("drpgStorageFull", \(\) => \{ engine\.giveWay\(\); \}\)/.test(fnSource(code("notice-history.mjs"), "registerNoticeHistory")),
+            /add\("notices", "info", "DRPG\.Case\.row\.notices"/.test(fnSource(code("gm-stores.mjs"), "gmStoreHealth"))]),
+            J([true, 2, true, 2, true, true, true]),
+            "[the private cards ask keepRoom; and set twice; keepReadable asks; and sets twice; the GM stores are handed keepRoom; the history listens; the health row]");
+        const S = await import("./gm-stores.mjs");
+        // Any key of the module counts in `total`; a made-up one, because R171 flags a GM store's SETTINGS name read outside the engine.
+        const items = [[`${MODULE_ID}.r298-other`, "R298".repeat(25)], [`${MODULE_ID}.${SETTINGS.noticeHistory}`, "R298".repeat(250)], ["another-module.r298", "R298".repeat(125)]];
+        const client = { length: items.length, key: i => items[i]?.[0] ?? null, getItem: k => items.find(([key]) => key === k)?.[1] ?? null };
+        const status = S.gmStoreStatus(client);
+        equal(J([status.total, status.notices]), J([items[0][0].length + 100, items[1][0].length + 1000]),
+            "[what the module keeps without its notice history; the history] in a stand-in storage");
+    }],
 ];
 
 /**
@@ -8136,7 +8277,8 @@ const LITERAL_KEYS = [
  * numbered across every engine made here, so two tabs never draw the same one. The html is kept as given unless
  * the caller hands the bench a cleaner (E81 C2): the store's tests weigh lengths, and R294 measures the cleaning
  * on the module's own engine. `messageExists` is the chat log the engine reads at `open` (E81 C5, R295); without
- * one nothing is marked deleted there.
+ * one nothing is marked deleted there. `store.now` counts the writes made before the call returns (giving way, E81 C6,
+ * R298), apart from `store.writes`.
  */
 let noticeIds = 0;
 function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock, clean = html => html, messageExists }) {
@@ -8150,6 +8292,10 @@ function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, c
                 if (store.fail > 0) { store.fail--; throw new Error("the suite's full storage"); }
                 store.raw = JSON.stringify(value);
                 store.writes++;
+            },
+            writeNow: value => {
+                store.raw = JSON.stringify(value);
+                store.now = (store.now ?? 0) + 1;
             }
         },
         timers: { set: () => 0, clear: () => {} },
