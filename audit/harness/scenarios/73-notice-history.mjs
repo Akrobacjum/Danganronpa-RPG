@@ -28,7 +28,10 @@
  * it is on screen it is no unread notice, so the tile's corner button - its last child - carries no badge, and
  * pressing it opens the window once and closes no card. The page goes with the card on it, and back, the button
  * says "1" in its badge and its name - the one unread notice, because phase C read every other one - and shows
- * none of its words; pressed, one window, and closed, no badge.
+ * none of its words; pressed, one window, and closed, no badge. G3 (E81 fix r1-G3): a player's own cards - one
+ * deleted with the withdraw option, two updated with `settled` and `rerolled`, a private one whose meta they send
+ * again with both - move nothing in the GM's history or another player's but the plain deletion's mark, while a
+ * GM's update and a GM's meta still mark.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -45,7 +48,9 @@ export const layers = ["ci"];
    C7's phase C (12.10.2026, alone, once): 21.9 s from start to end by the results file, the checks 17.5 s of it - no
    more than C5's reading, so a run's spread is larger than phase C, which was not timed apart. It stays.
    C8's phase D (12.10.2026, alone, once): 31.3 s from start to end by the results file, the checks 22.6 s of it - 5.1 s
-   more checks than C7's reading, from one run each and not timed apart by phase. Still inside 60 s, so it stays. */
+   more checks than C7's reading, from one run each and not timed apart by phase. Still inside 60 s, so it stays.
+   E81 fix r1-G3's phase G3 (12.10.2026, alone, once): 26.5 s from start to end by the results file, the checks 17.9 s
+   of it. It stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -78,7 +83,7 @@ function storedEntries(storage, sectionKey) {
     return storedSections(storage)[sectionKey]?.entries ?? [];
 }
 
-export async function run({ gm, p2, p4, check, phase, settle, connect, disconnect, storageOf, IDS, repoUrl }) {
+export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disconnect, storageOf, IDS, repoUrl }) {
     phase("A: a player's history after a reload, another player's and the GM's");
     const P4 = accounts[0].id;
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
@@ -344,4 +349,65 @@ export async function run({ gm, p2, p4, check, phase, settle, connect, disconnec
     check("D3: pressed, the button opens one window, and the window closed takes the badge away",
         back2.opened && back2.windows === 1 && back2.closed.badge === null && back2.closed.unread === 0 && back2.closed.last,
         J({ opened: back2.opened, windows: back2.windows, closed: back2.closed }));
+
+    phase("G3: only a GM rewrites what a kept entry says about a card - a player's withdraw, update and meta mark nobody's history");
+    /* E81 fix r1-G3 (12.10.2026; review round 1's O13, O14 and F2, which the security review measured on these
+       roads in the harness at 0697d0f): the withdraw option was honoured from any deleter, and a mark read off
+       the card whoever wrote it. A player's deletion with the option is now any deletion - the entry stays,
+       marked deleted - and only a GM's update or a GM's meta marks. Whether Foundry 14 lets a player delete or
+       update a message they wrote is not measured here: the harness lets them, and the rule holds either way. */
+    const G3 = { withdrawn: "S73 G3 withdrawn words", settled: "S73 G3 settled words", rerolled: "S73 G3 rerolled words",
+        ruled: "S73 G3 ruled words", meta: "S73 G3 meta words" };
+    const users = { gm: await gm.eval(`return game.user.id;`), p2: await p2.eval(`return game.user.id;`) };
+    const marksOf = `${UNTIL}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const marks = () => Object.fromEntries(Object.entries(${J(G3)}).map(([key, words]) => [key, NH.noticeEntries().filter(e => e.text.includes(words)).map(e => e.mark ?? null)]));`;
+    const g3 = await p1.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const out = {};
+        for (const key of ["withdrawn", "settled", "rerolled", "ruled"]) out[key] = (await U.announce({ content: "<p>" + ${J(G3)}[key] + "</p>" }))?.id ?? null;
+        out.meta = (await U.announce({ content: "<p>${G3.meta}</p>", whisper: ["${users.p2}", "${users.gm}"] }))?.id ?? null;
+        return out;`);
+    const heldBefore = {
+        gm: await gm.eval(`${marksOf} await until(() => ["withdrawn", "settled", "rerolled", "ruled"].every(key => marks()[key].length === 1)); return marks();`),
+        p2: await p2.eval(`${marksOf} await until(() => Object.values(marks()).every(list => list.length === 1)); return marks();`)
+    };
+    // The GM is among the private card's readers too; whether a GM's screen draws it is the catch-all's (part A), not asked here.
+    const publicOf = marks => ({ withdrawn: marks.withdrawn, settled: marks.settled, rerolled: marks.rerolled, ruled: marks.ruled });
+    check("G3a: a player's four public cards are kept on the GM and another player, and the private one on its reader, none marked",
+        Object.values(g3).every(Boolean) && J(publicOf(heldBefore.gm)) === J({ withdrawn: [null], settled: [null], rerolled: [null], ruled: [null] })
+            && J(heldBefore.p2) === J({ withdrawn: [null], settled: [null], rerolled: [null], ruled: [null], meta: [null] }),
+        J({ g3, heldBefore }));
+
+    // The player's own writes: the withdraw option, the two marks on the document and both in the private card's meta.
+    const wrote = await p1.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const ids = ${J(g3)};
+        try {
+            await game.messages.get(ids.withdrawn).delete({ "${MOD}": { withdraw: true } });
+            await game.messages.get(ids.settled).update({ "flags.${MOD}.settled": true });
+            await game.messages.get(ids.rerolled).update({ "flags.${MOD}.rerolled": { from: 3, to: 19, tone: "hope", at: Date.now() } });
+            // Words of its own: the author is not among the card's readers, so this browser holds none of them to send again.
+            await S.updateSecret(game.messages.get(ids.meta), "<p>${G3.meta} again</p>", null, { settled: true, rerolled: { from: 2, to: 12, tone: "hope", at: Date.now() } });
+            return { ok: true, gone: !game.messages.has(ids.withdrawn) };
+        } catch (err) { return { error: String(err?.message ?? err) }; }`);
+    // A GM's own update of a player's card, the road `settleCall` takes on a card that is not private.
+    await gm.eval(`await game.messages.get("${g3.ruled}")?.update({ "flags.${MOD}.settled": true }); return true;`);
+    const ruledSeen = `await until(() => marks().ruled[0] === "settled" && marks().withdrawn[0] === "deleted");`;
+    await settle(1500);
+    const heldAfter = { gm: await gm.eval(`${marksOf} ${ruledSeen} return marks();`), p2: await p2.eval(`${marksOf} ${ruledSeen} return marks();`) };
+    // That the player's meta arrived at all: its reader holds the words it came with (a check that it was not refused for its form).
+    const delivered = await p2.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        return String(S.secretHtml(game.messages.get("${g3.meta}")) ?? "").includes("${G3.meta} again");`);
+    check("G3b: the player's withdraw leaves the entry marked deleted, their settled, rerolled and meta mark nothing - on the GM and another player; a GM's update marks",
+        wrote?.ok === true && wrote.gone === true && delivered === true
+            && J(publicOf(heldAfter.gm)) === J({ withdrawn: ["deleted"], settled: [null], rerolled: [null], ruled: ["settled"] })
+            && J(heldAfter.p2) === J({ withdrawn: ["deleted"], settled: [null], rerolled: [null], ruled: ["settled"], meta: [null] }),
+        J({ wrote, delivered, heldAfter }));
+
+    // A GM's meta on the same private card, as `markReplacedCard` sends a Reroll's mark: the road is still open to a GM.
+    await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const card = game.messages.get("${g3.meta}");
+        await S.updateSecret(card, S.secretHtml(card), null, { rerolled: { from: 2, to: 12, tone: "hope", at: Date.now() } });
+        return true;`);
+    const metaMarked = await p2.eval(`${marksOf} await until(() => marks().meta[0] === "rerolled"); return marks().meta;`);
+    check("G3c: a GM's meta on the private card marks its reader's entry rerolled", J(metaMarked) === J(["rerolled"]), J(metaMarked));
 }

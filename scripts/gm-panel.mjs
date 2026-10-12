@@ -47,40 +47,44 @@ export function registerGmPanel() {
 
 /**
  * The GM's chrome (GM_CHROME below), registered by module.mjs BEFORE its requirements check and
- * apart from the panel (E13 fix r1-F3, 12.10.2026; S12-18). The stylesheet hides the Scenes tab, the
- * scene navigation and the hotbar unless the element carries the class this puts on it, and a
- * Foundry that links the module's stylesheet links it whether or not the module's script went on
- * to start - so while this sat in `registerGmPanel`, after the check, a world missing Dice So Nice,
- * Isometric Perspective or LiveKit (C10) stopped the module and took those three from the GM as
- * well, the directory to enable the missing module in included. Measured headless on 12.10.2026: a
- * GM's client booted with LiveKit off (00-boot, "the GM's chrome when the module stops") computed
- * all three `display: none` before this moved, shown after. Whether Foundry v14 links the sheet of a
- * module whose requirements are missing is LIVE-E13-11. Nothing here reads a setting: none is
- * registered on that road.
+ * apart from the panel (E13 fix r1-F3, 12.10.2026; S12-18). The stylesheet hides the Scenes tab
+ * unless the element carries the class this puts on it, and a Foundry that links the module's
+ * stylesheet links it whether or not the module's script went on to start - so while this sat in
+ * `registerGmPanel`, after the check, a world missing Dice So Nice, Isometric Perspective or LiveKit
+ * (C10) stopped the module and took the tab from the GM as well, the directory to enable the
+ * missing module in included. Measured headless on 12.10.2026: a GM's client booted with LiveKit
+ * off (00-boot, "the GM's chrome when the module stops") computed the tab (then with the scene
+ * navigation and the hotbar) `display: none` before this moved, shown after. Whether Foundry v14
+ * links the sheet of a module whose requirements are missing is LIVE-E13-11. Nothing here reads a
+ * setting: none is registered on that road.
  */
 export function registerGmChrome() {
-    /* The sidebar, the scene navigation and the hotbar are applications of their own, and an
-     * element one of them draws anew carries no class; `ready` stamps what is drawn by then. The
-     * three render names are Foundry's `render` + the application's class name, read from memory
-     * and not measured on v14: headless, 00-boot's "GM's chrome" fires them itself (LIVE-E13-09
-     * looks at the table). The scene controls' render stamps the rail as the launcher did. */
+    /* The sidebar is an application of its own, and a tab bar it draws anew carries no class;
+     * `ready` stamps what is drawn by then. The render names are Foundry's `render` + the
+     * application's class name, read from memory and not measured on v14: headless, 00-boot's
+     * "GM's chrome" fires them itself (LIVE-E13-09 looks at the table). The scene controls' render
+     * stamps the rail as the launcher did. The scene navigation's and the hotbar's renders were
+     * hooked here too until DZ5 (the owner, 12.10.2026) hid both for everybody: nothing of theirs
+     * is stamped any more. */
     Hooks.once("ready", markGmChrome);
-    for (const hook of ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"]) Hooks.on(hook, markGmChrome);
+    for (const hook of ["renderSceneControls", "renderSidebar"]) Hooks.on(hook, markGmChrome);
 }
 
 /**
- * The parts of Foundry's interface the stylesheet hides unless the element carries the class
- * a GM's client puts on it (E13 C7, 12.10.2026; S12-18). The scene navigation was the first
- * (`drpg-gm-nav`); the Scenes tab and the hotbar were hidden for the GM as well, the tab
- * shown again by Stained Glass alone - so under Legacy a GM had no scene directory to build
- * the trial hall in (D7: the hall is a scene the GM makes and links in Room Setup > Scenes),
- * and nobody had the hotbar - a GM's macros included (the repository carries five, macros/).
+ * The parts of Foundry's interface the stylesheet styles or shows by the class a GM's client
+ * puts on the element (E13 C7, 12.10.2026; S12-18): the rail, and the Scenes tab - hidden for
+ * the GM as well until then, and shown again by Stained Glass alone, so under Legacy a GM had no
+ * scene directory to build the trial hall in (D7: the hall is a scene the GM makes and links in
+ * Room Setup > Scenes). E13 C7 gave the GM the scene navigation (`drpg-gm-nav`) and the hotbar
+ * (`drpg-gm-hotbar`) in every theme too; the owner asked for both gone again (DZ5, 12.10.2026:
+ * "niepotrzebne", on a tablet under Stained Glass), so the base sheet now hides them from
+ * everybody in every theme - the hotbar as in 1.2.73, and the navigation under Legacy as Stained
+ * Glass already did for the GM. Scenes switch from the Scenes tab; the five macros the repository
+ * carries (macros/) and a GM's own run from the Macro Directory.
  */
 const GM_CHROME = [
     ["#scene-controls", "drpg-gm-rail"],
-    ["#scene-navigation", "drpg-gm-nav"],
-    ['#sidebar-tabs button[data-tab="scenes"], #sidebar .tabs button[data-tab="scenes"]', "drpg-gm-scenes"],
-    ["#hotbar", "drpg-gm-hotbar"]
+    ['#sidebar-tabs button[data-tab="scenes"], #sidebar .tabs button[data-tab="scenes"]', "drpg-gm-scenes"]
 ];
 
 /* The GM-only styling is keyed on classes THIS function puts on the
@@ -88,7 +92,7 @@ const GM_CHROME = [
  * an ancestor-class selector was measured matching the element and
  * still not applying - present in the sheet, `matches()` true,
  * computed style ignoring it - while a same-element class works
- * everywhere. What GM_CHROME names is hidden by default in the
+ * everywhere. The Scenes tab GM_CHROME names is hidden by default in the
  * stylesheet and only a GM's client ever runs this to show it, so a
  * player needs no selector gymnastics at all - and a client where the
  * module never ran shows nobody any of it. A module that stopped at

@@ -2924,7 +2924,8 @@
       "createItem": "Utwórz przedmiot",
       "createItemStays": "„Utwórz przedmiot” zostawia tę kartę otwartą, więc pozostałe odpowiedzi są nadal dostępne.",
       "giveItem": "Daj istniejący przedmiot",
-      "keyRemnantHere": "Utwórz tu Key Remnant"
+      "keyRemnantHere": "Utwórz tu Key Remnant",
+      "unnamed": "bez nazwy"
     },
     "Tables": {
       "installed": "Tabele przedmiotów gotowe: {created} utworzono, {skipped} już istniało.",

@@ -208,8 +208,12 @@ const ASKED_BY = "askedBy";
  * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
  * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
  * Nor who asked a GM to post a card (`ASKED_BY`): that is the GM's to say (E08+E28 fix r2-H5).
+ * Nor a ruling's or a Reroll's mark on a card (`settled`, gm-bridge.mjs `settleCall`; `rerolled`,
+ * reroll.mjs `markReplacedCard`): both are a GM's to write, and every browser's notice history marks its
+ * entry by them (E81 fix r1-G3, 12.10.2026; review round 1's O14 - a player's own card could carry
+ * "Ruled on by the GM"). No test or scenario sends either in a player's meta (read 12.10.2026).
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {
@@ -498,10 +502,20 @@ export function secretHtml(message) {
 export function cardFlag(message, key) {
     const own = typeof message?.getFlag === "function" ? message.getFlag(MODULE_ID, key) : message?.flags?.[MODULE_ID]?.[key];
     if (own !== undefined && own !== null) return own;
-    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return own;
+    return cardMeta(message, key) ?? own;
+}
+
+/**
+ * One of a private card's flags from the meta that came with its words alone, never the document's -
+ * for this user only, as `cardFlag` reads it; undefined for a card that is not private or whose words
+ * this browser does not hold. The notice history's marks read here (notice-history.mjs
+ * `noticeSecretStored`, E81 fix r1-G3): the document's flags are its author's to write.
+ */
+export function cardMeta(message, key) {
+    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return undefined;
     const entry = read()[message.id];
-    if (!entry || (entry.user && entry.user !== game.user?.id)) return own;
-    return entry.meta?.[key] ?? own;
+    if (!entry || (entry.user && entry.user !== game.user?.id)) return undefined;
+    return entry.meta?.[key];
 }
 
 /**
@@ -634,7 +648,7 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
     if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
     /* The words and their meta are this browser's now (E81 C5): a private card's `rerolled` and `settled`
        travel here and not on the document, so the notice history reads its marks after this, not on
-       `updateChatMessage` (notice-history.mjs `noticeCardChanged`). */
+       `updateChatMessage` (notice-history.mjs `noticeSecretStored`). */
     if (message) Hooks.callAll("drpgSecretStored", message);
 }
 

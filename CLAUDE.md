@@ -923,12 +923,12 @@ Next free: R480. Reserved and unused: R121 for A4 (E22); R122 for A1 (E23); R123
 | R435 | 1 | E13 | a player's browser puts its own view right once after a load: the hall in the trial, the school after it, never a GM's |
 | R436 | 0 | E13 | the gather after the trial has one door: End the trial asks for a room and cannot skip it, closeTrial holds the choice for its one write, and only leaveTrialScene gathers, after the hall is hidden, reading held |
 | R437 | 1 | E13 | Start the Class Trial names the trial hall and the table's rule, and the trial console's one door takes the table to the hall or back without the phase |
-| R438 | 0 | E13 | the Scenes tab, the scene navigation and the hotbar are shown to a GM in every theme and hidden for a player |
+| R438 | 0 | E13 | the Scenes tab is shown to a GM in every theme and hidden for a player; the scene navigation and the hotbar are hidden for everybody in every theme |
 | R439 | 1 | E13 | a tier 0 tool or weapon is spent by any roll it was used in, a tier 1 to 3 one only by a Despair, and the sheet draws a tier 0 one no durability track |
 | R440 | 0 | E13 | the handbooks state the table's rule beside Start the Class Trial and in the player's trial, and name the trial hall's tab, doors and calls as the module does, in English and in Polish |
 | R441 | 0 | E13 | module.json requires Dice So Nice, Isometric Perspective and LiveKit, recommends none of them, and names them by the ids the code reads |
 | R442 | 1 | E13 | a missing or switched-off companion stops the module: Isometric Perspective and LiveKit as Dice So Nice |
-| R470 | 1 | E13 | a GM keeps the Scenes tab, the scene navigation and the hotbar when the module stops at its requirements check |
+| R470 | 1 | E13 | a GM keeps the Scenes tab when the module stops at its requirements check |
 | R471 | 0 | E13 | a counted sentence is counted on a field its data names |
 | R472 | 0 | E81 | a notice road has a census row, and every row judges a road |
 | R473 | 1 | E81 | the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2 |

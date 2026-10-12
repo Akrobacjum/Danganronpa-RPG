@@ -889,7 +889,7 @@ Zębatka w prawym dolnym rogu otwiera **Ustawienia** (`scripts/look.mjs`): wszys
 
 Te same przełączniki są w ustawieniach modułu w Foundry.
 
-Nawigacja scen Foundry, zakładka Sceny na jego pasku bocznym i pasek makr zostają na ekranie GMa w obu motywach, a na ekranie gracza są ukryte - u GMa także wtedy, gdy moduł odmówił startu z powodu brakującego wymaganego modułu (czy Foundry v14 ładuje wtedy jeszcze arkusz stylów modułu, nie zmierzono jeszcze przy stole: LIVE-E13-11).
+Zakładka Sceny na pasku bocznym Foundry zostaje na ekranie GMa w obu motywach, a na ekranie gracza jest ukryta - u GMa także wtedy, gdy moduł odmówił startu z powodu brakującego wymaganego modułu (czy Foundry v14 ładuje wtedy jeszcze arkusz stylów modułu, nie zmierzono jeszcze przy stole: LIVE-E13-11). Nawigacja scen Foundry i pasek makr są ukryte na każdym ekranie, także u GMa: sceny przełącza się z zakładki Sceny, a makra uruchamia z katalogu makr (Macro Directory).
 
 > [!TIP]
 > **Szkło rozmywa mapę** to najdroższy efekt motywu: pierwsza rzecz do wyłączenia, gdy interfejs się przycina, a `game.drpg.perf()` mówi, ile kosztuje na tej maszynie.

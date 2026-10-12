@@ -657,12 +657,18 @@ function raiseIfObjecting(stage) {
  *   pending (`showWaiting`) and for the suite's own cards.
  * @param {string|null} [options.source]  Where it came from, one of the history's
  *   `NOTICE_SOURCES`; by default worked out from the chat card (`noticeSource`).
+ * @param {string|null} [options.author]  The other user the card came from, when no
+ *   chat card says it (a packet's sender, a thread's player): the history bounds each
+ *   (E81 fix r1-G1; `noticeSource`).
  * @param {{messenger: string}|null} [options.link]  What the history's entry
  *   opens: a conversation with that user (the messenger's cards, E81 C4).
  * @param {boolean} [options.observe]  Follow the body while the card is on screen:
  *   a card whose words change after it is drawn is kept as it last read (default true).
  * @param {"browser"|"session"} [options.persist]  "session": kept by this page
  *   only, never written to the setting.
+ * @param {string|null} [options.fromMessage]  The chat card that raised it, for the
+ *   history alone: kept as that card's entry, one across this login's tabs, while the
+ *   notice itself stays when the card is deleted (the safeword's banner; E81 fix r1-G5).
  *
  * The interface every later recorder takes (E18, E50, E62 and E70 after E81): a
  * surface that raises a card through `showPopup` is kept by passing these, and
@@ -724,18 +730,28 @@ function watchCard(card, body, id) {
  * was whispered is "public" from a GM and "player" from anyone else, with that player's id from the
  * document's own author - never `cardWriter`, which a card's meta can name; a whisper, a veiled card
  * or no chat card at all is "mine".
+ *
+ * And from whom (E81 fix r1-G1, 12.10.2026; review round 1's F1, N1 and GV1): every entry drawn from another
+ * user's card carries that user, whatever its source, because the history bounds each sender by it
+ * (notice-history.mjs `trimSection`) and an entry with none was bounded by nothing - a whisper with `gmPopup`,
+ * an evidence card, a `gmAsk` card. The caller's `author` when it names one, else the card's writer
+ * (`cardWriter`, for the bound alone: a card a GM posted at a player's asking is the player's) when that is
+ * not a GM. A player's public card keeps its document's author as before; a GM's own card and a card of no
+ * document carry nobody.
  */
-function noticeSource(source, messageId) {
-    if (source) return { source };
+function noticeSource(source, messageId, author) {
     const message = messageId ? game.messages?.get(messageId) : null;
-    if (!message || (message.whisper ?? []).length) return { source: "mine" };
-    const author = message.author ?? null;
-    return author && !author.isGM ? { source: "player", author: author.id } : { source: "public" };
+    const writer = cardWriter(message);
+    const by = author ? { author } : writer && !writer.isGM && writer.id ? { author: writer.id } : {};
+    if (source) return { source, ...by };
+    if (!message || (message.whisper ?? []).length) return { source: "mine", ...by };
+    const own = message.author ?? null;
+    return own && !own.isGM ? { source: "player", author: own.id } : { source: "public", ...by };
 }
 
 export function showPopup(bodyHtml, {
     title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null,
-    record = true, source = null, link = null, observe = true, persist = "browser"
+    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
@@ -787,7 +803,7 @@ export function showPopup(bodyHtml, {
         try {
             notice = recordNotice({
                 kind: KINDS.includes(kind) ? kind : "info", tone: TONES.includes(tone) ? tone : null,
-                title, html: body.innerHTML, messageId, link, persist, ...noticeSource(source, messageId)
+                title, html: body.innerHTML, messageId: messageId ?? fromMessage, link, persist, ...noticeSource(source, messageId ?? fromMessage, author)
             });
             if (notice) card.dataset.drpgNotice = notice;
         } catch (err) {

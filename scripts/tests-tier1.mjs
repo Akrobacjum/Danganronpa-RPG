@@ -7152,15 +7152,17 @@ const INVARIANTS = [
             JSON.stringify([true, true, true]),
             "[init returns on the check before it registers a setting; setup returns on it first; ready announces and returns first]");
     }],
-    ["R470 - a GM keeps the Scenes tab, the scene navigation and the hotbar when the module stops at its requirements check", async () => {
+    ["R470 - a GM keeps the Scenes tab when the module stops at its requirements check", async () => {
         /*
-         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hides the three unless the element carries
+         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hid the three unless the element carried
          * the class a GM's client puts on it (GM_CHROME, R438), and that was registered in `registerGmPanel`, after the
          * requirements check `init` returns on (R442) - so a world missing a required module, which C10 made likelier,
-         * took the three from its GM too. Read in module.mjs with comments blanked: `init` registers the GM's chrome
-         * after the relay guard and before the check; and in gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on
-         * `ready` and on the four renders (the scene controls', the sidebar's, the navigation's and the hotbar's), and
-         * neither function reads a setting - none is registered on that road. What a GM's client then computes is
+         * took the three from its GM too. Since DZ5 (the owner, 12.10.2026; E81 fix r1-G6) the scene navigation and
+         * the hotbar are hidden for everybody and only the Scenes tab is left of the three. Read in module.mjs with
+         * comments blanked: `init` registers the GM's chrome after the relay guard and before the check; and in
+         * gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on `ready` and on two renders (the scene controls' and
+         * the sidebar's) and on neither the navigation's nor the hotbar's - nothing of theirs is stamped any more -,
+         * and neither function reads a setting - none is registered on that road. What a GM's client then computes is
          * 00-boot's "the GM's chrome when the module stops" (a GM booted with LiveKit off); whether Foundry v14 links
          * the sheet of a module that stopped is LIVE-E13-11 (not run).
          */
@@ -7174,13 +7176,14 @@ const INVARIANTS = [
         const register = panel.includes("export function registerGmChrome")
             ? bodyOf(panel, "export function registerGmChrome", { until: "\nfunction markGmChrome" }) : "";
         const mark = bodyOf(panel, "function markGmChrome", { length: 400 });
-        const hooked = ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
+        const hooked = ["renderSceneControls", "renderSidebar"].filter(h => register.includes(`"${h}"`));
+        const dropped = ["renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
         equal(JSON.stringify([at("registerRelayGuard") >= 0 && chrome > at("registerRelayGuard"), chrome >= 0 && chrome < at("if (!requirementsMet())"),
-            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
+            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, dropped, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
             /game\.settings|getSetting|SETTINGS\./.test(register + mark)]),
-            JSON.stringify([true, true, true, 4, true, false]),
+            JSON.stringify([true, true, true, 2, [], true, false]),
             "[the GM's chrome after the relay guard; before the requirements check; stamped at ready; the renders hooked; "
-            + "each to markGmChrome; a setting read on that road]");
+            + "the navigation's or the hotbar's render hooked; each to markGmChrome; a setting read on that road]");
     }],
     ["R292 - the notice history keeps what it is given within its budgets, by world and user, and another tab's copy merges in without a loss, a double or a return from the grave", async () => {
         /*
@@ -7191,8 +7194,9 @@ const INVARIANTS = [
          * section's key and the entry's `id`, `at` and clock (this client's, whatever the caller passes); the
          * clipping of a title, a text and an html over its budget, a day summary's larger one; at most 4 full day
          * summaries in a section; the 251st entry of a player's section and the 151st of a GM's; a section's
-         * 200 000 characters; 40 cards from each player author; the value's 500 000, other worlds first and this
-         * world's other accounts after them; the epoch on read and on write; `open` read back as `unread`; a raw
+         * 200 000 characters; 40 entries from each author, whatever their source (E81 fix r1-G1); the value's 500 000, other worlds first and never
+         * this world's other accounts (E81 fix r1-G2: a value they alone fill keeps this login in memory); the epoch on
+         * read and on write; `open` read back as `unread`; a raw
          * value read through the shape; two tabs of one login - the union, one entry per message and source, a
          * withdrawn entry and a Clear that another tab's copy does not bring back, tombstones let go after ten
          * minutes; this login's section taken out by another account written again from memory; a write that
@@ -7265,7 +7269,7 @@ const INVARIANTS = [
             JSON.stringify([true, true, "card 29"]),
             "[a section within 200 000 characters; some of 30 entries of 8 000 gone; the newest kept]");
 
-        // 40 cards from each player author.
+        // 40 entries from each author, whatever their source: the public ones count against A since E81 fix r1-G1.
         e = bench(fresh());
         e.open();
         const A = "SuiteAuthorAaaa1", B = "SuiteAuthorBbbb2";
@@ -7276,10 +7280,11 @@ const INVARIANTS = [
         must(e.entries().length > 0, "the author case kept nothing");
         equal(JSON.stringify([byAuthor(A), byAuthor(B), e.entries().filter(x => x.source === "public").length,
             e.entries().some(x => x.title === "card 0"), e.entries().some(x => x.source === "public" && x.author)]),
-            JSON.stringify([40, 3, 2, false, false]),
-            "[author A's cards after 41; author B's 3; the public ones beside them; A's oldest gone; an author kept on a card that is not a player's]");
+            JSON.stringify([40, 3, 2, false, true]),
+            "[author A's entries after 43, its public ones among them; author B's 3; the public ones; A's oldest gone; an author kept on a card that is not a player's]");
 
-        // The whole value's 500 000: other worlds first, the least recently written first, then this world's other accounts.
+        // The whole value's 500 000: other worlds first, the least recently written first, and never this world's other
+        // accounts (E81 fix r1-G2, 12.10.2026; until then they went next): a value they alone fill is not written.
         const epoch = NH.noticeEpoch(clock.value);
         const filler = (touched, chars) => ({ epoch, touched, clearedAt: 0, gone: {}, entries: [], pad: "f".repeat(chars) });
         const evicted = [];
@@ -7292,11 +7297,11 @@ const INVARIANTS = [
             e.open();
             e.record(card("own"));
             await e.flush();
-            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length);
+            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length, e.status().saving);
         }
-        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, `${W}.${U1}`, true, 1]),
+        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, true, `${W}.${U2}`, false, 1, false]),
             "[over 500 000 with two other worlds and another account here: the least recently written other world goes, the account stays though older; "
-            + "with this world's other account alone over it: that section goes, this login's entry stays]");
+            + "with this world's other account alone over it: that section stays and nothing is written, this login's entry kept in memory, not saving]");
 
         // The epoch: on read, and on write.
         store = fresh();
@@ -7326,8 +7331,8 @@ const INVARIANTS = [
         const newer = bench({ ...fresh(), raw: JSON.stringify({ v: 2, sections: { [KEY]: { entries: raws } } }) });
         newer.open();
         equal(JSON.stringify([e.entries().map(x => [x.id, x.state, x.author ?? null]), newer.entries().length, newer.status().saving]),
-            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", null]], 0, false]),
-            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author dropped from a card that is not a player's; "
+            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", U2]], 0, false]),
+            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author kept on a card that is not a player's (E81 fix r1-G1); "
             + "a newer format read as nothing and kept in memory only]");
 
         // Two tabs of one login.
@@ -7352,7 +7357,8 @@ const INVARIANTS = [
         tick(); one.clear();
         await one.flush(); await two.flush(); two.external();
         const cleared = [ids().length, two.entries().length, Object.keys(stored(store).sections[KEY].gone).length > 0];
-        tick(11 * 60 * 1000); await one.flush();
+        /* Let go at the next write: since E81 fix r1-G5 a flush with nothing changed writes nothing, so a card comes first. */
+        tick(11 * 60 * 1000); one.record(card("after")); await one.flush();
         const tombstones = Object.keys(stored(store).sections[KEY].gone).length;
         /* A copy older than the Clear, its tombstones let go: what is kept out now is `clearedAt` alone. */
         const late = stored(store), STALE = "SuiteStaleCopy01";
@@ -7392,6 +7398,54 @@ const INVARIANTS = [
         }
         equal(JSON.stringify(failed), JSON.stringify([6, 6, null, null, 6, "DRPG.Notices.notSaved"]),
             "[a write failed once: a quarter of 8 gone and the rest written; failed twice: nothing written, 6 kept in memory, the footer's text]");
+
+        /*
+         * A write only when something changed (E81 fix r1-G5; review round 1's O2). The page flushes at every hide,
+         * and at 0697d0f each flush wrote: a login that had recorded nothing found an empty section of its own
+         * written, then rewritten (both reviewers measured it), and a hide during tier 0/1 moved the setting the
+         * runner's "changed nothing" check reads. Here: two flushes with nothing recorded; one card and three
+         * flushes; the other road to an empty section - the reset's clean-up of another account's ended section,
+         * which writes; and the one write a clean page still owes: another tab's stale copy that lost this
+         * page's entry is written back, and the tab that lost nothing writes nothing.
+         */
+        const clean = [];
+        {
+            let s = fresh(), x = bench(s);
+            x.open();
+            await x.flush();
+            await x.flush();
+            clean.push(s.raw, s.writes);
+            tick(); x.record(card("once"));
+            await x.flush();
+            tick(); await x.flush();
+            await x.flush();
+            clean.push(s.writes, stored(s).sections[KEY]?.entries?.length ?? 0);
+            s = fresh();
+            s.raw = JSON.stringify({ v: 1, sections: { [`${W}.${U2}`]: { epoch: "an-ended-season", touched: 1, clearedAt: 0, gone: {}, entries: [] } } });
+            x = bench(s);
+            x.open();
+            await x.flush();
+            clean.push(s.writes, Object.keys(stored(s).sections));
+            s = fresh();
+            const tabA = bench(s), tabB = bench(s);
+            tabA.open(); tabB.open();
+            tick(); const lost = tabA.record(card("lost"));
+            await tabA.flush();
+            const stale = stored(s);
+            stale.sections[KEY].entries = [];
+            s.raw = JSON.stringify(stale);
+            const w = s.writes;
+            tabA.external();
+            await tabA.flush();
+            const repaired = [stored(s).sections[KEY].entries.map(entry => entry.id).includes(lost), s.writes - w];
+            tabB.external();
+            await tabB.flush();
+            clean.push([...repaired, s.writes - w]);
+        }
+        equal(JSON.stringify(clean), JSON.stringify([null, 0, 1, 1, 1, [], [true, 1, 1]]),
+            "[nothing recorded, flushed twice: the stored value, the writes; one card, flushed three times: the writes, its section's entries; "
+            + "the reset's clean-up of another account's section: the writes, the sections left; a stale copy that lost this tab's entry: [written back, by one write; "
+            + "the writes after the tab that lost nothing flushed]]");
     }],
 
     ["R297 - each account keeps what its own browser showed it: every account's section stays in the value to the season's reset, and the reset clears them all", async () => {
@@ -7486,7 +7540,7 @@ const INVARIANTS = [
          * catch-all draws it, so a GM keeps an announcement, a card for the GM to answer and a GM's insisted card, and
          * no whisper of a record; a veiled card without this login's words and a `popupKind: "none"` keep nothing. A
          * public card a player wrote is kept as the player's, from the document's author - a GM's card that names a
-         * player as its asker stays public. The messenger's `gmAsk` card the GM is raised for is kept too, as the
+         * player as its asker stays public, and carries that player for the per-author bound (E81 fix r1-G1). The messenger's `gmAsk` card the GM is raised for is kept too, as the
          * thread's since E81 C4: its message, and the conversation the entry opens. Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
          * `game.messages.get` answers for the length of the clause, held as R473 holds the history.
          */
@@ -7548,9 +7602,9 @@ const INVARIANTS = [
         }
         must(read.has("R297GmAskCard001"), `the GM has ${player.name}'s conversation open - the messenger's card would append to it, not be drawn`);
         equal(JSON.stringify(Object.fromEntries(read)), JSON.stringify({
-            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", null]],
+            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", player.id]],
             R297WhisperedRec: [], R297GmPopupCard1: [["mine", null]], R297ForcedByGm01: [["mine", null]], R297ForcedByPlay: [],
-            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", null]], R297ChatterCard1: []
+            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", player.id]], R297ChatterCard1: []
         }), "[a GM's kept entries per card: [source, author]] - the announcement, a player's public card, a GM's card naming a player as asker, "
             + "a whisper of a record, gmPopup, popupForce from a GM and from a player, veiled without words, popupKind none, the messenger's gmAsk and its chatter");
         equal(JSON.stringify(askLink), JSON.stringify([["R297GmAskCard001", player.id]]),
@@ -7588,7 +7642,15 @@ const INVARIANTS = [
             const refused = sayNotDone("vote.cast", "<b>R297 a reply's own words</b>", { notify: () => {} });
             await until(() => since(before).length > 0, 1000);
             direct.refused = since(before).map(entry => [entry.text === refused, entry.text.includes("R297 a reply")]);
+            /* A request's name off the list (E81 fix r1-G3; review round 1's O12): a refusal this client is not waiting
+               on is said with the GM's packet's `what`, which reached the toast and the history as written. */
             before = ids();
+            const unnamed = sayNotDone("<b>R297 a packet's own what</b>", "refused", { notify: () => {} });
+            await until(() => since(before).length > 0, 1000);
+            direct.unnamed = since(before).map(entry => [entry.text === unnamed, entry.text.includes("R297 a packet"), entry.text.includes(game.i18n.localize("DRPG.Bridge.unnamed"))]);
+            before = ids();
+            // One kept detail per sender per window (E81 fix r1-G1): a press of this GM's a minute ago is no answer here.
+            S.safewordDetails?.delete(game.user.id);
             await S.hearSafeword({ action: S.SAFEWORD_ACTION, room: "R297 room" }, game.user.id);
             direct.detail = since(before).map(entry => [entry.source, entry.kind, entry.title, entry.text.includes("R297 room")]);
             before = ids();
@@ -7625,13 +7687,169 @@ const INVARIANTS = [
         equal(JSON.stringify(direct), JSON.stringify({
             cleanup: [["error", "notDone", "read", t("DRPG.Notices.source.notDone"), true, ""]],
             refused: [[true, false]],
+            unnamed: [[true, false, true]],
             detail: [["safeword", "error", t("DRPG.Safeword.gmTitle"), true]],
             banner: [["safeword", t("DRPG.Safeword.banner"), t("DRPG.Safeword.announced"), true]],
             bubble: [["R297BubbleCard01"], 0],
             sources: [true, true]
         }), "[sayNotDone's murder.cleanup with its own notify: [kind, source, state, title, the toast's words, html]; a reason off the list: "
-            + "[the toast's words, the reply's]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
+            + "[the toast's words, the reply's]; a request's name off the list: [the toast's words, the packet's, the unnamed request's label]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
             + "line: [source, title, text, the first snapshot]; a bubble in an open window: [appended, kept]; the evidence's source and message, the summary's source]");
+
+        /*
+         * NOBODY'S CARDS PUSH ANOTHER ACCOUNT'S ENTRIES OUT (E81 fix r1-G1, 12.10.2026; review round 1's F1, N1, GV1,
+         * O10 and O11). The harm both reviews measured at 0697d0f: on a GM, 12 public cards of 7 800 characters from
+         * one player took all 5 of the GM's own entries, and a whisper with `gmPopup`, an evidence card, a `gmAsk`
+         * card or a safeword card took them uncounted. First the engine over a value in memory, a GM's section and a
+         * player's: this account's 5 own entries and a second author's 3, then 30 entries of 7 800 characters from one
+         * sender on each of six sources, 160 short ones from another, and 30 stubs from a third that grow to 7 800 after
+         * they are kept (a private card's words landing): every own entry and the second author's stay, and each
+         * sender keeps at most 40 entries and a quarter of the section's characters. Then six senders at that bound,
+         * more than a section holds: the own entries stay, every sender keeps its newest, the section its budget.
+         * Then this GM's held engine through the module's own roads, from one player: 13 public cards, 13 whispers
+         * with `gmPopup`, 13 evidence cards and 13 `gmAsk` cards a GM wrote in the player's thread, 7 800 characters
+         * each, and 150 public safeword cards raised from the player's chat card; and 20 safeword details with a
+         * 7 000-character room from a sender of the suite's own (`showGmDetail`, what `hearSafeword` draws; the
+         * window is that sender's, so a run a minute after another measures the same): the GM's own 5 and the second
+         * author's 3 stay, each road's newest entry carries its sender, the player keeps at most 40 entries and 25 000
+         * characters, the details kept are one and its room 120 characters. The safeword hook's own line - which
+         * player's card raised the public one - is read in the source with comments blanked. Last (O11): a plain
+         * deletion of an evidence card's and a messenger card's message takes the card off the screen and leaves
+         * its entry unread and marked deleted, as C5 made it.
+         */
+        const SECOND = "SuiteAuthorBbbb2", SENDERS = ["SuiteSenderPppp1", "SuiteSenderQqqq2", "SuiteSenderGggg3"];
+        const words = `<p>${"x".repeat(7800)}</p>`;
+        const weigh = list => list.reduce((n, entry) => n + JSON.stringify(entry).length + 1, 0);
+        const engineOf = gm => {
+            const eng = noticeBench(NH.createNoticeEngine, { store: { raw: null, writes: 0, fail: 0 }, user: "SuiteOwnerOoooo1", world: W, gm, at, clock });
+            eng.open();
+            const put = (more, html = "<p>short</p>") => {
+                at.now += 1000;
+                return eng.record({ kind: "info", title: "flood", text: "", html, ...more });
+            };
+            return { eng, put, own: [0, 1, 2, 3, 4].map(() => put({ source: "mine" })) };
+        };
+        const flood = {}, crowd = {};
+        for (const gm of [true, false]) {
+            const share = (gm ? 100000 : 200000) / 4;
+            const { eng, put, own } = engineOf(gm);
+            const second = [0, 1, 2].map(() => put({ source: "player", author: SECOND }));
+            const [heavy, many, grown] = SENDERS;
+            for (const source of ["public", "player", "mine", "messenger", "evidence", "safeword"]) {
+                for (let i = 0; i < 30; i++) put({ source, author: heavy, title: `${source} ${i}` }, words);
+            }
+            for (let i = 0; i < 160; i++) put({ source: "safeword", author: many });
+            const stubs = Array.from({ length: 30 }, () => put({ source: "mine", author: grown }));
+            for (const id of stubs) eng.update(id, { html: words });
+            const kept = new Set(eng.entries().map(entry => entry.id));
+            const of = who => eng.entries().filter(entry => entry.author === who);
+            flood[gm ? "gm" : "player"] = [own.every(id => kept.has(id)), second.every(id => kept.has(id)),
+                of(heavy).length <= 40 && weigh(of(heavy)) <= share, of(heavy).at(-1)?.title ?? null, of(many).length <= 40, weigh(of(grown)) <= share];
+
+            const six = engineOf(gm);
+            const names = Array.from({ length: 6 }, (_, n) => `SuiteCrowdSendr${n}`);
+            for (let i = 0; i < 30; i++) for (const author of names) six.put({ source: "public", author, title: `${author} ${i}` }, words);
+            const left = new Set(six.eng.entries().map(entry => entry.id));
+            crowd[gm ? "gm" : "player"] = [six.own.every(id => left.has(id)),
+                names.every(author => six.eng.entries().filter(entry => entry.author === author).at(-1)?.title === `${author} 29`),
+                weigh(six.eng.entries()) <= share * 4];
+        }
+
+        const P = await import("./popup.mjs");
+        const sender = { id: `R297Sender${String(Date.now() % 1e6).padStart(6, "0")}`, name: "R297 sender", isGM: false };
+        const fid = (tag, i) => `R297Fl${tag}${String(i).padStart(4, "0")}xxxxx`;
+        const flooded = new Map(), road = {}, owned = [], seconds = [];
+        const live = ids();
+        /* A card this clause drew is closed whether or not it was kept: a repeat of the GM's safeword detail inside
+           its window is drawn with `record: false` and carries no notice id. Left on the tile, they stood under R293's
+           tail and R298's floor card, which measure the tile on the suite's own cards (the merge of e81-fix1 into
+           e81-wip, 12.10.2026: both failed that precondition in the fast set's tiers 0-1, e81run/mergee81fix1). */
+        const cardsBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismissNew = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!cardsBefore.has(card) || (card.dataset.drpgNotice && !live.has(card.dataset.drpgNotice))) {
+                    card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                }
+            }
+        };
+        const ran = key => {
+            const entry = NH.noticeEntries().at(-1) ?? null;
+            road[key] = [entry?.source ?? null, entry?.author === player.id];
+            dismissNew();
+        };
+        let bound = null, detail = null, deleted = null;
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        must(!DrpgMessengerApp.instances.has(player.id), `the GM has ${player.name}'s conversation open - the messenger's cards would append to it, not be drawn`);
+        await NH.holdNoticeHistory(true);
+        const getOf = game.messages.get;
+        game.messages.get = function (id, ...rest) { return flooded.get(id) ?? getOf.call(this, id, ...rest); };
+        const made = (tag, i, more) => {
+            const message = fake(fid(tag, i), more);
+            flooded.set(message.id, message);
+            return message;
+        };
+        try {
+            for (let i = 0; i < 5; i++) owned.push(NH.recordNotice({ source: "mine", kind: "info", title: `R297 own ${i}`, text: "", html: `<p>R297 own ${i}</p>` }));
+            for (let i = 0; i < 3; i++) seconds.push(NH.recordNotice({ source: "player", author: SECOND, kind: "info", title: `R297 second ${i}`, text: "", html: "<p>R297 second</p>" }));
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("P", i, { author: player, content: words }));
+            ran("public");
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: player, whisper: [me], flags: { gmPopup: true }, content: words }));
+            ran("gmPopup");
+            for (let i = 0; i < 13; i++) {
+                P.showPopup(words, { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: made("E", i, { author: player }).id });
+            }
+            ran("evidence");
+            for (let i = 0; i < 13; i++) {
+                const ask = made("A", i, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: words });
+                Hooks.callAll("drpgMessengerMessage", player.id, ask);
+                await until(() => NH.noticeEntries().some(entry => entry.messageId === ask.id), 500);
+            }
+            ran("gmAsk");
+            for (let i = 0; i < 150; i++) {
+                S.raiseCard(player.id);
+                dismissNew();
+            }
+            ran("banner");
+            for (let i = 0; i < 20; i++) S.showGmDetail?.(sender, "r".repeat(7000));
+            dismissNew();
+            const after = new Set(NH.noticeEntries().map(entry => entry.id));
+            const by = who => NH.noticeEntries().filter(entry => entry.author === who);
+            bound = [owned.every(id => after.has(id)), seconds.every(id => after.has(id)), by(player.id).length <= 40, weigh(by(player.id)) <= 25000];
+            detail = by(sender.id).map(entry => [entry.source, entry.text.includes("r".repeat(120)), entry.text.includes("r".repeat(121))]);
+
+            const evidenceMessage = made("D", 1, { author: player });
+            const askMessage = made("D", 2, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: "<p>R297 a deleted ask</p>" });
+            P.showPopup("<p>R297 a deleted evidence card</p>", { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: evidenceMessage.id });
+            Hooks.callAll("drpgMessengerMessage", player.id, askMessage);
+            await until(() => NH.noticeEntries().some(entry => entry.messageId === askMessage.id), 500);
+            const gone = [evidenceMessage.id, askMessage.id];
+            const shown = gone.map(id => document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`));
+            must(shown.every(Boolean), "the evidence card or the messenger card was not drawn - their deletion would be measured on nothing");
+            for (const id of gone) {
+                P.onDeleteChatMessage({ id });
+                NH.noticeCardDeleted({ id }, {});
+            }
+            deleted = [shown.map(card => card.classList.contains("leaving")),
+                gone.map(id => NH.noticeEntries().filter(entry => entry.messageId === id).map(entry => [entry.source, entry.state, entry.mark]))];
+        } finally {
+            delete game.messages.get;
+            dismissNew();
+            NH.holdNoticeHistory(false);
+        }
+        const hook = stripComments(sources.get("safeword.mjs") ?? "");
+        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null, message\.id\)/.test(hook), deleted }), JSON.stringify({
+            flood: { gm: [true, true, true, "safeword 29", true, true], player: [true, true, true, "safeword 29", true, true] },
+            crowd: { gm: [true, true, true], player: [true, true, true] },
+            bound: [true, true, true, true],
+            road: { public: ["player", true], gmPopup: ["mine", true], evidence: ["evidence", true], gmAsk: ["messenger", true], banner: ["safeword", true] },
+            detail: [["safeword", true, false]],
+            hook: true,
+            deleted: [[true, true], [[["evidence", "unread", "deleted"]], [["messenger", "unread", "deleted"]]]]
+        }), "[the engine, a GM's and a player's: [own 5 kept, a second author's 3 kept, a heavy sender within 40 entries and a quarter, its newest, "
+            + "160 short within 40, grown stubs within a quarter]; six senders: [own kept, each one's newest, the section within its budget]; "
+            + "this GM through the roads: [own 5 kept, a second author's 3 kept, the player within 40 entries, within 25 000 characters]; "
+            + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player and its card (E81 fix r1-G5); "
+            + "a plain deletion: [cards closing], [the entries' [source, state, mark]]]");
     }],
 
     ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {
@@ -7644,30 +7862,58 @@ const INVARIANTS = [
          * "the suite left this browser's notice history as it found it" after it - which is the measurement of a run;
          * this test is what keeps it there.
          */
+        /*
+         * ON AN ENGINE OF ITS OWN (E81 fix r1-G5, 12.10.2026; review round 1's O3 and N4). It held the module's
+         * engine for about 700 ms and read the stored text before the awaited hold, which writes what waits - red
+         * on timing, not on the hold (O3 a) - and a real notice drawn in that window was forgotten at the release
+         * (O3 b). Now the hold is measured on `noticeBench`'s engine over a value in memory: the text read after the
+         * hold, a notice recorded while held kept in memory and never written, forgotten at the release with what
+         * was there before kept; and a history kept in memory only (its writes failed) given back whole by the
+         * release - at 0697d0f the release read the setting again and the session's history was gone (N4). The
+         * module's engine is read by its source alone.
+         */
         const NH = await import("./notice-history.mjs").catch(() => null);
-        ok(typeof NH?.holdNoticeHistory === "function", "there is no notice history to hold, and no reading of it across the run");
-        const stored = () => game.settings.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.noticeHistory`) ?? "";
-        const before = stored();
-        let id = null, kept = false, after = null;
-        await NH.holdNoticeHistory(true);
+        ok(typeof NH?.holdNoticeHistory === "function" && typeof NH.createNoticeEngine === "function", "there is no notice history to hold, and no reading of it across the run");
+        const at = { now: 4_000_000 }, clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const note = title => ({ source: "mine", kind: "info", title, text: title, html: `<p>${title}</p>` });
+        const store = { raw: null, writes: 0, fail: 0 };
+        const engine = noticeBench(NH.createNoticeEngine, { store, user: "SuitePlayerR47301", world: "suite-world", at, clock });
+        engine.open();
+        engine.record(note("R473 before"));
+        await engine.hold(true);
+        const before = store.raw;
+        let id = null, held = null;
         try {
-            id = NH.recordNotice({ source: "mine", kind: "info", title: "R473", text: "R473", html: "<p>R473</p>" });
-            kept = NH.noticeEntries().some(entry => entry.id === id);
-            await settle();
-            await wait(600);
-            after = stored();
+            at.now++;
+            id = engine.record(note("R473 held"));
+            await engine.flush();
+            held = [engine.entries().some(entry => entry.id === id), store.raw === before, store.writes];
         } finally {
-            NH.holdNoticeHistory(false);
+            engine.hold(false);
         }
-        must(id !== null, "the history refused the suite's notice - the hold would be measured on nothing");
+        must(id !== null && before !== null, "the hold wrote nothing of what waited, or refused the suite's notice - it would be measured on nothing");
+        await engine.flush();
+        const released = [engine.entries().map(entry => entry.title), store.raw === before, store.writes];
+        const lost = { raw: null, writes: 0, fail: 2 };
+        const memory = noticeBench(NH.createNoticeEngine, { store: lost, user: "SuitePlayerR47302", world: "suite-world", at, clock });
+        memory.open();
+        for (let n = 1; n <= 4; n++) { at.now++; memory.record(note(`R473 memory ${n}`)); }
+        await memory.flush();
+        at.now++; memory.record(note("R473 memory 5"));
+        await memory.hold(true);
+        at.now++; memory.record(note("R473 memory held"));
+        memory.hold(false);
+        const kept = [memory.status().saving, memory.entries().map(entry => entry.title), lost.raw];
         const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
         const start = bodyOf(src, "gmStoreHold(true);", { length: 2000 });
         const release = bodyOf(src, "gmStoreHold(false);", { length: 700 });
-        equal(JSON.stringify([kept, after === before, NH.noticeEntries().some(entry => entry.id === id),
+        equal(JSON.stringify([held, released, kept,
             /^gmStoreHold\(true\);\s*await holdNoticeHistory\(true\);\s*noticesFound = noticeHistoryText\(\);/.test(start), /^gmStoreHold\(false\);\s*holdNoticeHistory\(false\);/.test(release),
             /name: "the suite left this browser's notice history as it found it"/.test(release) && /outcome: "fail"/.test(release)]),
-            JSON.stringify([true, true, false, true, true, true]),
-            "[held, the notice in memory; the stored history unchanged past the debounce; forgotten at the release; "
+            JSON.stringify([[true, true, 1], [["R473 before"], true, 1],
+                [false, ["R473 memory 2", "R473 memory 3", "R473 memory 4", "R473 memory 5"], null], true, true, true]),
+            "[held: the notice in memory, the stored text as the hold left it, the writes; released and flushed: the entries, the stored text unchanged, the writes; "
+            + "kept in memory only, released: saving, the entries, the stored value; "
             + "the runner holds it beside the GM store and reads it; releases it beside the GM store; fails the run on a difference]");
     }],
     ["R294 - a kept notice holds only what a past card may show: what another user's markup carried in is gone through the recorder, from a value written raw into the setting and from a GM's trusted words, and the card's own text stays", async () => {
@@ -7838,6 +8084,84 @@ const INVARIANTS = [
             + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
 
         /*
+         * WHAT A REFUSED LINK HELD, AN ATTRIBUTE NAME THE DOM REFUSES, AND A GM'S TRUSTED WORDS AS DRAWN (E81 fix r1-G4,
+         * 12.10.2026; review round 1's O5, O4 and O6). A link the allowlist refuses is kept as its words: at 0697d0f
+         * they were read before its children were cleaned, so a player kept the GMs' half inside one, an svg's text
+         * and a style's rules (early C2's reading in the harness's jsdom: "GM SECRET roll"). An element parsed with
+         * `is` beside an attribute named `"r294"` threw while it was rebuilt, and the recorder kept the card with an
+         * empty body, and the window's road drew it empty (the harness's stand-in cleaner passes that attribute on; whether Foundry's own does is
+         * LIVE-E81-01's). Then the road this test's title names: a private card whose words a GM wrote, stored
+         * `trusted` (secret.mjs hands those back as written), drawn by the catch-all on this GM - the card shows them
+         * as written, and the entry keeps them as the history cleans them, with no handler and no frame. The store is
+         * read through a stand-in for `game.settings.get` that adds the one card to what is there, for the length of
+         * the clause, and the history is held: nothing is written.
+         */
+        const LINKS = `<a class="inline-roll"><span class="drpg-gm-only">R294 GM in a roll</span> R294 roll words</a>`
+            + `<a href="javascript:void 0"><div class="drpg-gm-only">R294 GM in a js link</div>R294 js words</a>`
+            + `<a class="content-link"><svg><desc>R294 svg words</desc></svg><style>.r294-style{}</style>R294 doc words</a>`;
+        const linkWords = gm => {
+            try {
+                const text = parsed(NH.inertCopy(LINKS, { gm })).textContent;
+                return ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 svg words", "r294-style", "R294 doc words"]
+                    .filter(words => text.includes(words));
+            } catch (err) {
+                return `threw ${err.name}`;
+            }
+        };
+        const ODD = `<p>R294 before</p><p is="r294-p" "r294"=1>R294 odd names</p>`;
+        let odd = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: "R294 odd", html: ODD });
+            odd = NH.noticeEntries().find(entry => entry.id === id)?.html ?? null;
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([linkWords(false), linkWords(true), [odd?.includes("R294 before") ?? null, odd?.includes("R294 odd names") ?? null, /\bis=|r294"/.test(odd ?? ""), NH.noticeSnapshot(ODD, { gm: false }).textContent]]),
+            JSON.stringify([["R294 roll words", "R294 js words", "R294 doc words"],
+                ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 doc words"], [true, true, false, "R294 beforeR294 odd names"]]),
+            "[a refused link's words kept for a player; for a GM; a card with an element parsed with `is` and an attribute named \"r294\": "
+                + "its first paragraph kept, its own words, an odd attribute kept, and the same written raw and drawn by the window's road]");
+
+        const TRUSTED_ID = "R294TrustedCard1";
+        const TRUSTED = `<p>R294 trusted words</p><img src="${PNG}" onerror="void 0"><iframe srcdoc="&lt;p&gt;R294 trusted frame&lt;/p&gt;"></iframe>`;
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const trustedCard = {
+            id: TRUSTED_ID, author: game.user, whisper: [], rolls: [], content: secret.STUB,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, [secret.SECRET_FLAG]: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        };
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get");
+        const realGet = game.settings.get;
+        let shown = null, keptTrusted = null;
+        await NH.holdNoticeHistory(true);
+        game.settings.get = function (scope, key, ...rest) {
+            const value = realGet.call(this, scope, key, ...rest);
+            if (scope !== MODULE_ID || key !== SETTINGS.secretCards) return value;
+            return { ...(value ?? {}), [TRUSTED_ID]: { html: TRUSTED, at: Date.now(), user: game.user.id, world: game.world?.id ?? null, trusted: true } };
+        };
+        secret.forgetSecrets();
+        try {
+            await onCreateChatMessage(trustedCard);
+            shown = document.querySelector(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"] .drpg-popup-body`)?.innerHTML ?? null;
+            keptTrusted = NH.noticeEntries().find(entry => entry.messageId === TRUSTED_ID) ?? null;
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet);
+            else delete game.settings.get;
+            secret.forgetSecrets();
+            for (const card of document.querySelectorAll(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"]`)) {
+                card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([shown?.includes("onerror") ?? null, keptTrusted?.html === NH.cleanNoticeHtml(TRUSTED),
+            /onerror|<iframe|R294 trusted frame/.test(keptTrusted?.html ?? "onerror"), keptTrusted?.text ?? null]),
+        JSON.stringify([true, true, false, "R294 trusted words"]),
+        "[a GM's trusted private words drawn by the catch-all as written; the entry kept them as the history cleans them; "
+            + "the entry holds a handler or a frame; its words]");
+
+        /*
          * THE WINDOW (E81 C7, 12.10.2026). The same card recorded on this client (held), opened in the history's
          * window and expanded there: what `.drpg-notice-snapshot` holds is measured as above - the card's words in it
          * (the positive control: a window that drew nothing would pass every count of what is gone) and no `data-*`,
@@ -7991,6 +8315,12 @@ const INVARIANTS = [
             equal(JSON.stringify([threw, typeof broken?.close, broken?.body?.textContent ?? null, broken?.added.length ?? null]),
                 JSON.stringify([null, "function", "R293 drawn anyway", 0]),
                 "[what showPopup threw when the recorder did; what it returned; the card's words; entries kept]");
+
+            /* A kind and a tone off popup.mjs's lists (E81 fix r1-G4; review round 1's O8): kept as the card is
+               dressed, "info" and no tone - the normalisation at the recorder, which no clause reached before. */
+            const offList = draw("<p>R293 off the lists</p>", { kind: "banana", tone: "loud" });
+            equal(JSON.stringify(offList.added.map(entry => [entry.kind, entry.tone])), JSON.stringify([["info", null]]),
+                "[the entries a card of kind \"banana\" and tone \"loud\" adds, as [kind, tone]]");
         } finally {
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
             NH.holdNoticeHistory(false);
@@ -8062,6 +8392,57 @@ const INVARIANTS = [
             /recordNotice\(\{[^}]*\bpersist\b/.test(fnSource(popup, "showPopup"))]),
         JSON.stringify([["R293 kept", "R293 this page"], ["R293 kept"], true]),
         "[this page's entries; the written ones; showPopup hands its persist to recordNotice]");
+
+        /*
+         * Two tabs of one login (E81 fix r1-G5; review round 1's N3, measured there at 0697d0f): the same card drawn
+         * in both, closed in the older - its X reached nothing, the merge had kept the newer tab's copy, and the
+         * history said "open"; the same day summary drawn in both was kept twice. And the safeword's banner, which
+         * every tab raises from one chat card, now names that card to the history and stays when it is deleted.
+         */
+        const shared = { raw: null, writes: 0, fail: 0 }, U2 = "SuitePlayerR29302", KEY2 = `suite-world.${U2}`, MSGS = ["SuiteMessageR293", "SuiteMessageR29B"];
+        const tab = () => noticeBench(NH.createNoticeEngine, { store: shared, user: U2, world: "suite-world", at, clock });
+        const older = tab(), newer = tab();
+        older.open(); newer.open();
+        const CARD = messageId => ({ source: "public", kind: "info", title: "R293 both tabs", text: "", html: "<p>R293 both tabs</p>", messageId });
+        /* Closed in the older tab before either wrote: the merge keeps the newer copy, with the older one's state. */
+        const early = older.record(CARD(MSGS[0]));
+        at.now++; const late = newer.record(CARD(MSGS[0]));
+        older.update(early, { state: "read" });
+        await older.flush(); await newer.flush(); older.external();
+        /* Closed in the older tab after the merge: its X reaches the copy kept. */
+        at.now++; const mine = older.record(CARD(MSGS[1]));
+        at.now++; const theirs = newer.record(CARD(MSGS[1]));
+        await older.flush(); await newer.flush(); older.external();
+        const closed = older.update(mine, { state: "read" });
+        await older.flush(); newer.external();
+        /* The newer tab's cards then close by code: what was read stays read. */
+        newer.update(late, { state: "unread" });
+        newer.update(theirs, { state: "unread" });
+        await newer.flush();
+        const states = MSGS.map(id => (JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? []).filter(entry => entry.messageId === id).map(entry => entry.state));
+        older.external();
+        const SUMMARY = { source: "summary", kind: "info", title: "R293 summary", text: "R293 the day", html: "<p>R293 the day</p>" };
+        at.now++; older.record(SUMMARY);
+        at.now++; newer.record(SUMMARY);
+        await older.flush(); await newer.flush(); older.external(); await older.flush();
+        const both = JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? [];
+        let banner = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const S = await import("./safeword.mjs");
+            const had = new Set(NH.noticeEntries().map(entry => entry.id));
+            S.raiseCard(null, "SuiteSafeword293");
+            const card = newest();
+            banner = [NH.noticeEntries().filter(entry => !had.has(entry.id)).map(entry => [entry.source, entry.messageId]), card?.dataset.drpgMessage ?? null];
+            card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([closed, states, MSGS.map(id => both.filter(entry => entry.messageId === id).map(entry => entry.state)), both.filter(entry => entry.source === "summary").length,
+            older.entries().filter(entry => entry.source === "summary").length, banner]),
+        JSON.stringify([true, [["read"], ["read"]], [["read"], ["read"]], 1, 1, [[["safeword", "SuiteSafeword293"]], null]]),
+        "[the older tab's X after the merge moved the copy kept; each card's kept states (closed before the merge, after it) as the newer tab wrote them and at the end; the day summaries kept, written and in the older tab; "
+        + "the banner's entries [source, its chat card], the card's data-drpg-message]");
     }],
     ["R295 - a card the module takes back leaves the notice history, any other deletion leaves its entry marked deleted, and a Reroll or a ruling marks an entry without moving what it showed", async () => {
         /*
@@ -8085,6 +8466,14 @@ const INVARIANTS = [
          * The handlers are called directly with stand-in messages, not through `Hooks.callAll`: a tier-1 test
          * writes nothing, and every other module's deletion hook would be handed a document that is not one.
          * A real deletion, withdrawn or cleared, on four browsers: 73-notice-history B and 13-murder-signals.
+         * ONLY A GM'S (E81 fix r1-G3, 12.10.2026; review round 1's O13, O14 and F2): at C5 the withdraw option was
+         * honoured from any deleter and a mark read off the card whoever wrote it, and this test passed no user, so
+         * it never asked who may do either. Each hook's handler is read off `registerNoticeHistory` now and called
+         * with the user Foundry hands the hook: this client, a GM, and a player (the world's first, or an id no user
+         * has where the world holds none - not a GM either way). A player's withdraw leaves the entry marked deleted;
+         * a player's update that sets `settled` or `rerolled`, and a GM's that sets neither on a card that carries
+         * one, mark nothing; and a private card's words stored with a mark on its document and none in its meta mark
+         * nothing. A player's own card on four browsers, its withdraw, its update and its meta: 73-notice-history G3.
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a deletion back from");
@@ -8100,13 +8489,18 @@ const INVARIANTS = [
             "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
         const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
         const remember = fnSource(code("secret.mjs"), "remember");
+        const HOOKS = ["deleteChatMessage", "updateChatMessage", "drpgSecretStored"];
+        const on = Object.fromEntries(HOOKS.map(hook => [hook, NH[new RegExp(`Hooks\\.on\\("${hook}", (\\w+)\\)`).exec(history)?.[1] ?? ""]]));
         equal(JSON.stringify([/Hooks\.on\("deleteChatMessage", onDeleteChatMessage\)/.test(popups), /\.click\(\)/.test(popups + fnSource(code("popup.mjs"), "onDeleteChatMessage")),
-            ["deleteChatMessage, noticeCardDeleted", "updateChatMessage, noticeCardChanged", "drpgSecretStored, noticeCardChanged"].map(hook => history.includes(`Hooks.on("${hook.replace(", ", "\", ")})`)),
+            HOOKS.map(hook => typeof on[hook] === "function"),
             remember.indexOf('Hooks.callAll("drpgSecretStored", message)') > remember.indexOf("await saving")]),
         JSON.stringify([true, false, [true, true, true], true]),
-        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks; the private-card store tells it after the words are stored]");
+        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks, each an exported handler; the private-card store tells it after the words are stored]");
+        must(game.user?.isGM, "the suite runs on a GM - a GM's deletion and update would be measured as somebody else's");
+        const GM = game.user.id, PLAYER = game.users.find(user => !user.isGM)?.id ?? "R295NotAUser0001";
 
-        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1" };
+        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1",
+            playerWithdrawn: "R295PlayerWithdr", playerSettled: "R295PlayerSettld", gmUntouched: "R295GmUntouched1", storedDoc: "R295StoredOnDoc1" };
         const entryOf = messageId => NH.noticeEntries().find(entry => entry.messageId === messageId) ?? null;
         const drawn = [];
         await NH.holdNoticeHistory(true);
@@ -8117,33 +8511,45 @@ const INVARIANTS = [
                 cards[key] = document.querySelector(`.drpg-popup[data-drpg-message="${messageId}"]`);
                 if (cards[key]) drawn.push(cards[key]);
             }
-            must(Object.values(ids).every(entryOf) && drawn.length === 5, "the five stand-in cards were not drawn and kept - the deletions would be measured on nothing");
+            must(Object.values(ids).every(entryOf) && drawn.length === 9, "the nine stand-in cards were not drawn and kept - the deletions would be measured on nothing");
             const before = Object.fromEntries(Object.entries(ids).map(([key, messageId]) => [key, entryOf(messageId).html]));
 
             P.onDeleteChatMessage({ id: ids.withdrawn });
-            NH.noticeCardDeleted({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } });
+            on.deleteChatMessage({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } }, GM);
             P.onDeleteChatMessage({ id: ids.deleted });
-            NH.noticeCardDeleted({ id: ids.deleted }, {});
-            NH.noticeCardDeleted({ id: ids.cleared }, { deleteAll: true });
+            on.deleteChatMessage({ id: ids.deleted }, {}, GM);
+            on.deleteChatMessage({ id: ids.cleared }, { deleteAll: true }, GM);
+            on.deleteChatMessage({ id: ids.playerWithdrawn }, { [MODULE_ID]: { withdraw: true } }, PLAYER);
             const after = key => {
                 const entry = entryOf(ids[key]);
                 return entry && [entry.state, entry.mark, entry.html === before[key]];
             };
-            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared")]),
-                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true]]),
-                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll]");
+            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared"),
+                after("playerWithdrawn")]),
+                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true], ["unread", "deleted", true]]),
+                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll; the entry a player's deletion with the withdraw option reached]");
 
             const flags = more => ({ flags: { [MODULE_ID]: more } });
+            const update = (key, more, by = GM, changes = flags(more)) => on.updateChatMessage({ id: ids[key], ...flags(more) }, changes, {}, by);
             const moved = [
-                NH.noticeCardChanged({ id: ids.rerolled, ...flags({ rerolled: { from: 3, to: 9, at: 1 } }) }),
-                NH.noticeCardChanged({ id: ids.settled, ...flags({ settled: true }) }),
-                NH.noticeCardChanged({ id: ids.withdrawn, ...flags({ settled: true }) }),
-                NH.noticeCardChanged({ id: ids.deleted, ...flags({ rerolled: { from: 1, to: 2, at: 1 } }) }),
-                NH.noticeCardChanged({ id: ids.cleared, ...flags({ popupTitle: "R295 not a mark" }) })
+                update("rerolled", { rerolled: { from: 3, to: 9, at: 1 } }),
+                update("settled", { settled: true }),
+                update("withdrawn", { settled: true }),
+                update("deleted", { rerolled: { from: 1, to: 2, at: 1 } }),
+                update("cleared", { popupTitle: "R295 not a mark" })
             ];
             equal(JSON.stringify([moved, after("rerolled"), after("settled"), after("deleted"), after("cleared")]),
                 JSON.stringify([[true, true, false, false, false], ["open", "rerolled", true], ["open", "settled", true], ["unread", "deleted", true], ["unread", "deleted", true]]),
                 "[which changes moved an entry; the rerolled entry; the settled one; a deleted one a late Reroll reached; one a flag that is no mark reached]");
+            const refused = [
+                update("playerSettled", { settled: true }, PLAYER),
+                update("playerSettled", { rerolled: { from: 2, to: 12, at: 1 } }, PLAYER),
+                update("gmUntouched", { settled: true }, GM, { content: "<p>R295 an edit that sets no mark</p>" }),
+                on.drpgSecretStored({ id: ids.storedDoc, ...flags({ secret: true, settled: true, rerolled: { from: 1, to: 2, at: 1 } }) })
+            ];
+            equal(JSON.stringify([refused, after("playerSettled"), after("gmUntouched"), after("storedDoc")]),
+                JSON.stringify([[false, false, false, false], ["open", null, true], ["open", null, true], ["open", null, true]]),
+                "[which of a player's settled and rerolled, a GM's edit that sets no mark and a private card's document flags moved an entry; the player's card; the GM's edited card; the private card]");
         } finally {
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
             NH.holdNoticeHistory(false);
@@ -8251,6 +8657,15 @@ const INVARIANTS = [
          * shown ones leave read, the sticky card stays on screen and open, nothing waits so no '+N' is left, and the
          * history's button counts the two taken down unseen. Last, in the stylesheet: the button's focus ring is the
          * close button's and its target the close button's height with a pointer. How it draws: a browser only.
+         * (9) E81 fix r1-G2 (12.10.2026; review round 1's F3, N2 and O17): (1)'s other account of this world is a
+         * 10-entry clone that never reaches the halved whole value, so it passed over a give-way that deleted such a
+         * section whole (the correctness review's bench: 199 622 characters). Here the other accounts' sections are
+         * big enough to cross it - halved after a GM's give-way (a: they alone fill it; b: they leave room for part
+         * of this login's) and whole at a player's ordinary write (c: they alone fill it; d: room for part) - and
+         * each must stay byte for byte, while this login's section is cut to what fits, oldest first, or, where
+         * nothing of it fits, is kept in memory with the history no longer saving. And `keepRoom` hears Firefox's
+         * older quota error, by its name and by its code 1014. At 27e4b34 all four lost the least recently written
+         * other section (r1g2-probe2.mjs, 12.10.2026).
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8282,7 +8697,7 @@ const INVARIANTS = [
         const writes = store.writes;
         const freed = e.giveWay();
         const given = JSON.parse(store.raw);
-        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER].entries.length,
+        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER]?.entries.length ?? null,
             store.now, store.writes - writes, freed > 0 && freed === before - store.raw.length];
         for (let i = 1; i <= 300; i++, at.now++) e.record(card(100 + i));
         await e.flush();
@@ -8684,6 +9099,45 @@ const INVARIANTS = [
             /\.drpg-popup-title button\.drpg-popup-more \{[^}]*height: 1\.6rem;[^}]*cursor: pointer;/.test(styles),
             /body\.drpg-theme-stained-glass \.drpg-popup-title :is\(button, i\) \{ color:/.test(styles)
         ]), J([true, true, true]), "[the '+N' button's focus ring is the close button's; its target the close button's height, with a pointer; under Stained Glass its colour the close button's]");
+
+        /* (9) Another account's section of this world, big enough to cross the whole value's budget, and the other quota errors. */
+        const big = (touched, chars) => ({ epoch: NH.noticeEpoch(clock.value), touched, clearedAt: 0, gone: {}, entries: [], pad: "R298".repeat(chars / 4) });
+        const shared = async (gm, n, others, give) => {
+            const lot = { raw: null, writes: 0, fail: 0, now: 0 }, user = gm ? "SuiteGmR29805001" : "SuitePlayerR2985";
+            const engine = noticeBench(NH.createNoticeEngine, { store: lot, user, world: W, gm, at, clock });
+            engine.open();
+            for (let i = 1; i <= n; i++, at.now++) engine.record({ ...card(500 + i), html: `<p>${"x".repeat(7800)}</p>` });
+            await engine.flush();
+            const value = JSON.parse(lot.raw);
+            others.forEach((chars, i) => { value.sections[`${W}.SuiteOtherR2985${i}`] = big(i + 1, chars); });
+            value.sections["another-world.SuiteOtherR29859"] = big(0, 4000);
+            lot.raw = J(value);
+            const theirs = others.map((chars, i) => J(value.sections[`${W}.SuiteOtherR2985${i}`]));
+            if (give) engine.giveWay();
+            else {
+                engine.record(card(599));
+                await engine.flush();
+            }
+            const after = JSON.parse(lot.raw).sections;
+            return [theirs.every((text, i) => J(after[`${W}.SuiteOtherR2985${i}`]) === text), Boolean(after["another-world.SuiteOtherR29859"]),
+                after[`${W}.${user}`]?.entries.length ?? null, engine.entries().length, engine.status().saving];
+        };
+        equal(J([await shared(true, 10, [190000, 60000], true), await shared(true, 10, [170000, 40000], true),
+            await shared(false, 10, [180000, 180000, 180000], false), await shared(false, 20, [200000, 200000], false)]),
+            J([[true, false, 5, 5, false], [true, false, 4, 4, true], [true, true, 10, 11, false], [true, false, 13, 13, true]]),
+            "[a GM's give-way, the others fill the halved value; leave room; a player's write, the others fill the value; leave room] as [the other accounts' sections byte for byte, another world's kept, this login's stored, in memory, saving]");
+        await NH.holdNoticeHistory(true);
+        let heardOther = 0;
+        const otherHook = Hooks.on("drpgStorageFull", () => { heardOther++; });
+        let firefox;
+        try {
+            firefox = [NH.keepRoom(new globalThis.DOMException("R298: the suite's full storage", "NS_ERROR_DOM_QUOTA_REACHED")),
+                NH.keepRoom(Object.assign(new Error("R298: the suite's full storage"), { code: 1014 })), heardOther];
+        } finally {
+            Hooks.off("drpgStorageFull", otherHook);
+            await NH.holdNoticeHistory(false);
+        }
+        equal(J(firefox), J([true, true, 2]), "[NS_ERROR_DOM_QUOTA_REACHED by its name; by its code 1014; the hook heard] as a full storage");
     }],
     ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
         /*

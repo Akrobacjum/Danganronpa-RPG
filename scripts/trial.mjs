@@ -557,7 +557,10 @@ export function registerTrial() {
             // card for minutes, and this is the one popup in the module that is
             // meant to be read rather than noticed.
             sticky: true,
-            // Kept in this browser's notice history as evidence, one entry for the card (E81 C4).
+            // Kept in this browser's notice history as evidence, one entry for the card (E81 C4). Its message
+            // makes a deletion in the chat log take this sticky card off every screen (popup.mjs
+            // `onDeleteChatMessage`, E81 C5); a plain deletion leaves the entry unread and marked deleted
+            // (R297, E81 fix r1-G1; the review's O11).
             source: "evidence",
             messageId: message.id
         });

@@ -8504,8 +8504,20 @@ const REGRESSIONS = [
          * E81 C8 (12.10.2026) put the history's unread count on the notice tile's corner button (popup.mjs `showUnread`,
          * through `noticeUnread`): a reading of the history and no road into it, so no row - the five SURFACE rows whose
          * entries can be unread say what the button shows of them, and the count is R298's. Still 54 against 54.
+         * E81 fix r1-G3 (12.10.2026; review round 1's O1 and N5): C0 said "every call" and keyed a road by its
+         * declaration, so a second `showPopup` or `sayNotDone` inside a listed declaration was no new road. A road is
+         * a call site now: the second call of a key in the same declaration is "<key> (2)", the third "(3)". RECORD
+         * reads `updateNotice(` too, keyed "#updateNotice" - the other call that carries words into the store - and
+         * FLAG reads `cardMeta(` beside `cardFlag(` and `getFlag(`, the history's private-card marks reading the meta
+         * alone since the same fix. The reader, run in Node over the 128 non-suite files of scripts/ with these keys
+         * (12.10.2026, e81run/scratch/r1g3-census.mjs), read 55 roads - 11 SURFACE, 4 RECORD, 15 NOTDONE, 10 FLAG,
+         * 3 DELETE, 7 HOOK, 5 STORE: the five more are `askReroll`'s second and third refusal, the messenger hook's
+         * second card and the two `updateNotice` calls; nothing else stands twice in a declaration.
+         * Merged into the main line (12.10.2026), the body's `updateNotice` row is keyed by C9's `watchCard`, the
+         * declaration that took over `watchNotice`'s call (read in popup.mjs; the fix line was cut before C9).
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
-         * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
+         * under a top-level hook, a `sayNotDone` definition calling itself beside a call, a second `recordNotice` and an
+         * `updateNotice` in one declaration, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
          * beside another event's and one in a file that is neither, the store and the window, and a stale row.
          */
@@ -8516,20 +8528,25 @@ const REGRESSIONS = [
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
-            ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "the other party's words in a card (`cardPreview`): a GM's ask card, a player's own thread; kept as the thread's entry - its message and the conversation it opens - and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - with the thread's player as its author, and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser to the season's reset like every other notice, as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293)"],
+            ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
+            ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
             ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
-            ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, or for a refusal it is not waiting on the GM's packet's `what`, named only by a label the language file holds and else as an unnamed request (`requestLabel`, E81 fix r1-G3); the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE calls.mjs#askReroll (2)", "the request's own refusal (`res.reason`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -8542,17 +8559,17 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown, as its own (R297)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`): a player's insisted whisper draws, and so keeps, nothing on a GM (R297)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
-            ["FLAG notice-history.mjs#noticeCardChanged#rerolled", "a Reroll's mark on the card it replaced, written by a GM (reroll.mjs `markReplacedCard`), read through `cardFlag`: only the closed mark `rerolled`, no snapshot change (R295)"],
-            ["FLAG notice-history.mjs#noticeCardChanged#MESSENGER_FLAGS.settled", "a GM's ruling on a call (gm-bridge.mjs `settleCall`), read through `cardFlag`: only the closed mark `settled`, no snapshot change (R295)"],
+            ["FLAG notice-history.mjs#noticeSecretStored#rerolled", "a Reroll's mark on a private card it replaced, written by a GM into the card's meta (reroll.mjs `markReplacedCard`), read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `rerolled`, no snapshot change (R295, 73-notice-history G3)"],
+            ["FLAG notice-history.mjs#noticeSecretStored#MESSENGER_FLAGS.settled", "a GM's ruling on a private call (gm-bridge.mjs `settleCall`), written into the card's meta, read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `settled`, no snapshot change (R295, 73-notice-history G3)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
             ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
-            ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option takes the entry out with a tombstone; any other deletion, `deleteAll` in the options or not, leaves it marked deleted and an open one unread (R295, 73-notice-history B)"],
-            ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a document's `rerolled` or `settled` flag marks the entry; the snapshot and the state do not move (R295)"],
-            ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeCardChanged` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel there, not on the document; only a mark (R295). New words on an open card are its observer's (R293)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "another of the module's stores found the storage full (`keepRoom`: the private cards, every GM store, the drawn rolls kept readable): the history gives its room back before that store's one more try - every other world's section, then the older half of this login's, the budgets halved for the session - and writes nothing of anybody's text that it did not hold (R298)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
             ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
@@ -8567,12 +8584,17 @@ const REGRESSIONS = [
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const NOTICE_FILES = /^(?:popup|notice-history)\.mjs$/;
-        const CALLS = /\b(showPopup|showWaiting|recordNotice|sayNotDone|cardFlag|getFlag)\s*\(/g;
+        const CALLS = /\b(showPopup|showWaiting|recordNotice|updateNotice|sayNotDone|cardFlag|cardMeta|getFlag)\s*\(/g;
         const HOOKS = /\bHooks\.on\(\s*["'](createChatMessage|updateChatMessage|deleteChatMessage|drpgSecretStored|drpgStorageFull)["']|\baddEventListener\(\s*["'](storage)["']/g;
         const STORE_SOURCES = ["recorder", "otherTab", "otherAccount", "otherWorld", "console"];
         const WINDOW_SINKS = ["snapshot", "title", "search", "conversation"];
         const censusOf = (sources, settings) => {
-            const found = new Set();
+            const found = [], sites = new Map();
+            const add = key => {
+                const n = (sites.get(key) ?? 0) + 1;
+                sites.set(key, n);
+                found.push(n === 1 ? key : `${key} (${n})`);
+            };
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
@@ -8586,26 +8608,26 @@ const REGRESSIONS = [
                 for (const m of blank.matchAll(CALLS)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     const decl = declAt(m.index), name = m[1];
-                    if (name === "showPopup" || name === "showWaiting") found.add(`SURFACE ${file}#${decl}${name === "showWaiting" ? "#showWaiting" : ""}`);
-                    else if (name === "recordNotice") found.add(`RECORD ${file}#${decl}`);
-                    else if (name === "sayNotDone") { if (decl !== "sayNotDone") found.add(`NOTDONE ${file}#${decl}`); }
+                    if (name === "showPopup" || name === "showWaiting") add(`SURFACE ${file}#${decl}${name === "showWaiting" ? "#showWaiting" : ""}`);
+                    else if (name === "recordNotice" || name === "updateNotice") add(`RECORD ${file}#${decl}${name === "updateNotice" ? "#updateNotice" : ""}`);
+                    else if (name === "sayNotDone") { if (decl !== "sayNotDone") add(`NOTDONE ${file}#${decl}`); }
                     else if (NOTICE_FILES.test(file) && (file !== "popup.mjs" || decl === "onCreateChatMessage")) {
                         const flag = callArgs(blank, m.index + m[0].length - 1).args[1];
                         if (!flag) continue;
                         const text = code.slice(flag.start, flag.end).trim();
-                        found.add(`FLAG ${file}#${decl}#${text.match(/^(["'`])(.*)\1$/s)?.[2] ?? text}`);
+                        add(`FLAG ${file}#${decl}#${text.match(/^(["'`])(.*)\1$/s)?.[2] ?? text}`);
                     }
                 }
                 for (const m of blank.matchAll(/\bmessages\??\.get\s*\(/g)) {
                     const { close } = callArgs(blank, m.index + m[0].length - 1);
-                    if (/^\s*\??\.\s*delete\s*\(/.test(blank.slice(close + 1, close + 40))) found.add(`DELETE ${file}#${declAt(m.index)}`);
+                    if (/^\s*\??\.\s*delete\s*\(/.test(blank.slice(close + 1, close + 40))) add(`DELETE ${file}#${declAt(m.index)}`);
                 }
-                for (const m of blank.matchAll(/\bChatMessage\b[\w$.]*\.deleteDocuments\s*\(/g)) found.add(`DELETE ${file}#${declAt(m.index)}`);
-                if (NOTICE_FILES.test(file)) for (const m of code.matchAll(HOOKS)) found.add(`HOOK ${file}#${declAt(m.index)}#${m[1] ?? m[2]}`);
+                for (const m of blank.matchAll(/\bChatMessage\b[\w$.]*\.deleteDocuments\s*\(/g)) add(`DELETE ${file}#${declAt(m.index)}`);
+                if (NOTICE_FILES.test(file)) for (const m of code.matchAll(HOOKS)) add(`HOOK ${file}#${declAt(m.index)}#${m[1] ?? m[2]}`);
             }
-            if (Object.hasOwn(settings ?? {}, "noticeHistory")) for (const source of STORE_SOURCES) found.add(`STORE settings.mjs#noticeHistory#${source}`);
-            if (sources.some(([file]) => file === "notice-history-app.mjs")) for (const sink of WINDOW_SINKS) found.add(`WINDOW notice-history-app.mjs#window#${sink}`);
-            return [...found];
+            if (Object.hasOwn(settings ?? {}, "noticeHistory")) for (const source of STORE_SOURCES) add(`STORE settings.mjs#noticeHistory#${source}`);
+            if (sources.some(([file]) => file === "notice-history-app.mjs")) for (const sink of WINDOW_SINKS) add(`WINDOW notice-history-app.mjs#window#${sink}`);
+            return found;
         };
         const judge = (found, table) => {
             const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
@@ -8615,7 +8637,7 @@ const REGRESSIONS = [
         const planted = censusOf([
             ["planted.mjs", "// showPopup(\"a comment is no road\");\nexport function shown(html) {\n    return showPopup(html, { title: \"showWaiting(\" });\n}\n"
                 + "export function sayNotDone(action) {\n    return sayNotDone(action);\n}\nfunction refused() {\n    sayNotDone(\"vote.cast\", \"noGm\");\n}\n"
-                + "async function kept(entry) {\n    await recordNotice(entry);\n}\n"
+                + "async function kept(entry) {\n    await recordNotice(entry);\n    recordNotice(entry);\n    updateNotice(entry.id, {});\n}\n"
                 + "Hooks.on(\"drpgMessengerMessage\", async () => (await import(\"./popup.mjs\"))\n    .showWaiting(\"...\"));\n"
                 + "export async function retire(id) {\n    await game.messages.get(id)?.delete();\n    Hooks.on(\"deleteChatMessage\", retire);\n}\n"
                 + "async function reset(ids) {\n    await ChatMessage.deleteDocuments(ids);\n    game.messages.get(ids[0]);\n}\n"],
@@ -8625,6 +8647,7 @@ const REGRESSIONS = [
             ["notice-history-app.mjs", "export class NoticeHistoryApp {}\n"]
         ], { noticeHistory: "noticeHistory" });
         equal(JSON.stringify(planted), JSON.stringify(["SURFACE planted.mjs#shown", "NOTDONE planted.mjs#refused", "RECORD planted.mjs#kept",
+            "RECORD planted.mjs#kept (2)", "RECORD planted.mjs#kept#updateNotice",
             "SURFACE planted.mjs#Hooks.on(drpgMessengerMessage)#showWaiting", "DELETE planted.mjs#retire", "DELETE planted.mjs#reset",
             "FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "FLAG popup.mjs#onCreateChatMessage#popupKind", "HOOK popup.mjs#registerPopups#createChatMessage",
             ...STORE_SOURCES.map(source => `STORE settings.mjs#noticeHistory#${source}`), ...WINDOW_SINKS.map(sink => `WINDOW notice-history-app.mjs#window#${sink}`)]),
@@ -10655,19 +10678,22 @@ const REGRESSIONS = [
                 `the ${lang} handbooks say of a rename, the stairs or a room's scene what the code does not do, a copied guide differs from its key, or an old sentence is back (each claim: [the code, ...its sentences])`);
         }
     }],
-    ["R438 - the Scenes tab, the scene navigation and the hotbar are shown to a GM in every theme and hidden for a player", async () => {
+    ["R438 - the Scenes tab is shown to a GM in every theme and hidden for a player; the scene navigation and the hotbar are hidden for everybody in every theme", async () => {
         /*
-         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab and the hotbar
-         * from everybody, the GM included, and Stained Glass alone gave the tab back to the GM - by a body class,
-         * the selector shape the rail's comment records as failing on a long-lived client - while taking the
-         * scene navigation away from the GM. Under Legacy a GM had no scene directory to build the trial hall in
-         * (D7). Each of the three is now hidden unless the element itself carries the class the GM's client puts
-         * on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides one of them
-         * either leaves out the GM's class (`:not(.drpg-gm-...)`) or has a twin - the same selector with the class
-         * on the element - that shows it; no rule hides the element WITH the class, and none shows it by a body
-         * class. The jsdom half (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
+         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab from everybody,
+         * the GM included, and Stained Glass alone gave it back to the GM - by a body class, the selector shape the
+         * rail's comment records as failing on a long-lived client. Under Legacy a GM had no scene directory to build
+         * the trial hall in (D7). The tab is now hidden unless the element itself carries the class the GM's client
+         * puts on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides it either
+         * leaves out the GM's class (`:not(.drpg-gm-scenes)`) or has a twin - the same selector with the class on the
+         * element - that shows it; no rule hides the element WITH the class, and none shows it by a body class.
+         * E13 C7 gave the GM the scene navigation and the hotbar the same way; DZ5 (the owner, 12.10.2026, E81 fix
+         * r1-G6) hides both for everybody in every theme again: the base sheet hides each with the element alone as
+         * the subject (no class, no `:not(`), NO rule in any sheet gives either a display other than none (whatever
+         * the selector, body class or element class), and GM_CHROME neither names nor re-stamps them. The jsdom half
+         * (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
          */
-        const TARGETS = [["#hotbar", "drpg-gm-hotbar"], ["#scene-navigation", "drpg-gm-nav"], ['[data-tab="scenes"]', "drpg-gm-scenes"]];
+        const TARGETS = [['[data-tab="scenes"]', "drpg-gm-scenes"]], HIDDEN = ["#hotbar", "#scene-navigation"];
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const rules = [];
         for (const href of manifest.styles ?? []) {
@@ -10699,20 +10725,27 @@ const REGRESSIONS = [
             }
             defaults[element] = hides.some(r => r.sheet === "styles/danganronpa.css" && !/(^|\s)body\b/.test(r.sel));
         }
+        for (const element of HIDDEN) {
+            const about = rules.filter(r => r.subject.includes(element));
+            for (const r of about.filter(r => r.display !== "none")) problems.push(`${r.sheet}: "${r.sel}" shows ${element} (display: ${r.display})`);
+            defaults[element] = about.some(r => r.sheet === "styles/danganronpa.css" && r.display === "none" && r.sel === element);
+        }
         equal(JSON.stringify({ defaults, problems }),
-            JSON.stringify({ defaults: Object.fromEntries(TARGETS.map(([element]) => [element, true])), problems: [] }),
-            "the base sheet no longer hides one of the three from a player, or a rule hides it from the GM in a theme");
+            JSON.stringify({ defaults: Object.fromEntries([...TARGETS.map(([element]) => element), ...HIDDEN].map(element => [element, true])), problems: [] }),
+            "the base sheet no longer hides the Scenes tab from a player or the navigation or the hotbar from everybody, or a rule shows the navigation or the hotbar, or hides the tab from the GM, in a theme");
 
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" }).split("\n");
+        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" });
         const mark = fnSource(panel, "markGmChrome");
         equal(JSON.stringify({
-            stamped: TARGETS.map(([element, cls]) => chrome.some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            stamped: TARGETS.map(([element, cls]) => chrome.split("\n").some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            unstamped: [...HIDDEN, "drpg-gm-hotbar", "drpg-gm-nav"].filter(name => chrome.includes(name)),
             gmOnly: /^\s*if \(!game\.user\?\.isGM\) return;/m.test(mark) && mark.indexOf("isGM") < mark.indexOf("classList.add"),
-            hooks: ["renderSidebar", "renderSceneNavigation", "renderHotbar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            hooks: ["renderSidebar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            unhooked: ["renderSceneNavigation", "renderHotbar"].filter(hook => panel.includes(`"${hook}"`)),
             launcher: /markGmChrome\(\)/.test(fnSource(panel, "injectLauncher"))
-        }), JSON.stringify({ stamped: [true, true, true], gmOnly: true, hooks: [true, true, true], launcher: true }),
-            "a GM's client no longer puts the class on one of the three, puts it on a player's, or stops doing it when the sidebar, the navigation or the hotbar draws again");
+        }), JSON.stringify({ stamped: [true], unstamped: [], gmOnly: true, hooks: [true], unhooked: [], launcher: true }),
+            "a GM's client no longer puts the class on the Scenes tab, puts it on a player's, stops doing it when the sidebar draws again, or names or re-stamps the navigation or the hotbar");
     }],
     ["R440 - the handbooks state the table's rule beside Start the Class Trial and in the player's trial, and name the trial hall's tab, doors and calls as the module does, in English and in Polish", async () => {
         /*

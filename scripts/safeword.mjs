@@ -77,6 +77,12 @@ export function safeword() {
 /** Socket action telling the GMs who called it, and nobody else: Foundry's sender is the who. */
 export const SAFEWORD_ACTION = "safewordDetail";
 
+/** The most of a safeword packet's room a GM's detail card draws and keeps (`showGmDetail`). */
+const ROOM_MAX = 120;
+
+/** When each sender's last safeword detail was kept, by user id. Exported for the suite (R297). */
+export const safewordDetails = new Map();
+
 /**
  * The GM-side card: who, and where. Never rendered on a player's client.
  *
@@ -85,16 +91,30 @@ export const SAFEWORD_ACTION = "safewordDetail";
  * design's advice to keep it for this page only - so no `persist: "session"` here. The caller's
  * name still reaches no player's browser (`callSafeword`); the GM's history is the GM's browser's,
  * readable there by another login from the console (Q9), and the season's reset clears it.
+ *
+ * ONE KEPT DETAIL PER SENDER PER WINDOW (E81 fix r1-G1, 12.10.2026; review round 1's O10). Fifteen
+ * packets from one player with a 7 000-character room left a GM 12 safeword entries and none of its
+ * own 5 (the security review's run 98-sec-r1): the room was drawn whole and every packet was kept,
+ * ahead of the repeat window the public card has. The room is cut to `ROOM_MAX` characters - a place,
+ * not a letter; 120 is the review's figure - and a sender's detail inside `TIMING.safewordRepeatMs` of
+ * the last one kept is still drawn but not kept again. A player's detail carries its sender, so the
+ * history's per-author bound holds the slow road too (notice-history.mjs `trimSection`). Exported for
+ * the suite, which hands it a sender of its own (R297).
  */
-function showGmDetail(who, room) {
+export function showGmDetail(sender, room) {
+    const now = Date.now();
+    const kept = now - (safewordDetails.get(sender?.id) ?? -Infinity) >= TIMING.safewordRepeatMs;
+    if (kept) safewordDetails.set(sender?.id, now);
     showPopup(`<p>${game.i18n.format("DRPG.Safeword.gmNote", {
-        who: foundry.utils.escapeHTML(who ?? "?"),
-        room: foundry.utils.escapeHTML(room || game.i18n.localize("DRPG.Safeword.roomUnknown"))
+        who: foundry.utils.escapeHTML(sender?.name ?? "?"),
+        room: foundry.utils.escapeHTML(room ? room.slice(0, ROOM_MAX) : game.i18n.localize("DRPG.Safeword.roomUnknown"))
     })}</p>`, {
         title: game.i18n.localize("DRPG.Safeword.gmTitle"),
         kind: "error",
         sticky: true,
-        source: "safeword"
+        source: "safeword",
+        record: kept,
+        author: sender && !sender.isGM ? sender.id : null
     });
 }
 
@@ -196,9 +216,13 @@ function nextCard(ms) {
  * Kept in this browser's notice history as it is first drawn and not followed (E81 C4,
  * `observe: false`): what `awaitCard` adds to the caller's card afterwards is that browser's
  * own news, so the entry is the same frozen sentence on every browser and names nobody (R297).
- * Exported for the suite, which raises it without a chat card.
+ * `author`: the player whose chat card raised it, which the history bounds like any other sender's
+ * (E81 fix r1-G1); a GM's card and the caller's own press pass none. `messageId`: that chat card, by
+ * which two tabs of one login keep one entry (E81 fix r1-G5, review round 1's N3: they kept two); the
+ * banner does not go when the card is deleted, as it did not before. Exported for the suite, which
+ * raises it without a chat card.
  */
-export function raiseCard() {
+export function raiseCard(author = null, messageId = null) {
     const said = document.createElement("p");
     said.textContent = game.i18n.localize("DRPG.Safeword.announced");
     showPopup(said, {
@@ -208,7 +232,9 @@ export function raiseCard() {
         // not un-stop itself after twelve seconds.
         sticky: true,
         source: "safeword",
-        observe: false
+        observe: false,
+        author,
+        fromMessage: messageId
     });
     return said;
 }
@@ -280,7 +306,7 @@ export async function callSafeword({ room = null } = {}) {
 
         // The caller's own client is not a socket recipient, and a GM who calls
         // it should still see the detail card.
-        if (game.user.isGM) showGmDetail(game.user.name, room);
+        if (game.user.isGM) showGmDetail(game.user, room);
 
         // A player who asked the GMs sees the card at once, as everybody else
         // does when the GM's card lands - here that landing is not raised twice -
@@ -316,7 +342,7 @@ export async function hearSafeword(payload, senderId) {
     if (!game.user?.isGM) return;
     const sender = senderOf(senderId);
     if (!sender) return;
-    showGmDetail(sender.name, typeof payload.room === "string" ? payload.room : null);
+    showGmDetail(sender, typeof payload.room === "string" ? payload.room : null);
     if (sender.isGM || !isPrimaryGm()) return;
 
     const now = Date.now();
@@ -397,7 +423,7 @@ export function registerSafeword() {
         // GMs raised it at the press; the GM's card - or its own, when none
         // came in time - is that one, arriving.
         if (ownCallAt && Date.now() - ownCallAt < TIMING.safewordRepeatMs) ownCallAt = 0;
-        else raiseCard();
+        else raiseCard(message.author && !message.author.isGM ? message.author.id : null, message.id);
 
         // Exactly one client pauses, or several GMs race on the same toggle.
         // A player cannot pause a Foundry game at all, which is the whole reason

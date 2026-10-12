@@ -2272,5 +2272,54 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         x2?.history > 0 && x2.total === x2.all - x2.history && x2.notices === x2.history
             && J(x2.row) === J(["info", "DRPG.Case.row.notices", Math.round(x2.history / 1024)]), J(x2), { flow: "gm-store" });
 
+    /* E81 fix r1-G2 (12.10.2026; review round 1's O16, F3 and N2). R298 reads the private cards' retry in the source
+       only; here it runs. gma's storage is filled as for X1, its notice history given another world's section of
+       400 000 characters again and two other accounts' sections of this world of 130 000 each - after X1's give-way the
+       history keeps half of 500 000, which those two alone pass. Then a private card of 20 000 characters to gma
+       itself: its write finds the storage full, the history gives its room back - that world's section, and nothing
+       of the two accounts', so it keeps its own history in memory from then on - and the card is written on its
+       second try. At 27e4b34 the give-way deleted the less recently written of the two. X is the scenario's last
+       phase: the history stays unsaved on gma for the rest of this run. Put back after: the key, the card, the
+       history's value as it was. */
+    let x3 = null;
+    try {
+        x3 = await gma.eval(`${HX}
+            const { postSecret } = await import("${repoUrl}/scripts/secret.mjs");
+            const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+            const CKEY = MODULE_ID + "." + SETTINGS.secretCards, WORLD = game.world.id;
+            const OTHERS = [WORLD + ".e81g2OtherUser01", WORLD + ".e81g2OtherUser02"];
+            globalThis.__x3History = localStorage.getItem(HKEY);
+            let value = null;
+            try { value = JSON.parse(globalThis.__x3History); } catch { value = null; }
+            if (value?.v !== 1 || !value.sections) value = { v: 1, sections: {} };
+            value.sections[AWAY] = { epoch: "", touched: 1, clearedAt: 0, gone: {}, entries: [], pad: "w".repeat(400000) };
+            OTHERS.forEach((key, i) => { value.sections[key] = { epoch: NH.noticeEpoch(getClock()), touched: i + 1, clearedAt: 0, gone: {}, entries: [], pad: "o".repeat(130000) }; });
+            const theirs = OTHERS.map(key => JSON.stringify(value.sections[key]));
+            localStorage.setItem(HKEY, JSON.stringify(value));
+            localStorage.setItem(FILL, "f".repeat(Math.max(0, 5000000 - used() - FILL.length - 1500)));
+            const free = 5000000 - used();
+            let heard = 0;
+            const hook = Hooks.on("drpgStorageFull", () => { heard++; });
+            let message = null;
+            try {
+                message = await postSecret({ content: "<p>E81 r1-G2 61 X3 " + "s".repeat(20000) + "</p>", whisper: [game.user.id] });
+            } finally {
+                Hooks.off("drpgStorageFull", hook);
+            }
+            globalThis.__x3Message = message?.id ?? null;
+            const history = JSON.parse(localStorage.getItem(HKEY) ?? "null");
+            return { free, heard, kept: (localStorage.getItem(CKEY) ?? "").includes("E81 r1-G2 61 X3"), away: Boolean(history?.sections?.[AWAY]),
+                others: OTHERS.map((key, i) => JSON.stringify(history?.sections?.[key] ?? null) === theirs[i]), saving: NH.noticeHistoryStatus().saving };`, { timeout: 30000 });
+    } finally {
+        await gma.eval(`${HX} localStorage.removeItem(FILL);
+            if (globalThis.__x3Message) await game.messages.get(globalThis.__x3Message)?.delete();
+            if (globalThis.__x3History === null) localStorage.removeItem(HKEY); else if (globalThis.__x3History !== undefined) localStorage.setItem(HKEY, globalThis.__x3History);
+            delete globalThis.__x3History; delete globalThis.__x3Message;
+            return true;`, { timeout: 30000 });
+    }
+    check("X3: a private card that finds this browser's storage full is kept on its second try, and the notice history's give-way leaves this world's other accounts' sections byte for byte, keeping its own in memory",
+        x3?.free < 2000 && x3.heard >= 1 && x3.kept === true && x3.away === false && J(x3.others) === J([true, true]) && x3.saving === false,
+        J(x3), { flow: "gm-store" });
+
     return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X"], gm: IDS.gm };
 }

@@ -1044,11 +1044,11 @@ body.drpg-theme-stained-glass #countdowns {
     body.drpg-theme-stained-glass * { transition-duration: 0s !important; }
 }
 
-/* ---- the scene navigation, the Scenes tab and the hotbar are the base sheet's: shown to the GM and
-   hidden for a player by the element classes the GM's client stamps (danganronpa.css; GM_CHROME in
+/* ---- the scene navigation, the Scenes tab and the hotbar are the base sheet's (danganronpa.css): the
+   navigation and the hotbar hidden for everybody (DZ5, the owner, 12.10.2026), the Scenes tab shown to
+   the GM and hidden for a player by the element class the GM's client stamps (GM_CHROME in
    gm-panel.mjs). Until E13 C7 (12.10.2026; S12-18) the theme took the navigation out of the clock's
-   pane for the GM too and gave the Scenes tab back to the GM alone; both now follow every theme. Where
-   the navigation lands beside the clock's pane under the glass is not measured here (LIVE-E13-09). */
+   pane for the GM too and gave the Scenes tab back to the GM alone; both now follow every theme. */
 
 /* ---- the Projects tray: the chrome face like the rest of the rail, and a pane the size of the clock's,
    so the two top corners of the glass weigh the same */
