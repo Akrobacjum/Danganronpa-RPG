@@ -7180,7 +7180,7 @@ const INVARIANTS = [
          * section's key and the entry's `id`, `at` and clock (this client's, whatever the caller passes); the
          * clipping of a title, a text and an html over its budget, a day summary's larger one; at most 4 full day
          * summaries in a section; the 251st entry of a player's section and the 151st of a GM's; a section's
-         * 200 000 characters; 40 cards from each player author; the value's 500 000, other worlds first and this
+         * 200 000 characters; 40 entries from each author, whatever their source (E81 fix r1-G1); the value's 500 000, other worlds first and this
          * world's other accounts after them; the epoch on read and on write; `open` read back as `unread`; a raw
          * value read through the shape; two tabs of one login - the union, one entry per message and source, a
          * withdrawn entry and a Clear that another tab's copy does not bring back, tombstones let go after ten
@@ -7254,7 +7254,7 @@ const INVARIANTS = [
             JSON.stringify([true, true, "card 29"]),
             "[a section within 200 000 characters; some of 30 entries of 8 000 gone; the newest kept]");
 
-        // 40 cards from each player author.
+        // 40 entries from each author, whatever their source: the public ones count against A since E81 fix r1-G1.
         e = bench(fresh());
         e.open();
         const A = "SuiteAuthorAaaa1", B = "SuiteAuthorBbbb2";
@@ -7265,8 +7265,8 @@ const INVARIANTS = [
         must(e.entries().length > 0, "the author case kept nothing");
         equal(JSON.stringify([byAuthor(A), byAuthor(B), e.entries().filter(x => x.source === "public").length,
             e.entries().some(x => x.title === "card 0"), e.entries().some(x => x.source === "public" && x.author)]),
-            JSON.stringify([40, 3, 2, false, false]),
-            "[author A's cards after 41; author B's 3; the public ones beside them; A's oldest gone; an author kept on a card that is not a player's]");
+            JSON.stringify([40, 3, 2, false, true]),
+            "[author A's entries after 43, its public ones among them; author B's 3; the public ones; A's oldest gone; an author kept on a card that is not a player's]");
 
         // The whole value's 500 000: other worlds first, the least recently written first, then this world's other accounts.
         const epoch = NH.noticeEpoch(clock.value);
@@ -7315,8 +7315,8 @@ const INVARIANTS = [
         const newer = bench({ ...fresh(), raw: JSON.stringify({ v: 2, sections: { [KEY]: { entries: raws } } }) });
         newer.open();
         equal(JSON.stringify([e.entries().map(x => [x.id, x.state, x.author ?? null]), newer.entries().length, newer.status().saving]),
-            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", null]], 0, false]),
-            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author dropped from a card that is not a player's; "
+            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", U2]], 0, false]),
+            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author kept on a card that is not a player's (E81 fix r1-G1); "
             + "a newer format read as nothing and kept in memory only]");
 
         // Two tabs of one login.
@@ -7475,7 +7475,7 @@ const INVARIANTS = [
          * catch-all draws it, so a GM keeps an announcement, a card for the GM to answer and a GM's insisted card, and
          * no whisper of a record; a veiled card without this login's words and a `popupKind: "none"` keep nothing. A
          * public card a player wrote is kept as the player's, from the document's author - a GM's card that names a
-         * player as its asker stays public. The messenger's `gmAsk` card the GM is raised for is kept too, as the
+         * player as its asker stays public, and carries that player for the per-author bound (E81 fix r1-G1). The messenger's `gmAsk` card the GM is raised for is kept too, as the
          * thread's since E81 C4: its message, and the conversation the entry opens. Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
          * `game.messages.get` answers for the length of the clause, held as R473 holds the history.
          */
@@ -7537,9 +7537,9 @@ const INVARIANTS = [
         }
         must(read.has("R297GmAskCard001"), `the GM has ${player.name}'s conversation open - the messenger's card would append to it, not be drawn`);
         equal(JSON.stringify(Object.fromEntries(read)), JSON.stringify({
-            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", null]],
+            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", player.id]],
             R297WhisperedRec: [], R297GmPopupCard1: [["mine", null]], R297ForcedByGm01: [["mine", null]], R297ForcedByPlay: [],
-            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", null]], R297ChatterCard1: []
+            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", player.id]], R297ChatterCard1: []
         }), "[a GM's kept entries per card: [source, author]] - the announcement, a player's public card, a GM's card naming a player as asker, "
             + "a whisper of a record, gmPopup, popupForce from a GM and from a player, veiled without words, popupKind none, the messenger's gmAsk and its chatter");
         equal(JSON.stringify(askLink), JSON.stringify([["R297GmAskCard001", player.id]]),
@@ -7578,6 +7578,8 @@ const INVARIANTS = [
             await until(() => since(before).length > 0, 1000);
             direct.refused = since(before).map(entry => [entry.text === refused, entry.text.includes("R297 a reply")]);
             before = ids();
+            // One kept detail per sender per window (E81 fix r1-G1): a press of this GM's a minute ago is no answer here.
+            S.safewordDetails?.delete(game.user.id);
             await S.hearSafeword({ action: S.SAFEWORD_ACTION, room: "R297 room" }, game.user.id);
             direct.detail = since(before).map(entry => [entry.source, entry.kind, entry.title, entry.text.includes("R297 room")]);
             before = ids();
@@ -7621,6 +7623,154 @@ const INVARIANTS = [
         }), "[sayNotDone's murder.cleanup with its own notify: [kind, source, state, title, the toast's words, html]; a reason off the list: "
             + "[the toast's words, the reply's]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
             + "line: [source, title, text, the first snapshot]; a bubble in an open window: [appended, kept]; the evidence's source and message, the summary's source]");
+
+        /*
+         * NOBODY'S CARDS PUSH ANOTHER ACCOUNT'S ENTRIES OUT (E81 fix r1-G1, 12.10.2026; review round 1's F1, N1, GV1,
+         * O10 and O11). The harm both reviews measured at 0697d0f: on a GM, 12 public cards of 7 800 characters from
+         * one player took all 5 of the GM's own entries, and a whisper with `gmPopup`, an evidence card, a `gmAsk`
+         * card or a safeword card took them uncounted. First the engine over a value in memory, a GM's section and a
+         * player's: this account's 5 own entries and a second author's 3, then 30 entries of 7 800 characters from one
+         * sender on each of six sources, 160 short ones from another, and 30 stubs from a third that grow to 7 800 after
+         * they are kept (a private card's words landing): every own entry and the second author's stay, and each
+         * sender keeps at most 40 entries and a quarter of the section's characters. Then six senders at that bound,
+         * more than a section holds: the own entries stay, every sender keeps its newest, the section its budget.
+         * Then this GM's held engine through the module's own roads, from one player: 13 public cards, 13 whispers
+         * with `gmPopup`, 13 evidence cards and 13 `gmAsk` cards a GM wrote in the player's thread, 7 800 characters
+         * each, and 150 public safeword cards raised from the player's chat card; and 20 safeword details with a
+         * 7 000-character room from a sender of the suite's own (`showGmDetail`, what `hearSafeword` draws; the
+         * window is that sender's, so a run a minute after another measures the same): the GM's own 5 and the second
+         * author's 3 stay, each road's newest entry carries its sender, the player keeps at most 40 entries and 25 000
+         * characters, the details kept are one and its room 120 characters. The safeword hook's own line - which
+         * player's card raised the public one - is read in the source with comments blanked. Last (O11): a plain
+         * deletion of an evidence card's and a messenger card's message takes the card off the screen and leaves
+         * its entry unread and marked deleted, as C5 made it.
+         */
+        const SECOND = "SuiteAuthorBbbb2", SENDERS = ["SuiteSenderPppp1", "SuiteSenderQqqq2", "SuiteSenderGggg3"];
+        const words = `<p>${"x".repeat(7800)}</p>`;
+        const weigh = list => list.reduce((n, entry) => n + JSON.stringify(entry).length + 1, 0);
+        const engineOf = gm => {
+            const eng = noticeBench(NH.createNoticeEngine, { store: { raw: null, writes: 0, fail: 0 }, user: "SuiteOwnerOoooo1", world: W, gm, at, clock });
+            eng.open();
+            const put = (more, html = "<p>short</p>") => {
+                at.now += 1000;
+                return eng.record({ kind: "info", title: "flood", text: "", html, ...more });
+            };
+            return { eng, put, own: [0, 1, 2, 3, 4].map(() => put({ source: "mine" })) };
+        };
+        const flood = {}, crowd = {};
+        for (const gm of [true, false]) {
+            const share = (gm ? 100000 : 200000) / 4;
+            const { eng, put, own } = engineOf(gm);
+            const second = [0, 1, 2].map(() => put({ source: "player", author: SECOND }));
+            const [heavy, many, grown] = SENDERS;
+            for (const source of ["public", "player", "mine", "messenger", "evidence", "safeword"]) {
+                for (let i = 0; i < 30; i++) put({ source, author: heavy, title: `${source} ${i}` }, words);
+            }
+            for (let i = 0; i < 160; i++) put({ source: "safeword", author: many });
+            const stubs = Array.from({ length: 30 }, () => put({ source: "mine", author: grown }));
+            for (const id of stubs) eng.update(id, { html: words });
+            const kept = new Set(eng.entries().map(entry => entry.id));
+            const of = who => eng.entries().filter(entry => entry.author === who);
+            flood[gm ? "gm" : "player"] = [own.every(id => kept.has(id)), second.every(id => kept.has(id)),
+                of(heavy).length <= 40 && weigh(of(heavy)) <= share, of(heavy).at(-1)?.title ?? null, of(many).length <= 40, weigh(of(grown)) <= share];
+
+            const six = engineOf(gm);
+            const names = Array.from({ length: 6 }, (_, n) => `SuiteCrowdSendr${n}`);
+            for (let i = 0; i < 30; i++) for (const author of names) six.put({ source: "public", author, title: `${author} ${i}` }, words);
+            const left = new Set(six.eng.entries().map(entry => entry.id));
+            crowd[gm ? "gm" : "player"] = [six.own.every(id => left.has(id)),
+                names.every(author => six.eng.entries().filter(entry => entry.author === author).at(-1)?.title === `${author} 29`),
+                weigh(six.eng.entries()) <= share * 4];
+        }
+
+        const P = await import("./popup.mjs");
+        const sender = { id: `R297Sender${String(Date.now() % 1e6).padStart(6, "0")}`, name: "R297 sender", isGM: false };
+        const fid = (tag, i) => `R297Fl${tag}${String(i).padStart(4, "0")}xxxxx`;
+        const flooded = new Map(), road = {}, owned = [], seconds = [];
+        const live = ids();
+        const dismissNew = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.dataset.drpgNotice && !live.has(card.dataset.drpgNotice)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const ran = key => {
+            const entry = NH.noticeEntries().at(-1) ?? null;
+            road[key] = [entry?.source ?? null, entry?.author === player.id];
+            dismissNew();
+        };
+        let bound = null, detail = null, deleted = null;
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        must(!DrpgMessengerApp.instances.has(player.id), `the GM has ${player.name}'s conversation open - the messenger's cards would append to it, not be drawn`);
+        await NH.holdNoticeHistory(true);
+        const getOf = game.messages.get;
+        game.messages.get = function (id, ...rest) { return flooded.get(id) ?? getOf.call(this, id, ...rest); };
+        const made = (tag, i, more) => {
+            const message = fake(fid(tag, i), more);
+            flooded.set(message.id, message);
+            return message;
+        };
+        try {
+            for (let i = 0; i < 5; i++) owned.push(NH.recordNotice({ source: "mine", kind: "info", title: `R297 own ${i}`, text: "", html: `<p>R297 own ${i}</p>` }));
+            for (let i = 0; i < 3; i++) seconds.push(NH.recordNotice({ source: "player", author: SECOND, kind: "info", title: `R297 second ${i}`, text: "", html: "<p>R297 second</p>" }));
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("P", i, { author: player, content: words }));
+            ran("public");
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: player, whisper: [me], flags: { gmPopup: true }, content: words }));
+            ran("gmPopup");
+            for (let i = 0; i < 13; i++) {
+                P.showPopup(words, { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: made("E", i, { author: player }).id });
+            }
+            ran("evidence");
+            for (let i = 0; i < 13; i++) {
+                const ask = made("A", i, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: words });
+                Hooks.callAll("drpgMessengerMessage", player.id, ask);
+                await until(() => NH.noticeEntries().some(entry => entry.messageId === ask.id), 500);
+            }
+            ran("gmAsk");
+            for (let i = 0; i < 150; i++) {
+                S.raiseCard(player.id);
+                dismissNew();
+            }
+            ran("banner");
+            for (let i = 0; i < 20; i++) S.showGmDetail?.(sender, "r".repeat(7000));
+            dismissNew();
+            const after = new Set(NH.noticeEntries().map(entry => entry.id));
+            const by = who => NH.noticeEntries().filter(entry => entry.author === who);
+            bound = [owned.every(id => after.has(id)), seconds.every(id => after.has(id)), by(player.id).length <= 40, weigh(by(player.id)) <= 25000];
+            detail = by(sender.id).map(entry => [entry.source, entry.text.includes("r".repeat(120)), entry.text.includes("r".repeat(121))]);
+
+            const evidenceMessage = made("D", 1, { author: player });
+            const askMessage = made("D", 2, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: "<p>R297 a deleted ask</p>" });
+            P.showPopup("<p>R297 a deleted evidence card</p>", { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: evidenceMessage.id });
+            Hooks.callAll("drpgMessengerMessage", player.id, askMessage);
+            await until(() => NH.noticeEntries().some(entry => entry.messageId === askMessage.id), 500);
+            const gone = [evidenceMessage.id, askMessage.id];
+            const shown = gone.map(id => document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`));
+            must(shown.every(Boolean), "the evidence card or the messenger card was not drawn - their deletion would be measured on nothing");
+            for (const id of gone) {
+                P.onDeleteChatMessage({ id });
+                NH.noticeCardDeleted({ id }, {});
+            }
+            deleted = [shown.map(card => card.classList.contains("leaving")),
+                gone.map(id => NH.noticeEntries().filter(entry => entry.messageId === id).map(entry => [entry.source, entry.state, entry.mark]))];
+        } finally {
+            delete game.messages.get;
+            dismissNew();
+            NH.holdNoticeHistory(false);
+        }
+        const hook = stripComments(sources.get("safeword.mjs") ?? "");
+        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null\)/.test(hook), deleted }), JSON.stringify({
+            flood: { gm: [true, true, true, "safeword 29", true, true], player: [true, true, true, "safeword 29", true, true] },
+            crowd: { gm: [true, true, true], player: [true, true, true] },
+            bound: [true, true, true, true],
+            road: { public: ["player", true], gmPopup: ["mine", true], evidence: ["evidence", true], gmAsk: ["messenger", true], banner: ["safeword", true] },
+            detail: [["safeword", true, false]],
+            hook: true,
+            deleted: [[true, true], [[["evidence", "unread", "deleted"]], [["messenger", "unread", "deleted"]]]]
+        }), "[the engine, a GM's and a player's: [own 5 kept, a second author's 3 kept, a heavy sender within 40 entries and a quarter, its newest, "
+            + "160 short within 40, grown stubs within a quarter]; six senders: [own kept, each one's newest, the section within its budget]; "
+            + "this GM through the roads: [own 5 kept, a second author's 3 kept, the player within 40 entries, within 25 000 characters]; "
+            + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player; "
+            + "a plain deletion: [cards closing], [the entries' [source, state, mark]]]");
     }],
 
     ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {

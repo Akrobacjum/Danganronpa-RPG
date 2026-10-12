@@ -64,7 +64,10 @@ const ID = /^[A-Za-z0-9]{16}$/;
 export const NOTICE_KINDS = Object.freeze(["info", "error", "evidence", "objection"]);
 export const NOTICE_TONES = Object.freeze(["hope", "fear", "critical"]);
 
-/** Where an entry came from (the A7 design, P1-1). `author` is kept only for "player". */
+/**
+ * Where an entry came from (the A7 design, P1-1). `author` is the other user an entry came from, on any source
+ * since E81 fix r1-G1: what the per-author bound counts (`trimSection`).
+ */
 export const NOTICE_SOURCES = Object.freeze(["mine", "public", "player", "messenger", "evidence", "summary", "safeword", "notDone"]);
 const STATES = ["open", "read", "unread"];
 const MARKS = [null, "rerolled", "settled", "deleted"];
@@ -96,7 +99,8 @@ export const NOTICE_TEXTS = Object.freeze({
  * text and drops the html (`clipped`). A player's section keeps 250 entries and 200 000
  * characters, a GM's 150 and 100 000; the whole value 500 000. A section holds at most 4
  * full day summaries (E37 gives one at every boundary of a time of day), and at most 40
- * cards from each player author. None of these is a measurement of a browser's quota:
+ * entries and a quarter of the section's characters from each other user (`authorShare`, E81
+ * fix r1-G1). None of these is a measurement of a browser's quota:
  * localStorage is shared with the private cards and the GM stores, and the history gives way
  * to them when it runs out (`keepRoom`, below): from then on, for the rest of the session, every
  * one of these but the entry's own is halved.
@@ -106,7 +110,7 @@ const BUDGET = Object.freeze({
     entry: 10000, entryHtml: 8000, summary: 26000, summaryHtml: 24000,
     player: Object.freeze({ entries: 250, chars: 200000 }),
     gm: Object.freeze({ entries: 150, chars: 100000 }),
-    total: 500000, perAuthor: 40, fullSummaries: 4
+    total: 500000, perAuthor: 40, authorShare: 0.25, fullSummaries: 4
 });
 /* A tombstone outlives any tab's unsaved copy of what it buried: the write is debounced 400 ms and
    flushed when a page hides, so ten minutes is the design's margin, not a measured one. */
@@ -382,7 +386,7 @@ export function createNoticeEngine(env) {
                 timeOfDay: clip(str(clock.timeOfDay), 32), eclipse: clock.eclipse === true
             }
         };
-        if (raw.source === "player" && ID.test(raw.author)) entry.author = raw.author;
+        if (ID.test(raw.author)) entry.author = raw.author;
         if (isPlain(raw.link) && ID.test(raw.link.messenger) && env.userExists(raw.link.messenger)) entry.link = { messenger: raw.link.messenger };
         return fit(entry);
     }
@@ -486,21 +490,49 @@ export function createNoticeEngine(env) {
             if (entry.source !== "summary" || entry.clipped) continue;
             if (++full > BUDGET.fullSummaries) section.entries[i] = { ...entry, html: "", clipped: true };
         }
-        /* Newest first, so the oldest of an author over 40 go. */
-        const kept = new Map(), drop = new Set();
-        for (let i = section.entries.length - 1; i >= 0; i--) {
-            const entry = section.entries[i];
-            if (entry.source !== "player" || !entry.author) continue;
-            const n = (kept.get(entry.author) ?? 0) + 1;
-            kept.set(entry.author, n);
-            if (n > BUDGET.perAuthor) drop.add(entry);
-        }
-        if (drop.size) section.entries = section.entries.filter(entry => !drop.has(entry));
+        /*
+         * NOBODY'S CARDS PUSH ANOTHER ACCOUNT'S ENTRIES OUT (E81 fix r1-G1, 12.10.2026; review round 1's F1, N1
+         * and GV1). The bound counted a "player" card's author alone, and its entries alone, and the section was
+         * then cut oldest first whoever had filled it: on a GM, 12 public cards of 7 800 characters from one player
+         * took all 5 of the GM's own entries (the security review's run 98-sec-r1), and a whisper with `gmPopup`,
+         * an evidence card, a `gmAsk` card or a safeword card took them uncounted (the correctness review's bench:
+         * 0 of 30 kept on every road). Now every entry from another user carries that user, whatever its source
+         * (popup.mjs `noticeSource`), and each keeps at most 40 entries and a quarter of the section's characters,
+         * its own oldest going first, newest counted first. A section still over its budget then loses the oldest
+         * entry of whichever holds the most of it - an author, or this login's own entries and the module's (no
+         * author) taken as one - so the cut falls on whoever filled it. The quarter is the reviewers' figure, not a
+         * measurement: four senders at their bound fill a section, and a fifth cuts the heaviest of them first.
+         */
         const cap = env.isGM() ? BUDGET.gm : BUDGET.player;
         const most = Math.floor(cap.entries * room), chars = cap.chars * room;
-        if (section.entries.length > most) section.entries.splice(0, section.entries.length - most);
+        const weight = new Map(section.entries.map(entry => [entry, sizeOf(entry) + 1]));
+        const seen = new Map(), drop = new Set();
+        for (let i = section.entries.length - 1; i >= 0; i--) {
+            const entry = section.entries[i];
+            if (!entry.author) continue;
+            const had = seen.get(entry.author) ?? { n: 0, size: 0 };
+            const now = { n: had.n + 1, size: had.size + weight.get(entry) };
+            seen.set(entry.author, now);
+            if (now.n > Math.floor(BUDGET.perAuthor * room) || now.size > cap.chars * BUDGET.authorShare * room) drop.add(entry);
+        }
+        if (drop.size) section.entries = section.entries.filter(entry => !drop.has(entry));
+        const groups = new Map();
+        for (const entry of section.entries) {
+            const group = groups.get(entry.author ?? "") ?? { n: 0, size: 0 };
+            group.n++;
+            group.size += weight.get(entry);
+            groups.set(entry.author ?? "", group);
+        }
         let size = sizeOf(section);
-        while (size > chars && section.entries.length) size -= sizeOf(section.entries.shift()) + 1;
+        while (section.entries.length && (section.entries.length > most || size > chars)) {
+            const by = section.entries.length > most ? "n" : "size";
+            const [key, group] = [...groups].reduce((a, b) => (b[1][by] > a[1][by] ? b : a));
+            const [gone] = section.entries.splice(section.entries.findIndex(entry => (entry.author ?? "") === key), 1);
+            size -= weight.get(gone);
+            group.n--;
+            group.size -= weight.get(gone);
+            if (!group.n) groups.delete(key);
+        }
     }
 
     /**
@@ -748,6 +780,9 @@ export function createNoticeEngine(env) {
         }
         if (JSON.stringify(next) === JSON.stringify(list[at])) return false;
         list[at] = next;
+        /* A card's words can land after it is drawn (a private card's, a messenger's): the stub was what the
+           per-author bound weighed at `record`, so the grown entry is weighed again here (E81 fix r1-G1). */
+        if (mine && patch.html !== undefined) trimSection(mine);
         if (mine) schedule();
         changed();
         return true;
