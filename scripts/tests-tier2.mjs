@@ -48816,6 +48816,17 @@ const SCENARIOS = [
          * player's browser relays it (judged on the primary, its `sceneId` a hint among the
          * student's own tokens). The trap is re-armed after it speaks. Red before this fix: quiet
          * on all three.
+         *
+         * THE TRAP STANDS ON THE SUITE'S SCENE (E12 fix k3-K1, 12.10.2026; k3's red 1). E12 fix r2-S1
+         * made a trap spring only in its room on its own scene (`armedIn`), and this test's trap,
+         * built with no scene, stands on the first scene with the room - the one on screen - so it
+         * stayed quiet on all three: the k3 suite on 48efd99 read "[false,false,false]", and so did
+         * this test alone on 48efd99 and on r2-S1's own 19abd42 (e12run/scratch/k3k1; S1's fast set
+         * did not run it). `isAlone` was not at fault: on the suite's scene it counted nobody,
+         * lawful or not. So the trap's token is now put on the suite's scene, and the control is a
+         * crossing there with the other student beside the first (quiet), in place of a crossing on
+         * the scene on screen, where the trap is not since r2-S1 and which "a trap springs only in
+         * its room on its own scene" reads.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -48827,6 +48838,8 @@ const SCENARIOS = [
         const T = await import("./traps.mjs");
         const G = await import("./bridge-guards.mjs");
         const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { locateActor } = await import("./movement.mjs");
         const stood = await aloneTogether(student, other);
         const home = canvas?.scene ?? null;
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
@@ -48839,9 +48852,16 @@ const SCENARIOS = [
             const mine = home?.tokens?.find(t => t.actorId === student.id) ?? null;
             made = await P.createProject({ name: "SUITE r1-G4 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
                 condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            must(made?.id, "could not build the trap - this would measure nothing");
+            if (PM.projectTokenOf(made.id)?.parent?.id !== scene.id) {
+                await PM.removeProjectToken(made.id);
+                await PM.placeProjectToken(made.id, { scene });
+            }
             await P.addProgress(made.id, 1, { by: builder.id });
             await settle();
-            must(made?.id && T.diagnoseTraps().armed === 1 && mine && away, "the trap is not watching, or a token of the student is missing - this would measure nothing");
+            must(T.diagnoseTraps().armed === 1 && P.projectScene(made.id)?.id === scene.id && mine && away,
+                "the trap is not watching on the suite's scene, or a token of the student is missing - this would measure nothing");
+            must(locateActor(student)?.scene === home, `${student.name} is not placed on the scene on screen while both tokens show - this would measure nothing`);
             const fires = async raise => {
                 const count = game.messages.size;
                 await raise();
@@ -48853,8 +48873,11 @@ const SCENARIOS = [
                 }
                 return spoke;
             };
+            const [beside] = await scene.createEmbeddedDocuments("Token", [{ actorId: other.id, actorLink: true, name: other.name, x: 400, y: 300, width: 1, height: 1 }]);
+            const together = await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away }));
+            await beside.delete();
             read = [
-                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: mine })),
+                together,
                 await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away })),
                 await fires(() => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: stood.room, sceneId: scene.id },
                     playerOf(student).id, { send: () => {} }))
@@ -48867,8 +48890,8 @@ const SCENARIOS = [
             await stood.back();
         }
         equal(stableJson(read), stableJson([false, true, true]),
-            `the "alone" trap in "${stood.room}" spoke for ${student.name}'s crossing on the scene on screen (${other.name} there), on a scene of the suite's own (alone there) `
-            + "as the GM's browser raises it, and the same relayed by the player's browser");
+            `the "alone" trap in "${stood.room}" on a scene of the suite's own spoke for ${student.name}'s crossing there with ${other.name} beside them, alone there `
+            + `(${other.name} with them in "${stood.room}" on the scene on screen) as the GM's browser raises it, and the same relayed by the player's browser`);
     }],
 
     ["Move the body is refused before it is paid for when the body lies in a room of the same name on another scene", async () => {
@@ -49564,6 +49587,16 @@ const SCENARIOS = [
          * `present` is also whom the murder falls on, so a student standing unlawfully is not its victim
          * either (the fix list: presence read through the standing). Red before this fix: the trap quiet and
          * a murder of the other asked about.
+         *
+         * A SPOT THE OTHER HAS NOT STOOD ON (E12 fix k3-K1, 12.10.2026; k3's red 2). The spot was the
+         * room's centre moved by (37, 23), which "a student a send-back put in a locked room walks in
+         * on no incident there until a GM moves them" also picks for its own send-back, and in the
+         * harness's world both put Aiko Hoshino's token there: that test, run first, leaves the spot
+         * in her token's last positions (`recentPositions`, the send-back judge's own record of eight,
+         * which no test should clear), so the k3 suite on 48efd99 stopped this one at its
+         * precondition. Measured in e12run/scratch/k3k1: this test alone green, the two in suite order
+         * red. So the first of ten spots round the centre that is not among those positions; eight
+         * are kept, so one is free.
          */
         needs(world.atLeast("studentTokensOnScreen", 3), "the student and another are stood in one room by their tokens");
         needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
@@ -49606,8 +49639,10 @@ const SCENARIOS = [
             for (const [piece] of pieces) await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, true);
             await settle();
             const centre = Mv.positionIn(stood.room, theirs);
-            const spot = { x: centre.x + 37, y: centre.y + 23 };
-            must(!Mv.recentPositions(theirs.id).some(h => h.x === spot.x && h.y === spot.y),
+            const stoodOn = new Set(Mv.recentPositions(theirs.id).map(h => `${h.x} ${h.y}`));
+            const spot = [[37, 23], [-37, 23], [37, -23], [-37, -23], [23, 37], [-23, 37], [23, -37], [-23, -37], [41, 0], [0, 41]]
+                .map(([dx, dy]) => ({ x: centre.x + dx, y: centre.y + dy })).find(at => !stoodOn.has(`${at.x} ${at.y}`));
+            must(spot && !Mv.recentPositions(theirs.id).some(h => h.x === spot.x && h.y === spot.y),
                 `${other.name} stood on the spot a moment ago - the send-back would be honoured and this would measure nothing`);
             await theirs.update(spot, { ...PLACE, [Mv.REVERT]: true, [Mv.SENT_BACK]: true });
             await settle();
