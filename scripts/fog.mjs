@@ -57,7 +57,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf, ROOM_FLAGS } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
-    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, noteRenamedFrom, placeScenes,
+    viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -613,9 +613,9 @@ function repaintRoomScene(scene) {
  * keeps the old name leaves a room of that name standing, and what names it stays): the record
  * here, the sheets in vault.mjs `carryRoomOnSheets`; then the scene is repainted and the GMs
  * are told what moved. Tier 2 "a GM's rename of a room carries its stash, its keys, the notes
- * of its stash found and its discovery", scenario 66 L. Not carried, read in the code on
- * 11.10.2026: the sealed rooms (call-world.mjs `sealedRooms`) and the bodies found
- * (chapter.mjs `recordBodyFound`).
+ * of its stash found and its discovery", scenario 66 L. Not carried until E12 fix k3-K2, read in
+ * the code on 11.10.2026: the sealed rooms (call-world.mjs `sealedRooms`) and the bodies found
+ * (chapter.mjs `recordBodyFound`) - they go with the rest now (`carryRoomInWorld`).
  *
  * AND THE REST OF WHAT NAMES IT, AND NOTHING ONTO ANOTHER ROOM (E12 fix r2-H4, 11.10.2026; early
  * review EARLY-C8-1 to C8-3, EARLY-C14-3, goal review r2 N7). Five more records named the room and
@@ -662,7 +662,6 @@ function noteRegionName(region, userId, changes) {
     const scene = region.parent;
     const pieces = roomRegions(scene, now);
     const carries = pieces.length > 0 && !roomRegions(scene, was).length && !joinsAnotherRoom(scene, region, was, now);
-    noteRenamedFrom(region.id, was);
     if (!carries || !isPrimaryGm()) return null;
     renames = renames.then(() => carryRename(scene, was, now, pieces));
     return renames;
@@ -682,11 +681,12 @@ async function carryRename(scene, from, to, pieces) {
             if (rooms.includes(from)) cells[cellKey(scene.id, actorId)] = { [from]: false, [to]: true };
         }
         await writeCells(cells);
+        await dropRenameRecords(scene, from, to);
         repaintRoomScene(scene);
         const moved = { ...sheets, cells: Object.keys(cells).length, ...world };
         log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
             + `${moved.found} found note(s), ${moved.cells} discovery row(s), ${moved.projects} project(s), ${moved.plants} plant(s), `
-            + `${moved.lists} Neighbours list(s), ${moved.lair} lair and ${moved.gather} assembly carried.`);
+            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal and ${moved.bodies} body record(s) carried.`);
         if (Object.values(moved).some(Boolean)) {
             await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
         }
@@ -704,8 +704,8 @@ async function carryRename(scene, from, to, pieces) {
  * `sceneOfRoom`), so it stood here when no place scene before this one holds the old name.
  */
 async function carryRoomInWorld(scene, from, to) {
-    const [{ projectMeta, setProjectMeta }, { carryPlant }, { carryGatherRoom }] = await Promise.all([
-        import("./projects-secrecy.mjs"), import("./traps.mjs"), import("./call-world.mjs")]);
+    const [{ projectMeta, setProjectMeta }, { carryPlant }, { carryGatherRoom, carrySealedRoom }, { carryBodyRooms }] = await Promise.all([
+        import("./projects-secrecy.mjs"), import("./traps.mjs"), import("./call-world.mjs"), import("./settings.mjs")]);
     const places = placeScenes(), at = places.indexOf(scene);
     const firstHere = at >= 0 && !places.slice(0, at).some(s => roomRegions(s, from).length);
     let projects = 0;
@@ -719,7 +719,21 @@ async function carryRoomInWorld(scene, from, to) {
     const lairGoes = mastermindLair() === from && !places.some(s => roomRegions(s, from).length);
     if (lairGoes) await setMastermindLair(to);
     return { projects, plants: await carryPlant(scene.id, from, to), lists, lair: lairGoes ? 1 : 0,
-        gather: await carryGatherRoom(scene, from, to, firstHere) };
+        gather: await carryGatherRoom(scene, from, to, firstHere),
+        // A seal and a found body's room (E12 fix k3-K2; open road O-b): call-world.mjs and settings.mjs say how each is read.
+        sealed: await carrySealedRoom(from, to, places.some(s => roomRegions(s, from).length)), bodies: await carryBodyRooms(scene.id, from, to, firstHere) };
+}
+
+/**
+ * On the primary, once the room `from` is carried to `to`: the record of which name its pieces left
+ * (rooms.mjs `RENAMED_FROM`, E12 fix k3-K2) has done its work and comes off them, in one update.
+ */
+async function dropRenameRecords(scene, from, to) {
+    if (!isPrimaryGm()) return 0;
+    const marked = roomRegions(scene, to).filter(piece => piece.getFlag?.(MODULE_ID, RENAMED_FROM) === from);
+    if (!marked.length) return 0;
+    await scene.updateEmbeddedDocuments("Region", marked.map(piece => ({ _id: piece.id, [`flags.${MODULE_ID}.${RENAMED_FROM}`]: null })));
+    return marked.length;
 }
 
 /** On the primary: every Neighbours list on `scene` that names `from` names `to`, in one update. Answers how many rooms' lists changed. */

@@ -66,6 +66,22 @@ export async function sealRoom(room) {
     return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current)));
 }
 
+/**
+ * A sealed room renamed (E12 fix k3-K2, 12.10.2026; open road O-b of r2-H4). A seal is a name with no
+ * scene, as `isSealed` reads it, so it shuts every room of the name; fog.mjs `carryRoomInWorld` hands a
+ * GM's rename here on the primary. The new name is sealed, and the old one stays sealed while a place
+ * scene still has a room of it (`stillStands`): the seal stays on every room it shut, and a room of the
+ * new name on another scene is shut with them, as one sealed by that name would be. Answers 1 when the
+ * seal moved, else 0.
+ */
+export async function carrySealedRoom(from, to, stillStands = false) {
+    const sealed = sealedRooms();
+    if (!game.user?.isGM || !from || !to || from === to || !sealed.includes(from)) return 0;
+    const next = new Set(sealed.filter(room => stillStands || room !== from));
+    next.add(to);
+    return (await writeWorld(SETTINGS.sealedRooms, Array.from(next))) ? 1 : 0;
+}
+
 /** Per-actor restrictions: { [actorId]: { silenced, chained, room } }. */
 export function restrictions() {
     try {

@@ -265,21 +265,26 @@ export function piecesByName(scene) {
  * stash, which the union readers (`flagOver`, `stashesOver`) read as Dorm B's. A piece of the new name
  * is the renamed room's own only when a GM renamed it from the same old name - the first pieces of a
  * room renamed piece by piece; any other is another room, and the rename joins it. Which piece came
- * from which name is remembered on every GM (fog.mjs `noteRegionName` writes it), because the client
- * that writes the rename judges it before the update (vault.mjs `clearSplitPiece`) and the primary
- * judges the carry after it, and they need not be the same GM (scenario 66 Q).
+ * from which name is remembered because the client that writes the rename judges it before the
+ * update (vault.mjs `clearSplitPiece`) and the primary judges the carry after it, and they need not
+ * be the same GM (scenario 66 Q).
+ *
+ * IN THE WORLD, ON THE PIECE (E12 fix k3-K2, 12.10.2026; open road O-a of r2-H4). r2-H4 kept it in
+ * each GM's memory, written as each GM saw the rename: a GM who connected between two renames of
+ * one room's pieces had not seen the first, and as the primary judged the second a join and carried
+ * nothing, or as the writer took the second piece's flags off it as a join's (scenario 66 Q2 and Q3
+ * read both at this fix's parent). The writer now writes the old name on the piece in the rename's
+ * own update (`RENAMED_FROM`, only on a room's piece that leaves others of its name and joins no
+ * room), so every GM, connected then or later, reads the same record; the primary takes it off
+ * the pieces once it has carried the room (fog.mjs `carryRename`), so a later rename of another
+ * room of the old name onto this one is a join again.
  */
-const renamedFrom = new Map();
-
-/** A GM's rename of a region, seen on this GM: the name it had before. */
-export function noteRenamedFrom(regionId, was) {
-    if (regionId && was) renamedFrom.set(regionId, was);
-}
+export const RENAMED_FROM = "renamedFrom";
 
 /** Whether renaming `region` from `was` to `now` on `scene` makes it a piece of another room standing there (the note above). */
 export function joinsAnotherRoom(scene, region, was, now) {
     if (!scene || !now || now === was) return false;
-    return roomRegions(scene, now).some(piece => piece.id !== region?.id && renamedFrom.get(piece.id) !== was);
+    return roomRegions(scene, now).some(piece => piece.id !== region?.id && piece.getFlag?.(MODULE_ID, RENAMED_FROM) !== was);
 }
 
 /**
