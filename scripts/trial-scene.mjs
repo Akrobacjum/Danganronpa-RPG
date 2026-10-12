@@ -33,7 +33,8 @@
  * measured only there. The primary GM puts a player's change back to what the
  * GMs last wrote (`castPutBack`, `castHeld`) and tells the GMs; a GM's change
  * stands, and does not change the stored choice. A cast token a player makes in
- * the hall is hidden and told (`watchCastCreated`).
+ * the hall is hidden and told (`watchCastCreated`), and one a player deletes there
+ * is told (`watchCastDeleted`).
  *
  * `hidden` IS A DRAW STATE, NOT A SECRET. Every client holds every token of the
  * hall in the scene's data, hidden or not (known-leaks `foundry-hidden-tokens`),
@@ -658,22 +659,47 @@ async function selfRepair() {
  * second write sent whole (`diff: false`). So every GM's client keeps, per hall cast token, the
  * `hidden` a GM last wrote (`castHeld`, fed by `watchCast` and `watchCastCreated` - this file's own
  * reveal and hide are GMs' writes too), and the primary writes that value back only when the token
- * holds another, and tells the GMs only when it wrote. A token no GM wrote since this client loaded,
- * or since its hall was linked, is read off the hall as it stood when the first write to any of the
- * hall's cast tokens reached this client (`seedCastHeld`); the changed token itself, then, as the
- * module would have left it (`heldHidden`). Scenario 41 a4 sends both of review r1's pairs and a pair
- * against a GM's own hide, on four browsers.
+ * holds another, and tells the GMs only when it wrote. Scenario 41 a4 sends both of review r1's pairs
+ * and a pair against a GM's own hide, on four browsers.
+ *
+ * What a token no GM wrote since is held at: the linked hall as it stands when this GM's client
+ * reaches `ready` and whenever the scene roles change (`reseedCastHeld`; E13 fix r2-H2, review r2 sec
+ * S2-1). Until that fix the hall was read once per hall id, at the first write heard, and never again:
+ * review r2 showed a GM's show heard on the linked hall, an unlink, a GM's hide on the unlinked hall
+ * (heard by nobody: only the linked hall is watched) and a relink leave `castHeld` at "shown" while
+ * the token was hidden, so p1's show of it stood on four browsers with no whisper - outside the trial,
+ * and in the trial after it with the token unticked; and a GM client loading mid-trial skipped the
+ * first token a player changed and held it as the stored choice would have it, not as a GM's hand had
+ * left it. A change of the linked hall drops every row and reads the new one; a write heard after
+ * that is the GMs' as before. The read at the first write heard (`seedCastHeld`, the changed token
+ * then as the module would have left it, `heldHidden`) stays as the fallback for a hall neither of
+ * those read - a reseed that failed, or a road to the link this file does not know of. Scenario 41
+ * z (the unlink, the relink and the trial after) and r (a GM loading mid-trial). Whether v14 runs a setting's `onChange` before or after its `updateSetting`
+ * hook is not read here, so the reseed lets go of the roles itself first.
  */
 const castHeld = new Map();
-const castSeeded = new Set();
+let castSeededFor = null;
 
-/** On a GM's client, once per hall: each cast token's `hidden` as it stands now, but `except`'s and any already heard. */
-function seedCastHeld(hall, except) {
-    if (castSeeded.has(hall.id)) return;
-    castSeeded.add(hall.id);
-    for (const token of castTokens(hall)) {
-        const key = castKey(hall.id, token.id);
-        if (token.id !== except && !castHeld.has(key)) castHeld.set(key, Boolean(token.hidden));
+/** On a GM's client, once per linked hall: each cast token's `hidden` as it stands now, but `except`'s; another hall's rows dropped. */
+function seedCastHeld(hall, except = null) {
+    if (castSeededFor === hall.id) return;
+    castHeld.clear();
+    castSeededFor = hall.id;
+    for (const token of castTokens(hall)) if (token.id !== except) castHeld.set(castKey(hall.id, token.id), Boolean(token.hidden));
+}
+
+/** On a GM's client, at `ready` and on a change of the scene roles: the linked hall read as it stands, when it is another than the one held. */
+function reseedCastHeld() {
+    if (!game.user?.isGM) return;
+    try {
+        forgetSceneRoles();
+        const hall = trialScene();
+        if ((hall?.id ?? null) === castSeededFor) return;
+        castHeld.clear();
+        castSeededFor = null;
+        if (hall) seedCastHeld(hall);
+    } catch (err) {
+        error("Could not read the trial hall's cast as it stands", err);
     }
 }
 
@@ -763,6 +789,31 @@ async function watchCastCreated(tokenDoc, options, userId) {
             user: esc(user.name), name: esc(tokenDoc.name ?? tokenDoc.id) })}</p>`);
     } catch (err) {
         error("Could not hide a token a player made in the trial hall", err);
+    }
+}
+
+/**
+ * The `deleteToken` watcher on the hall, on the primary GM's client (E13 fix r2-H2, review r2 sec
+ * S2-4): a cast token a player deleted - where the world grants players TOKEN_DELETE, which this
+ * module does not read - is whispered to the GMs, as a player's drop is. It is not made again (D7:
+ * the module creates nothing in the hall), so the GMs put it back by hand if the trial needs it. Its
+ * row in `castHeld` stays, unread unless a token of that id stands in the hall again; R432 holds this
+ * file to no delete call at all. Until the fix a player's delete of their own student's hall token took the GMs' choice
+ * off every browser and nobody was told; the harness refused every player's delete, so the road had
+ * never run. Scenario 41 a7.
+ */
+async function watchCastDeleted(tokenDoc, options, userId) {
+    if (!game.user?.isGM) return;
+    try {
+        const user = game.users?.get?.(userId) ?? null;
+        const hall = trialScene();
+        if (!hall || tokenDoc?.parent?.id !== hall.id || !isCastToken(tokenDoc)) return;
+        if (!user || user.isGM || !isPrimaryGm()) return;
+        log(`${user.name} deleted the hall token ${tokenDoc.name}; the GMs are told.`);
+        await whisperToGms(`<p>${game.i18n.format("DRPG.TrialScene.playerTokenDeleted", {
+            user: esc(user.name), name: esc(tokenDoc.name ?? tokenDoc.id) })}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs of a token a player deleted from the trial hall", err);
     }
 }
 
@@ -912,7 +963,7 @@ export function scenesTabHtml(roles = sceneRoles()) {
  * The tab's live half, in a drawn window: the warnings follow both selects, the cast list follows
  * the hall's (a GM linking a hall picks its cast in the same Apply), and `block(reason | null)`
  * holds Apply while both name one scene, or while the hall select is changed in a running trial
- * (`hallLocked`) (vault.mjs `setApplyBlock`).
+ * (`hallLockReason`) (vault.mjs `setApplyBlock`).
  */
 export function wireScenesTab(root, block = () => {}) {
     const [school, trial] = ["school", "trial"].map(role => root?.querySelector?.(`[name="scenes:${role}"]`));
@@ -924,7 +975,10 @@ export function wireScenesTab(root, block = () => {}) {
         report.innerHTML = reportHtml(scene(school), scene(trial));
         let reason = null;
         if (scenesClash({ school: school.value, trial: trial.value })) reason = game.i18n.localize("DRPG.TrialScene.sameScene");
-        else if (hallLocked({ trial: trial.value, drawn: { trial: trial.dataset.drawn ?? "" } })) reason = game.i18n.localize("DRPG.TrialScene.hallInTrial");
+        else {
+            const locked = hallLockReason({ trial: trial.value, drawn: { trial: trial.dataset.drawn ?? "" } });
+            if (locked) reason = game.i18n.localize(locked);
+        }
         block(reason);
     };
     school.addEventListener("change", redraw);
@@ -968,6 +1022,17 @@ export function scenesClash(read) {
  */
 export function hallLocked(read, phase = getClock().phase) {
     return phase === "classTrial" && Boolean(read) && (read.trial ?? "") !== (read.drawn?.trial ?? "");
+}
+
+/**
+ * The lang key of the reason `hallLocked` holds Apply with, or null when it does not. A trial
+ * opened with no hall linked and a GM picking a first one is told that, not that a hall is linked
+ * (E13 fix r2-H2, review r2 cor E: until the fix one text, "A Class Trial is running in the linked
+ * trial hall", answered both). Scenario 41 l2 reads it on the GM's window.
+ */
+export function hallLockReason(read, phase = getClock().phase) {
+    if (!hallLocked(read, phase)) return null;
+    return read.drawn?.trial ? "DRPG.TrialScene.hallInTrial" : "DRPG.TrialScene.hallFirstInTrial";
 }
 
 /**
@@ -1055,6 +1120,12 @@ export async function applyScenesTab(read) {
 export function registerTrialScene() {
     Hooks.on("updateToken", watchCast);
     Hooks.on("createToken", watchCastCreated);
+    Hooks.on("deleteToken", watchCastDeleted);
     Hooks.once("canvasReady", selfRepair);
     Hooks.once("ready", nameUnfinishedCarries);
+    Hooks.once("ready", reseedCastHeld);
+    // A world whose roles were never written makes the Setting document on its first write: `createSetting` in Foundry.
+    for (const hook of ["updateSetting", "createSetting"]) {
+        Hooks.on(hook, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) reseedCastHeld(); });
+    }
 }

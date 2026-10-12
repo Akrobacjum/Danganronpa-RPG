@@ -3180,9 +3180,11 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.sameScene"));
         return null;
     }
-    // And its second: the trial hall is not relinked or unlinked while a Class Trial runs (E13 fix r1-F2).
-    if (scenesTab.hallLocked(result.scenes)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.hallInTrial"));
+    // And its second: the trial hall is not linked, relinked or unlinked while a Class Trial runs (E13 fix r1-F2;
+    // the reason for a first hall since r2-H2).
+    const hallLock = scenesTab.hallLockReason(result.scenes);
+    if (hallLock) {
+        ui.notifications.warn(game.i18n.localize(hallLock));
         return null;
     }
 
