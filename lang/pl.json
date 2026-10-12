@@ -1985,11 +1985,23 @@
         "many": "{n} żyjących uczniów nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie.",
         "other": "{n} żyjącego ucznia nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie."
       },
+      "carryUnfinished": {
+        "one": "{n} uczeń przeniesiony z Class Trial stoi podwójnie - kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń ten, którego nie chcesz.",
+        "few": "{n} uczniowie przeniesieni z Class Trial stoją podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz.",
+        "many": "{n} uczniów przeniesionych z Class Trial stoi podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz.",
+        "other": "{n} ucznia przeniesionego z Class Trial stoi podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz."
+      },
+      "hiddenHere": {
+        "one": "{n} żyjący uczeń ma w pokoju ukryty token, a jego widoczny token zostaje na innej scenie: {names}.",
+        "few": "{n} żyjący uczniowie mają w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}.",
+        "many": "{n} żyjących uczniów ma w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}.",
+        "other": "{n} żyjącego ucznia ma w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}."
+      },
       "tokensStay": {
-        "one": "{n} uczeń przeniesiony tu z innej sceny ma jeszcze token gdzie indziej; ten został tam, gdzie stał: {names}.",
-        "few": "{n} uczniowie przeniesieni tu z innej sceny mają jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}.",
-        "many": "{n} uczniów przeniesionych tu z innej sceny ma jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}.",
-        "other": "{n} ucznia przeniesionego tu z innej sceny ma jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}."
+        "one": "{n} żyjący uczeń w pokoju ma jeszcze token na innej scenie; ten został tam, gdzie stał: {names}.",
+        "few": "{n} żyjący uczniowie w pokoju mają jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}.",
+        "many": "{n} żyjących uczniów w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}.",
+        "other": "{n} żyjącego ucznia w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}."
       },
       "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i pokazuje tokeny zaznaczone niżej; koniec je ukrywa i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami z każdej sceny z pokojami, każda inna droga do szkoły. W sali moduł tylko pokazuje i ukrywa tokeny - żadnego tam nie tworzy, nie przesuwa ani nie usuwa.",
       "school": "Szkoła",

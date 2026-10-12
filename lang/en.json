@@ -1907,9 +1907,17 @@
         "one": "{n} living student could not be moved and stays where they stood: {names}. Move them by hand.",
         "other": "{n} living students could not be moved and stay where they stood: {names}. Move them by hand."
       },
+      "carryUnfinished": {
+        "one": "{n} student carried out of the Class Trial stands twice - the copy and the token it was made from, which was not deleted: {names}. Delete the one you do not want.",
+        "other": "{n} students carried out of the Class Trial stand twice - each a copy and the token it was made from, which was not deleted: {names}. Delete the ones you do not want."
+      },
+      "hiddenHere": {
+        "one": "{n} living student's token in the room is hidden, and a shown token of theirs stays on another scene: {names}.",
+        "other": "{n} living students' tokens in the room are hidden, and shown tokens of theirs stay on other scenes: {names}."
+      },
       "tokensStay": {
-        "one": "{n} student brought here from another scene still has a token elsewhere, left where it stood: {names}.",
-        "other": "{n} students brought here from another scene still have a token elsewhere, left where it stood: {names}."
+        "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
+        "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
       },
       "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it hides them and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
       "school": "School",

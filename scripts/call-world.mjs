@@ -31,7 +31,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, warn, error, plural, isPrimaryGm } from "./utils.mjs";
+import { announce, log, warn, error, plural, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { roomRegions, homeScene, sceneOfRoom } from "./rooms.mjs";
 
 /* ==========================================================================
@@ -484,15 +484,31 @@ export async function teleportInto(scene, region, tokens) {
     }
 }
 
+/** The module flag on a carried token's copy naming the token it was copied from, "<sceneId>.<tokenId>" (E13 fix r2-H1). */
+export const CARRIED_FROM = "carriedFrom";
+
 /**
  * A student's token carried from another scene into a room of `scene`, on a GM (E13 fix r1-F1, 12.10.2026; the
  * owner's item 1 of 10.10, "moved too, if it can be done"; review r1 goal Af-1, sec and cor open item 1): a copy
  * of its data without `_id` - an unlinked token's delta, every module's flags and `hidden` with it - made at the
  * centre of the room's box on the room's floor, the combatants that stood for the old token pointed at the copy,
- * then the old token deleted. Answers the copy, or null when it could not be done: the create or the delete
- * refused or throwing, and then nothing is left changed - the copy deleted again and the combatants pointed back,
- * so a student never ends with two tokens of the module's making. The caller places the copy in the room with the
- * rest (trial-scene.mjs `returnTheLiving`, the gather after it), so the centre is only where it is made.
+ * then the old token deleted. The caller places the copy in the room with the rest (trial-scene.mjs
+ * `returnTheLiving`, the gather after it), so the centre is only where it is made.
+ *
+ * A CARRY NEVER LEAVES A STUDENT WITH NO TOKEN (E13 fix r2-H1, 12.10.2026; review r2 cor B and sec S2-2; the
+ * orchestrator's rule of 12.10). What is undone is decided by what the world holds after the delete, not by
+ * whether the delete threw: r1-F1's undo deleted the copy on any error, so a delete that removed the old token and
+ * then threw left the student with neither - tier 2 "End the trial never leaves a living student without a token"
+ * read no token of theirs on the chosen place or the place it stood on at 36f559d. Now: the old token gone, the copy stands and is the answer,
+ * `{ copy }`, whatever the delete said; the old token still there, the combatants are pointed back and the copy
+ * deleted, and the answer is null; and when that delete is refused too, both stand and the answer is
+ * `{ copy, twice: true }`, which the return names to the GMs (`carryUnfinished`). The copy is made with a module
+ * flag naming its source, `carriedFrom` = "<sceneId>.<tokenId>", taken off once the old token is gone: a carry
+ * stopped between the two - the GM's browser closed or reloaded - leaves a flagged copy beside its source, and the
+ * next GM to load is told (trial-scene.mjs `nameUnfinishedCarries`). The flag sits on a token its player owns and
+ * may write; it only makes a GM name the student or take the flag off, and decides nothing. Not measured: two GMs
+ * carrying one student at once (sec S2-2 c) - whether Foundry's second delete of an id already gone throws or
+ * resolves is not read, and either way the second copy stands beside the first, as before this fix.
  *
  * NOT FOUNDRY'S `teleportTokens` ACROSS SCENES: it is not in the headless harness and its v14 behaviour across
  * scenes was not read (LIVE-E13-10 keeps that, and the camera and selection a player has on the copy). A copy has
@@ -521,13 +537,16 @@ export async function carryAcross(tokenDoc, scene, region) {
     const { boundsOf, forgetToken } = await import("./movement.mjs");
     const box = boundsOf(region);
     const data = tokenDoc.toObject();
+    const scoped = Boolean(data.flags?.[MODULE_ID]);
     delete data._id;
     const levels = [...(region?.levels ?? [])];
     if (levels.length) data.level = levels[0];
     else delete data.level;
     if (box) Object.assign(data, { x: Math.round(box.x + box.w / 2), y: Math.round(box.y + box.h / 2) });
+    const source = `${from.id}.${tokenDoc.id}`;
+    data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), [CARRIED_FROM]: source } };
     const pointed = [];
-    let copy = null;
+    let copy = null, failed = null;
     try {
         [copy] = await scene.createEmbeddedDocuments("Token", [data]);
         if (!copy) return null;
@@ -538,18 +557,39 @@ export async function carryAcross(tokenDoc, scene, region) {
             pointed.push([combat, ids]);
         }
         await from.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
-        if (from.tokens?.get?.(tokenDoc.id)) throw new Error("the old token was not deleted");
     } catch (err) {
-        error(`Could not carry ${tokenDoc.name} from "${from.name}" to "${scene.name}"; it stays where it stood`, err);
-        for (const [combat, ids] of pointed) {
-            await combat.updateEmbeddedDocuments("Combatant", ids.map(_id => ({ _id, sceneId: from.id, tokenId: tokenDoc.id })))
-                .catch(back => error("Could not point a combatant back at the token it stood for", back));
-        }
-        if (copy) await scene.deleteEmbeddedDocuments("Token", [copy.id]).catch(back => error("Could not delete a carried token's copy", back));
-        return null;
+        failed = err;
     }
-    forgetToken(tokenDoc.id);
-    return copy;
+    // A create that threw may still have made its copy: the flag finds it.
+    copy ??= [...(scene.tokens ?? [])].find(t => t.getFlag?.(MODULE_ID, CARRIED_FROM) === source) ?? null;
+    if (copy && !from.tokens?.get?.(tokenDoc.id)) {
+        if (failed) error(`Deleting ${tokenDoc.name}'s old token on "${from.name}" reported an error, but it is gone: its copy on "${scene.name}" stands`, failed);
+        forgetToken(tokenDoc.id);
+        await clearCarriedFrom(copy, !scoped).catch(err => error(`Could not take the carry's mark off ${tokenDoc.name}'s copy`, err));
+        return { copy };
+    }
+    error(`Could not carry ${tokenDoc.name} from "${from.name}" to "${scene.name}"; it stays where it stood`, failed ?? new Error("the old token was not deleted"));
+    for (const [combat, ids] of pointed) {
+        await combat.updateEmbeddedDocuments("Combatant", ids.map(_id => ({ _id, sceneId: from.id, tokenId: tokenDoc.id })))
+            .catch(back => error("Could not point a combatant back at the token it stood for", back));
+    }
+    if (!copy) return null;
+    await scene.deleteEmbeddedDocuments("Token", [copy.id]).catch(back => error("Could not delete a carried token's copy", back));
+    return scene.tokens?.get?.(copy.id) ? { copy, twice: true } : null;
+}
+
+/**
+ * Take the carry's mark (`CARRIED_FROM`) off a token: the key, or the module's whole scope when the old token had
+ * no flags of the module's (`whole`), so a finished copy holds the flags its source held. A Foundry with no
+ * deletion operator unsets the key alone (utils.mjs `forcedDeletion`). A GM's write only, like the carry and the
+ * load that call it (R220); answers null anywhere else. Taking the whole scope off with the operator is read in the
+ * harness's shim, not in v14 at a table (LIVE-E13-10).
+ */
+export async function clearCarriedFrom(token, whole = false) {
+    if (!game.user?.isGM) return null;
+    const gone = forcedDeletion();
+    if (!gone) return token.unsetFlag(MODULE_ID, CARRIED_FROM);
+    return token.update({ [whole ? `flags.${MODULE_ID}` : `flags.${MODULE_ID}.${CARRIED_FROM}`]: gone });
 }
 
 /**

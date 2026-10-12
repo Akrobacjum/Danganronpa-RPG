@@ -80,12 +80,26 @@
  * nothing (D7's line, R432) - and then gathered into the room with the rest. Which token, for a
  * student with tokens on two scenes with rooms: `locateActor`'s, the one every rule already reads as
  * theirs; the fix list asked for "the one on the scene they last stood on lawfully", and no record
- * says when a student stood on which scene (`studentStandings` holds no time, and only on the
- * primary). Their other tokens stay and are named to the GMs. A living student the return cannot move
- * - standing only on a scene with no rooms, a player's student standing only in the hall or nowhere,
- * or one whose copy or delete failed - stays where they stood and is named (`leftBehind`; review r1
- * cor A). Foundry's own `teleportTokens` across scenes, and the camera and selection a player has on
- * the copy, are LIVE-E13-10.
+ * answers that (review r2 cor F): movement.mjs `gmHistory` stamps a time, but only on the places a GM
+ * moved a token from, in one GM client's memory and gone at its reload; nothing times a player's
+ * lawful move, and `studentStandings` holds no time. Their other tokens stay. A living student the
+ * return cannot move - standing only on a scene with no rooms, a player's student standing only in
+ * the hall or nowhere, or one whose copy failed or was taken back - stays where they stood and is
+ * named (`leftBehind`; review r1 cor A). Foundry's own `teleportTokens` across scenes, and the camera
+ * and selection a player has on the copy, are LIVE-E13-10.
+ *
+ * THE WHISPER NAMES EVERY STUDENT LEFT ON TWO SCENES (E13 fix r2-H1, 12.10.2026; review r2 cor A, cor B
+ * and sec S2-2). r1-F1 named the carried with a token left elsewhere, and nobody else: a living student
+ * with a hidden token on the chosen scene counts as there (`leftBehind`'s `here`, which both tier-2
+ * fences rely on, so it stays), the gather took that hidden token into the room, and the shown one on
+ * another scene stayed unnamed - tier 2 "End the trial never leaves a living student without a token"
+ * read the return answer nobody left on two scenes at 36f559d (the reading is cut before the
+ * whisper, which took its names from that answer). Now, after the gather, every living student with a token on
+ * the chosen scene and another on a scene that is neither it nor the hall is named (`standingTwice`),
+ * apart when every token of theirs in the room is hidden and one elsewhere is shown. A carry whose
+ * copy could not be taken back leaves the student on both, named too (call-world.mjs `carryAcross`);
+ * one stopped between its create and its delete, the GM gone, is named at the next GM's load
+ * (`nameUnfinishedCarries`).
  *
  * A browser still loading when the hall is activated only warns and stays where it was (A5's
  * reading of Foundry, not read in v14: LIVE-E13-02). So a player's browser puts its own view
@@ -108,7 +122,7 @@ import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
 import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames, roomRegions, isRoom, sceneRoles, forgetSceneRoles } from "./rooms.mjs";
 import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { gatherEveryone, carryAcross } from "./call-world.mjs";
+import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
@@ -397,42 +411,47 @@ export async function leaveTrialScene(hall = trialScene()) {
  * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box for the
  * fallback. Called from `leaveTrialScene` alone, after the hall's cast is hidden, so a hall token is never among
  * the moved (R436). Then one whisper to the GMs: how many went, the living the return could not move
- * (`leftBehind`), and the carried who still have a token on another scene. Answers
- * `{ room, moved, carried, left, others }`, the last three by actor id.
+ * (`leftBehind`), those a carry left on both scenes, and the living left with a token on another scene, the ones
+ * whose every token in the room is hidden apart (`standingTwice`). Answers
+ * `{ room, moved, carried, left, others, hidden, twice }`, the last five by actor id.
  */
 export async function returnTheLiving(scene, room, hall = trialScene()) {
     await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
-    const carried = await carryTheLiving(scene, room, hall);
+    const { carried, twice } = await carryTheLiving(scene, room, hall);
     const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true });
     const left = await leftBehind(scene, hall);
-    const others = carried.filter(actor => game.scenes.some(other => ![scene.id, hall?.id].includes(other.id)
-        && [...(other.tokens ?? [])].some(token => token.actorId === actor.id)));
+    const { others, hidden } = await standingTwice(scene, hall, twice);
     const names = actors => actors.map(actor => esc(actor.name)).join(", ");
     const lines = [plural("DRPG.Floor.endTrialMoves", { n: moved, room: esc(room) })];
     if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: names(left) }));
+    if (twice.length) lines.push(plural("DRPG.TrialScene.carryUnfinished", { n: twice.length, names: names(twice) }));
+    if (hidden.length) lines.push(plural("DRPG.TrialScene.hiddenHere", { n: hidden.length, names: names(hidden) }));
     if (others.length) lines.push(plural("DRPG.TrialScene.tokensStay", { n: others.length, names: names(others) }));
     await whisperToGms(lines.map(line => `<p>${line}</p>`).join(""));
     const ids = actors => actors.map(actor => actor.id);
-    return { room, moved, carried: ids(carried), left: ids(left), others: ids(others) };
+    return { room, moved, carried: ids(carried), left: ids(left), others: ids(others), hidden: ids(hidden), twice: ids(twice) };
 }
 
 /**
  * The living with no token on `scene` whose place is another scene with rooms, each carried into `room` there
  * (call-world.mjs `carryAcross`): the token `locateActor` reads as where they stand, which is never the hall's
- * (no rooms) nor one on a scene with no rooms. Answers the carried, in the world's order; a student whose carry
- * failed is not among them and `leftBehind` names them after.
+ * (no rooms) nor one on a scene with no rooms. Answers `{ carried, twice }`, in the world's order: the carried, and
+ * the students a carry left on both scenes - its copy could not be taken back. A student whose carry was taken back
+ * is in neither, and `leftBehind` names them after.
  */
 async function carryTheLiving(scene, room, hall) {
+    const carried = [], twice = [];
     const region = roomRegions(scene, room)[0];
-    if (!region) return [];
+    if (!region) return { carried, twice };
     const { locateActor } = await import("./movement.mjs");
-    const carried = [];
     for (const actor of await leftBehind(scene, hall)) {
         const place = locateActor(actor);
         if (!place || place.scene.id === scene.id || place.scene.id === hall?.id) continue;
-        if (await carryAcross(place.tokenDoc, scene, region)) carried.push(actor);
+        const done = await carryAcross(place.tokenDoc, scene, region);
+        if (done?.twice) twice.push(actor);
+        else if (done) carried.push(actor);
     }
-    return carried;
+    return { carried, twice };
 }
 
 /**
@@ -456,6 +475,62 @@ export async function leftBehind(destination, hall = trialScene()) {
         const held = flagsHeldNow(actor);
         return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
     });
+}
+
+/**
+ * After the return's gather, the living with a token on `destination` and another on a scene that is neither it nor
+ * the hall (review r2 cor A), living by the gather's own rule as the GMs hold them, as `leftBehind` reads it -
+ * `flagsHeldNow(actor)` once per student in one synchronous pass. Answers `{ others, hidden }`: `hidden` those whose
+ * every token on `destination` is hidden while one elsewhere is shown - a player sees only the one left behind -
+ * and `others` the rest; the students in `skip` (a carry left on both, named on their own line) in neither.
+ */
+export async function standingTwice(destination, hall = trialScene(), skip = []) {
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    const byActor = scenes => {
+        const tokens = new Map();
+        for (const scene of scenes) for (const token of scene.tokens ?? []) tokens.set(token.actorId, [...(tokens.get(token.actorId) ?? []), token]);
+        return tokens;
+    };
+    const here = byActor([destination]), away = byActor(game.scenes.filter(scene => scene.id !== destination.id && scene.id !== hall?.id));
+    const skipped = new Set(skip.map(actor => actor.id));
+    const others = [], hidden = [];
+    for (const actor of game.actors) {
+        if (actor.type !== "character" || skipped.has(actor.id) || !here.has(actor.id) || !away.has(actor.id)) continue;
+        const held = flagsHeldNow(actor);
+        if (isMonokuma(held) || (isDeadForGm(held) && !isMonocub(held))) continue;
+        const veiled = here.get(actor.id).every(token => token.hidden) && away.get(actor.id).some(token => !token.hidden);
+        (veiled ? hidden : others).push(actor);
+    }
+    return { others, hidden };
+}
+
+/**
+ * At a GM's load (E13 fix r2-H1, 12.10.2026; review r2 sec S2-2 b and cor B): a carry out of the trial stopped
+ * between its create and its delete - the carrying GM's browser closed or reloaded - left a copy marked with its
+ * source (call-world.mjs `CARRIED_FROM`) beside the token it was made from, and no whisper. Every GM's `ready` reads
+ * the marks: the students whose source still stands are named to the GMs (`carryUnfinished`), and a mark whose
+ * source is gone is taken off. Each GM's load, not the primary's alone, so the GM who carried is told when it comes
+ * back; a mark is a token flag its player may write, and here it only names or is taken off. Answers
+ * `{ twice, cleared }` by token id, or null on a player's client.
+ */
+export async function nameUnfinishedCarries() {
+    if (!game.user?.isGM) return null;
+    const twice = [], cleared = [];
+    for (const scene of game.scenes ?? []) {
+        for (const token of scene.tokens ?? []) {
+            const source = token.getFlag?.(MODULE_ID, CARRIED_FROM);
+            if (typeof source !== "string") continue;
+            const [sceneId, tokenId] = source.split(".");
+            (game.scenes.get(sceneId)?.tokens?.get?.(tokenId) ? twice : cleared).push(token);
+        }
+    }
+    for (const token of cleared) await clearCarriedFrom(token).catch(err => error(`Could not take the carry's mark off "${token.name}"`, err));
+    if (twice.length) {
+        const names = twice.map(token => esc(token.actor?.name ?? token.name)).join(", ");
+        await whisperToGms(`<p>${plural("DRPG.TrialScene.carryUnfinished", { n: twice.length, names })}</p>`);
+    }
+    return { twice: twice.map(token => token.id), cleared: cleared.map(token => token.id) };
 }
 
 /*
@@ -981,4 +1056,5 @@ export function registerTrialScene() {
     Hooks.on("updateToken", watchCast);
     Hooks.on("createToken", watchCastCreated);
     Hooks.once("canvasReady", selfRepair);
+    Hooks.once("ready", nameUnfinishedCarries);
 }
