@@ -43,9 +43,10 @@
  *
  * WHAT ANOTHER LOGIN CAN READ. Every account's section is in one value of this browser's
  * storage, so anybody at this browser's console reads every section in it, a GM's and a
- * killer's included. The owner accepted that on 11.10.2026 (Q9); the GM's handbook is to
- * say so (E81 C15). The window (E81 C7) draws only this login's section: `noticeEntries` is
- * the engine's `mine`, and nothing here hands out another key's entries.
+ * killer's included. The owner accepted that on 11.10.2026 (Q9); the GM's handbook says so
+ * in its section 19 (E81 C15; R478 fails when it stops). The window (E81 C7) draws only
+ * this login's section: `noticeEntries` is the engine's `mine`, and nothing here hands out
+ * another key's entries.
  */
 
 import { MODULE_ID } from "./config.mjs";

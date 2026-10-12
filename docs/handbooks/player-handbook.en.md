@@ -726,7 +726,7 @@ Monokumas themselves - the GM side - have no actions and no Hope, walk through w
 
 ## 14. The messenger and asking for rulings
 
-The button in the bottom-right corner opens **GM Chat**: one thread between you and every GM. There is no player-to-player text channel - in-room talk is voice.
+The largest of the three buttons in the bottom-right corner, the one on top, opens **GM Chat**: one thread between you and every GM. There is no player-to-player text channel - in-room talk is voice.
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. If no GM answers, nothing is spent.
 
@@ -770,11 +770,11 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.
 
-**The messenger** (bottom-right) has two tabs: *Chat*, your GM Chat thread, and *Note*, the pre-session note.
+**The messenger**, the largest of the three corner buttons, stands over the other two and has two tabs: *Chat*, your GM Chat thread, and *Note*, the pre-session note.
 
-**The book** beside it, the smallest of the three corner buttons, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
+**The book**, under it at the bottom right against the edge of the screen, the size of the gear on its left, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
 
-**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back. A "waiting for the GM" card closes itself when the answer arrives. The chat log keeps them. During an Eclipse a summary of the time of day opens for you.
+**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - every notice this browser showed you, the cards about a murder too, the newest of them and 250 at most. Its window says how long: "Kept in this browser until the season resets." A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer your history stays until the season resets, and another account logged in on this browser can read it, so clear it before you hand the computer over. During an Eclipse a summary of the time of day opens for you.
 
 **The Look dialog:** the gear in the bottom-right corner opens settings that are this browser's own - nobody else sees or hears the difference:
 - **Language** - English or Polski for the module's windows, cards and sheet. Separate from Foundry's own language on purpose. Takes effect after a reload. The glossary stays English in both.

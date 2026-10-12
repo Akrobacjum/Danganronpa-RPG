@@ -586,9 +586,10 @@ function pinRightColumn() {
 }
 /* THE MODULE'S OWN BUTTONS DO NOT STAND IN FOUNDRY'S TAB RAIL.
    ---------------------------------------------------------------------------
-   The messenger circle and the sound button are pinned to the bottom-right corner, and
-   so is Foundry's tab rail - which grows downward with the number of tabs. On a short
-   screen with a full sidebar the two meet: measured 16.09 on the glass harness at
+   The messenger circle and the sound button when this was measured - the book beside
+   them since 22.09, the three on one grid since E81 C12 - are pinned to the bottom-right
+   corner, and so is Foundry's tab rail - which grows downward with the number of tabs.
+   On a short screen with a full sidebar the two meet: measured 16.09 on the glass harness at
    1366x768 with a fifteen-tab rail, the launchers sat at x 1278..1344, y 620..746 and
    the rail's last two tiles at x 1280..1331, y 626..668. The module's buttons were drawn
    over Foundry's, which is the collision the 1.2.47 audit recorded and did not fix.

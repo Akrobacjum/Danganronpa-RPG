@@ -55,7 +55,7 @@ Your bedroom is locked to others without a key (a key opens it for whoever holds
 
 ## The messenger and the GM
 
-The button bottom-right opens **GM Chat** - one thread between you and every GM. Anything that needs a ruling (a specific Observe, a hint, a Dynamic action, a project proposal, Ultimate and Experience Calls) lands there next to your own messages. The Note tab holds your pre-session plans and boundaries.
+The largest of the three buttons bottom-right, the one on top, opens **GM Chat** - one thread between you and every GM. Anything that needs a ruling (a specific Observe, a hint, a Dynamic action, a project proposal, Ultimate and Experience Calls) lands there next to your own messages. The Note tab holds your pre-session plans and boundaries.
 
 ## The safeword
 
@@ -73,4 +73,6 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 
 **Settings gear**, bottom-right: Language (English / Polski, this browser only), theme, scale, sounds, reduced motion, high contrast.
 
-**Book button**, bottom-right, beside the other two: this brochure and the Player Handbook, in the language you picked for the module.
+**Book button**, bottom-right under the messenger, right of the gear: this brochure and the Player Handbook, in the language you picked for the module.
+
+**Notice history**: the stack-of-cards button in the bottom-right corner of the notice tile opens every notice this browser showed you, kept until the season resets. Clear it before you share your screen, and on a shared computer before you hand it over.

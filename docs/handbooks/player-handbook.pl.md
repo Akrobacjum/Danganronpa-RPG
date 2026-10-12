@@ -726,7 +726,7 @@ Same Monokumy - strona GMa - nie mają akcji ani Hope, przechodzą przez ściany
 
 ## 14. Komunikator i prośby o decyzję
 
-Przycisk w prawym dolnym rogu otwiera **Czat z GMem**: jeden wątek między tobą a każdym GMem. Nie ma kanału tekstowego między graczami - rozmowa w pokoju to głos.
+Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **Czat z GM-em**: jeden wątek między tobą a każdym GM-em. Nie ma kanału tekstowego między graczami - rozmowa w pokoju to głos.
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, akcja dynamiczna, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Jeśli żaden GM nie odpowie, nic nie zostaje wydane.
 
@@ -770,11 +770,11 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.
 
-**Komunikator** (prawy dolny róg) ma dwie zakładki: *Czat*, twój wątek Czatu z GMem, i *Notatka*, notatka przed sesją.
+**Komunikator**, największy z trzech przycisków w rogu, stoi nad dwoma pozostałymi i ma dwie zakładki: *Czat*, twój wątek Czatu z GM-em, i *Notatka*, notatka przed sesją.
 
-**Książka** obok, najmniejszy z trzech przycisków w rogu, otwiera podręczniki w grze: ten Podręcznik gracza i Ulotkę ucznia, w języku wybranym dla modułu. Spis treści po lewej przenosi do dowolnego rozdziału.
+**Książka**, pod nim w prawym dolnym rogu, przy samej krawędzi ekranu, tej samej wielkości co zębatka po jej lewej, otwiera podręczniki w grze: ten Podręcznik gracza i Ulotkę ucznia, w języku wybranym dla modułu. Spis treści po lewej przenosi do dowolnego rozdziału.
 
-**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną. Karta "czekamy na GMa" zamyka się sama, gdy przyjdzie odpowiedź. Dziennik czatu je zachowuje. Podczas Eclipse otwiera ci się podsumowanie pory dnia.
+**Karty i wyskakujące okna:** wyniki twoich akcji przychodzą jako karty powiadomień, a karta zostaje, dopóki jej nie zamkniesz - kliknięciem w nią, a przy dowodach i innych kartach, które trzeba przeczytać, przyciskiem X. Najnowsza ląduje na górze i spycha starsze w dół; gdy nie mieszczą się wszystkie, reszta czeka pod spodem za "+N" obok przycisku zamknięcia, a zamknięcie karty przywraca następną; kliknięcie w "+N" zamyka naraz wszystkie karty poza kartami do przeczytania. Karta "czekamy na GM-a" zamyka się sama, gdy przyjdzie odpowiedź. Zamkniętą kartę można przeczytać jeszcze raz: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień (pod Monokuma Legacy na komputerze pod zegarem, także bez kart; na wąskim ekranie w prawym dolnym rogu najniższej karty, gdy jakaś karta jest na ekranie) otwiera okno **Historia powiadomień** - każde powiadomienie, które pokazała ci ta przeglądarka, także karty o morderstwie, najnowsze, najwyżej 250. Jego okno mówi, jak długo: "Zapisane w tej przeglądarce do resetu sezonu." Otwiera je też klawisz w ustawieniach sterowania Foundry, jeśli go przypiszesz. **Wyczyść** w tym oknie je opróżnia: zrób to, zanim udostępnisz ekran. Na wspólnym komputerze twoja historia zostaje do resetu sezonu i inne konto zalogowane w tej przeglądarce może ją przeczytać, więc wyczyść ją, zanim oddasz komputer. Podczas Eclipse otwiera ci się podsumowanie pory dnia.
 
 **Okno Wygląd:** zębatka w prawym dolnym rogu otwiera ustawienia, które należą do tej przeglądarki - nikt inny nie widzi ani nie słyszy różnicy:
 - **Język** - English albo Polski dla okien, kart i arkusza modułu. Celowo osobno od języka Foundry. Działa po przeładowaniu. Nazwy własne zostają po angielsku w obu.

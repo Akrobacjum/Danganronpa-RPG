@@ -10886,6 +10886,97 @@ const REGRESSIONS = [
         }), "[narrow.mjs: the two variables' names; what noticesClearOfTheTools writes, with no priority; that it takes them away off the narrow layout; "
             + "what forgetNoticeInsets removes; that restoreDesk calls it; no `important` left in the file - popup.mjs: overflowsGlass answers under Stained Glass "
             + "and on a stacked screen]");
+    }],
+
+    ["R478 - the handbooks name the notice history where a player and a GM look for it, and the GM's section 19 says every account's history stays in a shared browser to the season's reset, in English and in Polish", async () => {
+        /*
+         * E81 C15, 12.10.2026 (the A7 design's P13-0 and P13-1; the stage's doneWhen D8). Through 1.2.74 the player's
+         * handbook said of the notice cards "The chat log keeps them." - which a card drawn with no chat message behind
+         * it (a direct `showPopup`, `sayNotDone`) never was; since E81 a closed card is read again in the notice
+         * history. And the owner accepted on 11.10.2026 (Q9) that every account's history stays in one value of a
+         * shared browser to the season's reset, readable there from the console by any account, with the GM's
+         * handbook saying so in its section 19. So this reads the books as the table is served them: the window's own
+         * title in bold where each points at it (the player's section 16, the brochure, the GM's section 18 beside
+         * `game.drpg.openNotices()`, which must be a function on game.drpg, and the GM's section 19); the window's
+         * own sentence on how long it keeps a notice, quoted in the player's section 16 (DRPG.Notices.kept); and in
+         * section 19 the sentence the window shows a GM about a shared computer (DRPG.Notices.gmNote from its third
+         * sentence on). Quoted from the lang files rather than copied here, so a window that changes its words fails
+         * this until the books follow. Each book and lang file is asserted to have loaded, so nothing passes on an
+         * empty read. Whether a reader finds the button on a screen is LIVE-E81-02, not this.
+         */
+        const measured = { call: typeof game.drpg?.openNotices === "function" };
+        const expected = { call: true };
+        const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Notices);
+            const title = keys?.title ?? "", kept = keys?.kept ?? "";
+            const shared = /^(?:[^.]*\.\s+){2}(.+)$/.exec(keys?.gmNote ?? "")?.[1] ?? "";
+            ok(title.length > 0 && kept.length > 20 && shared.length > 40,
+                `lang/${lang}.json has no notice history title, kept sentence or shared-computer sentence - this test measured nothing`);
+            const text = {};
+            for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 1, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
+            }
+            const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
+            measured[lang] = {
+                player: [tips.includes(`**${title}**`), tips.includes(`"${kept}"`)],
+                brochure: text["player-brochure"].includes(`**${title}**`),
+                gm: [look.includes(`**${title}**`), look.includes("`game.drpg.openNotices()`")],
+                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)]
+            };
+            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold, its kept sentence quoted; the brochure: the title; "
+            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted]");
+    }],
+
+    ["R479 - each interface E81 hands to later stages says beside it which stages take it, and each CSS block of the history window says E44 removes it", async () => {
+        /*
+         * E81 C15, 12.10.2026 (the A7 design's P0-2 to P0-9 and K7; the stage's doneWhen D11 and risk RISK-f). E81 came
+         * before the stages it was designed after, so it left them small named interfaces rather than wait for them:
+         * `cleanCardHtml`, `noticeTime`, `recordNotice`, `ensureNoticeTile`, `setFloor`, the `drpgThemeApplied` hook,
+         * the tokens `--drpg-corner*`, `--drpg-launch-h`, `--drpg-stack-foot` and `--drpg-column-max`, and one small
+         * CSS block for its window in each of three sheets, which E44's window kit replaces. What keeps a later stage
+         * from writing one of them again as its own is the comment beside it naming who takes it and how; a comment
+         * that loses a stage, or a definition that walks away from its comment, breaks that without a sound. So for
+         * each this reads the nearest comment before the definition - in the module's source and in the stylesheets
+         * as served, comments kept - requires it to end at most 200 characters above the definition, and requires
+         * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
+         */
+        const sources = await moduleSources();
+        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""));
+        const files = new Map(sources);
+        for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"]) files.set(name, await sheet(name));
+        const TAKE = ["E18", "E23", "E49", "E55", "E77", "E78"];
+        const INTERFACES = [
+            ["secret.mjs", "export function cleanCardHtml(", ["E83"]],
+            ["notice-history.mjs", "export function noticeTime(", ["E66"]],
+            ["notice-history.mjs", "export const recordNotice =", ["E18", "E50", "E62", "E70"]],
+            ["popup.mjs", "export function ensureNoticeTile(", TAKE],
+            ["popup.mjs", "export function setFloor(", TAKE],
+            ["settings.mjs", "Hooks.callAll(\"drpgThemeApplied\")", ["E18", "E23"]],
+            ["danganronpa.css", "--drpg-corner:", TAKE],
+            ["danganronpa.css", "--drpg-launch-h:", TAKE],
+            ["danganronpa.css", "--drpg-stack-foot:", TAKE],
+            ["narrow.css", "--drpg-column-max:", ["E23"]],
+            ["danganronpa.css", ".application.drpg-window-notices:not(.minimized) {", ["E44"]],
+            ["stained-glass.css", "body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) {", ["E44"]],
+            ["narrow.css", "body.drpg-stacked .application.drpg-window-notices {", ["E44"]]
+        ];
+        ok([...files.values()].every(src => String(src ?? "").length > 0), "a source or a stylesheet did not load - this test measured nothing");
+        const measured = {}, expected = {};
+        for (const [file, marker, stages] of INTERFACES) {
+            const before = bodyOf(files.get(file), marker, { back: 6000 });
+            const last = /\/\*((?:[^*]|\*(?!\/))*)\*\/((?:[^/]|\/(?!\*))*)$/.exec(before);
+            measured[`${file} ${marker}`] = [last !== null && last[2].length <= 200, stages.filter(stage => !(last?.[1] ?? "").includes(stage))];
+            expected[`${file} ${marker}`] = [true, []];
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per interface: its nearest comment ends at most 200 characters above it, and the stages that comment does not name]");
     }]
 ];
 

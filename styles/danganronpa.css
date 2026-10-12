@@ -322,7 +322,10 @@
        the A7 design's step 7): a 28 px shape 6 px in from the corner. `reach` is how
        far the hit area stands out past the shape on every side - none with a mouse,
        8 px on a touch screen, which makes the 44 px target the design asks for out of
-       the same 28 px shape (the media rule with the button's block). */
+       the same 28 px shape (the media rule with the button's block). Tokens later stages
+       take as they are, with `ensureNoticeTile` and `setFloor` (popup.mjs; the A7 design's
+       P0-8): E18, E23, E49 and E55 use them and do not rewrite them, and E77 and E78 take
+       them over with the corner. */
     --drpg-corner: 28px;
     --drpg-corner-inset: 6px;
     --drpg-corner-reach: 0px;
