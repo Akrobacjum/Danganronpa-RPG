@@ -189,6 +189,12 @@ body.drpg-stacked #drpg-popups {
     align-items: stretch;
 }
 body.drpg-stacked #drpg-popups > .drpg-popup { max-width: none; width: auto; }
+/* With no card shown the history's button is not drawn here (E81 C10; the owner's Q6 of 07.10, in
+   both themes): alone it would stand some 14 px above the messenger (the A7 design's estimate,
+   not measured), a fourth button in the corner the owner's Q3 rules out. The keybinding and
+   `game.drpg.openNotices()` stay the way in; a card brings the button back in its corner.
+   R298 (7) reads the rule, R299 (b) the button hidden. */
+body.drpg-stacked #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) > #drpg-notices-corner { display: none; }
 /* The tile itself has a STATED width under Stained Glass - the audit page's 330 px,
    on the scale - and a stated width beats the left/right pair the corner rule sets,
    so the tile stayed 280 px wide and ran back under the sidebar's tabs. Measured at

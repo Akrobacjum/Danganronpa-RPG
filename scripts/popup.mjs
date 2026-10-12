@@ -126,6 +126,11 @@ export function ensureNoticeTile() {
         followingUnread = true;
         onNoticeHistoryChange(showUnread);
     }
+    if (!followingWidgets) {
+        followingWidgets = true;
+        Hooks.on("drpgThemeApplied", watchWidgets);
+        watchWidgets();
+    }
     showUnread();
     return host;
 }
@@ -260,6 +265,59 @@ function positionBelowWidgets(el) {
     } catch {
         // A card in the wrong place beats no card at all.
     }
+}
+
+/**
+ * UNDER MONOKUMA LEGACY ON A DESK THE TILE FOLLOWS THE CLOCK WITHOUT A NEW CARD (E81 C10, 12.10.2026; the
+ * owner's Q6 of 07.10, "Zgoda" to the A7 design's recommendation: there the history's button always stands,
+ * alone under the clock when no card is shown). `top` was measured only in `container()`, so only when a card
+ * came: a tile with no card kept the height the widgets had then, and once the Despair rail or the clock grew
+ * the lone button stood on the rail. So the tile follows the widgets themselves - a `ResizeObserver` on each of
+ * `WIDGET_SELECTORS` for a widget that changes size, and a `MutationObserver` on the rows they are put in
+ * (hud.mjs and despair.mjs: Foundry's top and left columns, or the narrow column) for one that is drawn after
+ * `ready`, rebuilt as a new node (`renderDespairBar` removes the bar and makes another), moved, or taken away -
+ * either one binds the observers again to the nodes there are now. Bound from `ready` (`ensureNoticeTile`) and
+ * bound again on `drpgThemeApplied` (settings.mjs `applyTheme`), which is also how a switch from Stained Glass
+ * gives the tile its `top` back without a reload. Under Stained Glass nothing is watched: the sheet places the
+ * tile on its pane and `positionBelowWidgets` only clears `top`. Headless the harness's `ResizeObserver` never
+ * fires, so R298 (7) reads the observers through a stand-in it installs; how a real clock's change moves the
+ * tile is R299 (b), in a browser, and LIVE-E81-04 at a table.
+ * E18 (S11-17, the stack into the corner) and E23 (A1, a clock of one height) change what is watched here and
+ * take these as they are (the A7 design's P7-7 and K16).
+ */
+const WIDGET_HOMES = ["#ui-left-column-1", "#ui-top", "#ui-middle"];
+let followingWidgets = false;
+let widgetWatch = [];
+
+const widgetsNow = () => WIDGET_SELECTORS.map(selector => document.querySelector(selector));
+
+function followWidgets() {
+    const host = document.getElementById(CONTAINER_ID);
+    if (host) positionBelowWidgets(host);
+}
+
+function watchWidgets() {
+    widgetWatch.forEach(observer => observer.disconnect());
+    widgetWatch = [];
+    if (!document.body.classList.contains("drpg-theme-stained-glass")) {
+        const widgets = widgetsNow(), bound = widgets.map(el => [el, el?.parentElement ?? null]);
+        const changed = () => widgetsNow().some((el, i) => el !== bound[i][0] || (el?.parentElement ?? null) !== bound[i][1]);
+        const onChange = () => { if (changed()) watchWidgets(); else followWidgets(); };
+        try {
+            if ("ResizeObserver" in window) {
+                const sizes = new ResizeObserver(onChange);
+                widgets.forEach(el => { if (el) sizes.observe(el); });
+                widgetWatch.push(sizes);
+            }
+            const arrivals = new MutationObserver(onChange);
+            const homes = new Set([...WIDGET_HOMES.map(selector => document.querySelector(selector)), ...bound.map(([, home]) => home)]);
+            homes.forEach(home => { if (home) arrivals.observe(home, { childList: true }); });
+            widgetWatch.push(arrivals);
+        } catch (err) {
+            debug("The notice tile could not watch the widgets it stands under", err);
+        }
+    }
+    followWidgets();
 }
 
 /** How many cards a stack SHOWS. The rest wait, parked - see `MAX_VISIBLE`. */

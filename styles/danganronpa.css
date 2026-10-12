@@ -16895,8 +16895,9 @@ details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
    circle at 28 px. The ring is `::before`, laid out always and shown at `:focus-visible`, so
    R299 can measure where it would fall without a keyboard. The count is `::after`, from
    `data-unread` - bone on ink like the launchers' rings, not red: a count of notices is not an
-   alarm. Under Legacy and on a stacked screen an EMPTY tile is a box of no size, so the button
-   stands at the tile's anchor until C10 gives the tile its own size there. */
+   alarm. Under Monokuma Legacy on a desk an empty tile has a box of its own (E81 C10, the two
+   rules after the touch screen's sizes below); on a stacked screen the button stands only with a card shown
+   (narrow.css). */
 #drpg-popups > #drpg-notices-corner {
     --drpg-notices-badge: var(--drpg-bone);
     position: absolute;
@@ -16984,4 +16985,22 @@ details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
         --drpg-corner-inset: 10px;
         --drpg-corner-reach: 8px;
     }
+}
+/* UNDER MONOKUMA LEGACY ON A DESK THE BUTTON STANDS ALONE UNDER THE CLOCK (E81 C10, 12.10.2026; the
+   owner's Q6 of 07.10, "Zgoda" to the A7 design's recommendation: always there, with no card too).
+   The tile has no pane under this theme and was a box of no size until a card came, so it is given
+   the box of a card - `min(27rem, 92vw)`, as `.drpg-popup` is drawn - and the button's corner room
+   in height, and the button stands in its bottom-right corner as it does on a card. An empty tile
+   goes under the window layer, one below Foundry's `--z-index-app` as the evidence stage does: at
+   99990 a lone button under the clock stood over every window dragged to the top of the screen,
+   a sheet's header among them. The first card shown takes it back to 99990 (the rule at the top of
+   the file), where a notice has to be. Its `top` follows the clock and the Despair rail without a
+   card (popup.mjs `watchWidgets`). On a stacked screen neither: the button is hidden with no card
+   (narrow.css). Measured only in a browser, R299 (b); the headless half, R298 (7). */
+body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups {
+    min-width: min(27rem, 92vw);
+    min-height: var(--drpg-corner-room);
+}
+body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) {
+    z-index: calc(var(--z-index-app, 30) - 1);
 }

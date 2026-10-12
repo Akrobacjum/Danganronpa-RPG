@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -8171,7 +8171,7 @@ const INVARIANTS = [
                 ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
             "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
     }],
-    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free and, under Monokuma Legacy on a desk, the empty tile following the clock; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
         /*
          * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
          * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
@@ -8215,6 +8215,21 @@ const INVARIANTS = [
          * a table and a rule; and it follows a list added to the floor card and taken away again (the card's
          * observer). Measured on the suite's own cards, so a card already on the tile is a precondition. Whether the
          * text then clears the button needs a layout: R299 (b).
+         * (7) E81 C10, 12.10.2026; the owner's Q6 and the stage's V18 and D2: under Monokuma Legacy on a desk the
+         * button stands alone under the clock, so the tile has to follow the clock and the Despair rail with no card
+         * coming. The harm: `top` was measured only when a card came, so a lone button kept the height the widgets had
+         * then and stood on the rail once it grew, and a switch from Stained Glass (which clears `top`) left it at the
+         * sheet's 96 px until the next card. Headless the harness's `ResizeObserver` never fires, so the suite puts a
+         * stand-in of its own on `window` for the reading, gives the clock and the rail boxes of its own
+         * (`getBoundingClientRect`, so the numbers are the suite's and not jsdom's zeros), and turns the body's theme
+         * classes to Legacy and back, firing `drpgThemeApplied` as `applyTheme` does: the tile's `top` under the clock
+         * with the widgets watched; after the clock grows (the observer's callback, as a browser calls it); after a
+         * rail drawn as a new node - a twin of the bar, or a stand-in where there is no bar - and after it grows;
+         * after it is taken away with nothing in its place (the last Monokuma gone); and back on Stained Glass, `top` cleared and nothing watched. Everything is
+         * put back and the hook fired once more for the theme as it was. Last, in the stylesheets and the source:
+         * the empty Legacy desk tile's box and its place under the window layer, the hide rule on a stacked screen,
+         * `applyTheme` firing the hook after it has set the classes, and `ensureNoticeTile` binding the watch from
+         * `ready`. Where the tile and the button then stand, and over which windows: R299 (b), in a browser.
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8506,6 +8521,85 @@ const INVARIANTS = [
         }), "[two cards, nothing parked: cards parked, the floor card's words, the tail; the older closed by code: the floor and the tail at once; a card parked: "
             + "it parked, the floor's words, floors on a parked card; the tail of a body ending in a sentence after a <b>, text after a <b> in a <p>, div > p, ul > li, "
             + "a table, a rule, and a <p> followed by an empty <p> and a <br>; the tail as drawn, after a list is added to the floor card and after it is taken away]");
+
+        /* (7) Monokuma Legacy on a desk: the tile follows the clock with no card (E81 C10). */
+        const hudNode = document.getElementById("drpg-hud"), bar = document.getElementById("drpg-despair");
+        must(hudNode?.parentElement, "the clock is not on screen - the tile is measured under it");
+        /* On `window` and on the global both: the same object in a browser, two in the harness, whose module code reads the global. */
+        const realObservers = [window.ResizeObserver, globalThis.ResizeObserver], observers = [];
+        window.ResizeObserver = globalThis.ResizeObserver = class {
+            constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
+            observe(el) { this.targets.push(el); }
+            unobserve(el) { this.targets = this.targets.filter(target => target !== el); }
+            disconnect() { this.live = false; this.targets = []; }
+        };
+        const watching = () => observers.filter(observer => observer.live);
+        const grow = () => watching().forEach(observer => observer.callback([], observer));
+        /* The bar is drawn again as a new node (renderDespairBar's road, or a first bar after ready), then taken away
+           with nothing in its place (no Monokuma left): `spot` holds its place until it is put back. */
+        const drawn = bar ? bar.cloneNode(false) : Object.assign(document.createElement("div"), { id: "drpg-despair" }), spot = document.createTextNode("");
+        const names = new Map([[hudNode, "clock"], [bar, "bar"], [drawn, "drawn"]]);
+        const watched = () => watching().flatMap(observer => observer.targets.map(el => names.get(el) ?? "other"));
+        const boxed = new Set();
+        const boxAt = (el, bottom) => {
+            el.getBoundingClientRect = () => ({ x: 0, y: bottom - 40, left: 0, top: bottom - 40, right: 200, width: 200, height: 40, bottom });
+            boxed.add(el);
+        };
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+        const theme = glass => {
+            document.body.classList.toggle(THEMES[0], glass);
+            document.body.classList.toggle(THEMES[1], !glass);
+            Hooks.callAll("drpgThemeApplied");
+        };
+        const lone = {};
+        try {
+            boxAt(hudNode, 150);
+            if (bar) boxAt(bar, 100);
+            theme(false);
+            lone.applied = [host.style.top, watched()];
+            boxAt(hudNode, 190);
+            grow();
+            lone.grown = host.style.top;
+            boxAt(drawn, 260);
+            if (bar) bar.replaceWith(drawn);
+            else hudNode.parentElement.append(drawn);
+            await until(() => watched().includes("drawn"), 1000);
+            lone.drawn = [host.style.top, watched()];
+            boxAt(drawn, 280);
+            grow();
+            lone.drawnGrown = host.style.top;
+            drawn.replaceWith(spot);
+            await until(() => !watched().includes("drawn"), 1000);
+            lone.gone = [host.style.top, watched()];
+            theme(true);
+            lone.glass = [host.style.top, watching().length];
+        } finally {
+            [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
+            if (drawn.isConnected) drawn.replaceWith(spot);
+            if (spot.isConnected) {
+                if (bar) spot.replaceWith(bar);
+                else spot.remove();
+            }
+            for (const el of boxed) delete el.getBoundingClientRect;
+            THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+        }
+        equal(J(lone), J({
+            applied: ["158px", bar ? ["bar", "clock"] : ["clock"]], grown: "198px", drawn: ["268px", ["drawn", "clock"]], drawnGrown: "288px", gone: ["198px", ["clock"]], glass: ["", 0]
+        }), `[${bar ? "a Despair bar on screen" : "no Despair bar"}: Legacy from Stained Glass, the tile's top and the widgets watched; the clock grown; a bar drawn as a new node, `
+            + "and grown; the bar taken away with nothing in its place; back on Stained Glass, the top and how many observers watch]");
+        const styles = await moduleStyles(), EMPTY = String.raw`#drpg-popups:not\(:has\(> \.drpg-popup:not\(\.drpg-popup-parked\)\)\)`;
+        const DESK = String.raw`body:not\(\.drpg-theme-stained-glass\):not\(\.drpg-stacked\) `;
+        const theming = fnSource(code("settings.mjs"), "applyTheme"), tiling = fnSource(tileFile, "ensureNoticeTile");
+        equal(J([
+            new RegExp(String.raw`${DESK}#drpg-popups \{[^}]*min-width: min\(27rem, 92vw\);[^}]*min-height: var\(--drpg-corner-room\);`).test(styles),
+            new RegExp(String.raw`${DESK}${EMPTY} \{[^}]*z-index: calc\(var\(--z-index-app, 30\) - 1\);`).test(styles),
+            new RegExp(String.raw`body\.drpg-stacked ${EMPTY} > #drpg-notices-corner \{[^}]*display: none;`).test(styles),
+            theming.lastIndexOf('Hooks.callAll("drpgThemeApplied")') > Math.max(theming.indexOf('"drpg-theme-stained-glass"'), theming.indexOf('"drpg-stacked"')),
+            /Hooks\.on\("drpgThemeApplied", watchWidgets\);\s*watchWidgets\(\);/.test(tiling)
+        ]), J([true, true, true, true, true]),
+            "[the empty Legacy desk tile has a card's width and the corner's height; it stands under the window layer until a card is shown; on a stacked screen "
+            + "the button is hidden with no card; applyTheme fires drpgThemeApplied after it sets the classes; ensureNoticeTile listens for it and binds the watch from ready]");
     }],
     ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
         /*
@@ -8660,7 +8754,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -8676,8 +8770,8 @@ const INVARIANTS = [
          * (`::before`, shown at `:focus-visible`), all round its shape; and under Stained Glass, where the tile has a
          * stated size even when it is empty, the ring wholly inside the tile - its `overflow: hidden` would cut what
          * stands out. Read in the tile's own box (`offset*`, the button's offset parent being the fixed tile), so the
-         * pane's turn does not enter it. Under Monokuma Legacy and on a stacked screen an empty tile has no size until
-         * C10, so there the ring is not compared with the tile.
+         * pane's turn does not enter it. On a stacked screen the tile has no size of its own, so there the ring is not
+         * compared with the tile; under Monokuma Legacy on a desk it is, since E81 C10 gave the empty tile a card's box.
          * (b), E81 C9: the card at the bottom of the tile, the one `setFloor` marks, for a card ending in a full line, in
          * text after a `<b>`, in `div > p`, `ul > li`, a table and a rule: no line box of its text under the button's
          * box; its height grown by the floor's room (with the floor's classes taken off and put back) by no more than
@@ -8685,6 +8779,14 @@ const INVARIANTS = [
          * the tile together, or one waits parked only where the two would not fit without that room. Read with the
          * pane's turn taken off for the reading and put back. NEVER RUN: headless there is no layout, and E81 C9 had
          * no browser.
+         * (b), E81 C10: the owner's Q6. On a stacked screen the button is hidden while no card is shown, so it is read
+         * hidden on the empty tile and measured beside a card of the suite's own. On a desk the body's theme classes
+         * are turned to Monokuma Legacy for the reading (firing `drpgThemeApplied` as `applyTheme` does) and back:
+         * with no card the button shown, the tile a card's width (`min(27rem, 92vw)`, read off a probe) and at least
+         * the corner's room tall, under the window layer (one below `--z-index-app`, read off a probe) and its `top`
+         * under the widgets; 99990 with a card and back under the windows once it is gone; `top` following the clock
+         * grown by 40 px with no card; and back on Stained Glass `top` cleared. A widget drawn after `ready` is
+         * R298 (7)'s, headless. NEVER RUN: E81 C10 had no browser either.
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -8719,31 +8821,42 @@ const INVARIANTS = [
             + "its foot on screen; the list scrolls; text under 11 px]");
 
         /* (b) The tile's button and its focus ring (E81 C8). */
-        const { ensureNoticeTile } = await import("./popup.mjs");
-        const tile = ensureNoticeTile();
+        const P = await import("./popup.mjs");
+        const tile = P.ensureNoticeTile();
         const button = document.getElementById("drpg-notices-corner"), shape = button?.querySelector(".drpg-notices-shape");
-        must(button && shape && button.offsetParent === tile, "the tile's button is not laid out in the tile - there is no box to measure");
-        const px = value => Number.parseFloat(value) || 0;
-        const ringStyle = getComputedStyle(button, "::before");
-        const ring = {
-            left: button.offsetLeft + px(ringStyle.left), top: button.offsetTop + px(ringStyle.top),
-            right: button.offsetLeft + button.offsetWidth - px(ringStyle.right), bottom: button.offsetTop + button.offsetHeight - px(ringStyle.bottom)
-        };
-        const drawn = { left: button.offsetLeft + shape.offsetLeft, top: button.offsetTop + shape.offsetTop };
-        drawn.right = drawn.left + shape.offsetWidth;
-        drawn.bottom = drawn.top + shape.offsetHeight;
+        must(button && shape, "the tile has no history button - there is nothing to measure");
+        must(!tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), "a card is on the notice tile - close it: the tile is measured empty and with the suite's own cards");
         const glass = document.body.classList.contains("drpg-theme-stained-glass"), stacked = document.body.classList.contains("drpg-stacked");
-        const corner = {
-            square: button.offsetWidth > 0 && button.offsetWidth === button.offsetHeight && shape.offsetWidth === shape.offsetHeight,
-            ring: ringStyle.content !== "none" && ring.left < drawn.left && ring.top < drawn.top && ring.right > drawn.right && ring.bottom > drawn.bottom,
-            inTile: glass ? ring.left >= 0 && ring.top >= 0 && ring.right <= tile.clientWidth && ring.bottom <= tile.clientHeight : null
-        };
-        equal(stableJson(corner), stableJson({ square: true, ring: true, inTile: glass ? true : null }),
+        /* On a stacked screen the button is drawn only beside a card (E81 C10): read hidden first, then measured beside one. */
+        const hiddenEmpty = getComputedStyle(button).display === "none";
+        const cornerCard = stacked ? P.showPopup("<p>R299 corner</p>", { title: "R299 corner", record: false }) : null;
+        const px = value => Number.parseFloat(value) || 0;
+        let corner = null, ring = null;
+        try {
+            must(button.offsetParent === tile, "the tile's button is not laid out in the tile - there is no box to measure");
+            const ringStyle = getComputedStyle(button, "::before");
+            ring = {
+                left: button.offsetLeft + px(ringStyle.left), top: button.offsetTop + px(ringStyle.top),
+                right: button.offsetLeft + button.offsetWidth - px(ringStyle.right), bottom: button.offsetTop + button.offsetHeight - px(ringStyle.bottom)
+            };
+            const drawn = { left: button.offsetLeft + shape.offsetLeft, top: button.offsetTop + shape.offsetTop };
+            drawn.right = drawn.left + shape.offsetWidth;
+            drawn.bottom = drawn.top + shape.offsetHeight;
+            corner = {
+                hiddenEmpty,
+                square: button.offsetWidth > 0 && button.offsetWidth === button.offsetHeight && shape.offsetWidth === shape.offsetHeight,
+                ring: ringStyle.content !== "none" && ring.left < drawn.left && ring.top < drawn.top && ring.right > drawn.right && ring.bottom > drawn.bottom,
+                inTile: stacked ? null : ring.left >= 0 && ring.top >= 0 && ring.right <= tile.clientWidth && ring.bottom <= tile.clientHeight
+            };
+        } finally {
+            cornerCard?.({ instant: true });
+        }
+        equal(stableJson(corner), stableJson({ hiddenEmpty: stacked, square: true, ring: true, inTile: stacked ? null : true }),
             `the tile's button (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, ${tile.querySelectorAll(".drpg-popup").length} cards on the tile, `
-            + `ring ${stableJson(ring)} in a ${tile.clientWidth}x${tile.clientHeight} tile) [square; the ring round its shape; the ring within the tile, under Stained Glass]`);
+            + `ring ${stableJson(ring)} in a ${tile.clientWidth}x${tile.clientHeight} tile) [hidden on the empty tile; square; the ring round its shape; the ring within the tile, `
+            + "on a desk]");
         /* (b) The card at the bottom of the tile leaves the corner to the button (E81 C9). */
         must(!tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), "a card is on the notice tile - close it: the floor card is measured on the suite's own cards");
-        const P = await import("./popup.mjs");
         const TAILS = ".drpg-corner-tail, .drpg-corner-tail-block";
         const untail = () => tile.querySelectorAll(TAILS).forEach(el => el.classList.remove("drpg-corner-tail", "drpg-corner-tail-block"));
         const probe = document.createElement("div");
@@ -8820,6 +8933,60 @@ const INVARIANTS = [
             `the card at the bottom of the tile (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, room ${room} px) [lines of its text under `
             + "the button, per shape of its end; its height grown by no more than the room less a line and its own padding, and a line; two one-line cards on "
             + "the tile together, or parked only where they would not fit without the floor's room]");
+        /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
+           whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
+        if (stacked) return;
+        const measure = document.createElement("div");
+        measure.style.cssText = "position: absolute; visibility: hidden; height: 0; z-index: calc(var(--z-index-app, 30) - 1); width: min(27rem, 92vw)";
+        document.body.append(measure);
+        const underWindows = getComputedStyle(measure).zIndex, cardWidth = measure.offsetWidth;
+        measure.remove();
+        const widgetTop = () => {
+            const bottom = Math.max(0, ...["#drpg-despair", "#drpg-hud"].map(sel => document.querySelector(sel)?.getBoundingClientRect()).filter(box => box?.height > 0).map(box => box.bottom));
+            return `${Math.round(bottom ? bottom + 8 : 96)}px`;
+        };
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+        const theme = toGlass => {
+            document.body.classList.toggle(THEMES[0], toGlass);
+            document.body.classList.toggle(THEMES[1], !toGlass);
+            Hooks.callAll("drpgThemeApplied");
+        };
+        const clock = document.getElementById("drpg-hud"), clockWas = clock?.style.getPropertyValue("min-height") ?? "";
+        const lone = {};
+        let loneCard = null;
+        try {
+            theme(false);
+            await until(() => tile.style.top === widgetTop(), 2000);
+            lone.empty = {
+                shown: getComputedStyle(button).display !== "none" && button.offsetWidth > 0, width: Math.abs(tile.offsetWidth - cardWidth) <= 0.5,
+                tall: tile.offsetHeight >= room - 0.5, under: getComputedStyle(tile).zIndex === underWindows, top: tile.style.top === widgetTop()
+            };
+            loneCard = P.showPopup("<p>R299 lone</p>", { title: "R299 lone", record: false });
+            lone.card = getComputedStyle(tile).zIndex;
+            loneCard({ instant: true });
+            lone.after = await until(() => getComputedStyle(tile).zIndex === underWindows, 2000);
+            if (clock) {
+                const before = tile.style.top;
+                clock.style.setProperty("min-height", `${clock.offsetHeight + 40}px`, "important");
+                await until(() => tile.style.top !== before, 2000);
+                lone.grown = tile.style.top !== before && tile.style.top === widgetTop();
+            }
+            theme(true);
+            lone.glass = tile.style.top;
+        } finally {
+            loneCard?.({ instant: true });
+            if (clock) {
+                if (clockWas) clock.style.setProperty("min-height", clockWas);
+                else clock.style.removeProperty("min-height");
+            }
+            THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+        }
+        const shownAlone = { shown: true, width: true, tall: true, under: true, top: true };
+        equal(stableJson(lone), stableJson({ empty: shownAlone, card: "99990", after: true, ...(clock ? { grown: true } : {}), glass: "" }),
+            `the lone button under Monokuma Legacy on a desk (a ${cardWidth}x${room} box, under the windows at ${underWindows}) [with no card: shown, the tile a card's width, `
+            + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
+            + "clock grew with no card; back on Stained Glass, the top]");
     }],
 ];
 
