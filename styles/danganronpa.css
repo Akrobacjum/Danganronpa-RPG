@@ -312,6 +312,11 @@
     --drpg-corner: 28px;
     --drpg-corner-inset: 6px;
     --drpg-corner-reach: 0px;
+    /* And the room the card under it leaves the button (E81 C9, the design's P7-5): from the
+       tile's corner, the inset, the shape and at least 6 px clear of it - or the reach, where
+       the hit area stands out further. 40 px with a mouse, 46 on a touch screen; read where it
+       is used (popup.mjs `setFloor`, the floor card's rules beside `.drpg-popup-body`). */
+    --drpg-corner-room: calc(var(--drpg-corner-inset) + var(--drpg-corner) + max(6px, var(--drpg-corner-reach)));
 
     /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
        close to the heavy, squared lettering Danganronpa sets its menus in, and
@@ -12799,6 +12804,34 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     padding: 7px 9px 9px;
     font-size: var(--drpg-text-sm);
     line-height: 1.5;
+}
+
+/* THE CARD AT THE BOTTOM OF THE TILE LEAVES THE CORNER TO THE HISTORY'S BUTTON (E81 C9; the A7
+   design's P7-5). popup.mjs `setFloor` marks the oldest card shown `drpg-popup-floor` and one
+   element of its body the tail. Under the last line, the body's own 9 px above or as much as
+   `--drpg-corner-room` asks less that line, whichever is more; on the last line, a spacer as wide
+   as the room and 4 px more, so the words stop short of the button rather than run under it, and
+   where the card ends in a table, a rule or a flex block (`-block`) a line of its own. Both themes:
+   Stained Glass states no padding of its own for the body. The floor by child combinators, so an
+   element of a card's own text that names that class reaches nothing; a tail class anywhere in the
+   tile but on the one tail `setFloor` takes off. What it costs and whether the text and the button
+   meet is measured only in a browser (R299 (b)); the design's estimate is 11.5 px more padding here
+   at 13 px type (17.5 on a touch screen), about 6 (12) under Stained Glass, and a line when the
+   last one is full. */
+#drpg-popups > .drpg-popup-floor > .drpg-popup-body {
+    padding-bottom: max(9px, calc(var(--drpg-corner-room) - 1lh));
+}
+#drpg-popups > .drpg-popup-floor .drpg-corner-tail::after {
+    content: "";
+    display: inline-block;
+    width: calc(var(--drpg-corner-room) + 4px);
+    height: 1lh;
+    vertical-align: bottom;
+}
+#drpg-popups > .drpg-popup-floor .drpg-corner-tail-block::after {
+    content: "";
+    display: block;
+    height: 1lh;
 }
 
 .drpg-popup-body :is(h3, h4) {

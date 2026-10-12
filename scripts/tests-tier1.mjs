@@ -7862,10 +7862,9 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ snapshot: expected(isGM), title: [true, 0], text: [true, 0] }),
             "expanded in the window, a kept card showed what another user's markup carried in or lost its own words, or a title or text was parsed as markup");
     }],
-    ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card", async () => {
+    ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card; the bottom card's tail follows its words and is never kept", async () => {
         /*
-         * E81 C3, 12.10.2026; the A7 design's A7-2 (P3-0..P3-4), without the tail clause (C9 adds it with
-         * `setFloor`). On this client's module engine, held as R473 holds it, so nothing reaches the setting: a card
+         * E81 C3, 12.10.2026; the A7 design's A7-2 (P3-0..P3-4); the tail clause is E81 C9's (below). On this client's module engine, held as R473 holds it, so nothing reaches the setting: a card
          * drawn by `showPopup` is one entry whose html is the drawn body through the history's cleaning and whose
          * words are read off that html; a change to the body is kept a quarter of a second later, on the corner
          * stack and on the evidence stage (sticky evidence, Objection), and not once the card is gone; `observe: false`
@@ -7874,6 +7873,13 @@ const INVARIANTS = [
          * `instant` (gone at once) and the function `showPopup` returns unread. A recorder that throws (a `link`
          * whose read throws) still draws the card. `persist: "session"` on `noticeBench`'s engine: kept in memory,
          * absent from the write. Every card drawn here is taken down at once at the end.
+         * The tail (E81 C9, 12.10.2026; the stage's V4): the card at the bottom of the corner tile marks one element of
+         * its body for the button's room (`setFloor`, R298 (6)), and the card's observer moves that mark when the
+         * words change - with `observe: false` too, the snapshot still frozen. Marking it is no change to the words:
+         * a snapshot set by hand on a card that then becomes the floor stays as it was past the quarter second, so
+         * the observer did not keep the body again; a real change after it is still kept, through the cleaning, with
+         * no class of the corner in it while the body on screen holds one. A sticky evidence card on the evidence
+         * stage gets neither class. On the suite's own cards: a card already on the tile is a precondition.
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a card back from");
@@ -7978,6 +7984,58 @@ const INVARIANTS = [
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
             NH.holdNoticeHistory(false);
         }
+
+        /* The tail (E81 C9): it follows the floor card's words with `observe: false` as well, marking it keeps no
+           snapshot again, what is kept carries none of it, and the evidence stage has no floor. */
+        const tile = document.getElementById("drpg-popups");
+        must(tile !== null && !tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"),
+            "a card is on the notice tile - close it: the tail is measured on the suite's own cards");
+        const tails = () => [...tile.querySelectorAll(".drpg-corner-tail, .drpg-corner-tail-block")].map(el => el.dataset.r293 ?? el.localName);
+        const tailCards = [];
+        let tail = null;
+        /* A card that is leaving takes its place off the tile on a timer, and `unparkInto` then marks the floor again: a
+           re-pick from there would pass for the observer's (found 12.10.2026 - with the observer's re-pick removed, and
+           again with the card not watched at all, this test still came out green, because an earlier card's removal
+           landed inside the window). So each reading below waits until nothing is leaving. */
+        const settled = () => until(() => tile.querySelector(".drpg-popup.leaving") === null, 4000);
+        await NH.holdNoticeHistory(true);
+        try {
+            const frozen = draw(`<p data-r293="first">R293 tail first</p>`, { observe: false });
+            tailCards.push(frozen.card);
+            const frozenKept = kept(frozen.id), before = tails();
+            await settled();
+            frozen.body.insertAdjacentHTML("beforeend", `<ul><li data-r293="later">R293 tail later</li></ul>`);
+            const moved = await until(() => tails().join() === "later", 1000);
+            await wait(400);
+            tail = { frozen: [before, moved, kept(frozen.id) === frozenKept && Boolean(frozenKept?.includes("R293 tail first"))] };
+            frozen.close({ instant: true });
+
+            const older = draw("<p>R293 older</p>"), newer = draw(`<p data-r293="newer">R293 newer</p>`);
+            tailCards.push(older.card, newer.card);
+            await wait(400);
+            NH.updateNotice(newer.id, { html: "<p>R293 marker</p>" });
+            const marker = kept(newer.id);
+            older.close();
+            tail.handed = [newer.card?.classList.contains("drpg-popup-floor") ?? false, tails()];
+            await wait(600);
+            tail.handed.push(kept(newer.id) === marker && Boolean(marker?.includes("R293 marker")));
+            await settled();
+            newer.body.insertAdjacentHTML("beforeend", `<p data-r293="newest">R293 newest</p>`);
+            tail.handed.push(await until(() => entryOf(newer.id)?.text.includes("R293 newest"), 2000),
+                await until(() => tails().join() === "newest", 1000), /drpg-corner-tail|drpg-popup-floor/.test(kept(newer.id) ?? "drpg-corner-tail"));
+
+            const proof = draw("<p>R293 tail evidence</p>", { kind: "evidence", sticky: true });
+            tailCards.push(proof.card);
+            tail.evidence = [proof.card?.parentElement?.id ?? null,
+                document.querySelectorAll("#drpg-evidence :is(.drpg-popup-floor, .drpg-corner-tail, .drpg-corner-tail-block)").length];
+        } finally {
+            for (const card of tailCards) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify(tail), JSON.stringify({ frozen: [["first"], true, true], handed: [true, ["newer"], true, true, true, false], evidence: ["drpg-evidence", 0] }),
+            "[observe: false - the tail as drawn, on a list added to it within 1 s, the first snapshot unmoved; the older of two closed - the newer is the floor at once, "
+                + "its tail, a snapshot set by hand unmoved 600 ms after its tail was marked, a real change still kept within 2 s, its tail picked again on the new words, "
+                + "the kept html holding a tail class or the floor class; the evidence stage - where the card stood, floor and tail classes in it]");
 
         /* `persist: "session"`: this page keeps it, the write leaves it out; and showPopup hands it on. */
         const store = { raw: null, writes: 0, fail: 0 }, at = { now: 3_000_000 };
@@ -8113,7 +8171,7 @@ const INVARIANTS = [
                 ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
             "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
     }],
-    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
         /*
          * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
          * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
@@ -8147,6 +8205,16 @@ const INVARIANTS = [
          * and the accessibility sweep (so a tile that throws stops neither), `container()` builds it when the host is
          * missing, and the button's count is read through `noticeUnread` and nothing that carries an entry's words.
          * Where the button stands and how its focus ring falls need a layout: R299 (b).
+         * (6) E81 C9, 12.10.2026; the A7 design's P7-5 and the stage's V12: the card at the bottom of the tile - the
+         * oldest shown, the newest going on top - is marked `drpg-popup-floor` and one element of its body the tail,
+         * which the stylesheet gives the button's room. Two cards and nothing parked: the floor on the older (so
+         * `markParked` sets it before its early return); that one closed by code: the floor and the tail on the other
+         * at once, while the first is still leaving (`dismiss`); a card parked: the floor on the oldest card shown and
+         * never on the parked one. The tail of a body ending in a sentence after a `<b>`, in text after a `<b>` in a
+         * `<p>`, in `div > p` and `ul > li`, past an empty `<p>` and a `<br>`, and the block spacer on the body after
+         * a table and a rule; and it follows a list added to the floor card and taken away again (the card's
+         * observer). Measured on the suite's own cards, so a card already on the tile is a precondition. Whether the
+         * text then clears the button needs a layout: R299 (b).
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8380,6 +8448,64 @@ const INVARIANTS = [
         ]), J([true, true, true, true, false]),
             "[ready builds the tile through safely before the narrow layout and the accessibility sweep; safely catches; container() builds the tile when it is missing; "
             + "the badge reads noticeUnread; it reads an entry's words or adds a node]");
+        /* (6) The card at the bottom of the tile and its tail (E81 C9). */
+        const shownOnTile = () => [...host.querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+        must(shownOnTile().length === 0, "a card is on the notice tile - close it: the floor card is measured on the suite's own cards");
+        const floorWords = () => [...host.querySelectorAll(".drpg-popup-floor")].map(card => card.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
+        const tailsNow = () => [...host.querySelectorAll(".drpg-corner-tail, .drpg-corner-tail-block")].map(el =>
+            `${el.classList.contains("drpg-popup-body") ? "body" : el.localName}${el.dataset.r298 ? `#${el.dataset.r298}` : ""}${el.classList.contains("drpg-corner-tail-block") ? " block" : ""}`);
+        const floorClosers = [], floorSeen = {};
+        const drawFloor = html => {
+            const close = P.showPopup(html, { title: "R298 floor", record: false });
+            floorClosers.push(close);
+            return close;
+        };
+        const SHAPES = {
+            sentence: "R298 plain words <b>then bold</b>",
+            inline: "<p>R298 words <b>bold</b> and after it</p>",
+            nested: "<div><p>R298 first</p><p data-r298=\"last\">R298 last</p></div>",
+            list: "<p>R298 lead</p><ul><li>R298 one</li><li data-r298=\"last\">R298 two</li></ul>",
+            table: "<p>R298 lead</p><table><tbody><tr><td>R298 cell</td></tr></tbody></table>",
+            rule: "<p>R298 lead</p><hr>",
+            trailing: "<div><p data-r298=\"last\">R298 words</p><p> </p><br></div>"
+        };
+        try {
+            const closeA = drawFloor("<p>R298 floor A</p>"), closeB = drawFloor("<p>R298 floor B</p>");
+            floorSeen.two = [host.querySelectorAll(".drpg-popup-parked").length, floorWords(), tailsNow()];
+            closeA();
+            floorSeen.leaving = [floorWords(), tailsNow()];
+            closeB({ instant: true });
+            const parking = [];
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) parking.push(drawFloor(`<p>R298 park ${i}</p>`));
+            floorSeen.parked = [Boolean(host.querySelector(".drpg-popup-parked")), floorWords(), host.querySelectorAll(".drpg-popup-floor.drpg-popup-parked").length];
+            parking.forEach(close => close({ instant: true }));
+            floorSeen.shapes = {};
+            for (const [name, html] of Object.entries(SHAPES)) {
+                const close = drawFloor(html);
+                floorSeen.shapes[name] = tailsNow();
+                close({ instant: true });
+            }
+            const closeC = drawFloor("<p data-r298=\"before\">R298 before</p>");
+            const floorBody = host.querySelector(".drpg-popup-floor > .drpg-popup-body");
+            const changed = [tailsNow()];
+            floorBody?.insertAdjacentHTML("beforeend", "<ul><li data-r298=\"later\">R298 later</li></ul>");
+            changed.push(await until(() => tailsNow().join() === "li#later", 1000) && tailsNow());
+            floorBody?.querySelector("ul")?.remove();
+            changed.push(await until(() => tailsNow().join() === "p#before", 1000) && tailsNow());
+            floorSeen.changed = changed;
+            closeC({ instant: true });
+        } finally {
+            for (const close of floorClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+        }
+        equal(J(floorSeen), J({
+            two: [0, ["R298 floor A"], ["p"]],
+            leaving: [["R298 floor B"], ["p"]],
+            parked: [true, ["R298 park 2"], 0],
+            shapes: { sentence: ["body"], inline: ["p"], nested: ["p#last"], list: ["li#last"], table: ["body block"], rule: ["body block"], trailing: ["p#last"] },
+            changed: [["p#before"], ["li#later"], ["p#before"]]
+        }), "[two cards, nothing parked: cards parked, the floor card's words, the tail; the older closed by code: the floor and the tail at once; a card parked: "
+            + "it parked, the floor's words, floors on a parked card; the tail of a body ending in a sentence after a <b>, text after a <b> in a <p>, div > p, ul > li, "
+            + "a table, a rule, and a <p> followed by an empty <p> and a <br>; the tail as drawn, after a list is added to the floor card and after it is taken away]");
     }],
     ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
         /*
@@ -8534,7 +8660,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -8552,6 +8678,13 @@ const INVARIANTS = [
          * stands out. Read in the tile's own box (`offset*`, the button's offset parent being the fixed tile), so the
          * pane's turn does not enter it. Under Monokuma Legacy and on a stacked screen an empty tile has no size until
          * C10, so there the ring is not compared with the tile.
+         * (b), E81 C9: the card at the bottom of the tile, the one `setFloor` marks, for a card ending in a full line, in
+         * text after a `<b>`, in `div > p`, `ul > li`, a table and a rule: no line box of its text under the button's
+         * box; its height grown by the floor's room (with the floor's classes taken off and put back) by no more than
+         * `--drpg-corner-room` less a line and the body's own padding, and one line; and two one-line cards stand on
+         * the tile together, or one waits parked only where the two would not fit without that room. Read with the
+         * pane's turn taken off for the reading and put back. NEVER RUN: headless there is no layout, and E81 C9 had
+         * no browser.
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -8608,6 +8741,85 @@ const INVARIANTS = [
         equal(stableJson(corner), stableJson({ square: true, ring: true, inTile: glass ? true : null }),
             `the tile's button (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, ${tile.querySelectorAll(".drpg-popup").length} cards on the tile, `
             + `ring ${stableJson(ring)} in a ${tile.clientWidth}x${tile.clientHeight} tile) [square; the ring round its shape; the ring within the tile, under Stained Glass]`);
+        /* (b) The card at the bottom of the tile leaves the corner to the button (E81 C9). */
+        must(!tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), "a card is on the notice tile - close it: the floor card is measured on the suite's own cards");
+        const P = await import("./popup.mjs");
+        const TAILS = ".drpg-corner-tail, .drpg-corner-tail-block";
+        const untail = () => tile.querySelectorAll(TAILS).forEach(el => el.classList.remove("drpg-corner-tail", "drpg-corner-tail-block"));
+        const probe = document.createElement("div");
+        probe.style.cssText = "position: absolute; visibility: hidden; height: 0; width: var(--drpg-corner-room)";
+        document.body.append(probe);
+        const room = probe.offsetWidth;
+        probe.remove();
+        const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+        const SHAPES = {
+            full: `<p>${"R299 words ".repeat(60)}</p>`,
+            inline: "<p>R299 words <b>bold</b> and after it</p>",
+            nested: "<div><p>R299 first</p><p>R299 the last of a block</p></div>",
+            list: "<p>R299 lead</p><ul><li>R299 one</li><li>R299 two</li></ul>",
+            table: "<p>R299 lead</p><table><tbody><tr><td>R299 cell</td><td>R299 cell</td></tr></tbody></table>",
+            rule: "<p>R299 lead</p><hr>"
+        };
+        const turn = [tile.style.getPropertyValue("transform"), tile.style.getPropertyPriority("transform")];
+        const floorClosers = [], floor = { crossed: {}, growth: {}, cards: null };
+        /* Upright for the reading, as the curtain's own measurements are taken: the pane's turn moves the text and the
+           button together, and a turned box's bounds are larger than the box. */
+        tile.style.setProperty("transform", "none", "important");
+        try {
+            for (const [name, html] of Object.entries(SHAPES)) {
+                const close = P.showPopup(html, { title: "R299 floor", record: false });
+                floorClosers.push(close);
+                const card = tile.querySelector(".drpg-popup-floor"), body = card?.querySelector(".drpg-popup-body");
+                const tailEl = tile.querySelector(TAILS);
+                if (!body || !tailEl) {
+                    floor.crossed[name] = floor.growth[name] = "no floor card or no tail";
+                    close({ instant: true });
+                    continue;
+                }
+                const texts = node => node.nodeType === Node.TEXT_NODE ? [node] : [...node.childNodes].flatMap(texts);
+                const words = texts(body).filter(node => node.data.trim()).flatMap(node => {
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    return [...range.getClientRects()];
+                });
+                const hit = button.getBoundingClientRect();
+                floor.crossed[name] = words.filter(rect => rect.width > 0 && overlaps(rect, hit)).length;
+                const lines = Math.max(px(getComputedStyle(body).lineHeight), px(getComputedStyle(tailEl).lineHeight));
+                const withFloor = card.offsetHeight;
+                card.classList.remove("drpg-popup-floor");
+                untail();
+                const without = card.offsetHeight, pad = px(getComputedStyle(body).paddingBottom), lh = px(getComputedStyle(body).lineHeight);
+                P.setFloor(tile);
+                const bound = Math.max(0, room - lh - pad) + lines + 0.5;
+                floor.growth[name] = withFloor - without <= bound ? true : `${withFloor - without} px over a bound of ${bound} px`;
+                close({ instant: true });
+            }
+            const pair = [P.showPopup("<p>R299 one line</p>", { title: "R299 floor", record: false }), P.showPopup("<p>R299 another line</p>", { title: "R299 floor", record: false })];
+            floorClosers.push(...pair);
+            const ours = [...tile.querySelectorAll(".drpg-popup:not(.leaving)")].filter(card => /R299 (one|another) line/.test(card.textContent));
+            const parked = ours.filter(card => card.classList.contains("drpg-popup-parked"));
+            let fitWithout = true;
+            if (parked.length) {
+                /* One of the two was parked for want of room: whether they fit without the floor's room, as
+                   `overflowsGlass` adds them up. */
+                parked.forEach(card => card.classList.remove("drpg-popup-parked"));
+                ours.forEach(card => card.classList.remove("drpg-popup-floor"));
+                untail();
+                fitWithout = ours.reduce((sum, card) => sum + card.offsetHeight, px(getComputedStyle(tile).rowGap)) <= tile.clientHeight + 1;
+                parked.forEach(card => card.classList.add("drpg-popup-parked"));
+                P.setFloor(tile);
+            }
+            floor.cards = parked.length === 0 || !fitWithout;
+        } finally {
+            for (const close of floorClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            if (turn[0]) tile.style.setProperty("transform", turn[0], turn[1]);
+            else tile.style.removeProperty("transform");
+        }
+        const clear = Object.fromEntries(Object.keys(SHAPES).map(name => [name, 0])), held = Object.fromEntries(Object.keys(SHAPES).map(name => [name, true]));
+        equal(stableJson(floor), stableJson({ crossed: clear, growth: held, cards: true }),
+            `the card at the bottom of the tile (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, room ${room} px) [lines of its text under `
+            + "the button, per shape of its end; its height grown by no more than the room less a line and its own padding, and a line; two one-line cards on "
+            + "the tile together, or parked only where they would not fit without the floor's room]");
     }],
 ];
 

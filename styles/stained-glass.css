@@ -3281,7 +3281,11 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
    under the text. `align-content: start`, stated rather than left to the default, so
    the choice is on the page: the plate still covers the pane, the words begin at its top.
    Still a BLOCK container, not a flex or grid one: those change the formatting
-   context the prose is in, and adjacent paragraph margins would stop collapsing. */
+   context the prose is in, and adjacent paragraph margins would stop collapsing -
+   and the corner's spacer (E81 C9) is a line box's last piece, which a flex body
+   would make an item of its own. The card at the bottom of the tile takes the base
+   sheet's floor rules as they are (danganronpa.css, after `.drpg-popup-body`): this
+   theme states no padding for the body, so the 9 px there are this plate's too. */
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
     flex: 1 1 auto;
     align-content: start;

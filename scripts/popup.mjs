@@ -380,6 +380,7 @@ function unparkInto(host) {
  * is the one they come back beside. One badge per stack, moved rather than multiplied.
  */
 function markParked(host) {
+    setFloor(host);
     host.querySelectorAll(".drpg-popup-more").forEach(b => b.remove());
     const waiting = host.querySelectorAll(`.drpg-popup.${PARKED}:not(.leaving)`).length;
     if (!waiting) return;
@@ -394,6 +395,105 @@ function markParked(host) {
     badge.dataset.tooltip = tip;
     badge.setAttribute("aria-label", tip);
     top.insertBefore(badge, top.querySelector(".drpg-popup-close"));
+}
+
+/**
+ * THE BOTTOM CARD KEEPS THE CORNER FREE (E81 C9, 12.10.2026; audit S16-08, the A7 design's P7-5). The
+ * history's button stands in the tile's bottom-right corner (`ensureNoticeTile`), over whatever card is at
+ * the bottom of the stack - and the newest card goes on top, so the bottom one is the OLDEST SHOWN. That card
+ * is marked `drpg-popup-floor`, and the stylesheet gives it room for the button: its body's bottom padding at
+ * least `--drpg-corner-room` less one line, and on that last line a spacer `--drpg-corner-room` (and 4 px)
+ * wide, which the text flows round rather than under. The spacer is the `::after` of one element, the tail,
+ * and which element that is cannot be said in CSS: `:last-child` stops at the body's last child, and a card
+ * ends as often in `div > p`, in the last `li` of a list or in text after a `<b>` as in a bare sentence. So
+ * it is chosen here (`cornerTail`) and marked `drpg-corner-tail`, or `drpg-corner-tail-block` where the card
+ * ends in something no line runs through - a table, a rule, a flex or grid block - and the spacer is a line
+ * of its own under it. What that costs in height is the design's estimate, not a reading: about 6 px of
+ * padding on a desk and 12 on a touch screen under Stained Glass, 11.5 and 17.5 under Monokuma Legacy, and a
+ * line only when the last one is full or the card ends in a block. R299 (b) measures it in a browser only.
+ *
+ * Called first in `markParked` - before its early return, so a stack with nothing parked has its floor too -,
+ * by `dismiss` as soon as a card is leaving (the next one takes the corner at once, not after the fade),
+ * and by a card's observer when the floor card's own words change (`watchCard`). Only for the corner tile:
+ * the evidence stage has no button. The classes are set and taken only when they change, and the observer
+ * passes over a change that is nothing but them, so neither wakes the other (R293). Never what is kept:
+ * the history's cleaning keeps no class of these (`NOTICE_CLASSES`). A corner that cannot be worked out
+ * leaves the card as it was rather than stopping it.
+ *
+ * An interface later stages take as it is, with the `--drpg-corner*` tokens: E18, E23, E49 and E55 use it
+ * and do not rewrite it, and E77 and E78 take it over (the A7 design's P0-8). Answers the floor card, or null.
+ */
+const FLOOR = "drpg-popup-floor";
+const TAIL = "drpg-corner-tail";
+const TAIL_BLOCK = "drpg-corner-tail-block";
+
+export function setFloor(host) {
+    if (host?.id !== CONTAINER_ID) return null;
+    try {
+        const floor = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`)).sort(byArrival)[0] ?? null;
+        host.querySelectorAll(`.${FLOOR}`).forEach(card => { if (card !== floor) card.classList.remove(FLOOR); });
+        if (floor && !floor.classList.contains(FLOOR)) floor.classList.add(FLOOR);
+        const body = floor?.querySelector(".drpg-popup-body");
+        const [tail, kind] = body ? cornerTail(body) : [null, null];
+        host.querySelectorAll(`.${TAIL}, .${TAIL_BLOCK}`).forEach(el => {
+            if (el === tail) return;
+            el.classList.remove(TAIL, TAIL_BLOCK);
+            if (el.getAttribute("class") === "") el.removeAttribute("class");
+        });
+        if (tail) {
+            const other = kind === TAIL ? TAIL_BLOCK : TAIL;
+            if (tail.classList.contains(other)) tail.classList.remove(other);
+            if (!tail.classList.contains(kind)) tail.classList.add(kind);
+        }
+        return floor;
+    } catch (err) {
+        debug("The notice tile's corner could not be kept free", err);
+        return null;
+    }
+}
+
+/* What a node is to the line the card ends on: "inline" (it ends on a line of text, so the spacer goes after
+   it in its block), "flow" (a block to look inside), "end" (a block no line runs through) or "none" (not
+   drawn - a GM's half on a player's screen). Read off the computed display where there is one; a rule (`hr`)
+   is a block that holds no line whatever its display; with no style to read, a known block tag is a flow. */
+const FLOW_TAGS = new Set(["address", "article", "aside", "blockquote", "dd", "details", "div", "dl", "dt", "fieldset",
+    "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "li", "main", "nav", "ol",
+    "p", "pre", "section", "summary", "ul"]);
+const DRAWN = "img, hr, table, svg, picture, input, button, canvas";
+
+function lineRole(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.data.trim() ? "inline" : null;
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    if (!node.textContent.trim() && !node.matches(DRAWN) && !node.querySelector(DRAWN)) return null;
+    if (node.localName === "hr") return "end";
+    let display = "";
+    try {
+        display = getComputedStyle(node).display;
+    } catch {
+        // No style to read: the tag decides.
+    }
+    if (!display) display = FLOW_TAGS.has(node.localName) ? "block" : node.localName === "table" ? "table" : "inline";
+    if (display === "none") return "none";
+    if (display.startsWith("inline")) return "inline";
+    if (["block", "list-item", "flow-root", "contents"].includes(display)) {
+        return [...node.childNodes].some(kid => ["inline", "flow", "end"].includes(lineRole(kid))) ? "flow" : "end";
+    }
+    return "end";
+}
+
+/* The tail: down from the body through its last drawn child, as long as that child is a block of flow. */
+function cornerTail(body) {
+    let at = body;
+    for (;;) {
+        let last = at.lastChild, role = null;
+        for (; last; last = last.previousSibling) {
+            role = lineRole(last);
+            if (role && role !== "none") break;
+        }
+        if (!last || role === "inline") return [at, TAIL];
+        if (role === "end") return [at, TAIL_BLOCK];
+        at = last;
+    }
 }
 
 /**
@@ -473,10 +573,21 @@ const TONES = ["hope", "fear", "critical"];
  * evidence stage alike, and a quarter of a second after the last change keeps the body again through
  * the same cleaning; it stops when the card leaves the page, and a change it had not yet kept is
  * kept then. The 250 ms are the design's, not a measurement.
+ *
+ * AND SO DOES THE TAIL (E81 C9). The same observer, on every card in the corner tile whether it is
+ * kept or not, `observe: false` included: when the floor card's words change, its tail is chosen again
+ * at once (`setFloor`), and the snapshot is left alone unless it is followed. A change that is nothing
+ * but the tail's own classes going on or off is passed over (`cornerOnly`), so marking the tail never
+ * keeps a snapshot again; the floor class and "+N" are outside the body and never reach it.
  */
 const SNAPSHOT_DEBOUNCE_MS = 250;
 
-function watchNotice(body, id) {
+const CORNER_CLASSES = new RegExp(`(?:^|\\s)(?:${TAIL}|${TAIL_BLOCK})(?=\\s|$)`, "g");
+const withoutCorner = value => (value ?? "").replace(CORNER_CLASSES, " ").split(/\s+/).filter(Boolean).join(" ");
+const cornerOnly = record => record.type === "attributes" && record.attributeName === "class"
+    && withoutCorner(record.oldValue) === withoutCorner(record.target.getAttribute("class"));
+
+function watchCard(card, body, id) {
     let timer = null;
     const keep = () => {
         timer = null;
@@ -486,16 +597,19 @@ function watchNotice(body, id) {
             debug("A notice's snapshot could not be kept", err);
         }
     };
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(records => {
+        if (records.every(cornerOnly)) return;
+        if (card.classList.contains(FLOOR)) setFloor(card.parentElement);
+        if (id === null) return;
         if (timer !== null) clearTimeout(timer);
         timer = setTimeout(keep, SNAPSHOT_DEBOUNCE_MS);
     });
-    observer.observe(body, { childList: true, subtree: true, characterData: true, attributes: true });
+    observer.observe(body, { childList: true, subtree: true, characterData: true, attributes: true, attributeOldValue: true });
     return () => {
-        const waiting = observer.takeRecords().length > 0 || timer !== null;
+        const waiting = observer.takeRecords().some(record => !cornerOnly(record)) || timer !== null;
         observer.disconnect();
         if (timer !== null) clearTimeout(timer);
-        if (waiting) keep();
+        if (waiting && id !== null) keep();
     };
 }
 
@@ -569,16 +683,15 @@ export function showPopup(bodyHtml, {
                 kind: KINDS.includes(kind) ? kind : "info", tone: TONES.includes(tone) ? tone : null,
                 title, html: body.innerHTML, messageId, link, persist, ...noticeSource(source, messageId)
             });
-            if (notice) {
-                card.dataset.drpgNotice = notice;
-                if (observe) unwatch = watchNotice(body, notice);
-            }
+            if (notice) card.dataset.drpgNotice = notice;
         } catch (err) {
             debug("A notice could not be kept in this browser's history", err);
         }
     }
 
     const host = hostFor(kind, sticky);
+    const followed = notice && observe ? notice : null;
+    if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed);
     card.dataset.drpgSeq = String(++arrivals);
     // The card it was drawn from, so the notice goes when that card is deleted (`registerPopups`).
     if (messageId) card.dataset.drpgMessage = messageId;
@@ -624,8 +737,10 @@ export function showPopup(bodyHtml, {
         card.classList.add("leaving");
         /* The seat it leaves is taken by the newest card that was waiting for one - once
            it has actually gone: a leaving card still takes its space until it is removed,
-           and measured beside it nothing would fit. */
+           and measured beside it nothing would fit. The corner is handed on at once: the
+           next oldest card keeps the button clear from now (E81 C9, `setFloor`). */
         const home = card.parentElement;
+        setFloor(home);
 
         // WAIT FOR THE TRANSITION, NOT FOR A NUMBER.
         //
