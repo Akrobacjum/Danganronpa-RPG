@@ -103,7 +103,7 @@ belongs to.
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
 | 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out; a Sabotage of one's own trap leaves a tied trace, of another's an untied one (A14, E09 C5) |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
-| 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
+| 41 | scenarios/41-trial-scene.mjs | ci | exists | E13 | the Class Trial and the scenes as they are today: an activation followed by every browser, one still loading only warning, a token's `hidden` heard everywhere (S), a hall the GM keeps and `setClock` into the trial (a), a move in the hall (b), the voice rooms (h), `closeTrial` (c), Edit campaign in and out (d), a player loading while the hall is activated (f), no second discovery after the trial (g), the season reset in the trial (e) - each check today's reading, naming the E13 commit that changes it |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
 | 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |

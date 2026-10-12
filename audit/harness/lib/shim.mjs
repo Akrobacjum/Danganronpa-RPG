@@ -604,9 +604,22 @@ export function buildDocumentClasses(ctx) {
             return LevelList.from((this._source.levels ?? []).map(l => ({ id: l.id ?? l._id ?? null, name: l.name ?? "", elevation: l.elevation ?? 0 })));
         }
         /* Until E12 C0 nothing defined `game._viewScene` (grep of audit/harness, plan-E12 1.x item 7), so either call
-           threw; client-entry.mjs defines it now. */
-        async view(options = {}) { ctx.gameRef()._viewScene(this, options); return this; }
-        async activate() { await this.update({ active: true }); ctx.gameRef()._viewScene(this); return this; }
+           threw; client-entry.mjs defines it now.
+           A CANVAS STILL LOADING DOES NOT SWITCH (E13 C0, 11.10.2026; plan-E13 2.1 item 2, A5's reading of Foundry's
+           `Scene#view`, whose warning's words are recalled, not read in v14): it warns and stays where it is - a
+           browser loading when the GM activates another scene stays on the one it was loading (LIVE-E13-02).
+           AND AN ACTIVATION IS AN UPDATE (E13 C0): `activate()` writes `active` and nothing more; every client,
+           this one included, views the scene as it hears the write (client-entry.mjs `applyRemote`). Until C0 it
+           viewed the scene on its caller alone, which no other client followed (plan-E13 1.x item 6). */
+        async view(options = {}) {
+            if (ctx.gameRef().canvas?.loading) {
+                globalThis.ui?.notifications?.warn("You cannot switch Scenes until resources finish loading for your current view.");
+                return this;
+            }
+            ctx.gameRef()._viewScene(this, options);
+            return this;
+        }
+        async activate() { return this.update({ active: true }); }
     }
 
     /*

@@ -930,6 +930,8 @@ classes.ChatMessage.prototype.renderHTML = async function renderHTML() {
 const tokenWrappers = new Map();
 const canvas = {
     ready: false,
+    /* True until this client's first `canvasReady` (E13 C0): the boot below clears it as its draw ends. */
+    loading: true,
     scene: null,
     initialized: true,
     stage: new PIXI.Container(),
@@ -1043,6 +1045,15 @@ game._viewScene = (scene, { level = null } = {}) => {
 // Foundry's WorldCollection getters the mock's plain Collection lacks.
 Object.defineProperty(game.scenes, "active", { get: () => game.scenes.find(s => s._source.active) });
 Object.defineProperty(game.scenes, "viewed", { get: () => canvas.scene });
+/* `Scenes#preload(sceneId, push)` (E13 C0, 11.10.2026; plan-E13 2.1 item 3): loads a scene's textures ahead
+   of its draw, and with `push` asks every connected client to. The harness loads no texture, so the stub
+   only keeps each call, on the client that made it, in `__scenePreloads`; whether a pushed preload reaches
+   the other clients is not modelled. Nothing in scripts/ called it at 48efd99 (git grep). */
+globalThis.__scenePreloads = [];
+game.scenes.preload = async (sceneId, push = false) => {
+    globalThis.__scenePreloads.push({ sceneId, push: Boolean(push) });
+    return [];
+};
 
 /* -------------------------------- ui ------------------------------------- */
 
@@ -1333,8 +1344,15 @@ function findEmbKey(parentName, embName) {
     return map[parentName]?.[embName];
 }
 
+/* What this client has been sent created and deleted, by document name - `createToken`, `deleteScene` - for a
+   scenario that asks whether anything was (E13 C0, 11.10.2026; plan-E13 2.1 item 4). */
+globalThis.__documentCounts = {};
+const counted = (kind, name, n = 1) => { const key = `${kind}${name}`; globalThis.__documentCounts[key] = (globalThis.__documentCounts[key] ?? 0) + n; };
+
 function applyRemote(msg) {
     const { action, collName, userId, options = {} } = msg;
+    if (action === "create" || action === "delete") counted(action, collName, action === "create" ? msg.docs.length : 1);
+    if (action === "embedded-create" || action === "embedded-delete") counted(action.slice("embedded-".length), msg.embeddedName, (msg.docs ?? msg.ids).length);
     if (action === "create") {
         const c = coll(collName);
         const docs = msg.docs.map(d => instantiate(collName, d));
@@ -1352,6 +1370,13 @@ function applyRemote(msg) {
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
         if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
+        /* A SCENE MADE ACTIVE IS VIEWED BY EVERY CLIENT (E13 C0, 11.10.2026; plan-E13 2.1 item 1, A5's reading
+           of Foundry: `Scene#_onUpdate` calls `view()` when `active` turns true, on every client that hears the
+           update, the GM who made it included). Until C0 only `Scene#activate`'s caller moved its own canvas
+           (lib/shim.mjs), and no other client followed. After the hook, because Foundry's draw that ends in
+           `canvasReady` is awaited after `_onUpdate` returns and the hook has fired. A client still loading
+           only warns (`Scene#view`). `active: false` moves nobody's canvas, here as in what A5 read. */
+        if (collName === "Scene" && msg.changes?.active === true) doc.view();
         return;
     }
     if (action === "delete") {
@@ -1427,6 +1452,8 @@ function rebuildEmbedded(doc) {
 /* --------------------------- message loop --------------------------------- */
 
 let booted = false;
+/* Held at the end of the canvas's load until the cluster says "loaded" (cluster.mjs `connect`, `holdLoading`). */
+let holdLoading = false, releaseLoading = null;
 
 process.on("message", async msg => {
     try {
@@ -1437,6 +1464,7 @@ process.on("message", async msg => {
                     // A browser that has been here before (cluster.mjs `connect`, E04): its
                     // localStorage as it was, before the module reads a setting.
                     for (const [key, raw] of Object.entries(msg.storage ?? {})) globalThis.localStorage.setItem(key, String(raw));
+                    holdLoading = Boolean(msg.holdLoading);
                     booted = true;
                     await boot();
                 }
@@ -1449,6 +1477,10 @@ process.on("message", async msg => {
             }
             case "apply": {
                 applyRemote(msg);
+                break;
+            }
+            case "loaded": {
+                releaseLoading?.();
                 break;
             }
             case "settingApplied": {
@@ -1604,6 +1636,11 @@ async function boot() {
         hooks.callAll("setup");
         game.ready = true;
         hooks.callAll("ready");
+        if (holdLoading) {
+            send({ t: "loading" });
+            await new Promise(resolve => { releaseLoading = resolve; });
+        }
+        canvas.loading = false;
         canvas.ready = true;
         hooks.callAll("canvasReady", canvas);
         // give not-awaited ready tasks a beat
