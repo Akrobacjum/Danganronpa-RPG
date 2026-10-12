@@ -6741,12 +6741,16 @@ const INVARIANTS = [
          * write its `hidden` from their own browser - whether Foundry v14 lets an owner do that is not measured
          * (LIVE-E13-08) - and a token shown or hidden by its player would undo the GMs' choice in front of the table. The
          * rule is trial-scene.mjs `castPutBack`, which the primary's `updateToken` watcher asks with the user Foundry names
-         * as the writer; here on plain objects and a student of this world (the cast is a token of a "character"). Read:
-         * a player's hide and a player's show of a hall cast token, the same hide carrying this module's own `trialCast`
-         * option (a writer's claim, exempt from nothing), a GM's hide, a player's move, a player's hide of a token of no
-         * actor, of a token on another scene, with no hall linked, and by a user nobody knows. The tier-2 "a player's
-         * change ..." drives the watcher on a hall's documents; scenario 41 a3 has a player's browser write it. Red before
-         * C2: there was no trial-scene.mjs, and a player's change stood.
+         * as the writer; here on plain objects and a student of this world (the cast is a token of a "character"), each
+         * token holding what the change left and asked with what the GMs last wrote. Read: a player's hide and a player's
+         * show of a hall cast token, the same hide carrying this module's own `trialCast` option (a writer's claim, exempt
+         * from nothing), a GM's hide, a player's move, a player's hide of a token of no actor, of a token on another
+         * scene, with no hall linked, and by a user nobody knows. Since E13 fix r1-F2 (review r1 sec A) the put-back
+         * writes what the GMs last wrote, not the other state: a player's show the token no longer holds (an earlier
+         * put-back or their own next write undid it), a hide sent whole (`diff: false`) onto a token already hidden, and
+         * a show sent whole onto a token the GMs hid - C2's rule answered the first two with a write against the GMs'
+         * choice. The tier-2 "a player's change ..." drives the watcher on a hall's documents; scenario 41 a3 and a4 have
+         * players' browsers write it. Red before C2: there was no trial-scene.mjs, and a player's change stood.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(typeof T?.castPutBack === "function", "trial-scene.mjs has no `castPutBack` - a player's change to a hall token's hidden stands");
@@ -6754,18 +6758,23 @@ const INVARIANTS = [
         const student = game.actors.find(a => a.type === "character");
         must(student, "the world has no character to stand a hall token for - every case below would read a token that is not the cast");
         const hall = { id: "R434HALL00000000" };
-        const tok = (fields = {}) => ({ id: "R434TOKEN0000000", name: "R434", actorId: student.id, parent: hall, ...fields });
+        const tok = (fields = {}) => ({ id: "R434TOKEN0000000", name: "R434", actorId: student.id, parent: hall, hidden: true, ...fields });
         const player = { id: "R434PLAYER000000", isGM: false }, gm = { id: "R434GM0000000000", isGM: true };
+        const shown = tok({ hidden: false });
         const asks = [
-            [tok(), { hidden: true }, {}, player, hall], [tok(), { hidden: false }, {}, player, hall],
-            [tok(), { hidden: true }, { [MODULE_ID]: { trialCast: true } }, player, hall], [tok(), { hidden: true }, {}, gm, hall],
-            [tok(), { x: 300 }, {}, player, hall], [tok({ actorId: null }), { hidden: true }, {}, player, hall],
-            [tok({ parent: { id: "R434OTHER0000000" } }), { hidden: true }, {}, player, hall], [tok(), { hidden: true }, {}, player, null],
-            [tok(), { hidden: true }, {}, null, hall]
+            [tok(), { hidden: true }, {}, player, hall, false], [shown, { hidden: false }, {}, player, hall, true],
+            [tok(), { hidden: true }, { [MODULE_ID]: { trialCast: true } }, player, hall, false], [tok(), { hidden: true }, {}, gm, hall, false],
+            [tok(), { x: 300 }, {}, player, hall, false], [tok({ actorId: null }), { hidden: true }, {}, player, hall, false],
+            [tok({ parent: { id: "R434OTHER0000000" } }), { hidden: true }, {}, player, hall, false], [tok(), { hidden: true }, {}, player, null, false],
+            [tok(), { hidden: true }, {}, null, hall, false],
+            [shown, { hidden: true }, {}, player, hall, false], [tok(), { hidden: true }, { diff: false }, player, hall, true],
+            [shown, { hidden: false }, { diff: false }, player, hall, true]
         ].map(args => T.castPutBack(...args));
-        equal(JSON.stringify(asks), JSON.stringify([{ hidden: false }, { hidden: true }, { hidden: false }, null, null, null, null, null, null]),
+        equal(JSON.stringify(asks), JSON.stringify([{ hidden: false }, { hidden: true }, { hidden: false }, null, null, null, null, null, null,
+            null, null, { hidden: true }]),
             "[put back: a player's hide, a player's show, a player's hide with the module's option; stands: a GM's hide, a player's move, "
-            + "a token of no actor, a token of another scene, no hall linked, a writer nobody knows]");
+            + "a token of no actor, a token of another scene, no hall linked, a writer nobody knows; since r1-F2, nothing written for a hide the token no "
+            + "longer holds or one sent whole onto a token the GMs hid, and a show sent whole put back]");
     }],
     ["R435 - a player's browser puts its own view right once after a load: the hall in the trial, the school after it, never a GM's", async () => {
         /*
@@ -6776,14 +6785,17 @@ const INVARIANTS = [
          * on its first `canvasReady`, asked here of plain scenes: a player in the trial viewing the school while the hall
          * is active goes to the hall; after the trial, viewing the hall while the school is active, to the school; a
          * player already where the GM made active, a GM, a trial whose active scene is not the hall (the GM took the
-         * table elsewhere), and no hall linked, nowhere. And in the source with comments blanked: `registerTrialScene`
+         * table elsewhere), and no hall linked, nowhere. Since E13 fix r1-F2 (review r1 cor B) after the trial the scene a
+         * GM made active, whichever it is: the scene of the room End the trial chose, and with no school linked the scene
+         * the trial opened from - C3 asked for the school alone, and both left a late browser in the hall. And in the
+         * source with comments blanked: `registerTrialScene`
          * listens to `canvasReady` once (a GM's later pull stands) and through `selfRepair`. Scenario 41 f reads it on a
          * late browser, the pull included. Red before C3: there was no `viewRepair`.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.viewRepair === "function", "trial-scene.mjs has no `viewRepair` - a browser that missed the activation stays where it was");
         if (typeof T.viewRepair !== "function") return;
-        const [hall, school] = [{ id: "hall" }, { id: "school" }];
+        const [hall, school, chosen] = [{ id: "hall" }, { id: "school" }, { id: "chosen" }];
         const goes = args => T.viewRepair({ hall, school, ...args })?.id ?? null;
         const trial = "classTrial", daily = "dailyLife";
         const sources = await moduleSources();
@@ -6794,10 +6806,13 @@ const INVARIANTS = [
             goes({ phase: trial, active: hall, viewed: hall }), goes({ phase: daily, active: hall, viewed: hall }),
             goes({ phase: trial, active: school, viewed: school }), goes({ phase: trial, active: hall, viewed: school, isGM: true }),
             goes({ phase: daily, active: school, viewed: hall, isGM: true }), T.viewRepair({ phase: trial, active: hall, viewed: school, school }),
-            register.includes('Hooks.once("canvasReady", selfRepair)'), /Hooks\.on\(\s*["']canvasReady["']/.test(register)]),
-            JSON.stringify(["hall", "school", null, null, null, null, null, null, true, false]),
+            register.includes('Hooks.once("canvasReady", selfRepair)'), /Hooks\.on\(\s*["']canvasReady["']/.test(register),
+            goes({ phase: daily, active: chosen, viewed: hall }), T.viewRepair({ phase: daily, active: chosen, viewed: hall, hall })?.id ?? null,
+            goes({ phase: daily, active: chosen, viewed: chosen })]),
+            JSON.stringify(["hall", "school", null, null, null, null, null, null, true, false, "chosen", "chosen", null]),
             "[a player in the trial off the hall, after it on the hall; a player already where the GM put the table (twice), in a trial the GM took "
-            + "elsewhere; a GM (twice); no hall linked; registerTrialScene listens to canvasReady once through selfRepair, and never on every one]");
+            + "elsewhere; a GM (twice); no hall linked; registerTrialScene listens to canvasReady once through selfRepair, and never on every one; "
+            + "since r1-F2, after the trial on the hall with the chosen room's scene active, the same with no school linked, and already there]");
     }],
     ["R117 - in the Class Trial everybody is in one voice room: the living, the dead, a Monocub, Monokuma and an account with no character (D8)", async () => {
         /*
@@ -6867,7 +6882,9 @@ const INVARIANTS = [
          * without a token (the plural), for a hall with no school, and for a pair with nothing wrong;
          * `scenesTabWrites` for an untouched form, a changed school (a stored field the tab does not show kept), a
          * clash, a stored role whose scene is gone, a cast list of another hall, and "Prepare"; and
-         * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one. Then the
+         * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one; `hallLocked` (E13 fix
+         * r1-F2, review r1 cor C) for a hall relinked and one unlinked in a running trial, the same out of it, a trial with
+         * the hall select untouched, and no reading. Then the
          * window's own wiring, on a form drawn from the world's roles and never attached to the page: both
          * selects set to one scene hold Apply, show the warning and decide no write; the Bedrooms tab's hold
          * outlives the Scenes tab's (`setApplyBlock`); and the untouched form's Apply, with `game.settings.set`
@@ -6905,6 +6922,9 @@ const INVARIANTS = [
         const patches = [[false, false, true], [true, false, true], [false, true, true], [false, true, false]]
             .map(([playlist, voice, voiceActive]) => Object.keys(T.hallPreparePatch(bare, { playlist, voice, voiceActive })).sort());
         patches.push(Object.keys(T.hallPreparePatch(done, { playlist: true, voice: true, voiceActive: true })));
+        const locked = typeof T.hallLocked === "function" ? [T.hallLocked(read({ trial: "R120SCENEC" }), "classTrial"),
+            T.hallLocked(read({ trial: "" }), "classTrial"), T.hallLocked(read({ trial: "R120SCENEC" }), "dailyLife"), T.hallLocked(read({ trial: "" }), "dailyLife"),
+            T.hallLocked(read({ school: "R120SCENEC" }), "classTrial"), T.hallLocked(null, "classTrial")] : "no hallLocked";
 
         must(game.scenes?.size >= 1, "the world has no scene to draw the Scenes tab's selects with - this would measure nothing");
         const draw = () => {
@@ -6937,7 +6957,7 @@ const INVARIANTS = [
             game.settings.set = set;
         }
 
-        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied]), JSON.stringify([
+        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked]), JSON.stringify([
             ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
             [["sameScene!"], ["hallHasRooms", "missingTokens", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true],
             [{ roles: null, cast: null, prepare: null },
@@ -6949,12 +6969,13 @@ const INVARIANTS = [
                 ["environment.globalLight.enabled", "flags.proximity-voice-chat.disabled", "fog.exploration", "tokenVision"],
                 ["environment.globalLight.enabled", "fog.exploration", "tokenVision"], []],
             [true, true, JSON.stringify({ roles: null, cast: null, prepare: null }), true, false],
-            0, { roles: false, cast: false, shown: null, prepared: null }]),
+            0, { roles: false, cast: false, shown: null, prepared: null }, [true, true, false, false, false, false]]),
             "[Room Setup's last tab, its count, the tab it opens on (a scene with rooms, one without, Doors asked, a tab that is none); the hall's room names; "
             + "the report's rows for one scene twice, a hall with everything wrong, no school, nothing wrong, and its one and two missing students; what Apply "
             + "would write for an untouched form, a changed school, a clash, a gone role untouched, another hall's cast, a tick and Prepare; Prepare's fields "
             + "bare, with the playlist, with the voice, with the voice ticked and its module off, and on a prepared scene; the drawn tab with one scene twice: "
-            + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply]");
+            + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply; "
+            + "the hall relinked and unlinked in a running trial (locked), the same out of it, the school changed in it, no reading]");
     }],
 
     ["R437 - Start the Class Trial names the trial hall and the table's rule, and the trial console's one door takes the table to the hall or back without the phase", async () => {

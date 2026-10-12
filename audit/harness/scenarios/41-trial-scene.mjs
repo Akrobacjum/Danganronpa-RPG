@@ -24,11 +24,14 @@
  *      since C2 stores that choice (trial-scene.mjs `saveTrialCast`: Chie unticked, the dead student
  *      ticked - nobody plays him - and the rest as `defaultReveal` has them) and the module shows it; since
  *      C5 (a0) both through Room Setup's Scenes tab, its window drawn on the GM; and (a3) p1 hides Aiko's
- *      hall token from its own browser and the primary puts it back.
+ *      hall token from its own browser and the primary puts it back. Since E13 fix r1-F2: (a4) two changes
+ *      of one player landing before the primary answers the first, twice from p1 on Aiko and once from p2
+ *      on Botan the GM hid by hand; (a5) p3 drops a shown token of Chie, unticked, into the hall.
  *   b  p1 moves Aiko's hall token from one of the hall's rooms to the other during the trial: vetoes,
  *      Aiko's actions, the chat, and every other write the move caused; and (C1) what every browser, the
  *      hall active and on its screen, takes for the school and makes of the hall.
  *   h  `voiceTargets()` on each browser in the trial: since E13 C4 one room for everybody (D8).
+ *   l  (fix r1-F2) Room Setup's Scenes tab in the trial: the GM unlinks the hall; Apply held, and pressed anyway.
  *   c  `closeTrial()`: where every browser looks, the hall's tokens, their ids.
  *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes); since E13 C6 that
  *      question says the trial takes the table to the hall.
@@ -72,6 +75,8 @@
  * run of this worktree beside it, whether one of another was on the machine not checked).
  * E13 C6's k (four checks, d1 extended): 25 checks in 55.0 s, 59 s from the command to its exit, one run on
  * 12.10.2026 (`--verbose`; no other run of this worktree beside it, whether one of another was on the machine not checked).
+ * E13 fix r1-F2's a4, a5 and l1: 28 checks in 66.7 s, one run on 12.10.2026 (`--verbose`, lane A; whether a run of another
+ * worktree was on the machine at the time not checked).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -246,6 +251,58 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         putBack === true && Object.values(afterPut).every(r => r.hidden.Aiko === false && J(shown(r)) === J([...CHOICE, "Decor"].sort()))
             && toldPut.length === 1 && J(toldPut[0]) === J([IDS.gm]),
         J({ putBack, afterPut: Object.fromEntries(Object.entries(afterPut).map(([who, r]) => [who, shown(r)])), toldPut }), { flow: "trial-scene" });
+    /* What the GMs were whispered of one hall token and one user, as each whisper's recipients (`key` a TrialScene text). */
+    const toldOf = (key, userId, name) => gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const text = "<p>" + game.i18n.format("DRPG.TrialScene.${key}", { user: game.users.get("${userId}").name, name: ${J(name)} }) + "</p>";
+        const told = [];
+        for (const m of game.messages) if (await wordsOf(m, 2000) === text) told.push((m.whisper ?? []).slice().sort());
+        return told;`, { timeout: 60000 });
+    /* Two changes of one player landing before the primary answers the first (E13 fix r1-F2, review r1 sec A). Review r1
+       measured at 45e6bcf that C2's put-back answered each against itself: p1 hiding and showing Aiko left her hidden on
+       every browser with two whispers, and so did the pair with its second write sent whole. Here both pairs, and the
+       other way round against a GM's own hide: the GM hides Botan by hand, p2 shows him and hides him again. The
+       put-back now writes what the GMs last wrote, once per change it undid; Botan is shown again by the GM after. */
+    const toldA4 = [(await toldOf("hiddenPutBack", IDS.p1, "Aiko")).length, (await toldOf("hiddenPutBack", IDS.p2, "Botan")).length];
+    const handHide = await gm.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Botan"); await t.update({ hidden: true }); return hall.tokens.get(t.id).hidden;`,
+        { timeout: 30000 });
+    await settle(400);
+    const pairs = await p1.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Aiko");
+        await t.update({ hidden: true }); await t.update({ hidden: false });
+        await new Promise(r => setTimeout(r, 1500));
+        const first = hall.tokens.get(t.id).hidden;
+        const sent = t.update({ hidden: true }); await t.update({ hidden: false }, { diff: false }); await sent;
+        return { first };`, { timeout: 30000 });
+    await p2.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Botan"); await t.update({ hidden: false }); await t.update({ hidden: true }); return true;`,
+        { timeout: 30000 });
+    await settle(3000);
+    const afterPairs = await readAll();
+    const toldPairs = [(await toldOf("hiddenPutBack", IDS.p1, "Aiko")).length - toldA4[0], (await toldOf("hiddenPutBack", IDS.p2, "Botan")).length - toldA4[1]];
+    check("a4: two changes of one player landing before the primary answers the first end as the GMs left the token on every browser, one whisper per change undone - p1's hide and show of Aiko, twice (the second show sent whole), and p2's show and hide of Botan the GM hid by hand (E13 fix r1-F2)",
+        handHide === true && pairs.first === false && Object.values(afterPairs).every(r => r.hidden.Aiko === false && r.hidden.Botan === true)
+            && J(toldPairs) === J([2, 1]),
+        J({ handHide, pairs, afterPairs: Object.fromEntries(Object.entries(afterPairs).map(([who, r]) => [who, shown(r)])), toldPairs }), { flow: "trial-scene" });
+    await gm.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Botan"); if (t.hidden) await t.update({ hidden: false }); return true;`, { timeout: 30000 });
+    await settle(400);
+    /* A player drops a shown token of their own student into the hall during the trial (E13 fix r1-F2, review r1 sec B):
+       a drag from the Actors tab where the world grants players TOKEN_CREATE - the harness lets a player's create of a
+       token of an actor they own through since this fix (cluster.mjs), and refused it before, so review r1's check of it
+       measured the refusal. Chie is unticked; C2 only told the GMs and left the token shown on every browser. Now the
+       primary hides it and tells the GMs once. The GM deletes it after: the scenario's own tidy-up, not the module's. */
+    const toldA5 = (await toldOf("playerTokenCreated", IDS.p3, "Chie dropped")).length;
+    const dropped = await p3.eval(`${HALL} try {
+            const [t] = await hall.createEmbeddedDocuments("Token", [{ name: "Chie dropped", actorId: "${IDS.chie}", actorLink: true, x: 900, y: 400,
+                width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" } }]);
+            return { id: t?.id ?? null, err: null };
+        } catch (err) { return { id: null, err: String(err?.message ?? err) }; }`, { timeout: 30000 });
+    await settle(2500);
+    const afterDrop = {};
+    for (const c of clients) afterDrop[c.who] = await c.eval(`${HALL} return hall.tokens.get(${J(dropped.id)})?.hidden ?? null;`);
+    const toldDrop = (await toldOf("playerTokenCreated", IDS.p3, "Chie dropped")).map(to => J(to));
+    check("a5: a shown token of Chie (unticked) that p3 drops into the hall during the trial is hidden on every browser, and the GMs are told once (E13 fix r1-F2)",
+        Boolean(dropped.id) && Object.values(afterDrop).every(hidden => hidden === true) && toldDrop.length - toldA5 === 1 && toldDrop.at(-1) === J([IDS.gm]),
+        J({ dropped, afterDrop, toldDrop, toldA5 }), { flow: "trial-scene" });
+    if (dropped.id) await gm.eval(`${HALL} await hall.deleteEmbeddedDocuments("Token", [${J(dropped.id)}]); return true;`, { timeout: 30000 });
+    await settle(400);
     const handA = await byHand();
     await settle(400);
     note(`a: by hand ${J(handA)} (since E13 C2 the module has shown the choice and since C3 activated the hall: nothing left to do)`);
@@ -308,6 +365,37 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
             && voices.gm.length === 7 && voices.gm.every(([, target]) => target === null)
             && J(accounts.gm.map(([name]) => name)) === J(["GM", "PlayerOne", "PlayerThree", "PlayerTwo"]) && accounts.gm.every(([, target]) => target === null),
         J({ voices, accounts }), { flow: "trial-scene" });
+
+    /* ------------------------------ l. the hall is not relinked during the trial ------------------------------ */
+    phase("l: the trial hall cannot be relinked or unlinked while the trial runs", { flow: "trial-scene" });
+    /* Review r1 cor C, by reading at 45e6bcf: in a running trial an Apply of the Scenes tab that unlinked or relinked the
+       hall was written, nothing hid the old hall's shown cast, and after an unlink End the trial had no hall to leave,
+       so the table stayed in the old hall with nobody told. Since E13 fix r1-F2 the window holds Apply with the reason,
+       and an Apply that gets through anyway (the button freed here by hand) writes nothing and warns. Room Setup opens
+       on the school during the trial (E13 C1), its Scenes tab drawn on the GM. */
+    const relink = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('[name="scenes:trial"]'));
+        const reason = game.i18n.localize("DRPG.TrialScene.hallInTrial"), told = globalThis.__notifications.length;
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        let held = null, label = null, closed = "hung";
+        try {
+            const pending = V.openRoomSetupDialog({ tab: "scenes" });
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const trial = el?.querySelector('[name="scenes:trial"]');
+            if (trial) { trial.value = ""; trial.dispatchEvent(new Event("change")); }
+            const ok = el?.querySelector('footer button[data-action="ok"]');
+            held = Boolean(ok?.disabled);
+            label = ok?.getAttribute("aria-label") === reason;
+            if (ok) { ok.disabled = false; ok.click(); }
+            closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
+        } finally { globalThis.__dialogWindows = was; }
+        await new Promise(r => setTimeout(r, 800));
+        return { held, label, closed, linked: R.sceneRoles().trial === hall.id && R.trialScene()?.id === hall.id,
+            warned: globalThis.__notifications.slice(told).some(n => n.msg === reason) };`, { timeout: 60000 });
+    await settle(400);
+    check("l1: in the trial, the Scenes tab with the hall unlinked holds Apply with the reason, and an Apply pressed anyway writes nothing and warns - the hall stays linked (E13 fix r1-F2)",
+        relink.held === true && relink.label === true && relink.closed === "closed" && relink.linked === true && relink.warned === true,
+        J(relink), { flow: "trial-scene" });
 
     /* ------------------------------ c. closeTrial ------------------------------ */
     phase("c: closeTrial", { flow: "trial-scene" });

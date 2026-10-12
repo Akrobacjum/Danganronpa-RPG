@@ -50167,12 +50167,18 @@ const SCENARIOS = [
          * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (MARKED, decision D2; R434's world half). Whether Foundry v14 lets a
          * token's owner write its `hidden` is not measured (LIVE-E13-08): what the primary hears when one does is its
          * `updateToken` hook with that player's id, and trial-scene.mjs `watchCast` is that listener - called here as
-         * Foundry calls it, after the GM wrote the state the player's write would have left (the GM's own write is heard
-         * too by the registered listener, and stands; a GM's id is handed to `watchCast` as well). Scenario 41 a3 has a player's browser write it. A hall of the suite's own, linked as the
-         * trial hall (the setting put back), holds a shown token of a student a player owns. Read, each time, whether the
-         * token is hidden after: a player's hide; the same carrying this module's `trialCast` option (a writer's claim);
-         * a player's show of a hidden token; a GM's hide. And what the GMs were whispered. Red before C2: there was no
-         * trial-scene.mjs, and a player's change stood.
+         * Foundry calls it, after the GM wrote the state the player's write would have left. Since E13 fix r1-F2 every
+         * GM's client notes the `hidden` a GM writes as the GMs' (review r1 sec A), so that stand-in write is made with
+         * the registered listener off (`quiet`), and the GM's own writes between the steps are heard by it; a GM's id is
+         * handed to `watchCast` as well. Scenario 41 a3 and a4 have players' browsers write it. A hall of the suite's
+         * own, linked as the trial hall (the setting put back), is given a shown token of a student a player owns.
+         * Read, each time, whether the token is hidden after: a player's hide; the same carrying this module's
+         * `trialCast` option (a writer's claim); a player's show of a token the GM hid; a GM's hide; and two changes
+         * of a player's both landed before the primary answers the first, on a token the GM showed (r1-F2: C2 answered
+         * each against itself and left the token hidden, with two whispers). First of all, a player's show of a hidden
+         * token made before the hall was linked, the first write on the hall this client hears: no GM's write of it was
+         * heard, so it goes back to where the module leaves a hall token out of the trial, hidden. And what the GMs were
+         * whispered. Red before C2: there was no trial-scene.mjs, and a player's change stood.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(T, "there is no trial-scene.mjs - a player's change to a hall token's hidden stands");
@@ -50189,12 +50195,23 @@ const SCENARIOS = [
         let hall = null, read = null;
         try {
             hall = await Scene.create({ name: "SUITE E13 C2 the hall a player touches", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
-            const [token] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 300, y: 300,
-                width: 1, height: 1, hidden: false }]);
+            const [unheard] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 500, y: 300,
+                width: 1, height: 1, hidden: true }]);
             if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
             await settle();
+            const quiet = async (doc, hidden) => {
+                Hooks.off("updateToken", T.watchCast);
+                try { await doc.update({ hidden }); } finally { Hooks.on("updateToken", T.watchCast); }
+            };
+            await quiet(unheard, false);
+            await T.watchCast(unheard, { hidden: false }, {}, player.id);
+            await settle();
+            const unseen = hall.tokens.get(unheard.id).hidden;
+            const [token] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 300, y: 300,
+                width: 1, height: 1, hidden: false }]);
+            await settle();
             const by = async (hidden, userId, options = {}) => {
-                await token.update({ hidden });
+                await quiet(token, hidden);
                 await T.watchCast(token, { hidden }, options, userId);
                 await settle();
                 return hall.tokens.get(token.id).hidden;
@@ -50204,7 +50221,14 @@ const SCENARIOS = [
             const shows = await by(false, player.id);
             await token.update({ hidden: false });
             const gm = await by(true, game.user.id);
-            read = [linkable, hides, shows, gm, await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)))];
+            await token.update({ hidden: false });
+            await quiet(token, true);
+            await quiet(token, false);
+            await T.watchCast(token, { hidden: true }, {}, player.id);
+            await T.watchCast(token, { hidden: false }, {}, player.id);
+            await settle();
+            const twice = hall.tokens.get(token.id).hidden;
+            read = [linkable, unseen, hides, shows, gm, twice, await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)))];
         } finally {
             if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
             await hall?.delete();
@@ -50212,8 +50236,9 @@ const SCENARIOS = [
             await settle();
         }
         const told = `<p>${game.i18n.format("DRPG.TrialScene.hiddenPutBack", { user: player.name, name: student.name })}</p>`;
-        equal(JSON.stringify(read), JSON.stringify([true, [false, false], true, true, [told, told, told]]),
-            "[the roles can be linked, hidden after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide; what the GMs were whispered]");
+        equal(JSON.stringify(read), JSON.stringify([true, true, [false, false], true, true, false, [told, told, told, told]]),
+            "[the roles can be linked, hidden after a player's show of a token no GM's write of was heard, after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide, "
+            + "after a player's hide and show both landed before the first was answered; what the GMs were whispered]");
     }],
     ["End the trial moves the living to the GM's room by the gather's own rule read as the GMs hold it; the hall's tokens stay hidden where they stand; a student on a scene with no rooms is left and named", async () => {
         /*

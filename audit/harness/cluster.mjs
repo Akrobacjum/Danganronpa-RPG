@@ -127,7 +127,7 @@ function canWrite(userId, op) {
         return actorOwned(doc, userId); // update + embedded ops on owned actor, its items' effects included (`via`, E29 fix r1-G3)
     }
     if (collName === "Scene") {
-        // players may update tokens of actors they own; nothing else
+        // players may update tokens of actors they own, create one of an actor they own (below), and touch a Region; nothing else
         if (action === "embedded-update" && op.embeddedName === "Token") {
             const scene = world.collections.Scene.find(s => s._id === op.docId);
             if (!scene) return false;
@@ -147,6 +147,22 @@ function canWrite(userId, op) {
          * module never sees.
          */
         if (action.startsWith("embedded-") && op.embeddedName === "Region") return true;
+        /*
+         * A PLAYER'S TOKEN (E13 fix r1-F2, 12.10.2026; review r1 sec B). Foundry lets a user whose role
+         * the world grants "Create New Tokens" (TOKEN_CREATE) make a token - a drag from the Actors
+         * tab - and this harness does not model that permission (lib/shim.mjs `can`). Refusing every
+         * player's create, as this did, hid a road the module answers (trial-scene.mjs
+         * `watchCastCreated`): review r1's check of it passed only because the create was refused. So
+         * a player's create of a Token of an actor they own goes through, as at a table that grants
+         * the permission. Which roles v14 grants it by default, and whether it lets a player make a
+         * token of an actor they do not own, is not read here; such a create is still refused.
+         */
+        if (action === "embedded-create" && op.embeddedName === "Token") {
+            return (op.payload ?? []).every(t => {
+                const actor = t?.actorId && world.collections.Actor.find(a => a._id === t.actorId);
+                return Boolean(actor) && actorOwned(actor, userId);
+            });
+        }
         return false;
     }
     // everything not allowed above is refused; per-permission creation (TRUSTED journals, player macros) is not modelled

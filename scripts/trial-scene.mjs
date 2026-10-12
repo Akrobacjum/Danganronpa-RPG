@@ -30,9 +30,10 @@
  * A player who owns a hall token may be able to write its `hidden` themselves:
  * whether Foundry v14 lets an owner do that is not measured (LIVE-E13-08) - the
  * headless harness lets an owner's update through, so the put-back below was
- * measured only there. The primary GM puts a player's change back to what stood
- * before it (`castPutBack`) and tells the GMs; a GM's change stands, and does
- * not change the stored choice.
+ * measured only there. The primary GM puts a player's change back to what the
+ * GMs last wrote (`castPutBack`, `castHeld`) and tells the GMs; a GM's change
+ * stands, and does not change the stored choice. A cast token a player makes in
+ * the hall is hidden and told (`watchCastCreated`).
  *
  * `hidden` IS A DRAW STATE, NOT A SECRET. Every client holds every token of the
  * hall in the scene's data, hidden or not (known-leaks `foundry-hidden-tokens`),
@@ -89,8 +90,8 @@
  * A browser still loading when the hall is activated only warns and stays where it was (A5's
  * reading of Foundry, not read in v14: LIVE-E13-02). So a player's browser puts its own view
  * right once, on its first `canvasReady` after a load (`selfRepair`; the owner's answer Q-E13-1 c,
- * 09.10.2026): the hall in the trial, the school out of it, and only when the scene it shows is
- * not the one a GM made active. Once, so a GM's later pull of one player to another scene stands;
+ * 09.10.2026): the hall in the trial, out of it the scene a GM made active, and only when the scene
+ * it shows is not that one. Once, so a GM's later pull of one player to another scene stands;
  * never on a GM's browser. The view decides no rule (rooms.mjs `CAMERA_READERS`).
  *
  * THE GM LINKS THE SCENES AND CHOOSES THE CAST IN A WINDOW (E13 C5): Room Setup's last tab, drawn,
@@ -548,51 +549,111 @@ export async function trialSceneReport() {
 /**
  * The scene a browser should switch its own view to on its first `canvasReady`, or null (Q-E13-1 c):
  * a player's only; in the trial the hall when the hall is the active scene and another is on screen;
- * out of it the school when the hall is on screen and the school is the active scene. Plain
- * arguments (R435 asks it of plain objects).
+ * out of it the active scene when the hall is on screen and another scene is active - the school, the
+ * scene of the room End the trial chose (C3b), or with no school linked the scene the trial opened from
+ * (`trialReturnTo`). Until E13 fix r1-F2 this asked for the school alone, so a late browser after the
+ * other two stayed in the hall, the place for nobody (review r1 cor B, by reading; R435's rows for both).
+ * Plain arguments (R435 asks it of plain objects).
  */
-export function viewRepair({ isGM = false, phase = null, hall = null, school = null, active = null, viewed = null } = {}) {
+export function viewRepair({ isGM = false, phase = null, hall = null, active = null, viewed = null } = {}) {
     if (isGM || !hall?.id) return null;
     if (phase === "classTrial") return active?.id === hall.id && viewed?.id !== hall.id ? hall : null;
-    return school?.id && active?.id === school.id && viewed?.id === hall.id ? school : null;
+    return active?.id && active.id !== hall.id && viewed?.id === hall.id ? active : null;
 }
 
 /** A player's browser, on its first `canvasReady` after a load: its own view put right once (`viewRepair`). */
 async function selfRepair() {
     try {
         const scene = viewRepair({ isGM: Boolean(game.user?.isGM), phase: getClock().phase, hall: trialScene(),
-            school: schoolScene(), active: game.scenes?.active ?? null, viewed: viewedScene() });
+            active: game.scenes?.active ?? null, viewed: viewedScene() });
         if (scene) await scene.view();
     } catch (err) {
         error("Could not put this browser's view of the trial hall right", err);
     }
 }
 
+/*
+ * WHAT THE GMS LAST WROTE, NOT THE OTHER STATE (E13 fix r1-F2, 12.10.2026; review r1 sec A). C2 put a
+ * player's change back by writing the opposite of what it wrote: `changed` holds only what differed,
+ * so the state before it was the other one. That holds for one change at a time. Review r1 measured two
+ * at 45e6bcf (scenario 41 with a phase of its own): Aiko's hall token shown by the GMs, p1 hid it and
+ * showed it again, both landing before the primary's first answer; each was answered against itself,
+ * and 3 s later every browser held the token hidden and the GMs had two whispers - the same with the
+ * second write sent whole (`diff: false`). So every GM's client keeps, per hall cast token, the
+ * `hidden` a GM last wrote (`castHeld`, fed by `watchCast` and `watchCastCreated` - this file's own
+ * reveal and hide are GMs' writes too), and the primary writes that value back only when the token
+ * holds another, and tells the GMs only when it wrote. A token no GM wrote since this client loaded,
+ * or since its hall was linked, is read off the hall as it stood when the first write to any of the
+ * hall's cast tokens reached this client (`seedCastHeld`); the changed token itself, then, as the
+ * module would have left it (`heldHidden`). Scenario 41 a4 sends both of review r1's pairs and a pair
+ * against a GM's own hide, on four browsers.
+ */
+const castHeld = new Map();
+const castSeeded = new Set();
+
+/** On a GM's client, once per hall: each cast token's `hidden` as it stands now, but `except`'s and any already heard. */
+function seedCastHeld(hall, except) {
+    if (castSeeded.has(hall.id)) return;
+    castSeeded.add(hall.id);
+    for (const token of castTokens(hall)) {
+        const key = castKey(hall.id, token.id);
+        if (token.id !== except && !castHeld.has(key)) castHeld.set(key, Boolean(token.hidden));
+    }
+}
+
+/**
+ * The `hidden` the GMs last wrote on one hall cast token, as this GM's client heard it; with none heard,
+ * the state the module would have left it in - in a running trial with the hall active the GMs' choice as
+ * the way in reads it (`castShows`), else hidden. Null with no hall.
+ */
+export function heldHidden(tokenDoc, hall = trialScene()) {
+    if (!hall || !tokenDoc?.id) return null;
+    const key = castKey(hall.id, tokenDoc.id);
+    if (castHeld.has(key)) return castHeld.get(key);
+    if (getClock().phase !== "classTrial" || !hall.active) return true;
+    const token = readCast(hall).find(row => row.id === tokenDoc.id);
+    return !(token && castShows(token, { sceneId: hall.id, rows: trialCastStore.entries() }));
+}
+
 /**
  * What the primary writes back after a change to a hall token's `hidden`, or null when it stands
  * (plan-E13 3.3, MARKED). A GM's change stands; a player's to a cast token of the linked hall is
- * undone - `changed` holds only what differed, so the state before it was the other one. Plain
- * arguments (R434 asks it of plain objects).
+ * put back to `held`, the `hidden` the GMs last wrote (`heldHidden`), and only when the token holds
+ * another - so a change the player's own next write or an earlier put-back already undid writes
+ * nothing. Plain arguments (R434 asks it of plain objects).
  *
  * The plan exempted a write carrying this file's `trialCast` option. It is not exempt here: an
  * option is the writer's own claim, and a player's console can send it as easily as the module
  * does; every write of this file is a GM's, and a GM's change already stands. Nor does it write
  * the stored choice in the trial, as the plan said: a GM may have shown or hidden a token by hand
- * since the trial opened, and a refusal changes nothing - so it puts back what stood.
+ * since the trial opened, and that is what the GMs last wrote.
  */
-export function castPutBack(tokenDoc, changed, options, user, hall = trialScene()) {
+export function castPutBack(tokenDoc, changed, options, user, hall = trialScene(), held = heldHidden(tokenDoc, hall)) {
     if (typeof changed?.hidden !== "boolean") return null;
     if (!user || user.isGM) return null;
     if (!hall || tokenDoc?.parent?.id !== hall.id || !isCastToken(tokenDoc)) return null;
-    return { hidden: !changed.hidden };
+    if (typeof held !== "boolean" || Boolean(tokenDoc.hidden) === held) return null;
+    return { hidden: held };
 }
 
-/** The primary's `updateToken` watcher on the hall: a player's `hidden` change is put back and told. */
+/**
+ * The `updateToken` watcher on the hall, on every GM's client: a GM's `hidden` is noted as the GMs'
+ * (`castHeld`); for a player's, what the GMs held is pinned before the primary answers, so a second
+ * change, and a GM who becomes the primary between the two, read the same value. The primary puts a
+ * player's change back and tells the GMs, once per change it undid.
+ */
 export async function watchCast(tokenDoc, changed, options, userId) {
-    if (!isPrimaryGm()) return;
+    if (!game.user?.isGM) return;
     try {
+        const hall = trialScene();
+        if (!hall || tokenDoc?.parent?.id !== hall.id || !isCastToken(tokenDoc) || typeof changed?.hidden !== "boolean") return;
         const user = game.users?.get?.(userId) ?? null;
-        const back = castPutBack(tokenDoc, changed, options, user);
+        const key = castKey(hall.id, tokenDoc.id);
+        seedCastHeld(hall, tokenDoc.id);
+        if (user?.isGM) castHeld.set(key, changed.hidden);
+        else if (!castHeld.has(key)) castHeld.set(key, heldHidden(tokenDoc, hall));
+        if (!isPrimaryGm()) return;
+        const back = castPutBack(tokenDoc, changed, options, user, hall, castHeld.get(key));
         if (!back) return;
         await tokenDoc.update(back, castWrite());
         log(`${user.name} changed whether the hall token ${tokenDoc.name} is hidden; put back.`);
@@ -604,20 +665,28 @@ export async function watchCast(tokenDoc, changed, options, userId) {
 }
 
 /**
- * The primary's `createToken` watcher on the hall: a cast token a player dropped there is told to the
- * GMs, not deleted (D7: the module deletes nothing in the hall). It joins the cast as any hall token
- * does, and the next entry names it if it is a second token of its actor.
+ * The `createToken` watcher on the hall, on every GM's client. A cast token a GM makes is noted as
+ * made (`castHeld`). One a player makes - a drag from the Actors tab, where the world grants players
+ * TOKEN_CREATE - holds no tick in the store, so hidden is the GMs' choice for it: every GM notes it
+ * so, and the primary hides it if it was made shown and tells the GMs (review r1 sec B: C2 only told
+ * them, and the token stood shown on every browser for the rest of the trial). Hidden, not deleted
+ * (D7: the module deletes nothing in the hall). It joins the cast as any hall token does, and the
+ * next entry names it if it is a second token of its actor. Scenario 41 a5.
  */
 async function watchCastCreated(tokenDoc, options, userId) {
-    if (!isPrimaryGm()) return;
+    if (!game.user?.isGM) return;
     try {
         const user = game.users?.get?.(userId) ?? null;
         const hall = trialScene();
-        if (!user || user.isGM || !hall || tokenDoc?.parent?.id !== hall.id || !isCastToken(tokenDoc)) return;
+        if (!user || !hall || tokenDoc?.parent?.id !== hall.id || !isCastToken(tokenDoc)) return;
+        seedCastHeld(hall, tokenDoc.id);
+        castHeld.set(castKey(hall.id, tokenDoc.id), user.isGM ? Boolean(tokenDoc.hidden) : true);
+        if (user.isGM || !isPrimaryGm()) return;
+        if (!tokenDoc.hidden) await tokenDoc.update({ hidden: true }, castWrite());
         await whisperToGms(`<p>${game.i18n.format("DRPG.TrialScene.playerTokenCreated", {
             user: esc(user.name), name: esc(tokenDoc.name ?? tokenDoc.id) })}</p>`);
     } catch (err) {
-        error("Could not tell the GMs of a token a player made in the trial hall", err);
+        error("Could not hide a token a player made in the trial hall", err);
     }
 }
 
@@ -753,7 +822,8 @@ export function scenesTabHtml(roles = sceneRoles()) {
 /**
  * The tab's live half, in a drawn window: the warnings follow both selects, the cast list follows
  * the hall's (a GM linking a hall picks its cast in the same Apply), and `block(reason | null)`
- * holds Apply while both name one scene (vault.mjs `setApplyBlock`).
+ * holds Apply while both name one scene, or while the hall select is changed in a running trial
+ * (`hallLocked`) (vault.mjs `setApplyBlock`).
  */
 export function wireScenesTab(root, block = () => {}) {
     const [school, trial] = ["school", "trial"].map(role => root?.querySelector?.(`[name="scenes:${role}"]`));
@@ -763,7 +833,10 @@ export function wireScenesTab(root, block = () => {}) {
     const scene = select => (select.value ? game.scenes.get(select.value) : null) ?? null;
     const redraw = () => {
         report.innerHTML = reportHtml(scene(school), scene(trial));
-        block(scenesClash({ school: school.value, trial: trial.value }) ? game.i18n.localize("DRPG.TrialScene.sameScene") : null);
+        let reason = null;
+        if (scenesClash({ school: school.value, trial: trial.value })) reason = game.i18n.localize("DRPG.TrialScene.sameScene");
+        else if (hallLocked({ trial: trial.value, drawn: { trial: trial.dataset.drawn ?? "" } })) reason = game.i18n.localize("DRPG.TrialScene.hallInTrial");
+        block(reason);
     };
     school.addEventListener("change", redraw);
     trial.addEventListener("change", () => {
@@ -793,6 +866,19 @@ export function readScenesTab(root) {
 /** Whether a reading of the tab names one scene for both roles - Apply is refused before anything is written. */
 export function scenesClash(read) {
     return Boolean(read?.school) && read.school === read.trial;
+}
+
+/**
+ * Whether a reading of the tab moves the trial hall - links another or unlinks it - while a Class
+ * Trial runs. Refused before anything is written, as a clash is (vault.mjs, after `scenesClash`), and
+ * the window holds Apply with the reason (`wireScenesTab`): the GM ends the trial first. Until E13 fix
+ * r1-F2 nothing refused it, and by review r1's reading (cor C) nothing hid the old hall's shown cast,
+ * and an unlink left End the trial no hall to leave (`leaveTrialScene` reads the link), so the phase
+ * went back while the table stayed in the old hall and nobody was told. Scenario 41 l1 reads the
+ * refusal on the GM's window. Pure over the reading and the phase.
+ */
+export function hallLocked(read, phase = getClock().phase) {
+    return phase === "classTrial" && Boolean(read) && (read.trial ?? "") !== (read.drawn?.trial ?? "");
 }
 
 /**
@@ -851,7 +937,8 @@ export async function prepareTrialScene(scene, { playlist = false, voice = false
  * the cast's changed ticks (`saveTrialCast`), then - when the linked hall or its choice changed -
  * the hall's tokens as the phase wants them: out of the trial the whole cast hidden, so the hall
  * rests until a trial opens; in the trial with the hall active the new choice, one diff
- * (`applyTrialCast`); in the trial with another scene active nothing - relinking switches no scene.
+ * (`applyTrialCast`); in the trial with another scene active nothing. A change of the hall itself in
+ * a running trial never reaches here: Room Setup refuses it first (`hallLocked`).
  * Then "Prepare the hall". Answers what it did, or null off a GM.
  */
 export async function applyScenesTab(read) {

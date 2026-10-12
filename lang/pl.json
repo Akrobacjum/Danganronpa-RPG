@@ -1970,8 +1970,8 @@
     "TrialScene": {
       "castUnavailable": "Class Trial się zaczął, a w sali rozpraw nikogo nie odkryto: wybór jej tokenów dokonany przez GM-ów nie dotarł jeszcze do tego klienta. Odkryj je ręcznie na scenie sali.",
       "duplicateToken": "Ta sama postać ma w sali rozpraw więcej niż jeden token i odkryto tylko pierwszy. Ukryte zostały: {names}.",
-      "playerTokenCreated": "Konto {user} utworzyło token w sali rozpraw: {name}. Zostaje na miejscu, a następny Class Trial potraktuje go jak każdy token sali.",
-      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono to, co było.",
+      "playerTokenCreated": "Konto {user} utworzyło token w sali rozpraw: {name}. Jest ukryty - odkrywanie tokenów sali należy do GM-a - i zostaje na miejscu; następny Class Trial potraktuje go jak każdy token sali.",
+      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono go do stanu, w jakim zostawili go GM-owie.",
       "noSchool": "Class Trial się zakończył, ale żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw, a jej tokeny bez zmian. Aktywuj scenę ręcznie.",
       "missingTokens": {
         "one": "Sala rozpraw nie ma tokenu dla {n} postaci prowadzonej przez gracza, więc rozprawa nie może jej pokazać: {names}. Postaw token na scenie sali.",
@@ -1999,6 +1999,7 @@
       "reveal": "Zaznaczony: pokazywany, gdy zaczyna się Class Trial. Token bez zaznaczenia zostaje ukryty - token testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
       "noCast": "W sali nie ma jeszcze tokenu żadnego ucznia ani Monokumy.",
       "sameScene": "Szkoła i sala rozpraw to ta sama scena. Wybierz dwie różne - do tego czasu Zastosuj czeka.",
+      "hallInTrial": "W podpiętej sali rozpraw trwa Class Trial. Zakończ rozprawę, zanim podepniesz inną salę albo odepniesz tę - do tego czasu Zastosuj czeka.",
       "noSchoolLinked": "Żadna scena nie jest podpięta jako szkoła: koniec rozprawy wraca do sceny, która była aktywna, gdy rozprawa się zaczęła.",
       "hallHasRooms": "Ta scena ma regiony oznaczone jako pokoje: {names}. W sali rozpraw nie są pokojami - czy to nie mapa szkoły? Regiony nieoznaczone jako pokoje mogą tu zostać.",
       "duplicateInHall": "Ta sama postać ma w sali więcej niż jeden token, a rozprawa pokazuje tylko pierwszy. Pozostałe: {names}.",
