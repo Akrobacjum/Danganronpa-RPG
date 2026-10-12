@@ -72,6 +72,7 @@ import { registerVoiceClient } from "./voice-client.mjs";
 import { registerMusic } from "./music.mjs";
 import { registerCameraView } from "./camera-view.mjs";
 import { registerPopups } from "./popup.mjs";
+import { registerNoticeHistory } from "./notice-history.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
@@ -231,6 +232,7 @@ Hooks.once("init", () => {
     // is the one worth getting right.
     safely("the motion layer", registerMotion);
     safely("popups", registerPopups);
+    safely("the notice history", registerNoticeHistory);
     // After popups, before anything that opens one: every module prompt is
     // something the game is waiting on, so none of them may end up under the
     // sheet that launched them. See stacking.mjs.

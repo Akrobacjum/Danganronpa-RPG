@@ -5164,6 +5164,10 @@
       "openFailed": "Magazyn GM-a nie mógł się otworzyć w tej przeglądarce: {error}. Dopóki się nie otworzy, Analyze i przekazanie Truth Bulletu są odrzucane. Przeładuj, aby spróbować ponownie; szczegóły są w konsoli.",
       "notOpen": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie."
     },
+    "Notices": {
+      "notSaved": "Ta przeglądarka nie mogła zapisać historii powiadomień: powiadomienia pokazane od teraz zostaną tylko do zamknięcia lub przeładowania tej strony.",
+      "clipped": "Za długie, by zachować całość: zachowano tylko tekst."
+    },
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
       "backupTitle": "Kopia sprawy",

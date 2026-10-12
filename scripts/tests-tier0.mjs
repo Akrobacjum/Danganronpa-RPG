@@ -8479,6 +8479,10 @@ const REGRESSIONS = [
          * from module.mjs reaches (all 127 non-suite files of scripts/), found the 36 sources of the parse-only census kept
          * with the E81 plan outside the repository, none either side - 10 SURFACE, 13 NOTDONE, 8 FLAG, 3 DELETE, 2 HOOK.
          * On the harness (12.10.2026, this test alone, once) it read the same 36 against the 36 rows, none either side.
+         * E81 C1 (12.10.2026) registered `SETTINGS.noticeHistory` and the history's `storage` listener: the five STORE
+         * sources and one HOOK more. The same reader then read 42 roads against 42 rows, none either side - 10 SURFACE,
+         * 13 NOTDONE, 8 FLAG, 3 DELETE, 3 HOOK, 5 STORE - in Node on the 128 files of the crawl and on the harness
+         * (12.10.2026, this test alone, three runs alike).
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
@@ -8490,7 +8494,7 @@ const REGRESSIONS = [
             ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (E81 C3)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (E81 C3)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (E81 C3)"],
-            ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary and cleaned at save like every snapshot (E81 C4)"],
+            ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (E81 C4)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "the other party's words in a card (`cardPreview`): a GM's ask card, a player's own thread; kept as a messenger entry and cleaned at save (E81 C4)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept like every other notice (the owner's Q7, 07.10.2026) and cleaned at save (E81 C4)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent, the same on every client; nobody else's words (E81 C4)"],
@@ -8514,13 +8518,19 @@ const REGRESSIONS = [
             ["FLAG popup.mjs#onCreateChatMessage#popupKind", "kind \"none\" draws nothing; any other is a closed list (`KINDS`) on draw, and again on read (E81 C2)"],
             ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown (E81 C3)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`) (E81 C3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; clipped when kept (E81 C3)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; the store clips a kept title to 200 characters since E81 C1 (R292); kept by E81 C3"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards; the deletion becomes a withdraw that removes the entry (E81 C5)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card; the deletion becomes a withdraw that removes the entry (E81 C5)"],
-            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option: an entry stays, marked deleted, until the reset clears the section (E81 C1 and C5)"],
+            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option: its epoch clears every section of this world at the next read or write since E81 C1 (R297); until then an entry stays, marked deleted (E81 C5)"],
             ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (E81 C3)"],
-            ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen; only the withdraw option will remove its entry, any other deletion marks it (E81 C5)"]
+            ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen; only the withdraw option will remove its entry, any other deletion marks it (E81 C5)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
+            ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); nothing records before E81 C3"],
+            ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],
+            ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); cleared with every section of this world by the season's reset (R297)"],
+            ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
+            ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const NOTICE_FILES = /^(?:popup|notice-history)\.mjs$/;

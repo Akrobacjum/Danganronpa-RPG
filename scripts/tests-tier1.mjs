@@ -7171,6 +7171,343 @@ const INVARIANTS = [
             "[the GM's chrome after the relay guard; before the requirements check; stamped at ready; the renders hooked; "
             + "each to markGmChrome; a setting read on that road]");
     }],
+    ["R292 - the notice history keeps what it is given within its budgets, by world and user, and another tab's copy merges in without a loss, a double or a return from the grave", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 design's A7-1 (S16-08: a card closed was a card gone). First the setting the
+         * module's own engine writes: this browser's (client scope), out of the settings window, an Object, `{}` by
+         * default. Then the engine of notice-history.mjs over a value in memory (`noticeBench`, below the list): nothing is debounced, a case
+         * flushes, and the time and the clock are the test's to move. The cases, each on a value of its own: the
+         * section's key and the entry's `id`, `at` and clock (this client's, whatever the caller passes); the
+         * clipping of a title, a text and an html over its budget, a day summary's larger one; at most 4 full day
+         * summaries in a section; the 251st entry of a player's section and the 151st of a GM's; a section's
+         * 200 000 characters; 40 cards from each player author; the value's 500 000, other worlds first and this
+         * world's other accounts after them; the epoch on read and on write; `open` read back as `unread`; a raw
+         * value read through the shape; two tabs of one login - the union, one entry per message and source, a
+         * withdrawn entry and a Clear that another tab's copy does not bring back, tombstones let go after ten
+         * minutes; this login's section taken out by another account written again from memory; a write that
+         * fails once and twice. What a browser's quota counts is not measured here: the budgets are JSON lengths.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.createNoticeEngine === "function", "there is no notice history: a card closed is gone, and a reload loses every card (S16-08)");
+        const setting = game.settings.settings.get(`${MODULE_ID}.noticeHistory`);
+        equal(JSON.stringify([setting?.scope ?? null, setting?.config ?? null, setting?.type === Object, setting?.default ?? null]),
+            JSON.stringify(["client", false, true, {}]), "the history's setting [scope, config, an Object, default]");
+        const U1 = "SuitePlayerOne01", U2 = "SuitePlayerTwo02", W = "suite-world", KEY = `${W}.${U1}`;
+        const at = { now: 1_000_000 }, clock = { value: { chapter: 2, day: 3, session: 4, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const bench = (store, user = U1, more = {}) => noticeBench(NH.createNoticeEngine, { store, user, world: W, at, clock, ...more });
+        const card = (n, more = {}) => ({ source: "mine", kind: "info", title: `card ${n}`, text: `text ${n}`, html: `<p>card ${n}</p>`, ...more });
+        const fresh = () => ({ raw: null, writes: 0, fail: 0 });
+        const stored = store => JSON.parse(store.raw);
+        const tick = (ms = 1000) => { at.now += ms; };
+
+        // The key, and what is this client's.
+        let store = fresh(), e = bench(store);
+        e.open();
+        const first = e.record(card(1, { at: 5, id: "ForgedIdForged00" }));
+        await e.flush();
+        const [kept] = stored(store).sections[KEY]?.entries ?? [];
+        must(kept, "the first entry was not written - nothing below would be measured");
+        equal(JSON.stringify([stored(store).v, Object.keys(stored(store).sections), kept.id === first, kept.at, kept.state, kept.clock.chapter, store.writes]),
+            JSON.stringify([1, [KEY], true, at.now, "open", 2, 1]),
+            "[the format; one section, keyed world.user; the id the record answered; `at` this client's clock, not the caller's; open; the clock's chapter; one write]");
+
+        // Clipping.
+        e = bench(fresh());
+        e.open();
+        e.record(card(1, { title: "t".repeat(300), text: "x".repeat(700) }));
+        e.record(card(2, { html: `<p>${"y".repeat(8100)}</p>` }));
+        e.record(card(3, { source: "summary", html: `<p>${"z".repeat(20000)}</p>` }));
+        e.record(card(4, { source: "summary", html: `<p>${"z".repeat(24100)}</p>` }));
+        must(e.entries().length === 4, `the clipping cases kept ${e.entries().length} entries of 4`);
+        equal(JSON.stringify(e.entries().map(x => [x.title.length, x.text.length, x.html.length > 0, x.clipped])),
+            JSON.stringify([[200, 600, true, false], [6, 6, false, true], [6, 6, true, false], [6, 6, false, true]]),
+            "[a title clipped to 200 and a text to 600; an html over 8 000 dropped and the entry clipped; a summary of 20 000 kept; one over 24 000 clipped]");
+
+        // At most 4 full day summaries.
+        e = bench(fresh());
+        e.open();
+        for (let n = 0; n < 5; n++) { tick(); e.record(card(n, { source: "summary" })); }
+        must(e.entries().length === 5, `the summary case kept ${e.entries().length} of 5`);
+        equal(JSON.stringify(e.entries().map(x => x.clipped)), JSON.stringify([true, false, false, false, false]),
+            "a fifth day summary in a section did not clip the oldest of the five");
+
+        // The 251st entry, and a GM's 151st.
+        const counts = [];
+        for (const [gm, n] of [[false, 251], [true, 151]]) {
+            e = bench(fresh(), U1, { gm });
+            e.open();
+            for (let i = 0; i < n; i++) { tick(); e.record(card(i)); }
+            counts.push(e.entries().length, e.entries()[0]?.title);
+        }
+        equal(JSON.stringify(counts), JSON.stringify([250, "card 1", 150, "card 1"]),
+            "[a player's section after 251 entries, its oldest; a GM's after 151, its oldest]");
+
+        // A section's 200 000 characters.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        for (let i = 0; i < 30; i++) { tick(); e.record(card(i, { html: `<p>${"w".repeat(7900)}</p>` })); }
+        await e.flush();
+        const big = stored(store).sections[KEY];
+        must(big?.entries?.length > 0, "the section over its characters kept nothing - nothing to measure");
+        equal(JSON.stringify([JSON.stringify(big).length <= 200000, big.entries.length < 30, big.entries.at(-1).title]),
+            JSON.stringify([true, true, "card 29"]),
+            "[a section within 200 000 characters; some of 30 entries of 8 000 gone; the newest kept]");
+
+        // 40 cards from each player author.
+        e = bench(fresh());
+        e.open();
+        const A = "SuiteAuthorAaaa1", B = "SuiteAuthorBbbb2";
+        for (let i = 0; i < 41; i++) { tick(); e.record(card(i, { source: "player", author: A })); }
+        for (let i = 0; i < 3; i++) { tick(); e.record(card(`b${i}`, { source: "player", author: B })); }
+        for (let i = 0; i < 2; i++) { tick(); e.record(card(`p${i}`, { source: "public", author: A })); }
+        const byAuthor = who => e.entries().filter(x => x.author === who).length;
+        must(e.entries().length > 0, "the author case kept nothing");
+        equal(JSON.stringify([byAuthor(A), byAuthor(B), e.entries().filter(x => x.source === "public").length,
+            e.entries().some(x => x.title === "card 0"), e.entries().some(x => x.source === "public" && x.author)]),
+            JSON.stringify([40, 3, 2, false, false]),
+            "[author A's cards after 41; author B's 3; the public ones beside them; A's oldest gone; an author kept on a card that is not a player's]");
+
+        // The whole value's 500 000: other worlds first, the least recently written first, then this world's other accounts.
+        const epoch = NH.noticeEpoch(clock.value);
+        const filler = (touched, chars) => ({ epoch, touched, clearedAt: 0, gone: {}, entries: [], pad: "f".repeat(chars) });
+        const evicted = [];
+        for (const sections of [
+            { [`other-world.${U1}`]: filler(20, 170000), [`third-world.${U1}`]: filler(10, 170000), [`${W}.${U2}`]: filler(1, 170000) },
+            { [`${W}.${U2}`]: filler(1, 520000) }
+        ]) {
+            store = { ...fresh(), raw: JSON.stringify({ v: 1, sections }) };
+            e = bench(store);
+            e.open();
+            e.record(card("own"));
+            await e.flush();
+            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length);
+        }
+        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, `${W}.${U1}`, true, 1]),
+            "[over 500 000 with two other worlds and another account here: the least recently written other world goes, the account stays though older; "
+            + "with this world's other account alone over it: that section goes, this login's entry stays]");
+
+        // The epoch: on read, and on write.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        e.record(card("before"));
+        await e.flush();
+        must(stored(store).sections[KEY]?.entries?.length === 1, "the entry before the reset was not written");
+        clock.value = { ...clock.value, resetCuts: { incident: at.now } };
+        const reread = bench(store);
+        reread.open();
+        const onRead = reread.entries().length;
+        clock.value = { ...clock.value, resetCuts: { incident: at.now, chatRest: at.now + 1 } };
+        e.record(card("after"));
+        await e.flush();
+        equal(JSON.stringify([onRead, stored(store).sections[KEY].entries.map(x => x.title), stored(store).sections[KEY].epoch === NH.noticeEpoch(clock.value)]),
+            JSON.stringify([0, ["card after"], true]),
+            "[a section written before a reset, read after it; a section written to after another reset; its epoch the clock's]");
+
+        // `open` comes back as `unread`; a raw value is read through the shape.
+        const good = { id: "SuiteEntryGood01", at: 5, messageId: null, kind: "info", tone: null, source: "mine", state: "open", mark: null, title: "kept", text: "", html: "", clipped: false, clock: {} };
+        const raws = [good, { ...good, id: "SuiteEntryRead02", state: "read" }, { ...good, id: "bad\"id\"Entry003" }, { ...good, id: "SuiteEntryBad004", source: "forged" },
+            { ...good, id: "SuiteEntryBad005", state: "shown" }, { ...good, id: "SuiteEntryBad006", messageId: "<b>" }, { ...good, id: "SuiteEntryAuth07", author: U2 }];
+        store = { ...fresh(), raw: JSON.stringify({ v: 1, sections: { [KEY]: { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: raws } } }) };
+        e = bench(store);
+        e.open();
+        const newer = bench({ ...fresh(), raw: JSON.stringify({ v: 2, sections: { [KEY]: { entries: raws } } }) });
+        newer.open();
+        equal(JSON.stringify([e.entries().map(x => [x.id, x.state, x.author ?? null]), newer.entries().length, newer.status().saving]),
+            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", null]], 0, false]),
+            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author dropped from a card that is not a player's; "
+            + "a newer format read as nothing and kept in memory only]");
+
+        // Two tabs of one login.
+        store = fresh();
+        const one = bench(store), two = bench(store);
+        one.open();
+        two.open();
+        tick(); const a = one.record(card("a"));
+        tick(); const b = two.record(card("b"));
+        await one.flush(); await two.flush(); one.external();
+        const ids = () => stored(store).sections[KEY].entries.map(x => x.id);
+        must(ids().length > 0, "neither tab wrote");
+        const union = [ids().join(), one.entries().map(x => x.id).join()];
+        const M = "SuiteMessageId01";
+        tick(); one.record(card("m1", { messageId: M }));
+        tick(); const m2 = two.record(card("m2", { messageId: M }));
+        await one.flush(); await two.flush(); one.external();
+        const upsert = [stored(store).sections[KEY].entries.filter(x => x.messageId === M).map(x => x.id).join(), one.entries().filter(x => x.messageId === M).map(x => x.id).join()];
+        one.remove(a);
+        await one.flush(); await two.flush(); two.external();
+        const buried = [ids().includes(a), two.entries().some(x => x.id === a)];
+        tick(); one.clear();
+        await one.flush(); await two.flush(); two.external();
+        const cleared = [ids().length, two.entries().length, Object.keys(stored(store).sections[KEY].gone).length > 0];
+        tick(11 * 60 * 1000); await one.flush();
+        const tombstones = Object.keys(stored(store).sections[KEY].gone).length;
+        /* A copy older than the Clear, its tombstones let go: what is kept out now is `clearedAt` alone. */
+        const late = stored(store), STALE = "SuiteStaleCopy01";
+        late.sections[KEY].entries.push({ id: STALE, at: late.sections[KEY].clearedAt - 1, messageId: null, kind: "info", tone: null,
+            source: "mine", state: "read", mark: null, title: "stale", text: "", html: "", clipped: false, clock: {} });
+        store.raw = JSON.stringify(late);
+        one.external();
+        equal(JSON.stringify([union, upsert, buried, cleared, tombstones, one.entries().some(x => x.id === STALE)]),
+            JSON.stringify([[`${a},${b}`, `${a},${b}`], [m2, m2], [false, false], [0, 0, true], 0, false]),
+            "[both tabs' entries in the value and in the first tab, once each; one entry for a message and source, the newer; a withdrawn entry back from the tab that held it; "
+            + "a Clear undone by the other tab's copy; the tombstones after ten minutes; an entry from before the Clear in a copy read after them]");
+
+        // This login's section taken out of the value: written again from memory.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        tick(); e.record(card("x"));
+        await e.flush();
+        const value = stored(store);
+        delete value.sections[KEY];
+        store.raw = JSON.stringify(value);
+        tick(); e.record(card("y"));
+        await e.flush();
+        equal(JSON.stringify(stored(store).sections[KEY]?.entries?.map(x => x.title)), JSON.stringify(["card x", "card y"]),
+            "this login's section, taken out of the value by another account's write, did not come back whole at the next write");
+
+        // A write that fails: once - the oldest quarter goes and it is written; twice - memory only, and the footer's text.
+        const failed = [];
+        for (const fail of [1, 2]) {
+            store = fresh();
+            e = bench(store);
+            e.open();
+            for (let i = 0; i < 8; i++) { tick(); e.record(card(i)); }
+            store.fail = fail;
+            await e.flush();
+            failed.push(store.raw ? stored(store).sections[KEY].entries.length : null, e.entries().length, e.status().note);
+        }
+        equal(JSON.stringify(failed), JSON.stringify([6, 6, null, null, 6, "DRPG.Notices.notSaved"]),
+            "[a write failed once: a quarter of 8 gone and the rest written; failed twice: nothing written, 6 kept in memory, the footer's text]");
+    }],
+
+    ["R297 - each account keeps what its own browser showed it: every account's section stays in the value to the season's reset, and the reset clears them all", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 design's A7-6, its accounts and its epoch (C3 and C4 add the recipients and the
+         * sensitive entries). The owner's Q9 (11.10.2026, "Bierzemy alternatywę"): on a browser two accounts share,
+         * no account's section is taken out when another logs in, and the season's reset - a reset of the clock, the
+         * incident, the cards or the rest of the chat log - clears every one, the absent account's included. Read at
+         * the value's level, as `game.settings.get` would show it, on the engine over a value in memory: the first
+         * account's section byte for byte after the second's `ready`; for every group of `RESET_GROUPS`, whether the
+         * second account's first read after a reset of that group alone clears the first's section and its own; and
+         * an account that logs in here first after the reset; a tab open across it whose next write clears as a read
+         * does. The cuts are `resetCutPatch`'s, the reset's own. The
+         * accounts share the value because the setting is this browser's (client scope), which is checked first.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.createNoticeEngine === "function", "there is no notice history: nothing is kept for any account");
+        equal(game.settings.settings.get(`${MODULE_ID}.noticeHistory`)?.scope ?? null, "client",
+            "the history is not kept in this browser: a world setting would be one value for every account of every browser");
+        const { RESET_GROUPS, resetCutPatch } = await import("./season-exceptions.mjs");
+        const groups = RESET_GROUPS.map(group => group.key);
+        must(groups.length > NH.EPOCH_GROUPS.length, `RESET_GROUPS has ${groups.length} groups - nothing to tell apart`);
+        /* The A7 design's 1c, not the module's list read back: a test that took its expectation from EPOCH_GROUPS
+           passed with "chatRest" struck from it (a mutant run while this test was written, 12.10.2026). */
+        const EPOCH = ["clock", "incident", "cards", "chatRest"];
+        equal(JSON.stringify([...NH.EPOCH_GROUPS].sort()), JSON.stringify([...EPOCH].sort()), "the reset groups whose cut moves the epoch");
+        equal(EPOCH.filter(group => !groups.includes(group)).join(", "), "", "the epoch names a group the reset does not have");
+        const U1 = "SuitePlayerOne01", U2 = "SuitePlayerTwo02", U3 = "SuiteLateComer03", W = "suite-world";
+        const at = { now: 2_000_000 }, base = { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} };
+        const clock = { value: base };
+        const bench = (store, user) => noticeBench(NH.createNoticeEngine, { store, user, world: W, at, clock });
+        const card = n => ({ source: "mine", kind: "info", title: `card ${n}`, text: "", html: `<p>card ${n}</p>` });
+        const sections = store => JSON.parse(store.raw).sections;
+
+        // Two logins: the second's `ready` leaves the first's section as it was.
+        let store = { raw: null, writes: 0, fail: 0 };
+        const first = bench(store, U1);
+        first.open();
+        first.record(card(1)); at.now++; first.record(card(2));
+        await first.flush();
+        const before = JSON.stringify(sections(store)[`${W}.${U1}`]);
+        must(JSON.parse(before)?.entries?.length === 2, "the first account's two entries were not written");
+        const second = bench(store, U2);
+        second.open();
+        at.now++; second.record(card(3));
+        await second.flush();
+        equal(JSON.stringify([JSON.stringify(sections(store)[`${W}.${U1}`]) === before, Object.keys(sections(store)).sort(), second.entries().map(x => x.title)]),
+            JSON.stringify([true, [`${W}.${U1}`, `${W}.${U2}`], ["card 3"]]),
+            "[the first account's section byte for byte after the second's ready and write; both sections in the value; the second reads only its own]");
+
+        // The reset, group by group: the second account's first read after it, the first account absent.
+        const cleared = {};
+        for (const group of groups) {
+            clock.value = base;
+            store = { raw: null, writes: 0, fail: 0 };
+            const a = bench(store, U1), b = bench(store, U2);
+            a.open(); at.now++; a.record(card("a")); await a.flush();
+            b.open(); at.now++; b.record(card("b")); await b.flush();
+            must(Object.keys(sections(store)).length === 2, `before the ${group} reset the value holds ${Object.keys(sections(store)).length} sections`);
+            at.now += 1000;
+            clock.value = { ...base, ...resetCutPatch({ groups: new Set([group]) }, base, at.now) };
+            const back = bench(store, U2);
+            back.open();
+            await back.flush();
+            cleared[group] = [!sections(store)[`${W}.${U1}`], back.entries().length === 0];
+        }
+        equal(JSON.stringify(cleared), JSON.stringify(Object.fromEntries(groups.map(group => [group, EPOCH.includes(group) ? [true, true] : [false, false]]))),
+            "[per reset group: the absent first account's section gone at the second's first read; the second's own empty] - "
+            + `the clock, the incident, the cards and the rest of the chat log clear, no other group does`);
+
+        // An account that logs in here first after the reset.
+        const late = bench(store, U3);
+        late.open();
+        await late.flush();
+        equal(JSON.stringify([late.entries().length, Object.keys(sections(store)).includes(`${W}.${U1}`)]), JSON.stringify([0, false]),
+            "[a late account's history after the reset; the first account's section, written before it]");
+
+        // A tab open across the reset that writes before it has heard of it (no `checkEpoch`): the write clears too.
+        clock.value = base;
+        store = { raw: null, writes: 0, fail: 0 };
+        const stay = bench(store, U1), across = bench(store, U2);
+        stay.open(); at.now++; stay.record(card("x")); await stay.flush();
+        across.open(); at.now++; across.record(card("y")); await across.flush();
+        at.now += 1000;
+        clock.value = { ...base, ...resetCutPatch({ groups: new Set(["incident"]) }, base, at.now) };
+        at.now++; across.record(card("z")); await across.flush();
+        equal(JSON.stringify([!sections(store)[`${W}.${U1}`], sections(store)[`${W}.${U2}`]?.entries?.map(x => x.title) ?? null]),
+            JSON.stringify([true, ["card z"]]),
+            "[an incident reset met by an open tab's write: the absent first account's section gone; the writer's own section only what it recorded after]");
+    }],
+
+    ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 plan's 2.4 and its ledger's V22. The history is this browser's record of what it
+         * showed, and the suite shows cards (C3 records them): a tier 2 that wrote its cards into a GM's history would
+         * leave them there after the run. On the module's own engine: held, a notice is recorded, kept in memory and
+         * not written past the 400 ms debounce; let go, it is forgotten. In tests.mjs with comments blanked: the hold
+         * beside the GM store's at the start of tier 2, its release beside the GM store's, and the failing line named
+         * "the suite left this browser's notice history as it found it" after it - which is the measurement of a run;
+         * this test is what keeps it there.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.holdNoticeHistory === "function", "there is no notice history to hold, and no reading of it across the run");
+        const stored = () => game.settings.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.noticeHistory`) ?? "";
+        const before = stored();
+        let id = null, kept = false, after = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            id = NH.recordNotice({ source: "mine", kind: "info", title: "R473", text: "R473", html: "<p>R473</p>" });
+            kept = NH.noticeEntries().some(entry => entry.id === id);
+            await settle();
+            await wait(600);
+            after = stored();
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        must(id !== null, "the history refused the suite's notice - the hold would be measured on nothing");
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const start = bodyOf(src, "gmStoreHold(true);", { length: 2000 });
+        const release = bodyOf(src, "gmStoreHold(false);", { length: 700 });
+        equal(JSON.stringify([kept, after === before, NH.noticeEntries().some(entry => entry.id === id),
+            /^gmStoreHold\(true\);\s*await holdNoticeHistory\(true\);\s*noticesFound = noticeHistoryText\(\);/.test(start), /^gmStoreHold\(false\);\s*holdNoticeHistory\(false\);/.test(release),
+            /name: "the suite left this browser's notice history as it found it"/.test(release) && /outcome: "fail"/.test(release)]),
+            JSON.stringify([true, true, false, true, true, true]),
+            "[held, the notice in memory; the stored history unchanged past the debounce; forgotten at the release; "
+            + "the runner holds it beside the GM store and reads it; releases it beside the GM store; fails the run on a difference]");
+    }],
 ];
 
 /**
@@ -7222,5 +7559,30 @@ const LITERAL_KEYS = [
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`)
 ];
+
+/*
+ * The notice history's engine over a value in memory (R292, R297; E81 C1): `store.raw` is the stored text as
+ * localStorage would hold it, `store.writes` counts the writes and `store.fail` makes that many writes throw.
+ * Nothing is debounced - a test flushes - and the time and the clock are the caller's objects to move. Ids are
+ * numbered across every engine made here, so two tabs never draw the same one.
+ */
+let noticeIds = 0;
+function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock }) {
+    return createNoticeEngine({
+        worldId: () => world, userId: () => user, isGM: () => gm, now: () => at.now,
+        randomId: () => `SuiteNotice${String(++noticeIds).padStart(5, "0")}`,
+        clock: () => clock.value, userExists: () => true,
+        storage: {
+            read: () => store.raw,
+            write: async value => {
+                if (store.fail > 0) { store.fail--; throw new Error("the suite's full storage"); }
+                store.raw = JSON.stringify(value);
+                store.writes++;
+            }
+        },
+        timers: { set: () => 0, clear: () => {} },
+        log: { warn: () => {}, debug: () => {} }
+    });
+}
 
 export { INVARIANTS };
