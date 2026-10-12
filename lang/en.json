@@ -1897,6 +1897,7 @@
       "castUnavailable": "The trial opened and nobody in the trial hall was shown: the GMs' choice of its tokens had not reached this client yet. Show them by hand on the hall's scene.",
       "duplicateToken": "More than one token in the trial hall stands for the same character, and only the first was shown. Kept hidden: {names}.",
       "playerTokenCreated": "{user} made a token in the trial hall: {name}. It is hidden - showing the hall's tokens is the GM's - and stays where it is; the next trial treats it as any token of the hall.",
+      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. The module makes no tokens in the hall, so it stays gone - put it back by hand if the trial needs it.",
       "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as the GMs left it.",
       "noSchool": "The Class Trial ended, but no school scene is linked and the scene the trial opened from is gone, so the table stays in the trial hall and its tokens stay as they are. Activate a scene by hand.",
       "missingTokens": {
@@ -1920,6 +1921,7 @@
       "noCast": "The hall holds no token of a student or of Monokuma yet.",
       "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
       "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",
+      "hallFirstInTrial": "A Class Trial is running without a trial hall. Link one after the trial ends - Apply waits until then.",
       "noSchoolLinked": "No school is linked: ending the trial goes back to the scene that was active when it opened.",
       "hallHasRooms": "This scene has regions marked as rooms: {names}. In the trial hall they are not rooms - is this the school's map? Regions not marked as rooms are fine here.",
       "duplicateInHall": "More than one token in the hall stands for the same character, and a trial shows only the first. The others: {names}.",

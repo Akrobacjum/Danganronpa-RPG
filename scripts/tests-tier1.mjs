@@ -6884,7 +6884,8 @@ const INVARIANTS = [
          * clash, a stored role whose scene is gone, a cast list of another hall, and "Prepare"; and
          * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one; `hallLocked` (E13 fix
          * r1-F2, review r1 cor C) for a hall relinked and one unlinked in a running trial, the same out of it, a trial with
-         * the hall select untouched, and no reading. Then the
+         * the hall select untouched, and no reading; `hallLockReason` (E13 fix r2-H2, review r2 cor E) for a relink, a
+         * first hall linked in a running trial, and the same out of it. Then the
          * window's own wiring, on a form drawn from the world's roles and never attached to the page: both
          * selects set to one scene hold Apply, show the warning and decide no write; the Bedrooms tab's hold
          * outlives the Scenes tab's (`setApplyBlock`); and the untouched form's Apply, with `game.settings.set`
@@ -6925,6 +6926,9 @@ const INVARIANTS = [
         const locked = typeof T.hallLocked === "function" ? [T.hallLocked(read({ trial: "R120SCENEC" }), "classTrial"),
             T.hallLocked(read({ trial: "" }), "classTrial"), T.hallLocked(read({ trial: "R120SCENEC" }), "dailyLife"), T.hallLocked(read({ trial: "" }), "dailyLife"),
             T.hallLocked(read({ school: "R120SCENEC" }), "classTrial"), T.hallLocked(null, "classTrial")] : "no hallLocked";
+        const reasons = typeof T.hallLockReason === "function" ? [T.hallLockReason(read({ trial: "R120SCENEC" }), "classTrial"),
+            T.hallLockReason(read({ trial: "R120SCENEC", drawn: { school: "R120SCENEA", trial: "" } }), "classTrial"),
+            T.hallLockReason(read({ trial: "R120SCENEC" }), "dailyLife")] : "no hallLockReason";
 
         must(game.scenes?.size >= 1, "the world has no scene to draw the Scenes tab's selects with - this would measure nothing");
         const draw = () => {
@@ -6957,7 +6961,7 @@ const INVARIANTS = [
             game.settings.set = set;
         }
 
-        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked]), JSON.stringify([
+        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
             ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
             [["sameScene!"], ["hallHasRooms", "missingTokens", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true],
             [{ roles: null, cast: null, prepare: null },
@@ -6969,13 +6973,15 @@ const INVARIANTS = [
                 ["environment.globalLight.enabled", "flags.proximity-voice-chat.disabled", "fog.exploration", "tokenVision"],
                 ["environment.globalLight.enabled", "fog.exploration", "tokenVision"], []],
             [true, true, JSON.stringify({ roles: null, cast: null, prepare: null }), true, false],
-            0, { roles: false, cast: false, shown: null, prepared: null }, [true, true, false, false, false, false]]),
+            0, { roles: false, cast: false, shown: null, prepared: null }, [true, true, false, false, false, false],
+            ["DRPG.TrialScene.hallInTrial", "DRPG.TrialScene.hallFirstInTrial", null]]),
             "[Room Setup's last tab, its count, the tab it opens on (a scene with rooms, one without, Doors asked, a tab that is none); the hall's room names; "
             + "the report's rows for one scene twice, a hall with everything wrong, no school, nothing wrong, and its one and two missing students; what Apply "
             + "would write for an untouched form, a changed school, a clash, a gone role untouched, another hall's cast, a tick and Prepare; Prepare's fields "
             + "bare, with the playlist, with the voice, with the voice ticked and its module off, and on a prepared scene; the drawn tab with one scene twice: "
             + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply; "
-            + "the hall relinked and unlinked in a running trial (locked), the same out of it, the school changed in it, no reading]");
+            + "the hall relinked and unlinked in a running trial (locked), the same out of it, the school changed in it, no reading; "
+            + "the reason for a relink and for a first hall linked in a running trial, and none out of it]");
     }],
 
     ["R437 - Start the Class Trial names the trial hall and the table's rule, and the trial console's one door takes the table to the hall or back without the phase", async () => {

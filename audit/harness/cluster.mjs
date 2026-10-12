@@ -127,7 +127,7 @@ function canWrite(userId, op) {
         return actorOwned(doc, userId); // update + embedded ops on owned actor, its items' effects included (`via`, E29 fix r1-G3)
     }
     if (collName === "Scene") {
-        // players may update tokens of actors they own, create one of an actor they own (below), and touch a Region; nothing else
+        // players may update tokens of actors they own, create or delete one of an actor they own (below), and touch a Region; nothing else
         if (action === "embedded-update" && op.embeddedName === "Token") {
             const scene = world.collections.Scene.find(s => s._id === op.docId);
             if (!scene) return false;
@@ -160,6 +160,22 @@ function canWrite(userId, op) {
         if (action === "embedded-create" && op.embeddedName === "Token") {
             return (op.payload ?? []).every(t => {
                 const actor = t?.actorId && world.collections.Actor.find(a => a._id === t.actorId);
+                return Boolean(actor) && actorOwned(actor, userId);
+            });
+        }
+        /*
+         * A PLAYER'S DELETE OF A TOKEN (E13 fix r2-H2, 12.10.2026; review r2 sec S2-4), for the same reason as the create
+         * above: refusing every player's delete hid a road the module answers (trial-scene.mjs `watchCastDeleted`). A
+         * delete of tokens of actors the player owns goes through, as at a table whose world grants TOKEN_DELETE; which
+         * roles v14 grants it by default, and whether it asks for the token's ownership too, is not read here. Any other
+         * is still refused.
+         */
+        if (action === "embedded-delete" && op.embeddedName === "Token") {
+            const scene = world.collections.Scene.find(s => s._id === op.docId);
+            if (!scene) return false;
+            return (op.payload ?? []).every(id => {
+                const tok = scene.tokens.find(t => t._id === id);
+                const actor = tok && world.collections.Actor.find(a => a._id === tok.actorId);
                 return Boolean(actor) && actorOwned(actor, userId);
             });
         }
