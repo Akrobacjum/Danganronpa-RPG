@@ -29166,6 +29166,53 @@ const SCENARIOS = [
         }
     }],
 
+    ["the clock refuses an Eclipse in the Class Trial with the reason and the trial keeps its one voice room; a trial is not opened in an Eclipse", async () => {
+        /*
+         * E13 fix r1-G1, 12.10.2026 (the orchestrator's default of r1, the clock's road r1-F3 left open). The test above
+         * reads `startEclipse`; the clock written by hand - the API's `setClock`, as a GM's console or a macro calls it -
+         * began an Eclipse inside a running trial, and `voiceClaim` asks the Eclipse first, so every account went to a
+         * voice room of its own (red at 5b2b2ed: the write answered, an Eclipse ran, nobody was told, the targets split).
+         * And the other road, kept: an Eclipse begun outside the trial, then the trial opened by the clock - refused with
+         * the edge's words (E10 fix r2-G5). Read: what the write answered, whether an Eclipse ran, the GM told the reason,
+         * every voice target; then whether the Eclipse ran, the trial's write answered, the phase, and the edge's words.
+         */
+        const E = await import("./eclipse.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const reason = game.i18n.localize("DRPG.Eclipse.trialFirst"), edge = game.i18n.localize("DRPG.Floor.eclipseFirst");
+        const was = getClock().phase;
+        must(!isEclipse() && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const warn = ui.notifications.warn, told = [];
+        try {
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - this would measure nothing");
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await game.drpg.setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+            await settle();
+            const during = await voiceTargets();
+            const hand = [answered === null, isEclipse(), told.filter(m => m === reason).length,
+                [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))]];
+            await setClock({ phase: was });
+            await settle();
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+            const opened = await setClock({ phase: "classTrial" });
+            await settle();
+            const other = [isEclipse(), opened === null, getClock().phase, told.filter(m => m === edge).length];
+            equal(stableJson([hand, other]), stableJson([[true, false, 1, [null]], [true, true, was, 1]]),
+                "an Eclipse began in the Class Trial by the clock, or the GM was not told why, or a voice left the trial's one room, or a "
+                + "trial opened in an Eclipse ([the clock in the trial: answered null, an Eclipse running, told, the voice targets], "
+                + "[the trial opened in an Eclipse: the Eclipse running, answered null, the phase, told])");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (getClock().phase !== was) await setClock({ phase: was });
+            await settle();
+        }
+    }],
+
     ["a trial whose verdict is in does not open another", async () => {
         /*
          * F2, reproduced on 16.09: with the verdict applied the console kept The verdict live,
@@ -48407,9 +48454,12 @@ const SCENARIOS = [
             await Promise.race([answer, wait(3000)]);
             for (const app of drawn()) await app.close();
         }
+        /* Every tab the window names, read from its one list (vault.mjs `ROOM_SETUP_TABS`): this listed the seven
+           tabs by hand, and E13 C5's Scenes tab, Apply and Cancel like the rest, failed it at k4 on 45e6bcf as a
+           footer that differed (E13 fix r1-G1, 12.10.2026). A footer that moves on any tab still fails it. */
         const both = ["ok", "cancel"];
         equal(stableJson(reading), stableJson({
-            footers: Object.fromEntries(["bedrooms", "doors", "search", "rest", "stashes", "description", "fog"].map(tab => [tab, both])),
+            footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, both])),
             counter: [[["-1", "count", "1", "max"], true], [["-1", "count", "1", "max"], true]],
             place: [true, 0, [["bad", "good", "none"], true]],
             tables: Array(7).fill(true),
@@ -50518,6 +50568,108 @@ const SCENARIOS = [
             + "stands in; what stands on the other place, the third, the place that keeps its tokens and the hall after; away's copy: a new id, the delta, "
             + "the other module's flag, hidden; the combatant pointed at the copy; the GM held a record under the old id before, and how many after; "
             + "the copy stands lawfully; the GMs' whisper]");
+    }],
+
+    ["End the trial carries a student's token across scenes whole: every field of its data; its actor's items and Hope and Stress and HP; its combatant", async () => {
+        /*
+         * E13 fix r1-G1, 12.10.2026; the owner's question of 12.10 (does the student come over whole?), default A: the
+         * module's own create and delete (call-world.mjs `carryAcross`). Driven on End the trial's road from its window
+         * on: the hall linked, the trial opened by the clock, then `closeTrial` with the room the window would hand it -
+         * its phase write runs `leaveTrialScene` and the carry. On scenes of the suite's own: two living students on
+         * another place, one linked (a Truth Bullet and a second item on the actor, Hope, Stress and HP set) and one
+         * unlinked (its delta holds its own Hope, Stress, HP and an item), each with an image, another module's flag, the
+         * unlinked one hidden; a stand-in for Foundry's combats (the harness has none) holds the unlinked one's combatant.
+         * Every field of each token's data is compared before and after but the id, the position and the floor, which the
+         * carry sets; and through the copy's actor, the actor's id, items and the three resources. The scenes' own
+         * `activate` does nothing here, so the table's scene stays where the world had it. What reads a token's id
+         * elsewhere (a chat card's speaker) is in `carryAcross`'s note, read in the code.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the trial hall cannot be linked - End the trial would carry nobody");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        must(clockBefore.phase !== "classTrial" && !isEclipse(), "a trial or an Eclipse was already running - this test opens and ends one");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 r1-G1", [YARD, HUT] = ["yard", "hut"].map(name => `${P} the ${name}`);
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y, more = {}) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false, ...more });
+        const RES = (hope, stress, hp) => ({ resources: { hope: { value: hope, max: 6 }, stress: { value: stress, max: 6 }, hitPoints: { value: hp, max: 6 } } });
+        const actors = [], scenes = [];
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            made.activate = async () => made;
+            scenes.push(made);
+            return made;
+        };
+        const hadCombats = Object.prototype.hasOwnProperty.call(game, "combats"), combatsBefore = game.combats;
+        const SET = ["_id", "x", "y", "level"];
+        const actorOf = actor => [actor?.id ?? null, [...(actor?.items ?? [])].map(item => [item.id, item.name, item.type]).sort(),
+            ["hope", "stress", "hitPoints"].map(key => actor?.system?.resources?.[key]?.value ?? null)];
+        let read = null, ended = null;
+        try {
+            const linked = await Actor.create({ name: `${P} linked`, type: "character", system: RES(4, 2, 3) });
+            const unlinked = await Actor.create({ name: `${P} unlinked`, type: "character", system: RES(5, 1, 6) });
+            actors.push(linked, unlinked);
+            const bullet = await createTruthBullet(linked, { name: `${P} bullet`, playerText: "kept" });
+            must(bullet, "no Truth Bullet was made for the linked student - its items would measure less");
+            await linked.createEmbeddedDocuments("Item", [{ name: `${P} lantern`, type: "loot" }]);
+            const place = await scene("the chosen place", 2400);
+            await place.createEmbeddedDocuments("Region", [room(YARD, 0)]);
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(HUT, 0)]);
+            const OTHER = mark => ({ "suite-other-module": { mark } });
+            const DELTA = { system: RES(1, 4, 2), items: [{ _id: "suiteG1deltaItem", name: `${P} charm`, type: "loot" }], flags: { [MODULE_ID]: { suiteKept: 2 } } };
+            const [linkedToken, unlinkedToken] = await other.createEmbeddedDocuments("Token", [
+                token(linked, 300, 300, { texture: { src: "suite/g1-linked.webp" }, flags: OTHER(3) }),
+                token(unlinked, 500, 300, { actorLink: false, delta: DELTA, texture: { src: "suite/g1-unlinked.webp" }, flags: OTHER(4), hidden: true })]);
+            const hall = await scene("the trial hall", 2000);
+            /* The world's own students would be carried here and deleted with this scene (the r1-F1 test says why). */
+            await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a))
+                .map(a => token(a, 50, 1500, { hidden: true })));
+            const before = new Map([linkedToken, unlinkedToken].map(t => [t.actorId, { id: t.id, src: t.toObject(), actor: actorOf(t.actor) }]));
+            game.combats = [{ combatants: [{ id: "suiteG1Combatant", tokenId: unlinkedToken.id, sceneId: other.id }],
+                async updateEmbeddedDocuments(name, rows) { this.asked.push([name, rows]); return []; }, asked: [] }];
+            await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - End the trial would measure nothing");
+            ended = await UI.closeTrial({ sceneId: place.id, room: YARD });
+            await settle();
+            const after = {};
+            for (const actor of [linked, unlinked]) {
+                const was = before.get(actor.id), copy = [...place.tokens].find(t => t.actorId === actor.id) ?? null;
+                const src = copy?.toObject() ?? {};
+                const fields = [...new Set([...Object.keys(was.src), ...Object.keys(src)])].filter(key => !SET.includes(key))
+                    .filter(key => stableJson(was.src[key] ?? null) !== stableJson(src[key] ?? null)).sort();
+                after[actor.name.slice(P.length + 1)] = [Boolean(copy) && copy.id !== was.id, other.tokens.has(was.id),
+                    fields, stableJson(actorOf(copy?.actor)) === stableJson(was.actor)];
+            }
+            const copyOf = actor => [...place.tokens].find(t => t.actorId === actor.id);
+            read = [ended, getClock().phase, after, stableJson(game.combats[0].asked)
+                === stableJson([["Combatant", [{ _id: "suiteG1Combatant", sceneId: place.id, tokenId: copyOf(unlinked)?.id }]]]),
+                before.get(linked.id).actor[1].some(([id]) => id === bullet.id)];
+        } finally {
+            if (hadCombats) game.combats = combatsBefore;
+            else delete game.combats;
+            if (getClock().phase === "classTrial") await UI.closeTrial();
+            await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const whole = [true, false, [], true];
+        equal(stableJson(read), stableJson([true, "dailyLife", { linked: whole, unlinked: whole }, true, true]),
+            "[End the trial answered; the phase after; for each student: a copy on the chosen place under a new id, the old token "
+            + "still on the other place, the token's fields that changed but the id, position and floor, all of them the same, "
+            + "and its actor's id, items and Hope, Stress and HP the same through the copy; the combatant pointed at the copy; "
+            + "the Truth Bullet among the linked actor's items]");
     }],
 
     ["the verdict does not end the trial: the clock is not written and no card says the trial is over", async () => {

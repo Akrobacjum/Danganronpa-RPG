@@ -152,6 +152,17 @@ export async function setClock(patch = {}) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
         return null;
     }
+    /* AND NO ECLIPSE BEGINS IN A TRIAL, BY THIS DOOR EITHER (E13 fix r1-G1, 12.10.2026; the orchestrator's
+       default of the same day). r1-F3 refused it in eclipse.mjs `startEclipse`, the module's one writer of
+       `eclipse: true`; a clock written here with it - the API's `setClock` from a console, a macro - still
+       began one inside a running trial, and the trial's one voice room (D8) split into a room each. Refused
+       with `startEclipse`'s words, only when the Eclipse would begin: a write that keeps one already on (from
+       before this check) or ends it goes through, and a write that also opens the trial is the edge's refusal
+       above. Tier 2 "the clock refuses an Eclipse in the Class Trial" (red at 5b2b2ed). */
+    if (!trialEdge && next.phase === "classTrial" && next.eclipse === true && before.eclipse !== true) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
+        return null;
+    }
     // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
     // flag set again later by hand must not inherit the last Eclipse's name.
     if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;

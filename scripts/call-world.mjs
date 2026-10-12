@@ -501,6 +501,19 @@ export async function teleportInto(scene, region, tokens) {
  * `lastRoom` keeps an entry nobody reads again, as Foundry does not reuse a document's id. Foundry's own handling
  * of a combatant whose token is deleted is not read either: pointing it at the copy before the delete is the one
  * order that leaves it standing whatever Foundry does there; the harness has no combats (tier 2 hands a stand-in).
+ *
+ * WHAT COMES OVER, MEASURED (E13 fix r1-G1, 12.10.2026; the owner's question of 12.10). Tier 2 "End the trial
+ * carries a student's token across scenes whole" drives End the trial's road with a linked student (a Truth Bullet
+ * and another item, Hope, Stress and HP on the actor) and an unlinked one (its own resources and an item in its
+ * delta), each with an image and another module's flag, one hidden and with a combatant: every field of the copy's
+ * data but the id, the position and the floor is the old token's, and the actor read through the copy has the same
+ * id, items and resources. That is the harness's create, which keeps the data as handed; whether v14's own create
+ * does the same with an unlinked token's delta is LIVE-E13-10's. A token's id also stands in a chat card's speaker
+ * (`speaker.token` with `speaker.scene`) - read in the code, not measured: of this module's readers, private-rolls.mjs
+ * `rollSubjectNow` reads it only for a card that names no actor and, the token gone, goes on to Daggerheart's
+ * `system.source.actor` and the author's character; secret.mjs `incidentVeils` reads only whether a speaker is
+ * named; world-secrets.mjs lists it among the fields a superseded roll blanks. Daggerheart's own readers of a card's
+ * token were not read: its system's code is not in this repository.
  */
 export async function carryAcross(tokenDoc, scene, region) {
     const from = tokenDoc?.parent ?? null;

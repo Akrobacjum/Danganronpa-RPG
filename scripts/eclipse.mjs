@@ -182,7 +182,8 @@ export async function startEclipse() {
      * writer of `eclipse: true` outside the tests, which the API's `startEclipse`, the GM panel's
      * "Do it" (`toggleEclipse`) and the HUD's chevron all call; the HUD draws no chevron in a trial
      * (its trial slot, hud.mjs `trialSlot`). Tier 2 "an Eclipse waits for the Class Trial's end". A
-     * clock written by hand with `eclipse: true` is not refused (`setClock` judges only the edge).
+     * clock written by hand with `eclipse: true` is refused by `setClock` itself with the same words
+     * (E13 fix r1-G1); this check stays first, so the refusal leaves nothing half done here.
      */
     if (getClock().phase === "classTrial") {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
