@@ -28653,7 +28653,7 @@ const SCENARIOS = [
 
         const close = [];
         try {
-            close.push(showPopup("<p>the hinge</p>", { kind: "evidence", sticky: true, title: "Evidence" }));
+            close.push(showPopup("<p>the hinge</p>", { kind: "evidence", sticky: true, title: "Evidence", record: false }));
             const stage = document.getElementById("drpg-evidence");
             ok(stage, "a sticky piece of evidence built no stage to stand on");
             equal(stage.querySelectorAll(".drpg-popup").length, 1,
@@ -28661,13 +28661,13 @@ const SCENARIOS = [
             equal(stage.getAttribute("aria-live"), "polite",
                 "the evidence stage is not a live region, so a card lands in silence");
 
-            close.push(showPopup("<p>you found nothing</p>", { kind: "info" }));
+            close.push(showPopup("<p>you found nothing</p>", { kind: "info", record: false }));
             equal(stage.querySelectorAll(".drpg-popup").length, 1,
                 "an ordinary notice climbed onto the evidence stage");
             equal(document.getElementById("drpg-popups").querySelectorAll(".drpg-popup").length,
                 before + 1, "an ordinary notice left the corner");
 
-            close.push(showPopup("<p>a passing remark</p>", { kind: "evidence" }));
+            close.push(showPopup("<p>a passing remark</p>", { kind: "evidence", record: false }));
             equal(stage.querySelectorAll(".drpg-popup").length, 1,
                 "a non-sticky evidence card took the middle of the screen");
 
@@ -28675,8 +28675,8 @@ const SCENARIOS = [
                a presentation and reading the two together is the move. Since 22.09
                the third is PARKED under the other two rather than dismissed, so the
                stage shows two and still holds three. */
-            close.push(showPopup("<p>objection</p>", { kind: "objection", sticky: true, title: "Objection" }));
-            close.push(showPopup("<p>and another</p>", { kind: "evidence", sticky: true, title: "Evidence" }));
+            close.push(showPopup("<p>objection</p>", { kind: "objection", sticky: true, title: "Objection", record: false }));
+            close.push(showPopup("<p>and another</p>", { kind: "evidence", sticky: true, title: "Evidence", record: false }));
             const kept = [...stage.querySelectorAll(".drpg-popup")].filter(c => !c.classList.contains("leaving"));
             const shown = kept.filter(c => !c.classList.contains("drpg-popup-parked"));
             equal(shown.length, 2, "the evidence stage is showing more than the two it is capped at");
@@ -30696,9 +30696,9 @@ const SCENARIOS = [
         for (const left of document.querySelectorAll("#drpg-evidence .drpg-popup.is-raised")) left.dispatchEvent(new Event("pointerdown"));
         const closers = [], read = [];
         try {
-            closers.push(showPopup("<p>suite E10 C16 evidence</p>", { kind: "evidence", sticky: true }));
+            closers.push(showPopup("<p>suite E10 C16 evidence</p>", { kind: "evidence", sticky: true, record: false }));
             read.push(Boolean(stage()?.classList.contains("is-raised")));
-            closers.push(showPopup("<p>suite E10 C16 objection</p>", { kind: "objection", sticky: true }));
+            closers.push(showPopup("<p>suite E10 C16 objection</p>", { kind: "objection", sticky: true, record: false }));
             read.push(Boolean(stage()?.classList.contains("is-raised")));
             const objection = [...(stage()?.querySelectorAll(".drpg-popup") ?? [])].find(c => c.textContent.includes("suite E10 C16 objection"));
             must(objection, "the Objection card is not on the evidence stage - this would measure nothing");

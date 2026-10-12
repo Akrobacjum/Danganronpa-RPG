@@ -7125,6 +7125,7 @@ const REGRESSIONS = [
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
+            ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
@@ -8482,23 +8483,26 @@ const REGRESSIONS = [
          * E81 C1 (12.10.2026) registered `SETTINGS.noticeHistory` and the history's `storage` listener: the five STORE
          * sources and one HOOK more. The same reader then read 42 roads against 42 rows, none either side - 10 SURFACE,
          * 13 NOTDONE, 8 FLAG, 3 DELETE, 3 HOOK, 5 STORE - in Node on the 128 files of the crawl and on the harness
-         * (12.10.2026, this test alone, three runs alike).
+         * (12.10.2026, this test alone, three runs alike). E81 C3 (12.10.2026) added the recorder's call in `showPopup`:
+         * one RECORD road more, 43 against 43 rows, none either side - 10 SURFACE, 1 RECORD, 13 NOTDONE, 8 FLAG, 3 DELETE,
+         * 3 HOOK, 5 STORE - on the harness (this test alone, once, its own log line), and 43 sources in the parse-only census.
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
          * beside another event's and one in a file that is neither, the store and the window, and a stale row.
          */
         const NOTICE_CENSUS = [
-            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only); kept exactly where it is drawn, the body cleaned at save (E81 C3)"],
-            ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (E81 C3)"],
-            ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (E81 C3)"],
-            ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (E81 C3)"],
-            ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (E81 C3)"],
+            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294)"],
+            ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (R293)"],
+            ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (E81 C4)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "the other party's words in a card (`cardPreview`): a GM's ask card, a player's own thread; kept as a messenger entry and cleaned at save (E81 C4)"],
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept like every other notice (the owner's Q7, 07.10.2026) and cleaned at save (E81 C4)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent, the same on every client; nobody else's words (E81 C4)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence and cleaned at save (E81 C4)"],
+            ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293)"],
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
             ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
@@ -8512,21 +8516,21 @@ const REGRESSIONS = [
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry (E81 C4)"],
-            ["FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "the module's marker, which any author can put on their own message; what it lets through is judged at the catch-all's SURFACE row, cleaned at save (E81 C2 and C3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#SECRET_FLAG", "a veiled card is drawn, and so kept, only when this login holds its words (`secretHtml`) (E81 C3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#MESSENGER_FLAGS.thread", "a thread's card is not drawn by the catch-all; the messenger draws, and keeps, its own (E81 C3)"],
+            ["FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "the module's marker, which any author can put on their own message; what it lets through is judged at the catch-all's SURFACE row and kept as drawn (R297), cleaned at save (R294)"],
+            ["FLAG popup.mjs#onCreateChatMessage#SECRET_FLAG", "a veiled card is drawn, and so kept, only when this login holds its words (`secretHtml`): without them nothing (R297), with them its words (73-notice-history)"],
+            ["FLAG popup.mjs#onCreateChatMessage#MESSENGER_FLAGS.thread", "a thread's card is not drawn by the catch-all; the messenger draws its own, which `showPopup` keeps (R297's gmAsk card)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupKind", "kind \"none\" draws nothing; any other is a closed list (`KINDS`) on draw, and again on read (E81 C2)"],
-            ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown (E81 C3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`) (E81 C3)"],
-            ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; the store clips a kept title to 200 characters since E81 C1 (R292); kept by E81 C3"],
+            ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown, as its own (R297)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`): a player's insisted whisper draws, and so keeps, nothing on a GM (R297)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
             ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
             ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards; the deletion becomes a withdraw that removes the entry (E81 C5)"],
             ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card; the deletion becomes a withdraw that removes the entry (E81 C5)"],
             ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option: its epoch clears every section of this world at the next read or write since E81 C1 (R297); until then an entry stays, marked deleted (E81 C5)"],
-            ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (E81 C3)"],
+            ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
             ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen; only the withdraw option will remove its entry, any other deletion marks it (E81 C5)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
-            ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); nothing records before E81 C3"],
+            ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
             ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],
             ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); cleared with every section of this world by the season's reset (R297)"],
             ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],

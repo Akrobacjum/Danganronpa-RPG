@@ -116,7 +116,7 @@ belongs to.
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
-| 73 | scenarios/73-notice-history.mjs | ci | planned | E81 | a player's notice history after F5, the GM's own diet |
+| 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | ci, local-gate | exists | E33 | every legal road a player's roll takes read clean (E33 C4); twelve forgeries from a player's console, each undone or never applied and traced to that player (C5b) |

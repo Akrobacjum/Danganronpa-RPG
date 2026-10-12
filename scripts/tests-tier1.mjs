@@ -1937,7 +1937,7 @@ const INVARIANTS = [
         const closers = [];
         try {
             for (const n of ["R109 one", "R109 two", "R109 three", "R109 four", "R109 five"]) {
-                closers.push(showPopup(`<p>${n}</p>`, { title: "R109" }));
+                closers.push(showPopup(`<p>${n}</p>`, { title: "R109", record: false }));
                 await wait(120);
             }
             equal(all().length, 5, "a notice was dismissed to make room");
@@ -7470,6 +7470,76 @@ const INVARIANTS = [
         equal(JSON.stringify([!sections(store)[`${W}.${U1}`], sections(store)[`${W}.${U2}`]?.entries?.map(x => x.title) ?? null]),
             JSON.stringify([true, ["card z"]]),
             "[an incident reset met by an open tab's write: the absent first account's section gone; the writer's own section only what it recorded after]");
+        /*
+         * The GM's diet (E81 C3; the A7 design's P3-1 and P3-4, the owner's Q0): a card is kept exactly where the
+         * catch-all draws it, so a GM keeps an announcement, a card for the GM to answer and a GM's insisted card, and
+         * no whisper of a record; a veiled card without this login's words and a `popupKind: "none"` keep nothing. A
+         * public card a player wrote is kept as the player's, from the document's author - a GM's card that names a
+         * player as its asker stays public. The messenger's `gmAsk` card the GM is raised for is kept too (its source
+         * is C4's). Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
+         * `game.messages.get` answers for the length of the clause, held as R473 holds the history.
+         */
+        must(game.user?.isGM, "the diet measured here is a GM's, and the suite runs on a GM (tests.mjs refuses anyone else)");
+        needs(world.atLeast("playerAccounts", 1), "a player account to write a card as");
+        const player = game.users.find(user => !user.isGM && user.active) ?? game.users.find(user => !user.isGM);
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        ok(typeof onCreateChatMessage === "function", "popup.mjs gives no catch-all to measure a GM's diet through");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { DrpgMessengerApp } = await import("./messenger-app.mjs");
+        const fake = (id, { author = game.user, whisper = [], flags = {}, content = `<p>${id} words</p>` } = {}) => ({
+            id, author, whisper, rolls: [], content, flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, ...flags } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        });
+        const me = game.user.id;
+        const fakes = [
+            fake("R297Announcement", {}),
+            fake("R297PlayerPublic", { author: player }),
+            fake("R297AskedByPlay1", { flags: { askedBy: player.id } }),
+            fake("R297WhisperedRec", { whisper: [player.id, me] }),
+            fake("R297GmPopupCard1", { whisper: [me], flags: { gmPopup: true } }),
+            fake("R297ForcedByGm01", { whisper: [player.id, me], flags: { popupForce: true } }),
+            fake("R297ForcedByPlay", { author: player, whisper: [player.id, me], flags: { popupForce: true } }),
+            fake("R297VeiledNoWord", { flags: { secret: true, veiled: true } }),
+            fake("R297KindNoneCard", { flags: { popupKind: "none" } })
+        ];
+        const byId = new Map(fakes.map(message => [message.id, message]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        const read = new Map();
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (id, ...rest) { return byId.get(id) ?? realGet.call(this, id, ...rest); };
+        try {
+            for (const message of fakes) await onCreateChatMessage(message);
+            for (const message of fakes) {
+                read.set(message.id, NH.noticeEntries().filter(entry => entry.messageId === message.id).map(entry => [entry.source, entry.author ?? null]));
+            }
+            if (!DrpgMessengerApp.instances.has(player.id)) {
+                const ask = fake("R297GmAskCard001", { author: player, whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: "<p>R297 asks the GM</p>" });
+                const chatter = fake("R297ChatterCard1", { author: player, whisper: [player.id, me], content: "<p>R297 chatter</p>" });
+                for (const message of [ask, chatter]) {
+                    Hooks.callAll("drpgMessengerMessage", player.id, message);
+                    await until(() => NH.noticeEntries().some(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")), 500);
+                    read.set(message.id, NH.noticeEntries().filter(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")).map(entry => [entry.source, entry.author ?? null]));
+                }
+            }
+        } finally {
+            delete game.messages.get;
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                const notice = NH.noticeEntries().find(entry => entry.id === card.dataset.drpgNotice);
+                if (byId.has(card.dataset.drpgMessage) || /R297 (asks|chatter)/.test(notice?.text ?? "")) {
+                    card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                }
+            }
+            NH.holdNoticeHistory(false);
+        }
+        must(read.has("R297GmAskCard001"), `the GM has ${player.name}'s conversation open - the messenger's card would append to it, not be drawn`);
+        equal(JSON.stringify(Object.fromEntries(read)), JSON.stringify({
+            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", null]],
+            R297WhisperedRec: [], R297GmPopupCard1: [["mine", null]], R297ForcedByGm01: [["mine", null]], R297ForcedByPlay: [],
+            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["mine", null]], R297ChatterCard1: []
+        }), "[a GM's kept entries per card: [source, author]] - the announcement, a player's public card, a GM's card naming a player as asker, "
+            + "a whisper of a record, gmPopup, popupForce from a GM and from a player, veiled without words, popupKind none, the messenger's gmAsk and its chatter");
     }],
 
     ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {
@@ -7674,6 +7744,138 @@ const INVARIANTS = [
         "[secret.mjs keeps a cleaner of another name; exports cleanCardHtml; a private card's words go through it; it is Foundry's "
             + "cleanHTML as before; the history keeps inertCopy(cleanCardHtml(html)); draws through both again by importNode; "
             + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
+    }],
+    ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card", async () => {
+        /*
+         * E81 C3, 12.10.2026; the A7 design's A7-2 (P3-0..P3-4), without the tail clause (C9 adds it with
+         * `setFloor`). On this client's module engine, held as R473 holds it, so nothing reaches the setting: a card
+         * drawn by `showPopup` is one entry whose html is the drawn body through the history's cleaning and whose
+         * words are read off that html; a change to the body is kept a quarter of a second later, on the corner
+         * stack and on the evidence stage (sticky evidence, Objection), and not once the card is gone; `observe: false`
+         * keeps the first snapshot; `record: false` and `showWaiting` keep nothing; "+N" on five cards moves no
+         * snapshot. The close's reason: the X and a click on the card read, a deletion's "withdrawn", "unseen" with
+         * `instant` (gone at once) and the function `showPopup` returns unread. A recorder that throws (a `link`
+         * whose read throws) still draws the card. `persist: "session"` on `noticeBench`'s engine: kept in memory,
+         * absent from the write. Every card drawn here is taken down at once at the end.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a card back from");
+        const { showPopup, showWaiting } = await import("./popup.mjs");
+        const isGM = Boolean(game.user?.isGM);
+        const drawn = [];
+        const newest = () => Array.from(document.querySelectorAll(".drpg-popup"))
+            .sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const entryOf = id => NH.noticeEntries().find(entry => entry.id === id) ?? null;
+        const draw = (html, options = {}) => {
+            const before = new Set(NH.noticeEntries().map(entry => entry.id));
+            const close = showPopup(html, options);
+            const card = newest();
+            if (card) drawn.push(card);
+            const added = NH.noticeEntries().filter(entry => !before.has(entry.id));
+            return { close, card, body: card?.querySelector(".drpg-popup-body") ?? null, added, id: added[0]?.id ?? null };
+        };
+        const kept = id => entryOf(id)?.html ?? null;
+        const follows = async (shown, words) => {
+            shown.body.insertAdjacentHTML("beforeend", `<p>${words}</p>`);
+            return until(() => entryOf(shown.id)?.text.includes(words), 2000);
+        };
+
+        await NH.holdNoticeHistory(true);
+        try {
+            /* One entry, as drawn. */
+            const BODY = `<p>R293 kept words</p><p style="color:red">R293 styled</p><div class="drpg-gm-only"><p>R293 GM half</p></div>`;
+            const a = draw(BODY, { title: "R293 title", kind: "error", tone: "fear" });
+            must(a.card !== null, "showPopup drew no card - the recorder would be measured on nothing");
+            const first = entryOf(a.id);
+            equal(JSON.stringify([a.added.length, a.card.dataset.drpgNotice === a.id, first?.html === NH.cleanNoticeHtml(a.body.innerHTML),
+                first?.html.includes("R293 styled"), first?.text, first?.title, first?.kind, first?.tone, first?.source, first?.state, first?.messageId]),
+            JSON.stringify([1, true, true, true, isGM ? "R293 kept words R293 styled R293 GM half" : "R293 kept words R293 styled",
+                "R293 title", "error", "fear", "mine", "open", null]),
+            "[entries a card adds; the card names its entry; the html is the drawn body cleaned; it holds the body's words; "
+                + "the text read off the kept html; title, kind, tone; no chat card: mine; open; no message]");
+
+            /* Followed on the corner stack and on the evidence stage, and not after the card is gone. */
+            const evidence = draw("<p>R293 evidence</p>", { kind: "evidence", sticky: true });
+            const objection = draw("<p>R293 objection</p>", { kind: "objection", sticky: true });
+            const hosts = [a, evidence, objection].map(shown => shown.card?.parentElement?.id ?? null);
+            must(hosts.join() === "drpg-popups,drpg-evidence,drpg-evidence", `the cards stood in ${hosts.join(", ")}`);
+            const followed = [await follows(a, "R293 later"), await follows(evidence, "R293 evidence later"), await follows(objection, "R293 objection later")];
+            equal(JSON.stringify([followed, kept(a.id) === NH.cleanNoticeHtml(a.body.innerHTML)]), JSON.stringify([[true, true, true], true]),
+                "[a body's change kept within 2 s on the corner stack, sticky evidence and Objection on the evidence stage; the kept html the body cleaned again]");
+
+            /* The reasons, and "unseen" with `instant` taken down at once. */
+            const reasons = {};
+            const x = draw("<p>R293 closed by X</p>");
+            x.card.querySelector(".drpg-popup-close").click();
+            reasons.x = entryOf(x.id)?.state;
+            const clicked = draw("<p>R293 clicked</p>");
+            clicked.card.click();
+            reasons.click = entryOf(clicked.id)?.state;
+            const withdrawn = draw("<p>R293 withdrawn</p>");
+            withdrawn.card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "withdrawn" } }));
+            reasons.withdrawn = entryOf(withdrawn.id)?.state;
+            const code = draw("<p>R293 closed by code</p>");
+            code.close();
+            reasons.code = entryOf(code.id)?.state;
+            evidence.card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "unseen", instant: true } }));
+            reasons.unseen = [entryOf(evidence.id)?.state, evidence.card.isConnected];
+            equal(JSON.stringify(reasons), JSON.stringify({ x: "read", click: "read", withdrawn: "unread", code: "unread", unseen: ["unread", false] }),
+                "[the state a close leaves per reason: the X, a click on the card, a deletion's event, the returned function; unseen and instant: unread and off the page at once]");
+            const gone = kept(evidence.id);
+            evidence.body.insertAdjacentHTML("beforeend", "<p>R293 after the card left</p>");
+            const frozen = draw("<p>R293 frozen</p>", { observe: false });
+            const firstFrozen = kept(frozen.id);
+            frozen.body.insertAdjacentHTML("beforeend", "<p>R293 frozen later</p>");
+            await wait(600);
+            equal(JSON.stringify([kept(evidence.id) === gone, kept(frozen.id) === firstFrozen, firstFrozen?.includes("R293 frozen")]), JSON.stringify([true, true, true]),
+                "[a card's body changed after it left the page: the snapshot unmoved past 600 ms; observe: false, the first snapshot unmoved; and it was kept]");
+
+            /* What keeps nothing: `record: false`, `showWaiting`; and "+N" moves no snapshot. */
+            const unkept = draw("<p>R293 not kept</p>", { record: false });
+            const waitingBefore = NH.noticeEntries().length;
+            const closeWaiting = showWaiting("R293 waiting");
+            const waitingCard = newest();
+            if (waitingCard) drawn.push(waitingCard);
+            const waitingAdded = NH.noticeEntries().length - waitingBefore;
+            closeWaiting();
+            const five = [1, 2, 3, 4, 5].map(n => draw(`<p>R293 stacked ${n}</p>`));
+            const atDraw = five.map(shown => kept(shown.id));
+            must(document.querySelector("#drpg-popups .drpg-popup-more") !== null, "five cards raised no \"+N\" - its snapshot rule would be measured on nothing");
+            await wait(600);
+            equal(JSON.stringify([unkept.added.length, "drpgNotice" in (unkept.card?.dataset ?? {}), waitingAdded,
+                five.map((shown, n) => kept(shown.id) === atDraw[n]), NH.noticeEntries().some(entry => entry.html.includes("drpg-popup-more"))]),
+            JSON.stringify([0, false, 0, [true, true, true, true, true], false]),
+            "[entries from record: false; its card names one; entries from showWaiting; five stacked cards' snapshots unmoved past 600 ms with \"+N\" up; a kept \"+N\"]");
+
+            /* A history that throws still draws the card. */
+            let threw = null, broken = null;
+            try {
+                broken = draw("<p>R293 drawn anyway</p>", { link: { get messenger() { throw new Error("R293's broken history"); } } });
+            } catch (err) {
+                threw = err.message;
+            }
+            equal(JSON.stringify([threw, typeof broken?.close, broken?.body?.textContent ?? null, broken?.added.length ?? null]),
+                JSON.stringify([null, "function", "R293 drawn anyway", 0]),
+                "[what showPopup threw when the recorder did; what it returned; the card's words; entries kept]");
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+
+        /* `persist: "session"`: this page keeps it, the write leaves it out; and showPopup hands it on. */
+        const store = { raw: null, writes: 0, fail: 0 }, at = { now: 3_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const bench = noticeBench(NH.createNoticeEngine, { store, user: "SuitePlayerR29301", world: "suite-world", at, clock });
+        bench.open();
+        bench.record({ source: "mine", kind: "info", title: "R293 kept", text: "", html: "<p>kept</p>" });
+        at.now++;
+        bench.record({ source: "mine", kind: "info", title: "R293 this page", text: "", html: "<p>this page</p>", persist: "session" });
+        await bench.flush();
+        const popup = stripComments((await moduleSources()).get("popup.mjs") ?? "");
+        equal(JSON.stringify([bench.entries().map(entry => entry.title), JSON.parse(store.raw)?.sections?.["suite-world.SuitePlayerR29301"]?.entries?.map(entry => entry.title),
+            /recordNotice\(\{[^}]*\bpersist\b/.test(fnSource(popup, "showPopup"))]),
+        JSON.stringify([["R293 kept", "R293 this page"], ["R293 kept"], true]),
+        "[this page's entries; the written ones; showPopup hands its persist to recordNotice]");
     }],
 ];
 

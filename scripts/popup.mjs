@@ -13,6 +13,13 @@
  * The chat log is still the paper trail, but it is not a notification channel -
  * during an incident nobody is reading it.
  *
+ * And a card closed can be read again (E81 C3, 12.10.2026; audit S16-08): every
+ * card drawn here is kept, as it was drawn, in this browser's notice history
+ * (notice-history.mjs) until the season's reset - a GM's diet as much as a
+ * player's (the owner's Q0). Kept on the client that drew it and nowhere else,
+ * so it is exactly what this login was shown: the whisper rule below decides
+ * what is drawn, and so what is kept.
+ *
  * Two ways something ends up here:
  *   showPopup()              called directly, when the caller wants a title or
  *                            a sticky card - `report()` in action-rolls.mjs,
@@ -32,8 +39,9 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { MESSAGE_FLAG, plural } from "./utils.mjs";
+import { MESSAGE_FLAG, plural, debug } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
+import { recordNotice, updateNotice } from "./notice-history.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
@@ -345,13 +353,78 @@ function raiseIfObjecting(stage) {
  *   Blood for Despair, crimson for a Critical. A name rather than a colour, so
  *   the palette stays in the stylesheet where the rest of it lives - see
  *   `.drpg-popup-tone-*` there.
+ * @param {string|null} [options.messageId]  The chat card it was drawn from: the
+ *   notice goes when that card is deleted, and the history keeps one entry per card.
+ * @param {boolean} [options.record]  Keep the card in this browser's notice history
+ *   (E81 C3; default true). False for a card that says only that something is
+ *   pending (`showWaiting`) and for the suite's own cards.
+ * @param {string|null} [options.source]  Where it came from, one of the history's
+ *   `NOTICE_SOURCES`; by default worked out from the chat card (`noticeSource`).
+ * @param {{messenger: string}|null} [options.link]  What the history's entry
+ *   opens: a conversation with that user (the messenger's cards, E81 C4).
+ * @param {boolean} [options.observe]  Follow the body while the card is on screen:
+ *   a card whose words change after it is drawn is kept as it last read (default true).
+ * @param {"browser"|"session"} [options.persist]  "session": kept by this page
+ *   only, never written to the setting.
+ *
+ * The interface every later recorder takes (E18, E50, E62 and E70 after E81): a
+ * surface that raises a card through `showPopup` is kept by passing these, and
+ * calls `recordNotice` itself only when it draws no card.
  */
 const KINDS = ["info", "error", "evidence", "objection"];
 
 const TONES = ["hope", "fear", "critical"];
 
+/*
+ * THE SNAPSHOT FOLLOWS THE CARD (E81 C3; the A7 design's P3-2). A card's body is not done when it
+ * is drawn: a private card's words arrive by socket, a messenger card is redrawn, a trial's evidence
+ * fills in. One MutationObserver per kept card watches its body, in the corner tile and on the
+ * evidence stage alike, and a quarter of a second after the last change keeps the body again through
+ * the same cleaning; it stops when the card leaves the page, and a change it had not yet kept is
+ * kept then. The 250 ms are the design's, not a measurement.
+ */
+const SNAPSHOT_DEBOUNCE_MS = 250;
+
+function watchNotice(body, id) {
+    let timer = null;
+    const keep = () => {
+        timer = null;
+        try {
+            updateNotice(id, { html: body.innerHTML });
+        } catch (err) {
+            debug("A notice's snapshot could not be kept", err);
+        }
+    };
+    const observer = new MutationObserver(() => {
+        if (timer !== null) clearTimeout(timer);
+        timer = setTimeout(keep, SNAPSHOT_DEBOUNCE_MS);
+    });
+    observer.observe(body, { childList: true, subtree: true, characterData: true, attributes: true });
+    return () => {
+        const waiting = observer.takeRecords().length > 0 || timer !== null;
+        observer.disconnect();
+        if (timer !== null) clearTimeout(timer);
+        if (waiting) keep();
+    };
+}
+
+/**
+ * Where a card came from, when its caller did not say (the A7 design's P3-1): a chat card nobody
+ * was whispered is "public" from a GM and "player" from anyone else, with that player's id from the
+ * document's own author - never `cardWriter`, which a card's meta can name; a whisper, a veiled card
+ * or no chat card at all is "mine".
+ */
+function noticeSource(source, messageId) {
+    if (source) return { source };
+    const message = messageId ? game.messages?.get(messageId) : null;
+    if (!message || (message.whisper ?? []).length) return { source: "mine" };
+    const author = message.author ?? null;
+    return author && !author.isGM ? { source: "player", author: author.id } : { source: "public" };
+}
+
 export function showPopup(bodyHtml, {
-    title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null
+    title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null,
+    record = true, source = null, link = null, observe = true, persist = "browser"
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
@@ -383,7 +456,7 @@ export function showPopup(bodyHtml, {
         close.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
-            dismiss();
+            dismiss({ reason: "user" });
         });
 
         card.append(head);
@@ -394,6 +467,25 @@ export function showPopup(bodyHtml, {
     if (bodyHtml instanceof Element) body.append(bodyHtml);
     else body.innerHTML = bodyHtml ?? "";
     card.append(body);
+
+    /* KEPT AS DRAWN (E81 C3; the A7 design's P3-0): after the body is filled and before any host
+       takes the card, so what is kept is what this card shows and nothing a stack adds to it later.
+       A history error never stops a card. */
+    let notice = null, unwatch = null;
+    if (record) {
+        try {
+            notice = recordNotice({
+                kind: KINDS.includes(kind) ? kind : "info", tone: TONES.includes(tone) ? tone : null,
+                title, html: body.innerHTML, messageId, link, persist, ...noticeSource(source, messageId)
+            });
+            if (notice) {
+                card.dataset.drpgNotice = notice;
+                if (observe) unwatch = watchNotice(body, notice);
+            }
+        } catch (err) {
+            debug("A notice could not be kept in this browser's history", err);
+        }
+    }
 
     const host = hostFor(kind, sticky);
     card.dataset.drpgSeq = String(++arrivals);
@@ -423,10 +515,21 @@ export function showPopup(bodyHtml, {
         raiseIfObjecting(host);
     }
 
+    /* CLOSED FOR A REASON (E81 C3; the A7 design's P3-3): "user", "withdrawn", "unseen" or "code".
+       Closed by its reader - its close button or a click on it - the notice was read; closed by code
+       (the function this returns), by a deletion or by "+N", it was not, and the history says so. `instant` takes a card that was
+       never on screen down at once instead of waiting for a transition it never ran. */
     let dismissed = false;
-    const dismiss = () => {
+    const dismiss = ({ reason = "code", instant = false } = {}) => {
         if (dismissed) return;
         dismissed = true;
+        if (notice) {
+            try {
+                updateNotice(notice, { state: reason === "user" ? "read" : "unread" });
+            } catch (err) {
+                debug("A notice's state could not be kept", err);
+            }
+        }
         card.classList.add("leaving");
         /* The seat it leaves is taken by the newest card that was waiting for one - once
            it has actually gone: a leaving card still takes its space until it is removed,
@@ -451,6 +554,7 @@ export function showPopup(bodyHtml, {
         const remove = () => {
             if (gone) return;
             gone = true;
+            unwatch?.();
             card.remove();
             unparkInto(home);
             if (home?.id === EVIDENCE_ID) raiseIfObjecting(home);
@@ -462,6 +566,10 @@ export function showPopup(bodyHtml, {
             const stage = document.getElementById(EVIDENCE_ID);
             if (stage && !stage.querySelector(".drpg-popup")) stage.remove();
         };
+        if (instant) {
+            remove();
+            return;
+        }
         card.addEventListener("transitionend", event => {
             if (event.target === card) remove();
         });
@@ -469,8 +577,9 @@ export function showPopup(bodyHtml, {
     };
 
     // So `trimStack` can retire this card without holding a reference to its
-    // closure. Everything a card knows about closing lives in `dismiss`.
-    card.addEventListener("drpg-dismiss", dismiss);
+    // closure. Everything a card knows about closing lives in `dismiss`; the
+    // event's `detail` is its `{ reason, instant }` (E81 C3), none is code.
+    card.addEventListener("drpg-dismiss", event => dismiss(event.detail ?? {}));
     trimStack(host);
 
     // Click-anywhere-to-dismiss is right for a notification and wrong for a card
@@ -479,7 +588,7 @@ export function showPopup(bodyHtml, {
     if (!sticky || onClick) {
         card.addEventListener("click", () => {
             onClick?.();
-            dismiss();
+            dismiss({ reason: "user" });
         });
     }
 
@@ -520,7 +629,8 @@ export function showPopup(bodyHtml, {
  * stays until the answer comes; closable, so it never traps anybody.
  */
 export function showWaiting(text, title = null) {
-    const dismiss = showPopup(`<p>${text}</p>`, { sticky: true, title, kind: "info" });
+    // Kept nowhere (E81 C3): it says only that an answer is coming, and the answer is its own card.
+    const dismiss = showPopup(`<p>${text}</p>`, { sticky: true, title, kind: "info", record: false });
     return () => {
         try {
             dismiss?.();
@@ -563,7 +673,7 @@ export function registerPopups() {
  * module message goes through, not by sniffing the content: half of these are a
  * bare heading and a paragraph with nothing to recognise them by.
  */
-async function onCreateChatMessage(message) {
+export async function onCreateChatMessage(message) {
     if (!message.getFlag(MODULE_ID, MESSAGE_FLAG)) return;
 
     // A genuine dice roll should animate and show in chat normally, not get

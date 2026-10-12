@@ -17,9 +17,11 @@
  * document. A registered setting rather than a raw localStorage key, so the suite's world
  * dump reads it (R159); the runner holds it for the length of tier 2 (R473).
  *
- * THE STORE (E81 C1) AND THE CLEANING (C2). Nothing records into it yet: `showPopup`'s
- * recorder is C3, the direct calls and `sayNotDone` C4, the marks C5, giving way to the
- * other stores C6 and the window C7. What is here:
+ * THE STORE (E81 C1), THE CLEANING (C2) AND THE RECORDER (C3). Every card `showPopup` draws
+ * is recorded here as it is drawn (popup.mjs, `record` and its siblings), its snapshot kept
+ * up while the card is on screen and its state moved when it is closed (`updateNotice`); the
+ * direct calls and `sayNotDone` are C4, the marks C5, giving way to the other stores C6 and
+ * the window C7. What is here:
  * - the entry's shape and its budgets (a JSON length, never a byte count: the engine
  *   cannot read what a browser's quota counts);
  * - the epoch: a section written before the season's last reset is cleared when it is
@@ -27,7 +29,8 @@
  *   absent account's history goes);
  * - the merge with another tab's write, with tombstones and an upsert by message and
  *   source, and the debounced write that flushes at once when the page hides;
- * - the suite's hold, under which nothing reaches the setting (`holdNoticeHistory`);
+ * - the suite's hold, under which nothing reaches the setting (`holdNoticeHistory`), and an
+ *   entry recorded with `persist: "session"`, which this page keeps and never writes;
  * - the cleaning: what a card showed is kept as `inertCopy(cleanCardHtml(html))`, and drawn
  *   again only through `noticeSnapshot`, which cleans the stored string a second time.
  *
@@ -279,6 +282,20 @@ export function inertCopy(html, { gm = Boolean(game.user?.isGM) } = {}) {
     return inertTree(html, gm).innerHTML;
 }
 
+/*
+ * A kept snapshot's words, for the entry's `text` (E81 C3): read off the cleaned html, not off the card, so a
+ * player's text never holds a GM's half the cleaning took out; a space after each block, or two paragraphs
+ * run into one word (a template's textContent of `<p>kept words</p><p>R293 styled</p>` read "kept wordsR293
+ * styled" in the harness's jsdom on 12.10.2026; the DOM standard's textContent joins text nodes as they are).
+ */
+const WORD_BREAKS = new Set(["p", "br", "hr", "div", "li", "dt", "dd", "tr", "td", "th", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"]);
+
+function keptWords(html, { gm = Boolean(game.user?.isGM) } = {}) {
+    const content = inertTree(html, gm).content;
+    for (const el of content.querySelectorAll("*")) if (WORD_BREAKS.has(el.localName)) el.after(" ");
+    return content.textContent.replace(/\s+/g, " ").trim();
+}
+
 /** Both steps: what the history keeps of a card's body (the module's engine cleans every `record` with it). */
 export function cleanNoticeHtml(html, options = {}) {
     return inertCopy(cleanCardHtml(html), options);
@@ -307,6 +324,7 @@ export function noticeSnapshot(html, { gm = Boolean(game.user?.isGM) } = {}) {
  *
  * env: worldId(), userId(), isGM(), now(), randomId(), clock() -> the campaign clock,
  * userExists(id), clean(html) -> the html as it may be kept (the module's engine: `cleanNoticeHtml`),
+ * text(html) -> the words of html `clean` gave back (optional: without it an entry keeps the text its caller gave),
  * storage { read() -> the stored value as JSON text or null, write(value) -> Promise },
  * timers { set(fn, ms), clear(handle) }, log { warn, debug }.
  */
@@ -315,6 +333,7 @@ export function createNoticeEngine(env) {
     let ownKey = null;
     let mine = null;               // this login's section, as this client holds it
     const pending = [];            // recorded before `ready`, when the clock (and so the epoch) is not read yet
+    const sessionOnly = new Set(); // ids recorded with `persist: "session"`: in this page's memory, never written
     let held = 0;                  // the suite's hold, nested
     let saving = true;             // false: the value is kept in memory only (a write failed twice, or a newer format)
     let timer = null;
@@ -488,6 +507,13 @@ export function createNoticeEngine(env) {
 
     /* ------------------------------- writing ------------------------------ */
 
+    /** The value as it is written: this login's section without what this page keeps for itself (`persist: "session"`). */
+    function forStorage(sections) {
+        const own = sections[ownKey];
+        if (!sessionOnly.size || !own) return sections;
+        return { ...sections, [ownKey]: { ...own, entries: own.entries.filter(entry => !sessionOnly.has(entry.id)) } };
+    }
+
     function schedule() {
         if (held || !saving || timer !== null) return;
         timer = env.timers.set(() => { timer = null; void flush(); }, DEBOUNCE_MS);
@@ -522,7 +548,7 @@ export function createNoticeEngine(env) {
             trimValue(value);
             for (let attempt = 0; ; attempt++) {
                 try {
-                    await env.storage.write({ v: FORMAT, sections: value.sections });
+                    await env.storage.write({ v: FORMAT, sections: forStorage(value.sections) });
                     return;
                 } catch (err) {
                     if (attempt) {
@@ -592,15 +618,10 @@ export function createNoticeEngine(env) {
      */
     function record(input = {}) {
         const clock = env.clock() ?? {};
-        let html = "";
-        try {
-            html = env.clean(str(input.html));
-        } catch (err) {
-            env.log.debug("A notice's html could not be cleaned; it is kept without it", err);
-        }
+        const { html, text } = keep(input.html, input.text) ?? { html: "", text: input.text };
         const entry = normalizeEntry({
             id: env.randomId(), at: env.now(), messageId: input.messageId ?? null, kind: input.kind ?? "info", tone: input.tone ?? null,
-            source: input.source, state: input.state ?? "open", mark: null, title: input.title, text: input.text, html,
+            source: input.source, state: input.state ?? "open", mark: null, title: input.title, text, html,
             clipped: false, author: input.author, link: input.link,
             clock: { chapter: clock.chapter, day: clock.day, session: clock.session, timeOfDay: clock.timeOfDay, eclipse: clock.eclipse }
         });
@@ -608,15 +629,62 @@ export function createNoticeEngine(env) {
             env.log.debug("A notice the history's shape refuses was not kept", input);
             return null;
         }
+        if (input.persist === "session") sessionOnly.add(entry.id);
         if (!opened) pending.push(entry);
         else add(entry);
         changed();
         return entry.id;
     }
 
+    /**
+     * What may be kept of a card's html, and its words: `env.clean`'s answer, and the text read off that answer
+     * rather than off the card - a player's card that hides a GM's half by a class still holds its words, and
+     * the cleaning is what takes them out (E81 C3). Null when the cleaner throws: the caller keeps what it had.
+     */
+    function keep(raw, text) {
+        let html;
+        try {
+            html = env.clean(str(raw));
+        } catch (err) {
+            env.log.debug("A notice's html could not be cleaned; it is kept without it", err);
+            return null;
+        }
+        if (text !== undefined || typeof env.text !== "function") return { html, text };
+        try {
+            return { html, text: env.text(html) };
+        } catch (err) {
+            env.log.debug("A notice's words could not be read", err);
+            return { html, text: "" };
+        }
+    }
+
+    /**
+     * Move one kept notice while its card is on screen and as it closes (E81 C3, popup.mjs): `state` from the close's
+     * reason, `html` the body as it is drawn now (its words read again with it). Through the same cleaning and the
+     * same budget as `record`; an entry Clear, a merge or the epoch took is not brought back. Answers whether the
+     * entry moved.
+     */
+    function update(id, patch = {}) {
+        const list = mine?.entries ?? pending;
+        const at = list.findIndex(entry => entry.id === id);
+        if (at < 0) return false;
+        let next = { ...list[at] };
+        if (STATES.includes(patch.state)) next.state = patch.state;
+        if (patch.html !== undefined) {
+            const kept = keep(patch.html);
+            if (kept) next = fit({ ...next, html: kept.html, text: clip(str(kept.text), BUDGET.text), clipped: false });
+        }
+        if (JSON.stringify(next) === JSON.stringify(list[at])) return false;
+        list[at] = next;
+        if (mine) schedule();
+        changed();
+        return true;
+    }
+
     return {
         open,
         record,
+        update,
         flush,
         /** This login's entries, oldest first, as copies. */
         entries: () => structuredClone(mine?.entries ?? pending),
@@ -692,6 +760,7 @@ const engine = createNoticeEngine({
     clock: () => getClock(),
     userExists: id => Boolean(game.users?.get(id)),
     clean: html => cleanNoticeHtml(html),
+    text: html => keptWords(html),
     storage: {
         read: () => game.settings?.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.${SETTINGS.noticeHistory}`) ?? null,
         write: value => game.settings.set(MODULE_ID, SETTINGS.noticeHistory, value)
@@ -705,6 +774,8 @@ const engine = createNoticeEngine({
  * calls (C4), and for E18, E50, E62 and E70 after it, which take this interface as it is.
  */
 export const recordNotice = entry => engine.record(entry);
+/** Move a kept notice: its state as its card closes, its snapshot while the card is on screen (popup.mjs, E81 C3). */
+export const updateNotice = (id, patch) => engine.update(id, patch);
 /** This login's notices, oldest first (the window, E81 C7). */
 export const noticeEntries = () => engine.entries();
 /** Whether the history is saved, or kept in memory only, and the text that says so. */
