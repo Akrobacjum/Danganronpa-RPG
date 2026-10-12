@@ -6368,8 +6368,9 @@ const INVARIANTS = [
          * flags, a behaviour list - so the answer is the predicate's, not a world's; the record is handed
          * in (`isRoomWith`) where the world's would otherwise be read. Then a room as a name on a scene:
          * its pieces, its names sorted once each, a flag read as OR over its pieces, whether the scene
-         * holds a room (and so is a place, `isPlaceScene`, until E13 narrows it), and the named regions no
-         * GM has decided - the ones Season setup names and the migration marks. Red before C1 on its
+         * holds a room (and so is a place, `isPlaceScene`; since E13 C1 `roomPieces` finds no room on the
+         * linked trial hall, so the hall is none - rooms.mjs `isPlaceScene`), and the named regions no GM
+         * has decided - the ones Season setup names and the migration marks. Red before C1 on its
          * first check: the record of a player's regions is not a setting, so nothing could refuse one.
          */
         ok(game.settings.settings.has(`${MODULE_ID}.playerRegions`),

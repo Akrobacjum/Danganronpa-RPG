@@ -50380,6 +50380,75 @@ const SCENARIOS = [
             + "two entries, two exits - tokens made and deleted on the hall, its ids as before, what the GMs were whispered, the past season's rows compacted, "
             + "the past season's row still kept, this season's untick]");
     }],
+    ["entering the trial whispers the GMs once by name the students a player plays who have no token in the hall and nothing when every one has", async () => {
+        /*
+         * E13 fix l1-L1, 12.10.2026; the 1.2.74 ledger's verify E13-6, plan-E13 2.3 (Q-E13-1 a: the dead are shown too).
+         * `enterTrialScene` tells the GMs whom the hall cannot show (trial-scene.mjs `studentsWithoutHallToken`), and
+         * until this test nothing drove that whisper: R120 reads the Scenes tab's warning row, scenario 41 never has a
+         * student missing from its hall. Here a hall of the suite's own, not linked, holds a hidden token of every student
+         * a player plays in this world; it is entered three times - with every one there, with the first one's token
+         * deleted, with the second one's too. Read each time: what `enterTrialScene` answers as `missing`, and the words
+         * of every whisper it sent. The hall's `activate` is the suite's stub, so no browser at the table is moved (as
+         * the End the trial tests stub their place's). The sentence is built here from the key's form for the module's
+         * language (Intl's rule, the English one and other, the Polish one and few), not through `plural`.
+         * Measured red by mutant only (the whisper dropped; the owner filter dropped), 12.10.2026: the code at
+         * 8b4974a is the code this test passes on.
+         */
+        const T = await import("./trial-scene.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { moduleLanguage } = await import("./settings.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const played = game.actors.filter(a => a.type === "character" && ownerIdsOf(a).length);
+        must(played.length >= 2, "the world has fewer than two students players play - nobody to leave out of the hall");
+        must(played.every(a => !/[&<>"']/.test(a.name)), "a played student's name needs escaping - the sentence built here would not be the whisper's");
+        const [first, second] = played;
+        const key = "DRPG.TrialScene.missingTokens";
+        const sentence = list => {
+            const n = list.length, form = new Intl.PluralRules(moduleLanguage()).select(n);
+            return `<p>${game.i18n.format(`${key}.${game.i18n.has(`${key}.${form}`) ? form : "other"}`, { n, names: list.map(a => a.name).join(", ") })}</p>`;
+        };
+        const said = new Set(game.messages.map(m => m.id));
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13l1-${foundry.utils.randomID(8)}`, async () => {
+            let hall = null;
+            try {
+                hall = await Scene.create({ name: "SUITE E13 l1 a hall short of a token", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                let activated = 0;
+                hall.activate = async () => { activated++; return hall; };
+                await hall.createEmbeddedDocuments("Token", played.map((a, i) => ({ name: a.name, actorId: a.id, actorLink: true, x: 100 * (i + 1), y: 300, width: 1, height: 1, hidden: true })));
+                await settle();
+                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`] : [];
+                const seen = new Set(game.messages.map(m => m.id));
+                const enter = async () => {
+                    const entered = await T.enterTrialScene(hall);
+                    await settle();
+                    const fresh = game.messages.filter(m => !seen.has(m.id) && (m.whisper?.length ?? 0) > 0);
+                    for (const m of fresh) seen.add(m.id);
+                    return [entered?.missing ?? null, await Promise.all(fresh.map(m => wordsOf(m, 2000)))];
+                };
+                const gone = async actor => { await hall.deleteEmbeddedDocuments("Token", hall.tokens.filter(t => t.actorId === actor.id).map(t => t.id)); await settle(); };
+                const all = await enter();
+                await gone(first);
+                const one = await enter();
+                await gone(second);
+                const two = await enter();
+                read = { steps: [all, one, two], activated, dark };
+            } finally {
+                await hall?.delete();
+                for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+                await settle();
+            }
+        });
+        const { dark = [] } = read ?? {};
+        equal(stableJson(read?.steps ?? null), stableJson([
+            [[], [...dark]],
+            [[first.id], [sentence([first]), ...dark]],
+            [[first.id, second.id], [sentence([first, second]), ...dark]]]),
+            `[what enterTrialScene answers as missing, the words of each whisper it sent] with every student's token in the hall, with ${first.name}'s deleted, `
+            + `with ${second.name}'s too - one whisper naming them in the world's order, in the key's form for one and for two, and none with every one there `
+            + `(the hall dark: ${dark.length > 0}; activations stubbed: ${read?.activated ?? null})`);
+    }],
 
     ["a player's change to whether a hall cast token is hidden is put back by the primary GM and told to the GMs; a GM's stands", async () => {
         /*

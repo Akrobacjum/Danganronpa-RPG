@@ -91,6 +91,11 @@
  * E13 fix r2-H2's a7, z1-z3, l2 and r1 (gm0's connect among them): 35 checks in 101.9 s, one run on 12.10.2026
  * (`--verbose`, lane A; whether a run of another worktree was on the machine at the time not checked) - a third of
  * run-all.mjs's five minutes, so still no `timeoutMs`.
+ * The checkpoint k6 at a8f036e (S/e12run/k6/cmp.txt, after E13 fix r2-H2's merge): 38 checks in 119.2 s, one run on
+ * 12.10.2026 in the checkpoint's ci set (whether alone on its lane not read) - about 40% of the five minutes.
+ * E13 fix l1-L1's n1 and n2: 40 checks in 136.7 s, one run on 12.10.2026 (a2.sh's fast set, lane A, two other lanes
+ *   running beside it; a0, a6 and k3 failed there as they do at 8b4974a without n, alone: 35/38 in 121.3 s) - still no
+ *   `timeoutMs`.
  */
 export const layers = ["ci"];
 const GM0 = "USERGA0000000000";
@@ -1014,4 +1019,66 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     check("m3: a student made after the fence stops the carry test too, by name, and keeps the token on the Academy (E13 fix r2-H3)",
         stopped([lateRun]) && lateRun.mine[0].message.includes("M3 Late") && made.made && J(made.tokens) === J(["academy"]),
         J({ lateRun, made }), { flow: "trial-scene" });
+
+    /* ------------------------------ n. a body stays where it fell ------------------------------ */
+    phase("n: a dead student's token does not move for its player, on the school and in the hall", { flow: "trial-scene" });
+    /* E13 fix l1-L1 (the 1.2.74 ledger; the owner's Q-E13-1 a: the dead revealed in the hall are immovable for their player
+       through the corpse veto that was there before). movement.mjs `onPreUpdateToken` runs the veto on the mover's browser
+       and returns before it for a GM, so tier 1 and tier 2, which run on the GM's, cannot reach it: it is driven here, by
+       p1. A dead student p1 plays and a Monocub p1 plays (dead, and walks), made here and gone at the end of the phase, each
+       with a token on the Academy where Aiko stands and one in the linked hall. p1 moves each token a step that stays in
+       the room it stands in (none in the hall, which holds no room), so no crossing rule answers; then the GM moves the
+       dead student's two. Until this phase no test of any tier drove the veto (`git grep isCorpse` at 8b4974a: one census
+       row). */
+    const fixN = await gm.eval(`${HALL} const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const aiko = academy.tokens.find(t => t.actorId === "${IDS.aiko}");
+        const own = { default: 0, "${IDS.p1}": 3 };
+        const dead = await Actor.create({ name: "S41 Fallen", type: "character", ownership: own, flags: { "${MOD}": { deceased: true } } });
+        const cub = await Actor.create({ name: "S41 Cub n", type: "character", ownership: own, flags: { "${MOD}": { deceased: true, monocub: true } } });
+        const token = (actor, x, y) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false });
+        const [deadHere, cubHere] = await academy.createEmbeddedDocuments("Token", [token(dead, aiko.x, aiko.y), token(cub, aiko.x, aiko.y)]);
+        const [deadHall, cubHall] = await hall.createEmbeddedDocuments("Token", [token(dead, 1200, 700), token(cub, 1200, 700)]);
+        return { actors: [dead.id, cub.id], academy: [deadHere.id, cubHere.id], hall: [deadHall.id, cubHall.id],
+            role: R.sceneRole(hall), place: R.isPlaceScene(academy) };`, { timeout: 30000 });
+    await settle(1000);
+    /* One move of token `id` on the scene `where` names, by browser `c`, to a spot in the room it stands in; what that
+       browser holds of the token after, and what it was told. */
+    const moveN = (c, where, id) => c.eval(`${HALL} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = ${where}, t = scene.tokens.get(${J(id)}), room = M.roomOfToken(t), before = [t.x, t.y];
+        const step = [[100, 0], [-100, 0], [0, 100], [0, -100]].find(([dx, dy]) => M.roomAt(t.x + dx, t.y + dy, t) === room) ?? null;
+        const told = globalThis.__notifications.length;
+        let threw = null;
+        if (step) try { await t.update({ x: t.x + step[0], y: t.y + step[1] }); } catch (err) { threw = String(err?.message ?? err); }
+        await new Promise(r => setTimeout(r, 1200));
+        const now = scene.tokens.get(${J(id)});
+        return { room, before, to: step && [before[0] + step[0], before[1] + step[1]], at: [now.x, now.y], threw,
+            told: globalThis.__notifications.slice(told).map(n => n.level + ":" + n.msg) };`, { timeout: 30000 });
+    const ON = { academy: "academy", hall: "hall" };
+    const AT = `${HALL} const at = (scene, id) => { const t = scene.tokens.get(id); return t ? [t.x, t.y] : null; };`;
+    const movesN = {
+        deadSchool: await moveN(p1, ON.academy, fixN.academy[0]), deadHall: await moveN(p1, ON.hall, fixN.hall[0]),
+        cubSchool: await moveN(p1, ON.academy, fixN.academy[1]), cubHall: await moveN(p1, ON.hall, fixN.hall[1])
+    };
+    await settle(400);
+    /* What the GM holds after p1's moves, before its own. */
+    const midN = await gm.eval(`${AT} return { academy: ${J(fixN.academy)}.map(id => at(academy, id)), hall: ${J(fixN.hall)}.map(id => at(hall, id)) };`);
+    Object.assign(movesN, { gmSchool: await moveN(gm, ON.academy, fixN.academy[0]), gmHall: await moveN(gm, ON.hall, fixN.hall[0]) });
+    await settle(400);
+    const heldN = await gm.eval(`${AT}
+        const out = { dead: game.i18n.localize("DRPG.Move.dead"), academy: ${J(fixN.academy)}.map(id => at(academy, id)), hall: ${J(fixN.hall)}.map(id => at(hall, id)) };
+        await academy.deleteEmbeddedDocuments("Token", ${J(fixN.academy)}.filter(id => academy.tokens.get(id)));
+        await hall.deleteEmbeddedDocuments("Token", ${J(fixN.hall)}.filter(id => hall.tokens.get(id)));
+        for (const id of ${J(fixN.actors)}) await game.actors.get(id)?.delete();
+        return out;`, { timeout: 30000 });
+    const vetoed = move => move.to && J(move.at) === J(move.before) && move.told.includes(`warn:${heldN.dead}`);
+    const stood = move => move.to && move.threw === null && J(move.at) === J(move.to) && !move.told.includes(`warn:${heldN.dead}`);
+    check("n1: p1's move of the token of a dead student it plays is refused on the Academy and in the linked hall, with the corpse veto's warning, and the token stays where it was on p1's browser and the GM's (E13 fix l1-L1; Q-E13-1 a)",
+        fixN.role === "trial" && fixN.place === true && vetoed(movesN.deadSchool) && vetoed(movesN.deadHall)
+            && J(midN.academy[0]) === J(movesN.deadSchool.before) && J(midN.hall[0]) === J(movesN.deadHall.before),
+        J({ fixN, movesN, midN }), { flow: "trial-scene" });
+    check("n2: the Monocub p1 plays moves on the Academy and in the hall, unwarned, and the GM's move of the dead student's tokens stands on both, unwarned - the veto is the player's, and a Monocub is no body (E13 fix l1-L1)",
+        stood(movesN.cubSchool) && stood(movesN.cubHall) && stood(movesN.gmSchool) && stood(movesN.gmHall)
+            && J(midN.academy[1]) === J(movesN.cubSchool.to) && J(midN.hall[1]) === J(movesN.cubHall.to)
+            && J(heldN.academy[0]) === J(movesN.gmSchool.to) && J(heldN.hall[0]) === J(movesN.gmHall.to),
+        J({ movesN, midN, heldN }), { flow: "trial-scene" });
 }
