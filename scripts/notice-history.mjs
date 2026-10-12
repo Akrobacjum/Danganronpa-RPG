@@ -102,8 +102,12 @@ export const NOTICE_TEXTS = Object.freeze({
  * entries and a quarter of the section's characters from each other user (`authorShare`, E81
  * fix r1-G1). None of these is a measurement of a browser's quota:
  * localStorage is shared with the private cards and the GM stores, and the history gives way
- * to them when it runs out (`keepRoom`, below): from then on, for the rest of the session, every
- * one of these but the entry's own is halved.
+ * to them when it runs out (`keepRoom`, below): from then on, for the rest of the session, the
+ * section's entries and characters (and so each other user's quarter of them), each other user's
+ * 40 entries and the whole value's 500 000 are halved; an entry's own limits and the 4 full day
+ * summaries are not (E81 fix r1-G2; this comment had said every budget but the entry's own, review
+ * round 1's O15). The whole value's budget cuts other worlds' sections and this login's own
+ * entries, never another account's section of this world (`trimValue`, Q9).
  */
 const BUDGET = Object.freeze({
     title: 200, text: 600,
@@ -536,27 +540,40 @@ export function createNoticeEngine(env) {
     }
 
     /**
-     * The whole value over 500 000: other worlds' sections go first, the least recently written first;
-     * then this world's other accounts' sections, the same way (the A7 design, 1b); then this login's
-     * oldest entries.
+     * The whole value over 500 000 (250 000 once the history gave way): other worlds' sections go
+     * first, the least recently written first (the A7 design, 1b); then this login's oldest entries, its
+     * newest always kept. Answers false, and cuts nothing of this login's, when this world's other
+     * accounts' sections leave no room beside them for even that newest one: the caller then keeps this
+     * login's history in memory only, where cutting it to nothing would have emptied it there too.
+     *
+     * NEVER ANOTHER ACCOUNT'S SECTION OF THIS WORLD (E81 fix r1-G2, 12.10.2026; review round 1's F3 and N2).
+     * The design's 1b let this world's other accounts' sections go next, the least recently written first,
+     * against Q9 ("every account's history stays in the one value to the season's reset") - and once the
+     * history had given way the halved total reached them on a browser three accounts of one world had used:
+     * the correctness review's bench at 0697d0f, a GM's give-way beside a player's section of 199 622
+     * characters and another's of 60 808, deleted the first whole. Measured again on 12.10 over the engine,
+     * sections of 23, 7 and 10 entries of about 8 000 characters: the same give-way at 27e4b34 deleted the
+     * 185 884-character section of 23 entries; now both stay byte for byte, and the GM's newer 5 entries,
+     * written as they are, stay in its memory with the history no longer saving. A shared browser whose other
+     * accounts fill the value costs this login its saving, never them their history.
      */
     function trimValue(value) {
         const total = BUDGET.total * room;
         let size = sizeOf(value);
-        if (size <= total) return;
+        if (size <= total) return true;
         const world = env.worldId();
         const byTouched = (a, b) => num(a[1]?.touched) - num(b[1]?.touched);
-        const others = Object.entries(value.sections).filter(([key]) => key !== ownKey);
-        for (const [key] of [...others.filter(([key]) => worldOfKey(key) !== world).sort(byTouched),
-            ...others.filter(([key]) => worldOfKey(key) === world).sort(byTouched)]) {
-            if (size <= total) return;
+        for (const [key] of Object.entries(value.sections).filter(([key]) => key !== ownKey && worldOfKey(key) !== world).sort(byTouched)) {
+            if (size <= total) return true;
             delete value.sections[key];
             size = sizeOf(value);
         }
-        while (size > total && mine.entries.length) {
+        if (size - sizeOf(mine.entries) + sizeOf(mine.entries.slice(-1)) > total) return false;
+        while (size > total && mine.entries.length > 1) {
             size -= sizeOf(mine.entries.shift()) + 1;
             value.sections[ownKey] = mine;
         }
+        return true;
     }
 
     /* ------------------------------- writing ------------------------------ */
@@ -576,7 +593,7 @@ export function createNoticeEngine(env) {
     /**
      * The value as this client is to write it: what the epoch ended cleared, another tab's copy of this
      * login's section merged in, and the budgets kept - after the older half of the section is let go,
-     * when `halve` (giving way).
+     * when `halve` (giving way). False when the value cannot keep the whole value's budget (`trimValue`).
      */
     function gather(value, { halve = false } = {}) {
         applyEpoch(value);
@@ -587,7 +604,13 @@ export function createNoticeEngine(env) {
         trimSection(mine);
         mine.touched = env.now();
         value.sections[ownKey] = mine;
-        trimValue(value);
+        return trimValue(value);
+    }
+
+    /** This world's other accounts hold the whole value's budget (`trimValue`): this login's history stays in memory for the session. */
+    function crowdedOut() {
+        saving = false;
+        env.log.warn("This world's other accounts' notice histories fill this browser's share; this one is kept in memory until this page closes.");
     }
 
     /**
@@ -595,7 +618,8 @@ export function createNoticeEngine(env) {
      * budgets and write. This login's section missing from the value (another account's write, or a
      * console) is written again from memory. A write that throws drops the oldest quarter and tries once
      * more; a second failure keeps the history in memory for the rest of the session (`status`), with no
-     * notification: the window's footer says it (E81 C7).
+     * notification: the window's footer says it (E81 C7). So does a value this world's other accounts fill
+     * (`trimValue`, E81 fix r1-G2), before anything is written.
      */
     async function flush() {
         if (timer !== null) { env.timers.clear(timer); timer = null; }
@@ -609,7 +633,11 @@ export function createNoticeEngine(env) {
                 changed();
                 return;
             }
-            gather(value);
+            if (!gather(value)) {
+                crowdedOut();
+                changed();
+                return;
+            }
             for (let attempt = 0; ; attempt++) {
                 try {
                     await env.storage.write({ v: FORMAT, sections: forStorage(value.sections) });
@@ -643,7 +671,9 @@ export function createNoticeEngine(env) {
      * first, and synchronously, because that second try follows this call without waiting for anything.
      * Every other world's section goes, then the older half of this login's section, and the budgets are
      * halved for the rest of the session, so the next write does not take the room back. Another account's
-     * section of this world stays (Q9). The smaller value is written through `storage.writeNow` - also when
+     * section of this world stays (Q9): when those sections leave no room in the halved whole value for
+     * this login's newest entry, what is left is written and this login's history is kept in memory from
+     * then on (E81 fix r1-G2, `trimValue`). The smaller value is written through `storage.writeNow` - also when
      * the history had stopped saving after its own writes failed, since its old value still holds the room -
      * but not under the suite's hold, nor over a value a newer build wrote. Answers how many characters of
      * JSON the stored value lost; what that frees in a browser's own count is not measured here.
@@ -657,12 +687,14 @@ export function createNoticeEngine(env) {
         const before = sizeOf({ v: FORMAT, sections: value.sections });
         const world = env.worldId();
         for (const key of Object.keys(value.sections)) if (worldOfKey(key) !== world) delete value.sections[key];
-        gather(value, { halve: true });
+        const crowded = !gather(value, { halve: true });
+        if (crowded) crowdedOut();
         const next = { v: FORMAT, sections: forStorage(value.sections) };
         try {
             env.storage.writeNow(next);
         } catch (err) {
             env.log.warn("The notice history could not give its room back in this browser's storage.", err);
+            if (crowded) changed();
             return 0;
         }
         changed();
@@ -943,8 +975,13 @@ export const onNoticeHistoryChange = fn => engine.onChange(fn);
 /** Suite only (tests.mjs, beside `gmStoreHold`): while held the history is kept in memory and the setting is not written; awaited, the hold has written what was waiting. */
 export const holdNoticeHistory = on => engine.hold(on);
 
-/** A browser's "this origin's storage is full": `QuotaExceededError`, by its name or by its legacy code 22. */
-const storageFull = err => err?.name === "QuotaExceededError" || err?.code === 22;
+/**
+ * A browser's "this origin's storage is full": `QuotaExceededError`, by its name or by its legacy code 22, and
+ * Firefox's older `NS_ERROR_DOM_QUOTA_REACHED`, code 1014 (E81 fix r1-G2, review round 1's O17). Which of them a
+ * current Firefox throws is not measured here (LIVE).
+ */
+const storageFull = err => err?.name === "QuotaExceededError" || err?.name === "NS_ERROR_DOM_QUOTA_REACHED"
+    || err?.code === 22 || err?.code === 1014;
 
 /**
  * GIVING WAY (E81 C6). A store of the module whose write `err` stopped calls this before it gives up: on a

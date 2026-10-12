@@ -7180,8 +7180,9 @@ const INVARIANTS = [
          * section's key and the entry's `id`, `at` and clock (this client's, whatever the caller passes); the
          * clipping of a title, a text and an html over its budget, a day summary's larger one; at most 4 full day
          * summaries in a section; the 251st entry of a player's section and the 151st of a GM's; a section's
-         * 200 000 characters; 40 entries from each author, whatever their source (E81 fix r1-G1); the value's 500 000, other worlds first and this
-         * world's other accounts after them; the epoch on read and on write; `open` read back as `unread`; a raw
+         * 200 000 characters; 40 entries from each author, whatever their source (E81 fix r1-G1); the value's 500 000, other worlds first and never
+         * this world's other accounts (E81 fix r1-G2: a value they alone fill keeps this login in memory); the epoch on
+         * read and on write; `open` read back as `unread`; a raw
          * value read through the shape; two tabs of one login - the union, one entry per message and source, a
          * withdrawn entry and a Clear that another tab's copy does not bring back, tombstones let go after ten
          * minutes; this login's section taken out by another account written again from memory; a write that
@@ -7268,7 +7269,8 @@ const INVARIANTS = [
             JSON.stringify([40, 3, 2, false, true]),
             "[author A's entries after 43, its public ones among them; author B's 3; the public ones; A's oldest gone; an author kept on a card that is not a player's]");
 
-        // The whole value's 500 000: other worlds first, the least recently written first, then this world's other accounts.
+        // The whole value's 500 000: other worlds first, the least recently written first, and never this world's other
+        // accounts (E81 fix r1-G2, 12.10.2026; until then they went next): a value they alone fill is not written.
         const epoch = NH.noticeEpoch(clock.value);
         const filler = (touched, chars) => ({ epoch, touched, clearedAt: 0, gone: {}, entries: [], pad: "f".repeat(chars) });
         const evicted = [];
@@ -7281,11 +7283,11 @@ const INVARIANTS = [
             e.open();
             e.record(card("own"));
             await e.flush();
-            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length);
+            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length, e.status().saving);
         }
-        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, `${W}.${U1}`, true, 1]),
+        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, true, `${W}.${U2}`, false, 1, false]),
             "[over 500 000 with two other worlds and another account here: the least recently written other world goes, the account stays though older; "
-            + "with this world's other account alone over it: that section goes, this login's entry stays]");
+            + "with this world's other account alone over it: that section stays and nothing is written, this login's entry kept in memory, not saving]");
 
         // The epoch: on read, and on write.
         store = fresh();
@@ -8248,6 +8250,15 @@ const INVARIANTS = [
          * `drpgStorageFull` and the case's health has its info row; and `gmStoreStatus` over a stand-in storage counts
          * the history's key in `notices`, not in `total`. What a browser's quota counts is not measured here: the
          * lengths are JSON's. A real full storage, jsdom's: 61-gmstore-case X.
+         * (5) E81 fix r1-G2 (12.10.2026; review round 1's F3, N2 and O17): (1)'s other account of this world is a
+         * 10-entry clone that never reaches the halved whole value, so it passed over a give-way that deleted such a
+         * section whole (the correctness review's bench: 199 622 characters). Here the other accounts' sections are
+         * big enough to cross it - halved after a GM's give-way (a: they alone fill it; b: they leave room for part
+         * of this login's) and whole at a player's ordinary write (c: they alone fill it; d: room for part) - and
+         * each must stay byte for byte, while this login's section is cut to what fits, oldest first, or, where
+         * nothing of it fits, is kept in memory with the history no longer saving. And `keepRoom` hears Firefox's
+         * older quota error, by its name and by its code 1014. At 27e4b34 all four lost the least recently written
+         * other section (r1g2-probe2.mjs, 12.10.2026).
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8279,7 +8290,7 @@ const INVARIANTS = [
         const writes = store.writes;
         const freed = e.giveWay();
         const given = JSON.parse(store.raw);
-        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER].entries.length,
+        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER]?.entries.length ?? null,
             store.now, store.writes - writes, freed > 0 && freed === before - store.raw.length];
         for (let i = 1; i <= 300; i++, at.now++) e.record(card(100 + i));
         await e.flush();
@@ -8367,6 +8378,45 @@ const INVARIANTS = [
         const status = S.gmStoreStatus(client);
         equal(J([status.total, status.notices]), J([items[0][0].length + 100, items[1][0].length + 1000]),
             "[what the module keeps without its notice history; the history] in a stand-in storage");
+
+        /* (5) Another account's section of this world, big enough to cross the whole value's budget, and the other quota errors. */
+        const big = (touched, chars) => ({ epoch: NH.noticeEpoch(clock.value), touched, clearedAt: 0, gone: {}, entries: [], pad: "R298".repeat(chars / 4) });
+        const shared = async (gm, n, others, give) => {
+            const lot = { raw: null, writes: 0, fail: 0, now: 0 }, user = gm ? "SuiteGmR29805001" : "SuitePlayerR2985";
+            const engine = noticeBench(NH.createNoticeEngine, { store: lot, user, world: W, gm, at, clock });
+            engine.open();
+            for (let i = 1; i <= n; i++, at.now++) engine.record({ ...card(500 + i), html: `<p>${"x".repeat(7800)}</p>` });
+            await engine.flush();
+            const value = JSON.parse(lot.raw);
+            others.forEach((chars, i) => { value.sections[`${W}.SuiteOtherR2985${i}`] = big(i + 1, chars); });
+            value.sections["another-world.SuiteOtherR29859"] = big(0, 4000);
+            lot.raw = J(value);
+            const theirs = others.map((chars, i) => J(value.sections[`${W}.SuiteOtherR2985${i}`]));
+            if (give) engine.giveWay();
+            else {
+                engine.record(card(599));
+                await engine.flush();
+            }
+            const after = JSON.parse(lot.raw).sections;
+            return [theirs.every((text, i) => J(after[`${W}.SuiteOtherR2985${i}`]) === text), Boolean(after["another-world.SuiteOtherR29859"]),
+                after[`${W}.${user}`]?.entries.length ?? null, engine.entries().length, engine.status().saving];
+        };
+        equal(J([await shared(true, 10, [190000, 60000], true), await shared(true, 10, [170000, 40000], true),
+            await shared(false, 10, [180000, 180000, 180000], false), await shared(false, 20, [200000, 200000], false)]),
+            J([[true, false, 5, 5, false], [true, false, 4, 4, true], [true, true, 10, 11, false], [true, false, 13, 13, true]]),
+            "[a GM's give-way, the others fill the halved value; leave room; a player's write, the others fill the value; leave room] as [the other accounts' sections byte for byte, another world's kept, this login's stored, in memory, saving]");
+        await NH.holdNoticeHistory(true);
+        let heardOther = 0;
+        const otherHook = Hooks.on("drpgStorageFull", () => { heardOther++; });
+        let firefox;
+        try {
+            firefox = [NH.keepRoom(new globalThis.DOMException("R298: the suite's full storage", "NS_ERROR_DOM_QUOTA_REACHED")),
+                NH.keepRoom(Object.assign(new Error("R298: the suite's full storage"), { code: 1014 })), heardOther];
+        } finally {
+            Hooks.off("drpgStorageFull", otherHook);
+            await NH.holdNoticeHistory(false);
+        }
+        equal(J(firefox), J([true, true, 2]), "[NS_ERROR_DOM_QUOTA_REACHED by its name; by its code 1014; the hook heard] as a full storage");
     }],
 ];
 
