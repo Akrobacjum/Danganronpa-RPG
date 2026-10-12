@@ -8314,7 +8314,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.tokenId`; a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); R433"],
             ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
             ["STORE trial-scene.mjs#trialExit", "not a source: the scene and room End the trial chose, in the memory of the GM's client that pressed it - `setTrialExit` holds only a room of a place scene and only on a GM, `closeTrial` sets it right before its phase write and drops it in a `finally`, `leaveTrialScene` takes it once; written to no document [1b.1 the return's scene and room]; R436"],
-            ["STORE module.json#relationships", "not a source: the manifest; C10 moves isometric-perspective and avclient-livekit into `requires` (installed and enabled only, d2) (E13 C10)"]
+            ["STORE module.json#relationships", "not a source: the manifest, which no user writes at runtime; `requires` names dice-so-nice, isometric-perspective and avclient-livekit, read back by `missingRequirements`, and `init` stops without any of them - installed and switched on is all it asks (d2; R441, R442)"]
         ];
         const ROADS = /^token\.sendBack$/;
         const FILES = ["trial-floor-ui.mjs", "call-world.mjs", "voice.mjs", "use-items.mjs", "clock.mjs", "requirements.mjs", "trial-scene.mjs"];
@@ -10520,6 +10520,35 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "a handbook no longer states the table's rule on Start the Class Trial or in the player's trial, or names the Scenes tab, a door or a call the module does not have, in one of the two languages");
+    }],
+
+    ["R441 - module.json requires Dice So Nice, Isometric Perspective and LiveKit, recommends none of them, and names them by the ids the code reads", async () => {
+        /*
+         * E13 C10, 12.10.2026; the owner's amendment d of 09.10 (the ledger's Ad): isometric-perspective and
+         * avclient-livekit are required as dice-so-nice is - installed and switched on, nothing more (d2). The list
+         * lives in the manifest: it is what `missingRequirements` reads back and what Foundry's module browser offers
+         * to install (whether that prompt offers the two at a table is LIVE-E13-11, not measured). So this reads the
+         * served module.json: `relationships.requires` holds exactly the three, each a module with a manifest URL and
+         * a reason (`required()` in requirements.mjs drops an entry of another type), and `relationships.recommends`
+         * holds none of them - until C10 the two stood there, and the module ran without them behind a window the GM
+         * could silence. The ids are the ones the code asks `game.modules` about: each stands quoted in a module
+         * source with comments blanked, so an entry spelt otherwise than the code reads it fails here. R442 asks what
+         * the check does when one of them is missing.
+         */
+        const IDS = ["dice-so-nice", "isometric-perspective", "avclient-livekit"];
+        const res = await fetch(`/modules/${MODULE_ID}/module.json`);
+        ok(res.ok, "module.json did not load");
+        const rel = (await res.json())?.relationships ?? {};
+        const requires = [...(rel.requires ?? [])];
+        ok(requires.length > 0, "module.json requires nothing - this test measured nothing");
+        const code = stripComments((await otherSources()).map(([, src]) => src).join("\n"));
+        equal(JSON.stringify({
+            requires: requires.map(entry => entry?.id).sort(),
+            shape: requires.map(entry => entry?.type === "module" && /^https:\/\//.test(entry?.manifest ?? "") && String(entry?.reason ?? "").length > 20),
+            recommends: [...(rel.recommends ?? [])].map(entry => entry?.id).filter(id => IDS.includes(id)),
+            read: IDS.map(id => code.includes(`"${id}"`))
+        }), JSON.stringify({ requires: [...IDS].sort(), shape: IDS.map(() => true), recommends: [], read: IDS.map(() => true) }),
+            "[the ids module.json requires, whether each is a module with a manifest and a reason, which of the three it only recommends, whether the code names each]");
     }]
 ];
 

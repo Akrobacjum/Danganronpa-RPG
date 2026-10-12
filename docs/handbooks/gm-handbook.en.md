@@ -19,7 +19,7 @@ Install from Foundry's **Add-on Modules** tab with **Install Module** and this m
 https://github.com/Akrobacjum/Danganronpa-RPG/releases/latest/download/module.json
 ```
 
-Then install the system and the modules below from their own package pages. The module refuses to start without the required one and names it, as "not installed" or "installed, but switched off". A GM is warned about the two recommended ones at every world load, in a window that says what each one does, until they tick its "Do not mention this again on this computer" checkbox; everything works without them. The module never installs anything by itself.
+Then install the system and the modules below from their own package pages. The module refuses to start without any of the three required ones and names each one that is missing, as "not installed" or "installed, but switched off": to the GM in a window, to a player in a notice that stays on screen. Required means installed and switched on; nothing checks that a LiveKit server answers. The module never installs anything by itself.
 
 | Needs | Version |
 |---|---|
@@ -29,8 +29,8 @@ Then install the system and the modules below from their own package pages. The 
 | Module | Status | Why |
 |---|---|---|
 | Dice So Nice! | required | Every roll in this game is thrown on the screens allowed to see it; this is how the duality dice are seen |
-| Isometric Perspective | recommended | The academy maps are drawn isometrically; without it the scenes, tokens and Remnants land on a grid the art was never made for. Square maps still work |
-| LiveKit AVClient | recommended | Per-room voice: regions become breakout rooms, and moving between rooms moves who can hear you. Without it the whole school talks on one channel |
+| Isometric Perspective | required | The academy maps are drawn isometrically; it lays the scenes, tokens and Remnants out the way the art was made |
+| LiveKit AVClient | required | Per-room voice: regions become breakout rooms, and moving between rooms moves who can hear you |
 
 The module does not use libWrapper. If Isometric Perspective ever asks for it, that module's own page says so.
 

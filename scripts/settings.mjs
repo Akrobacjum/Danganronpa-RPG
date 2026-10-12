@@ -12,8 +12,6 @@ import { forgetSceneRoles } from "./rooms.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
-    /** This browser has been told which recommended modules are missing (M-1). */
-    recommendsSilenced: "recommendsSilenced",
     /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
     systemWarningSilenced: "systemWarningSilenced",
     /** Which relay warning this GM last had, and for which Daggerheart version (E03, relay-guard.mjs). */
@@ -964,20 +962,14 @@ export function registerSettings() {
        below reads it only under Monokuma Legacy. Legacy therefore keeps Press
        Start 2P as its default face with nothing to turn on, and Stained Glass
        is VT323 and Special Elite for everybody. */
-    /* THE ADVICE IS PER BROWSER, AND CAN BE TURNED OFF (M-1, 17.09).
-       Isometric Perspective and LiveKit are recommended rather than required, so
-       the module says once what is missing and what it does. `config: false`: it
-       is not a dial anybody sets on purpose, it is the checkbox in that window. */
-    game.settings.register(MODULE_ID, SETTINGS.recommendsSilenced, {
-        scope: "client",
-        config: false,
-        type: Boolean,
-        default: false
-    });
     /* A VERSION, NOT A SWITCH (E01, 24.09.2026; audit S01-09). The warning about a
        Daggerheart newer than the one this module was measured on is silenced for
        THAT version only: the next Daggerheart release is a new unknown and the GM
-       hears about it again. Same shape and scope as the switch above. */
+       hears about it again. Per browser (`scope: "client"`), and `config: false`:
+       it is the checkbox in that window, not a dial anybody sets on purpose. The
+       switch that silenced the recommended-modules window (`recommendsSilenced`,
+       M-1) went with that window in E13 C10; a browser that stored it keeps a
+       value no code reads any more (git grep, 12.10.2026). */
     game.settings.register(MODULE_ID, SETTINGS.systemWarningSilenced, {
         scope: "client",
         config: false,

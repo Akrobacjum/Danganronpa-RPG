@@ -91,8 +91,8 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { registerEnforced } from "./enforced.mjs";
-import { requirementsMet, announceMissingRequirements, announceMissingRecommendations,
-    announceNewerSystem, systemCompatibility } from "./requirements.mjs";
+import { requirementsMet, announceMissingRequirements, announceNewerSystem,
+    systemCompatibility } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
@@ -130,18 +130,18 @@ Hooks.once("init", () => {
      */
     safely("the Daggerheart relay guard", registerRelayGuard);
 
-    // ONE MODULE IS NOT OPTIONAL - see requirements.mjs, and the
+    // THREE MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
-    // Dice So Nice: nothing registers without it. Every roll in this game is
-    // thrown in front of the table, and dice nobody can see are worse than an
-    // honest stop - the table would spend the evening working around symptoms
-    // rather than ticking one checkbox. Nothing is written on this path, so
-    // enabling it and reloading is the whole of the repair.
-    //
-    // Isometric Perspective and LiveKit moved to `recommends` on 17.09 (M-1):
-    // they are how this table plays, not what the rules need, and the warning
-    // for them is a window the GM can silence rather than a closed door.
+    // Dice So Nice: every roll in this game is thrown in front of the table,
+    // and dice nobody can see are worse than an honest stop - the table would
+    // spend the evening working around symptoms rather than ticking one
+    // checkbox. Isometric Perspective and LiveKit joined it on 09.10.2026 (the
+    // owner's amendment d, E13 C10): the academy is drawn isometric and its
+    // rooms are voice rooms, and from 17.09 (M-1) they had only been
+    // recommended. Required means installed and switched on (R442). Nothing is
+    // written on this path, so enabling what is missing and reloading is the
+    // whole of the repair.
     if (!requirementsMet()) {
         log("Not starting: a required module is missing or disabled.");
         return;
@@ -292,12 +292,9 @@ Hooks.once("ready", () => {
         return;
     }
 
-    // And the two the game asks for but runs without (M-1). Not awaited: it is
-    // a window the GM reads while the rest of this hook gets on with the world.
-    announceMissingRecommendations().catch(err =>
-        error("Could not mention the recommended modules", err));
     // And a Daggerheart newer than the one this was measured on (D1: no maximum
-    // in the manifest, so this is the only thing that says so). Not awaited either.
+    // in the manifest, so this is the only thing that says so). Not awaited: it is
+    // a window the GM reads while the rest of this hook gets on with the world.
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.

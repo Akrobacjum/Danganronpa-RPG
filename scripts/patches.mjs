@@ -39,8 +39,9 @@ const AV_MODULE = "avclient-livekit";
  * (E01, 24.09.2026; the review of E01). The newer-Daggerheart warning lists only the
  * rows whose owner is the system: it used to list every row that answered
  * `present: false`, which put Isometric Perspective's override - absent whenever that
- * recommended module is off - under the heading "places the module changes in
- * Daggerheart" on every world without it.
+ * module is off - under the heading "places the module changes in Daggerheart" on
+ * every world without it. (It was only recommended then; since E13 C10 this module
+ * does not start without it.)
  */
 export const PATCHES = [
     {

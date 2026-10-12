@@ -19,7 +19,7 @@ Instaluj z zakładki **Add-on Modules** w Foundry przez **Install Module** i ten
 https://github.com/Akrobacjum/Danganronpa-RPG/releases/latest/download/module.json
 ```
 
-Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł odmawia startu bez wymaganego i wymienia go jako "niezainstalowany" albo "zainstalowany, ale wyłączony". O dwóch zalecanych GM dostaje ostrzeżenie przy każdym wczytaniu świata, w oknie, które mówi, do czego każdy z nich służy, dopóki nie zaznaczy w nim pola "Nie przypominaj o tym więcej na tym komputerze"; wszystko działa i bez nich. Moduł nigdy niczego nie instaluje sam.
+Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł odmawia startu bez któregokolwiek z trzech wymaganych i wymienia każdy brakujący jako "niezainstalowany" albo "zainstalowany, ale wyłączony": GM-owi w oknie, graczowi w powiadomieniu, które nie znika. Wymagany znaczy zainstalowany i włączony; nic nie sprawdza, czy serwer LiveKit odpowiada. Moduł nigdy niczego nie instaluje sam.
 
 | Wymaga | Wersja |
 |---|---|
@@ -29,8 +29,8 @@ Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł odmawi
 | Moduł | Status | Po co |
 |---|---|---|
 | Dice So Nice! | wymagany | Każdy rzut w tej grze leci na ekranach, które mogą go widzieć; tak widać kości duality |
-| Isometric Perspective | zalecany | Mapy akademii są rysowane izometrycznie; bez niego sceny, tokeny i Remnants trafiają na siatkę, dla której ta grafika nie powstała. Mapy kwadratowe i tak działają |
-| LiveKit AVClient | zalecany | Głos per pokój: regiony stają się pokojami breakout, a przejście między pokojami zmienia, kto cię słyszy. Bez niego cała szkoła rozmawia na jednym kanale |
+| Isometric Perspective | wymagany | Mapy akademii są rysowane izometrycznie; ten moduł układa sceny, tokeny i Remnants tak, jak powstała grafika |
+| LiveKit AVClient | wymagany | Głos per pokój: regiony stają się pokojami breakout, a przejście między pokojami zmienia, kto cię słyszy |
 
 Moduł nie używa libWrapper. Jeśli Isometric Perspective kiedyś będzie go potrzebować, powie o tym strona tamtego modułu.
 

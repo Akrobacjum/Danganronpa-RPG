@@ -7076,6 +7076,43 @@ const INVARIANTS = [
             JSON.stringify([true, true, true, true, true, true, false, false]),
             "[breakOnDespair asks rollSpends before it wears; workOnProject, performSabotage, attemptCleanup, attemptStageSix and wearSwing call it unconditionally; useItem and useCreatively wear nothing]");
     }],
+
+    ["R442 - a missing or switched-off companion stops the module: Isometric Perspective and LiveKit as Dice So Nice", async () => {
+        /*
+         * E13 C10, 12.10.2026; the owner's amendment d of 09.10 (the ledger's Ad; LIVE-E13-11's headless half).
+         * Required means installed and switched on (d2), and the check is the one Dice So Nice always had:
+         * requirements.mjs `missingRequirements` lists every module this world's manifest requires that the module map
+         * does not hold (`absent`) or holds switched off (`disabled`), and `requirementsMet` answers whether it listed
+         * none. Both take the map as an argument since C10, so this asks about worlds this one is not, with plain Maps,
+         * and touches nothing the running module reads: all three on; Isometric Perspective installed but off; LiveKit
+         * never installed; Dice So Nice off. Before C10 the two stood under `recommends`, the check never saw them, and
+         * the second and third worlds read as met. Then module.mjs with comments blanked: `init` returns on
+         * `requirementsMet()` before it registers a setting (R147 keeps the relay guard ahead of it), `setup` returns on
+         * it first, and `ready` announces what is missing and returns before anything else. What the GM's window and the
+         * player's notice say at a table, and whether Foundry's own prompt offers the two, is LIVE-E13-11 (not run).
+         */
+        const R = await import("./requirements.mjs");
+        must(typeof R.missingRequirements === "function" && typeof R.requirementsMet === "function", "requirements.mjs has no check to ask");
+        const IDS = ["dice-so-nice", "isometric-perspective", "avclient-livekit"];
+        const ask = world => {
+            const map = new Map(IDS.filter(id => world[id] !== "absent").map(id => [id, { id, title: id, active: world[id] !== "disabled" }]));
+            return { missing: R.missingRequirements(map).map(row => `${row.id}:${row.state}`), met: R.requirementsMet(map) };
+        };
+        equal(JSON.stringify([ask({}), ask({ "isometric-perspective": "disabled" }), ask({ "avclient-livekit": "absent" }), ask({ "dice-so-nice": "disabled" })]),
+            JSON.stringify([{ missing: [], met: true }, { missing: ["isometric-perspective:disabled"], met: false },
+                { missing: ["avclient-livekit:absent"], met: false }, { missing: ["dice-so-nice:disabled"], met: false }]),
+            "[what is missing and whether the module may start: all three on; Isometric Perspective switched off; LiveKit not installed; Dice So Nice switched off]");
+
+        const src = stripComments(new Map(await otherSources()).get("module.mjs") ?? "");
+        const init = bodyOf(src, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const stop = init.search(/if \(!requirementsMet\(\)\) \{[^{}]*\breturn;\s*\}/);
+        equal(JSON.stringify([stop > 0 && stop < init.indexOf("registerSettings("),
+            /^Hooks\.once\("setup", \(\) => \{\s*if \(!requirementsMet\(\)\) return;/.test(bodyOf(src, 'Hooks.once("setup"', { until: 'Hooks.once("ready"' })),
+            /^Hooks\.once\("ready", \(\) => \{\s*if \(!requirementsMet\(\)\) \{\s*announceMissingRequirements\(\)[^{}]*\);\s*return;\s*\}/
+                .test(bodyOf(src, 'Hooks.once("ready"', { length: 600 }))]),
+            JSON.stringify([true, true, true]),
+            "[init returns on the check before it registers a setting; setup returns on it first; ready announces and returns first]");
+    }],
 ];
 
 /**
