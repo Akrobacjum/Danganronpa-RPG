@@ -8086,7 +8086,7 @@ const REGRESSIONS = [
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken:inline", "out of scope: repaints a ring on a flag change only (remnant-ring.mjs:110-114), not on a move; not one of the plan's movement listeners"],
             // E13 C2: the trial hall's cast (R432 judges the same two for the trial).
             ["HOOK trial-scene.mjs#registerTrialScene#updateToken:watchCast", "put back on the primary: a non-GM's change to a hall cast token's `hidden` is put back to the `hidden` a GM last wrote, only when the token holds another, and told to the GMs (`castPutBack`, `castHeld`, R434; E13 fix r1-F2); every GM's client notes a GM's write; it reads no position, so a move in the hall is not its"],
-            ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: the module deletes nothing in the hall; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
+            ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             ["HOOK visibility.mjs#registerVisibility#updateToken:inline", "out of scope as a judge: re-applies who is shown on every client; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; since E12 C11 it draws through visibility.mjs `tokenShownTo`, one rule on every floor (E12 C11)"],
             ["HOOK voice.mjs#registerVoice#updateToken:inline", "out of scope as a judge: schedules the voice reconcile, which places by `locateActor` on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
@@ -8241,7 +8241,10 @@ const REGRESSIONS = [
          * 5 SOCKET, 24 SHEET, 41 HOOK, 9 STORE) on its working tree and 81 at 36f559d (12.10.2026): the scratch census
          * takes its STORE rows from its own list at any commit, and `rollSpends` and `castHeld` came in after C3b's 78. R379
          * reads the token listeners of the room roads too, keyed its own way; a commit that changes one rewrites both.
-         * And D7's line, in the source with comments blanked: trial-scene.mjs creates and deletes no document.
+         * And D7's line, in the source with comments blanked: trial-scene.mjs created and deleted no document until E81
+         * DZ6 (12.10.2026); since then it names `createEmbeddedDocuments` once and `deleteEmbeddedDocuments` once, both
+         * in `stageHall`, the create with `keepId` (the record names the id before the token exists), and no `.create(`
+         * or `.delete(` anywhere.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
@@ -8283,8 +8286,8 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
-            ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
+            ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8293,9 +8296,9 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#preUpdateToken#onPreUpdateToken", "judged: the mover's own client vetoes a crossing (E12 C9 rewrites it as `crossingVerdict`); in the hall it returns at movement.mjs:242 (no rooms) and keeps the corpse veto (:229) [1b.1]"],
             ["HOOK movement.mjs#updateToken#onUpdateToken", "judged: a GM's move is free (`userId`), a player's is charged on the primary through rooms; the hall has none after C1, so nothing is charged (41 b)"],
             ["HOOK movement.mjs#canvasReady#primeRoomCache", "out of scope: primes this client's room cache for the viewed scene; on the hall it finds no rooms once C1 lands"],
-            ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). E13 creates nothing: a dropped token of a student joins the cast as any hall token does, and C2's entry report names a second token of one actor"],
+            ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). A dropped token of a student is not the module's (no record names it): it joins the cast as a token the GMs placed would, is never deleted by the stage, and C2's entry report names a second token of one actor"],
             ["HOOK movement.mjs#updateToken#noteGmPosition", "judged: records a GM's placement as lawful (`gmSeen`, primary gate); C2's reveal and hide write no position; the return from the trial's gather (E13 C3b) is a GM write and lands lawful (E12 C12)"],
-            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; nothing is created in the hall (D7). Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
+            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; since E81 DZ6 the stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall, one create on a GM, and they ride it the same way - their records dropped by `forgetToken` when the stage deletes them. Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
             ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK own-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8306,18 +8309,18 @@ const REGRESSIONS = [
             ["HOOK remnant-icons.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK remnant-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK remnant-ring.mjs#updateToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK remnants.mjs#deleteToken#arrow1", "out of scope: a Remnant token's deletion on the primary (E31); E13 deletes nothing in the hall"],
+            ["HOOK remnants.mjs#deleteToken#arrow1", "out of scope: a Remnant token's deletion on the primary (E31); the stage's delete in the hall (E81 DZ6) takes only the module's student tokens, no Remnant's"],
             ["HOOK selection.mjs#canvasReady#applySelectionColour", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sfx.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#canvasReady#selfRepair", "out of scope as a judgement: a player's own view, put right once on its first `canvasReady` after a load (`viewRepair`, R435; Q-E13-1 c): a `CAMERA_READERS` draw row, decides no rule; a GM's browser is never moved (41 f) [1b.1 which scene a client views]"],
             ["HOOK trial-floor.mjs#canvasReady#renderTrialFloor", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#updateToken#watchCast", "put back: on the primary, a non-GM `userId`'s change to a hall cast token's `hidden` is put back to what a GM last wrote (`castHeld`, fed on every GM's client by a GM `userId`'s write), only when the token holds another, and told to the GMs; the `trialCast` option exempts nothing (a writer's claim); a GM's change stands (R434, 41 a4; LIVE-E13-08)"],
-            ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: the module deletes nothing in the hall; E13 fix r1-F2, 41 a5); it joins the cast, and the next entry names a second token of one actor"],
-            ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (D7: the module creates nothing in the hall; E13 fix r2-H2, review r2 sec S2-4, 41 a7); it reads no position"],
+            ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, `trialSeats`, and a player's is not one; E13 fix r1-F2, 41 a5); it joins the cast as a token the GMs placed would, and the next entry names a second token of one actor"],
+            ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again at once: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (E13 fix r2-H2, review r2 sec S2-4, 41 a7); a token the module made is made again by the next entry's stage, one the GMs placed is not (E81 DZ6); it reads no position"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs:51-56); C2's reveal and hide fire it on every client, expected"],
-            ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK visibility.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
+            ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK visibility.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK voice.mjs#updateToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#createToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#deleteToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
@@ -8325,7 +8328,8 @@ const REGRESSIONS = [
             ["STORE settings.mjs#clock", "not a source: a world setting written only by `setClock` (clock.mjs:159); C3's `followPhase` in `reconcilePhase` (called at clock.mjs:175) is the one road in and out: every door writes the phase there and only `followPhase` activates a scene (R113)"],
             ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return to the school (E13 C3's switch)"],
             ["STORE settings.mjs#sceneRoles", "not a source: a world setting (`config: false`, settings.mjs, E13 C1) read by name in rooms.mjs (`sceneRoles`, cached, dropped by its `onChange`); no writer in C1 but the GM's console and the tier-2 tests, the Scenes tab (a GM window) is C5's; whether an Assistant GM may write it is not measured (1b.1)"],
-            ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.actorId` since E81 DZ6 (a 1.2.74 `sceneId.tokenId` row read for the actor's first hall token until the primary's `ready` moves it, `tidyTrialHall`, R500); a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); R433"],
+            ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.actorId` since E81 DZ6 (a 1.2.74 `sceneId.tokenId` row read for the actor's first hall token until the primary's `ready` moves it, `tidyTrialHall`, R500); a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); since E81 DZ6 the choice decides whom the stage makes a token for (`stageHall`, ticked and with no token the GMs placed) as well as whom it shows; R433"],
+            ["STORE scene-flag#trialSeats", "not a source: a flag on the hall (a GM document), `{ [actorId]: { x, y, token } }` - the token the module made for that actor and has not deleted, and where it last stood (E81 DZ6). Written only by `stageHall` (`writeSeats`, a GM's client) and read by it and the primary's `ready` tidy (`tidyHallTokens`); it decides which hall tokens the stage may delete - a token whose id it does not name is never deleted, whatever its flags. A player who could write the hall's flags could name a token of the GMs' there; that a player cannot is LIVE-E81-DZ6-2; R501, R436"],
             ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
             ["STORE trial-scene.mjs#trialExit", "not a source: the scene and room End the trial chose, in the memory of the GM's client that pressed it - `setTrialExit` holds only a room of a place scene and only on a GM, `closeTrial` sets it right before its phase write and drops it in a `finally`, `leaveTrialScene` takes it once; written to no document [1b.1 the return's scene and room]; R436"],
             ["STORE trial-scene.mjs#castHeld", "not a source: the `hidden` a GM last wrote on each hall cast token, in the memory of each GM's client (`watchCast` and `watchCastCreated` note a GM `userId`'s write; the rest of the linked hall is read off it at a GM's `ready` and on every change of the scene roles, `reseedCastHeld`, since E13 fix r2-H2; a hall none of those saw at the first write heard, `seedCastHeld`) - what the put-back writes, from no packet; a player's write is never noted as the GMs' (E13 fix r1-F2)"],
@@ -8350,7 +8354,7 @@ const REGRESSIONS = [
         const STORES = [["STORE settings.mjs#clock", "settings.mjs", "clock"], ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"],
             ["STORE settings.mjs#sceneRoles", "settings.mjs", "sceneRoles"], ["STORE gm-stores.mjs#trialCast", "gm-stores.mjs", "trialCast"],
             ["STORE scene-flag#trialReturnTo", "trial-scene.mjs", "trialReturnTo"], ["STORE trial-scene.mjs#trialExit", "trial-scene.mjs", "trialExit"],
-            ["STORE trial-scene.mjs#castHeld", "trial-scene.mjs", "castHeld"],
+            ["STORE trial-scene.mjs#castHeld", "trial-scene.mjs", "castHeld"], ["STORE scene-flag#trialSeats", "trial-scene.mjs", "trialSeats"],
             ["STORE token-flag#carriedFrom", "call-world.mjs", "carriedFrom"],
             ["STORE module.json#relationships", "module.json", "relationships"]];
         const censusOf = (bridge, sources) => {
@@ -8447,10 +8451,12 @@ const REGRESSIONS = [
             + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
         const scene = blankComments(new Map(sources).get("trial-scene.mjs") ?? "");
         must(scene.length, "trial-scene.mjs is not among the module's sources - D7's line would measure nothing");
-        equal(JSON.stringify([verdict, scene.match(/createEmbeddedDocuments|deleteEmbeddedDocuments|\.create\(|\.delete\(/g) ?? []]),
-            JSON.stringify([{ unclassified: [], stale: [] }, []]),
+        const stage = /^export async function stageHall\(/m.test(scene) ? fnSource(scene, "stageHall") : "";
+        const writes = text => text.match(/createEmbeddedDocuments|deleteEmbeddedDocuments|\.create\(|\.delete\(/g) ?? [];
+        equal(JSON.stringify([verdict, writes(scene), writes(stage), /createEmbeddedDocuments\("Token", data, \{ keepId: true, \.\.\.castWrite\(\) \}\)/.test(stage)]),
+            JSON.stringify([{ unclassified: [], stale: [] }, ["deleteEmbeddedDocuments", "createEmbeddedDocuments"], ["deleteEmbeddedDocuments", "createEmbeddedDocuments"], true]),
             "[a trial-room road without a census row, or a row whose road is gone - give the new one a verdict (what judges it, or the E13 commit that will) and strike the gone one; "
-            + "what trial-scene.mjs creates or deletes (D7: nothing)]");
+            + "what trial-scene.mjs creates or deletes (D7, since E81 DZ6: one delete and one create); what of it is in stageHall (all of it); the create keeps the ids the record names]");
     }],
 
     ["R472 - a notice road has a census row, and every row judges a road", async () => {
@@ -8716,6 +8722,10 @@ const REGRESSIONS = [
          * on a fixture: a declaration, a call of two, a call of three, and a third argument only in a comment. Tier 2's
          * "End the trial moves the living to the GM's room" moves the tokens; scenario 41 i drives the window on four
          * browsers. Red before C3b: no call of `gatherEveryone` handed a third argument, and there was no `returnTheLiving`.
+         * E81 DZ6 (12.10.2026): the hall is cleared by the stage, not hidden - `leaveTrialScene` activates the destination,
+         * then `stageHall` deletes the module's tokens and hides the GMs', then gathers; inside `stageHall` the record
+         * notes the seats with the ids still named, then the one delete, then the ids written null, so a stop between
+         * any two leaves the record naming at most a token that is gone (design 3.2). Red at 4f4c24b: no `stageHall`.
          */
         const code = raw => stripComments(String(raw ?? ""));
         const gathers = files => {
@@ -8750,20 +8760,24 @@ const REGRESSIONS = [
         const elsewhere = name => sources.filter(([file, raw]) => file !== "trial-scene.mjs" && file.endsWith(".mjs") && new RegExp(`\\b${name}\\b`).test(stripStrings(code(raw)))).map(([file]) => file);
         const leave = fnSource(scene, "leaveTrialScene");
         const opening = leave.split("\n").slice(1, 4).map(line => line.trim());
+        const leaving = ["destination.activate()", "stageHall(", "returnTheLiving("].map(text => leave.indexOf(text));
+        const stage = /^export async function stageHall\(/m.test(scene) ? fnSource(scene, "stageHall") : "";
+        const staging = [/await writeSeats\(hall, Object\.fromEntries\(left\.map\(token => \[token\.actorId, \{ x: token\.x, y: token\.y, token: token\.id \}\]\)\)\)/,
+            /deleteEmbeddedDocuments\(/, /token: null \}\]\)\);[\s\S]*?await writeSeats\(hall, patch\)/].map(re => stage.search(re));
         const close = fnSource(ui, "closeTrial");
         const order = ["setTrialExit({ sceneId, room })", "setClock(", "} finally {", "setTrialExit(null);"].map(text => close.indexOf(text));
         const ask = fnSource(ui, "askTrialExit"), end = fnSource(ui, "endClassTrial");
         equal(JSON.stringify([calls.map(([at, n]) => `${at}/${n}`).sort(), calls.find(([at]) => at === "trial-scene.mjs#returnTheLiving")?.[2] ?? null,
             whoCalls("returnTheLiving"), elsewhere("returnTheLiving"),
-            leave.indexOf("hideTrialTokens(") >= 0 && leave.indexOf("hideTrialTokens(") < leave.indexOf("returnTheLiving("), opening,
+            leaving.every((at, i) => at >= 0 && (i === 0 || at > leaving[i - 1])), staging.every((at, i) => at >= 0 && (i === 0 || at > staging[i - 1])), opening,
             order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), elsewhere("setTrialExit"),
             [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]), /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
             JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
                 "{ held: flagsHeldNow, box: true }",
-                ["leaveTrialScene"], [], true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
+                ["leaveTrialScene"], [], true, true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
                 true, ["trial-floor-ui.mjs"], ["ok", "cancel"], true]),
             "[every call of gatherEveryone, by its file and function, with how many arguments it hands; what returnTheLiving hands as the third; who calls returnTheLiving there, and which other file names it; "
-            + "leaveTrialScene hides the hall before it gathers; its first three lines; closeTrial holds the choice, writes the phase, and drops it in a finally, in that order; "
+            + "leaveTrialScene activates the destination, then clears the hall (stageHall), then gathers; stageHall writes the seats with the ids still named, deletes, then writes the ids null (E81 DZ6); its first three lines; closeTrial holds the choice, writes the phase, and drops it in a finally, in that order; "
             + "the files besides trial-scene.mjs naming setTrialExit; End the trial's buttons; endClassTrial hands the window's answer to closeTrial]");
     }],
 

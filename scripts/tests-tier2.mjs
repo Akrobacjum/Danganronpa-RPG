@@ -50302,124 +50302,178 @@ const SCENARIOS = [
             [game.i18n.format("DRPG.Vault.manageTitleOn", { scene: "SUITE E13 C1 the school" })], true]),
             "[the roles can be linked, the GM views the hall, home, the titles Room Setup opened with, home once the school's scene is gone is a scene and not the hall]");
     }],
-    ["entering the trial shows the GMs' choice of the linked hall's cast and leaving hides it - nothing made or deleted and only `hidden` written", async () => {
+    ["entering the trial makes the cast's missing tokens in the linked hall in one create and leaving deletes only those, at their seats next time - the GMs' tokens shown or hidden, never deleted", async () => {
         /*
          * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (V4: R116's world half, R433's store half), decisions D7 and D12, audit
-         * S06-57. Until 1.2.74 nothing showed anybody in a trial hall: a GM showed the tokens by hand (scenario 41 a). Here
-         * a hall of the suite's own holds, hidden, a token of each of two students players play, a second token of the
-         * first, a token of a student nobody plays (made here) and Monokuma's, and a prop of no actor, shown; it is linked
-         * as the trial hall (the setting put back). In a GM-store world of the suite's own, the GMs' choice unticks the
-         * second student, and a row of the season before ticks the one nobody plays. Read: what `revealTrialTokens` and
-         * `hideTrialTokens` answer, twice each, and what is shown after each; the tokens made and deleted on the hall
-         * meanwhile and the fields each update carried; the hall's ids; an entry whose store did not open (`open`
-         * answering "late"); what the GMs were whispered; and whether `compactGmStores` on the primary drops the past
-         * season's row and keeps this season's. Called directly, not through the phase: scenario 41 a, c and d read the
-         * phase's road on four browsers. Red before C2: there was no trial-scene.mjs. Since E81 DZ6 (12.10.2026) the
-         * choice and the past season's row are keyed by actor (`castKey(hall, actorId)`), and the readings are C2's.
+         * S06-57. Until 1.2.74 nothing showed anybody in a trial hall; until E81 DZ6 the module only showed and hid the
+         * tokens the GMs had placed there. Since DZ6 (12.10.2026; the DZ6 design 3.1-3.4, the orchestrator's Q1-Q3) the
+         * stage (trial-scene.mjs `stageHall`) makes a token for each of the cast with none the GMs placed, in ONE create,
+         * and the way out deletes exactly those, in ONE delete, noting where each stood in the hall's `trialSeats` record;
+         * a token the record does not name is never deleted. Here a hall of the suite's own holds, hidden, the GMs' token
+         * of the first student a player plays and a second one of the same student, and Monokuma's, and a prop of no
+         * actor, shown; it is linked as the trial hall (the setting put back). In a GM-store world of the suite's own the
+         * GMs' choice ticks a character nobody plays (made here), unticks every other character but the first two students
+         * a player plays and Monokuma, and a row of the season before ticks a second character nobody plays. Read, per
+         * step, what the stage answers (token ids read as names: a token the stage made as "made" and its student's
+         * place), what is shown after and the fields each token update carried: an entry whose store did not open, by
+         * `applyTrialCast` and by the stage (`open` answering "late"); the way in; again, in the trial; the GM moving the
+         * second student's made token; the way out; again; the way in once more; and the primary's `ready` tidy
+         * (`tidyHallTokens`) after it, as if the GM's browser had closed before the way out. And: the hall's create and
+         * delete calls; the made tokens' cells (on the grid, distinct); the record after each way out (ids null, seats
+         * kept); where the third entry made each (its seat); the ids of every token the GMs placed, before and after;
+         * the ids deleted, all made; what the GMs were whispered; and whether `compactGmStores` on the primary drops the
+         * past season's row. Called directly, not through the phase: scenario 41 a, c, d, k and s read the roads on four
+         * browsers. Red at 4f4c24b: there was no `stageHall`, and nothing was made.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(T, "there is no trial-scene.mjs - nothing shows the hall's cast (S06-57)");
         if (!T) return;
+        ok(typeof T.stageHall === "function", "trial-scene.mjs has no `stageHall` - the cast the GMs placed no token for is never in the hall");
+        if (typeof T.stageHall !== "function") return;
         const S = await import("./gm-stores.mjs");
         const G = await import("./gm-store.mjs");
-        const { ownerIdsOf } = await import("./utils.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
         const { wordsOf } = await import("./secret.mjs");
         const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
         const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
         must(played.length >= 2 && monokuma, "the world has fewer than two students players play, or no Monokuma, to stand in the hall");
+        must(isPrimaryGm() && getClock().phase !== "classTrial", "this client is not the primary GM out of a trial - the `ready` tidy would answer nothing");
         const [first, second] = played;
         const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
         const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
         const said = new Set(game.messages.map(m => m.id));
         let read = null;
         await G.withGmStoreWorld(`suite-e13c2-${foundry.utils.randomID(8)}`, async () => {
-            let hall = null, nobody = null;
-            const seen = { made: 0, gone: 0, fields: [] };
-            const hooks = [["createToken", doc => { if (doc.parent === hall) seen.made++; }], ["deleteToken", doc => { if (doc.parent === hall) seen.gone++; }],
+            let hall = null, nobody = null, extra = null;
+            const seen = { fields: [], made: {}, gone: [] };
+            const hooks = [["createToken", doc => { if (doc.parent === hall) seen.made[doc.id] = doc.actorId === second.id ? "made second" : doc.actorId === extra?.id ? "made extra" : "made other"; }],
+                ["deleteToken", doc => { if (doc.parent === hall) seen.gone.push(doc.id); }],
                 ["updateToken", (doc, changed) => { if (doc.parent === hall) seen.fields.push(Object.keys(changed).filter(k => k !== "_id").sort().join(",")); }]]
                 .map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
             try {
                 nobody = await Actor.create({ name: "SUITE E13 C2 nobody plays", type: "character" });
+                extra = await Actor.create({ name: "SUITE E81 DZ6 ticked, nobody plays", type: "character" });
                 hall = await Scene.create({ name: "SUITE E13 C2 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
                 const token = (name, actorId, x, hidden = true) => ({ name, actorId, actorLink: Boolean(actorId), x, y: 300, width: 1, height: 1, hidden });
-                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("second", second.id, 200), token("first again", first.id, 300),
-                    token("nobody", nobody.id, 400), token("Monokuma", monokuma.id, 500), token("prop", null, 600, false)]);
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("first again", first.id, 300),
+                    token("Monokuma", monokuma.id, 500), token("prop", null, 600, false)]);
                 if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
-                const saved = await T.saveTrialCast(hall, { [second.id]: false });
+                const keep = new Set([first.id, second.id, monokuma.id, nobody.id]);
+                const saved = await T.saveTrialCast(hall, Object.fromEntries(game.actors.filter(a => a.type === "character" && !keep.has(a.id))
+                    .map(a => [a.id, a.id === extra.id])));
                 await S.trialCastStore.patch(T.castKey(hall.id, nobody.id), { reveal: true, epoch: seasonEpoch() - 1 });
                 await settle();
                 const ids = hall.tokens.map(t => t.id).sort();
-                Object.assign(seen, { made: 0, gone: 0, fields: [] });
-                const shown = () => hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
-                const names = list => list.map(tokenId => hall.tokens.get(tokenId)?.name ?? tokenId).sort();
-                const named = r => r && { shown: names(r.shown), hidden: names(r.hidden), seconds: names(r.seconds) };
+                const calls = { create: 0, delete: 0 };
+                const { createEmbeddedDocuments: create, deleteEmbeddedDocuments: remove } = hall;
+                hall.createEmbeddedDocuments = function (...args) { calls.create++; return create.apply(this, args); };
+                hall.deleteEmbeddedDocuments = function (...args) { calls.delete++; return remove.apply(this, args); };
+                Object.assign(seen, { fields: [], made: {}, gone: [] });
+                const label = tokenId => seen.made[tokenId] ?? hall.tokens.get(tokenId)?.name ?? tokenId;
+                const shown = () => hall.tokens.filter(t => !t.hidden).map(t => label(t.id)).sort();
+                const names = list => (list ?? []).map(label).sort();
+                const named = r => r && { shown: names(r.shown), hidden: names(r.hidden), seconds: names(r.seconds), made: names(r.made), removed: names(r.removed),
+                    notPlaced: r.notPlaced ?? null };
                 const step = async fn => { const r = named(await fn()); await settle(); return [r, shown(), seen.fields.splice(0)]; };
-                const late = await step(() => T.applyTrialCast(hall, { reveal: true, open: async () => "late" }));
-                const steps = [late, await step(() => T.revealTrialTokens(hall)), await step(() => T.revealTrialTokens(hall)),
-                    await step(() => T.hideTrialTokens(hall)), await step(() => T.hideTrialTokens(hall))];
+                const record = () => Object.fromEntries(Object.entries(T.readSeats(hall)).map(([actorId, seat]) =>
+                    [actorId === second.id ? "second" : actorId === extra.id ? "extra" : actorId, { ...seat, token: seat.token && label(seat.token) }]));
+                const cells = () => Object.keys(seen.made).map(id => hall.tokens.get(id)).filter(Boolean).map(t => `${t.x},${t.y}`);
+                const steps = [await step(() => T.applyTrialCast(hall, { reveal: true, open: async () => "late" })),
+                    await step(() => T.stageHall(hall, { into: true, open: async () => "late" })), await step(() => T.stageHall(hall, { into: true }))];
+                const made = cells(), grid = hall.grid?.size ?? 100;
+                steps.push(await step(() => T.stageHall(hall, { into: true })));
+                const moved = hall.tokens.find(t => seen.made[t.id] === "made second");
+                await moved?.update({ x: 1500, y: 700 });
+                await settle();
+                seen.fields.splice(0);
+                steps.push(await step(() => T.stageHall(hall, { into: false })));
+                const afterLeave = record();
+                steps.push(await step(() => T.stageHall(hall, { into: false })), await step(() => T.stageHall(hall, { into: true })));
+                const atSeats = Object.entries(T.readSeats(hall)).filter(([, seat]) => seat.token)
+                    .map(([, seat]) => { const t = hall.tokens.get(seat.token); return Boolean(t) && t.x === seat.x && t.y === seat.y; });
+                const secondAt = (t => t && `${t.x},${t.y}`)(hall.tokens.find(t => t.actorId === second.id && seen.made[t.id]));
+                steps.push(await step(() => T.tidyHallTokens(hall)));
                 const compacted = await S.compactGmStores({ primary: true });
-                read = [linkable, saved, steps, seen.made, seen.gone, stableJson(hall.tokens.map(t => t.id).sort()) === stableJson(ids),
+                read = [linkable, saved, steps, calls, made.length === 2 && new Set(made).size === 2 && made.every(cell => cell.split(",").every(v => Number(v) % grid === 0)),
+                    afterLeave, atSeats, secondAt, record(), stableJson(hall.tokens.map(t => t.id).sort()) === stableJson(ids),
+                    seen.gone.length === 4 && seen.gone.every(id => id in seen.made),
                     await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000))), compacted?.trialCastPastSeasons ?? 0,
-                    S.trialCastStore.has(T.castKey(hall.id, nobody.id)), S.trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null];
+                    S.trialCastStore.has(T.castKey(hall.id, nobody.id)), S.trialCastStore.get(T.castKey(hall.id, extra.id))?.reveal ?? null];
             } finally {
                 for (const [hook, hookId] of hooks) Hooks.off(hook, hookId);
                 if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
                 await hall?.delete();
                 await nobody?.delete();
+                await extra?.delete();
                 for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
                 await settle();
             }
         });
-        const none = { shown: [], hidden: [], seconds: ["first again"] };
         const told = key => `<p>${game.i18n.format(`DRPG.TrialScene.${key}`, { names: "first again" })}</p>`;
-        equal(JSON.stringify(read), JSON.stringify([true, true, [
-            [null, ["prop"], []],
-            [{ shown: ["Monokuma", "first"], hidden: [], seconds: ["first again"] }, ["Monokuma", "first", "prop"], ["hidden", "hidden"]],
-            [none, ["Monokuma", "first", "prop"], []],
-            [{ shown: [], hidden: ["Monokuma", "first"], seconds: ["first again"] }, ["prop"], ["hidden", "hidden"]],
-            [none, ["prop"], []]],
-            0, 0, true, [told("castUnavailable"), told("duplicateToken"), told("duplicateToken")], 1, false, false]),
-            "[the roles can be linked, the choice was stored, each step's answer, what is shown after it and the fields each update carried - an entry whose store did not open, "
-            + "two entries, two exits - tokens made and deleted on the hall, its ids as before, what the GMs were whispered, the past season's rows compacted, "
-            + "the past season's row still kept, this season's untick]");
+        const answer = (shown, hidden, made = [], removed = []) => ({ shown, hidden, seconds: ["first again"], made, removed, notPlaced: [] });
+        const into = ["Monokuma", "first", "made extra", "made second", "prop"];
+        const left = { x: 1500, y: 700, token: null };
+        equal(JSON.stringify(read?.map((value, i) => (i === 5 || i === 8) && value ? { second: value.second, extra: value.extra && { ...value.extra, x: "x", y: "y" } } : value)),
+            JSON.stringify([true, true, [
+                [null, ["prop"], []],
+                [null, ["prop"], []],
+                [answer(["Monokuma", "first"], [], ["made extra", "made second"]), into, ["hidden", "hidden"]],
+                [answer([], []), into, []],
+                [answer([], ["Monokuma", "first"], [], ["made extra", "made second"]), ["prop"], ["hidden", "hidden"]],
+                [answer([], [], [], []), ["prop"], []],
+                [answer(["Monokuma", "first"], [], ["made extra", "made second"]), into, ["hidden", "hidden"]],
+                [answer([], ["Monokuma", "first"], [], ["made extra", "made second"]), ["prop"], ["hidden", "hidden"]]],
+                { create: 2, delete: 2 }, true,
+                { second: left, extra: { x: "x", y: "y", token: null } }, [true, true], "1500,700",
+                { second: left, extra: { x: "x", y: "y", token: null } }, true, true,
+                [told("castUnavailable"), told("castUnavailable"), told("duplicateToken"), told("duplicateToken"), told("duplicateToken")], 1, false, true]),
+            "[the roles can be linked, the choice was stored; each step's answer, what is shown after it and the fields each token update carried - an entry whose store did not open "
+            + "(applyTrialCast, then the stage), the way in (two made in one create), again (none made), the way out after the GM moved the second's (both deleted), again (nothing), "
+            + "the way in again, the ready tidy; the hall's create and delete calls; the first made cells on the grid and distinct; the record after the way out (the second where the GM "
+            + "left it, ids null); the third entry's tokens at their seats; the second's cell then; the record at the end; the GMs' token ids as before; every deleted id one the stage made; "
+            + "what the GMs were whispered; the past season's rows compacted; the past season's row still kept; this season's tick]");
     }],
-    ["entering the trial whispers the GMs once by name the students a player plays who have no token in the hall and nothing when every one has", async () => {
+    ["entering the trial whispers the GMs once by name the cast the hall has no token for - Monokuma, whom the module never makes - and nothing when every one has", async () => {
         /*
          * E13 fix l1-L1, 12.10.2026; the 1.2.74 ledger's verify E13-6, plan-E13 2.3 (Q-E13-1 a: the dead are shown too).
-         * `enterTrialScene` tells the GMs whom the hall cannot show (trial-scene.mjs `studentsWithoutHallToken`), and
-         * until this test nothing drove that whisper: R120 reads the Scenes tab's warning row, scenario 41 never has a
-         * student missing from its hall. Here a hall of the suite's own, not linked, holds a hidden token of every student
-         * a player plays in this world; it is entered three times - with every one there, with the first one's token
-         * deleted, with the second one's too. Read each time: what `enterTrialScene` answers as `missing`, and the words
-         * of every whisper it sent. The hall's `activate` is the suite's stub, so no browser at the table is moved (as
-         * the End the trial tests stub their place's). The sentence is built here from the key's form for the module's
-         * language (Intl's rule, the English one and other, the Polish one and few), not through `plural`.
-         * Measured red by mutant only (the whisper dropped; the owner filter dropped), 12.10.2026: the code at
-         * 8b4974a is the code this test passes on.
+         * Until E81 DZ6 `enterTrialScene` told the GMs of the students a player plays with no token in the hall
+         * (`missingTokens`); since DZ6 (12.10.2026, the design's 4.1 and 4.3) the stage makes those, and the whisper
+         * (`notPlaced`, from `stageHall`) names whom it could not: the cast's Monokuma - never made (the orchestrator's
+         * Q2) - or a create that failed. Here a hall of the suite's own, not linked, holds a hidden token the GMs placed
+         * of every student a player plays and of the world's Monokuma; the GMs' choice unticks every other character, so
+         * nothing is made. It is entered three times - with every one there, with Monokuma's token deleted, and with a
+         * second Monokuma (made here) ticked as well. Read each time: what `enterTrialScene`'s stage answers as
+         * `notPlaced`, and the words of every whisper it sent. The hall's `activate` is the suite's stub, so no browser
+         * at the table is moved. The sentence is built here from the key's form for the module's language (Intl's rule,
+         * the English one and other, the Polish one and few), not through `plural`. Red at 4f4c24b: the whisper was
+         * `missingTokens`, and named no Monokuma.
          */
         const T = await import("./trial-scene.mjs");
         const G = await import("./gm-store.mjs");
         const { ownerIdsOf } = await import("./utils.mjs");
         const { moduleLanguage } = await import("./settings.mjs");
         const { wordsOf } = await import("./secret.mjs");
-        const played = game.actors.filter(a => a.type === "character" && ownerIdsOf(a).length);
-        must(played.length >= 2, "the world has fewer than two students players play - nobody to leave out of the hall");
-        must(played.every(a => !/[&<>"']/.test(a.name)), "a played student's name needs escaping - the sentence built here would not be the whisper's");
-        const [first, second] = played;
-        const key = "DRPG.TrialScene.missingTokens";
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(played.length >= 1 && monokuma, "the world has no student a player plays, or no Monokuma, to stand in the hall");
+        must(!/[&<>"']/.test(monokuma.name), "Monokuma's name needs escaping - the sentence built here would not be the whisper's");
+        const key = "DRPG.TrialScene.notPlaced";
         const sentence = list => {
             const n = list.length, form = new Intl.PluralRules(moduleLanguage()).select(n);
             return `<p>${game.i18n.format(`${key}.${game.i18n.has(`${key}.${form}`) ? form : "other"}`, { n, names: list.map(a => a.name).join(", ") })}</p>`;
         };
         const said = new Set(game.messages.map(m => m.id));
-        let read = null;
+        let read = null, kuma = null;
         await G.withGmStoreWorld(`suite-e13l1-${foundry.utils.randomID(8)}`, async () => {
             let hall = null;
             try {
+                kuma = await Actor.create({ name: "SUITE E81 a second Monokuma", type: "character", flags: { [MODULE_ID]: { [FLAGS.monokuma]: true } } });
                 hall = await Scene.create({ name: "SUITE E13 l1 a hall short of a token", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
                 let activated = 0;
                 hall.activate = async () => { activated++; return hall; };
-                await hall.createEmbeddedDocuments("Token", played.map((a, i) => ({ name: a.name, actorId: a.id, actorLink: true, x: 100 * (i + 1), y: 300, width: 1, height: 1, hidden: true })));
+                await hall.createEmbeddedDocuments("Token", [...played, monokuma].map((a, i) => ({ name: a.name, actorId: a.id, actorLink: true, x: 100 * (i + 1), y: 300, width: 1, height: 1, hidden: true })));
+                const keep = new Set([...played, monokuma].map(a => a.id));
+                await T.saveTrialCast(hall, Object.fromEntries(game.actors.filter(a => a.type === "character" && !keep.has(a.id)).map(a => [a.id, false])));
                 await settle();
                 const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`] : [];
                 const seen = new Set(game.messages.map(m => m.id));
@@ -50428,28 +50482,29 @@ const SCENARIOS = [
                     await settle();
                     const fresh = game.messages.filter(m => !seen.has(m.id) && (m.whisper?.length ?? 0) > 0);
                     for (const m of fresh) seen.add(m.id);
-                    return [entered?.missing ?? null, await Promise.all(fresh.map(m => wordsOf(m, 2000)))];
+                    return [entered?.cast?.notPlaced ?? null, entered?.cast?.made ?? null, await Promise.all(fresh.map(m => wordsOf(m, 2000)))];
                 };
-                const gone = async actor => { await hall.deleteEmbeddedDocuments("Token", hall.tokens.filter(t => t.actorId === actor.id).map(t => t.id)); await settle(); };
                 const all = await enter();
-                await gone(first);
+                await hall.deleteEmbeddedDocuments("Token", hall.tokens.filter(t => t.actorId === monokuma.id).map(t => t.id));
+                await settle();
                 const one = await enter();
-                await gone(second);
+                await T.saveTrialCast(hall, { [kuma.id]: true });
                 const two = await enter();
                 read = { steps: [all, one, two], activated, dark };
             } finally {
                 await hall?.delete();
+                await kuma?.delete();
                 for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
                 await settle();
             }
         });
         const { dark = [] } = read ?? {};
         equal(stableJson(read?.steps ?? null), stableJson([
-            [[], [...dark]],
-            [[first.id], [sentence([first]), ...dark]],
-            [[first.id, second.id], [sentence([first, second]), ...dark]]]),
-            `[what enterTrialScene answers as missing, the words of each whisper it sent] with every student's token in the hall, with ${first.name}'s deleted, `
-            + `with ${second.name}'s too - one whisper naming them in the world's order, in the key's form for one and for two, and none with every one there `
+            [[], [], [...dark]],
+            [[monokuma.id], [], [sentence([monokuma]), ...dark]],
+            [[monokuma.id, kuma?.id ?? null], [], [sentence([monokuma, kuma]), ...dark]]]),
+            `[what enterTrialScene's stage answers as notPlaced and made, the words of each whisper it sent] with every token in the hall, with ${monokuma.name}'s deleted, `
+            + `with a second Monokuma ticked - one whisper naming them in the world's order, in the key's form for one and for two, nothing made, and none with every one there `
             + `(the hall dark: ${dark.length > 0}; activations stubbed: ${read?.activated ?? null})`);
     }],
 
@@ -51151,7 +51206,7 @@ const SCENARIOS = [
                 await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100, false), token("second", second.id, 200, false),
                     token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
                     token("prop", null, 600, false)]);
-                absent = T.studentsWithoutHallToken(hall).length > 0;
+                absent = typeof T.handPlacedActors === "function" ? T.handPlacedActors(hall).length > 0 : null;
                 await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
                 await school.view();
                 await settle();
@@ -51217,7 +51272,7 @@ const SCENARIOS = [
                 const onHall = rows();
                 read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
                     onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
-                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["missingTokens"] : []), "unlinkedToken"]];
+                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["handPlaced"] : []), "unlinkedToken"]];
             } finally {
                 game.settings.set = set;
                 ui.notifications.warn = warn;
