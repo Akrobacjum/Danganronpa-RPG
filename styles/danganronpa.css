@@ -284,25 +284,39 @@
 
     --drpg-edge: 22px;
 
-    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
-       The chat launcher takes its 66px from the performance gauge at the other
-       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
-       must agree. The sound launcher then takes its size and its offset FROM
-       the chat one, because it is stacked on top of it: hard-coding 52 and 66
-       in three places is how a stack ends up overlapping itself the next time
-       the gauge changes. Which is exactly what happened while this was being
-       built. */
+    /* THE THREE CORNER BUTTONS, ON ONE GRID (E81 C12, 12.10.2026).
+       The chat launcher keeps the 66 px it takes from the performance gauge at the other
+       end of the bottom edge (Dawid, 26.08) - two ends of the same line that must agree.
+       The other two are one size, 44, because the owner's grid puts them side by side
+       under it: settings at the bottom left, the handbooks at the bottom right against the
+       wall, the chat above and between them (his Q3 of 07.10 named the places; AM-18 of
+       11.10 asked for one honeycomb grid with equal gaps; AM-21 of 12.10 accepted
+       "variant B" from the grid mockup). Two hexagons touching in a triangle force the
+       pair side by side to one size, which is why the 52/40 of 1.2.74 could not stay: on
+       one lattice at those sizes the gaps came out 3.38, 8.62 and 4.50 px (grid.mjs,
+       variant A, 12.10). The chat's unread badge, which stands out of its top-right
+       corner and overlapped the 40 px book by 2 px until the other two stepped inboard (22.09),
+       clears the book by 44.9 px on the grid's hexagons and 52.6 on its circles (grid.mjs).
+       Every position below is derived from these sizes, the gap and the row, so changing
+       one size without the row it implies opens or closes a gap - which R474 and R299 (a)
+       read as a failure rather than a picture somebody has to look at. */
     --drpg-launcher: 66px;
-    --drpg-launcher-small: 52px;
-    /* THE THIRD, AND THE SMALLEST: the handbooks (Dawid, 22.09). It stands at
-       the wall with its centre level with the midpoint between the other two
-       centres, and those two step inboard by its width plus the 8 px they keep
-       between themselves. Its width alone was measured first: the circles
-       cleared by 9.7 and 16.7 px, but the chat's unread badge, which stands
-       out of its top-right corner, overlapped the book by 2. With the 8 px:
-       badge 5.5, chat 16.2, settings 23.2 (Monokuma Legacy, 1920 x 1080). */
-    --drpg-launcher-book: 40px;
-    --drpg-book-lane: calc(var(--drpg-launcher-book) + 8px);
+    --drpg-launcher-small: 44px;
+    --drpg-launcher-book: 44px;
+    /* The gap between every two neighbours, flat side to flat side under Stained Glass and
+       rim to rim between the circles of Monokuma Legacy. */
+    --drpg-launch-gap: 6px;
+    /* The handbooks' own height over the bottom line (AM-17 asked for a token of its own,
+       so a later stage can lift it without restating the chat's place): on the grid it
+       stands on the bottom line with settings. */
+    --drpg-launch-b-bottom: 0px;
+    /* THE ROW: how far the chat's centre stands over the other two's. Monokuma Legacy draws
+       circles, and two circles 6 px apart rim to rim with their centres 25 px apart across
+       (half of 44 + 6) stand sqrt(61^2 - 25^2) = 55.64 px apart down. Stained Glass draws
+       the clip-path hexagon and overrides this beside it (47.88, stained-glass.css). Not a
+       calc() of the sizes: the formula is a square root here and a slanted side's normal
+       there, and a number with its derivation beside it is the one a reader can check. */
+    --drpg-launch-row: 55.64px;
 
     /* The notice history's button in the notice tile's bottom-right corner (E81 C8,
        the A7 design's step 7): a 28 px shape 6 px in from the corner. `reach` is how
@@ -581,6 +595,41 @@
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
     --drpg-r-give:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
+}
+
+/* THE CORNER'S PLACES, DERIVED (E81 C12, 12.10.2026). Declared on `body`, not in :root,
+   because a custom property's var() is resolved where it is declared: from :root these
+   would have missed the Stained Glass row (declared on `body.drpg-theme-stained-glass`)
+   and the camera dock's lift (camera-view.mjs writes `--drpg-av-lift` inline on `body`),
+   and resolved them with the Legacy row and no lift. Measured in Chromium on the grid
+   mockup's page with these sheets (12.10): moved to :root, the Stained Glass gaps came out
+   12.77 px instead of 6, and with a 300 px lift the roster's foot stayed 292 px under the
+   chat's top, over the buttons it opens from. Headless the harness resolves an inherited
+   var() where it is read, so R474 cannot see the move there; in a browser it does.
+   Each place is from the cluster's bottom-right corner, before the edge margin:
+     the handbooks  0, `--drpg-launch-b-bottom` - at the wall, on the bottom line;
+     settings       the book's width and the gap in from the wall, on the bottom line;
+     the chat       its centre over the midpoint of the other two centres (B/2 and
+                    B + gap + S/2, so 3B/4 + gap/2 + S/4 in from the wall) and one row
+                    over their centres (S/2 + row - L/2 above the bottom line).
+   Variant B's numbers (mockup/grid.txt): chat 14, 36.88 under Stained Glass and 14, 44.64
+   under Monokuma Legacy; settings 50, 0; the handbooks 0, 0. */
+body {
+    --drpg-launch-m-right: calc(var(--drpg-launcher-book) * 0.75 + var(--drpg-launch-gap) / 2
+        + var(--drpg-launcher-small) / 4 - var(--drpg-launcher) / 2);
+    --drpg-launch-m-bottom: calc(var(--drpg-launcher-small) / 2 + var(--drpg-launch-row)
+        - var(--drpg-launcher) / 2);
+    --drpg-launch-s-right: calc(var(--drpg-launcher-book) + var(--drpg-launch-gap));
+    /* THE TWO TOKENS LATER STAGES TAKE (the A7 design's step 0, P0-8): how tall the corner
+       is from its bottom line to the chat's top - 102.88 px under Stained Glass, 110.64
+       under Monokuma Legacy - and where anything that stands over the corner starts: the
+       edge, that height, 8 px, and the camera dock's lift. The GM's roster sits on the foot
+       here (messenger.css). The A7 design has the narrow layout's notice stack take the
+       foot in C13, E18, E23, E49 and E55 read both without rewriting them, and E77 and E78,
+       which add the GM's and Foundry tools' buttons in the cells over settings and the
+       handbooks, take them over. */
+    --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
+    --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
 }
 
 /* Shared pixel-sprite plumbing.
@@ -8176,11 +8225,12 @@ body.drpg-theme-monokuma-legacy .tab-navigation nav.sheet-tabs a {
 }
 
 /* --- the corner launchers ------------------------------------------------ */
-/* The messenger circle sits in one corner of the bottom edge and the
+/* The messenger button sits in one corner of the bottom edge and the
    performance gauge in the other, and at 74px against the gauge's 66px the
-   two ends of the same line disagreed (Dawid, 26.08). The circle takes the
-   gauge's height - still the largest control on the player's screen, now
-   level with its opposite number. */
+   two ends of the same line disagreed (Dawid, 26.08). The button takes the
+   gauge's height - still the largest control on the player's screen. Since
+   E81 C12 it stands over the other two rather than level with the gauge: the
+   corner's grid is in the tokens at the top of this sheet. */
 #drpg-messenger-launcher {
     width: var(--drpg-launcher) !important;
     height: var(--drpg-launcher) !important;
@@ -13056,29 +13106,26 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 /* ==========================================================================
    THE SOUND LAUNCHER
    --------------------------------------------------------------------------
-   A second circle, stacked on the chat one. It takes the slot messenger.css
-   describes a few hundred lines further down as "a reserved slot above this
-   one for a button that stopped existing" - the Casebook's. The slot was right;
-   only its occupant was wrong.
+   A second button beside the chat one. Under both themes it wears the gear
+   (stained-glass.css, "the settings launcher") and opens the Look dialog - the
+   two volumes and the look of this browser (sfx.mjs) - so the owner calls it
+   settings.
 
-   Two circles stacked have to be told apart at a glance and without reading
-   either icon, so they differ in the two things the eye takes first:
-   SIZE (52 against 66) and COLOUR (bone against eye). Bone is the module's
-   neutral - this button changes nothing about the game, only about what this
-   one browser hears - and the chat's eye-violet keeps meaning "somebody may be
-   talking to you".
+   The two have to be told apart at a glance and without reading either icon,
+   so they differ in the two things the eye takes first: SIZE (44 against 66)
+   and COLOUR (bone against eye). Bone is the module's neutral - this button
+   changes nothing about the game, only about what this one browser hears and
+   sees - and the chat's eye-violet keeps meaning "somebody may be talking to
+   you".
 
-   Centred over the larger one rather than aligned to the same right edge, so
-   the two read as one stack instead of two buttons that happen to be near each
-   other.
+   It stood centred over the chat until E81 C12; on the corner's grid it stands
+   on the bottom line, under the chat's left half, with the handbooks the gap
+   to its right (the tokens at the top of this sheet).
    ========================================================================== */
 #drpg-sound-launcher {
     position: fixed;
-    /* Centred over the larger circle, and clear of it by 8px. Both derived, so
-       the stack survives the next change to either size. */
-    right: calc(var(--drpg-edge) + var(--drpg-book-lane, 0px)
-        + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
-    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px + var(--drpg-av-lift, 0px));
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right));
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-small);
     height: var(--drpg-launcher-small);
@@ -13125,16 +13172,13 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 }
 
 /* ---- the handbooks button ------------------------------------------------------
-   The smallest of the three, at the wall. Its centre is level with the midpoint of
-   the chat circle's centre (edge + L/2) and the settings circle's (edge + L + 8 +
-   S/2), which is edge + 3L/4 + 4 + S/4: derived from the same two sizes, so the
-   three stay a group when either changes. */
+   At the wall, on the bottom line beside settings, under the chat's right half (E81
+   C12; until then the smallest of the three, centred level with the midpoint of the
+   other two). Its height over the line is a token of its own, zero on the grid. */
 #drpg-book-launcher {
     position: fixed;
     right: var(--drpg-edge);
-    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) * 0.75 + 4px
-        + var(--drpg-launcher-small) / 4 - var(--drpg-launcher-book) / 2
-        + var(--drpg-av-lift, 0px));
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-b-bottom) + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-book);
     height: var(--drpg-launcher-book);

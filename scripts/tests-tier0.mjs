@@ -10823,6 +10823,28 @@ const REGRESSIONS = [
         }
         ok(judged > 100, `only ${judged} plural() calls with written-out data were found - this test measured nothing`);
         equal(JSON.stringify(wrong), "[]", "[every plural() call whose data does not hold the field it counts on]");
+    }],
+
+    ["R475 - the corner's glass pane and its step off the tab rail read one list of buttons, the module's three and anything marked data-drpg-cluster", async () => {
+        /*
+         * E81 C12, 12.10.2026. glass.mjs reads the corner twice: the `launch` block cuts a pane round the union of
+         * its buttons, and `clearLaunchers` moves the same buttons inboard when Foundry's tab rail reaches them. Each
+         * had its own copy of the three ids, and a button in one list and not the other is the fault `clearLaunchers`
+         * exists for: a pane cut round a button the rail still stands on, or a button moved off a pane that was not
+         * cut for it. The owner's AM-17 of 11.10 puts the GM's and Foundry tools' buttons on the same glass (E77), so
+         * the one list is open to an attribute rather than to a fourth and fifth id. Read in the source, with the
+         * comments out: neither reading can be driven headless, where the glass is not drawn.
+         */
+        const glass = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        ok(glass.length > 0, "glass.mjs was not read - this test measured nothing");
+        const list = (/\bconst LAUNCHERS = "([^"]*)";/.exec(glass)?.[1] ?? "").split(",").map(sel => sel.trim());
+        equal(JSON.stringify(list), JSON.stringify(["#drpg-messenger-launcher", "#drpg-sound-launcher", "#drpg-book-launcher", "[data-drpg-cluster]"]),
+            "[glass.mjs's one list of the corner's buttons]");
+        equal(/\{\s*cls:\s*"launch",\s*sel:\s*([^,}]+)/.exec(glass)?.[1]?.trim() ?? null, "LAUNCHERS", "[what the launch block's pane is cut round]");
+        const clear = topLevelFunction(glass, "clearLaunchers") ?? "";
+        ok(clear.length > 0, "glass.mjs no longer declares clearLaunchers() - this test reads nothing until it is pointed at the code again");
+        equal(JSON.stringify([...clear.matchAll(/querySelectorAll\(([^)]*)\)/g)].map(m => m[1].trim()).filter(arg => /launcher|cluster|LAUNCHERS/.test(arg))), JSON.stringify(["LAUNCHERS"]),
+            "[what clearLaunchers moves off the rail]");
     }]
 ];
 

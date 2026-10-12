@@ -26,6 +26,15 @@ export const CHECKS = [];
 /** What the last pass measured: the frame and every block. `drpgGlassDebug()` in the console prints it. */
 export const LAST = { frame: null, blocks: [] };
 
+/* THE CORNER'S BUTTONS, ONE LIST FOR THE PANE AND FOR THE RAIL'S CLEARANCE (E81 C12). The
+   module's three, and anything that marks itself `data-drpg-cluster`: the owner's AM-17 of
+   11.10 puts the GM's and Foundry tools' buttons on the same piece of glass (E77), and a
+   button that is in the pane but not moved off the tab rail - or the other way round - is
+   the fault `clearLaunchers` exists to prevent. An attribute rather than a `drpg-` class,
+   because pixel-icons.css repaints the Font Awesome glyph of any `[class*="drpg-"] i.fa-*`,
+   and Foundry's own tools button would match those rules (read in the sheet, not tried). */
+const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
+
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
@@ -47,7 +56,7 @@ const BLOCKS = [
      to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
      `--drpg-note-w`, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
-  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
+  { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
      user is about to change: click a scene control and Foundry opens its tools beside it (the
@@ -602,7 +611,7 @@ function clearLaunchers() {
   if (!themeOn() || narrowLayout()) { drop(); return; }
   const rail = document.getElementById("sidebar-tabs");
   const box = rail && rail.offsetWidth ? tileButtons(rail).map(e => e.getBoundingClientRect()) : [];
-  const buttons = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher")]
+  const buttons = [...document.querySelectorAll(LAUNCHERS)]
     .filter(e => e.offsetWidth);
   if (!box.length || !buttons.length) { drop(); return; }
   const top = Math.min(...box.map(q => q.top)), bottom = Math.max(...box.map(q => q.bottom));

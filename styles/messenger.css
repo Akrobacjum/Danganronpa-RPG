@@ -2,7 +2,8 @@
    Danganronpa RPG - the messenger
    --------------------------------------------------------------------------
    Three pieces:
-     #drpg-messenger-launcher   fixed button, bottom-right, always on screen
+     #drpg-messenger-launcher   fixed button, the top of the bottom-right corner's
+                                three (the grid's tokens: danganronpa.css), always on screen
      #drpg-messenger-roster     the GM's popover picker, anchored above it
      .drpg-messenger            the conversation window itself (ApplicationV2)
 
@@ -12,19 +13,18 @@
 
 #drpg-messenger-launcher {
     position: fixed;
-    /* The module's edge margin, and 52 px: 44 was a comfortable target only if you never
-       miss, and this is a control a player reaches for in the middle of a scene. */
-    right: calc(var(--drpg-edge, 16px) + var(--drpg-book-lane, 0px));
+    /* Over settings and the handbooks, centred over the midpoint of the two (E81 C12; the
+       place is the corner grid's, danganronpa.css). Its size is danganronpa.css's too: the
+       52 px that stood here was overridden there by `--drpg-launcher` and drew nothing. */
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right));
     /*
      * `--drpg-av-lift` IS THE CAMERA DOCK, measured by camera-view.mjs and zero
      * when there is not one. `#players` rises over the dock on its own because
      * it lives in Foundry's bottom column; this button is pinned to the
      * viewport, so the dock simply covered it until it was told (Dawid, 28.08).
      */
-    bottom: calc(var(--drpg-edge, 16px) + var(--drpg-av-lift, 0px));
+    bottom: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-bottom) + var(--drpg-av-lift, 0px));
     z-index: 70;
-    width: 52px;
-    height: 52px;
     padding: 0;
     display: flex;
     align-items: center;
@@ -68,12 +68,23 @@
 
 #drpg-messenger-roster {
     position: fixed;
-    right: calc(16px + var(--drpg-book-lane, 0px));
-    /* With the button it sits on. */
-    bottom: calc(68px + var(--drpg-av-lift, 0px));
+    /* ON THE BUTTON IT OPENS FROM (E81 C12, S12-57): right edge with the messenger's, foot
+       8 px over its top - `--drpg-stack-foot`, which carries the camera dock's lift. It
+       stood at `16px` and `68px`, which was the wall and a 52 px button's top until the
+       button grew to 66 and moved inboard; the panel then opened over the button it came
+       from. The ceiling keeps its top 8 px inside the screen. 60vh alone, from this foot
+       under Monokuma Legacy (140.64 px), leaves the top 3.4 px from the screen's at
+       640 x 360 and puts it 8.6 px above it at 1920 x 1080 with a 300 px dock (by hand,
+       12.10; the A7 design's P8-6 had -12 and -24 from 1.2.74's 156 px foot). R474 redoes
+       the sum from the cascade. The ceiling is the panel's whole height, padding and
+       frame with it: as a content height it let the top out by those 21 px, 13 px above
+       the screen at 640 x 360 (Chromium, 12.10). */
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right));
+    bottom: var(--drpg-stack-foot);
     z-index: 71;
+    box-sizing: border-box;
     width: 260px;
-    max-height: 60vh;
+    max-height: min(60vh, calc(100dvh - var(--drpg-stack-foot) - 8px));
     overflow-y: auto;
     padding: 0.6rem;
     border-radius: 6px;

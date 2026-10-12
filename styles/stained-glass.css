@@ -508,7 +508,17 @@ body.drpg-theme-stained-glass[data-drpg-turning] :is(#scene-controls, #sidebar-t
     will-change: transform;
 }
 
-/* ---- the launchers: rings 66 and 52 px, the seam colour on the ring ---------- */
+/* ---- the launchers: hexagons 66 and 44 px, the seam colour on the ring ---------- */
+/* THE GRID'S ROW UNDER THIS CLIP-PATH (E81 C12, grid.mjs 12.10.2026). The hexagon below
+   is squashed into a square box, so its slanted sides stand 0.43625 x size from its centre
+   along a normal of (0.48861, 0.87252) - not a regular hexagon's 0.43301 at 60 degrees.
+   Two hexagons sharing a slanted side 6 px apart with centres 25 px apart across (half of
+   44 + 6) are a row of (6 + 0.43625 x 110 - 0.48861 x 25) / 0.87252 = 47.88 px apart down.
+   Monokuma Legacy's circles need 55.64 (danganronpa.css); every place in the corner is
+   derived from this one number and the sizes, and a new clip-path needs a new row. */
+body.drpg-theme-stained-glass {
+    --drpg-launch-row: 47.88px;
+}
 body.drpg-theme-stained-glass #drpg-messenger-launcher,
 body.drpg-theme-stained-glass #drpg-sound-launcher,
 body.drpg-theme-stained-glass #drpg-book-launcher {
@@ -1118,27 +1128,24 @@ body.drpg-theme-stained-glass #drpg-book-launcher {
 /* AND THEY STEP INBOARD OF FOUNDRY'S TAB RAIL WHEN IT REACHES THEM.
    `--drpg-launch-clear` is written by `clearLaunchers` in glass.mjs, which measures the
    rail's run and its band; it is zero on every screen where the rail ends above these
-   buttons, and the whole reason it is a variable rather than an inline style is that the
-   sound button's own offset is a formula this sheet owns (centred over the larger circle)
-   and should not be restated in a script. */
+   buttons, and the whole reason it is a variable rather than an inline style is that each
+   button's own offset is a formula of the corner's grid (danganronpa.css) and should not
+   be restated in a script. */
 body.drpg-theme-stained-glass #drpg-messenger-launcher {
-    right: calc(var(--drpg-edge, 16px) + var(--drpg-book-lane, 0px) + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right) + var(--drpg-launch-clear, 0px));
 }
 body.drpg-theme-stained-glass #drpg-sound-launcher {
-    right: calc(var(--drpg-edge) + var(--drpg-book-lane, 0px)
-        + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2
-        + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launch-clear, 0px));
 }
 /* The handbooks button goes with them: it is the one at the wall. */
 body.drpg-theme-stained-glass #drpg-book-launcher {
     right: calc(var(--drpg-edge) + var(--drpg-launch-clear, 0px));
 }
-/* AND THE ROSTER GOES WITH ITS BUTTON. It is pinned to the wall on its own (`right: 16px`
-   in messenger.css, "with the button it sits on") which stopped being true the moment the
-   button could move: the panel would have opened over the wall with its button a hundred
-   pixels to the left of it. */
+/* AND THE ROSTER GOES WITH ITS BUTTON. Its right edge is the messenger's (messenger.css),
+   which stopped being the whole story the moment the button could move: without the
+   clearance the panel would open a rail's width to the right of the button it came from. */
 body.drpg-theme-stained-glass #drpg-messenger-roster {
-    right: calc(16px + var(--drpg-book-lane, 0px) + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right) + var(--drpg-launch-clear, 0px));
 }
 body.drpg-theme-stained-glass #drpg-messenger-launcher:hover,
 body.drpg-theme-stained-glass #drpg-sound-launcher:hover,

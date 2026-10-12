@@ -1653,6 +1653,15 @@ const INVARIANTS = [
          * 22.09 (Dawid): a third corner button, the smallest, at the wall and level with
          * the seam between the chat and settings circles. It opens the Student Brochure
          * and the Player Handbook for everybody and the GM Handbook for a GM.
+         * E81 C12, 12.10.2026: the owner's grid (Q3 of 07.10, AM-18 and AM-21) moved all
+         * three, so the three readings below say the grid's version of what they said -
+         * the chat over the midpoint of the other two (it was one book and 8 px inboard
+         * of the book), the book at the wall (it was level with the midpoint of the other
+         * two centres), the chat the largest and the other two one size (the book was
+         * the smallest) - and two are new: settings on the bottom line, and the chat
+         * above it. The stage's plan asked for today's three to stay; on the grid each
+         * of them is false, so they are rewritten rather than kept. The grid's own
+         * numbers are R474's (headless) and R299 (a)'s.
          */
         const { booksFor, handbookHtml, openHandbooks } = await import("./handbooks.mjs");
         equal(booksFor({ isGM: false }).map(b => b.id).join(), "player-brochure,player-handbook",
@@ -1672,13 +1681,15 @@ const INVARIANTS = [
         const px = (el, prop) => Number.parseFloat(getComputedStyle(el)[prop]);
         const chat = document.getElementById("drpg-messenger-launcher");
         const gear = document.getElementById("drpg-sound-launcher");
-        const lane = px(chat, "right") - px(book, "right");
-        equal(Math.round(lane), Math.round(book.offsetWidth + 8), "the chat circle is not one book and 8 px inboard of the book");
-        const centre = (el) => px(el, "bottom") + el.offsetHeight / 2;
-        ok(Math.abs(centre(book) - (centre(chat) + centre(gear)) / 2) < 1,
-            "the book is not level with the midpoint of the chat and settings circles");
-        ok(book.offsetWidth < gear.offsetWidth && gear.offsetWidth < chat.offsetWidth,
-            "the book is not the smallest of the three");
+        const across = el => px(el, "right") + el.offsetWidth / 2, centre = el => px(el, "bottom") + el.offsetHeight / 2;
+        ok(Math.abs(across(chat) - (across(book) + across(gear)) / 2) < 1,
+            "the chat button is not centred over the midpoint of the book and settings");
+        ok(px(book, "right") <= Math.min(px(chat, "right"), px(gear, "right")) + 0.5, "the book is not the one at the wall");
+        ok(book.offsetWidth === gear.offsetWidth && gear.offsetWidth < chat.offsetWidth,
+            "the chat button is not the largest, or the book and settings are not one size");
+        ok(Math.abs(px(gear, "bottom") - px(book, "bottom")) < 0.5 && px(gear, "bottom") < px(chat, "bottom"),
+            "settings does not stand on the bottom line with the book");
+        ok(centre(chat) > px(gear, "bottom") + gear.offsetHeight, "the chat button does not stand above settings");
 
         // Every book in both languages ships and comes out as a handbook, with no ids
         // that could shadow Foundry's own (#chat, #players).
@@ -8827,7 +8838,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -8860,6 +8871,17 @@ const INVARIANTS = [
          * under the widgets; 99990 with a card and back under the windows once it is gone; `top` following the clock
          * grown by 40 px with no card; and back on Stained Glass `top` cleared. A widget drawn after `ready` is
          * R298 (7)'s, headless. NEVER RUN: E81 C10 had no browser either.
+         * (a), E81 C12: the corner's three in both themes (the classes turned as in (b) and back): R474's reading of the
+         * grid from the resolved insets - here they come back in px - with the boxes the buttons are drawn in, and the
+         * unread badge (one of the suite's own when there is none, removed after) with its box on the screen and at
+         * least the gap clear of the book's. A box, not what is painted: under Stained Glass the chat's clip-path
+         * cuts the badge, which stands out of its top-right corner, to a red sliver with no digits (Chromium 12.10, the
+         * same in 1.2.74's corner; not this commit's to change). (c), E81 C12, for a GM: the roster opened by
+         * clicking its button, run long with 120 rows of the suite's, read as it is and with a dock of 300 px (or
+         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the
+         * screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
+         * browser's size; R474 works that one out headless. The two clauses' Chromium readings of 12.10 were taken on
+         * the grid mockup's page with this commit's sheets, not by this test: NEVER RUN in a browser either.
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -8892,6 +8914,91 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ width: true, sides: true, foot: true, scrolls: true, small: [] }),
             `the notice history window at ${window.innerWidth}x${window.innerHeight} [no wider than 420 px or the screen less 16; 8 px clear of each side; `
             + "its foot on screen; the list scrolls; text under 11 px]");
+
+        /* (a) The corner's three as drawn, in both themes (E81 C12). */
+        const launchers = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id));
+        must(launchers.every(Boolean), "a corner button is not on the page - there is nothing to measure");
+        const CORNER_THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], cornerWas = CORNER_THEMES.map(name => document.body.classList.contains(name));
+        let badge = launchers[0].querySelector(".drpg-messenger-badge");
+        const madeBadge = !badge;
+        if (madeBadge) {
+            badge = document.createElement("span");
+            badge.className = "drpg-messenger-badge";
+            badge.textContent = "88";
+            launchers[0].append(badge);
+        }
+        const drawn = {}, drawnWant = {};
+        try {
+            for (const toGlass of [true, false]) {
+                document.body.classList.toggle(CORNER_THEMES[0], toGlass);
+                document.body.classList.toggle(CORNER_THEMES[1], !toGlass);
+                Hooks.callAll("drpgThemeApplied");
+                const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                const { seen: grid, want: gridWant } = cornerReading(document.createElement("div"), [{ w: innerWidth, h: innerHeight }]);
+                delete grid.roster;
+                delete gridWant.roster;
+                /* The badge in the corner's own terms: its box from the chat's border box (offset* from the padding
+                   edge, plus the frame), as insets from the right and the bottom like the buttons'. */
+                const [chat, , book] = launchers, chatRight = cascadePx(chat, "right"), chatBottom = cascadePx(chat, "bottom");
+                const badgeRight = chatRight + chat.offsetWidth - chat.clientLeft - badge.offsetLeft - badge.offsetWidth;
+                const badgeBottom = chatBottom + chat.offsetHeight - chat.clientTop - badge.offsetTop - badge.offsetHeight;
+                const bookRight = cascadePx(book, "right"), bookBottom = cascadePx(book, "bottom");
+                const apart = Math.max(badgeRight - (bookRight + book.offsetWidth), bookRight - (badgeRight + badge.offsetWidth),
+                    badgeBottom - (bookBottom + book.offsetHeight), bookBottom - (badgeBottom + badge.offsetHeight));
+                drawn[label] = {
+                    ...grid,
+                    boxes: launchers.map(el => `${el.offsetWidth}x${el.offsetHeight}`).join(" "),
+                    badge: { inView: badgeRight >= 0 && innerHeight - badgeBottom - badge.offsetHeight >= 0, clearOfBook: apart >= cascadePx(document.body, "--drpg-launch-gap") - 0.05 }
+                };
+                drawnWant[label] = {
+                    ...gridWant,
+                    boxes: launchers.map(el => `${Math.round(cascadePx(el, "width"))}x${Math.round(cascadePx(el, "height"))}`).join(" "),
+                    badge: { inView: true, clearOfBook: true }
+                };
+            }
+        } finally {
+            CORNER_THEMES.forEach((name, i) => document.body.classList.toggle(name, cornerWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+            if (madeBadge) badge.remove();
+        }
+        ok(!/NaN/.test(stableJson({ drawn, drawnWant })), `a length in the corner could not be read: ${stableJson({ drawn, drawnWant })}`);
+        equal(stableJson(drawn), stableJson(drawnWant),
+            `the corner at ${innerWidth}x${innerHeight} as drawn [per theme: R474's reading of the grid; the boxes the buttons are drawn in; the unread badge's box on the screen `
+            + "and at least the gap clear of the book's]");
+
+        /* (c) The GM's roster, opened from its button (E81 C12). */
+        if (game.user.isGM) {
+            must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: the suite opens it from its button and measures that");
+            launchers[0].click();
+            must(await until(() => document.querySelector("#drpg-messenger-roster.visible"), 2000), "the roster did not open from the messenger button");
+            const panel = document.getElementById("drpg-messenger-roster");
+            const filler = document.createElement("ul");
+            filler.innerHTML = "<li>R299 roster</li>".repeat(120);
+            panel.append(filler);
+            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift");
+            try {
+                for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
+                    if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
+                    const chat = launchers[0], foot = cascadePx(panel, "bottom");
+                    roster[label] = {
+                        foot: (foot - cascadePx(chat, "bottom") - chat.offsetHeight).toFixed(2),
+                        right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
+                        top: innerHeight - foot - panel.offsetHeight >= 8 - 0.5
+                    };
+                    if (liftWas) document.body.style.setProperty("--drpg-av-lift", liftWas);
+                    else document.body.style.removeProperty("--drpg-av-lift");
+                }
+                roster.overCards = !document.body.classList.contains("drpg-stacked") || Number(getComputedStyle(panel).zIndex) > 99990;
+            } finally {
+                filler.remove();
+                launchers[0].click();
+                await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+            }
+            const placed = { foot: "8.00", right: "0.00", top: true };
+            equal(stableJson(roster), stableJson({ "as it is": placed, lifted: placed, overCards: true }),
+                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
+                + "with a dock of 300 px or half the screen; over the notice cards on a stacked screen]");
+        }
 
         /* (b) The tile's button and its focus ring (E81 C8). */
         const P = await import("./popup.mjs");
@@ -9061,6 +9168,71 @@ const INVARIANTS = [
             + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
             + "clock grew with no card; back on Stained Glass, the top]");
     }],
+    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the chat with its right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
+        /*
+         * E81 C12, 12.10.2026: the owner's grid (AM-18 of 11.10, variant B accepted in AM-21 of 12.10), read from the
+         * cascade so it runs headless - R299 (a) and (c) read the same and the boxes as drawn, but only in a browser.
+         * Every expectation comes from the tokens, not from the mockup's numbers (the plan's D1): sizes, the gap, the
+         * edge, the book's height, `--drpg-launch-h`. The rows (`--drpg-launch-row`, 47.88 and 55.64) are the one
+         * input the test does not recompute; that is the point of it - change a size or the gap without the row it
+         * implies and the gaps here stop being the gap. Both themes are put on the body for the reading and back
+         * (synchronously, no hook fired: nothing is drawn in between), and each is read twice: as the table has it,
+         * and with `--drpg-av-lift` at 300 px (or half the window, the most camera-view.mjs ever lifts: the 640 x 360
+         * reading is made unlifted, as a 300 px dock there is not a screen anybody has) and `--drpg-launch-clear` at
+         * 37 px written on the body and put back, so a
+         * rule that forgets the camera dock or the tab rail is read moving away from the others. The roster is the
+         * GM's own when it is open, otherwise one made for the reading and removed. Its ceiling is worked out at the
+         * window's size and, headless, where the values come back unresolved, at 640 x 360 too; in a browser they
+         * come back in px for the window that runs the suite and nothing else. Over the cards: a stacked screen's
+         * notice cards stand at 99990 (danganronpa.css `#drpg-popups`, R299 (b) reads that number with a card); the
+         * reading is made with `drpg-stacked` on the body, put there for it on a desk.
+         */
+        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+        must(ids.every(id => document.getElementById(id)), "a corner button is not on the page - there is nothing to read");
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
+        const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
+        let roster = document.getElementById("drpg-messenger-roster");
+        const made = !roster;
+        if (made) {
+            roster = document.createElement("div");
+            roster.id = "drpg-messenger-roster";
+            body.append(roster);
+        }
+        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(document.getElementById(ids[0])).right.trim());
+        const views = [{ w: innerWidth, h: innerHeight }, ...(resolved ? [] : [{ w: 640, h: 360 }])];
+        const seen = {}, want = {};
+        let overCards = null;
+        try {
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                for (const [label, lift, clear] of [["as it is", null, null], ["lifted, cleared 37", `${Math.min(300, Math.floor(innerHeight / 2))}px`, "37px"]]) {
+                    if (lift) {
+                        body.style.setProperty(INLINE[0], lift);
+                        body.style.setProperty(INLINE[1], clear);
+                    }
+                    const reading = cornerReading(roster, lift ? views.slice(0, 1) : views);
+                    seen[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.seen;
+                    want[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.want;
+                    putBack();
+                }
+            }
+            body.classList.add(CLASSES[2]);
+            overCards = Number(getComputedStyle(roster).zIndex) > 99990;
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            putBack();
+            if (made) roster.remove();
+        }
+        /* Both sides are read through the same parser, so a value it could not read would be "NaN" on both and equal. */
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length in the corner could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson({ ...seen, overCards }), stableJson({ ...want, overCards: true }),
+            `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
+            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the chat, "
+            + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
+    }],
 ];
 
 /**
@@ -9144,6 +9316,114 @@ function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, c
         timers: { set: () => 0, clear: () => {} },
         log: { warn: () => {}, debug: () => {} }
     });
+}
+
+/**
+ * A length as the cascade gives it, in px (E81 C12, 12.10.2026; R474, R299 (a) and (c)). In a browser
+ * `getComputedStyle` resolves an inset or a size to px and this only parses it. Headless, jsdom hands a
+ * standard property back as written - "calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right))" - so
+ * every var() is replaced by the element's own custom property (the harness substitutes those) or its
+ * fallback, and the calc() is worked out here: + - * /, brackets, calc(), min() and max(), px, and the
+ * viewport units against `view` - the window's, unless the reading is for another size. A unitless
+ * number counts as a factor; a keyword, an unknown unit or a var() left over is NaN, which fails every
+ * comparison it reaches.
+ */
+function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
+    const style = getComputedStyle(el);
+    let text = String((prop.startsWith("--") ? style.getPropertyValue(prop) : style[prop]) ?? "").trim();
+    for (let i = 0; i < 16 && text.includes("var("); i++) {
+        text = text.replace(/var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)/, (all, name, fallback) => style.getPropertyValue(name).trim() || (fallback ?? "").trim());
+    }
+    const tokens = text.match(/\d*\.?\d+(?:e-?\d+)?[a-z%]*|(?:calc|min|max)\(|[()+\-*/,]|[^\s()+\-*/,]+/gi) ?? [];
+    const unit = { "": 1, px: 1, vh: view.h / 100, dvh: view.h / 100, svh: view.h / 100, lvh: view.h / 100, vw: view.w / 100, dvw: view.w / 100 };
+    let at = 0;
+    const atom = () => {
+        const token = tokens[at++] ?? "";
+        if (token === "(" || token === "calc(") { const value = sum(); return tokens[at++] === ")" ? value : NaN; }
+        if (token === "min(" || token === "max(") {
+            const args = [sum()];
+            while (tokens[at] === ",") { at++; args.push(sum()); }
+            return tokens[at++] === ")" ? Math[token.slice(0, 3)](...args) : NaN;
+        }
+        if (token === "-") return -atom();
+        const number = /^(\d*\.?\d+(?:e-?\d+)?)([a-z%]*)$/i.exec(token);
+        return number && number[2].toLowerCase() in unit ? Number(number[1]) * unit[number[2].toLowerCase()] : NaN;
+    };
+    const product = () => {
+        let value = atom();
+        while (tokens[at] === "*" || tokens[at] === "/") value = tokens[at++] === "*" ? value * atom() : value / atom();
+        return value;
+    };
+    const sum = () => {
+        let value = product();
+        while (tokens[at] === "+" || tokens[at] === "-") value = tokens[at++] === "+" ? value + product() : value - product();
+        return value;
+    };
+    const value = sum();
+    return at === tokens.length ? value : NaN;
+}
+
+/**
+ * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) and (c) in a browser). The three
+ * buttons and the roster as the cascade places them - each one's inset from the right and from the bottom and its
+ * size, through `cascadePx`, never a box: under Stained Glass the corner turns with its pane and a turned box is not
+ * the button - set beside what the tokens say they should be. Every entry is a pair of strings rounded to 0.01 px or
+ * a truth, so one `equal` shows the whole reading against the whole expectation.
+ * The shape is the drawn one: the clip-path's hexagon (its slanted sides read off the polygon: from the top vertex
+ * to (100%, k), so a side stands 0.25 / |(k, 0.5)| of the size from the centre, along that normal) or, with no
+ * clip-path, Monokuma Legacy's circle. A pair on one row faces flat to flat, a pair across rows slanted to slanted.
+ * `roster` is the panel to read (the caller's: a temporary one, or the GM's own); `views` the window sizes its
+ * ceiling is worked out at - the window's own in a browser, where the value comes back already resolved.
+ */
+function cornerReading(roster, views) {
+    const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
+    const token = name => cascadePx(body, name);
+    const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+    const place = id => {
+        const el = document.getElementById(id);
+        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
+    };
+    const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
+    const clip = getComputedStyle(M.el).clipPath ?? "none";
+    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
+    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
+    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
+    const gap = (a, b) => {
+        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
+        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
+        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
+    };
+    const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
+    const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
+    const seen = {
+        shape: glass ? (k === null ? clip : "hexagon") : clip,
+        sizes: [M.w, M.h, S.w, S.h, B.w, B.h].map(round).join(" "),
+        wall: [B.right, B.bottom].map(round).join(" "),
+        line: round(S.bottom),
+        gaps: [gap(M, S), gap(M, B), gap(S, B)].map(round).join(" "),
+        centred: round(centre(M).x - (centre(S).x + centre(B).x) / 2),
+        above: centre(M).y > S.bottom + S.h && centre(M).y > B.bottom + B.h,
+        height: round(M.bottom + M.h - S.bottom),
+        roster: {
+            foot: round(cascadePx(roster, "bottom") - (M.bottom + M.h)),
+            right: round(cascadePx(roster, "right") - M.right),
+            /* A ceiling below zero is none (CSS clamps it); the parser does not, so it is clamped here. */
+            top: views.map(view => view.h - cascadePx(roster, "bottom", view) - Math.max(0, cascadePx(roster, "max-height", view)))
+                .map(top => (top >= 8 - 0.05 ? "8 or more" : round(top))).join(" ")
+        }
+    };
+    const want = {
+        shape: glass ? "hexagon" : "none",
+        sizes: [L, L, s, s, b, b].map(round).join(" "),
+        wall: [edge + clear, edge + token("--drpg-launch-b-bottom") + lift].map(round).join(" "),
+        line: round(edge + lift),
+        gaps: [g, g, g].map(round).join(" "),
+        centred: round(0),
+        above: true,
+        height: round(token("--drpg-launch-h")),
+        roster: { foot: round(8), right: round(0), top: views.map(() => "8 or more").join(" ") }
+    };
+    return { seen, want };
 }
 
 export { INVARIANTS };

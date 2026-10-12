@@ -47,10 +47,11 @@ export function registerCameraView() {
      *
      * `#players` rises over the camera dock on its own because it is
      * `position: static` - it sits in Foundry's own bottom-left column, and a
-     * dock appearing above it makes the column taller. Our two round buttons
-     * are `position: fixed` against the viewport edge, so they knew nothing
-     * about it and the camera bar simply covered them (Dawid, 28.08, with a
-     * screenshot of exactly that: latency box up, buttons still down).
+     * dock appearing above it makes the column taller. Our corner buttons
+     * (two then, three on one grid since E81 C12) are `position: fixed`
+     * against the viewport edge, so they knew nothing about it and the camera
+     * bar simply covered them (Dawid, 28.08, with a screenshot of exactly
+     * that: latency box up, buttons still down).
      *
      * The dock is core markup this module does not own - the note over the
      * CAMERA DOCK section in the stylesheet says why it is tinted and not

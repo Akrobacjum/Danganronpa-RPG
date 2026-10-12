@@ -189,6 +189,11 @@ body.drpg-stacked #drpg-popups {
     align-items: stretch;
 }
 body.drpg-stacked #drpg-popups > .drpg-popup { max-width: none; width: auto; }
+/* The GM's roster opens over that stack (E81 C12, the A7 design's P8-7): the cards run the
+   screen's width here and stand at 99990 (danganronpa.css, `#drpg-popups`), so at its own 71
+   the panel the GM just asked for opened under a notice. One over the cards; on a desk the
+   cards stand in the other corner and the 71 is left alone. */
+body.drpg-stacked #drpg-messenger-roster { z-index: 99991; }
 /* With no card shown the history's button is not drawn here (E81 C10; the owner's Q6 of 07.10, in
    both themes): alone it would stand some 14 px above the messenger (the A7 design's estimate,
    not measured), a fourth button in the corner the owner's Q3 rules out. The keybinding and
