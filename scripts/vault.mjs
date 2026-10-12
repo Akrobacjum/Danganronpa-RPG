@@ -44,7 +44,7 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
-    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom } from "./rooms.mjs";
+    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom, RENAMED_FROM } from "./rooms.mjs";
 // Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
 // its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
 import { REST_FLAGS } from "./rest.mjs";
@@ -1011,8 +1011,15 @@ export function clearSplitPiece(region, changes, userId) {
     if (!joins && !split) return null;
     const written = changes.flags?.[MODULE_ID] ?? {};
     const carried = pieceData().filter(([key]) => !(key in written) && carriesValue(region.getFlag(MODULE_ID, key)));
+    /* The record of the rename, in the same update (rooms.mjs `RENAMED_FROM`; E12 fix k3-K2): the first
+       pieces of a room renamed piece by piece say which name they left, and a piece that joins another
+       room says nothing - an older record on it is taken off. */
+    const from = split && !joins && isRoom(region) ? was : null;
+    const record = from || region.getFlag(MODULE_ID, RENAMED_FROM) ? { [RENAMED_FROM]: from } : {};
+    if (carried.length || RENAMED_FROM in record) {
+        changes.flags = { ...(changes.flags ?? {}), [MODULE_ID]: { ...written, ...Object.fromEntries(carried.map(([key]) => [key, null])), ...record } };
+    }
     if (!carried.length && !(joins && !split && isRoom(region))) return null;
-    if (carried.length) changes.flags = { ...(changes.flags ?? {}), [MODULE_ID]: { ...written, ...Object.fromEntries(carried.map(([key]) => [key, null])) } };
     const keys = carried.map(([key]) => key);
     log(`"${was}" on "${scene?.name}" renamed "${now}" ${joins ? "joined a room of that name" : "was one piece of several"}: `
         + `it no longer carries ${keys.join(", ") || "anything"}.`);

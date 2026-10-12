@@ -2694,6 +2694,31 @@ export async function recordBodyFound({ chapter, epoch, ...row } = {}) {
     return stamp;
 }
 
+/*
+ * A FOUND BODY'S ROOM RENAMED (E12 fix k3-K2, 12.10.2026; open road O-b of r2-H4). The stamps and the
+ * hold name the room a body was found in, and the Event card names the room from them (events.mjs);
+ * a GM's rename of that room left them on a name no room had. fog.mjs `carryRoomInWorld` hands the
+ * rename here on the primary: each stamp of the renamed room's scene moves to the new name, and a stamp
+ * or hold written with no scene (the hold never has one) when `firstHere` - the scene a reader would
+ * give the room by its name was this one. Only the room changes: the stamp's chapter, season and
+ * bodies are `recordBodyFound`'s alone (tier 0 R349). Answers how many records moved.
+ */
+export async function carryBodyRooms(sceneId, from, to, firstHere = false) {
+    if (!game.user.isGM || !sceneId || !from || !to || from === to) return 0;
+    const here = row => row?.room === from && (row.sceneId ? row.sceneId === sceneId : firstHere);
+    let moved = 0;
+    const all = bodiesFoundAll();
+    const next = Object.fromEntries(Object.entries(all).map(([key, rows]) => [key,
+        Array.isArray(rows) ? rows.map(row => (here(row) ? (moved++, { ...row, room: to }) : row)) : rows]));
+    if (moved) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, next);
+    const hold = bodyDiscovery();
+    if (hold && here(hold)) {
+        await game.settings.set(MODULE_ID, SETTINGS.bodyFound, { ...hold, room: to });
+        moved++;
+    }
+    return moved;
+}
+
 /** The GM has answered. Safe to call when there is nothing to clear. */
 export async function clearBodyDiscovery() {
     if (!game.user.isGM || !bodyDiscovery()) return null;

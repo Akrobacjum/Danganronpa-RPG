@@ -67,7 +67,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
-import { allProjects, secretsOf, patchTrigger, standsAtProject } from "./projects.mjs";
+import { allProjects, secretsOf, patchTrigger, standsAtProject, projectScene } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
 import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
@@ -271,7 +271,7 @@ function afterDark() {
  * and a GM who has learned to skim those cards will skim the one that mattered.
  * Re-arming is a deliberate act - see `rearmTrap`.
  */
-async function alert(trap, actor, why) {
+async function alert(trap, actor, why, onScene = null) {
     if (!isPrimaryGm()) return null;
 
     // Stamped BEFORE the card. If the write fails the alert must not go out at
@@ -288,6 +288,13 @@ async function alert(trap, actor, why) {
        in a bedroom. The room-watching triggers keep the project's room: that is the
        room they watch. */
     const room = (trap.trigger.kind === "item" ? roomOf(actor) : trap.room) ?? roomOf(actor) ?? trap.room ?? "?";
+    /* AND ON WHICH SCENE (E12 fix k3-K2, 12.10.2026; open road O-c of r2-S1). Since r2-S1 a trap
+       springs only in its room on its own scene, and the card named the room alone: with a room of
+       that name on two scenes the GM could not tell which trap had gone off. The card names the scene
+       always - the GM reads it later, on whatever scene is on screen then. The event's scene for a
+       trap that watches a room (the scene `armedIn` was asked about), else the trap's own
+       (`projectScene`); for an object, the scene its holder stands on. */
+    const scene = trap.trigger.kind === "item" ? await sceneOfEvent(actor) : onScene ?? projectScene(trap.id);
     const clock = getSetting(SETTINGS.clock) ?? {};
 
     const triggerLabel = localised(`DRPG.Trap.trigger.${trap.trigger.kind}`, def?.label ?? trap.trigger.kind);
@@ -295,6 +302,7 @@ async function alert(trap, actor, why) {
         <p>${game.i18n.format("DRPG.Trap.alertReading", {
             who: esc(actor?.name ?? "?"),
             room: esc(room),
+            scene: esc(scene?.name ?? "?"),
             // Off the module's own table rather than a guessed i18n key: the
             // first version of this printed the literal "DRPG.Clock.night".
             when: esc(TIME_OF_DAY_LABELS[clock.timeOfDay] ?? clock.timeOfDay ?? "?")
@@ -889,7 +897,7 @@ async function onCrossed({ actor, to, tokenDoc = null, sceneId = null } = {}) {
                 if (!alone) continue;
             }
             await alert(trap, actor, game.i18n.localize(
-                kind === "alone" ? "DRPG.Trap.why.alone" : "DRPG.Trap.why.enters"));
+                kind === "alone" ? "DRPG.Trap.why.alone" : "DRPG.Trap.why.enters"), scene);
         }
     } catch (err) {
         error("A trap could not react to a crossing", err);
@@ -935,11 +943,12 @@ async function onActionResolved({ actor, actionKey, outcome, projectId } = {}) {
         if (!map.any) return;
 
         const candidates = [];
+        let scene = null;
         if (actionKey === "search") {
             // A failed Search found nothing and disturbed nothing.
             if (!outcome?.success) return;
             const room = outcome?.room ?? roomOf(actor);
-            if (map.byRoom.has(room)) candidates.push(...armedIn(room, await sceneOfEvent(actor)));
+            if (map.byRoom.has(room)) candidates.push(...armedIn(room, scene = await sceneOfEvent(actor)));
         } else if (projectId) {
             candidates.push(...(map.byProject.get(projectId) ?? []));
         }
@@ -950,7 +959,7 @@ async function onActionResolved({ actor, actionKey, outcome, projectId } = {}) {
             if (def?.watch !== "action" || def.actionKey !== actionKey) continue;
             if (def.needs === "project" && trap.trigger.targetId !== projectId) continue;
             if (!passesModifiers(trap, actor)) continue;
-            await alert(trap, actor, game.i18n.localize(`DRPG.Trap.why.${trap.trigger.kind}`));
+            await alert(trap, actor, game.i18n.localize(`DRPG.Trap.why.${trap.trigger.kind}`), scene);
         }
     } catch (err) {
         error("A trap could not react to an action", err);
@@ -963,10 +972,11 @@ async function onRested({ actor, room } = {}) {
         if (!isPrimaryGm()) return;
         const where = room ?? roomOf(actor);
         if (!armed().byRoom.has(where)) return;
-        for (const trap of armedIn(where, await sceneOfEvent(actor))) {
+        const scene = await sceneOfEvent(actor);
+        for (const trap of armedIn(where, scene)) {
             if (trap.trigger.kind !== "rest") continue;
             if (!passesModifiers(trap, actor)) continue;
-            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.rest"));
+            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.rest"), scene);
         }
     } catch (err) {
         error("A trap could not react to a rest", err);
@@ -983,10 +993,11 @@ async function onRested({ actor, room } = {}) {
 async function onStashHunted({ actor, room } = {}) {
     try {
         if (!isPrimaryGm() || !armed().byRoom.has(room)) return;
-        for (const trap of armedIn(room, await sceneOfEvent(actor))) {
+        const scene = await sceneOfEvent(actor);
+        for (const trap of armedIn(room, scene)) {
             if (trap.trigger.kind !== "stash") continue;
             if (!passesModifiers(trap, actor)) continue;
-            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.stash"));
+            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.stash"), scene);
         }
     } catch (err) {
         error("A trap could not react to a stash hunt", err);

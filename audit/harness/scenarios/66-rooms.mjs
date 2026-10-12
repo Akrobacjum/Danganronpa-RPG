@@ -61,7 +61,10 @@
  *      and SEC2-1, early review EARLY-C12-1).
  *   Q  gm0 the primary again, the seeded GM renames a two-piece room on a scene made here to a new name piece by piece,
  *      then a bedroom onto that name: what the primary carried and what the joined piece keeps (E12 fix r2-H4: early
- *      review EARLY-C8-1 and the correctness review r2's widening of it).
+ *      review EARLY-C8-1 and the correctness review r2's widening of it). Then two more rooms of two pieces, each with one
+ *      piece renamed while gm0 is away and the other after it has connected - by the seeded GM and by gm0: whether gm0, the
+ *      primary that did not see the first rename, carries the room and leaves the second piece's flags (E12 fix k3-K2:
+ *      open road O-a of r2-H4).
  *   R  p1 drags Aiko's school token from the Hall into a Porch beside it with p1's camera on the Annex: whether the crossing
  *      is announced (E12 fix r2-S1, review round 2 O3; named O on the side line, R at its merge, where r2-H1 had taken O).
  *   X  what the second review found (E12 fix r2-S2): a tower whose upper floor alone is walled, with a room of Foundry's
@@ -115,6 +118,7 @@
  * E12 fix r2-H4 (Q1 added): 47 checks; their time is that commit's fast set's, in its message.
  * E12 fix r2-S1 (O1 added on the side line, R1 at its merge): 41 checks in 44.5 s, one run of the side line's fast set
  * on 11.10.2026 while two other harness lanes ran, and 44.6 s and 41.0 s in its red first and one mutant (O1 failing).
+ * E12 fix k3-K2 (Q2, Q3 added on the side fix line): 56 checks; their time is that commit's fast set's, in its message.
  * E12 fix r2-S2 (X1-X6 added; X6 connects a second GM and disconnects the seeded one, so X stays last): 47 checks in
  * 58.7 s, one run of the side line's fast set on 11.10.2026 while its other two lanes and another group's run were busy.
  * The merge of the side fix line (r2-S1's O1 renamed R1, since r2-H1 had taken O; R stands before X, which stays last):
@@ -1215,6 +1219,61 @@ export async function run({ gm, gm0, gm2, p1, check, note, phase, settle, connec
         setQ?.primary === false && readQ?.primary === true && readQ.pieces === 3 && J(readQ.owners) === J([null, null, IDS.daichi])
             && J(readQ.stashes) === J([IDS.daichi]) && J(readQ.found) === J(["66 Den", "66 Q Hall"]) && readQ.joined === 1,
         J({ setQ, readQ }));
+
+    /* Q2, Q3 (E12 fix k3-K2, 12.10.2026; open road O-a of r2-H4). Which piece was renamed from which name was each GM's
+       memory of the renames it had seen (rooms.mjs `joinsAnotherRoom`), so a GM who connected between two renames of one
+       room's pieces had not seen the first. On a scene made here, two rooms of two pieces each, both discovered by Aiko:
+       Daichi's 66 Wing with his stash, and Chie's 66 Lab. With gm0 away the seeded GM renames one piece of each, the Wing's
+       to the 66 Q2 Hall and the Lab's to the 66 Q3 Hall; gm0 connects and is the primary; then the seeded GM renames the
+       Wing's other piece (Q2: the primary's judgement of the carry) and gm0 the Lab's (Q3: the writer's judgement as well).
+       Read on gm0, the primary. */
+    const WARNED = `const warnings = () => game.messages.filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes("66 Q3 Hall")).length;`;
+    const setQ2 = await gm.eval(`${QNAMES}
+        const box = x => [{ type: "rectangle", x, y: 100, width: 250, height: 250 }];
+        const room = (owner, stash) => ({ "${MOD}": { room: true, drpgVaultOwner: owner, drpgStashes: stash ? [{ actorId: owner, concealed: true }] : [] } });
+        const scene = await Scene.create({ name: "66 Q2 renames", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+        const [wing1, wing2, lab1, lab2] = await scene.createEmbeddedDocuments("Region", [{ name: "66 Wing", shapes: box(100), flags: room("${IDS.daichi}", true), behaviors: [] },
+            { name: "66 Wing", shapes: box(400), flags: room("${IDS.daichi}", true), behaviors: [] },
+            { name: "66 Lab", shapes: box(900), flags: room("${IDS.chie}", false), behaviors: [] },
+            { name: "66 Lab", shapes: box(1200), flags: room("${IDS.chie}", false), behaviors: [] }]);
+        await F.applyDiscoveryChanges(scene, [{ actorId: "${IDS.aiko}", room: "66 Wing", value: true }, { actorId: "${IDS.aiko}", room: "66 Lab", value: true }]);
+        await W(() => ["66 Wing", "66 Lab"].every(r => F.discoveredFor(scene.id, "${IDS.aiko}").includes(r)));
+        const primary = U.isPrimaryGm();
+        await wing1.update({ name: "66 Q2 Hall" });
+        await lab1.update({ name: "66 Q3 Hall" });
+        await new Promise(r => setTimeout(r, 1000));
+        return { id: scene.id, wing2: wing2.id, lab2: lab2.id, primary, found: [...F.discoveredFor(scene.id, "${IDS.aiko}")].sort() };`, { timeout: 30000 });
+    let readQ2 = null;
+    await connect("gm0");
+    try {
+        await gm0.eval(`${QNAMES} await W(() => U.isPrimaryGm(), 10000); return U.isPrimaryGm();`, { timeout: 30000 });
+        await gm.eval(`await game.scenes.get("${setQ2.id}").regions.get("${setQ2.wing2}").update({ name: "66 Q2 Hall" });
+            await new Promise(r => setTimeout(r, 500)); return true;`, { timeout: 30000 });
+        readQ2 = await gm0.eval(`${QNAMES} ${WARNED}
+            const scene = game.scenes.get("${setQ2.id}"), before = warnings();
+            await scene.regions.get("${setQ2.lab2}").update({ name: "66 Q3 Hall" });
+            await W(() => ["66 Q2 Hall", "66 Q3 Hall"].every(r => F.discoveredFor(scene.id, "${IDS.aiko}").includes(r)));
+            await new Promise(r => setTimeout(r, 1500));
+            const read = name => { const pieces = scene.regions.filter(r => r.name === name);
+                return { owners: pieces.map(r => r.getFlag("${MOD}", "drpgVaultOwner") ?? null), stashes: pieces.flatMap(r => (r.getFlag("${MOD}", "drpgStashes") ?? []).map(e => e.actorId)),
+                    records: pieces.map(r => r.getFlag("${MOD}", "renamedFrom") ?? null) }; };
+            return { primary: U.isPrimaryGm(), q2: read("66 Q2 Hall"), q3: read("66 Q3 Hall"), found: [...F.discoveredFor(scene.id, "${IDS.aiko}")].sort(),
+                warned: warnings() - before };`, { timeout: 30000 });
+    } finally {
+        await disconnect("gm0");
+    }
+    await gm.eval(`await game.scenes.get(${J(setQ2?.id ?? "")})?.delete(); return true;`, { timeout: 30000 });
+    /* At 5bd35b0 (this fix's parent) gm0 judged both second renames joins: neither room was carried, and the Lab's second
+       piece lost Chie as its owner, told to the GMs as a join. */
+    check("Q2: a room renamed piece by piece, its first piece before a GM connected and its second after, by a GM who is not the primary: the new primary carries Aiko's discovery and takes the record of the rename off the pieces (E12 fix k3-K2)",
+        setQ2?.primary === true && J(setQ2.found) === J(["66 Lab", "66 Wing"]) && readQ2?.primary === true
+            && J(readQ2.q2) === J({ owners: [null, IDS.daichi], stashes: [IDS.daichi], records: [null, null] })
+            && J(readQ2.found) === J(["66 Q2 Hall", "66 Q3 Hall"]),
+        J({ setQ2, readQ2 }));
+    check("Q3: the same, its second piece renamed by the GM that connected, the primary: the piece keeps Chie as its owner, nobody is told of a join, and the room is carried (E12 fix k3-K2)",
+        readQ2?.primary === true && J(readQ2.q3) === J({ owners: [null, IDS.chie], stashes: [], records: [null, null] }) && readQ2.warned === 0
+            && readQ2.found.includes("66 Q3 Hall") && !readQ2.found.includes("66 Lab"),
+        J({ readQ2 }));
 
     /* ------------------------------ R. a move on the school with the camera elsewhere ------------------------------ */
     phase("R: p1 moves Aiko from the Hall into a Porch beside it with p1's camera on the Annex");

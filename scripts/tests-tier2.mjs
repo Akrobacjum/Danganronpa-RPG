@@ -49833,6 +49833,123 @@ const SCENARIOS = [
             "[the project's room, the plant, the Mastermind's room, the assembly's room, the stashed jar's room, the discovery] on the End, the Lab "
             + "and the Middle once the Lab was renamed twice in a row; and the Hall's Neighbours list");
     }],
+    ["a GM's rename of a room carries its Despair Call seal and the bodies found in it but not another scene's", async () => {
+        /*
+         * E12 fix k3-K2, 12.10.2026; open road O-b of r2-H4 (fixes-k3.md K2, the orchestrator's decision:
+         * a rename that carries a room carries everything the world keeps about it by name). A Despair
+         * Call's seal (call-world.mjs `sealedRooms`), the stamps of the bodies found (settings.mjs
+         * `bodiesFound`) and the hold the GM has still to answer (`bodyFound`) each name a room, and a
+         * GM's rename of it left them on a name no room had: the room stood open again, and the Event
+         * card named a room that was gone. Here a room of the suite's own on a scene of its own is sealed;
+         * three stamps name it - one of this scene, one written with no scene, one of another scene
+         * (an id no scene has) - and so does the hold. The GM renames the room's one piece. Read: whether
+         * the new and the old name are sealed, each stamp's room and the hold's. Red at 5bd35b0 (this
+         * fix's parent): the seal, both stamps of this room and the hold stayed on the old name.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const R = await import("./rooms.mjs");
+        const CW = await import("./call-world.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const OLD = "SUITE E12 k3-K2 Vault", NEW = "SUITE E12 k3-K2 Strongroom", KEY = "suite-k3k2:0";
+        const before = Object.fromEntries([SETTINGS.sealedRooms, SETTINGS.bodiesFound, SETTINGS.bodyFound]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]));
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 k3-K2 a sealed vault", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [vault] = await scene.createEmbeddedDocuments("Region", [{ name: OLD, shapes: [{ type: "rectangle", x: 100, y: 100, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const clock = getClock();
+            await CW.sealRoom(OLD);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...(before[SETTINGS.bodiesFound] ?? {}), [KEY]: [
+                { room: OLD, sceneId: scene.id, victimIds: [], at: 1 }, { room: OLD, victimIds: [], at: 2 },
+                { room: OLD, sceneId: "SUITEK3K2NOSCENE", victimIds: [], at: 3 }] });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, { room: OLD, victimId: null, chapter: clock.chapter, day: clock.day ?? 1,
+                timeOfDay: clock.timeOfDay, at: Date.now() });
+            const rooms = () => (game.settings.get(MODULE_ID, SETTINGS.bodiesFound)?.[KEY] ?? []).map(row => row.room);
+            must(CW.isSealed(OLD) && stableJson(rooms()) === stableJson([OLD, OLD, OLD]) && bodyDiscovery()?.room === OLD
+                && R.placeScenes().find(s => R.roomRegions(s, OLD).length) === scene,
+                "the seal, the three stamps and the hold did not name the room, or its scene is not the first holding it - this would measure nothing");
+            await vault.update({ name: NEW });
+            await until(() => CW.isSealed(NEW) && rooms()[0] === NEW && bodyDiscovery()?.room === NEW, 6000);
+            await settle();
+            read = [CW.isSealed(NEW), CW.isSealed(OLD), rooms(), bodyDiscovery()?.room ?? null];
+        } finally {
+            for (const [key, value] of Object.entries(before)) await game.settings.set(MODULE_ID, key, value);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, false, [NEW, NEW, OLD], NEW]),
+            "[the new name sealed, the old name sealed, the rooms of the stamps of this scene, of no scene and of another scene, the hold's room] after the GM renamed the room");
+    }],
+
+    ["a trap's card names the scene its room is on beside the room", async () => {
+        /*
+         * E12 fix k3-K2, 12.10.2026; open road O-c of r2-S1 (fixes-k3.md K2: the card names the scene,
+         * always). Since r2-S1 a trap springs only in its room on its own scene, and its card named the
+         * room alone (DRPG.Trap.alertReading): with a room of one name on two scenes the GM could not
+         * tell which trap had gone off. Here a student stands in a room of the scene on screen and has a
+         * second token in a room of that name on a scene of the suite's own; a third student builds an
+         * "enters" trap in each - the first where the room is on screen, the second with its token on
+         * the suite's scene. One crossing on each scene, as the GM's own browser raises it. Read: whether
+         * each card names its own scene and not the other. Red at 5bd35b0 (this fix's parent): neither
+         * card named a scene.
+         */
+        needs(env.primaryGm(), "a trap is judged on the primary GM alone (traps.mjs `onCrossed`)");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const home = canvas?.scene ?? null;
+        const pool = cast(2);
+        const student = pool.find(a => locateActor(a)?.room && locateActor(a).scene === home) ?? null;
+        const builder = pool.find(a => a !== student) ?? null;
+        must(student && builder, "two living students, one standing in a room of the scene on screen - this would measure nothing");
+        const ROOM = locateActor(student).room, mine = home.tokens.find(t => t.actorId === student.id && !t.hidden) ?? null;
+        must(mine, `${student.name} has no token a GM has not hidden on the scene on screen - this would measure nothing`);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const SECOND = "SUITE E12 k3-K2 a second school", made = [];
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: SECOND, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            for (const [i, where] of [home, scene].entries()) {
+                const trap = await P.createProject({ name: `SUITE k3-K2 trap ${i + 1}`, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                    condition: "suite", trigger: { kind: "enters", afterDark: false, notBuilder: true } });
+                must(trap?.id, "could not build a trap - this would measure nothing");
+                made.push(trap.id);
+                if (PM.projectTokenOf(trap.id)?.parent?.id !== where.id) {
+                    await PM.removeProjectToken(trap.id);
+                    await PM.placeProjectToken(trap.id, { scene: where });
+                }
+                await P.addProgress(trap.id, 1, { by: builder.id });
+            }
+            await settle();
+            must(T.diagnoseTraps().armed === 2 && P.projectScene(made[0])?.id === home.id && P.projectScene(made[1])?.id === scene.id,
+                "the two traps are not watching, one on each scene - this would measure nothing");
+            const had = new Set(game.messages.contents.map(m => m.id));
+            const card = async (i, tokenDoc) => {
+                const name = foundry.utils.escapeHTML(`SUITE k3-K2 trap ${i + 1}`);
+                const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(name)) ?? null;
+                Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc });
+                await until(() => find(), 4000);
+                const text = String(contentOf(find()) ?? "");
+                return [text.length > 0, text.includes(foundry.utils.escapeHTML(home.name)), text.includes(foundry.utils.escapeHTML(SECOND))];
+            };
+            read = [await card(0, mine), await card(1, away)];
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true, false], [true, false, true]]),
+            "[a card came, it names the scene on screen, it names the suite's scene] for the crossing on the scene on screen and for the crossing on the suite's scene");
+    }],
     ...GRID
 ];
 

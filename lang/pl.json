@@ -3907,7 +3907,7 @@
         "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
       },
       "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
-      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}, projekty: {projects}, rzeczy zostawione dla pułapki: {plants}, listy Sąsiadów innych pokoi: {lists}, pokój Masterminda: {lair}, zwołane zebranie: {gather}.",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}, projekty: {projects}, rzeczy zostawione dla pułapki: {plants}, listy Sąsiadów innych pokoi: {lists}, pokój Masterminda: {lair}, zwołane zebranie: {gather}, pieczęć z Despair Call: {sealed}, znalezione tam ciała: {bodies}.",
       "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem, a ten GM nie miał zapisu oznaczenia sprzed zmiany, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi (karta Drzwi).",
       "renameJoined": "„{room}” na scenie {scene} dostał nazwę „{name}”, którą nosi pokój, który już tam był, więc jest teraz jeszcze jednym kawałkiem tego pokoju. Nic, co wskazywało „{room}”, nie zostało przeniesione: klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu, by nie dodał niczego do „{name}”: {carried}.",
       "carriedNothing": "nic",
@@ -3968,7 +3968,7 @@
       "armedTitle": "Pułapka czuwa",
       "armedBody": "Jest ukończona i uzbrojona. Moduł pilnuje: {trigger} - {room}. Dostaniesz kartę, gdy to zobaczy.",
       "alertTitle": "{name} - coś ją odpaliło",
-      "alertReading": "{who}, w: {room}, {when}.",
+      "alertReading": "{who}, w: {room} ({scene}), {when}.",
       "rearm": "Pilnuj dalej",
       "rearmed": "Pułapka znów czuwa.",
       "plantTitle": "Zostaw coś po sobie",
