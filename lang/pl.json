@@ -5183,6 +5183,12 @@
         "unread": "Nieprzeczytane"
       },
       "sessionOnly": "Niezapisane: zostaje do zamknięcia tej strony",
+      "buttonUnread": {
+        "one": "Historia powiadomień, {n} nieprzeczytane",
+        "few": "Historia powiadomień, {n} nieprzeczytane",
+        "many": "Historia powiadomień, {n} nieprzeczytanych",
+        "other": "Historia powiadomień, {n} nieprzeczytanego"
+      },
       "unreadBanner": {
         "one": "{n} nieprzeczytane powiadomienie",
         "few": "{n} nieprzeczytane powiadomienia",

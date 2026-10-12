@@ -1342,8 +1342,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          cut once and never recut, whatever arrives in it - but its element must still turn with
          its pane, or the cards stand upright inside a tilted piece of glass (1.2.38). The rule
          is keyed to the SELECTOR and computed from the fixed box, so it holds even though the
-         element is not measured and may not exist yet: popup.mjs builds the stack on the first
-         card of the session, long after the glass was cut. */
+         element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
+         `ready`, with the history's button in its corner and before the glass is cut, but the rule
+         does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
       if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
       if (!b.el) continue;
       for (const e of b.els) {

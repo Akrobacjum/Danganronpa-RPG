@@ -3904,6 +3904,10 @@
         "unread": "Unread"
       },
       "sessionOnly": "Not saved: kept until this page is closed",
+      "buttonUnread": {
+        "one": "Notice history, {n} unread",
+        "other": "Notice history, {n} unread"
+      },
       "unreadBanner": {
         "one": "{n} unread notice",
         "other": "{n} unread notices"

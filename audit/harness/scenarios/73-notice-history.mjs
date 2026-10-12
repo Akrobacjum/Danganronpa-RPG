@@ -24,7 +24,11 @@
  * players, each of a chat card marked deleted. C (C7): the same player opens the history's window - the
  * unread banner counts what the history holds unread, the entries stand newest first, and expanding every
  * one draws no card, starts no sound, sends no chat message and moves no messenger badge; closed, the
- * window has read them all, in memory and as stored. C8 adds the corner badge.
+ * window has read them all, in memory and as stored. D (C8): the GM whispers the same player one more card; while
+ * it is on screen it is no unread notice, so the tile's corner button - its last child - carries no badge, and
+ * pressing it opens the window once and closes no card. The page goes with the card on it, and back, the button
+ * says "1" in its badge and its name - the one unread notice, because phase C read every other one - and shows
+ * none of its words; pressed, one window, and closed, no badge.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -39,7 +43,9 @@ export const layers = ["ci"];
    C5's phase B (12.10.2026, alone, once): 22.4 s from start to end by the results file, the checks 16.4 s of it (phases N
    and S came between, so the rise is not B's alone and was not split by phase). Still well inside 60 s, so it stays.
    C7's phase C (12.10.2026, alone, once): 21.9 s from start to end by the results file, the checks 17.5 s of it - no
-   more than C5's reading, so a run's spread is larger than phase C, which was not timed apart. It stays. */
+   more than C5's reading, so a run's spread is larger than phase C, which was not timed apart. It stays.
+   C8's phase D (12.10.2026, alone, once): 31.3 s from start to end by the results file, the checks 22.6 s of it - 5.1 s
+   more checks than C7's reading, from one run each and not timed apart by phase. Still inside 60 s, so it stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -284,4 +290,58 @@ export async function run({ gm, p2, p4, check, phase, settle, connect, disconnec
     check("C3: closed, the window has read every notice - none unread in memory or as stored",
         opened.unreadAfter === 0 && storedUnread === 0 && storedEntries(read, `${gmBefore.world}.${P4}`).length === opened.count[0],
         J({ unreadAfter: opened.unreadAfter, storedUnread }));
+
+    phase("D: the tile's corner button - no badge for a card on screen, '1' after the reload, one window, and no card closed");
+    const BADGE = "S73 badge words";
+    const windows = `const windows = () => document.querySelectorAll(".drpg-window-notices").length;
+        const theWindow = () => [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? null;`;
+    const corner = `const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
+        const at = () => ({ last: Boolean(button) && host?.lastElementChild === button, buttons: document.querySelectorAll("#drpg-notices-corner").length,
+            badge: button?.dataset.unread ?? null, name: button?.getAttribute("aria-label") ?? null, words: String(button?.outerHTML ?? "").includes(${J(BADGE)}) });`;
+    const whispered = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return (await U.announce({ content: "<p>${BADGE}</p>", whisper: ["${P4}"] }))?.id ?? null;`);
+    const pressed = await p4.eval(`${UNTIL} ${windows}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const card = () => [...document.querySelectorAll(".drpg-popup:not(.leaving)")].find(c => c.textContent.includes(${J(BADGE)})) ?? null;
+        const shown = await until(() => card() !== null);
+        ${corner}
+        const before = { ...at(), titled: button?.getAttribute("aria-label") === game.i18n.localize("DRPG.Notices.title"), unread: NH.noticeUnread?.() ?? null };
+        button?.click();
+        const opened = await until(() => windows() === 1, 3000);
+        button?.click();
+        await new Promise(r => setTimeout(r, 300));
+        const out = { shown, before, opened, windows: windows(), card: card() !== null, after: at() };
+        await theWindow()?.close();
+        return out;`);
+    check("D1: a card on screen is no unread notice: the tile's button, its last child, carries no badge; pressed twice it opens one window and closes no card",
+        Boolean(whispered) && pressed.shown && J({ ...pressed.before, name: null }) === J({ last: true, buttons: 1, badge: null, name: null, words: false, titled: true, unread: 0 })
+            && pressed.opened && pressed.windows === 1 && pressed.card && pressed.after.last,
+        J({ whispered: Boolean(whispered), ...pressed }));
+
+    // Past the history's 400 ms write, with the card still on screen: it goes with the page as unread.
+    await settle(800);
+    await disconnect("p4");
+    const badgeLeft = await storageOf("p4");
+    await connect("p4", { storage: badgeLeft });
+    const back2 = await p4.eval(`${UNTIL} ${windows}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const U = await import("${repoUrl}/scripts/utils.mjs");
+        ${corner}
+        const reached = await until(() => at().badge !== null, 4000);
+        const out = { reached, back: { ...at(), unread: NH.noticeUnread?.() ?? null }, expected: U.plural("DRPG.Notices.buttonUnread", { n: 1 }),
+            cards: [...document.querySelectorAll(".drpg-popup")].filter(c => c.textContent.includes(${J(BADGE)})).length };
+        button?.click();
+        out.opened = await until(() => windows() === 1, 3000);
+        button?.click();
+        await new Promise(r => setTimeout(r, 300));
+        out.windows = windows();
+        await theWindow()?.close();
+        out.closed = { ...at(), unread: NH.noticeUnread?.() ?? null };
+        return out;`);
+    check("D2: back after the reload, the tile's last child is its button, badged '1' and named for one unread notice, none of the card's words on it",
+        back2.reached && J(back2.back) === J({ last: true, buttons: 1, badge: "1", name: back2.expected, words: false, unread: 1 }) && back2.cards === 0,
+        J({ reached: back2.reached, back: back2.back, cards: back2.cards }));
+    check("D3: pressed, the button opens one window, and the window closed takes the badge away",
+        back2.opened && back2.windows === 1 && back2.closed.badge === null && back2.closed.unread === 0 && back2.closed.last,
+        J({ opened: back2.opened, windows: back2.windows, closed: back2.closed }));
 }

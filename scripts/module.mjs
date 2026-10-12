@@ -71,7 +71,7 @@ import { registerVoice } from "./voice.mjs";
 import { registerVoiceClient } from "./voice-client.mjs";
 import { registerMusic } from "./music.mjs";
 import { registerCameraView } from "./camera-view.mjs";
-import { registerPopups } from "./popup.mjs";
+import { registerPopups, ensureNoticeTile } from "./popup.mjs";
 import { registerNoticeHistory } from "./notice-history.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
@@ -343,6 +343,10 @@ Hooks.once("ready", () => {
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);
+    // The notice tile with its history button in the corner (E81 C8), on an empty
+    // tile too: after the theme that draws it, before the narrow layout and the
+    // accessibility sweep that find it, and before the glass is cut around it.
+    safely("the notice tile", ensureNoticeTile);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

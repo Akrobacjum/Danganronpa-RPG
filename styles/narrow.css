@@ -178,7 +178,8 @@ body.drpg-stacked #ui-top:empty { display: none; }
 
 /* The notices come from the top of the screen, which is where the stack is now.
    They go to the bottom instead, clear of the launchers, and take the width they
-   are given rather than the 330 px they are drawn for. */
+   are given rather than the 330 px they are drawn for. The cards and nothing else:
+   the history's button in the tile's corner (E81 C8) keeps the size it is drawn at. */
 body.drpg-stacked #drpg-popups {
     top: auto;
     bottom: 96px;
@@ -187,7 +188,7 @@ body.drpg-stacked #drpg-popups {
     transform: none;
     align-items: stretch;
 }
-body.drpg-stacked #drpg-popups > * { max-width: none; width: auto; }
+body.drpg-stacked #drpg-popups > .drpg-popup { max-width: none; width: auto; }
 /* The tile itself has a STATED width under Stained Glass - the audit page's 330 px,
    on the scale - and a stated width beats the left/right pair the corner rule sets,
    so the tile stayed 280 px wide and ran back under the sidebar's tabs. Measured at

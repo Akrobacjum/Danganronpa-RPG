@@ -176,13 +176,18 @@ function liveRegions(root) {
     /* `#drpg-evidence` sets its own role when popup.mjs creates it, because it is
        built and torn down between sweeps - but it is named here too, so a stage
        that outlives the sweep that made it is still found by the one function
-       that owns this question. Both are idempotent (`drpgLive`). */
-    for (const [sel, role] of [["#drpg-popups", "status"], ["#drpg-events", "status"],
-                               ["#drpg-evidence", "status"]]) {
+       that owns this question. Both are idempotent (`drpgLive`).
+       The notice tile is also `aria-atomic="false"` (E81 C8): `status` implies `aria-atomic="true"` (WAI-ARIA
+       1.2, read in the specification and not measured with a reader), which would have a reader read the whole
+       tile - the history's button and its count with it - on every card. Said once, so a new card is the
+       addition and the button's name is not; what a real reader does with it is LIVE-E81-08. */
+    for (const [sel, role, atomic] of [["#drpg-popups", "status", "false"], ["#drpg-events", "status"],
+                                       ["#drpg-evidence", "status"]]) {
         const el = root.querySelector?.(sel) ?? (root.matches?.(sel) ? root : null);
         if (!el || el.dataset.drpgLive) continue;
         if (!el.getAttribute("role")) el.setAttribute("role", role);
         if (!el.getAttribute("aria-live")) el.setAttribute("aria-live", "polite");
+        if (atomic && !el.getAttribute("aria-atomic")) el.setAttribute("aria-atomic", atomic);
         el.dataset.drpgLive = "1";
     }
 }

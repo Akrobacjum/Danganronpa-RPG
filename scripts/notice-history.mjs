@@ -861,6 +861,8 @@ export function createNoticeEngine(env) {
             return Promise.resolve();
         },
         status: () => ({ saving, note: saving ? null : NOTICE_TEXTS.notSaved }),
+        /** How many of this login's notices are unread - the number the tile's button shows (E81 C8), and nothing of any entry. */
+        unread: () => (mine?.entries ?? pending).filter(entry => entry.state === "unread").length,
         /**
          * Every unread entry read (E81 C7: the window's "Mark as read", and the window closing): an entry still on
          * screen stays `open`, a read one stays read. Answers how many moved; none is no write.
@@ -927,6 +929,8 @@ export const noticeEntries = () => engine.entries();
 export const noticeHistoryStatus = () => engine.status();
 /** Run `fn` whenever this login's history changes here or in another tab (the window and the badge, E81 C7 and C8). */
 export const onNoticeHistoryChange = fn => engine.onChange(fn);
+/** How many notices are unread: a count, the one thing of the history the tile's button carries (E81 C8, popup.mjs `ensureNoticeTile`). */
+export const noticeUnread = () => engine.unread();
 /** Read every unread notice (the window, E81 C7); answers how many moved. */
 export const markNoticesRead = () => engine.markRead();
 /** Clear this login's history (the window's Clear, after its question, E81 C7). */

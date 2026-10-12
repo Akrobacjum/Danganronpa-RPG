@@ -266,6 +266,11 @@
        edge under them; drawn on the speaker's grid for the same reason. */
     --drpg-pix-book: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h3v1h-3zM20 3h3v1h-3zM1 4h6v1h-6zM17 4h6v1h-6zM1 5h9v1h-9zM14 5h9v1h-9zM1 6h2v1h-2zM4 6h7v1h-7zM13 6h7v1h-7zM21 6h2v1h-2zM1 7h3v1h-3zM7 7h4v1h-4zM13 7h4v1h-4zM20 7h3v1h-3zM1 8h2v1h-2zM4 8h3v1h-3zM9 8h2v1h-2zM13 8h2v1h-2zM17 8h3v1h-3zM21 8h2v1h-2zM1 9h3v1h-3zM7 9h4v1h-4zM13 9h4v1h-4zM20 9h3v1h-3zM1 10h2v1h-2zM4 10h3v1h-3zM9 10h2v1h-2zM13 10h2v1h-2zM17 10h3v1h-3zM21 10h2v1h-2zM1 11h3v1h-3zM7 11h4v1h-4zM13 11h4v1h-4zM20 11h3v1h-3zM1 12h2v1h-2zM4 12h3v1h-3zM9 12h2v1h-2zM13 12h2v1h-2zM17 12h3v1h-3zM21 12h2v1h-2zM1 13h3v1h-3zM7 13h4v1h-4zM13 13h4v1h-4zM20 13h3v1h-3zM1 14h6v1h-6zM9 14h2v1h-2zM13 14h2v1h-2zM17 14h6v1h-6zM1 15h10v1h-10zM13 15h10v1h-10zM0 16h1v1h-1zM4 16h7v1h-7zM13 16h7v1h-7zM23 16h1v1h-1zM0 17h4v1h-4zM7 17h4v1h-4zM13 17h4v1h-4zM20 17h4v1h-4zM4 18h3v1h-3zM10 18h1v1h-1zM13 18h1v1h-1zM17 18h3v1h-3zM7 19h3v1h-3zM11 19h2v1h-2zM14 19h3v1h-3zM10 20h4v1h-4z'/%3E%3C/svg%3E");
 
+    /* 12x12 pixel stack of two sheets - the notice history's button in the corner of
+       the notice tile (E81 C8). Twelve cells, half the launchers' grid, because the
+       button is 28 px and not 40: one CSS pixel to a cell, sharp at that size too. */
+    --drpg-pix-history-12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h8v1H3zM3 2h1v2H3zM10 2h1v6h-1zM9 7h1v1H9zM1 4h8v1H1zM1 5h1v5H1zM8 5h1v5H8zM1 10h8v1H1zM3 6h4v1H3zM3 8h3v1H3z'/%3E%3C/svg%3E");
+
     /* 24x24 pixel line-art d12 - a dodecahedron face-on: decagon silhouette,
        pentagon face, five spokes. Drawn for the roll dialog (the two duality
        dice and the Roll button), where the system's rendered SVG dice and
@@ -298,6 +303,15 @@
        badge 5.5, chat 16.2, settings 23.2 (Monokuma Legacy, 1920 x 1080). */
     --drpg-launcher-book: 40px;
     --drpg-book-lane: calc(var(--drpg-launcher-book) + 8px);
+
+    /* The notice history's button in the notice tile's bottom-right corner (E81 C8,
+       the A7 design's step 7): a 28 px shape 6 px in from the corner. `reach` is how
+       far the hit area stands out past the shape on every side - none with a mouse,
+       8 px on a touch screen, which makes the 44 px target the design asks for out of
+       the same 28 px shape (the media rule with the button's block). */
+    --drpg-corner: 28px;
+    --drpg-corner-inset: 6px;
+    --drpg-corner-reach: 0px;
 
     /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
        close to the heavy, squared lettering Danganronpa sets its menus in, and
@@ -16837,4 +16851,104 @@ details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
 .drpg-notices-foot p { margin: 0; text-align: right; opacity: 0.8; }
 @media (pointer: coarse) {
     .drpg-notices-chips button, .drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation { min-height: 44px; }
+}
+
+/* ---- The notice history's button, in the notice tile's corner (E81 C8) ----------------------
+   The owner's Q3 of 07.10.2026: the button only in the tile's bottom-right corner, no fourth
+   launcher. popup.mjs keeps it the tile's last child, and it stands `position: absolute` in the
+   tile's box: out of the column the cards stack in, so it moves no card, and inside the box the
+   glass cuts, so `overflow: hidden` on Stained Glass does not clip it. The button is the hit
+   area and draws nothing; the inert shape inside it is what is drawn, the book launcher's
+   circle at 28 px. The ring is `::before`, laid out always and shown at `:focus-visible`, so
+   R299 can measure where it would fall without a keyboard. The count is `::after`, from
+   `data-unread` - bone on ink like the launchers' rings, not red: a count of notices is not an
+   alarm. Under Legacy and on a stacked screen an EMPTY tile is a box of no size, so the button
+   stands at the tile's anchor until C10 gives the tile its own size there. */
+#drpg-popups > #drpg-notices-corner {
+    --drpg-notices-badge: var(--drpg-bone);
+    position: absolute;
+    right: calc(var(--drpg-corner-inset) - var(--drpg-corner-reach));
+    bottom: calc(var(--drpg-corner-inset) - var(--drpg-corner-reach));
+    z-index: 1;
+    width: calc(var(--drpg-corner) + 2 * var(--drpg-corner-reach));
+    height: calc(var(--drpg-corner) + 2 * var(--drpg-corner-reach));
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+    color: var(--drpg-bone) !important;
+    line-height: 0;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
+#drpg-notices-corner > .drpg-notices-shape {
+    position: absolute;
+    inset: var(--drpg-corner-reach);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35);
+    pointer-events: none;
+}
+#drpg-notices-corner:hover > .drpg-notices-shape {
+    box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45);
+}
+#drpg-notices-corner > .drpg-notices-shape > i {
+    display: block;
+    width: 12px;
+    height: 12px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-history-12);
+    mask-image: var(--drpg-pix-history-12);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+#drpg-notices-corner::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--drpg-corner-reach) - 3px);
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    opacity: 0;
+    pointer-events: none;
+}
+#drpg-notices-corner:focus-visible::before { opacity: 1; }
+#drpg-notices-corner[data-unread]::after {
+    content: attr(data-unread);
+    position: absolute;
+    top: calc(var(--drpg-corner-reach) - 6px);
+    left: calc(var(--drpg-corner-reach) - 6px);
+    box-sizing: border-box;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: var(--drpg-notices-badge);
+    color: var(--drpg-ink);
+    font-size: var(--drpg-text-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+@media (pointer: coarse) {
+    :root {
+        --drpg-corner-inset: 10px;
+        --drpg-corner-reach: 8px;
+    }
 }

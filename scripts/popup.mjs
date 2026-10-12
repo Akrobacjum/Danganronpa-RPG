@@ -41,11 +41,12 @@ import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG, plural, debug } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
-import { recordNotice, updateNotice } from "./notice-history.mjs";
+import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
+const CORNER_ID = "drpg-notices-corner";
 
 /**
  * How many cards may be on screen at once.
@@ -70,14 +71,104 @@ const EVIDENCE_ID = "drpg-evidence";
 const MAX_VISIBLE = 4;
 
 function container() {
-    let el = document.getElementById(CONTAINER_ID);
-    if (!el) {
-        el = document.createElement("div");
-        el.id = CONTAINER_ID;
-        document.body.append(el);
-    }
+    const el = document.getElementById(CONTAINER_ID) ?? ensureNoticeTile();
     positionBelowWidgets(el);
     return el;
+}
+
+/* Whether the button already follows the history's changes: once a session, however often the tile is rebuilt. */
+let followingUnread = false;
+
+/**
+ * THE NOTICE HISTORY'S BUTTON, IN THE TILE'S BOTTOM-RIGHT CORNER (E81 C8, 12.10.2026; audit S16-08, the A7
+ * design's step 7). The owner's Q3 of 07.10: three buttons on the right as they are, and "Przycisk powiadomień
+ * tylko w prawym dolnym rogu kafelka powiadomień" - no fourth launcher. So the tile is made here with the
+ * button as its last child before the tile goes into the page: from `ready` (module.mjs, before the narrow
+ * layout and the accessibility sweep, which find it there), so the button stands on an empty tile too, and
+ * from `container()` should a card come first.
+ *
+ * WHY THE LAST CHILD OF THE TILE, AND IN NO CARD. Cards come in by `prepend`, and the stack's own functions
+ * (`trimStack`, `parkWhatDoesNotFit`, `unparkInto`, `markParked`) move `.drpg-popup` and `.drpg-popup-more`
+ * and nothing else, so the same node stays last whatever the stack does (R298 counts it through a prepend, a
+ * park, a dismissal and "+N"). It turns with the tile's pane (glass.mjs keys the turn to the tile's selector).
+ * It stands `position: absolute` in the corner of the fixed tile's box, out of the cards' column: `overflowsGlass`
+ * adds up cards only, and that the glass's `overflow: hidden` leaves its focus ring whole is R299 (b)'s reading,
+ * in a browser only. And a click on it is no card's click, so it closes nothing.
+ *
+ * A COUNT AND NOTHING ELSE reaches it from the history (`noticeUnread`): `data-unread`, "1" to "9" and "9+",
+ * drawn by the stylesheet's `::after`, and the count in its name. Never a word of an entry - which is the
+ * census's verdict on every road into the history's badge (R472's SURFACE rows). An attribute rather than a
+ * text node, so a count that moves is no addition to the live region the tile is: the tile is
+ * `aria-atomic="false"` (a11y.mjs `liveRegions`), and whether a screen reader then reads a new card without
+ * the button's name is a table's question (LIVE-E81-08).
+ *
+ * An interface later stages take as it is: E18, E23, E49 and E55 use the tile it makes, and E77 and E78
+ * take it over (the A7 design's P0-8). Answers the tile.
+ */
+export function ensureNoticeTile() {
+    let host = document.getElementById(CONTAINER_ID);
+    const fresh = !host;
+    if (fresh) {
+        host = document.createElement("div");
+        host.id = CONTAINER_ID;
+    }
+    let button = document.getElementById(CORNER_ID);
+    if (button?.parentElement !== host) {
+        button?.remove();
+        button = cornerButton();
+    }
+    if (host.lastElementChild !== button) host.append(button);
+    if (fresh) {
+        document.body.append(host);
+        positionBelowWidgets(host);
+    }
+    if (!followingUnread) {
+        followingUnread = true;
+        onNoticeHistoryChange(showUnread);
+    }
+    showUnread();
+    return host;
+}
+
+/* One shape in the button, inert, holding the glyph: the button is the hit area (28 px, 44 on a touch
+   screen - `--drpg-corner` and `--drpg-corner-reach`), the shape is what is drawn, and the button holds no
+   text node of its own. The window is imported when the button is pressed, as the keybinding imports it
+   (notice-history.mjs), so this file draws no window and imports none: the window's file reaches back to
+   this one through the messenger. */
+function cornerButton() {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = CORNER_ID;
+    button.className = "drpg-notices-corner";
+    button.setAttribute("aria-live", "off");
+    const shape = document.createElement("span");
+    shape.className = "drpg-notices-shape";
+    shape.setAttribute("inert", "");
+    shape.append(document.createElement("i"));
+    button.append(shape);
+    button.addEventListener("click", () => {
+        void import("./notice-history-app.mjs").then(m => m.openNotices())
+            .catch(err => debug("The notice history could not be opened from the tile", err));
+    });
+    return button;
+}
+
+/** The count on the tile's button, and its name with it. Attributes only, and only when they change. */
+function showUnread() {
+    const button = document.getElementById(CORNER_ID);
+    if (!button) return;
+    let n = 0;
+    try {
+        n = noticeUnread();
+    } catch (err) {
+        debug("The notice history's unread count could not be read", err);
+    }
+    const badge = n > 9 ? "9+" : n > 0 ? String(n) : null;
+    if (badge === null) button.removeAttribute("data-unread");
+    else if (button.dataset.unread !== badge) button.dataset.unread = badge;
+    const name = n > 0 ? plural("DRPG.Notices.buttonUnread", { n }) : game.i18n.localize("DRPG.Notices.title");
+    if (button.getAttribute("aria-label") !== name) button.setAttribute("aria-label", name);
+    if (button.dataset.tooltip !== name) button.dataset.tooltip = name;
 }
 
 /**

@@ -4837,3 +4837,25 @@ body.drpg-theme-stained-glass .drpg-panel :is(.dialog-form, .standard-form) > fo
    What settled it was measuring WHICH item overflows rather than which one looks long: it
    is the recipient list, 277 px of a 226 px cell, and the name is 76. The rule lives in the
    base sheet because the markup and the clip are Foundry's and Legacy has them too. */
+
+/* The notice history's button (E81 C8) wears the launchers' hexagon and their seam colour, at
+   its own 28 px: the same shape on the same glass as the three buttons on the right. The focus
+   ring is the same hexagon 3 px larger, filled with the accent and laid behind the shape, so it
+   shows as a 3 px band round it - a clipped border would be cut at every corner. */
+body.drpg-theme-stained-glass #drpg-notices-corner > .drpg-notices-shape {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgba(7, 7, 10, 0.55);
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+    box-shadow: none;
+}
+body.drpg-theme-stained-glass #drpg-notices-corner:is(:hover, :focus-visible) > .drpg-notices-shape {
+    border-color: var(--drpg-glass-accent);
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #drpg-notices-corner::before {
+    border: none;
+    border-radius: 0;
+    background: var(--drpg-glass-accent);
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}

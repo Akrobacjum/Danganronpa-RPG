@@ -8113,7 +8113,7 @@ const INVARIANTS = [
                 ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
             "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
     }],
-    ["R298 - the notice history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
         /*
          * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
          * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
@@ -8134,6 +8134,19 @@ const INVARIANTS = [
          * `drpgStorageFull` and the case's health has its info row; and `gmStoreStatus` over a stand-in storage counts
          * the history's key in `notices`, not in `total`. What a browser's quota counts is not measured here: the
          * lengths are JSON's. A real full storage, jsdom's: 61-gmstore-case X.
+         * (5) E81 C8, 12.10.2026; the A7 design's step 7 and the stage's V11 and D3: the tile's button, on this client.
+         * One `#drpg-notices-corner` in the whole page, the tile's last child from `ready`, with its anatomy: a button
+         * named by the history's title or its unread count, its tooltip that name, no text node, one inert shape with
+         * the glyph; the tile `aria-atomic="false"` with the role and the politeness it had. Under the suite's hold the
+         * count read, then one, nine and ten unread entries recorded: no badge, "1", "9", "9+", and every change an
+         * attribute - a MutationObserver sees no node and no text arrive, and no entry's words reach the button. Five
+         * cards, each prepended, the stack parking what does not fit and saying "+N", and one closed by its X: the same
+         * node last after each. A card that closes on any click survives an Enter and a click on the button; the click
+         * opens the window, a second click raises it rather than opening another, and closing it takes the badge away.
+         * Last, in the source with comments blanked: `ready` builds the tile through `safely` before the narrow layout
+         * and the accessibility sweep (so a tile that throws stops neither), `container()` builds it when the host is
+         * missing, and the button's count is read through `noticeUnread` and nothing that carries an entry's words.
+         * Where the button stands and how its focus ring falls need a layout: R299 (b).
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8253,6 +8266,120 @@ const INVARIANTS = [
         const status = S.gmStoreStatus(client);
         equal(J([status.total, status.notices]), J([items[0][0].length + 100, items[1][0].length + 1000]),
             "[what the module keeps without its notice history; the history] in a stand-in storage");
+
+        /* (5) The tile's button (E81 C8). */
+        const P = await import("./popup.mjs");
+        const { plural } = await import("./utils.mjs");
+        const tile = typeof P.ensureNoticeTile === "function" ? P.ensureNoticeTile() : null;
+        const button = document.getElementById("drpg-notices-corner");
+        ok(tile !== null && button !== null, "popup.mjs builds no notice tile with a history button - a closed notice has no way back from the corner");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const host = document.getElementById("drpg-popups");
+        const titleName = game.i18n.localize("DRPG.Notices.title");
+        const anatomy = {
+            id: button.id, className: button.className, type: button.type, live: button.getAttribute("aria-live"),
+            named: Boolean(button.getAttribute("aria-label")), tooltip: button.dataset.tooltip === button.getAttribute("aria-label"),
+            kids: [...button.children].map(kid => `${kid.localName}.${kid.className}${kid.hasAttribute("inert") ? "[inert]" : ""}>${[...kid.children].map(el => el.localName).join()}`),
+            text: button.textContent
+        };
+        const region = {
+            tile: tile === host, role: host.getAttribute("role"), live: host.getAttribute("aria-live"), atomic: host.getAttribute("aria-atomic"),
+            last: host.lastElementChild === button, buttons: document.querySelectorAll("#drpg-notices-corner, .drpg-notices-corner").length,
+            inCards: document.querySelectorAll(".drpg-popup .drpg-notices-corner").length
+        };
+        const badgeAt = () => [button.dataset.unread ?? null, button.getAttribute("aria-label"), button.dataset.tooltip ?? null];
+        const records = [], closers = [];
+        const watch = new MutationObserver(list => records.push(...list));
+        let seen = null, win = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            NH.markNoticesRead();
+            const badges = [badgeAt()];
+            watch.observe(button, { attributes: true, childList: true, characterData: true, subtree: true });
+            const unread = n => {
+                for (let i = 0; i < n; i++) {
+                    NH.recordNotice({ source: "mine", kind: "info", title: `R298 badge words ${i}`, text: "R298 badge text", html: "<p>R298 badge body</p>", state: "unread" });
+                }
+                badges.push(badgeAt());
+            };
+            unread(1);
+            unread(8);
+            unread(1);
+            badges.push(NH.noticeUnread());
+            records.push(...watch.takeRecords());
+            const changes = { types: [...new Set(records.map(r => r.type))], names: [...new Set(records.map(r => r.attributeName))].sort(),
+                words: /R298 badge/.test(button.outerHTML) };
+
+            /* The stack moves its cards and never the button. */
+            const stack = [];
+            const lastIsButton = () => host.lastElementChild === button && document.getElementById("drpg-notices-corner") === button;
+            for (let i = 1; i <= 5; i++) {
+                closers.push(P.showPopup(`<p>R298 stack ${i}</p>`, { title: "R298 stack", record: false }));
+                stack.push(lastIsButton());
+            }
+            await wait(150);
+            const ours = () => [...host.querySelectorAll(".drpg-popup:not(.leaving)")].filter(card => card.textContent.includes("R298 stack"));
+            stack.push(Boolean(host.querySelector(".drpg-popup-more")) && lastIsButton());
+            ours()[0]?.querySelector(".drpg-popup-close")?.click();
+            const gone = await until(() => ours().length === 4 && [...host.querySelectorAll(".drpg-popup")].every(card => !card.classList.contains("leaving")), 4000);
+            stack.push(gone && lastIsButton());
+            /* Cards come in by prepend, so the placement line of ensureNoticeTile is reached with cards on the tile only when the
+               button has drifted (the first run of this test, 12.10.2026: a mutant that put the button first, and another that put it
+               in the newest card, both stayed green for want of this). Moved to the front, asking for the tile again sets it right. */
+            host.prepend(button);
+            P.ensureNoticeTile();
+            stack.push(lastIsButton() && document.querySelectorAll(".drpg-popup .drpg-notices-corner").length === 0);
+
+            /* Pressed: no card closes, one window opens, and closing it reads what it listed. */
+            let clicked = 0;
+            closers.push(P.showPopup("<p>R298 press</p>", { title: "R298 press", record: false, onClick: () => { clicked++; } }));
+            const pressCard = [...host.querySelectorAll(".drpg-popup")].find(card => card.textContent.includes("R298 press"));
+            button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            button.click();
+            const opened = await until(() => document.querySelectorAll(".drpg-window-notices").length === 1, 3000);
+            button.click();
+            await wait(300);
+            const press = { clicked, card: Boolean(pressCard?.isConnected) && !pressCard.classList.contains("leaving"), opened,
+                windows: document.querySelectorAll(".drpg-window-notices").length, open: button.dataset.unread ?? null, last: lastIsButton() };
+            win = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? null;
+            await win?.close();
+            win = null;
+            press.closed = [button.dataset.unread ?? null, NH.noticeUnread(), button.getAttribute("aria-label")];
+            seen = { badges, changes, stack, press };
+        } finally {
+            watch.disconnect();
+            await win?.close();
+            for (const close of closers) { try { close?.(); } catch { /* already gone */ } }
+            NH.holdNoticeHistory(false);
+            await wait(400);
+            host.querySelectorAll(".drpg-popup").forEach(card => { if (/R298 (stack|press)/.test(card.textContent)) card.remove(); });
+        }
+        equal(J([anatomy, region]), J([
+            { id: "drpg-notices-corner", className: "drpg-notices-corner", type: "button", live: "off", named: true, tooltip: true,
+                kids: ["span.drpg-notices-shape[inert]>i"], text: "" },
+            { tile: true, role: "status", live: "polite", atomic: "false", last: true, buttons: 1, inCards: 0 }
+        ]), "[the button: id, class, type, aria-live, named, its tooltip its name, its children, its text; the tile: what ensureNoticeTile answers, "
+            + "role, aria-live, aria-atomic, the button last, buttons on the page, buttons in a card]");
+        equal(J(seen), J({
+            badges: [[null, titleName, titleName], ...[1, 9, 10].map(n => [n > 9 ? "9+" : String(n), plural("DRPG.Notices.buttonUnread", { n }), plural("DRPG.Notices.buttonUnread", { n })]), 10],
+            changes: { types: ["attributes"], names: ["aria-label", "data-tooltip", "data-unread"], words: false },
+            stack: [true, true, true, true, true, true, true, true],
+            press: { clicked: 0, card: true, opened: true, windows: 1, open: "9+", last: true, closed: [null, 0, titleName] }
+        }), "[the badge and the name with nothing unread, then 1, 9 and 10 unread, and the count; what changed on the button and whether an entry's words reached it; "
+            + "the button last after each of five cards, after '+N', after a card closed by its X and after it was moved to the front and the tile asked for again; a card's clicks, the window opened, windows after a second click, "
+            + "the badge while it is open, the button still last, and the badge, the count and the name after it closes]");
+
+        const ready = bodyOf(code("module.mjs"), 'Hooks.once("ready"', { until: "\n});" });
+        // The i18n keys are string literals and name a `.title` of their own: blanked, so only the code is read for an entry's fields.
+        const tileFile = code("popup.mjs"), shown = fnSource(tileFile, "showUnread").replace(/"[^"\n]*"/g, '""');
+        equal(J([
+            /safely\("the notice tile", ensureNoticeTile\);[\s\S]*safely\("the narrow layout", registerNarrow\);[\s\S]*safely\("the interface as something other than a picture", registerA11y\);/.test(ready),
+            /\btry \{\s*fn\(\);\s*\} catch\b/.test(fnSource(code("module.mjs"), "safely")),
+            /getElementById\(CONTAINER_ID\) \?\? ensureNoticeTile\(\)/.test(fnSource(tileFile, "container")),
+            /\bnoticeUnread\(\)/.test(shown), /\bnoticeEntries\b|\.(?:html|text|title)\b|textContent|innerHTML|\.append\(/.test(shown)
+        ]), J([true, true, true, true, false]),
+            "[ready builds the tile through safely before the narrow layout and the accessibility sweep; safely catches; container() builds the tile when it is missing; "
+            + "the badge reads noticeUnread; it reads an entry's words or adds a node]");
     }],
     ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
         /*
@@ -8261,7 +8388,8 @@ const INVARIANTS = [
          * notice a new one. Measured on this client, held as R473 holds the history (nothing reaches the setting):
          * three entries recorded (a card body, a messenger message with its thread, an announcement with a title to
          * search for) and opened through `game.drpg.openNotices()`, every entry expanded, the search typed and emptied
-         * with Esc, the unread banner's "Mark as read" pressed, Clear asked and refused, then asked and answered.
+         * with Esc, the unread banner's "Mark as read" pressed, Clear asked and refused, then asked and answered, and
+         * the window closed and opened again by the tile's corner button (E81 C8), its other way in.
          * Across all of it the sounds started (`AudioHelper.play`, `Sound#play`, any media element's `play`), the
          * `.drpg-popup` cards on the page, the messenger's unread badges and the chat messages about to be created
          * are counted, and none may move. "Open conversation" is pressed with the messenger window's render held, so
@@ -8366,6 +8494,14 @@ const INVARIANTS = [
             } finally {
                 foundry.applications.api.DialogV2.wait = realWait;
             }
+
+            /* The tile's button opens the same window (E81 C8). */
+            await win?.close();
+            const corner = document.getElementById("drpg-notices-corner");
+            corner?.click();
+            const reopened = await until(() => document.querySelectorAll(".drpg-window-notices").length === 1, 3000);
+            win = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? win;
+            found.button = [Boolean(corner), reopened];
             seen = { banner: bannerAt, expanded, snapshots, inWindow, found, unreadAfter };
         } finally {
             putRenderBack();
@@ -8377,10 +8513,11 @@ const INVARIANTS = [
         }
         equal(stableJson(seen), stableJson({
             banner: { hidden: false, text: plural("DRPG.Notices.unreadBanner", { n: unreadAt }) }, expanded: true, snapshots: [1, 1, 0],
-            inWindow: 0, found: { narrowed: true, listed: [ids[2]], marks: ["Gęślą"], markup: 0, emptied: ["", true], clear: [["cancel"], 3, 0] },
+            inWindow: 0, found: { narrowed: true, listed: [ids[2]], marks: ["Gęślą"], markup: 0, emptied: ["", true], clear: [["cancel"], 3, 0], button: [true, true] },
             unreadAfter: 0
         }), "[the unread banner; every entry expanded; a snapshot for each with a body; no card in the window; the search for 'gesla' "
-            + "(one entry, highlighted from text, emptied by Esc); Clear (Cancel the default; refused keeps all three; answered empties); Mark as read]");
+            + "(one entry, highlighted from text, emptied by Esc); Clear (Cancel the default; refused keeps all three; answered empties); "
+            + "the tile's button there and opening the window again; Mark as read]");
         equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
             "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
 
@@ -8397,7 +8534,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -8408,6 +8545,13 @@ const INVARIANTS = [
          * than 420 px, its foot wholly on screen while the list scrolls, and every element that draws text at 11 px or
          * more (the module's floor, `--drpg-text-xs`). Headless there is no layout: skipped, with a row in
          * skip-baseline.json (the plan's D6).
+         * (b), E81 C8: the tile's button, on whatever theme and layout the browser has. Square, as `--drpg-corner` draws
+         * it (narrow.css's stretch of the tile's children no longer reaches it); its focus ring, laid out while hidden
+         * (`::before`, shown at `:focus-visible`), all round its shape; and under Stained Glass, where the tile has a
+         * stated size even when it is empty, the ring wholly inside the tile - its `overflow: hidden` would cut what
+         * stands out. Read in the tile's own box (`offset*`, the button's offset parent being the fixed tile), so the
+         * pane's turn does not enter it. Under Monokuma Legacy and on a stacked screen an empty tile has no size until
+         * C10, so there the ring is not compared with the tile.
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -8440,6 +8584,30 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson({ width: true, sides: true, foot: true, scrolls: true, small: [] }),
             `the notice history window at ${window.innerWidth}x${window.innerHeight} [no wider than 420 px or the screen less 16; 8 px clear of each side; `
             + "its foot on screen; the list scrolls; text under 11 px]");
+
+        /* (b) The tile's button and its focus ring (E81 C8). */
+        const { ensureNoticeTile } = await import("./popup.mjs");
+        const tile = ensureNoticeTile();
+        const button = document.getElementById("drpg-notices-corner"), shape = button?.querySelector(".drpg-notices-shape");
+        must(button && shape && button.offsetParent === tile, "the tile's button is not laid out in the tile - there is no box to measure");
+        const px = value => Number.parseFloat(value) || 0;
+        const ringStyle = getComputedStyle(button, "::before");
+        const ring = {
+            left: button.offsetLeft + px(ringStyle.left), top: button.offsetTop + px(ringStyle.top),
+            right: button.offsetLeft + button.offsetWidth - px(ringStyle.right), bottom: button.offsetTop + button.offsetHeight - px(ringStyle.bottom)
+        };
+        const drawn = { left: button.offsetLeft + shape.offsetLeft, top: button.offsetTop + shape.offsetTop };
+        drawn.right = drawn.left + shape.offsetWidth;
+        drawn.bottom = drawn.top + shape.offsetHeight;
+        const glass = document.body.classList.contains("drpg-theme-stained-glass"), stacked = document.body.classList.contains("drpg-stacked");
+        const corner = {
+            square: button.offsetWidth > 0 && button.offsetWidth === button.offsetHeight && shape.offsetWidth === shape.offsetHeight,
+            ring: ringStyle.content !== "none" && ring.left < drawn.left && ring.top < drawn.top && ring.right > drawn.right && ring.bottom > drawn.bottom,
+            inTile: glass ? ring.left >= 0 && ring.top >= 0 && ring.right <= tile.clientWidth && ring.bottom <= tile.clientHeight : null
+        };
+        equal(stableJson(corner), stableJson({ square: true, ring: true, inTile: glass ? true : null }),
+            `the tile's button (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, ${tile.querySelectorAll(".drpg-popup").length} cards on the tile, `
+            + `ring ${stableJson(ring)} in a ${tile.clientWidth}x${tile.clientHeight} tile) [square; the ring round its shape; the ring within the tile, under Stained Glass]`);
     }],
 ];
 
