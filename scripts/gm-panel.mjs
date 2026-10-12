@@ -18,6 +18,7 @@ import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./s
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
+import { trialScene } from "./rooms.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
@@ -1461,12 +1462,13 @@ export function correctsTheHour(from, to) {
 
 /* A question Edit campaign asks before a field that does more than correct (E11 C6). Cancel is the first button
    and the only default, as `confirmNewTrial`'s (trial-floor-ui.mjs): Enter presses the first submit button (E10
-   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. */
-async function confirmCorrection(titleKey, textKey) {
+   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. `more` is
+   a second paragraph, already localized (E13 C6: where the trial takes the table). */
+async function confirmCorrection(titleKey, textKey, more = "") {
     const answer = await DialogV2.wait({
         window: { title: game.i18n.localize(titleKey) },
         classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>`),
+        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>${more ? `<p>${more}</p>` : ""}`),
         buttons: [
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
             { action: "ok", label: game.i18n.localize(titleKey) }
@@ -1628,13 +1630,18 @@ export async function openClockDialog() {
     /* AND ENTERING THE TRIAL FROM HERE IS NOT A CORRECTION (E11 C6; audit S10-22). The phase moved into the
        Class Trial runs `reconcilePhase`'s entry (clock.mjs): the trial's budget handed out, the chapter's trial
        record blanked and Monokuma's charge for the Key Remnants nobody found - Despair that no Edit campaign
-       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict. */
+       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict.
+       And it says that the trial takes the table to the linked hall (E13 C6; plan-E13 C6): since E13 C3 this
+       write activates the hall as Start the Class Trial's does, and the question named only the budget and the
+       charge. One sentence, only when a hall is linked - with none the table stays. Scenario 41 d1 reads it. */
     let phase = result.phase;
     if (phase === "classTrial" && getClock().phase !== "classTrial") {
+        const hall = trialScene();
+        const moves = hall ? game.i18n.format("DRPG.TrialScene.phaseSwitchesScene", { hall: esc(hall.name) }) : "";
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
             phase = getClock().phase;
-        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit"))) {
+        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit", moves))) {
             phase = getClock().phase;
         } else {
             const { confirmNewTrial } = await import("./trial-floor-ui.mjs");

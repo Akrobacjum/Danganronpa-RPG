@@ -963,6 +963,14 @@
       "startTrialStepDiscussion": "Class Trial otwiera się dyskusją. Debatę otwierasz, kiedy chcesz.",
       "gateVote": "Werdykt otwiera się po policzeniu głosów.",
       "startTrialNote": "Zegar rusza od nowa: licznik czasu kampanii startuje z Class Trial i ponownie, gdy się kończy.",
+      "startTrialHall": {
+        "one": "Stół przenosi się do sali rozpraw {hall}, a odkryty zostaje {n} token.",
+        "few": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostają {n} tokeny.",
+        "many": "Stół przenosi się do sali rozpraw {hall}, a odkrytych zostaje {n} tokenów.",
+        "other": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostaje {n} tokenu."
+      },
+      "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
+      "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
       "trialBudget": {
         "one": "{n} uczeń ma na Class Trial akcje tej pory dnia.",
@@ -1989,7 +1997,12 @@
       "prepare": "Przygotuj salę przy Zastosuj: mgła eksploracji Foundry wyłączona, widzenie tokenów wyłączone, światło globalne włączone - wszyscy widzą całą salę.",
       "preparePlaylist": "Wyczyść też playlistę sali",
       "prepareVoice": "Wyłącz też Proximity Voice Chat w sali (w rozprawie wszyscy są w jednym pokoju głosowym)",
-      "prepareDone": "Sala rozpraw {scene} jest przygotowana."
+      "prepareDone": "Sala rozpraw {scene} jest przygotowana.",
+      "tableOn": "Stół jest na scenie {scene}.",
+      "showHall": "Pokaż salę rozpraw",
+      "backToSchool": "Wróć do szkoły",
+      "noWayBack": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w zakładce Sceny okna Ustawienia pokoi.",
+      "phaseSwitchesScene": "Przenosi też każdą przeglądarkę do sali rozpraw {hall} i odkrywa wybrane dla niej tokeny."
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",

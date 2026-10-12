@@ -30,7 +30,8 @@
  *      hall active and on its screen, takes for the school and makes of the hall.
  *   h  `voiceTargets()` on each browser in the trial: since E13 C4 one room for everybody (D8).
  *   c  `closeTrial()`: where every browser looks, the hall's tokens, their ids.
- *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes).
+ *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes); since E13 C6 that
+ *      question says the trial takes the table to the hall.
  *   f  `p4` connects held at the end of its load while the trial opens and the hall is activated; where it
  *      looks after its first `canvasReady`, and (C3) after a GM's later pull to the school.
  *   g  a body found before the trial, a wrong verdict executing Botan, End the trial, and two living
@@ -46,6 +47,11 @@
  *   j  (C3) the chapter end during the trial (`applyChapterEnd({ endTrial: true })`, the screen's "End the
  *      trial" ticked; the owner's 10.10 item 2: it offers no scene or room): where every browser looks, the
  *      hall's tokens, and whether any token of the school moved.
+ *   k  (C6) Start the Class Trial through its window drawn on the GM: what it says of the hall, the tokens it
+ *      will show and the table's rule, the hall's preload, and where every browser goes; then, inside the trial,
+ *      the console's Back to school, a player's and then the GM's `showCourtroom` through game.drpg,
+ *      with `trialSceneReport`: where every browser looks, the hall's tokens, the phase; and after End the
+ *      trial, both doors refused to the GM.
  *   e  the season reset during the trial: the active scene, where every browser looks, the hall's tokens.
  * Since E13 C3 the module takes the table: entering the trial activates the hall and leaving it the school
  * (trial-scene.mjs `followPhase`), so `byHand` and `handBack` find nothing left to do.
@@ -64,6 +70,8 @@
  * 12.10.2026 (`--verbose`, lane A; other harness runs were on the machine at the time, so not alone).
  * E13 C5's a0: 21 checks in 49.2 s, 53 s from the command to its exit, one run on 12.10.2026 (`--verbose`; no other
  * run of this worktree beside it, whether one of another was on the machine not checked).
+ * E13 C6's k (four checks, d1 extended): 25 checks in 55.0 s, 59 s from the command to its exit, one run on
+ * 12.10.2026 (`--verbose`; no other run of this worktree beside it, whether one of another was on the machine not checked).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -324,12 +332,15 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
             session: c.session, timeOfDay: c.timeOfDay, reset: false }), "ok");
         try { await G.openClockDialog(); } finally { globalThis.__dialogAnswers.length = 0; }
         await new Promise(r => setTimeout(r, 800));
-        return { phase: getClock().phase, asked: globalThis.__dialogLog.slice(from).map(d => d.title) };`;
+        const moves = game.i18n.format("DRPG.TrialScene.phaseSwitchesScene", { hall: "41 Trial Hall" });
+        return { phase: getClock().phase, asked: globalThis.__dialogLog.slice(from).map(d => d.title),
+            said: globalThis.__dialogLog.slice(from).some(d => String(d.content ?? "").includes(moves)) };`;
     const editIn = await gm.eval(EDIT("classTrial"), { timeout: 60000 });
     await settle(400);
     const dIn = await readAll();
-    check("d1: Edit campaign, asked and answered yes, opens the trial: every browser shows the hall (as a1: E13 C3), the GM's choice shown (as a2: E13 C2)",
-        editIn.phase === "classTrial" && editIn.asked.length === 2 && views(dIn).every(v => v === "hall")
+    /* Read 12.10.2026 at C5's tree: the trial's question named the budget and the charge, not the hall. */
+    check("d1: Edit campaign, asked and answered yes, opens the trial: its question says the table goes to the hall (E13 C6), every browser shows the hall (as a1: E13 C3), the GM's choice shown (as a2: E13 C2)",
+        editIn.phase === "classTrial" && editIn.asked.length === 2 && editIn.said === true && views(dIn).every(v => v === "hall")
             && Object.values(dIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
         J({ editIn, dIn }), { flow: "class-trial" });
     await byHand();
@@ -518,6 +529,96 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         views(jIn).every(v => v === "hall") && ended.phase === "dailyLife" && views(jOut).every(v => v === "school")
             && Object.values(jOut).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)) && J(spots1) === J(spots0),
         J({ jIn: views(jIn), ended, jOut, spots0, spots1 }), { flow: "class-trial" });
+
+    /* ------------------------------ k. Start the Class Trial's window, and the doors inside the trial ------------------------------ */
+    phase("k: Start the Class Trial says where the table goes, and the table moves inside the trial", { flow: "class-trial" });
+    /* Read 12.10.2026 at C5's tree: the window named neither the hall nor the rule and preloaded nothing; the console
+       had no door and game.drpg no showCourtroom. Four tokens: Aiko and Botan (played - Botan executed in g, the dead
+       shown, Q-E13-1 a), the dead student ticked in a0, Monokuma; Chie unticked, the test student nobody plays. */
+    const startK = await gm.eval(`${UNTIL} ${HALL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const title = game.i18n.localize("DRPG.Floor.startTrial");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const from = globalThis.__scenePreloads.length;
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        let text = null, pending = null;
+        try {
+            pending = UI.startClassTrial();
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            text = el?.querySelector("form")?.textContent?.replace(/\\s+/g, " ") ?? null;
+            el?.querySelector('footer button[data-action="ok"]')?.click();
+        } finally { globalThis.__dialogWindows = was; }
+        const started = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 15000))]);
+        await new Promise(r => setTimeout(r, 800));
+        return { started, phase: getClock().phase, drawn: text !== null, preloads: globalThis.__scenePreloads.slice(from), hall: hall.id,
+            hallLine: Boolean(text?.includes(plural("DRPG.Floor.startTrialHall", { n: 4, hall: "41 Trial Hall" }))),
+            rule: Boolean(text?.includes(game.i18n.localize("DRPG.Floor.tableRuleDead"))) };`, { timeout: 60000 });
+    await settle(400);
+    const kIn = await readAll();
+    check("k1: Start the Class Trial's window names the hall and the four tokens it will show and states the table's rule; the hall is preloaded on every client before the click, and the trial opens there (E13 C6)",
+        startK.started === true && startK.phase === "classTrial" && startK.hallLine && startK.rule && J(startK.preloads) === J([{ sceneId: startK.hall, push: true }])
+            && views(kIn).every(v => v === "hall") && Object.values(kIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
+        J({ startK, kIn: views(kIn) }), { flow: "class-trial" });
+    /* The console drawn on the GM: its line and door, Back to school pressed, then the console it reopens on. */
+    const consoleK = await gm.eval(`${UNTIL} ${HALL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const title = game.i18n.localize("DRPG.Floor.manageTrial");
+        const windows = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.window?.title === title);
+        const on = scene => game.i18n.format("DRPG.TrialScene.tableOn", { scene: scene.name });
+        const read = el => ({ line: [...el.querySelectorAll(".drpg-trial-console p")].map(p => p.textContent.trim()).filter(t => t === on(hall) || t === on(academy)),
+            doors: [...el.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action).filter(a => a === "showHall" || a === "backToSchool") });
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const seen = []; let pending = null, done = "hung";
+        try {
+            pending = UI.manageClassTrial();
+            const first = (await until(() => windows()[0]?.element, 8000)) ?? null;
+            if (first) seen.push(read(first));
+            first?.querySelector('footer button[data-action="backToSchool"]')?.click();
+            const second = (await until(() => windows().find(a => a.element && a.element !== first)?.element, 15000)) ?? null;
+            if (second) seen.push(read(second));
+            second?.querySelector('footer button[data-action="close"]')?.click();
+            done = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
+        } finally { globalThis.__dialogWindows = was; }
+        return { seen, done, phase: getClock().phase, lines: [on(hall), on(academy)] };`, { timeout: 60000 });
+    await settle(400);
+    const kBack = await readAll();
+    check("k2: inside the trial the console says the table is on the hall and offers Back to school; pressed, every browser shows the school, the cast hidden, the phase kept, and the console says the table is on the school and offers Show the hall (E13 C6)",
+        consoleK.done === "closed" && consoleK.phase === "classTrial" && J(consoleK.seen) === J([{ line: [consoleK.lines[0]], doors: ["backToSchool"] }, { line: [consoleK.lines[1]], doors: ["showHall"] }])
+            && views(kBack).every(v => v === "school") && Object.values(kBack).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
+        J({ consoleK, kBack }), { flow: "class-trial" });
+    const playerDoor = await p1.eval(`return typeof game.drpg.showCourtroom === "function" ? await game.drpg.showCourtroom() : "absent";`, { timeout: 30000 });
+    await settle(400);
+    const kPlayer = await readAll();
+    const apiK = await gm.eval(`${HALL} const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const door = typeof game.drpg.showCourtroom === "function" ? await game.drpg.showCourtroom() : "absent";
+        await new Promise(r => setTimeout(r, 800));
+        const report = typeof game.drpg.trialSceneReport === "function" ? await game.drpg.trialSceneReport() : null;
+        const name = id => hall.tokens.get(id)?.name ?? id;
+        return { door: door && typeof door === "object" ? { hall: door.hall === hall.id, activated: door.activated } : door, phase: getClock().phase,
+            report: report && { school: report.school === academy.id, hall: report.hall === hall.id, table: report.table === hall.id,
+                shown: report.shown.map(name).sort(), warnings: report.warnings.map(w => w.key) } };`, { timeout: 60000 });
+    await settle(400);
+    const kHall = await readAll();
+    check("k3: a player's showCourtroom changes nothing; the GM's takes every browser back to the hall with the GM's choice shown, the phase kept, and trialSceneReport names the school, the hall, the table and the four tokens (E13 C6)",
+        playerDoor === null && views(kPlayer).every(v => v === "school") && J(apiK.door) === J({ hall: true, activated: true }) && apiK.phase === "classTrial"
+            && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), warnings: ["hallHasRooms"] })
+            && views(kHall).every(v => v === "hall") && Object.values(kHall).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
+        J({ playerDoor, kPlayer: views(kPlayer), apiK, kHall }), { flow: "class-trial" });
+    await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 60000 });
+    await settle(400);
+    /* Outside the trial both doors are shut, for a GM too: the hall is never shown away from the trial (C5's tab hides
+       its cast there), and each refusal warns with the console's "No Class Trial is running" line. */
+    const outK = await gm.eval(`const { getClock } = await import("${repoUrl}/scripts/settings.mjs"); const from = globalThis.__notifications.length;
+        const doors = [];
+        for (const name of ["showCourtroom", "showSchool"]) doors.push(typeof game.drpg[name] === "function" ? await game.drpg[name]() : "absent");
+        await new Promise(r => setTimeout(r, 800));
+        const notStarted = game.i18n.localize("DRPG.Floor.lead.start");
+        return { doors, phase: getClock().phase, warned: globalThis.__notifications.slice(from).filter(n => n.level === "warn" && n.msg === notStarted).length };`, { timeout: 60000 });
+    await settle(400);
+    const kOut = await readAll();
+    check("k4: after End the trial the GM's showCourtroom and showSchool each warn that no trial runs and change nothing - every browser on the school, the cast hidden (E13 C6)",
+        J(outK) === J({ doors: [null, null], phase: "dailyLife", warned: 2 })
+            && views(kOut).every(v => v === "school") && Object.values(kOut).every(r => r.active === "school" && J(shown(r)) === J(["Decor"])),
+        J({ outK, kOut: views(kOut) }), { flow: "class-trial" });
 
     /* ------------------------------ e. the season reset during the trial ------------------------------ */
     phase("e: the season reset during the trial", { flow: "class-trial" });

@@ -110,6 +110,21 @@ export async function startClassTrial() {
         return null;
     }
 
+    /* WHERE THE TABLE GOES, AND ITS RULE (E13 C6, 12.10.2026; plan-E13 C6, D8, doneWhen 4). Since C3 the
+       phase takes every browser to the trial hall, and this window said nothing of it; it now names the
+       hall and how many of its tokens the trial will show, or that none is linked and the table stays
+       (trial-scene.mjs `startTrialLines`), and the table's rule "the dead listen but do not speak in the
+       trial" as one sentence beside the button. The count is the entry's own rule over the cast as the
+       GMs hold it (`castShownOnEntry`: `readCast` in one synchronous pass after `judgedFor` above, H3),
+       never a player's claim. The hall's textures are asked for on every connected client while the GM
+       reads (`Scenes#preload` with `push`), not awaited: what that saves at a table is not measured
+       (the harness keeps the call and loads nothing, LIVE-E13-02's ground). R437, scenario 41 k1. */
+    const { trialScene } = await import("./rooms.mjs");
+    const { castShownOnEntry, startTrialLines } = await import("./trial-scene.mjs");
+    const hall = trialScene();
+    if (hall) Promise.resolve(game.scenes.preload?.(hall.id, true)).catch(err => error("Could not preload the trial hall", err));
+    const lines = startTrialLines({ hall, shown: hall ? castShownOnEntry(hall).length : 0 });
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Floor.startTrial") },
         classes: ["drpg-panel"],
@@ -117,10 +132,12 @@ export async function startClassTrial() {
             <p>${game.i18n.localize("DRPG.Floor.startTrialIntro")}</p>
             <ul class="drpg-briefing-facts drpg-trial-facts">
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepPhase")}</li>
+                <li>${lines.table}</li>
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepDiscussion")}</li>
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepAnnounce")}</li>
             </ul>
             <p class="notes">${game.i18n.localize("DRPG.Floor.startTrialNote")}</p>
+            <p>${lines.rule}</p>
         </form>`),
         buttons: [
             { action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"), default: true },
@@ -509,7 +526,7 @@ export async function closeTrial({ sceneId = null, room = null } = {}) {
  * Eclipse starting and ending underneath it.
  */
 function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
-    studentActors, isDeadForGm, deathRecordFor, sameSeason }) {
+    studentActors, isDeadForGm, deathRecordFor, sameSeason, trialScene, schoolScene, trialReturnTo, leaveDestination, tableDoor }) {
         const floor = trialFloor();
         const { phase, chapter } = getClock();
         const running = phase === "classTrial";
@@ -545,6 +562,12 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdic
                 return record?.chapter === chapter && sameSeason(record);
             })
         };
+        /* WHERE THE TABLE IS, AND THE DOOR THAT MOVES IT WITHOUT THE PHASE (E13 C6): the active scene - the
+           one Foundry takes every browser to, not the one this GM looks at - and "Show the hall" or "Back to
+           school" (trial-scene.mjs `tableDoor`). Only in a running trial with a hall linked. */
+        const hall = trialScene();
+        view.table = tableDoor({ running, hall, active: game.scenes?.active ?? null,
+            back: hall ? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall }) : null });
         view.next = trialNextStep(view);
         return view;
 }
@@ -601,7 +624,7 @@ const TRIAL_LEADS = {
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
     const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter,
-        next, runner } = view;
+        next, runner, table } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -683,6 +706,8 @@ function trialConsoleHtml(view) {
             : `<p>${plural("DRPG.Floor.registerCount", { n: register })}</p>`;
         const finalLine = finalNow
             ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : "";
+        const tableLine = table
+            ? `<p>${game.i18n.format("DRPG.TrialScene.tableOn", { scene: esc(table.scene ?? "-") })}</p>` : "";
 
         /* NO TRIAL RUNNING IS ONE LINE (E10 C14, 1.2.71; audit S06-27). The three sections stood under "No
            Class Trial is running" saying there was no debate and no vote - and, after End the trial, "The
@@ -705,6 +730,7 @@ function trialConsoleHtml(view) {
         return `<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             ${lead}
+            ${tableLine}
             ${registerLine}
             ${finalLine}
 
@@ -735,15 +761,16 @@ function trialConsoleHtml(view) {
  * change arriving from somebody else behave the same as one they made.
  */
 function trialSignature(view) {
-    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, next } = view;
+    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, next, table } = view;
         // `next` too (E10 C14): the default is a button's property, so a vote opened by another GM
-        // moves Enter only by drawing the footer again.
+        // moves Enter only by drawing the footer again. And the table's door (E13 C6), which another GM's
+        // activation turns from one into the other.
         return [running, Boolean(floor), restrictive, finalNow, afterwards,
-            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next].join("|");
+            progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-"].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
-function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, isDefault }) {
+function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, table, isDefault }) {
     return [
         ...(running
             ? [
@@ -795,6 +822,11 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                   default: progress.verdictApplied && isDefault("chapterEnd") }
               ]
             : []),
+        // The table's door (E13 C6), labelled by what it does now, as the Final Trial's switch below.
+        ...(table?.action
+            ? [{ action: table.action, label: game.i18n.localize(table.action === "showHall"
+                ? "DRPG.TrialScene.showHall" : "DRPG.TrialScene.backToSchool") }]
+            : []),
         ...(running
             ? [{ action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
             : [{ action: "start", default: isDefault("start"),
@@ -839,6 +871,14 @@ const TRIAL_ACTIONS = {
     toggleFinal: async () => {
         const { toggleFinalTrialFlag } = await import("./mastermind.mjs");
         await toggleFinalTrialFlag();
+    },
+    showHall: async () => {
+        const { showCourtroom } = await import("./trial-scene.mjs");
+        await showCourtroom();
+    },
+    backToSchool: async () => {
+        const { showSchool } = await import("./trial-scene.mjs");
+        await showSchool();
     }
 };
 
@@ -862,14 +902,16 @@ export async function manageClassTrial() {
     const { studentActors } = await import("./monokuma.mjs");
     const { isDeadForGm, deathRecordFor, sameSeason } = await import("./settings.mjs");
     const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
+    const { trialScene, schoolScene } = await import("./rooms.mjs");
+    const { trialReturnTo, leaveDestination, tableDoor } = await import("./trial-scene.mjs");
     const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped, verdictRunner, blackenedIds,
-        studentActors, isDeadForGm, deathRecordFor, sameSeason };
+        studentActors, isDeadForGm, deathRecordFor, sameSeason, trialScene, schoolScene, trialReturnTo, leaveDestination, tableDoor };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
 
     const view = read();
-    const { floor, running, restrictive, finalNow, progress, afterwards, stopped } = view;
+    const { floor, running, restrictive, finalNow, progress, afterwards, stopped, table } = view;
 
     // WHICH BUTTON ENTER PRESSES: the next step, read with the rest (`trialNextStep`).
     const isDefault = action => view.next === action;
@@ -881,7 +923,7 @@ export async function manageClassTrial() {
         classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
         content: dialogContent(buildConsole()),
-        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, isDefault }),
+        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, table, isDefault }),
         render: (event, dialog) => {
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
@@ -912,8 +954,13 @@ export async function manageClassTrial() {
                  * The register and the deaths the GMs keep are GM stores too (`watch.stores`, E09 C3):
                  * the register's line is redrawn when a row lands in either (E10 C12; read in the
                  * code, not measured).
+                 *
+                 * `updateScene` for the table's line and door (E13 C6): a scene made active by another GM,
+                 * or by Foundry's own control, writes the scene, not a setting of ours. That it reaches
+                 * this window is read in the code, not measured: scenario 41 k2 presses the console's own
+                 * door, after which the console reopens anyway.
                  */
-                watch: { hooks: ["drpgBallotsChanged", "userConnected"], stores: [blackenedStore, deathStore] },
+                watch: { hooks: ["drpgBallotsChanged", "userConnected", "updateScene"], stores: [blackenedStore, deathStore] },
                 after: () => {
                     if (reopening || signature() === openedWith) return;
                     reopening = true;

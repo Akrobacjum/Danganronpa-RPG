@@ -8244,7 +8244,7 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: a `whoAmI` answer keyed by the asker's request id; the answer is about the sender only (voice.mjs:321-326)"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137); E11 C3's gather pan rides it, and since E13 C3b so does the return from the trial's gather (`returnTheLiving`, the same `SYNC.gather` packet - no new claim)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as the `kind` row; the pan's `tokenIds` only find this client's own token, the return from the trial's as the body's"],
-            ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. C6 adds the cast line and the table rule, read through C2's store and held flags (H3), never a player's claim (E13 C6)"],
+            ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. Since E13 C6 the window's hall line counts the cast the entry would show through `castShownOnEntry` - C2's store and `readCast`'s held flags in one synchronous pass after the `judgedFor` above (H3), never a player's claim; a count, deciding nothing"],
             ["SHEET trial-floor-ui.mjs#readTrial", "not a source: the console's read model over GM records (`isDeadForGm` and `deathRecordFor` read the GM's death record)"],
             ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
             ["SHEET trial-scene.mjs#leftBehind", "held: names to the GMs the living left on another place scene after the return from the trial - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; R436, scenario 41 i"],
@@ -8434,7 +8434,7 @@ const REGRESSIONS = [
             + "what trial-scene.mjs creates or deletes (D7: nothing)]");
     }],
 
-    ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table", async () => {
+    ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
         /*
          * E13 C3, 12.10.2026; plan-E13 2.3 and 3.2 (V1, doneWhen 1), audit S06-57, the A5 project's reserved R113. The
          * roads into and out of the trial are many - Start the Class Trial, `closeTrial` and so End the trial, the chapter
@@ -8450,6 +8450,10 @@ const REGRESSIONS = [
          * only `setClock` writes the clock setting, by its key or by name. The reader is run first on a fixture: a door
          * that names `enterTrialScene` and activates a scene itself, a second clock writer by name, and an activation
          * only in a comment.
+         * E13 C6 added the two doors that move the table inside a running trial and leave the phase where it is - the
+         * console's "Show the hall" and "Back to school", `showCourtroom` and `showSchool` in trial-scene.mjs - each the
+         * one other caller of one of the two, so this reads them as callers by name; no road in or out of the trial goes
+         * through them, and every other file still names neither.
          */
         const code = raw => stripComments(String(raw ?? ""));
         const doors = files => {
@@ -8490,7 +8494,7 @@ const REGRESSIONS = [
             before.every(i => i >= 0 && i < at), doors(sources), setClockWrites,
             whoCalls("enterTrialScene"), whoCalls("leaveTrialScene"), activators]),
             JSON.stringify([true, 1, true, { activate: [], named: [], clockWrites: ["clock.mjs"] }, true,
-                ["followPhase"], ["followPhase"], ["enterTrialScene", "leaveTrialScene"]]),
+                ["followPhase", "showCourtroom"], ["followPhase", "showSchool"], ["enterTrialScene", "leaveTrialScene"]]),
             "[reconcilePhase calls followPhase under the trial's guard, how often, after its every other step; the files that activate a scene, "
             + "name enterTrialScene or leaveTrialScene, or write the clock; setClock writes it; who calls enterTrialScene and leaveTrialScene; who activates a scene in trial-scene.mjs]");
     }],

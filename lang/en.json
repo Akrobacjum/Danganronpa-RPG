@@ -975,6 +975,12 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
+      "startTrialHall": {
+        "one": "The table moves to the trial hall, {hall}, and {n} token there is shown.",
+        "other": "The table moves to the trial hall, {hall}, and {n} tokens there are shown."
+      },
+      "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
+      "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Events": {
@@ -1913,7 +1919,12 @@
       "prepare": "Prepare the hall on Apply: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
       "preparePlaylist": "Also clear the hall's playlist",
       "prepareVoice": "Also switch Proximity Voice Chat off in the hall (in the trial everybody is in one voice room)",
-      "prepareDone": "The trial hall {scene} is prepared."
+      "prepareDone": "The trial hall {scene} is prepared.",
+      "tableOn": "The table is on {scene}.",
+      "showHall": "Show the hall",
+      "backToSchool": "Back to school",
+      "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
+      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

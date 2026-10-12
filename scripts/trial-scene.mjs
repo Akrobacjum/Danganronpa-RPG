@@ -84,6 +84,10 @@
  *
  * THE GM LINKS THE SCENES AND CHOOSES THE CAST IN A WINDOW (E13 C5): Room Setup's last tab, drawn,
  * read and applied by the functions under "THE SCENES TAB" below.
+ *
+ * START SAYS WHERE THE TABLE GOES, AND A TRIAL HAS TWO DOORS THAT KEEP THE PHASE (E13 C6): the Start
+ * window's lines and the console's "Show the hall" / "Back to school", under "THE START WINDOW AND
+ * THE CONSOLE" below.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -228,14 +232,33 @@ export function castDiff(cast, { reveal, sceneId, rows = {}, epoch = seasonEpoch
     const seconds = [];
     for (const token of cast ?? []) {
         if (token.second) seconds.push(token.id);
-        let show = false;
-        if (reveal) {
-            const row = token.second ? null : castRow(rows, sceneId, token.id, epoch);
-            show = row ? row.reveal : defaultReveal(token);
-        }
+        const show = reveal ? castShows(token, { sceneId, rows, epoch }) : false;
         if (Boolean(token.hidden) !== !show) diff.push({ _id: token.id, hidden: !show });
     }
     return { diff, seconds };
+}
+
+/**
+ * Whether the way in shows one cast token (`readCast`'s row): the GMs' stored row of this season,
+ * else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it,
+ * and so does the Start window's count (`castShownOnEntry`), so the window cannot promise a number
+ * the entry does not show.
+ */
+export function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
+    const row = token.second ? null : castRow(rows, sceneId, token.id, epoch);
+    return row ? row.reveal : defaultReveal(token);
+}
+
+/**
+ * The hall's cast tokens the way in would show now, as `readCast` reads them (one synchronous pass,
+ * H3) against the store this GM holds: the Start window's count (E13 C6). A store not yet hydrated on
+ * this GM counts without the GMs' rows, while the entry would then show nobody and tell the GMs
+ * (`applyTrialCast`; read in the code, not measured) - a count, never a decision.
+ */
+export function castShownOnEntry(scene) {
+    if (!scene?.tokens) return [];
+    const rows = trialCastStore.entries();
+    return readCast(scene).filter(token => castShows(token, { sceneId: scene.id, rows }));
 }
 
 /**
@@ -389,6 +412,95 @@ export async function leftBehind(destination) {
         const held = flagsHeldNow(actor);
         return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
     });
+}
+
+/*
+ * THE START WINDOW AND THE CONSOLE SAY WHERE THE TABLE GOES (E13 C6, 12.10.2026; plan-E13 C6, decision
+ * D8, doneWhen 4). Start the Class Trial said the phase moves and the trial is announced, and nothing
+ * about the scene: since C3 every browser is taken to the hall, and a GM read that only on the screen
+ * after the click. Its window now names the hall and how many of its tokens the trial will show
+ * (`castShownOnEntry`, the entry's own rule), or that no hall is linked and the table stays, and the
+ * table's rule of D8 - the dead listen but do not speak in the trial - as one sentence beside the
+ * button. Before this the window said neither: R437 and scenario 41 k1 read it red at C5's tree.
+ *
+ * THE TWO DOORS INSIDE A TRIAL. A GM who wants the school back for a moment in the middle of a trial
+ * (a flashback, a scene to look at again) had only Foundry's own activation, which takes the table
+ * there with the hall's cast still shown and nothing noted. `showSchool` is `leaveTrialScene` and
+ * `showCourtroom` is `enterTrialScene`, with the phase left where it is: the cast hidden on the way out
+ * and shown again by the GMs' choice on the way back, so the hall is never shown away from the trial
+ * (the Scenes tab keeps the same rule, `applyScenesTab`). Only a GM, only in a running trial, only
+ * with a hall linked; the console offers the one that applies (`tableDoor`). These two and
+ * `followPhase` are the only callers of the two (R113).
+ */
+
+/**
+ * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name with the
+ * count of tokens it will show, or that none is linked - and `rule`, the table's rule of D8. Pure
+ * over `{ hall, shown }` (R437 asks it of plain objects); the hall's name is escaped.
+ */
+export function startTrialLines({ hall = null, shown = 0 } = {}) {
+    return {
+        table: hall ? plural("DRPG.Floor.startTrialHall", { n: shown, hall: esc(hall.name ?? "") })
+            : game.i18n.localize("DRPG.Floor.startTrialNoHall"),
+        rule: game.i18n.localize("DRPG.Floor.tableRuleDead")
+    };
+}
+
+/**
+ * The console's line and door (E13 C6), or null: only in a running trial with a hall linked.
+ * `scene` is the name of the active scene - the table, not the scene this browser shows; `action` is
+ * "showHall" while the table is elsewhere, "backToSchool" while it is in the hall and leaving has
+ * somewhere to go (`back`, `leaveDestination`'s answer), else null. Pure (R437).
+ */
+export function tableDoor({ running = false, hall = null, active = null, back = null } = {}) {
+    if (!running || !hall?.id) return null;
+    const inHall = active?.id === hall.id;
+    return { scene: active?.name ?? null, action: inHall ? (back?.id ? "backToSchool" : null) : "showHall" };
+}
+
+/** Whether a door inside the trial may be used here, told when not: a GM, a running trial, a hall linked. */
+function trialDoorOpen(hall) {
+    const why = !game.user?.isGM ? "DRPG.Panel.gmOnly"
+        : getClock().phase !== "classTrial" ? "DRPG.Floor.lead.start"
+            : !hall ? "DRPG.Floor.startTrialNoHall" : null;
+    if (why) ui.notifications.warn(game.i18n.localize(why));
+    return !why;
+}
+
+/** The table to the hall inside a running trial, the phase unchanged: `enterTrialScene`'s answer, or null. */
+export async function showCourtroom(hall = trialScene()) {
+    if (!trialDoorOpen(hall)) return null;
+    return enterTrialScene(hall);
+}
+
+/**
+ * The table out of the hall inside a running trial, the phase unchanged: `leaveTrialScene`'s answer,
+ * or null. With nowhere to go it is refused here and told, before `leaveTrialScene`'s whisper, which
+ * speaks of a trial that ended.
+ */
+export async function showSchool(hall = trialScene()) {
+    if (!trialDoorOpen(hall)) return null;
+    if (!leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.noWayBack"));
+        return null;
+    }
+    return leaveTrialScene(hall);
+}
+
+/**
+ * The two scenes as the GM's API reads them (E13 C6): the school, the hall and the active scene by
+ * id, the hall's tokens the next entry would show, and the Scenes tab's warnings (`scenesReportOf`).
+ * On a GM, after the judgements in flight are in (`judgedFor`, as `returnTheLiving`); null elsewhere.
+ */
+export async function trialSceneReport() {
+    if (!game.user?.isGM) return null;
+    await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
+    const school = schoolScene(), hall = trialScene();
+    return {
+        school: school?.id ?? null, hall: hall?.id ?? null, table: game.scenes?.active?.id ?? null,
+        shown: castShownOnEntry(hall).map(token => token.id),
+        warnings: scenesReportOf(school, hall).map(({ key, text, block }) => ({ key, text, block }))
+    };
 }
 
 /**

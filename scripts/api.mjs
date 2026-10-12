@@ -780,6 +780,15 @@ export const DrpgApi = {
     closeTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeTrial(...a)),
     openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
     closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
+    /** The trial hall and the school (E13 C6). Inside a running trial the table taken to the hall (its cast
+     *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
+     *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
+     *  active one, the hall's tokens the next entry shows and the Scenes tab's warnings (GM only, else null);
+     *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
+    showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
+    showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
+    trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),
+    openTrialCast: () => import("./vault.mjs").then(m => m.openRoomSetupDialog({ tab: "scenes" })),
 
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not

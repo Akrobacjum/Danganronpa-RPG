@@ -6956,6 +6956,70 @@ const INVARIANTS = [
             + "bare, with the playlist, with the voice, with the voice ticked and its module off, and on a prepared scene; the drawn tab with one scene twice: "
             + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply]");
     }],
+
+    ["R437 - Start the Class Trial names the trial hall and the table's rule, and the trial console's one door takes the table to the hall or back without the phase", async () => {
+        /*
+         * E13 C6, 12.10.2026; plan-E13 C6, decision D8, doneWhen 4 (the ledger's D4: the table's rule "the dead listen
+         * but do not speak in the trial" in one sentence beside Start the Class Trial). Since C3 the phase takes every
+         * browser to the linked hall, and Start the Class Trial's window named the phase, the discussion and the
+         * announcement - not the hall, not how many of its tokens would be shown, and no rule for the dead; Edit
+         * campaign's question about the trial named the budget and the charge; and inside a trial a GM had only
+         * Foundry's own activation to look at the school, which left the hall's cast shown. Asked of plain objects, so
+         * it reads no document and writes nothing (tier 1): `startTrialLines` for a hall whose name needs escaping with
+         * one token shown and with four (the plural) and for no hall; `tableDoor` out of a trial, with no hall, with
+         * the table on the school, in the hall with somewhere to go and with nowhere, and with no active scene. Then
+         * the rule's words in both language files (the doneWhen's own, en and pl), and in the source with comments
+         * blanked: the Start window preloads the hall on every client before it opens and counts the cast through
+         * `castShownOnEntry` after the judgements; its content carries both lines; the console's footer offers the
+         * door and its two actions are the two doors; Edit campaign's trial question carries
+         * `phaseSwitchesScene`; and game.drpg has the four calls. Scenario 41 k1-k4 and d1 run them on documents and
+         * windows. Red before C6: there was no `startTrialLines`.
+         */
+        const T = await import("./trial-scene.mjs");
+        const { plural } = await import("./utils.mjs");
+        const made = typeof T.startTrialLines === "function" && typeof T.tableDoor === "function";
+        ok(made, "Start the Class Trial says nothing of the hall or the rule - trial-scene.mjs has no `startTrialLines` or `tableDoor`");
+        if (!made) return;
+        const hall = { id: "HALL", name: "Hall <b>" }, school = { id: "SCHOOL", name: "School" };
+        const one = T.startTrialLines({ hall, shown: 1 }), four = T.startTrialLines({ hall, shown: 4 }), none = T.startTrialLines({ hall: null, shown: 3 });
+        equal(JSON.stringify([one.table, four.table, none.table, one.rule, none.rule, four.table.includes("<b>")]),
+            JSON.stringify([plural("DRPG.Floor.startTrialHall", { n: 1, hall: "Hall &lt;b&gt;" }), plural("DRPG.Floor.startTrialHall", { n: 4, hall: "Hall &lt;b&gt;" }),
+                game.i18n.localize("DRPG.Floor.startTrialNoHall"), game.i18n.localize("DRPG.Floor.tableRuleDead"),
+                game.i18n.localize("DRPG.Floor.tableRuleDead"), false]),
+            "[the hall line with one token and with four (the name escaped), the line with no hall, the rule with a hall and without, the raw name in the line]");
+        const door = args => T.tableDoor(args);
+        equal(JSON.stringify([door({ running: false, hall, active: hall, back: school }), door({ running: true, hall: null, active: school, back: school }),
+            door({ running: true, hall, active: school, back: school }), door({ running: true, hall, active: hall, back: school }),
+            door({ running: true, hall, active: hall, back: null }), door({ running: true, hall, active: null, back: school })]),
+            JSON.stringify([null, null, { scene: "School", action: "showHall" }, { scene: "Hall <b>", action: "backToSchool" },
+                { scene: "Hall <b>", action: null }, { scene: null, action: "showHall" }]),
+            "[out of a trial, no hall linked, the table on the school, in the hall with somewhere to go, in the hall with nowhere, no active scene]");
+
+        const { MODULE_ID } = await import("./config.mjs");
+        const rule = async lang => {
+            const r = await fetch(`modules/${MODULE_ID}/lang/${lang}.json`);
+            must(r.ok, `${lang}.json: HTTP ${r.status}`);
+            return foundry.utils.expandObject(await r.json()).DRPG?.Floor?.tableRuleDead ?? "";
+        };
+        const [en, pl] = await Promise.all([rule("en"), rule("pl")]);
+
+        const files = new Map(await otherSources());
+        must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
+        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(files.get("gm-panel.mjs"));
+        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
+        const at = text => start.indexOf(text);
+        equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
+            at("game.scenes.preload?.(hall.id, true)") > 0 && at("game.scenes.preload?.(hall.id, true)") < at("DialogV2.wait("),
+            at("judgedFor(") > 0 && at("judgedFor(") < at("castShownOnEntry(hall)"), at("${lines.table}") > at("DialogV2.wait("), at("${lines.rule}") > at("DialogV2.wait("),
+            /\.\.\.\(table\?\.action\s*\?\s*\[\{ action: table\.action/.test(fnSource(ui, "trialButtons")),
+            /showHall: async \(\) => \{\s*const \{ showCourtroom \} = await import\("\.\/trial-scene\.mjs"\);\s*await showCourtroom\(\);/.test(ui),
+            /backToSchool: async \(\) => \{\s*const \{ showSchool \} = await import\("\.\/trial-scene\.mjs"\);\s*await showSchool\(\);/.test(ui),
+            /confirmCorrection\("DRPG\.Clock\.trialFromEditTitle", "DRPG\.Clock\.trialFromEdit", moves\)/.test(edit) && edit.includes('"DRPG.TrialScene.phaseSwitchesScene"'),
+            ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"].map(name => typeof game.drpg?.[name])]),
+            JSON.stringify([true, true, true, true, true, true, true, true, true, true, ["function", "function", "function", "function"]]),
+            "[the rule's words in en.json and pl.json; Start preloads the hall before its window; counts the cast after the judgements; shows the hall line; shows the rule; "
+            + "the console's footer offers the door; its Show the hall is showCourtroom; its Back to school is showSchool; Edit campaign's trial question says where the table goes; game.drpg's four calls]");
+    }],
 ];
 
 /**
