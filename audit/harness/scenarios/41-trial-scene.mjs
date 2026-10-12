@@ -20,7 +20,10 @@
  *      `setClock({ phase: "classTrial" })`: where every browser looks, which hall tokens are shown, and
  *      whether a token was created or deleted. The GM's choice is Aiko, Botan, the dead student and
  *      Monokuma; Chie is unticked, the test student stays hidden, the decoration is never touched. Since
- *      E13 C1 the GM links the Academy as the school and the hall as the trial hall once it is built.
+ *      E13 C1 the GM links the Academy as the school and the hall as the trial hall once it is built, and
+ *      since C2 stores that choice (trial-scene.mjs `saveTrialCast`: Chie unticked, the dead student
+ *      ticked - nobody plays him - and the rest as `defaultReveal` has them) and the module shows it; and
+ *      (a3) p1 hides Aiko's hall token from its own browser and the primary puts it back.
  *   b  p1 moves Aiko's hall token from one of the hall's rooms to the other during the trial: vetoes,
  *      Aiko's actions, the chat, and every other write the move caused; and (C1) what every browser, the
  *      hall active and on its screen, takes for the school and makes of the hall.
@@ -43,6 +46,7 @@
  * Its bound: 13 checks in 33.9-34.9 s, 39 s from the command to its exit, on 12.10.2026 (alone, `--verbose`, the
  * working tree of 48efd99 and C0) - an eighth of run-all.mjs's five minutes, so it states no `timeoutMs`. With
  * E13 C1's b2: 14 checks in 36.6 s, one run on 12.10.2026 (alone, `--verbose`).
+ * E13 C2's a3: 15 checks in 36.5 s, 41 s from the command to its exit, one run on 12.10.2026 (alone, `--verbose`).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -52,7 +56,7 @@ export const accounts = [
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
-/* The hall's tokens by name; CHOICE is the GM's (C2 keeps it in a GmStore), CAST every token the module may show. */
+/* The hall's tokens by name; CHOICE is the GM's (since C2 kept in a GmStore, `trialCast`), CAST every token the module may show. */
 const CAST = ["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"];
 const CHOICE = ["Aiko", "Botan", "Ghost", "Monokuma"];
 
@@ -145,7 +149,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         /* The scenes linked as a GM links them once (E13 C1; the Scenes tab of Room Setup is C5): the Academy the school, this the hall. */
         const linked = game.settings.settings.has("${MOD}.sceneRoles");
         if (linked) await game.settings.set("${MOD}", "sceneRoles", { ...(game.settings.get("${MOD}", "sceneRoles") ?? {}), school: academy.id, trial: hall.id });
-        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size, linked };`, { timeout: 60000 });
+        /* The choice stored as a GM stores it (E13 C2; the Scenes tab is C5): Chie unticked, the dead student ticked (nobody
+           plays him, so he is hidden by default); Aiko, Botan and Monokuma as \`defaultReveal\` has them, the test student hidden. */
+        const T = await import("${repoUrl}/scripts/trial-scene.mjs").catch(() => null);
+        const byName = name => hall.tokens.find(t => t.name === name).id;
+        const chose = T ? await T.saveTrialCast(hall, { [byName("Chie")]: false, [byName("Ghost")]: true }) : null;
+        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size, linked, chose };`, { timeout: 60000 });
     await settle(400);
     const before = await readAll();
     const opened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -157,13 +166,30 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         built.tokens === 7 && built.dead === true && opened === "classTrial" && views(inTrial).every(v => v === "school")
             && Object.values(inTrial).every(r => r.active === "school"),
         J({ built, opened, views: views(inTrial) }), { flow: "class-trial" });
-    check("a2: no hall token is shown, none created or deleted, the ids as before (C2 shows the GM's choice: Aiko, Botan, the dead student and Monokuma)",
-        Object.entries(inTrial).every(([who, r]) => before[who].made === 7 && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before[who].ids)
-            && r.made === before[who].made && r.gone === before[who].gone),
-        J({ before, after: inTrial }), { flow: "class-trial" });
+    /* Read 12.10.2026 at C1's tree: no hall token shown. Since E13 C2 the module shows the GMs' choice on entering the trial. */
+    check("a2: the GM's choice is shown on every browser - Aiko, Botan, the dead student and Monokuma, the decoration as it was - none created or deleted, the ids as before (E13 C2)",
+        built.chose === true && Object.entries(inTrial).every(([who, r]) => before[who].made === 7 && J(shown(before[who])) === J(["Decor"])
+            && J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before[who].ids) && r.made === before[who].made && r.gone === before[who].gone),
+        J({ chose: built.chose, before, after: inTrial }), { flow: "class-trial" });
+    /* A player hides their own hall token from their browser (whether Foundry v14 lets an owner do it is LIVE-E13-08; the
+       harness lets the write through): the primary puts it back and tells the GMs. */
+    const putBack = await p1.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Aiko"); let wrote = true;
+        try { await t.update({ hidden: true }); } catch { wrote = false; }
+        return wrote;`, { timeout: 30000 });
+    await settle(1200);
+    const afterPut = await readAll();
+    const toldPut = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const text = "<p>" + game.i18n.format("DRPG.TrialScene.hiddenPutBack", { user: game.users.get("${IDS.p1}").name, name: "Aiko" }) + "</p>";
+        const told = [];
+        for (const m of game.messages) if (await wordsOf(m, 2000) === text) told.push((m.whisper ?? []).slice().sort());
+        return told;`, { timeout: 60000 });
+    check("a3: p1 hiding Aiko's hall token from its own browser is put back by the primary - shown on every browser - and the GMs are told (E13 C2)",
+        putBack === true && Object.values(afterPut).every(r => r.hidden.Aiko === false && J(shown(r)) === J([...CHOICE, "Decor"].sort()))
+            && toldPut.length === 1 && J(toldPut[0]) === J([IDS.gm]),
+        J({ putBack, afterPut: Object.fromEntries(Object.entries(afterPut).map(([who, r]) => [who, shown(r)])), toldPut }), { flow: "class-trial" });
     const handA = await byHand();
     await settle(400);
-    note(`a: by hand ${J(handA)}`);
+    note(`a: by hand ${J(handA)} (since E13 C2 the module has shown the choice: nothing left to show)`);
 
     /* ------------------------------ b. a move in the hall ------------------------------ */
     phase("b: a player moves in the hall during the trial", { flow: "class-trial" });
@@ -224,9 +250,9 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         const done = await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return { done, phase: getClock().phase };`, { timeout: 60000 });
     await settle(400);
     const afterClose = await readAll();
-    check("c1: closeTrial ends the trial and every browser stays on the hall, its chosen tokens shown (C3 takes them to the school, C2 hides the cast)",
+    check("c1: closeTrial ends the trial and every browser stays on the hall (C3 takes them to the school), the cast hidden, none deleted (E13 C2)",
         closed.done === true && closed.phase === "dailyLife" && views(afterClose).every(v => v === "hall")
-            && Object.values(afterClose).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
+            && Object.values(afterClose).every(r => J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
         J({ closed, afterClose }), { flow: "class-trial" });
     await handBack();
     await settle(400);
@@ -244,17 +270,18 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     const editIn = await gm.eval(EDIT("classTrial"), { timeout: 60000 });
     await settle(400);
     const dIn = await readAll();
-    check("d1: Edit campaign, asked and answered yes, opens the trial and every browser still shows the school, no hall token shown (as a1 and a2: C3 and C2)",
-        editIn.phase === "classTrial" && editIn.asked.length === 2 && views(dIn).every(v => v === "school") && Object.values(dIn).every(r => J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
+    check("d1: Edit campaign, asked and answered yes, opens the trial: every browser still shows the school (as a1: C3), the GM's choice shown (as a2: E13 C2)",
+        editIn.phase === "classTrial" && editIn.asked.length === 2 && views(dIn).every(v => v === "school")
+            && Object.values(dIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
         J({ editIn, dIn }), { flow: "class-trial" });
     await byHand();
     await settle(400);
     const editOut = await gm.eval(EDIT("dailyLife"), { timeout: 60000 });
     await settle(400);
     const dOut = await readAll();
-    check("d2: Edit campaign back to Daily Life ends the trial and every browser stays on the hall, its chosen tokens shown (as c1: C3 and C2)",
+    check("d2: Edit campaign back to Daily Life ends the trial: every browser stays on the hall (as c1: C3), the cast hidden (as c1: E13 C2)",
         editOut.phase === "dailyLife" && editOut.asked.length === 1 && views(dOut).every(v => v === "hall")
-            && Object.values(dOut).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
+            && Object.values(dOut).every(r => J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
         J({ editOut, dOut }), { flow: "class-trial" });
     await handBack();
     await settle(400);
@@ -348,8 +375,8 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         return { done: Boolean(result), phase: getClock().phase, season: getClock().season };`, { timeout: 120000 });
     await settle(400);
     const afterReset = await readAll();
-    check("e1: the season reset during the trial leaves the hall active and on every browser, its chosen tokens shown (C3 takes the table to the school, C2 hides the cast)",
+    check("e1: the season reset during the trial leaves the hall active and on every browser (C3 takes the table to the school), the cast hidden (E13 C2)",
         handE.activated === true && reset.done && reset.phase === "dailyLife" && views(afterReset).every(v => v === "hall")
-            && Object.values(afterReset).every(r => r.active === "hall" && J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
+            && Object.values(afterReset).every(r => r.active === "hall" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
         J({ handE, reset, afterReset }), { flow: "class-trial" });
 }

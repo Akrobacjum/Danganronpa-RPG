@@ -37663,6 +37663,19 @@ const SCENARIOS = [
                 gone: (report, key) => !S.keyPlanStore.has(key),
                 back: key => stableJson([S.keyPlanStore.get(key)?.name, S.keyPlanStore.get(key)?.note]) === stableJson(["SUITE backed-up clue", "SUITE backed-up note"])
             },
+            // The trial hall's choice for one token, through its writer (E13 C2): a token of the scene on screen, which no
+            // trial opens on unless it is linked as the hall, and then shows that token only if it is the cast's.
+            trialCast: {
+                seed: async () => {
+                    const { saveTrialCast, castKey } = await import("./trial-scene.mjs");
+                    const token = scene?.tokens?.contents?.[0];
+                    must(token, "the scene on screen has no token to choose for");
+                    await saveTrialCast(scene, { [token.id]: false });
+                    return castKey(scene.id, token.id);
+                },
+                gone: (report, key) => !S.trialCastStore.has(key),
+                back: key => S.trialCastStore.get(key)?.reveal === false
+            },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {
                 seed: async () => {
@@ -49897,6 +49910,141 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify([true, true, "SUITE E13 C1 the school",
             [game.i18n.format("DRPG.Vault.manageTitleOn", { scene: "SUITE E13 C1 the school" })], true]),
             "[the roles can be linked, the GM views the hall, home, the titles Room Setup opened with, home once the school's scene is gone is a scene and not the hall]");
+    }],
+    ["entering the trial shows the GMs' choice of the linked hall's cast and leaving hides it - nothing made or deleted and only `hidden` written", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (V4: R116's world half, R433's store half), decisions D7 and D12, audit
+         * S06-57. Until 1.2.74 nothing showed anybody in a trial hall: a GM showed the tokens by hand (scenario 41 a). Here
+         * a hall of the suite's own holds, hidden, a token of each of two students players play, a second token of the
+         * first, a token of a student nobody plays (made here) and Monokuma's, and a prop of no actor, shown; it is linked
+         * as the trial hall (the setting put back). In a GM-store world of the suite's own, the GMs' choice unticks the
+         * second student, and a row of the season before ticks the one nobody plays. Read: what `revealTrialTokens` and
+         * `hideTrialTokens` answer, twice each, and what is shown after each; the tokens made and deleted on the hall
+         * meanwhile and the fields each update carried; the hall's ids; an entry whose store did not open (`open`
+         * answering "late"); what the GMs were whispered; and whether `compactGmStores` on the primary drops the past
+         * season's row and keeps this season's. Called directly, not through the phase: scenario 41 a, c and d read the
+         * phase's road on four browsers. Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(T, "there is no trial-scene.mjs - nothing shows the hall's cast (S06-57)");
+        if (!T) return;
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(played.length >= 2 && monokuma, "the world has fewer than two students players play, or no Monokuma, to stand in the hall");
+        const [first, second] = played;
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c2-${foundry.utils.randomID(8)}`, async () => {
+            let hall = null, nobody = null;
+            const seen = { made: 0, gone: 0, fields: [] };
+            const hooks = [["createToken", doc => { if (doc.parent === hall) seen.made++; }], ["deleteToken", doc => { if (doc.parent === hall) seen.gone++; }],
+                ["updateToken", (doc, changed) => { if (doc.parent === hall) seen.fields.push(Object.keys(changed).filter(k => k !== "_id").sort().join(",")); }]]
+                .map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
+            try {
+                nobody = await Actor.create({ name: "SUITE E13 C2 nobody plays", type: "character" });
+                hall = await Scene.create({ name: "SUITE E13 C2 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const token = (name, actorId, x, hidden = true) => ({ name, actorId, actorLink: Boolean(actorId), x, y: 300, width: 1, height: 1, hidden });
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("second", second.id, 200), token("first again", first.id, 300),
+                    token("nobody", nobody.id, 400), token("Monokuma", monokuma.id, 500), token("prop", null, 600, false)]);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+                const id = name => hall.tokens.find(t => t.name === name)?.id;
+                const saved = await T.saveTrialCast(hall, { [id("second")]: false });
+                await S.trialCastStore.patch(T.castKey(hall.id, id("nobody")), { reveal: true, epoch: seasonEpoch() - 1 });
+                await settle();
+                const ids = hall.tokens.map(t => t.id).sort();
+                Object.assign(seen, { made: 0, gone: 0, fields: [] });
+                const shown = () => hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
+                const names = list => list.map(tokenId => hall.tokens.get(tokenId)?.name ?? tokenId).sort();
+                const named = r => r && { shown: names(r.shown), hidden: names(r.hidden), seconds: names(r.seconds) };
+                const step = async fn => { const r = named(await fn()); await settle(); return [r, shown(), seen.fields.splice(0)]; };
+                const late = await step(() => T.applyTrialCast(hall, { reveal: true, open: async () => "late" }));
+                const steps = [late, await step(() => T.revealTrialTokens(hall)), await step(() => T.revealTrialTokens(hall)),
+                    await step(() => T.hideTrialTokens(hall)), await step(() => T.hideTrialTokens(hall))];
+                const compacted = await S.compactGmStores({ primary: true });
+                read = [linkable, saved, steps, seen.made, seen.gone, stableJson(hall.tokens.map(t => t.id).sort()) === stableJson(ids),
+                    await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000))), compacted?.trialCastPastSeasons ?? 0,
+                    S.trialCastStore.has(T.castKey(hall.id, id("nobody"))), S.trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+            } finally {
+                for (const [hook, hookId] of hooks) Hooks.off(hook, hookId);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+                await hall?.delete();
+                await nobody?.delete();
+                for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+                await settle();
+            }
+        });
+        const none = { shown: [], hidden: [], seconds: ["first again"] };
+        const told = key => `<p>${game.i18n.format(`DRPG.TrialScene.${key}`, { names: "first again" })}</p>`;
+        equal(JSON.stringify(read), JSON.stringify([true, true, [
+            [null, ["prop"], []],
+            [{ shown: ["Monokuma", "first"], hidden: [], seconds: ["first again"] }, ["Monokuma", "first", "prop"], ["hidden", "hidden"]],
+            [none, ["Monokuma", "first", "prop"], []],
+            [{ shown: [], hidden: ["Monokuma", "first"], seconds: ["first again"] }, ["prop"], ["hidden", "hidden"]],
+            [none, ["prop"], []]],
+            0, 0, true, [told("castUnavailable"), told("duplicateToken"), told("duplicateToken")], 1, false, false]),
+            "[the roles can be linked, the choice was stored, each step's answer, what is shown after it and the fields each update carried - an entry whose store did not open, "
+            + "two entries, two exits - tokens made and deleted on the hall, its ids as before, what the GMs were whispered, the past season's rows compacted, "
+            + "the past season's row still kept, this season's untick]");
+    }],
+
+    ["a player's change to whether a hall cast token is hidden is put back by the primary GM and told to the GMs; a GM's stands", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (MARKED, decision D2; R434's world half). Whether Foundry v14 lets a
+         * token's owner write its `hidden` is not measured (LIVE-E13-08): what the primary hears when one does is its
+         * `updateToken` hook with that player's id, and trial-scene.mjs `watchCast` is that listener - called here as
+         * Foundry calls it, after the GM wrote the state the player's write would have left (the GM's own write is heard
+         * too by the registered listener, and stands; a GM's id is handed to `watchCast` as well). Scenario 41 a3 has a player's browser write it. A hall of the suite's own, linked as the
+         * trial hall (the setting put back), holds a shown token of a student a player owns. Read, each time, whether the
+         * token is hidden after: a player's hide; the same carrying this module's `trialCast` option (a writer's claim);
+         * a player's show of a hidden token; a GM's hide. And what the GMs were whispered. Red before C2: there was no
+         * trial-scene.mjs, and a player's change stood.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(T, "there is no trial-scene.mjs - a player's change to a hall token's hidden stands");
+        if (!T) return;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - the put-back is the primary's, and would not run here");
+        const player = game.users.find(u => !u.isGM);
+        const student = player && game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        must(student, "the world has no player who owns a student, to change a hall token");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: "SUITE E13 C2 the hall a player touches", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [token] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 300, y: 300,
+                width: 1, height: 1, hidden: false }]);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            await settle();
+            const by = async (hidden, userId, options = {}) => {
+                await token.update({ hidden });
+                await T.watchCast(token, { hidden }, options, userId);
+                await settle();
+                return hall.tokens.get(token.id).hidden;
+            };
+            const hides = [await by(true, player.id), await by(true, player.id, { [MODULE_ID]: { trialCast: true } })];
+            await token.update({ hidden: true });
+            const shows = await by(false, player.id);
+            await token.update({ hidden: false });
+            const gm = await by(true, game.user.id);
+            read = [linkable, hides, shows, gm, await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)))];
+        } finally {
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            await hall?.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const told = `<p>${game.i18n.format("DRPG.TrialScene.hiddenPutBack", { user: player.name, name: student.name })}</p>`;
+        equal(JSON.stringify(read), JSON.stringify([true, [false, false], true, true, [told, told, told]]),
+            "[the roles can be linked, hidden after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide; what the GMs were whispered]");
     }],
     ...GRID
 ];

@@ -453,6 +453,11 @@ export const SETTINGS = {
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
     /**
+     * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
+     * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
+     */
+    gmTrialCast: "gmTrialCast",
+    /**
      * THE PRE-SESSION NOTES (E05, 1.2.64; audit S11-03, S01-08): a GM store
      * (gm-stores.mjs `noteStore`), a row per user -> { text, updatedAt, byGm },
      * and each player's copy of their own (`noteCopy`). Until 1.2.64 the note was
@@ -1561,6 +1566,15 @@ export function registerSettings() {
     // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
     // one, and not the moment it merges (read, not measured at a table).
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Which of the trial hall's tokens the trial shows: a GM store since it exists (E13 C2,
+    // `trialCastStore`), a row per token. No `onChange`: it is read when the trial opens and
+    // closes (trial-scene.mjs `applyTrialCast`), and nothing draws it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTrialCast, {
         scope: "client",
         config: false,
         type: Object,

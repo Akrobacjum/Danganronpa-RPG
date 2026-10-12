@@ -6629,6 +6629,119 @@ const INVARIANTS = [
         equal(JSON.stringify([R.isTrialScene(school), !R.schoolScene() || school === R.schoolScene()]), JSON.stringify([false, true]),
             `[home (${school?.name ?? "none"}) is the trial hall, home is the linked school when one is linked]`);
     }],
+    ["R116 - the trial shows the GMs' choice of the hall's cast and hides it again: only `hidden` changes, and a second run changes nothing", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (V4), decision D7, the owner's answer Q-E13-1 a, audit S06-57, the A5
+         * project's reserved R116 restated under D7. Until 1.2.74 nothing showed anybody in a trial hall: a GM showed the
+         * tokens by hand (scenario 41 a). The rule is trial-scene.mjs `castDiff` over the cast as `readCast` hands it,
+         * driven here on plain rows, so nothing in this browser is read or written: a student a player plays, a dead one a
+         * player plays (Q-E13-1 a: shown, under the dead overlay), Monokuma, a test student nobody plays, a student the
+         * GMs unticked (a row of this season), a test student somebody left shown, and a second token of the first
+         * student. Read: what the entry changes, what a second entry on its result changes, what the exit changes and a
+         * second exit after it, the fields each change carries, the second token, and `defaultReveal` on its own. And of
+         * the world, which tokens are the cast: a token of a student is, a token of an actor of another type or of no
+         * actor is not. The tier-2 "entering the trial shows the GMs' choice ..." reads it on a hall's documents, and
+         * scenario 41 a, c and d through the phase on four browsers. Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castDiff === "function", "trial-scene.mjs has no `castDiff` - entering the trial shows nobody in the hall (S06-57)");
+        if (typeof T?.castDiff !== "function") return;
+        const EPOCH = 7000, HALL = "R116HALL00000000";
+        const token = (id, fields = {}) => ({ id, name: id, actorId: `${id}-ACTOR`, hidden: true, monokuma: false, player: false, second: false, ...fields });
+        const cast = [token("PLAYED", { player: true }), token("DEAD", { player: true, deceased: true }), token("MONOKUMA", { monokuma: true }),
+            token("TEST"), token("UNTICKED", { player: true }), token("LEFTSHOWN", { hidden: false }),
+            token("PLAYED2", { actorId: "PLAYED-ACTOR", player: true, second: true })];
+        const rows = { [T.castKey(HALL, "UNTICKED")]: { reveal: false, epoch: EPOCH } };
+        const after = (list, diff) => list.map(t => ({ ...t, hidden: diff.find(d => d._id === t.id)?.hidden ?? t.hidden }));
+        const entry = T.castDiff(cast, { reveal: true, sceneId: HALL, rows, epoch: EPOCH });
+        const inside = after(cast, entry.diff);
+        const again = T.castDiff(inside, { reveal: true, sceneId: HALL, rows, epoch: EPOCH });
+        const exit = T.castDiff(inside, { reveal: false, sceneId: HALL, rows, epoch: EPOCH });
+        const out = T.castDiff(after(inside, exit.diff), { reveal: false, sceneId: HALL, rows, epoch: EPOCH });
+        const fields = [...entry.diff, ...exit.diff].map(d => Object.keys(d).sort().join(","));
+        equal(JSON.stringify([entry, again.diff, exit.diff, out.diff, [...new Set(fields)]]), JSON.stringify([
+            { diff: [{ _id: "PLAYED", hidden: false }, { _id: "DEAD", hidden: false }, { _id: "MONOKUMA", hidden: false }, { _id: "LEFTSHOWN", hidden: true }], seconds: ["PLAYED2"] },
+            [], [{ _id: "PLAYED", hidden: true }, { _id: "DEAD", hidden: true }, { _id: "MONOKUMA", hidden: true }], [], ["_id,hidden"]]),
+            "[the entry (the student played, the dead played and Monokuma shown, the test student left shown hidden, the unticked one, the test student and the second token kept hidden; the second token named), "
+            + "a second entry, the exit (the cast hidden), a second exit, the fields a change carries]");
+        const rule = [{}, { player: true }, { monokuma: true }, { player: true, second: true }, { monokuma: true, second: true }].map(given => T.defaultReveal(given));
+        equal(JSON.stringify(rule), JSON.stringify([false, true, true, false, false]),
+            "[`defaultReveal` of a student nobody plays, one a player plays, Monokuma, and a second token of each of the last two]");
+        const student = game.actors.find(a => a.type === "character");
+        must(student, "the world has no character to stand a hall token for - which tokens are the cast would measure nothing");
+        const other = game.actors.find(a => a.type !== "character");
+        const kinds = [{ actorId: student.id }, { actorId: null }, { actorId: "R116NOSUCHACTOR0" }, ...(other ? [{ actorId: other.id }] : [])].map(t => T.isCastToken(t));
+        equal(JSON.stringify(kinds), JSON.stringify([true, false, false, ...(other ? [false] : [])]),
+            `[a token is the cast: of a student, of no actor, of an actor that is gone${other ? `, of ${other.name} (${other.type})` : ""}]`);
+    }],
+
+    ["R433 - the cast choice is the GMs' own: kept in a GM store with its season, never on a token or a world setting, and read only in its season", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 (A5's R121, which tools/registry.mjs reserves for A4) and 1.x 2, decisions D7
+         * and D12. The audit's fix for S06-57 named a flag on the hall token, and a token's flags are written by whoever
+         * owns it - the student's own player. Read in the source with comments blanked: trial-scene.mjs writes no flag and
+         * no setting, and writes the choice only through `trialCastStore`; `applyTrialCast` waits for the store to open
+         * before it reads the cast, so a store that did not open shows nobody (the tier-2 "entering the trial ..." drives
+         * that branch). Of the store: its spec (a ledger, cut with the trial floor's group, backed up and synced among the
+         * GMs) and its setting, this browser's own storage. Of the rule on plain rows: a row of this season reads, a row of
+         * another season and a row with no `reveal` read as no row. Whether the primary drops the past season's rows is
+         * the tier-2 test's (`compactGmStores`). Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castRow === "function", "trial-scene.mjs has no `castRow` - the GMs' choice is kept nowhere (S06-57, D7)");
+        if (typeof T?.castRow !== "function") return;
+        const { trialCastStore } = await import("./gm-stores.mjs");
+        const sources = await moduleSources();
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const code = stripComments(sources.get("trial-scene.mjs"));
+        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany("]
+            .map(text => code.split(text).length - 1);
+        const apply = fnSource(code, "applyTrialCast");
+        const [waits, reads] = ["await open()", "readCast(scene)"].map(text => apply.indexOf(text));
+        const { name, kind, resetGroup, backup, sync, key } = trialCastStore.spec;
+        const setting = game.settings.settings.get(`${MODULE_ID}.${key}`);
+        const H = "R433HALL00000000", K = T.castKey(H, "TOKEN");
+        const at = (row, epoch) => T.castRow({ [K]: row }, H, "TOKEN", epoch);
+        const seasons = [at({ reveal: false, epoch: 5 }, 5), at({ reveal: true, epoch: 4 }, 5), at({ reveal: true, epoch: 6 }, 5), at({ epoch: 5 }, 5), at(undefined, 5)];
+        equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
+            JSON.stringify([[0, 0, 0, 0, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+                "client", [{ reveal: false }, null, null, null, null]]),
+            "[trial-scene.mjs's setFlag, unsetFlag, settings.set and store writes (patch, patchMany, dropMany); `applyTrialCast` waits for the store before it reads the cast; "
+            + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
+    }],
+
+    ["R434 - a player's change to whether a hall cast token is hidden is put back; a GM's stands, and so does any token that is not the hall's cast", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (MARKED, decision D2). A player who owns a hall token may be able to
+         * write its `hidden` from their own browser - whether Foundry v14 lets an owner do that is not measured
+         * (LIVE-E13-08) - and a token shown or hidden by its player would undo the GMs' choice in front of the table. The
+         * rule is trial-scene.mjs `castPutBack`, which the primary's `updateToken` watcher asks with the user Foundry names
+         * as the writer; here on plain objects and a student of this world (the cast is a token of a "character"). Read:
+         * a player's hide and a player's show of a hall cast token, the same hide carrying this module's own `trialCast`
+         * option (a writer's claim, exempt from nothing), a GM's hide, a player's move, a player's hide of a token of no
+         * actor, of a token on another scene, with no hall linked, and by a user nobody knows. The tier-2 "a player's
+         * change ..." drives the watcher on a hall's documents; scenario 41 a3 has a player's browser write it. Red before
+         * C2: there was no trial-scene.mjs, and a player's change stood.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castPutBack === "function", "trial-scene.mjs has no `castPutBack` - a player's change to a hall token's hidden stands");
+        if (typeof T?.castPutBack !== "function") return;
+        const student = game.actors.find(a => a.type === "character");
+        must(student, "the world has no character to stand a hall token for - every case below would read a token that is not the cast");
+        const hall = { id: "R434HALL00000000" };
+        const tok = (fields = {}) => ({ id: "R434TOKEN0000000", name: "R434", actorId: student.id, parent: hall, ...fields });
+        const player = { id: "R434PLAYER000000", isGM: false }, gm = { id: "R434GM0000000000", isGM: true };
+        const asks = [
+            [tok(), { hidden: true }, {}, player, hall], [tok(), { hidden: false }, {}, player, hall],
+            [tok(), { hidden: true }, { [MODULE_ID]: { trialCast: true } }, player, hall], [tok(), { hidden: true }, {}, gm, hall],
+            [tok(), { x: 300 }, {}, player, hall], [tok({ actorId: null }), { hidden: true }, {}, player, hall],
+            [tok({ parent: { id: "R434OTHER0000000" } }), { hidden: true }, {}, player, hall], [tok(), { hidden: true }, {}, player, null],
+            [tok(), { hidden: true }, {}, null, hall]
+        ].map(args => T.castPutBack(...args));
+        equal(JSON.stringify(asks), JSON.stringify([{ hidden: false }, { hidden: true }, { hidden: false }, null, null, null, null, null, null]),
+            "[put back: a player's hide, a player's show, a player's hide with the module's option; stands: a GM's hide, a player's move, "
+            + "a token of no actor, a token of another scene, no hall linked, a writer nobody knows]");
+    }],
 ];
 
 /**

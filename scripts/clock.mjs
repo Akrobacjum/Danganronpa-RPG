@@ -594,6 +594,17 @@ async function reconcilePhase(from, to) {
             error("Could not count the deaths nobody has found at the trial's start", err);
         }
     }
+
+    /* THE HALL'S CAST (E13 C2): into the trial shows the tokens the GMs chose in the linked hall,
+       out of it hides them - trial-scene.mjs `followCast`, one scene update on this GM's client.
+       Last, after every rule step above: it is a draw, and a hall that cannot be updated must
+       not hold up the budget or the reset. No hall linked, it does nothing. */
+    try {
+        const { followCast } = await import("./trial-scene.mjs");
+        await followCast(from, to);
+    } catch (err) {
+        error("Could not show or hide the trial hall's tokens after the phase changed", err);
+    }
 }
 
 /**

@@ -45,6 +45,7 @@ import { registerTruthBullets } from "./truth-bullets.mjs";
 import { registerTrial } from "./trial.mjs";
 import { registerMurder } from "./murder.mjs";
 import { registerTrialFloor } from "./trial-floor.mjs";
+import { registerTrialScene } from "./trial-scene.mjs";
 import { registerVote } from "./vote.mjs";
 import { registerMastermind } from "./mastermind.mjs";
 import { registerResourceGuard } from "./resource-guard.mjs";
@@ -246,6 +247,7 @@ Hooks.once("init", () => {
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);
     safely("the trial floor", registerTrialFloor);
+    safely("the trial hall's cast", registerTrialScene);
     // Watches for somebody walking into an incident - the guide's "automatyczny,
     // darmowy wybór" for a third party, which until now waited on a GM noticing.
     safely("the murder watch", registerMurder);

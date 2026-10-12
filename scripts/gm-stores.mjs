@@ -1013,6 +1013,25 @@ export const keyPlanStore = defineGmStore({
 });
 
 /**
+ * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
+ * S06-57). A row per token of the linked trial hall the GMs chose for, keyed `sceneId.tokenId` as the
+ * traces' are: `{ reveal, epoch }` - shown in the trial or not, and the season it was chosen in
+ * (`seasonEpoch`). A row of another season reads as no row (trial-scene.mjs `castRow`), and the
+ * primary drops it (`compactGmStores`). The audit's fix named a flag on the token; a token's flags are
+ * written by whoever owns it, and the choice is the GMs' (plan-E13 1.x 2). A token with no row is
+ * shown or not by trial-scene.mjs `defaultReveal`. Backed up and synced like the Key Remnant plan, a
+ * GM's preparation; cut with the trial floor's group.
+ */
+export const trialCastStore = defineGmStore({
+    name: "trialCast", key: SETTINGS.gmTrialCast,
+    kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true,
+    exists: key => {
+        const [sceneId, tokenId] = String(key).split(".");
+        return Boolean(game.scenes?.get(sceneId)?.tokens?.get(tokenId));
+    }
+});
+
+/**
  * THE PRE-SESSION NOTES (E05 C6; audit S11-03, S01-08). A row per user: text, updatedAt,
  * byGm - a flag on the player's own User document until 1.2.64, which every browser held,
  * and whose first question is "Am I planning to kill? How?". Written by a GM, a player's
@@ -1199,6 +1218,14 @@ export async function compactGmStores({ now = gmStoreNow(), epoch = seasonEpoch(
         if (past.length) {
             await blackenedStore.dropMany(past);
             report.blackenedPastSeasons = past.length;
+        }
+        // The hall's choices of a season before this one (E13 C2): read as no row already, gone here -
+        // by the Blackened's rule above, so a clock that could not be read (epoch 0) drops nothing.
+        const pastCast = Object.entries(trialCastStore.entries())
+            .filter(([, row]) => Number.isFinite(row?.epoch) && row.epoch < epoch).map(([key]) => key);
+        if (pastCast.length) {
+            await trialCastStore.dropMany(pastCast);
+            report.trialCastPastSeasons = pastCast.length;
         }
     }
     if (Object.keys(report).length) debug(`The GM stores compacted: ${JSON.stringify(report)}`);

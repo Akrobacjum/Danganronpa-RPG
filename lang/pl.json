@@ -1947,6 +1947,12 @@
         "hold": "zamykanie odkrycia ciała"
       }
     },
+    "TrialScene": {
+      "castUnavailable": "Class Trial się zaczął, a w sali rozpraw nikogo nie odkryto: wybór jej tokenów dokonany przez GM-ów nie dotarł jeszcze do tego klienta. Odkryj je ręcznie na scenie sali.",
+      "duplicateToken": "Ta sama postać ma w sali rozpraw więcej niż jeden token i odkryto tylko pierwszy. Ukryte zostały: {names}.",
+      "playerTokenCreated": "Konto {user} utworzyło token w sali rozpraw: {name}. Zostaje na miejscu, a następny Class Trial potraktuje go jak każdy token sali.",
+      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono to, co było."
+    },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",
       "presentTitle": "Przedstaw - {name}",
@@ -5127,6 +5133,7 @@
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
         "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
+        "trialCast": "Które tokeny sali rozpraw pokazuje Class Trial",
         "notes": "Notatki graczy przed sesją",
         "deaths": "Śmierci, których nikt jeszcze nie odkrył",
         "deferredOffers": "Reinforced Level Upy czekające na klasę",
