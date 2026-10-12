@@ -18,7 +18,11 @@
  * own player. So the choice is a row of a GM store (gm-stores.mjs
  * `trialCastStore`), `{ reveal, epoch }`, written only on a GM's client (the
  * store refuses anywhere else), and a row of another season reads as no row
- * (decision D12). A token with no row is decided by `defaultReveal`: Monokuma
+ * (decision D12). Since E81 DZ6 (12.10.2026; the owner: "kto bierze udział, a
+ * kogo nie przenosić") a row is an actor's, keyed `${hallId}.${actorId}`, and
+ * the GM ticks actors, not tokens; a 1.2.74 row keyed by a hall token is read
+ * for that token's actor until the primary GM's `ready` moves it to the actor's
+ * key (`castRowsByActor`, `tidyTrialHall`). A token with no row is decided by `defaultReveal`: Monokuma
  * shown, a student a player owns shown - the dead and a Monocub too (the owner's
  * answer Q-E13-1 a, 09.10.2026: the dead stand in the hall under the dead
  * overlay, immovable by the corpse veto), a student nobody plays hidden (a test
@@ -161,9 +165,18 @@ function castWrite() {
     return { [MODULE_ID]: { trialCast: true } };
 }
 
-/** The store's key for one hall token. */
-export function castKey(sceneId, tokenId) {
-    return `${sceneId}.${tokenId}`;
+/**
+ * The store's key for one actor's choice in one hall (E81 DZ6): `${hallId}.${actorId}`. Until 1.2.74 the
+ * second half was a hall token's id; such a row is read through `castRow`'s `legacyTokenId` and moved by
+ * `tidyTrialHall`.
+ */
+export function castKey(sceneId, actorId) {
+    return `${sceneId}.${actorId}`;
+}
+
+/** Every actor the cast can hold, ticked or not: each "character" of the world, a student or Monokuma, in the world's order. */
+export function castActors() {
+    return game.actors?.filter?.(actor => actor.type === "character") ?? [];
 }
 
 /** Whether a hall token is the module's to show and hide: its actor is a student or Monokuma. */
@@ -177,43 +190,99 @@ export function castTokens(scene) {
 }
 
 /**
- * One token's stored choice, `{ reveal }`, or null: no row, a row of another season, or a row that
- * says nothing. Reads only what it is handed (R116 asks it of plain rows).
+ * One actor's stored choice, `{ reveal }`, or null: no row, a row of another season, or a row that
+ * says nothing. The actor's row first; failing that, when `legacyTokenId` is given (the actor's first
+ * token in the hall), the 1.2.74 row of that token (E81 DZ6) - so a world not yet tidied, or a 1.2.74
+ * backup restored after its `ready` (gm-store.mjs `mergeIn`), reads as it was chosen. Reads only what
+ * it is handed (R116 asks it of plain rows).
  */
-export function castRow(rows, sceneId, tokenId, epoch = seasonEpoch()) {
-    const row = rows?.[castKey(sceneId, tokenId)];
-    if (!row || row.epoch !== epoch || typeof row.reveal !== "boolean") return null;
-    return { reveal: row.reveal };
+export function castRow(rows, sceneId, actorId, epoch = seasonEpoch(), legacyTokenId = null) {
+    const read = key => {
+        const row = rows?.[key];
+        return row && row.epoch === epoch && typeof row.reveal === "boolean" ? { reveal: row.reveal } : null;
+    };
+    return read(castKey(sceneId, actorId)) ?? (legacyTokenId ? read(castKey(sceneId, legacyTokenId)) : null);
 }
 
-/** The hall's stored choice this season, `{ tokenId: reveal }`: the tokens with no row are absent. */
+/** The hall's stored choice this season, `{ actorId: reveal }` over `castActors`: the actors with no row are absent. */
 export function readTrialCast(scene, { rows = trialCastStore.entries(), epoch = seasonEpoch() } = {}) {
     const out = {};
-    for (const token of castTokens(scene)) {
-        const row = castRow(rows, scene.id, token.id, epoch);
-        if (row) out[token.id] = row.reveal;
+    if (!scene?.id) return out;
+    for (const actor of castActors()) {
+        const row = castRow(rows, scene.id, actor.id, epoch, scene.tokens?.find?.(token => token.actorId === actor.id)?.id ?? null);
+        if (row) out[actor.id] = row.reveal;
     }
     return out;
 }
 
 /**
- * Store the GMs' choice for the hall's tokens: `{ tokenId: true | false | null }`, null dropping the row
- * (back to `defaultReveal`). A GM's client only - the store refuses anywhere else. Shows and hides
- * nothing: the choice is read when the trial opens. Answers whether anything was written.
+ * Store the GMs' choice for the hall's cast: `{ actorId: true | false | null }`, null dropping the row
+ * (back to `defaultReveal`) and the 1.2.74 row of the actor's first hall token with it, which `castRow`
+ * would read otherwise. An id that is not a "character" actor of this world is skipped (E81 DZ6; until
+ * then an id that was not a token of the hall). A GM's client only - the store refuses anywhere else.
+ * Shows and hides nothing: the choice is read when the trial opens. Answers whether anything was written.
  */
 export async function saveTrialCast(scene, choice = {}) {
     if (!game.user?.isGM || !scene?.id) return false;
     const epoch = seasonEpoch();
     const rows = {};
     const gone = [];
-    for (const [tokenId, reveal] of Object.entries(choice ?? {})) {
-        if (!scene.tokens?.get?.(tokenId)) continue;
-        if (reveal === null) gone.push(castKey(scene.id, tokenId));
-        else if (typeof reveal === "boolean") rows[castKey(scene.id, tokenId)] = { reveal, epoch };
+    for (const [actorId, reveal] of Object.entries(choice ?? {})) {
+        if (game.actors?.get?.(actorId)?.type !== "character") continue;
+        if (reveal === null) {
+            gone.push(castKey(scene.id, actorId));
+            const legacy = scene.tokens?.find?.(token => token.actorId === actorId)?.id;
+            if (legacy && trialCastStore.has(castKey(scene.id, legacy))) gone.push(castKey(scene.id, legacy));
+        } else if (typeof reveal === "boolean") rows[castKey(scene.id, actorId)] = { reveal, epoch };
     }
     if (Object.keys(rows).length) await trialCastStore.patchMany(rows);
     if (gone.length) await trialCastStore.dropMany(gone);
     return Boolean(Object.keys(rows).length || gone.length);
+}
+
+/**
+ * The 1.2.74 rows moved to their actors (E81 DZ6), decided before anything is written: `mapped`, the
+ * rows to fill by actor key, and `old`, the token-keyed keys to drop. Handed the store's rows and, by
+ * scene id, the scene's cast tokens `{ id, actorId }` in the hall's order. A key whose second half is a
+ * token of its scene is old; its row goes to that token's actor only when it is the actor's FIRST token
+ * there, the one token whose row the trial ever read (`castShows` reads no row for a second one), with
+ * its `reveal` and its season as they were. Any other key - an actor's already, or of a scene not
+ * handed - is left as it is, so a second run finds nothing. Pure (R500 asks it of plain rows).
+ */
+export function castRowsByActor(rows, scenes) {
+    const mapped = {};
+    const old = [];
+    for (const [key, row] of Object.entries(rows ?? {})) {
+        const dot = key.indexOf(".");
+        const tokens = dot > 0 ? scenes?.[key.slice(0, dot)] : null;
+        const token = tokens?.find?.(t => t.id === key.slice(dot + 1));
+        if (!token) continue;
+        old.push(key);
+        if (tokens.find(t => t.actorId === token.actorId) !== token || typeof row?.reveal !== "boolean") continue;
+        mapped[castKey(key.slice(0, dot), token.actorId)] = { reveal: row.reveal, epoch: row.epoch };
+    }
+    return { mapped, old };
+}
+
+/**
+ * The cast's rows moved from tokens to actors once (E81 DZ6), on the primary GM's `ready` after the
+ * store has heard the other GMs: `castRowsByActor` over every scene a row names, then one fill that
+ * never overwrites a row already written by actor (`fillOnly`) and one drop of the old keys. A second
+ * run maps nothing and writes nothing. Answers `{ mapped, dropped }`, or null off the primary.
+ */
+export async function tidyTrialHall() {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    await trialCastStore.whenHydrated();
+    const rows = trialCastStore.entries();
+    const scenes = {};
+    for (const key of Object.keys(rows)) {
+        const sceneId = key.split(".")[0], scene = game.scenes?.get?.(sceneId);
+        if (scene && !(sceneId in scenes)) scenes[sceneId] = castTokens(scene).map(token => ({ id: token.id, actorId: token.actorId }));
+    }
+    const { mapped, old } = castRowsByActor(rows, scenes);
+    if (Object.keys(mapped).length) await trialCastStore.patchMany(mapped, { fillOnly: true });
+    if (old.length) await trialCastStore.dropMany(old);
+    return { mapped: Object.keys(mapped).length, dropped: old.length };
 }
 
 /**
@@ -249,6 +318,19 @@ export function readCast(scene) {
 }
 
 /**
+ * The cast as the GMs hold it, per actor (E81 DZ6): every `castActors` actor with its id, its name, the
+ * `monokuma` flag as the primary holds it and whether a player owns it - `readCast`'s two facts, read the
+ * same way, in ONE synchronous pass (H3). The cast picker's rows, so an actor is ticked or not whether
+ * or not the hall holds a token of it.
+ */
+export function readCastActors() {
+    return castActors().map(actor => ({
+        id: actor.id, name: actor.name ?? actor.id,
+        monokuma: Boolean(flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.monokuma)), player: ownerIdsOf(actor).length > 0
+    }));
+}
+
+/**
  * What one open or close changes: `{ diff, seconds }`. `diff` holds `{ _id, hidden }` for every cast
  * token whose `hidden` differs from what it should be - on the way in the stored row, else
  * `defaultReveal`; on the way out hidden - and nothing else, so a second run on the same hall finds
@@ -266,19 +348,20 @@ export function castDiff(cast, { reveal, sceneId, rows = {}, epoch = seasonEpoch
 }
 
 /**
- * Whether the way in shows one cast token (`readCast`'s row): the GMs' stored row of this season,
- * else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it,
- * and so does the Start window's count (`castShownOnEntry`), so the window cannot promise a number
- * the entry does not show.
+ * Whether the way in shows one cast token (`readCast`'s row): the GMs' stored row of this season for
+ * its actor (E81 DZ6; the token's own 1.2.74 row as `castRow`'s fallback, this being the actor's first
+ * token), else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks
+ * it, and so does `trialSceneReport` (`castShownOnEntry`).
  */
 export function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
-    const row = token.second ? null : castRow(rows, sceneId, token.id, epoch);
+    const row = token.second ? null : castRow(rows, sceneId, token.actorId, epoch, token.id);
     return row ? row.reveal : defaultReveal(token);
 }
 
 /**
  * The hall's cast tokens the way in would show now, as `readCast` reads them (one synchronous pass,
- * H3) against the store this GM holds: the Start window's count (E13 C6). A store not yet hydrated on
+ * H3) against the store this GM holds: `trialSceneReport`'s `shown` (the Start window's count until E81
+ * DZ6, which put the ticks in that window instead). A store not yet hydrated on
  * this GM counts without the GMs' rows, while the entry would then show nobody and tell the GMs
  * (`applyTrialCast`; read in the code, not measured) - a count, never a decision.
  */
@@ -538,9 +621,9 @@ export async function nameUnfinishedCarries() {
  * THE START WINDOW AND THE CONSOLE SAY WHERE THE TABLE GOES (E13 C6, 12.10.2026; plan-E13 C6, decision
  * D8, doneWhen 4). Start the Class Trial said the phase moves and the trial is announced, and nothing
  * about the scene: since C3 every browser is taken to the hall, and a GM read that only on the screen
- * after the click. Its window now names the hall and how many of its tokens the trial will show
- * (`castShownOnEntry`, the entry's own rule), or that no hall is linked and the table stays, and the
- * table's rule of D8 - the dead listen but do not speak in the trial - as one sentence beside the
+ * after the click. Its window now names the hall, or that no hall is linked and the table stays,
+ * (until E81 DZ6 with how many of its tokens the trial would show; since then with who takes part,
+ * the cast picker's ticks), and the table's rule of D8 - the dead listen but do not speak in the trial - as one sentence beside the
  * button. Before this the window said neither: R437 and scenario 41 k1 read it red at C5's tree.
  *
  * THE TWO DOORS INSIDE A TRIAL. A GM who wants the school back for a moment in the middle of a trial
@@ -554,13 +637,14 @@ export async function nameUnfinishedCarries() {
  */
 
 /**
- * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name with the
- * count of tokens it will show, or that none is linked - and `rule`, the table's rule of D8. Pure
- * over `{ hall, shown }` (R437 asks it of plain objects); the hall's name is escaped.
+ * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name, or that
+ * none is linked - and `rule`, the table's rule of D8. The count of tokens shown went with E81 DZ6:
+ * the window holds the ticks it would have counted, and a count drawn once goes stale as they change.
+ * Pure over `{ hall }` (R437 asks it of plain objects); the hall's name is escaped.
  */
-export function startTrialLines({ hall = null, shown = 0 } = {}) {
+export function startTrialLines({ hall = null } = {}) {
     return {
-        table: hall ? plural("DRPG.Floor.startTrialHall", { n: shown, hall: esc(hall.name ?? "") })
+        table: hall ? game.i18n.format("DRPG.Floor.startTrialHall", { hall: esc(hall.name ?? "") })
             : game.i18n.localize("DRPG.Floor.startTrialNoHall"),
         rule: game.i18n.localize("DRPG.Floor.tableRuleDead")
     };
@@ -899,27 +983,27 @@ function reportHtml(school, hall) {
 }
 
 /**
- * The hall's cast with a "reveal in the trial" tick each: ticked as the GMs' stored choice has it,
- * else as `defaultReveal` does; a second token of one actor drawn off, as a trial never shows it.
- * The box carries the hall's id, so a list drawn for another hall is not read as this one's.
+ * Who takes part, with a tick per actor (E81 DZ6; until then a tick per hall token): every actor
+ * `castActors` names, ticked as the GMs' stored choice has it, else as `defaultReveal` does. One
+ * builder for the Scenes tab and the Start window, which hands its own `heading`. The box carries the
+ * hall's id, so a list drawn for another hall is not read as this one's.
  */
-export function castPickerHtml(hall) {
+export function castPickerHtml(hall, { heading = "DRPG.TrialScene.castHeading" } = {}) {
     if (!hall?.tokens) return "";
     const stored = readTrialCast(hall);
-    const rows = readCast(hall).map(token => {
-        const reveal = token.second ? false : token.id in stored ? stored[token.id] : defaultReveal(token);
-        return `<li><label><input type="checkbox" name="cast:${esc(token.id)}"${reveal ? " checked" : ""}${
-            token.second ? " disabled" : ""} /> ${esc(token.name)}</label></li>`;
+    const rows = readCastActors().map(actor => {
+        const reveal = actor.id in stored ? stored[actor.id] : defaultReveal(actor);
+        return `<li><label><input type="checkbox" name="cast:${esc(actor.id)}"${reveal ? " checked" : ""} /> ${esc(actor.name)}</label></li>`;
     });
     return `<div data-drpg-cast="${esc(hall.id)}">
-        <h4>${game.i18n.localize("DRPG.TrialScene.castHeading")}</h4>
+        <h4>${game.i18n.localize(heading)}</h4>
         <p class="notes">${game.i18n.localize("DRPG.TrialScene.reveal")}</p>
         ${rows.length ? `<ul class="drpg-cast-list">${rows.join("")}</ul>`
             : `<p class="notes">${game.i18n.localize("DRPG.TrialScene.noCast")}</p>`}
     </div>`;
 }
 
-/** The ticks the GM changed in a cast list, `{ sceneId, changes: { tokenId: reveal } }`, or null when none is drawn. */
+/** The ticks the GM changed in a cast list, `{ sceneId, changes: { actorId: reveal } }`, or null when none is drawn. */
 export function readCastPicker(root) {
     const box = root?.querySelector?.("[data-drpg-cast]");
     if (!box) return null;
@@ -1124,6 +1208,7 @@ export function registerTrialScene() {
     Hooks.once("canvasReady", selfRepair);
     Hooks.once("ready", nameUnfinishedCarries);
     Hooks.once("ready", reseedCastHeld);
+    Hooks.once("ready", () => { tidyTrialHall().catch(err => error("Could not move the trial hall's cast to its actors", err)); });
     // A world whose roles were never written makes the Setting document on its first write: `createSetting` in Foundry.
     for (const hook of ["updateSetting", "createSetting"]) {
         Hooks.on(hook, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) reseedCastHeld(); });

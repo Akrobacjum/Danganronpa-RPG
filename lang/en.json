@@ -978,10 +978,7 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
-      "startTrialHall": {
-        "one": "The table moves to the trial hall, {hall}, and {n} token there is shown.",
-        "other": "The table moves to the trial hall, {hall}, and {n} tokens there are shown."
-      },
+      "startTrialHall": "The table moves to the trial hall, {hall}, where the tokens of those ticked below are shown.",
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
@@ -1924,9 +1921,9 @@
       "school": "School",
       "hall": "Trial hall",
       "noScene": "- none -",
-      "castHeading": "The hall's cast",
-      "reveal": "Ticked: shown when the Class Trial opens. A token left unticked stays hidden - a test token, or a player nobody should see yet.",
-      "noCast": "The hall holds no token of a student or of Monokuma yet.",
+      "castHeading": "Who takes part",
+      "reveal": "Ticked: their token in the hall is shown when the Class Trial opens. Unticked: it stays hidden - a test student, or a player nobody should see yet.",
+      "noCast": "The world has no student or Monokuma yet.",
       "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
       "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",
       "hallFirstInTrial": "A Class Trial is running without a trial hall. Link one after the trial ends - Apply waits until then.",
@@ -1943,7 +1940,8 @@
       "showHall": "Show the hall",
       "backToSchool": "Back to school",
       "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
-      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it."
+      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it.",
+      "castPickHeading": "Who takes part in this trial"
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

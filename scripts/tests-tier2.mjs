@@ -37951,18 +37951,21 @@ const SCENARIOS = [
                 gone: (report, key) => !S.keyPlanStore.has(key),
                 back: key => stableJson([S.keyPlanStore.get(key)?.name, S.keyPlanStore.get(key)?.note]) === stableJson(["SUITE backed-up clue", "SUITE backed-up note"])
             },
-            // The trial hall's choice for one token, through its writer (E13 C2): a token of the scene on screen, which no
-            // trial opens on unless it is linked as the hall, and then shows that token only if it is the cast's.
+            // The trial hall's choice for one token (E13 C2), as 1.2.74 kept it: a row keyed by a token of the scene on
+            // screen, which no trial opens on unless it is linked as the hall. Since E81 DZ6 a row is an actor's, and a
+            // 1.2.74 backup restored reads for the token's actor through `castRow`'s fallback until the primary's next
+            // `ready` moves it (`tidyTrialHall`); red at 0697d0f, where `castRow` took no token to fall back to.
             trialCast: {
                 seed: async () => {
-                    const { saveTrialCast, castKey } = await import("./trial-scene.mjs");
+                    const T = await import("./trial-scene.mjs");
                     const token = scene?.tokens?.contents?.[0];
                     must(token, "the scene on screen has no token to choose for");
-                    await saveTrialCast(scene, { [token.id]: false });
-                    return castKey(scene.id, token.id);
+                    await S.trialCastStore.patch(T.castKey(scene.id, token.id), { reveal: false, epoch: seasonEpoch() });
+                    return { T, sceneId: scene.id, tokenId: token.id, actorId: token.actorId ?? "" };
                 },
-                gone: (report, key) => !S.trialCastStore.has(key),
-                back: key => S.trialCastStore.get(key)?.reveal === false
+                gone: (report, { T, sceneId, tokenId }) => !S.trialCastStore.has(T.castKey(sceneId, tokenId)),
+                back: ({ T, sceneId, tokenId, actorId }) => S.trialCastStore.get(T.castKey(sceneId, tokenId))?.reveal === false
+                    && T.castRow(S.trialCastStore.entries(), sceneId, actorId, seasonEpoch(), tokenId)?.reveal === false
             },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {
@@ -50311,7 +50314,8 @@ const SCENARIOS = [
          * meanwhile and the fields each update carried; the hall's ids; an entry whose store did not open (`open`
          * answering "late"); what the GMs were whispered; and whether `compactGmStores` on the primary drops the past
          * season's row and keeps this season's. Called directly, not through the phase: scenario 41 a, c and d read the
-         * phase's road on four browsers. Red before C2: there was no trial-scene.mjs.
+         * phase's road on four browsers. Red before C2: there was no trial-scene.mjs. Since E81 DZ6 (12.10.2026) the
+         * choice and the past season's row are keyed by actor (`castKey(hall, actorId)`), and the readings are C2's.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(T, "there is no trial-scene.mjs - nothing shows the hall's cast (S06-57)");
@@ -50341,9 +50345,8 @@ const SCENARIOS = [
                 await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("second", second.id, 200), token("first again", first.id, 300),
                     token("nobody", nobody.id, 400), token("Monokuma", monokuma.id, 500), token("prop", null, 600, false)]);
                 if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
-                const id = name => hall.tokens.find(t => t.name === name)?.id;
-                const saved = await T.saveTrialCast(hall, { [id("second")]: false });
-                await S.trialCastStore.patch(T.castKey(hall.id, id("nobody")), { reveal: true, epoch: seasonEpoch() - 1 });
+                const saved = await T.saveTrialCast(hall, { [second.id]: false });
+                await S.trialCastStore.patch(T.castKey(hall.id, nobody.id), { reveal: true, epoch: seasonEpoch() - 1 });
                 await settle();
                 const ids = hall.tokens.map(t => t.id).sort();
                 Object.assign(seen, { made: 0, gone: 0, fields: [] });
@@ -50357,7 +50360,7 @@ const SCENARIOS = [
                 const compacted = await S.compactGmStores({ primary: true });
                 read = [linkable, saved, steps, seen.made, seen.gone, stableJson(hall.tokens.map(t => t.id).sort()) === stableJson(ids),
                     await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000))), compacted?.trialCastPastSeasons ?? 0,
-                    S.trialCastStore.has(T.castKey(hall.id, id("nobody"))), S.trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+                    S.trialCastStore.has(T.castKey(hall.id, nobody.id)), S.trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null];
             } finally {
                 for (const [hook, hookId] of hooks) Hooks.off(hook, hookId);
                 if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
@@ -51086,6 +51089,9 @@ const SCENARIOS = [
          * writes of the role setting in the last two; and Season setup's room rows and the Scenes row with the school, then
          * the hall, on screen. Scenario 41 a drives the drawn window on four browsers. Red before C5: no Scenes tab.
          * Since E13 fix r1-F3 the hall's warnings include "hallDark": it is made dark here before the first Apply.
+         * Since E81 DZ6 (12.10.2026) the list holds a box per character of the world (`cast:${actorId}`), the second
+         * token of the first student none of its own, and the choice is stored by actor; red at 0697d0f, where the
+         * boxes were the hall's tokens and the second token's drawn off.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
@@ -51145,7 +51151,6 @@ const SCENARIOS = [
                 await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100, false), token("second", second.id, 200, false),
                     token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
                     token("prop", null, 600, false)]);
-                const id = name => hall.tokens.find(t => t.name === name)?.id;
                 absent = T.studentsWithoutHallToken(hall).length > 0;
                 await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
                 await school.view();
@@ -51178,16 +51183,18 @@ const SCENARIOS = [
                     drawn = [[...element.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).sort(),
                         element.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
                             === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Stand" }),
-                        element.querySelector("[data-drpg-cast]")?.dataset.drpgCast === hall.id, Boolean(field(`cast:${id("first again")}`)?.disabled)];
-                    must(field(`cast:${id("second")}`)?.checked, "the second student's box was not ticked - unticking it would change nothing");
-                    field(`cast:${id("second")}`).checked = false;
+                        element.querySelector("[data-drpg-cast]")?.dataset.drpgCast === hall.id,
+                        stableJson([...element.querySelectorAll('[data-drpg-cast] input[name^="cast:"]')].map(box => box.name).sort())
+                            === stableJson(game.actors.filter(a => a.type === "character").map(a => `cast:${a.id}`).sort()),
+                        field(`cast:${second.id}`)?.checked === true];
+                    if (field(`cast:${second.id}`)) field(`cast:${second.id}`).checked = false;
                     field("scenes:prepare").checked = true;
                 });
                 await V.openRoomSetupDialog();
                 await settle();
                 const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
                 const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().zones ?? null), writes];
-                const stored = [trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, id("first")))];
+                const stored = [trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, first.id))];
                 const prepared = [prepareBefore, Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })),
                     hall.flags?.["isometric-perspective"]?.isometricEnabled ?? null];
                 writes = 0;
@@ -51200,7 +51207,7 @@ const SCENARIOS = [
                 D.wait = answer(() => {});
                 await V.openRoomSetupDialog();
                 await settle();
-                const untouched = [writes, trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+                const untouched = [writes, trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null];
                 const rows = () => SS.steps().filter(row => ["roomCount", "rooms", "scenes"].includes(row.key))
                     .map(row => [row.key, row.done, row.extra?.() ?? null]);
                 const onSchool = rows();
@@ -51223,16 +51230,71 @@ const SCENARIOS = [
             }
         });
         const warnings = read?.at(-1) ?? [];
-        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true],
+        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true, true],
             [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
             [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
             [null, true, 0, true], [0, false],
             [["rooms", true], ["scenes", true]], true, warnings]),
-            "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's and its second token "
-            + "off; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
+            "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's, a box per character "
+            + "of the world and none per token, the second student's ticked before the untick; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
             + "a row for the first; the hall's tokens shown after Apply; what Prepare had to do and has left, and the isometric flag; the clash's answer, its "
             + "warning, its writes, the school still linked; an untouched Apply's writes and the untick kept; the Rooms and Scenes rows with the school "
             + "on screen, and the room rows (the count's line too) the same with the hall on screen; the warnings expected]");
+    }],
+    ["a 1.2.74 cast row kept by a hall token moves to its actor once on the primary GM, and a row already written by actor stays as it is", async () => {
+        /*
+         * E81 DZ6, 12.10.2026 (the owner chose the cast per actor; R500 asks the mapping of plain rows). Until DZ6 the
+         * GMs' choice was a row per hall token; a world that chose under 1.2.74 keeps that choice through
+         * trial-scene.mjs `tidyTrialHall`, which the primary GM runs once at `ready`. Here, in a GM-store world of the
+         * suite's own, a hall holds a token of each of two students players play and a second token of the first; the
+         * 1.2.74 rows are written raw - the first token "hidden", the second token of the same student "shown", the
+         * second student's token "shown" - beside a row the GMs already wrote by actor for the second student,
+         * "hidden". Read: the choice `readTrialCast` hands the picker before the tidy; what the tidy answers, twice;
+         * the actor rows after it; whether any token row is left; and the choice after. Red at 0697d0f: there was no `tidyTrialHall`, and the token
+         * rows stayed where only a token's id finds them.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.tidyTrialHall === "function", "trial-scene.mjs has no `tidyTrialHall` - a cast chosen under 1.2.74 stays keyed by token");
+        if (typeof T.tidyTrialHall !== "function") return;
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerIdsOf, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - the tidy runs on the primary only, so this would measure its refusal");
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        must(played.length >= 2, "the world has fewer than two students players play to stand in the hall");
+        const [first, second] = played;
+        let read = null;
+        await G.withGmStoreWorld(`suite-e81dz6-${foundry.utils.randomID(8)}`, async () => {
+            let hall = null;
+            try {
+                hall = await Scene.create({ name: "SUITE E81 DZ6 a 1.2.74 hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const token = (name, actorId, x) => ({ name, actorId, actorLink: true, x, y: 300, width: 1, height: 1, hidden: true });
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("first again", first.id, 200), token("second", second.id, 300)]);
+                const id = name => hall.tokens.find(t => t.name === name)?.id;
+                const epoch = seasonEpoch();
+                const old = ["first", "first again", "second"].map(name => T.castKey(hall.id, id(name)));
+                await S.trialCastStore.patchMany({ [old[0]]: { reveal: false, epoch }, [old[1]]: { reveal: true, epoch }, [old[2]]: { reveal: true, epoch },
+                    [T.castKey(hall.id, second.id)]: { reveal: false, epoch } });
+                await settle();
+                const pick = () => { const choice = T.readTrialCast(hall); return [choice[first.id] ?? null, choice[second.id] ?? null]; };
+                const before = pick();
+                const timed = () => Promise.race([T.tidyTrialHall(), new Promise(r => setTimeout(() => r("hung"), 10000))]);
+                const once = await timed();
+                await settle();
+                const twice = await timed();
+                await settle();
+                const row = actorId => S.trialCastStore.get(T.castKey(hall.id, actorId)) ?? null;
+                read = [before, once, twice, [row(first.id), row(second.id)].map(r => r && { reveal: r.reveal, epoch: r.epoch === epoch }),
+                    old.map(key => S.trialCastStore.has(key)), pick()];
+            } finally {
+                await hall?.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(read), JSON.stringify([[false, false], { mapped: 2, dropped: 3 }, { mapped: 0, dropped: 0 },
+            [{ reveal: false, epoch: true }, { reveal: false, epoch: true }], [false, false, false], [false, false]]),
+            "[the choice the picker reads before the tidy (the first student's through its first token's row), the first tidy (two rows filled by actor, three token rows dropped), a second (nothing), the first student's row (its first token's, not the second token's) "
+            + "and the second student's (the GMs' row by actor kept), each in its season; the token rows left; the choice the picker reads]");
     }],
     ["a GM's rename of a room carries its Despair Call seal and the bodies found in it but not another scene's", async () => {
         /*

@@ -966,12 +966,7 @@
       "startTrialStepDiscussion": "Class Trial otwiera się dyskusją. Debatę otwierasz, kiedy chcesz.",
       "gateVote": "Werdykt otwiera się po policzeniu głosów.",
       "startTrialNote": "Zegar rusza od nowa: licznik czasu kampanii startuje z Class Trial i ponownie, gdy się kończy.",
-      "startTrialHall": {
-        "one": "Stół przenosi się do sali rozpraw {hall}, a odkryty zostaje {n} token.",
-        "few": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostają {n} tokeny.",
-        "many": "Stół przenosi się do sali rozpraw {hall}, a odkrytych zostaje {n} tokenów.",
-        "other": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostaje {n} tokenu."
-      },
+      "startTrialHall": "Stół przenosi się do sali rozpraw {hall}, gdzie odkryte zostają tokeny zaznaczonych niżej.",
       "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
       "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
@@ -2008,9 +2003,9 @@
       "school": "Szkoła",
       "hall": "Sala rozpraw",
       "noScene": "- brak -",
-      "castHeading": "Obsada sali",
-      "reveal": "Zaznaczony: pokazywany, gdy zaczyna się Class Trial. Token bez zaznaczenia zostaje ukryty - token testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
-      "noCast": "W sali nie ma jeszcze tokenu żadnego ucznia ani Monokumy.",
+      "castHeading": "Kto bierze udział",
+      "reveal": "Zaznaczony: jego token w sali jest pokazywany, gdy zaczyna się Class Trial. Bez zaznaczenia: zostaje ukryty - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
+      "noCast": "W świecie nie ma jeszcze żadnego ucznia ani Monokumy.",
       "sameScene": "Szkoła i sala rozpraw to ta sama scena. Wybierz dwie różne - do tego czasu Zastosuj czeka.",
       "hallInTrial": "W podpiętej sali rozpraw trwa Class Trial. Zakończ rozprawę, zanim podepniesz inną salę albo odepniesz tę - do tego czasu Zastosuj czeka.",
       "hallFirstInTrial": "Class Trial trwa bez sali rozpraw. Podepnij ją po zakończeniu rozprawy - do tego czasu Zastosuj czeka.",
@@ -2027,7 +2022,8 @@
       "showHall": "Pokaż salę rozpraw",
       "backToSchool": "Wróć do szkoły",
       "noWayBack": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w zakładce Sceny okna Ustawienia pokoi.",
-      "phaseSwitchesScene": "Przenosi też każdą przeglądarkę do sali rozpraw {hall} i odkrywa wybrane dla niej tokeny."
+      "phaseSwitchesScene": "Przenosi też każdą przeglądarkę do sali rozpraw {hall} i odkrywa wybrane dla niej tokeny.",
+      "castPickHeading": "Kto bierze udział w tej rozprawie"
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",

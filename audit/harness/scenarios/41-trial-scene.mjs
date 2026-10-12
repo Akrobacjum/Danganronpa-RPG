@@ -231,12 +231,13 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        GM (over the Academy, the scene the GM views), the Academy picked as the school and the hall as the trial hall, the
        hall's cast list drawn for it, Chie unticked and the dead student ticked (nobody plays him, so he is hidden by default);
        Aiko, Botan and Monokuma as \`defaultReveal\` has them, the test student hidden. Until C5 this phase wrote the setting
-       and \`saveTrialCast\` from the console. */
+       and \`saveTrialCast\` from the console. Since E81 DZ6 (12.10.2026) a box is an actor's (\`cast:\${actorId}\`) and the
+       choice is stored by actor; each name below is the actor of the hall token of that name. */
     const tab = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
         const T = await import("${repoUrl}/scripts/trial-scene.mjs");
         const title = game.i18n.format("DRPG.Vault.manageTitleOn", { scene: academy.name });
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
-        const byName = name => hall.tokens.find(t => t.name === name).id;
+        const byName = name => hall.tokens.find(t => t.name === name).actorId;
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
         let read = null, closed = "hung";
         try {
@@ -260,7 +261,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         } finally { globalThis.__dialogWindows = was; }
         await new Promise(r => setTimeout(r, 800));
         const roles = R.sceneRoles(), stored = T.readTrialCast(hall);
-        const names = Object.fromEntries(Object.entries(stored).map(([id, reveal]) => [hall.tokens.get(id)?.name ?? id, reveal]));
+        const names = Object.fromEntries(Object.entries(stored).map(([id, reveal]) => [hall.tokens.find(t => t.actorId === id)?.name ?? id, reveal]));
         return { read, closed, linked: roles.school === academy.id && roles.trial === hall.id, stored: names };`, { timeout: 60000 });
     Object.assign(built, { linked: tab.linked, chose: tab.linked && J(tab.stored) === J({ Chie: false, Ghost: true }) });
     await settle(400);
@@ -713,29 +714,45 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     phase("k: Start the Class Trial says where the table goes, and the table moves inside the trial", { flow: "trial-scene" });
     /* Read 12.10.2026 at C5's tree: the window named neither the hall nor the rule and preloaded nothing; the console
        had no door and game.drpg no showCourtroom. Four tokens: Aiko and Botan (played - Botan executed in g, the dead
-       shown, Q-E13-1 a), the dead student ticked in a0, Monokuma; Chie unticked, the test student nobody plays. */
-    const startK = await gm.eval(`${UNTIL} ${HALL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+       shown, Q-E13-1 a), the dead student ticked in a0, Monokuma; Chie unticked, the test student nobody plays.
+       E81 DZ6 (12.10.2026): the window names the hall with no count and holds the cast picker, its ticks prefilled from
+       a0's choice and \`defaultReveal\`; Botan is unticked in it and Start pressed, so Botan is stored unticked and stays
+       hidden as the trial opens. Then his row is dropped and the cast shown again on the GM, so the clauses after k1 read
+       the hall a0 chose. Red at 0697d0f: the line carried a count and the window no tick. */
+    const startK = await gm.eval(`${UNTIL} ${HALL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs");
         const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const title = game.i18n.localize("DRPG.Floor.startTrial");
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
         const from = globalThis.__scenePreloads.length;
         const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
-        let text = null, pending = null;
+        const T = await import("${repoUrl}/scripts/trial-scene.mjs");
+        const actorOf = name => hall.tokens.find(t => t.name === name)?.actorId;
+        let text = null, pending = null, ticks = null, heading = false;
         try {
             pending = UI.startClassTrial();
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             text = el?.querySelector("form")?.textContent?.replace(/\\s+/g, " ") ?? null;
+            const box = name => el?.querySelector(\`[data-drpg-cast="\${hall.id}"] [name="cast:\${actorOf(name)}"]\`) ?? null;
+            ticks = Object.fromEntries(["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].map(name => [name, box(name)?.checked ?? null]));
+            heading = Boolean(text?.includes(game.i18n.localize("DRPG.TrialScene.castPickHeading")));
+            if (box("Botan")) box("Botan").checked = false;
             el?.querySelector('footer button[data-action="ok"]')?.click();
         } finally { globalThis.__dialogWindows = was; }
         const started = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 15000))]);
         await new Promise(r => setTimeout(r, 800));
+        const botan = { row: T.readTrialCast(hall)[actorOf("Botan")] ?? null, hidden: hall.tokens.find(t => t.name === "Botan")?.hidden ?? null };
+        await T.saveTrialCast(hall, { [actorOf("Botan")]: null });
+        await T.revealTrialTokens(hall);
+        await new Promise(r => setTimeout(r, 800));
         return { started, phase: getClock().phase, drawn: text !== null, preloads: globalThis.__scenePreloads.slice(from), hall: hall.id,
-            hallLine: Boolean(text?.includes(plural("DRPG.Floor.startTrialHall", { n: 4, hall: "41 Trial Hall" }))),
-            rule: Boolean(text?.includes(game.i18n.localize("DRPG.Floor.tableRuleDead"))) };`, { timeout: 60000 });
+            hallLine: Boolean(text?.includes(game.i18n.format("DRPG.Floor.startTrialHall", { hall: "41 Trial Hall" }))),
+            rule: Boolean(text?.includes(game.i18n.localize("DRPG.Floor.tableRuleDead"))), ticks, heading, botan, back: T.readTrialCast(hall)[actorOf("Botan")] ?? null };`, { timeout: 60000 });
     await settle(400);
     const kIn = await readAll();
-    check("k1: Start the Class Trial's window names the hall and the four tokens it will show and states the table's rule; the hall is preloaded on every client before the click, and the trial opens there (E13 C6)",
+    check("k1: Start the Class Trial's window names the hall and states the table's rule, and holds who takes part, ticked as a0 chose; Botan unticked there is stored so and stays hidden as the trial opens; the hall is preloaded on every client before the click, and the trial opens there (E13 C6; E81 DZ6)",
         startK.started === true && startK.phase === "classTrial" && startK.hallLine && startK.rule && J(startK.preloads) === J([{ sceneId: startK.hall, push: true }])
+            && startK.heading === true && J(startK.ticks) === J({ Aiko: true, Botan: true, Chie: false, Ghost: true, Monokuma: true, Test: false })
+            && J(startK.botan) === J({ row: false, hidden: true }) && startK.back === null
             && views(kIn).every(v => v === "hall") && Object.values(kIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
         J({ startK, kIn: views(kIn) }), { flow: "trial-scene" });
     /* The console drawn on the GM: its line and door, Back to school pressed, then the console it reopens on. */
@@ -846,8 +863,8 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         await game.settings.set("${MOD}", SETTINGS.sceneRoles, { ...R.sceneRoles(), trial: null }); await wait(300);
         out.unlink = R.trialScene() === null;
         await aiko().update({ hidden: true }); await wait(300);
-        out.relink = await tab(hall.id, "", { sceneId: hall.id, changes: { [aiko().id]: false } }); await gmStoresIdle(); await wait(300);
-        out.row = T.readTrialCast(hall)[aiko().id] ?? null;
+        out.relink = await tab(hall.id, "", { sceneId: hall.id, changes: { [aiko().actorId]: false } }); await gmStoresIdle(); await wait(300);
+        out.row = T.readTrialCast(hall)[aiko().actorId] ?? null;
         await setClock({ phase: "classTrial" }); await wait(1200);
         out.phase = getClock().phase; out.active = hall.active; out.aiko = aiko().hidden; out.held = T.heldHidden(aiko(), hall);
         return out;`, { timeout: 90000 });
