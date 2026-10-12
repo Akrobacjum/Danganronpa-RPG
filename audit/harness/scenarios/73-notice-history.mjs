@@ -9,8 +9,13 @@
  * closed read, the two it never closed unread, the veiled card's words kept. Another player's browser
  * holds the announcement and nothing of the first player's cards, and the GM's holds the announcement
  * alone - a whisper of a record and a veiled card without the GM among its readers are no card on a
- * GM's screen (popup.mjs `onCreateChatMessage`), and so nothing kept. C5, C7 and C8 add the GM's
- * clearing of the log, the window and the corner badge.
+ * GM's screen (popup.mjs `onCreateChatMessage`), and so nothing kept. S (C4): a player calls the safeword
+ * with a GM connected; the GM's detail card - who called it, and where - is a safeword entry in the GM's
+ * stored value, which is what a reload reads back (the owner's Q7: kept like every other notice), and in no
+ * player's; the public card is one safeword entry of the same words on the GM, the caller and another
+ * player. N (C4): a request not carried out - `murder.cleanup` with nothing spent, kept like the rest
+ * (the owner's Q4) - is one notDone entry, read, of the toast's words in that player's stored value and
+ * in nobody else's. C5, C7 and C8 add the GM's clearing of the log, the window and the corner badge.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -34,14 +39,25 @@ const WORDS = { owner: "S73 owner card words", announcement: "S73 announcement w
 
 /** One browser's kept notices, from its stored value: `[label, state, source]` for each S73 card, in the order kept. */
 function storedNotices(storage, sectionKey) {
-    const raw = storage?.[KEY];
-    if (typeof raw !== "string") return null;
-    let value = JSON.parse(raw);
-    if (typeof value === "string") value = JSON.parse(value);
-    return (value?.sections?.[sectionKey]?.entries ?? []).map(entry => [label(entry.text), entry.state, entry.source]);
+    if (typeof storage?.[KEY] !== "string") return null;
+    return storedEntries(storage, sectionKey).map(entry => [label(entry.text), entry.state, entry.source]);
 }
 
 const label = text => Object.keys(WORDS).find(key => String(text ?? "").includes(WORDS[key])) ?? `other: ${String(text ?? "").slice(0, 60)}`;
+
+/** One browser's stored sections, as written: `{}` for a browser that wrote none. */
+function storedSections(storage) {
+    const raw = storage?.[KEY];
+    if (typeof raw !== "string") return {};
+    let value = JSON.parse(raw);
+    if (typeof value === "string") value = JSON.parse(value);
+    return value?.sections ?? {};
+}
+
+/** One browser's stored entries of one section, as written: `[]` for a section that is not there. */
+function storedEntries(storage, sectionKey) {
+    return storedSections(storage)[sectionKey]?.entries ?? [];
+}
 
 export async function run({ gm, p2, p4, check, phase, settle, connect, disconnect, storageOf, IDS, repoUrl }) {
     phase("A: a player's history after a reload, another player's and the GM's");
@@ -103,4 +119,49 @@ export async function run({ gm, p2, p4, check, phase, settle, connect, disconnec
     } finally {
         await gm.eval(`await game.actors.get("${IDS.daichi}").update({ ownership: { "${P4}": 0 } }); return true;`);
     }
+
+    phase("S: the safeword - the GM's detail kept in the GM's browser alone, the public card the same on every one");
+    const ROOM = "S73 safeword room";
+    const bannerOf = `const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const banner = game.i18n.localize("DRPG.Safeword.banner");
+        return { user: game.user.id, world: game.world.id, kept: NH.noticeEntries().filter(e => e.title === banner).map(e => [e.source, e.text, e.html]) };`;
+    try {
+        // A player's press with a GM connected: the packet to the GM, the GM's detail card and its public card (safeword.mjs).
+        const called = await p2.eval(`const S = await import("${repoUrl}/scripts/safeword.mjs"); return await S.callSafeword({ room: "${ROOM}" });`, { timeout: 30000 });
+        // Past the history's 400 ms write on the GM and on the players the card reached.
+        await settle(1500);
+        const [gmBanner, p2Banner, p4Banner] = [await gm.eval(bannerOf), await p2.eval(bannerOf), await p4.eval(bannerOf)];
+        const stored = { gm: await storageOf("gm"), p2: await storageOf("p2"), p4: await storageOf("p4") };
+        const detail = storedEntries(stored.gm, `${gmBanner.world}.${gmBanner.user}`).filter(e => String(e.text).includes(ROOM)).map(e => [e.source, e.kind]);
+        const onPlayers = ["p2", "p4"].filter(who => String(stored[who]?.[KEY] ?? "").includes(ROOM));
+        check("S1: the GM's safeword detail is one safeword entry in the GM's stored value - there after a reload - and in no player's",
+            called === true && J(detail) === J([["safeword", "error"]]) && onPlayers.length === 0,
+            J({ called, detail, onPlayers }));
+        const banners = [gmBanner, p2Banner, p4Banner].map(b => b.kept);
+        check("S2: the public safeword card is one safeword entry of the same words on the GM, on the caller and on another player",
+            banners.every(kept => kept.length === 1 && kept[0][0] === "safeword") && new Set(banners.map(kept => J(kept))).size === 1,
+            J(banners));
+    } finally {
+        // The table is unpaused and every card of the press taken down, as the scenario found the screens.
+        await gm.eval(`if (game.paused) game.togglePause(false, { broadcast: true }); return true;`);
+        for (const client of [gm, p2, p4]) {
+            await client.eval(`const titles = [game.i18n.localize("DRPG.Safeword.banner"), game.i18n.localize("DRPG.Safeword.gmTitle")];
+                for (const card of document.querySelectorAll(".drpg-popup")) {
+                    if (titles.includes(card.querySelector(".drpg-popup-title")?.firstChild?.textContent)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                }
+                return true;`);
+        }
+    }
+
+    phase("N: a request not carried out - kept in the asker's stored value, and in nobody else's");
+    // The toast's own notify is a test's: the words, the entry and the write are `sayNotDone`'s whoever shows them.
+    const said = await p2.eval(`const B = await import("${repoUrl}/scripts/bridge-guards.mjs");
+        return { user: game.user.id, world: game.world.id, text: B.sayNotDone("murder.cleanup", "noGm", { nothingSpent: true, notify: () => {} }) };`);
+    await settle(1500);
+    const kept = { gm: await storageOf("gm"), p2: await storageOf("p2"), p4: await storageOf("p4") };
+    const notDone = storedEntries(kept.p2, `${said.world}.${said.user}`).filter(e => e.source === "notDone").map(e => [e.kind, e.state, e.text === said.text]);
+    const elsewhere = ["gm", "p4"].filter(who => Object.keys(storedSections(kept[who])).some(key => storedEntries(kept[who], key).some(e => e.text === said.text)));
+    check("N1: murder.cleanup not carried out is one notDone entry, read, of the toast's words in the asker's stored value - there after a reload - and in nobody else's",
+        typeof said.text === "string" && said.text.length > 0 && J(notDone) === J([["error", "read", true]]) && elsewhere.length === 0,
+        J({ said: said.text, notDone, elsewhere }));
 }

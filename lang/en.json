@@ -3887,7 +3887,12 @@
     },
     "Notices": {
       "notSaved": "This browser could not save the notice history: the notices shown from now on are kept only until this page is closed or reloaded.",
-      "clipped": "Too long to keep whole: only its text was kept."
+      "clipped": "Too long to keep whole: only its text was kept.",
+      "source": {
+        "notDone": "Not carried out",
+        "summary": "Summary of the time of day",
+        "player": "From a player"
+      }
     },
     "Case": {
       "gmOnly": "Only a GM can back up or restore the case.",

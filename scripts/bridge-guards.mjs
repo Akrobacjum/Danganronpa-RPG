@@ -434,6 +434,15 @@ export function requestLabel(action) {
  * sentence of its reason, and "Nothing was spent." where the asker says so. A
  * code not on the closed list is shown as `refused`, so a packet cannot pick
  * the sentence. Returns the text it showed.
+ *
+ * KEPT IN THIS BROWSER'S NOTICE HISTORY (E81 C4; the A7 design's P6-0). Foundry's toast is gone
+ * in five seconds, and since E31 this is the only place a player is told a request was not
+ * carried out, so the sentence is kept too: an error, read (it was shown), whoever `notify` is -
+ * the waiter's own and a test's included. Only these words, which this client composed from the
+ * closed lists above; a `murder.*` refusal is kept like the rest (the owner's Q4, 07.10.2026,
+ * "Nie, zawsze"). Through a dynamic import, because notice-history.mjs reaches this file
+ * through secret.mjs and a static import would be the cycle R161 fails; the entry lands a
+ * microtask after the toast, and a history error never stops the toast.
  */
 export function sayNotDone(action, reason, { nothingSpent = false, notify = text => ui.notifications.warn(text) } = {}) {
     const code = REASONS.includes(reason) ? reason : "refused";
@@ -443,6 +452,12 @@ export function sayNotDone(action, reason, { nothingSpent = false, notify = text
     });
     const text = nothingSpent ? `${said} ${game.i18n.localize("DRPG.Bridge.nothingSpent")}` : said;
     notify(text);
+    import("./notice-history.mjs")
+        .then(({ recordNotice }) => recordNotice({
+            kind: "error", source: "notDone", state: "read", text,
+            title: game.i18n.localize("DRPG.Notices.source.notDone")
+        }))
+        .catch(err => debug("A request not carried out could not be kept in this browser's history", err));
     return text;
 }
 

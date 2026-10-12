@@ -7475,8 +7475,8 @@ const INVARIANTS = [
          * catch-all draws it, so a GM keeps an announcement, a card for the GM to answer and a GM's insisted card, and
          * no whisper of a record; a veiled card without this login's words and a `popupKind: "none"` keep nothing. A
          * public card a player wrote is kept as the player's, from the document's author - a GM's card that names a
-         * player as its asker stays public. The messenger's `gmAsk` card the GM is raised for is kept too (its source
-         * is C4's). Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
+         * player as its asker stays public. The messenger's `gmAsk` card the GM is raised for is kept too, as the
+         * thread's since E81 C4: its message, and the conversation the entry opens. Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
          * `game.messages.get` answers for the length of the clause, held as R473 holds the history.
          */
         must(game.user?.isGM, "the diet measured here is a GM's, and the suite runs on a GM (tests.mjs refuses anyone else)");
@@ -7506,6 +7506,7 @@ const INVARIANTS = [
         const byId = new Map(fakes.map(message => [message.id, message]));
         must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
         const read = new Map();
+        let askLink = null;
         await NH.holdNoticeHistory(true);
         const realGet = game.messages.get;
         game.messages.get = function (id, ...rest) { return byId.get(id) ?? realGet.call(this, id, ...rest); };
@@ -7522,6 +7523,7 @@ const INVARIANTS = [
                     await until(() => NH.noticeEntries().some(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")), 500);
                     read.set(message.id, NH.noticeEntries().filter(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")).map(entry => [entry.source, entry.author ?? null]));
                 }
+                askLink = NH.noticeEntries().filter(entry => entry.text.includes("R297 asks")).map(entry => [entry.messageId, entry.link?.messenger ?? null]);
             }
         } finally {
             delete game.messages.get;
@@ -7537,9 +7539,88 @@ const INVARIANTS = [
         equal(JSON.stringify(Object.fromEntries(read)), JSON.stringify({
             R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", null]],
             R297WhisperedRec: [], R297GmPopupCard1: [["mine", null]], R297ForcedByGm01: [["mine", null]], R297ForcedByPlay: [],
-            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["mine", null]], R297ChatterCard1: []
+            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", null]], R297ChatterCard1: []
         }), "[a GM's kept entries per card: [source, author]] - the announcement, a player's public card, a GM's card naming a player as asker, "
             + "a whisper of a record, gmPopup, popupForce from a GM and from a player, veiled without words, popupKind none, the messenger's gmAsk and its chatter");
+        equal(JSON.stringify(askLink), JSON.stringify([["R297GmAskCard001", player.id]]),
+            "[the messenger's gmAsk entry: [its message, the conversation it opens]]");
+
+        /*
+         * The direct calls (E81 C4, 12.10.2026; the A7 design's P4-0 and P6-0, the owner's Q4 and Q7), on the same held
+         * engine. A request not carried out (`sayNotDone`) is one entry - an error, read, titled as one, its words exactly
+         * the toast's - whoever `notify` is; `murder.cleanup` with "nothing spent" is kept like the rest (Q4), and a reason
+         * outside the closed list (what a GM's reply could send) puts none of its words in it. The GM's safeword detail
+         * (`hearSafeword` from this GM, which posts nothing) is a safeword entry with the room it names; that it is
+         * written, so that it is there after a reload, and that no player's browser holds it is scenario 73's S1, on the
+         * stored values. The public safeword card (`raiseCard`) is a safeword entry of the frozen sentence alone, which
+         * a line the caller's card gains later does not move past the observer's quarter second: the same entry on every
+         * browser, naming nobody and no time (the window draws its time of day only - E81 C7). A message appended to an
+         * open conversation (a stand-in window in `DrpgMessengerApp.instances`) is no card and keeps nothing. The trial's
+         * evidence and the day summary are read in the source with comments blanked: the one passes its source and its
+         * message, the other its source. Every card drawn here is taken down at once.
+         */
+        const { sayNotDone } = await import("./bridge-guards.mjs");
+        const S = await import("./safeword.mjs");
+        ok(typeof S.raiseCard === "function", "safeword.mjs gives the suite no public card to raise without a chat card");
+        const ids = () => new Set(NH.noticeEntries().map(entry => entry.id));
+        const since = before => NH.noticeEntries().filter(entry => !before.has(entry.id));
+        const direct = {};
+        const found = ids();
+        await NH.holdNoticeHistory(true);
+        try {
+            let before = ids();
+            const toasts = [];
+            const said = sayNotDone("murder.cleanup", "noGm", { nothingSpent: true, notify: text => toasts.push(text) });
+            await until(() => since(before).length > 0, 1000);
+            direct.cleanup = since(before).map(entry => [entry.kind, entry.source, entry.state, entry.title, entry.text === said && toasts[0] === said, entry.html]);
+            before = ids();
+            const refused = sayNotDone("vote.cast", "<b>R297 a reply's own words</b>", { notify: () => {} });
+            await until(() => since(before).length > 0, 1000);
+            direct.refused = since(before).map(entry => [entry.text === refused, entry.text.includes("R297 a reply")]);
+            before = ids();
+            await S.hearSafeword({ action: S.SAFEWORD_ACTION, room: "R297 room" }, game.user.id);
+            direct.detail = since(before).map(entry => [entry.source, entry.kind, entry.title, entry.text.includes("R297 room")]);
+            before = ids();
+            const line = S.raiseCard();
+            const first = since(before)[0] ?? null;
+            const more = document.createElement("p");
+            more.textContent = "R297 the caller's own line";
+            line.after(more);
+            await wait(600);
+            direct.banner = since(before).map(entry => [entry.source, entry.title, entry.text, entry.html === first?.html]);
+            before = ids();
+            const appended = [];
+            const had = DrpgMessengerApp.instances.get(player.id);
+            DrpgMessengerApp.instances.set(player.id, { appendMessage: message => appended.push(message.id) });
+            try {
+                Hooks.callAll("drpgMessengerMessage", player.id, fake("R297BubbleCard01", { author: player, whisper: [player.id, me], content: "<p>R297 a bubble</p>" }));
+                await settle();
+            } finally {
+                if (had) DrpgMessengerApp.instances.set(player.id, had);
+                else DrpgMessengerApp.instances.delete(player.id);
+            }
+            direct.bubble = [appended, since(before).length];
+        } finally {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.dataset.drpgNotice && !found.has(card.dataset.drpgNotice)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+        }
+        const sources = await moduleSources();
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised) showPopup(", { length: 500 });
+        const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
+        direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
+        const t = key => game.i18n.localize(key);
+        equal(JSON.stringify(direct), JSON.stringify({
+            cleanup: [["error", "notDone", "read", t("DRPG.Notices.source.notDone"), true, ""]],
+            refused: [[true, false]],
+            detail: [["safeword", "error", t("DRPG.Safeword.gmTitle"), true]],
+            banner: [["safeword", t("DRPG.Safeword.banner"), t("DRPG.Safeword.announced"), true]],
+            bubble: [["R297BubbleCard01"], 0],
+            sources: [true, true]
+        }), "[sayNotDone's murder.cleanup with its own notify: [kind, source, state, title, the toast's words, html]; a reason off the list: "
+            + "[the toast's words, the reply's]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
+            + "line: [source, title, text, the first snapshot]; a bubble in an open window: [appended, kept]; the evidence's source and message, the summary's source]");
     }],
 
     ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {

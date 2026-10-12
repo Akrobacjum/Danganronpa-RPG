@@ -556,7 +556,10 @@ export function registerTrial() {
             // Evidence stays up until somebody closes it. A trial argues with a
             // card for minutes, and this is the one popup in the module that is
             // meant to be read rather than noticed.
-            sticky: true
+            sticky: true,
+            // Kept in this browser's notice history as evidence, one entry for the card (E81 C4).
+            source: "evidence",
+            messageId: message.id
         });
 
         // Showing the evidence and taking the floor are one act in the guide,

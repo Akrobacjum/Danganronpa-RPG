@@ -77,7 +77,15 @@ export function safeword() {
 /** Socket action telling the GMs who called it, and nobody else: Foundry's sender is the who. */
 export const SAFEWORD_ACTION = "safewordDetail";
 
-/** The GM-side card: who, and where. Never rendered on a player's client. */
+/**
+ * The GM-side card: who, and where. Never rendered on a player's client.
+ *
+ * Kept in this GM's browser to the season's reset like every other notice (E81 C4): the owner's
+ * Q7 (07.10.2026), "Nie - safeword w powiadomieniach traktujemy tak samo jak resztę", over the
+ * design's advice to keep it for this page only - so no `persist: "session"` here. The caller's
+ * name still reaches no player's browser (`callSafeword`); the GM's history is the GM's browser's,
+ * readable there by another login from the console (Q9), and the season's reset clears it.
+ */
 function showGmDetail(who, room) {
     showPopup(`<p>${game.i18n.format("DRPG.Safeword.gmNote", {
         who: foundry.utils.escapeHTML(who ?? "?"),
@@ -85,7 +93,8 @@ function showGmDetail(who, room) {
     })}</p>`, {
         title: game.i18n.localize("DRPG.Safeword.gmTitle"),
         kind: "error",
-        sticky: true
+        sticky: true,
+        source: "safeword"
     });
 }
 
@@ -181,8 +190,15 @@ function nextCard(ms) {
     });
 }
 
-/** Raise the card. Its paragraph is returned, for the caller's card to say more (`awaitCard`). */
-function raiseCard() {
+/**
+ * Raise the card. Its paragraph is returned, for the caller's card to say more (`awaitCard`).
+ *
+ * Kept in this browser's notice history as it is first drawn and not followed (E81 C4,
+ * `observe: false`): what `awaitCard` adds to the caller's card afterwards is that browser's
+ * own news, so the entry is the same frozen sentence on every browser and names nobody (R297).
+ * Exported for the suite, which raises it without a chat card.
+ */
+export function raiseCard() {
     const said = document.createElement("p");
     said.textContent = game.i18n.localize("DRPG.Safeword.announced");
     showPopup(said, {
@@ -190,7 +206,9 @@ function raiseCard() {
         kind: "error",
         // Stays until dismissed by hand. A scene that has been stopped does
         // not un-stop itself after twelve seconds.
-        sticky: true
+        sticky: true,
+        source: "safeword",
+        observe: false
     });
     return said;
 }

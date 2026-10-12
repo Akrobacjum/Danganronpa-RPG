@@ -5166,7 +5166,12 @@
     },
     "Notices": {
       "notSaved": "Ta przeglądarka nie mogła zapisać historii powiadomień: powiadomienia pokazane od teraz zostaną tylko do zamknięcia lub przeładowania tej strony.",
-      "clipped": "Za długie, by zachować całość: zachowano tylko tekst."
+      "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",
+      "source": {
+        "notDone": "Niewykonane",
+        "summary": "Podsumowanie pory dnia",
+        "player": "Od gracza"
+      }
     },
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",

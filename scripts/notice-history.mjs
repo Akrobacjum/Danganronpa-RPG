@@ -70,8 +70,16 @@ const MARKS = [null, "rerolled", "settled", "deleted"];
  */
 export const EPOCH_GROUPS = Object.freeze(["clock", "incident", "cards", "chatRest"]);
 
-/** The texts an entry or the store's state carries; the window (E81 C7) draws them. */
-export const NOTICE_TEXTS = Object.freeze({ notSaved: "DRPG.Notices.notSaved", clipped: "DRPG.Notices.clipped" });
+/**
+ * The texts an entry or the store's state carries; the window (E81 C7) draws them. `source` names where an entry
+ * came from, for the three sources whose entry says it nowhere else (E81 C4; the A7 design's P12-3): a request
+ * not carried out (its entry's title too, `sayNotDone`), a day summary and a player's card. A safeword entry
+ * says it in its title (`DRPG.Safeword.banner`).
+ */
+export const NOTICE_TEXTS = Object.freeze({
+    notSaved: "DRPG.Notices.notSaved", clipped: "DRPG.Notices.clipped",
+    source: Object.freeze({ notDone: "DRPG.Notices.source.notDone", summary: "DRPG.Notices.source.summary", player: "DRPG.Notices.source.player" })
+});
 
 /*
  * THE BUDGETS (the A7 design, 1a), in characters of JSON. An entry is at most 10 000 with

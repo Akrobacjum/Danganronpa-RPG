@@ -450,7 +450,8 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
         // its text lands a moment after the document does.
         showPopup(cardPreview(await wordsOf(message)), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
-            onClick: () => openMessenger(playerUserId)
+            onClick: () => openMessenger(playerUserId),
+            ...keptAsMessenger(message, playerUserId)
         });
         return;
     }
@@ -464,9 +465,20 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
 
     showPopup(cardPreview(await wordsOf(message)), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
-        onClick: () => openMessenger(playerUserId)
+        onClick: () => openMessenger(playerUserId),
+        ...keptAsMessenger(message, playerUserId)
     });
 });
+
+/*
+ * THE CARD IS KEPT, THE BUBBLE IS NOT (E81 C4; the A7 design's P4-0). Both cards above are kept in
+ * this browser's notice history as the thread's - the message they came from, and the conversation
+ * the history's entry opens (`link`). A message appended to a window that is open is no card and is
+ * not kept: the window is the conversation, and the thread holds it (R297).
+ */
+function keptAsMessenger(message, playerUserId) {
+    return { source: "messenger", messageId: message?.id ?? null, link: { messenger: playerUserId } };
+}
 
 // A card that changed while a window is open redraws in place. A card that
 // changed while it is closed needs nothing: the window builds from the
