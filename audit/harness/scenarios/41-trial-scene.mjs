@@ -96,6 +96,8 @@
  * E13 fix l1-L1's n1 and n2: 40 checks in 136.7 s, one run on 12.10.2026 (a2.sh's fast set, lane A, two other lanes
  *   running beside it; a0, a6 and k3 failed there as they do at 8b4974a without n, alone: 35/38 in 121.3 s) - still no
  *   `timeoutMs`.
+ * E13 fix l2-L2's a00 (the hall put back unprepared): 41 checks in 127.9 s, one run on 12.10.2026 (`--verbose`, lane A;
+ *   no other harness client of the e12 trees alive when it started, other worktrees not checked) - still no `timeoutMs`.
  */
 export const layers = ["ci"];
 const GM0 = "USERGA0000000000";
@@ -188,7 +190,18 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
 
     /* ------------------------------ a. the hall, and setClock ------------------------------ */
     phase("a: the hall built, and setClock opens the Class Trial", { flow: "trial-scene" });
-    const built = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const academy = game.scenes.get("${IDS.scene}");
+    /* The hall nobody prepared (E13 fix l2-L2, 12.10.2026). Its two rooms are drawn before it is linked, so the hall gains
+       its first room while it is still a place, and the room fog on the primary GM puts it into room-based vision at once
+       (fog.mjs \`prepareRoomScene\` -> \`applySceneVisionMode\`, E12 C7): token vision off, global light on, exploration fog
+       off, and the record \`visionBefore\` that only that writer leaves. Until E13 fix n1-N1 the harness did not put an
+       update's fields onto the document, so the hall read unprepared anyway and a0, a6 and k3 were written against that;
+       at 8b4974a the update landed and the three failed (35/38, e12run/scratch/l1head-41.log). a00 records the
+       conversion; then the hall is put back as Foundry leaves a new scene - token vision on, global light off,
+       exploration fog on, Foundry's Scene defaults (known, not read from a Foundry install here; the shim has none) -
+       and the record dropped, in one update and one unsetFlag, so a0, a6 and k3 read the hall they mean: linked
+       without "Prepare the hall". Once linked the hall holds no room (rooms.mjs \`roomPieces\`), so the fog leaves it. */
+    const built = await gm.eval(`${UNTIL} const C = await import("${repoUrl}/scripts/chapter.mjs"); const academy = game.scenes.get("${IDS.scene}");
+        const T = await import("${repoUrl}/scripts/trial-scene.mjs");
         const ghost = await Actor.create({ name: "S41 Ghost", type: "character" });
         const test = await Actor.create({ name: "S41 Test", type: "character" });
         const decor = await Actor.create({ name: "S41 Decor", type: "npc" });
@@ -197,11 +210,23 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         await hall.createEmbeddedDocuments("Region", [
             { name: "Stand", shapes: [{ type: "rectangle", x: 200, y: 200, width: 800, height: 600 }], flags: { "${MOD}": { room: true } }, behaviors: [] },
             { name: "Gallery", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 800, height: 600 }], flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        await until(() => hall.getFlag("${MOD}", "visionBefore") !== undefined, 3000);
+        const vision = () => ({ tokenVision: hall.tokenVision ?? null, globalLight: hall.environment?.globalLight?.enabled ?? null,
+            exploration: hall.fog?.mode ?? hall.fog?.exploration ?? null, record: hall.getFlag("${MOD}", "visionBefore") !== undefined });
+        const lit = { ...vision(), patch: Object.keys(T.hallPreparePatch(hall)).sort() };
+        await hall.update({ tokenVision: true, "environment.globalLight.enabled": false, "fog.exploration": true });
+        await hall.unsetFlag("${MOD}", "visionBefore");
+        const putBack = { ...vision(), patch: Object.keys(T.hallPreparePatch(hall)).sort() };
         const token = (name, actorId, x, hidden = true) => ({ name, actorId, actorLink: true, x, y: 400, width: 1, height: 1, hidden, flags: {},
             texture: { src: "icons/svg/mystery-man.svg" } });
         await hall.createEmbeddedDocuments("Token", [token("Aiko", "${IDS.aiko}", 300), token("Botan", "${IDS.botan}", 400), token("Chie", "${IDS.chie}", 500),
             token("Ghost", ghost.id, 600), token("Monokuma", "ACTORMONOKUMA000", 700), token("Test", test.id, 800), token("Decor", decor.id, 1500, false)]);
-        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size };`, { timeout: 60000 });
+        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size, lit, putBack };`, { timeout: 60000 });
+    check("a00: a hall that gains its first room before it is linked is put into room-based vision by the room fog (lit, no exploration fog, its record left) and, put back as Foundry leaves a new scene, reads unprepared again (E13 fix l2-L2)",
+        J(built.lit) === J({ tokenVision: false, globalLight: true, exploration: false, record: true, patch: [] })
+            && J(built.putBack) === J({ tokenVision: true, globalLight: false, exploration: true, record: false,
+                patch: ["environment.globalLight.enabled", "fog.exploration", "tokenVision"] }),
+        J({ lit: built.lit, putBack: built.putBack }), { flow: "trial-scene" });
     /* The scenes linked and the cast chosen as a GM does it since E13 C5: in Room Setup's Scenes tab, its window drawn on the
        GM (over the Academy, the scene the GM views), the Academy picked as the school and the hall as the trial hall, the
        hall's cast list drawn for it, Chie unticked and the dead student ticked (nobody plays him, so he is hidden by default);
@@ -240,7 +265,8 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     Object.assign(built, { linked: tab.linked, chose: tab.linked && J(tab.stored) === J({ Chie: false, Ghost: true }) });
     await settle(400);
     /* Since E13 fix r1-F3 the tab also names a hall nobody prepared (token vision, global light or exploration fog as
-       Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark". */
+       Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark". The hall is that one since E13 fix l2-L2:
+       the room fog lit it when its rooms were drawn, and the scenario put it back (a00). */
     check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms and that it is unprepared, draws the hall's cast as `defaultReveal` has it, and stores Chie unticked and the dead student ticked (E13 C5)",
         tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms", "hallDark"]) && tab.read.rooms === true && tab.read.held === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
@@ -751,6 +777,8 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
                 shown: report.shown.map(name).sort(), warnings: report.warnings.map(w => w.key) } };`, { timeout: 60000 });
     await settle(400);
     const kHall = await readAll();
+    /* "hallDark" in k3's warnings: nobody prepared the hall since a00 put it back, and the linked hall holds no room, so
+       the room fog leaves it (E13 fix l2-L2). */
     check("k3: a player's showCourtroom changes nothing; the GM's takes every browser back to the hall with the GM's choice shown, the phase kept, and trialSceneReport names the school, the hall, the table and the four tokens (E13 C6)",
         playerDoor === null && views(kPlayer).every(v => v === "school") && J(apiK.door) === J({ hall: true, activated: true }) && apiK.phase === "classTrial"
             && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), warnings: ["hallHasRooms", "hallDark"] })
