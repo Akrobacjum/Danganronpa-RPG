@@ -48,7 +48,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
 import { debug, warn } from "./utils.mjs";
-import { cleanCardHtml, cardFlag } from "./secret.mjs";
+import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 
 const FORMAT = 1;
@@ -1011,20 +1011,49 @@ export function keepRoom(err) {
  * removes an entry; every other deletion leaves it, marked `deleted`. Registered by
  * `registerNoticeHistory` on `deleteChatMessage`, after the popups' own hook has taken the card off
  * the screen (popup.mjs `onDeleteChatMessage`).
+ * ONLY A GM'S (E81 fix r1-G3, 12.10.2026; review round 1's O13): the option was honoured from any
+ * deletion, and the security review measured in the harness that a player deleting their own public card
+ * with it took the entry out of the GM's and another player's history. The option counts now only when
+ * the deleter Foundry names to the hook is a GM - the two places above run on a GM's client; a player's
+ * deletion with it is any other deletion. Whether Foundry 14 lets a player delete a message they wrote
+ * is not measured here (the harness lets them; not tried at a table): this holds either way.
  */
-export function noticeCardDeleted(message, options) {
-    return engine.deleted(message?.id, { withdraw: options?.[MODULE_ID]?.withdraw === true });
+export function noticeCardDeleted(message, options, userId) {
+    return engine.deleted(message?.id, { withdraw: options?.[MODULE_ID]?.withdraw === true && fromGm(userId) });
+}
+
+/* Whether a change to a card came from a GM: `userId` is the hook's own, which Foundry supplies with the
+   deletion or the update - never a field of the document or of the options. */
+function fromGm(userId) {
+    return Boolean(game.users?.get(userId ?? "")?.isGM);
 }
 
 /**
  * A chat card changed after it was shown (E81 C5; the A7 design's P5-1): a Reroll's mark on the card it
  * replaced (`rerolled`, reroll.mjs `markReplacedCard`) or a GM's ruling on a call (`settled`, gm-bridge.mjs
- * `settleCall`), read as this browser can know them - the document's flag, or for a private card the meta
- * that came with its words (`cardFlag`), which is why it runs on `drpgSecretStored` as well as on
- * `updateChatMessage`. A mark is one of a closed list; what the card showed is not drawn again from it.
+ * `settleCall`). A mark is one of a closed list; what the card showed is not drawn again from it.
+ * Two roads, one handler each. A card that is not private carries its mark on its document, written by a
+ * GM's update: `noticeCardChanged`, on `updateChatMessage`. A private card's mark travels in the meta that
+ * comes with its words: `noticeSecretStored`, on `drpgSecretStored`.
+ * ONLY A GM'S (E81 fix r1-G3, 12.10.2026; review round 1's O14, F2 and GV2): at C5 one handler read both
+ * roads through `cardFlag`, which answers with the document's flag first, so a player's update of their own
+ * card - measured by the security review in the harness - marked the entry settled or rerolled in the GM's
+ * history and another player's, and so did any later update of a card a player had created with the flag.
+ * An update marks now only when the user Foundry names to the hook is a GM and the update's own changes
+ * set the flag; the private road reads the meta alone, which a player's packet cannot fill with either
+ * mark on another browser (secret.mjs `GM_META`). A player's own write still changes their card; it marks
+ * nobody's history.
  */
-export function noticeCardChanged(message) {
-    const value = cardFlag(message, "rerolled") ? "rerolled" : cardFlag(message, MESSENGER_FLAGS.settled) ? "settled" : null;
+export function noticeCardChanged(message, changes, options, userId) {
+    if (!fromGm(userId)) return false;
+    const set = key => Boolean(foundry.utils.getProperty(changes ?? {}, `flags.${MODULE_ID}.${key}`));
+    const value = set("rerolled") ? "rerolled" : set(MESSENGER_FLAGS.settled) ? "settled" : null;
+    return value ? engine.mark(message?.id, value) : false;
+}
+
+/** A private card's words and meta stored on this browser (secret.mjs `remember`): its mark, from the meta alone. */
+export function noticeSecretStored(message) {
+    const value = cardMeta(message, "rerolled") ? "rerolled" : cardMeta(message, MESSENGER_FLAGS.settled) ? "settled" : null;
     return value ? engine.mark(message?.id, value) : false;
 }
 
@@ -1051,7 +1080,7 @@ export function registerNoticeHistory() {
     });
     Hooks.on("deleteChatMessage", noticeCardDeleted);
     Hooks.on("updateChatMessage", noticeCardChanged);
-    Hooks.on("drpgSecretStored", noticeCardChanged);
+    Hooks.on("drpgSecretStored", noticeSecretStored);
     Hooks.on("drpgStorageFull", () => { engine.giveWay(); });
     window.addEventListener("storage", event => {
         if (event.key === `${MODULE_ID}.${SETTINGS.noticeHistory}`) engine.external();

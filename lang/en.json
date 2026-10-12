@@ -2806,7 +2806,8 @@
       "createItem": "Create an item",
       "createItemStays": "Create an item leaves this card open, so the other answers stay available.",
       "giveItem": "Give an existing item",
-      "keyRemnantHere": "Create a Key Remnant here"
+      "keyRemnantHere": "Create a Key Remnant here",
+      "unnamed": "unnamed request"
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",

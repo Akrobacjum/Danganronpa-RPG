@@ -418,13 +418,18 @@ function emitTo(userId, packet) {
  * than an English literal typed beside each emit (COMM-14): the message that
  * says a request was not carried out has to name it in the language the rest
  * of the screen is in. Moved here from gm-bridge.mjs with `sayNotDone` (E31).
+ *
+ * A name the language file does not hold is said as an unnamed request, not as the action's own
+ * text (E81 fix r1-G3, 12.10.2026; review round 1's O12): a refusal this client is not waiting on
+ * comes with the GM's packet's `what` (`createWaiter`'s `onReply`), and the label is kept in the
+ * notice history, so only the closed list of labels reaches the screen and the history.
  */
 export function requestLabel(action) {
     /* A write the GMs' audit put back (E29 C3, sheet-audit.mjs) is no request: it is named by
        the field it changed, `sheet.<kind>`, with the label the GMs' whisper gives that field. */
     const field = /^sheet\.(\w+)$/.exec(String(action ?? ""))?.[1];
     const key = field ? `DRPG.Audit.field.${field}` : `DRPG.Bridge.what.${action}`;
-    return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
+    return game.i18n.localize(game.i18n.has(key) ? key : "DRPG.Bridge.unnamed");
 }
 
 /**
@@ -439,10 +444,11 @@ export function requestLabel(action) {
  * in five seconds, and since E31 this is the only place a player is told a request was not
  * carried out, so the sentence is kept too: an error, read (it was shown), whoever `notify` is -
  * the waiter's own and a test's included. Only these words, which this client composed from the
- * closed lists above; a `murder.*` refusal is kept like the rest (the owner's Q4, 07.10.2026,
- * "Nie, zawsze"). Through a dynamic import, because notice-history.mjs reaches this file
- * through secret.mjs and a static import would be the cycle R161 fails; the entry lands a
- * microtask after the toast, and a history error never stops the toast.
+ * closed lists above (the label clipped to them since E81 fix r1-G3); a `murder.*` refusal is
+ * kept like the rest (the owner's Q4, 07.10.2026, "Nie, zawsze"). Through a dynamic import,
+ * because notice-history.mjs reaches this file through secret.mjs and a static import would be
+ * the cycle R161 fails; the entry lands a microtask after the toast, and a history error never
+ * stops the toast.
  */
 export function sayNotDone(action, reason, { nothingSpent = false, notify = text => ui.notifications.warn(text) } = {}) {
     const code = REASONS.includes(reason) ? reason : "refused";

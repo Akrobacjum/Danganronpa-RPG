@@ -7579,6 +7579,12 @@ const INVARIANTS = [
             const refused = sayNotDone("vote.cast", "<b>R297 a reply's own words</b>", { notify: () => {} });
             await until(() => since(before).length > 0, 1000);
             direct.refused = since(before).map(entry => [entry.text === refused, entry.text.includes("R297 a reply")]);
+            /* A request's name off the list (E81 fix r1-G3; review round 1's O12): a refusal this client is not waiting
+               on is said with the GM's packet's `what`, which reached the toast and the history as written. */
+            before = ids();
+            const unnamed = sayNotDone("<b>R297 a packet's own what</b>", "refused", { notify: () => {} });
+            await until(() => since(before).length > 0, 1000);
+            direct.unnamed = since(before).map(entry => [entry.text === unnamed, entry.text.includes("R297 a packet"), entry.text.includes(game.i18n.localize("DRPG.Bridge.unnamed"))]);
             before = ids();
             // One kept detail per sender per window (E81 fix r1-G1): a press of this GM's a minute ago is no answer here.
             S.safewordDetails?.delete(game.user.id);
@@ -7618,12 +7624,13 @@ const INVARIANTS = [
         equal(JSON.stringify(direct), JSON.stringify({
             cleanup: [["error", "notDone", "read", t("DRPG.Notices.source.notDone"), true, ""]],
             refused: [[true, false]],
+            unnamed: [[true, false, true]],
             detail: [["safeword", "error", t("DRPG.Safeword.gmTitle"), true]],
             banner: [["safeword", t("DRPG.Safeword.banner"), t("DRPG.Safeword.announced"), true]],
             bubble: [["R297BubbleCard01"], 0],
             sources: [true, true]
         }), "[sayNotDone's murder.cleanup with its own notify: [kind, source, state, title, the toast's words, html]; a reason off the list: "
-            + "[the toast's words, the reply's]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
+            + "[the toast's words, the reply's]; a request's name off the list: [the toast's words, the packet's, the unnamed request's label]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
             + "line: [source, title, text, the first snapshot]; a bubble in an open window: [appended, kept]; the evidence's source and message, the summary's source]");
 
         /*
@@ -8132,6 +8139,14 @@ const INVARIANTS = [
          * The handlers are called directly with stand-in messages, not through `Hooks.callAll`: a tier-1 test
          * writes nothing, and every other module's deletion hook would be handed a document that is not one.
          * A real deletion, withdrawn or cleared, on four browsers: 73-notice-history B and 13-murder-signals.
+         * ONLY A GM'S (E81 fix r1-G3, 12.10.2026; review round 1's O13, O14 and F2): at C5 the withdraw option was
+         * honoured from any deleter and a mark read off the card whoever wrote it, and this test passed no user, so
+         * it never asked who may do either. Each hook's handler is read off `registerNoticeHistory` now and called
+         * with the user Foundry hands the hook: this client, a GM, and a player (the world's first, or an id no user
+         * has where the world holds none - not a GM either way). A player's withdraw leaves the entry marked deleted;
+         * a player's update that sets `settled` or `rerolled`, and a GM's that sets neither on a card that carries
+         * one, mark nothing; and a private card's words stored with a mark on its document and none in its meta mark
+         * nothing. A player's own card on four browsers, its withdraw, its update and its meta: 73-notice-history G3.
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a deletion back from");
@@ -8147,13 +8162,18 @@ const INVARIANTS = [
             "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
         const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
         const remember = fnSource(code("secret.mjs"), "remember");
+        const HOOKS = ["deleteChatMessage", "updateChatMessage", "drpgSecretStored"];
+        const on = Object.fromEntries(HOOKS.map(hook => [hook, NH[new RegExp(`Hooks\\.on\\("${hook}", (\\w+)\\)`).exec(history)?.[1] ?? ""]]));
         equal(JSON.stringify([/Hooks\.on\("deleteChatMessage", onDeleteChatMessage\)/.test(popups), /\.click\(\)/.test(popups + fnSource(code("popup.mjs"), "onDeleteChatMessage")),
-            ["deleteChatMessage, noticeCardDeleted", "updateChatMessage, noticeCardChanged", "drpgSecretStored, noticeCardChanged"].map(hook => history.includes(`Hooks.on("${hook.replace(", ", "\", ")})`)),
+            HOOKS.map(hook => typeof on[hook] === "function"),
             remember.indexOf('Hooks.callAll("drpgSecretStored", message)') > remember.indexOf("await saving")]),
         JSON.stringify([true, false, [true, true, true], true]),
-        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks; the private-card store tells it after the words are stored]");
+        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks, each an exported handler; the private-card store tells it after the words are stored]");
+        must(game.user?.isGM, "the suite runs on a GM - a GM's deletion and update would be measured as somebody else's");
+        const GM = game.user.id, PLAYER = game.users.find(user => !user.isGM)?.id ?? "R295NotAUser0001";
 
-        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1" };
+        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1",
+            playerWithdrawn: "R295PlayerWithdr", playerSettled: "R295PlayerSettld", gmUntouched: "R295GmUntouched1", storedDoc: "R295StoredOnDoc1" };
         const entryOf = messageId => NH.noticeEntries().find(entry => entry.messageId === messageId) ?? null;
         const drawn = [];
         await NH.holdNoticeHistory(true);
@@ -8164,33 +8184,45 @@ const INVARIANTS = [
                 cards[key] = document.querySelector(`.drpg-popup[data-drpg-message="${messageId}"]`);
                 if (cards[key]) drawn.push(cards[key]);
             }
-            must(Object.values(ids).every(entryOf) && drawn.length === 5, "the five stand-in cards were not drawn and kept - the deletions would be measured on nothing");
+            must(Object.values(ids).every(entryOf) && drawn.length === 9, "the nine stand-in cards were not drawn and kept - the deletions would be measured on nothing");
             const before = Object.fromEntries(Object.entries(ids).map(([key, messageId]) => [key, entryOf(messageId).html]));
 
             P.onDeleteChatMessage({ id: ids.withdrawn });
-            NH.noticeCardDeleted({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } });
+            on.deleteChatMessage({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } }, GM);
             P.onDeleteChatMessage({ id: ids.deleted });
-            NH.noticeCardDeleted({ id: ids.deleted }, {});
-            NH.noticeCardDeleted({ id: ids.cleared }, { deleteAll: true });
+            on.deleteChatMessage({ id: ids.deleted }, {}, GM);
+            on.deleteChatMessage({ id: ids.cleared }, { deleteAll: true }, GM);
+            on.deleteChatMessage({ id: ids.playerWithdrawn }, { [MODULE_ID]: { withdraw: true } }, PLAYER);
             const after = key => {
                 const entry = entryOf(ids[key]);
                 return entry && [entry.state, entry.mark, entry.html === before[key]];
             };
-            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared")]),
-                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true]]),
-                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll]");
+            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared"),
+                after("playerWithdrawn")]),
+                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true], ["unread", "deleted", true]]),
+                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll; the entry a player's deletion with the withdraw option reached]");
 
             const flags = more => ({ flags: { [MODULE_ID]: more } });
+            const update = (key, more, by = GM, changes = flags(more)) => on.updateChatMessage({ id: ids[key], ...flags(more) }, changes, {}, by);
             const moved = [
-                NH.noticeCardChanged({ id: ids.rerolled, ...flags({ rerolled: { from: 3, to: 9, at: 1 } }) }),
-                NH.noticeCardChanged({ id: ids.settled, ...flags({ settled: true }) }),
-                NH.noticeCardChanged({ id: ids.withdrawn, ...flags({ settled: true }) }),
-                NH.noticeCardChanged({ id: ids.deleted, ...flags({ rerolled: { from: 1, to: 2, at: 1 } }) }),
-                NH.noticeCardChanged({ id: ids.cleared, ...flags({ popupTitle: "R295 not a mark" }) })
+                update("rerolled", { rerolled: { from: 3, to: 9, at: 1 } }),
+                update("settled", { settled: true }),
+                update("withdrawn", { settled: true }),
+                update("deleted", { rerolled: { from: 1, to: 2, at: 1 } }),
+                update("cleared", { popupTitle: "R295 not a mark" })
             ];
             equal(JSON.stringify([moved, after("rerolled"), after("settled"), after("deleted"), after("cleared")]),
                 JSON.stringify([[true, true, false, false, false], ["open", "rerolled", true], ["open", "settled", true], ["unread", "deleted", true], ["unread", "deleted", true]]),
                 "[which changes moved an entry; the rerolled entry; the settled one; a deleted one a late Reroll reached; one a flag that is no mark reached]");
+            const refused = [
+                update("playerSettled", { settled: true }, PLAYER),
+                update("playerSettled", { rerolled: { from: 2, to: 12, at: 1 } }, PLAYER),
+                update("gmUntouched", { settled: true }, GM, { content: "<p>R295 an edit that sets no mark</p>" }),
+                on.drpgSecretStored({ id: ids.storedDoc, ...flags({ secret: true, settled: true, rerolled: { from: 1, to: 2, at: 1 } }) })
+            ];
+            equal(JSON.stringify([refused, after("playerSettled"), after("gmUntouched"), after("storedDoc")]),
+                JSON.stringify([[false, false, false, false], ["open", null, true], ["open", null, true], ["open", null, true]]),
+                "[which of a player's settled and rerolled, a GM's edit that sets no mark and a private card's document flags moved an entry; the player's card; the GM's edited card; the private card]");
         } finally {
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
             NH.holdNoticeHistory(false);
