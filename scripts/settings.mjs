@@ -8,6 +8,7 @@
 
 import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
+import { forgetSceneRoles } from "./rooms.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -528,6 +529,17 @@ export const SETTINGS = {
      * reused, so a stale one costs a few bytes and answers nothing.
      */
     playerRegions: "playerRegions",
+    /**
+     * THE SCENES THE TABLE MOVES BETWEEN (E13 C1, 1.2.74; plan-E13 3.1, audit S07-47, decision
+     * D7): `{ school, trial }`, scene ids - the school the season is played in and the fixed hall
+     * the Class Trial is held in. An object with named fields, never a list: a later field sits
+     * beside these two without a migration (`zones`, plan page 11.10), so a writer merges into
+     * what is stored and a reader takes its own field by name. An id whose scene is gone reads as
+     * unlinked. Read through rooms.mjs `sceneRoles`, which holds it until `onChange` below lets
+     * go. World-scoped and public: which map is the school is on every player's screen. Only a
+     * GM writes a world setting; whether an Assistant GM may is not measured.
+     */
+    sceneRoles: "sceneRoles",
     /**
      * The murder currently in progress - its WORLD HALF - or `{}`.
      *
@@ -1653,6 +1665,17 @@ export function registerSettings() {
         config: false,
         type: Array,
         default: []
+    });
+
+    // The scene roles (E13 C1; the key's note). rooms.mjs holds what it read until a change -
+    // Foundry calls `onChange` on every client when the setting's document is created or
+    // updated (as recalled of Foundry's `Setting`, not read in v14; the harness calls it on both).
+    game.settings.register(MODULE_ID, SETTINGS.sceneRoles, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => forgetSceneRoles()
     });
 
     game.settings.register(MODULE_ID, SETTINGS.murderState, {

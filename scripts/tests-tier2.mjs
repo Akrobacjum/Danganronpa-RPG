@@ -49798,6 +49798,106 @@ const SCENARIOS = [
             "[the project's room, the plant, the Mastermind's room, the assembly's room, the stashed jar's room, the discovery] on the End, the Lab "
             + "and the Middle once the Lab was renamed twice in a row; and the Hall's Neighbours list");
     }],
+    ["the trial hall is no place: a student's token on it stands in no room and is never where the student is - whatever its regions say", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 2.3 and V2 (R114's world half; the tier-1 R114 reads the shape), audit S07-47.
+         * Until 1.2.74 a room marked on the trial hall was a room like any other, so the student's token standing in it
+         * stood somewhere: in that room, on a place scene, and where `locateActor` found the student when a packet named
+         * the hall - and a walk across the hall was judged as a crossing (scenario 41 b). Here a hall of the suite's own
+         * holds a named region a GM marked as a room and a shown token of a living student standing in it; the student's
+         * own token stays where it is. The hall is linked as the trial hall and the school as found (`homeScene()`) as the
+         * school, the setting written here as the Scenes tab will write it (plan-E13 C5) and put back. Read: the hall
+         * token's room, the hall's room pieces, whether it is a place scene, the scene `locateActor` finds the student on
+         * when asked with the hall's id, whether `placesOf` answers the hall, and home. Red before C1: the token stood in
+         * the room, the hall held it and was a place, and the student was found on it. Not read here: the body's discovery
+         * (its finder's room is `roomOfToken`'s) and E12 C11's floor switcher (shown on a place scene only) - both ask what
+         * this reads; and the voice plan's warning of a scene with characters and no rooms, which R114 reads in the source:
+         * `voicePlan` filters `game.modules` as Foundry's collection, and the harness's has no `filter` (it threw so here,
+         * 12.10.2026).
+         */
+        const [student] = cast(1);
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const school = R.homeScene();
+        must(school?.tokens?.some(t => t.actorId === student.id), `${student.name} has no token on the school - where they are would not be asked against the hall`);
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const NAME = "SUITE E13 C1 the trial hall", ROOM = "SUITE E13 C1 the stand";
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: NAME, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await hall.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [token] = await hall.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300,
+                width: 1, height: 1, hidden: false }]);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: school.id, trial: hall.id });
+            await settle();
+            read = [linkable, Mv.roomOfToken(token), R.roomPieces(hall).length, R.isPlaceScene(hall),
+                Mv.locateActor(student, { sceneId: hall.id })?.scene?.id === school.id, Mv.placesOf(student).some(place => place.scene === hall),
+                R.homeScene() === school];
+        } finally {
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            await hall?.delete();
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, null, 0, false, true, false, true]),
+            `[the roles can be linked, the room of ${student.name}'s hall token, the hall's room pieces, the hall is a place, ${student.name} is found `
+            + "on the school when the hall is named, `placesOf` answers the hall, home is the school]");
+    }],
+
+    ["a school linked as the school is home whatever scene the GM has on screen - and Room Setup opened viewing the trial hall opens on it", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 2.3 and V3 (R115's world half; the tier-1 R115 reads the shape), audit S11-15.
+         * `homeScene()` guessed the school - the only scene with rooms, else the active one if it held a room, else the
+         * one of most room pieces - and Room Setup opened on the scene on screen. Here a school and a hall of the suite's
+         * own, the hall holding two marked rooms to the school's one, are linked (the setting written here and put back),
+         * and the GM views the hall. Read: home, the title Room Setup opens with (the window is answered at once, its form
+         * unread), and home again once the school's id names a scene that is gone - E12's guess then, never the hall.
+         * The hall is not made active here: an activation moves every browser at the table, and scenario 41 b reads home
+         * on four browsers with the hall active and viewed. Red before C1: home was the guess and Room Setup named the
+         * hall. In a GM-store world of the suite's own, as the E12 tests that view a scene of their own.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const viewing = canvas?.scene ?? null;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c1-${foundry.utils.randomID(8)}`, async () => {
+            let school = null, hall = null;
+            try {
+                school = await Scene.create({ name: "SUITE E13 C1 the school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await school.createEmbeddedDocuments("Region", [room("SUITE E13 C1 a classroom", 0)]);
+                hall = await Scene.create({ name: "SUITE E13 C1 the hall on screen", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await hall.createEmbeddedDocuments("Region", [room("SUITE E13 C1 the stand", 0), room("SUITE E13 C1 the gallery", 1000)]);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: school.id, trial: hall.id });
+                await hall.view();
+                await settle();
+                const titles = [];
+                D.wait = async cfg => { titles.push(cfg?.window?.title ?? null); return null; };
+                await V.openRoomSetupDialog();
+                const home = R.homeScene();
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: "R115NOSUCHSCENE0", trial: hall.id });
+                const guessed = R.homeScene();
+                read = [linkable, canvas?.scene === hall, home?.name ?? null, titles, Boolean(guessed) && guessed !== hall];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+                await viewing?.view();
+                await school?.delete();
+                await hall?.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(read), JSON.stringify([true, true, "SUITE E13 C1 the school",
+            [game.i18n.format("DRPG.Vault.manageTitleOn", { scene: "SUITE E13 C1 the school" })], true]),
+            "[the roles can be linked, the GM views the hall, home, the titles Room Setup opened with, home once the school's scene is gone is a scene and not the hall]");
+    }],
     ...GRID
 ];
 

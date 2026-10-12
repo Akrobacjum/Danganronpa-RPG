@@ -40,6 +40,9 @@ export const ROOMS_MARKED_FLAG = "roomsMarkedAt";
 /** `SETTINGS.playerRegions` (settings.mjs), by its key - see the leaf note above. */
 const PLAYER_REGIONS = "playerRegions";
 
+/** `SETTINGS.sceneRoles` (settings.mjs), by its key, for the same reason. */
+const SCENE_ROLES = "sceneRoles";
+
 /*
  * BEHAVIOURS THAT MAKE A REGION A PASSAGE, NOT A ROOM. A Teleport sends a token to another
  * place and a level change to another floor: a region carrying either is where a token leaves
@@ -109,8 +112,91 @@ export function unmarkedRegions(scene) {
     return namedRegions(scene).filter(r => !hasBehaviours(r) && !players.has(r.id) && !roomDecided(r));
 }
 
-/** Every room region of this scene, each piece of a room on its own. */
+/*
+ * THE SCENE ROLES (E13 C1, 12.10.2026; plan-E13 3.1, audit S07-47, decision D7). A GM links two
+ * scenes once: the school, where the season is played, and the trial hall, a fixed scene the
+ * Class Trial is held in, where the students keep tokens all season that the module only shows
+ * and hides. Until 1.2.74 the hall was one more scene with regions on it: a room a GM had drawn
+ * and marked there was a room like any other, so a student's hall token was a place
+ * `locateActor` could answer, a walk across the hall was judged as a crossing between rooms
+ * (scenario 41 b read the courtroom rule refusing one, 12.10.2026), and the voice put the
+ * students shown in the hall into the hall's rooms (41 h).
+ *
+ * THE HALL IS A PLACE FOR NOBODY. `roomPieces(hall)` is empty whatever its regions say, so every
+ * reader that asks this file what a room is - the veto, the charge, fog, traps, trails, the
+ * body's discovery, voice, Search, the floor switcher - finds none there, and `isPlaceScene` (a
+ * scene that holds a room) is false of it. The test is made once, in `roomPieces`; the two
+ * readers that walk every scene's tokens without asking about rooms first (movement.mjs
+ * `placesOf`, voice.mjs `sceneRoomWarnings`) ask `isPlaceScene` and `isTrialScene`, and so does
+ * the arrival judge (movement.mjs `arrivalVerdict`), whose last room may predate the link. Regions the
+ * hall holds for later modes (two side zones, amend 28.09) are read by nothing in this version.
+ *
+ * THE SCHOOL WINS. `homeScene()` answers the linked school first, whatever is active or on
+ * screen, and E12's guess only when no school is linked or its scene is gone.
+ *
+ * Read by its key, as `playerRegions` is, and held here until the setting's `onChange`
+ * (settings.mjs) calls `forgetSceneRoles` on each client: `roomPieces` asks it of every scene
+ * `locateActor` walks. With nothing linked no scene is the hall and every reader answers as E12's.
+ */
+let rolesHeld = null;
+
+/**
+ * The scene roles as stored: `{ school, trial }` (scene ids), and any later field beside them -
+ * an object with named fields, never a list (plan page 11.10), so a reader takes its own field
+ * by name and a writer merges into what is stored. `{}` before the setting is registered.
+ */
+export function sceneRoles() {
+    if (rolesHeld) return rolesHeld;
+    if (!game.settings?.settings?.has?.(`${MODULE_ID}.${SCENE_ROLES}`)) return Object.freeze({});
+    const stored = game.settings.get(MODULE_ID, SCENE_ROLES);
+    rolesHeld = Object.freeze({ ...(stored && typeof stored === "object" ? stored : {}) });
+    return rolesHeld;
+}
+
+/** Lets go of what `sceneRoles` holds - the setting's `onChange`, on every client. */
+export function forgetSceneRoles() {
+    rolesHeld = null;
+}
+
+/** The scene id a role names, or null: a field read by its name, and only a non-empty string is an id. */
+function roleId(roles, role) {
+    const id = roles?.[role];
+    return typeof id === "string" && id ? id : null;
+}
+
+/**
+ * This scene's role: "trial", "school" or null. Handed `roles`, it reads nothing else (R114 asks
+ * it of plain objects). A scene linked as both is the hall, where nobody stands.
+ */
+export function sceneRole(scene, roles = sceneRoles()) {
+    const id = scene?.id;
+    if (!id) return null;
+    if (roleId(roles, "trial") === id) return "trial";
+    if (roleId(roles, "school") === id) return "school";
+    return null;
+}
+
+/** Whether this scene is the linked trial hall. */
+export function isTrialScene(scene) {
+    return sceneRole(scene) === "trial";
+}
+
+/** The linked trial hall, or null when none is linked or its scene is gone. */
+export function trialScene(roles = sceneRoles()) {
+    const id = roleId(roles, "trial");
+    return id ? game.scenes?.get?.(id) ?? null : null;
+}
+
+/** The linked school, or null when none is linked, its scene is gone, or it is linked as the hall too. */
+export function schoolScene(roles = sceneRoles()) {
+    const id = roleId(roles, "school");
+    if (!id || id === roleId(roles, "trial")) return null;
+    return game.scenes?.get?.(id) ?? null;
+}
+
+/** Every room region of this scene, each piece of a room on its own; none on the trial hall (the note above). */
 export function roomPieces(scene) {
+    if (isTrialScene(scene)) return [];
     const players = playerRegionIds();
     return Array.from(scene?.regions ?? []).filter(r => isRoomWith(r, players));
 }
@@ -231,19 +317,25 @@ export function scenesWithRooms() {
 }
 
 /**
- * Whether a character's token on this scene stands somewhere (plan-E12 6.1, decision D7): in
- * E12 a scene that holds rooms. The seam E13 narrows - its trial scene holds no place.
+ * Whether a character's token on this scene stands somewhere (plan-E12 6.1, decision D7): a
+ * scene that holds rooms. The trial hall holds none (`roomPieces`, E13 C1), so it is no place;
+ * the plan wrote the role test here as well, and a second test of it here could be taken out
+ * with nothing anywhere answering differently, so there is one.
  */
 export function isPlaceScene(scene) {
     return sceneHoldsRooms(scene);
 }
 
 /**
- * The school (plan-E12 3.1, 6.1): the only scene with rooms; else the active scene if it holds
- * rooms; else the scene with the most room pieces, ties to the first in sort order. Null when
- * no scene holds a room. E13 replaces the body with its school role and keeps this fallback.
+ * The school: the scene linked as the school (`schoolScene`, E13 C1), whatever is active or on
+ * screen. When none is linked or its scene is gone, E12's guess (plan-E12 3.1, 6.1): the only
+ * scene with rooms; else the active scene if it holds rooms; else the scene with the most room
+ * pieces, ties to the first in sort order - never the hall, which holds none. Null when no
+ * school is linked and no scene holds a room.
  */
 export function homeScene() {
+    const school = schoolScene();
+    if (school) return school;
     const scenes = scenesWithRooms();
     if (scenes.length <= 1) return scenes[0] ?? null;
     const active = game.scenes?.active;

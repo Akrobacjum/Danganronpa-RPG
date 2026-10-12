@@ -592,6 +592,11 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  */
 function arrivalVerdict(student, last, tokenDoc, mover) {
     if (isCorpse(student)) return game.i18n.localize("DRPG.Move.dead");
+    // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
+    // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
+    // Scenario 41 b1 read it on 12.10.2026: the hall linked after its tokens were recorded in its
+    // Stand, Aiko's move to no room was refused as leaving the courtroom and the GMs were told.
+    if (!isPlaceScene(tokenDoc.parent)) return true;
     const from = last?.room ?? null;
     const to = roomOfToken(tokenDoc);
     if (from === to) return true;                      // the same room, a stairwell's floors too
@@ -1835,11 +1840,16 @@ export function sceneOfActor(actor) {
     return locateActor(actor)?.scene ?? homeScene();
 }
 
-/** Every place this character has a token, on every scene - `locateActor` for all of them. */
+/**
+ * Every place this character has a token, on every place scene - `locateActor` for all of them.
+ * It walked every scene until E13 C1 (12.10.2026; audit S07-47): a student's token in the trial
+ * hall was a place, so Eclipse's crossings and a trap's "stands in" asked the hall's rooms too.
+ */
 export function placesOf(actor) {
     if (!actor) return [];
     const places = [];
     for (const scene of game.scenes ?? []) {
+        if (!isPlaceScene(scene)) continue;
         for (const tokenDoc of scene?.tokens ?? []) {
             if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene, room: roomOfToken(tokenDoc) });
         }

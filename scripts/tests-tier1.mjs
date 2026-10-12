@@ -6536,6 +6536,99 @@ const INVARIANTS = [
             "[whether the Attic is on the upper floor asked by its id, by the floor, on the ground floor; the pieces drawn on each of the three]");
         equal(JSON.stringify(R.floorsOf(scene).map(level => level.name)), JSON.stringify(["Cellar", "Ground", "Upper"]), "the scene's floors, lowest first");
     }],
+
+    ["R114 - nothing on the trial hall is a room or a place: its role is read by name, the leaf finds no room there, and every walk of the scenes asks it", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 C1 and 2.3 (V2), audit S07-47, the A5 project's reserved R114. The trial hall was
+         * one more scene with regions on it, so a room a GM had drawn and marked there was a room: a student's hall token
+         * was a place `locateActor` answered for a packet naming the hall, and scenario 41 b read the courtroom rule
+         * refusing a walk across it (12.10.2026). The roles are read here on plain objects first, so the answer is the
+         * reader's and not a world's: a field read by its name with a later one (`zones`) beside it, an id that is no
+         * string, a scene linked as both, a role naming a scene that is gone. Then, in the source with comments blanked,
+         * the shape that keeps the hall nobody's place: `roomPieces` answers none on the hall before it reads a region,
+         * `isPlaceScene` is a scene that holds a room, `placesOf` and voice's `sceneRoomWarnings` and `followsVoice` ask
+         * before they read a hall token, the arrival judge asks before it reads the room it holds (scenario 41 b1 read that
+         * room predating the link, 12.10.2026), and a character's token is taken off a scene's list by its actor only in
+         * remnants.mjs `tokenFor` (after `locateActor`) and cleanup.mjs `applyMoveBody` - the victim's token on the scene
+         * `locateActor` found the cleaner on, so not `here.tokenDoc`, the cleaner's own, as plan 1.x 9 offered. The
+         * tier-2 "the trial hall is no place ..." reads it on documents. Red before C1: rooms.mjs had no `sceneRole`.
+         */
+        const R = await import("./rooms.mjs");
+        ok(typeof R.sceneRole === "function", "rooms.mjs has no `sceneRole` - no scene can be the trial hall");
+        if (typeof R.sceneRole !== "function") return;
+        const roles = { school: "R114SCHOOL000000", trial: "R114HALL00000000", zones: { a: "R114ZONEA0000000", b: "R114ZONEB0000000" } };
+        const at = id => ({ id });
+        equal(JSON.stringify([R.sceneRole(at(roles.school), roles), R.sceneRole(at(roles.trial), roles), R.sceneRole(at(roles.zones.a), roles),
+            R.sceneRole(at("R114OTHER0000000"), roles), R.sceneRole(null, roles), R.sceneRole(at(roles.trial), { school: roles.trial, trial: roles.trial }),
+            R.sceneRole(at(roles.trial), { trial: [roles.trial] }), R.sceneRole(at(roles.trial), {})]),
+            JSON.stringify(["school", "trial", null, null, null, "trial", null, null]),
+            "the role of [the school, the hall, a zone's scene, another scene, no scene, a scene linked as both, the hall named in a list, the hall with nothing linked]");
+        const some = game.scenes.contents[0] ?? null;
+        must(some, "the world has no scene - a linked scene could not be looked up by its id");
+        const GONE = "R114NOSUCHSCENE0";
+        equal(JSON.stringify([R.schoolScene({ school: GONE }), R.trialScene({ trial: GONE }), R.schoolScene({ school: some.id })?.id ?? null,
+            R.trialScene({ trial: some.id, zones: {} })?.id ?? null, R.schoolScene({ school: some.id, trial: some.id })]),
+            JSON.stringify([null, null, some.id, some.id, null]),
+            "the linked [school whose scene is gone, hall whose scene is gone, school, hall with a later field beside it, school linked as the hall too]");
+
+        const sources = await moduleSources();
+        must(["rooms.mjs", "movement.mjs", "voice.mjs"].every(file => sources.get(file)?.length), "rooms.mjs, movement.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        const plain = file => stripComments(sources.get(file));
+        const lines = (file, fn) => fnSource(plain(file), fn).split("\n").slice(1).map(line => line.trim()).filter(Boolean);
+        const before = (file, fn, first, then) => {
+            const body = fnSource(plain(file), fn), a = body.indexOf(first), b = body.indexOf(then);
+            return a >= 0 && b > a;
+        };
+        equal(JSON.stringify([lines("rooms.mjs", "roomPieces")[0], lines("rooms.mjs", "isPlaceScene")[0], lines("rooms.mjs", "sceneHoldsRooms")[0],
+            before("movement.mjs", "placesOf", "if (!isPlaceScene(scene)) continue;", "scene?.tokens"),
+            before("voice.mjs", "sceneRoomWarnings", "if (isTrialScene(scene)) continue;", "roomPieces(scene)"),
+            /!isTrialScene\(tokenDoc\.parent\)/.test(fnSource(plain("voice.mjs"), "followsVoice")),
+            before("movement.mjs", "arrivalVerdict", "if (!isPlaceScene(tokenDoc.parent)) return true;", "roomOfToken(tokenDoc)")]),
+        JSON.stringify(["if (isTrialScene(scene)) return [];", "return sceneHoldsRooms(scene);", "return roomPieces(scene).length > 0;", true, true, true, true]),
+            "[`roomPieces`' first line, `isPlaceScene`'s, `sceneHoldsRooms`'; whether `placesOf` skips a scene that is no place before it reads a token, "
+            + "`sceneRoomWarnings` the hall before it reads its rooms, `followsVoice` asks about the hall, and `arrivalVerdict` asks before it reads a room]");
+
+        const TAKEN = /\btokens\??\.(?:find|filter|some)\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.actorId\b/g;
+        const DECLARED = /^(?:export )?(?:async )?function (\w+)\(/gm;
+        const taken = [];
+        for (const [file, raw] of sources) {
+            if (file.startsWith("tests")) continue;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(TAKEN)) taken.push(`${file}#${[...text.slice(0, m.index).matchAll(DECLARED)].at(-1)?.[1] ?? "(top level)"}`);
+        }
+        equal(JSON.stringify([...new Set(taken)].sort()), JSON.stringify(["cleanup.mjs#applyMoveBody", "remnants.mjs#tokenFor"]),
+            "the functions that take a character's token off a scene's list by its actor, outside `locateActor`'s walk of the place scenes");
+    }],
+
+    ["R115 - the school linked as the school is home over the active scene and the one on screen, and Room Setup never opens on the hall", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 1.x 7 and 2.3 (V3), audit S11-15, the A5 project's reserved R115, restated as
+         * plan 1.x 7 says once E12 C6 had made `workingScene` the camera for windows only. `homeScene()` guessed the
+         * school - the only scene with rooms, else the active one if it held a room, else the one of most room pieces -
+         * so a hall with rooms marked on it and made active for the trial was the school; and Room Setup opened on
+         * whatever the GM had on screen, the hall included. Read in the source with comments blanked: `homeScene`
+         * answers `schoolScene()` before it guesses, and `openRoomSetupDialog` puts `homeScene()` in place of a trial
+         * scene after it reads the camera and before it reads a region. And of the world as it is: home is never the
+         * hall, and a linked school is home. The tier-2 "a school linked as the school ..." reads both on documents, the
+         * hall on screen; scenario 41 b on four browsers with the hall active and viewed. Red before C1: there was no
+         * `schoolScene`.
+         */
+        const R = await import("./rooms.mjs");
+        ok(typeof R.schoolScene === "function", "rooms.mjs has no `schoolScene` - the school is still a guess");
+        if (typeof R.schoolScene !== "function") return;
+        const sources = await moduleSources();
+        must(sources.get("rooms.mjs")?.length && sources.get("vault.mjs")?.length, "rooms.mjs or vault.mjs is not among the module's sources - this would measure nothing");
+        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(sources.get("vault.mjs"));
+        const home = fnSource(rooms, "homeScene").split("\n").slice(1, 3).map(line => line.trim());
+        const open = fnSource(vault, "openRoomSetupDialog");
+        const [camera, swap, read] = ["let scene = workingScene();", "if (isTrialScene(scene)) scene = homeScene();", "namedByName(scene)"].map(text => open.indexOf(text));
+        equal(JSON.stringify([home, camera >= 0 && camera < swap && swap < read]),
+            JSON.stringify([["const school = schoolScene();", "if (school) return school;"], true]),
+            "[`homeScene`'s first two lines; whether Room Setup puts home in place of the hall between reading the camera and reading a region]");
+        const school = R.homeScene();
+        equal(JSON.stringify([R.isTrialScene(school), !R.schoolScene() || school === R.schoolScene()]), JSON.stringify([false, true]),
+            `[home (${school?.name ?? "none"}) is the trial hall, home is the linked school when one is linked]`);
+    }],
 ];
 
 /**

@@ -10,7 +10,7 @@ import { DRPG, MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, bodyDiscovery, clearBodyDiscovery }
     from "./settings.mjs";
 import { SearchTokens, showSearchTokens } from "./search-tokens.mjs";
-import { sceneOfRoom } from "./rooms.mjs";
+import { sceneOfRoom, sceneRoles } from "./rooms.mjs";
 import { getUltimate, setUltimate, findDuplicateUltimates } from "./sheet.mjs";
 import { openAdvancement, openAdvancementFor, applyAdvancement } from "./level-up.mjs";
 import { auditAnonymity, explainOwnership } from "./anonymity.mjs";
@@ -450,6 +450,8 @@ export const DrpgApi = {
     roomOfToken,
     othersInRoom,
     allRooms,
+    /** The linked scenes, `{ school, trial }` (scene ids) and any later field: read only (E13 C1). */
+    sceneRoles: () => ({ ...sceneRoles() }),
 
     /** Rooms adjacent to this one - used by Listen. */
     neighbouringRooms,

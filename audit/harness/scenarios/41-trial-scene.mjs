@@ -19,9 +19,11 @@
  *      dead student, Monokuma, a test student no player owns, a decoration that is no student) and
  *      `setClock({ phase: "classTrial" })`: where every browser looks, which hall tokens are shown, and
  *      whether a token was created or deleted. The GM's choice is Aiko, Botan, the dead student and
- *      Monokuma; Chie is unticked, the test student stays hidden, the decoration is never touched.
+ *      Monokuma; Chie is unticked, the test student stays hidden, the decoration is never touched. Since
+ *      E13 C1 the GM links the Academy as the school and the hall as the trial hall once it is built.
  *   b  p1 moves Aiko's hall token from one of the hall's rooms to the other during the trial: vetoes,
- *      Aiko's actions, the chat, and every other write the move caused.
+ *      Aiko's actions, the chat, and every other write the move caused; and (C1) what every browser, the
+ *      hall active and on its screen, takes for the school and makes of the hall.
  *   h  `voiceTargets()` on each browser in the trial.
  *   c  `closeTrial()`: where every browser looks, the hall's tokens, their ids.
  *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes).
@@ -39,7 +41,8 @@
  * A hidden token reaches every browser here as in Foundry (known-leaks.json `foundry-hidden-tokens`).
  *
  * Its bound: 13 checks in 33.9-34.9 s, 39 s from the command to its exit, on 12.10.2026 (alone, `--verbose`, the
- * working tree of 48efd99 and C0) - an eighth of run-all.mjs's five minutes, so it states no `timeoutMs`.
+ * working tree of 48efd99 and C0) - an eighth of run-all.mjs's five minutes, so it states no `timeoutMs`. With
+ * E13 C1's b2: 14 checks in 36.6 s, one run on 12.10.2026 (alone, `--verbose`).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -126,7 +129,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
 
     /* ------------------------------ a. the hall, and setClock ------------------------------ */
     phase("a: the hall built, and setClock opens the Class Trial", { flow: "class-trial" });
-    const built = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+    const built = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const academy = game.scenes.get("${IDS.scene}");
         const ghost = await Actor.create({ name: "S41 Ghost", type: "character" });
         const test = await Actor.create({ name: "S41 Test", type: "character" });
         const decor = await Actor.create({ name: "S41 Decor", type: "npc" });
@@ -139,7 +142,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
             texture: { src: "icons/svg/mystery-man.svg" } });
         await hall.createEmbeddedDocuments("Token", [token("Aiko", "${IDS.aiko}", 300), token("Botan", "${IDS.botan}", 400), token("Chie", "${IDS.chie}", 500),
             token("Ghost", ghost.id, 600), token("Monokuma", "ACTORMONOKUMA000", 700), token("Test", test.id, 800), token("Decor", decor.id, 1500, false)]);
-        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size };`, { timeout: 60000 });
+        /* The scenes linked as a GM links them once (E13 C1; the Scenes tab of Room Setup is C5): the Academy the school, this the hall. */
+        const linked = game.settings.settings.has("${MOD}.sceneRoles");
+        if (linked) await game.settings.set("${MOD}", "sceneRoles", { ...(game.settings.get("${MOD}", "sceneRoles") ?? {}), school: academy.id, trial: hall.id });
+        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size, linked };`, { timeout: 60000 });
     await settle(400);
     const before = await readAll();
     const opened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -172,28 +178,43 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
             told: globalThis.__notifications.slice(told).map(n => n.level + ":" + n.msg), chat: game.messages.size - chat,
             actions: [actions, aiko.system.resources.actions.value], veto };`, { timeout: 30000 });
     await settle(400);
+    /* Where every browser finds the school and what it makes of the hall, with the hall active and on every screen (byHand). */
+    const homes = {};
+    for (const c of clients) homes[c.who] = await c.eval(`${HALL} const R = await import("${repoUrl}/scripts/rooms.mjs");
+        return { view: canvas.scene?.id === hall.id, active: game.scenes.active?.id === hall.id, home: R.homeScene()?.id === academy.id,
+            role: R.sceneRole?.(hall) ?? null, place: R.isPlaceScene(hall), pieces: R.roomPieces(hall).length };`);
     const writes = { ops: opLog.slice(ops0).map(o => `${o.who} ${o.action} ${o.coll}${o.embeddedName ? "." + o.embeddedName : ""}`),
         settings: settingLog.slice(settings0).map(s => s.key ?? s) };
-    /* Read 12.10.2026: movement.mjs's courtroom veto (DRPG.Trial.moveLocked) answers the move, the token stays at
-       (300, 400) in Stand, and nothing reaches the server - no op, no setting, no card, Aiko's 2 actions kept. */
-    check("b1: Aiko's move across the hall's two rooms is vetoed by the courtroom rule and writes nothing (C1 makes the hall a place for nobody: the move stands, no charge, no card, no write but the token's)",
-        moved.from === "Stand" && moved.to === "Stand" && J(moved.at) === J([300, 400]) && J(moved.told) === J([`warn:${moved.veto}`])
-            && moved.chat === 0 && J(moved.actions) === J([2, 2]) && !writes.ops.length && !writes.settings.length,
-        J({ moved, writes }), { flow: "class-trial" });
+    /* Read 12.10.2026 at 48efd99: movement.mjs's courtroom veto (DRPG.Trial.moveLocked) answered the move and the token
+       stayed in Stand. Since E13 C1 the hall holds no rooms, so the move is no crossing. Read 12.10.2026 with C1 before
+       its arrival judge asked about the hall: the move stood, but the primary judged it from the Stand it had recorded
+       before the link (the tokens are built first) and whispered the GMs the courtroom rule - ops [p1's token update,
+       the GM's ChatMessage]. With the judge asking: it stands, nobody is told, nothing is charged or posted, and the one
+       write is the token's own. */
+    check("b1: Aiko's move across the hall's two marked regions is no crossing: it stands, nobody is told anything, nothing is charged or posted, and the one write is the token's (E13 C1)",
+        built.linked === true && moved.from === null && moved.to === null && J(moved.at) === J([1500, 400]) && !moved.told.length
+            && moved.chat === 0 && J(moved.actions) === J([2, 2]) && J(writes.ops) === J(["p1 embedded-update Scene.Token"]) && !writes.settings.length,
+        J({ linked: built.linked, moved, writes }), { flow: "class-trial" });
+    check("b2: with the hall active and on every screen, every browser finds the school linked as the school and the hall a place for nobody (E13 C1, R115)",
+        Object.values(homes).every(r => r.view && r.active && r.home && r.role === "trial" && r.place === false && r.pieces === 0),
+        J(homes), { flow: "class-trial" });
 
     /* ------------------------------ h. the voice in the trial ------------------------------ */
     phase("h: the voice rooms in the trial", { flow: "class-trial" });
     const voices = {};
     for (const c of clients) voices[c.who] = await c.eval(`const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
         const { rows } = await voiceTargets(); return rows.map(r => [r.actor.name, r.target]);`, { timeout: 30000 });
-    /* Read 12.10.2026, the same on all four: Aiko, Botan and Monokuma in the hall's Stand, Chie (unticked, her hall
-       token hidden) in the Academy's Dorm B, Daichi, the dead student and the test student with no room. */
+    /* Read 12.10.2026 at 48efd99, the same on all four: Aiko, Botan and Monokuma in the hall's Stand, Chie (unticked,
+       her hall token hidden) in the Academy's Dorm B, Daichi, the dead student and the test student with no room.
+       Read 12.10.2026 with E13 C1, the same on all four: the hall is no place, so each is where their Academy token
+       stands - Aiko in Dorm A, Botan in the Cafeteria, Chie in Dorm B, Monokuma in the Academy's Hall - and the three
+       others with no room, as before. */
     const rowOf = (who, name) => voices[who].find(([n]) => n === name)?.[1];
-    const stand = rowOf("gm", "Aiko Hoshino");
-    check("h1: voiceTargets in the trial puts the shown hall tokens in the hall's Stand and Chie in her Academy room, the same on every browser (C4 puts every row in the one room: target null)",
-        Object.values(voices).every(v => J(v) === J(voices.gm)) && String(stand).startsWith(`drpg-${built.hall}-stand-`)
-            && rowOf("gm", "Botan Kage") === stand && rowOf("gm", "Monokuma") === stand
-            && String(rowOf("gm", "Chie Mori")).startsWith(`drpg-${IDS.scene}-dorm-b-`)
+    const inAcademy = (name, room) => String(rowOf("gm", name)).startsWith(`drpg-${IDS.scene}-${room}-`);
+    check("h1: voiceTargets in the trial puts nobody in the hall: each student in the Academy room their token stands in, the same on every browser (E13 C1; C4 puts every row in the one room: target null)",
+        Object.values(voices).every(v => J(v) === J(voices.gm)) && !voices.gm.some(([, target]) => String(target).startsWith(`drpg-${built.hall}-`))
+            && inAcademy("Aiko Hoshino", "dorm-a") && inAcademy("Botan Kage", "cafeteria") && inAcademy("Monokuma", "hall")
+            && inAcademy("Chie Mori", "dorm-b")
             && ["Daichi Sato", "S41 Ghost", "S41 Test"].every(name => rowOf("gm", name) === null) && voices.gm.length === 7,
         J(voices), { flow: "class-trial" });
 

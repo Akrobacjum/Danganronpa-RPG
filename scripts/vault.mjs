@@ -44,7 +44,7 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
-    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom } from "./rooms.mjs";
+    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom, isTrialScene, homeScene } from "./rooms.mjs";
 // Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
 // its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
 import { REST_FLAGS } from "./rest.mjs";
@@ -2999,7 +2999,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
      * map the table is. Rooms are still listed alphabetically: a GM opens this looking for ONE
      * room by name, and the order regions were drawn in is nobody's mental model of the building.
      */
-    const scene = workingScene();
+    // Never the trial hall (E13 C1, R115): nobody stands there and it holds no rooms whatever its
+    // regions say (rooms.mjs), so a GM viewing it during a trial is shown the school's table.
+    let scene = workingScene();
+    if (isTrialScene(scene)) scene = homeScene();
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));

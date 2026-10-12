@@ -42,7 +42,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
-import { roomPieces, isMoveChange } from "./rooms.mjs";
+import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
@@ -225,7 +225,10 @@ function suppressBreakoutToasts() {
  * nothing to do, having walked every actor and located every token to get there.
  */
 function followsVoice(tokenDoc) {
-    return tokenDoc?.actor?.type === "character";
+    // Nor is a token in the trial hall (E13 C1): nobody stands there (rooms.mjs), so no move of
+    // one changes a voice room, and the students shown and hidden there at the trial's start
+    // would each schedule a pass that finds nothing to do.
+    return tokenDoc?.actor?.type === "character" && !isTrialScene(tokenDoc.parent);
 }
 
 /* ==========================================================================
@@ -829,6 +832,9 @@ function sceneRoomWarnings() {
     for (const scene of game.scenes) {
         const peopled = scene.tokens.some(t => t.actor?.type === "character");
         if (!peopled) continue;
+        // The trial hall holds no rooms on purpose (rooms.mjs, E13 C1): its students are not
+        // split by room there, and the warning below would tell the GM to name its regions.
+        if (isTrialScene(scene)) continue;
 
         // Rooms only (E12 C2a): a named region with a Teleport, or one a GM marked as not a
         // room, splits nobody's voice.
