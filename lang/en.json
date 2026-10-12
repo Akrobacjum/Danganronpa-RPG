@@ -1924,6 +1924,7 @@
       "hallHasRooms": "This scene has regions marked as rooms: {names}. In the trial hall they are not rooms - is this the school's map? Regions not marked as rooms are fine here.",
       "duplicateInHall": "More than one token in the hall stands for the same character, and a trial shows only the first. The others: {names}.",
       "unlinkedToken": "Tokens in the hall not linked to their character: {names}. The dead overlay and the player's control are read off the character, so link each to its character.",
+      "hallDark": "The trial hall still has Foundry's token vision on, its global light off or its exploration fog on. For everybody to see the whole hall, tick \"Prepare the hall\" in Room Setup's Scenes tab and press Apply.",
       "prepare": "Prepare the hall on Apply: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
       "preparePlaylist": "Also clear the hall's playlist",
       "prepareVoice": "Also switch Proximity Voice Chat off in the hall (in the trial everybody is in one voice room)",
@@ -2401,6 +2402,7 @@
     "Eclipse": {
       "already": "An Eclipse is already running.",
       "bodyFirst": "A body has been found - start the Investigation first.",
+      "trialFirst": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
       "announce": {
         "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
         "other": "Lights out. Place your token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."

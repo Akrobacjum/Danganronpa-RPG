@@ -1,7 +1,10 @@
 /** Boot sanity: four clients, module registers, world sync works. */
 export const layers = ["ci"];
+/* A second GM who joins late with LiveKit switched off (E13 fix r1-F3): the module stops on that browser. The id sorts
+   after the seeded GM's, so the primary GM stays the seeded one while it is connected. */
+export const accounts = [{ who: "gmoff", id: "USERGX0000000000", name: "GM Without LiveKit", role: 4, character: null, color: "#444444", late: true }];
 
-export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
+export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect, disconnect, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -189,6 +192,33 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         && gmChrome.seen.every(s => s.hotbar && s.nav && s.scenes)
         && playerChrome.seen.every(s => !s.hotbar && !s.nav && !s.scenes),
         JSON.stringify({ gm: gmChrome, p1: playerChrome }));
+
+    /* The GM's chrome when the module stops (E13 fix r1-F3, 12.10.2026; goal S12-18's other half; R470 reads the
+       order). A GM joins with LiveKit switched off, so the requirements check stops the module on that browser
+       (R442) while the harness links its stylesheets as on every client - whether Foundry v14 does is LIVE-E13-11.
+       Read as above, in the one theme a module that never set one leaves (none), after its `ready`, one element at a
+       time: the hotbar as `ready` left it, then the navigation drawn and its render fired, then the Scenes tab drawn and
+       the sidebar's render fired - `markGmChrome` stamps every element there is, so one hook fired before an element is
+       read would answer for the others. Until the fix the chrome was registered after the check, and a GM there
+       computed all three hidden. */
+    await connect("gmoff", { modulesOff: ["avclient-livekit"] });
+    await settle(300);
+    const stopped = await gmoff.eval(`const drawn = [];
+        const draw = (id, html) => { if (document.getElementById(id)) return; const t = document.createElement("template");
+            t.innerHTML = html; drawn.push(t.content.firstElementChild); document.body.append(t.content.firstElementChild); };
+        const shown = sel => getComputedStyle(document.querySelector(sel)).display !== "none";
+        const read = { stopped: !game.drpg && !game.settings.settings.has("danganronpa-rpg.theme"), gm: game.user.isGM, hotbar: shown("#hotbar") };
+        draw("scene-navigation", '<nav id="scene-navigation"></nav>');
+        Hooks.callAll("renderSceneNavigation");
+        read.nav = shown("#scene-navigation");
+        draw("sidebar-tabs", '<nav id="sidebar-tabs"><button type="button" class="ui-control" data-tab="scenes"></button></nav>');
+        Hooks.callAll("renderSidebar");
+        read.scenes = shown('#sidebar-tabs button[data-tab="scenes"]');
+        drawn.forEach(el => el.remove());
+        return read;`);
+    await disconnect("gmoff");
+    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off still shows the Scenes tab, the scene navigation and the hotbar",
+        stopped.stopped === true && stopped.gm === true && stopped.hotbar && stopped.nav && stopped.scenes, JSON.stringify(stopped));
 
     await settle(300);
 }

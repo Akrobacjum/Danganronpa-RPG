@@ -489,8 +489,11 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * and the Rot, which never takes the last point, still passes it by.
  *
  * Read through `durabilityOf`, which answers 1 for anything with no tier
- * recorded - a hand-made item, a world made before this existed - so an
- * unknown thing behaves exactly as everything did before.
+ * recorded - a hand-made item, a world made before this existed. Since E13 C8
+ * such a thing is also single use: `tierOf` reads a missing tier as 0, so
+ * `rollSpends` spends it on the first roll it is used in, whatever the roll
+ * (R439 asks it of an item with no tier). Before C8 it took a point on a
+ * Despair only, as everything did.
  */
 export const ITEM_DURABILITY = { 0: 1, 1: 1, 2: 2, 3: 3 };
 

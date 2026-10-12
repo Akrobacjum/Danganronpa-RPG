@@ -173,6 +173,22 @@ export async function startEclipse() {
         return null;
     }
 
+    /*
+     * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
+     * put to the owner beside it). A trial puts everybody in one voice room (D8, voice.mjs
+     * `voiceClaim`), and an Eclipse's branch comes first there, so an Eclipse started in a trial
+     * split the table into a room each; opening a trial in an Eclipse was already refused on every
+     * road (clock.mjs `setClock`, E10 fix r2-G5), and this is the other half. Refused here, the one
+     * writer of `eclipse: true` outside the tests, which the API's `startEclipse`, the GM panel's
+     * "Do it" (`toggleEclipse`) and the HUD's chevron all call; the HUD draws no chevron in a trial
+     * (its trial slot, hud.mjs `trialSlot`). Tier 2 "an Eclipse waits for the Class Trial's end". A
+     * clock written by hand with `eclipse: true` is not refused (`setClock` judges only the edge).
+     */
+    if (getClock().phase === "classTrial") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
+        return null;
+    }
+
     // Named by when it began (`eclipseId`): what is declared and crossed in it counts
     // in it alone, so the last Eclipse's crossings need no clearing (E05).
     await setClock({ eclipse: true, eclipseStartedAt: Date.now() });

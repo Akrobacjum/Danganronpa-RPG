@@ -341,17 +341,21 @@ function closeClients(ms) {
     });
 }
 
-function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null, holdLoading = false } = {}) {
+function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null, holdLoading = false, modulesOff = null } = {}) {
     /* A GM WHO JOINS LATE (E04, 26.09.2026). `world` is the `game.world.id` this client
        reports (the same browser opening another world on one server), `storage` what
        its localStorage holds before the module loads (a browser that has been here
        before), `clockSkewMs` how far its machine clock is off - Date.now moves, and
        game.time.serverTime, the server's, does not. The storage rides in the snapshot
-       rather than the environment: a remnants store is larger than one variable holds. */
+       rather than the environment: a remnants store is larger than one variable holds.
+       `modulesOff` names the companion modules this browser finds switched off (E13 fix r1-F3,
+       12.10.2026): the module's requirements check then stops it, as at a table missing one. */
     const env = { ...process.env, DRPG_USER: who, DRPG_REPO: REPO };
     delete env.DRPG_WORLD;
     delete env.DRPG_CLOCK_SKEW_MS;
+    delete env.DRPG_MODULES_OFF;
     if (world) env.DRPG_WORLD = String(world);
+    if (modulesOff?.length) env.DRPG_MODULES_OFF = [...modulesOff].join(",");
     if (clockSkewMs) env.DRPG_CLOCK_SKEW_MS = String(Number(clockSkewMs));
     const proc = fork(path.join(HERE, "client-entry.mjs"), [], {
         env,
@@ -555,7 +559,7 @@ const lateAccounts = new Map();
  * only warns there (lib/shim.mjs `Scene#view`). In Foundry the draw comes before `ready`; here it
  * comes after, as every client of the harness has always booted.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null } = {}) {
     const account = lateAccounts.get(who);
     if (!account) throw new Error(`${who} is not an account declared late: true`);
     const existing = clients.get(who);
@@ -563,7 +567,7 @@ async function connect(who, { storage = null, world = null, clockSkewMs = null, 
     const rec = userRec(account.id);
     if (rec) rec.active = true;
     if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
-    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading });
+    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff });
     entry.announceFirst = announceFirst;
     if (holdLoading) {
         const info = await Promise.race([entry.held, entry.ready]);

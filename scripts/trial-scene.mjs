@@ -359,6 +359,7 @@ export async function enterTrialScene(hall = trialScene()) {
         const names = missing.map(actor => esc(actor.name)).join(", ");
         await whisperToGms(`<p>${plural("DRPG.TrialScene.missingTokens", { n: missing.length, names })}</p>`);
     }
+    if (hallIsDark(hall)) await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`);
     const activated = !hall.active;
     if (activated) await hall.activate();
     return { hall: hall.id, left: left?.id ?? null, cast, missing: missing.map(actor => actor.id), activated };
@@ -723,9 +724,10 @@ export function hallRoomNames(hall) {
  * What the Scenes tab warns of, as rows `{ key, text, block }` - `block` holds Apply. Handed the
  * school and the hall (a scene, or anything with an `id`) and what the hall holds: `rooms`, the
  * names of its room regions; `cast`, `readCast`'s rows with `linked`; `missing`, the names of the
- * students a player plays with no token in it. Reads nothing else (R120 asks it of plain objects).
+ * students a player plays with no token in it; `dark`, `hallIsDark`'s answer. Reads nothing else
+ * (R120 asks it of plain objects).
  */
-export function sceneReport({ school = null, hall = null, rooms = [], cast = [], missing = [] } = {}) {
+export function sceneReport({ school = null, hall = null, rooms = [], cast = [], missing = [], dark = false } = {}) {
     const rows = [];
     const row = (key, text, block = false) => rows.push({ key, text, block });
     const names = list => list.map(name => esc(name)).join(", ");
@@ -738,7 +740,19 @@ export function sceneReport({ school = null, hall = null, rooms = [], cast = [],
     if (seconds.length) row("duplicateInHall", game.i18n.format("DRPG.TrialScene.duplicateInHall", { names: names(seconds) }));
     const unlinked = cast.filter(token => token.linked === false).map(token => token.name);
     if (unlinked.length) row("unlinkedToken", game.i18n.format("DRPG.TrialScene.unlinkedToken", { names: names(unlinked) }));
+    if (dark) row("hallDark", game.i18n.localize("DRPG.TrialScene.hallDark"));
     return rows;
+}
+
+/**
+ * Whether the hall still keeps a field "Prepare the hall" would change: Foundry's token vision on,
+ * its global light off or its exploration fog on (`hallPreparePatch` without the two extra ticks).
+ * Prepare stays the GM's choice and defaults off (Q-E13-1 d); a hall linked without it is named on
+ * the Scenes tab and in the entry whisper instead (E13 fix r1-F3, 12.10.2026; goal S07-47). What a
+ * player sees in such a hall needs a canvas and is not measured here.
+ */
+export function hallIsDark(hall) {
+    return Boolean(hall) && Object.keys(hallPreparePatch(hall)).length > 0;
 }
 
 /**
@@ -750,7 +764,7 @@ export function sceneReport({ school = null, hall = null, rooms = [], cast = [],
 export function scenesReportOf(school, hall) {
     const cast = hall ? readCast(hall).map(token => ({ ...token, linked: Boolean(hall.tokens.get(token.id)?.actorLink) })) : [];
     return sceneReport({ school, hall, rooms: hallRoomNames(hall), cast,
-        missing: hall ? studentsWithoutHallToken(hall).map(actor => actor.name) : [] });
+        missing: hall ? studentsWithoutHallToken(hall).map(actor => actor.name) : [], dark: hallIsDark(hall) });
 }
 
 function reportHtml(school, hall) {

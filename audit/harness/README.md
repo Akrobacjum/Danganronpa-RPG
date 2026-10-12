@@ -300,9 +300,10 @@ makes a critical certain, no rally die), and every roll at a table.
   `disconnect(who)`, which ends that client and tells the others through
   `userConnected` (LIVE-E30-05). An account declared `late: true` (E04) is
   seeded inactive and has no client until `connect(who, { storage, world,
-  clockSkewMs })` starts one - with that localStorage before the module loads,
-  that `game.world.id`, and a machine clock off by that much while
-  `game.time.serverTime` (the server's, here the machine's) is not - and may
+  clockSkewMs, modulesOff })` starts one - with that localStorage before the module loads,
+  that `game.world.id`, a machine clock off by that much while
+  `game.time.serverTime` (the server's, here the machine's) is not, and those
+  companion modules switched off (E13 fix r1-F3: the module stops there) - and may
   connect again after a disconnect; `storageOf(who)` is a client's
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no
