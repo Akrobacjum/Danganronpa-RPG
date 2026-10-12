@@ -7984,6 +7984,84 @@ const INVARIANTS = [
         "[secret.mjs keeps a cleaner of another name; exports cleanCardHtml; a private card's words go through it; it is Foundry's "
             + "cleanHTML as before; the history keeps inertCopy(cleanCardHtml(html)); draws through both again by importNode; "
             + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
+
+        /*
+         * WHAT A REFUSED LINK HELD, AN ATTRIBUTE NAME THE DOM REFUSES, AND A GM'S TRUSTED WORDS AS DRAWN (E81 fix r1-G4,
+         * 12.10.2026; review round 1's O5, O4 and O6). A link the allowlist refuses is kept as its words: at 0697d0f
+         * they were read before its children were cleaned, so a player kept the GMs' half inside one, an svg's text
+         * and a style's rules (early C2's reading in the harness's jsdom: "GM SECRET roll"). An element parsed with
+         * `is` beside an attribute named `"r294"` threw while it was rebuilt, and the recorder kept the card with an
+         * empty body, and the window's road drew it empty (the harness's stand-in cleaner passes that attribute on; whether Foundry's own does is
+         * LIVE-E81-01's). Then the road this test's title names: a private card whose words a GM wrote, stored
+         * `trusted` (secret.mjs hands those back as written), drawn by the catch-all on this GM - the card shows them
+         * as written, and the entry keeps them as the history cleans them, with no handler and no frame. The store is
+         * read through a stand-in for `game.settings.get` that adds the one card to what is there, for the length of
+         * the clause, and the history is held: nothing is written.
+         */
+        const LINKS = `<a class="inline-roll"><span class="drpg-gm-only">R294 GM in a roll</span> R294 roll words</a>`
+            + `<a href="javascript:void 0"><div class="drpg-gm-only">R294 GM in a js link</div>R294 js words</a>`
+            + `<a class="content-link"><svg><desc>R294 svg words</desc></svg><style>.r294-style{}</style>R294 doc words</a>`;
+        const linkWords = gm => {
+            try {
+                const text = parsed(NH.inertCopy(LINKS, { gm })).textContent;
+                return ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 svg words", "r294-style", "R294 doc words"]
+                    .filter(words => text.includes(words));
+            } catch (err) {
+                return `threw ${err.name}`;
+            }
+        };
+        const ODD = `<p>R294 before</p><p is="r294-p" "r294"=1>R294 odd names</p>`;
+        let odd = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: "R294 odd", html: ODD });
+            odd = NH.noticeEntries().find(entry => entry.id === id)?.html ?? null;
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([linkWords(false), linkWords(true), [odd?.includes("R294 before") ?? null, odd?.includes("R294 odd names") ?? null, /\bis=|r294"/.test(odd ?? ""), NH.noticeSnapshot(ODD, { gm: false }).textContent]]),
+            JSON.stringify([["R294 roll words", "R294 js words", "R294 doc words"],
+                ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 doc words"], [true, true, false, "R294 beforeR294 odd names"]]),
+            "[a refused link's words kept for a player; for a GM; a card with an element parsed with `is` and an attribute named \"r294\": "
+                + "its first paragraph kept, its own words, an odd attribute kept, and the same written raw and drawn by the window's road]");
+
+        const TRUSTED_ID = "R294TrustedCard1";
+        const TRUSTED = `<p>R294 trusted words</p><img src="${PNG}" onerror="void 0"><iframe srcdoc="&lt;p&gt;R294 trusted frame&lt;/p&gt;"></iframe>`;
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const trustedCard = {
+            id: TRUSTED_ID, author: game.user, whisper: [], rolls: [], content: secret.STUB,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, [secret.SECRET_FLAG]: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        };
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get");
+        const realGet = game.settings.get;
+        let shown = null, keptTrusted = null;
+        await NH.holdNoticeHistory(true);
+        game.settings.get = function (scope, key, ...rest) {
+            const value = realGet.call(this, scope, key, ...rest);
+            if (scope !== MODULE_ID || key !== SETTINGS.secretCards) return value;
+            return { ...(value ?? {}), [TRUSTED_ID]: { html: TRUSTED, at: Date.now(), user: game.user.id, world: game.world?.id ?? null, trusted: true } };
+        };
+        secret.forgetSecrets();
+        try {
+            await onCreateChatMessage(trustedCard);
+            shown = document.querySelector(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"] .drpg-popup-body`)?.innerHTML ?? null;
+            keptTrusted = NH.noticeEntries().find(entry => entry.messageId === TRUSTED_ID) ?? null;
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet);
+            else delete game.settings.get;
+            secret.forgetSecrets();
+            for (const card of document.querySelectorAll(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"]`)) {
+                card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([shown?.includes("onerror") ?? null, keptTrusted?.html === NH.cleanNoticeHtml(TRUSTED),
+            /onerror|<iframe|R294 trusted frame/.test(keptTrusted?.html ?? "onerror"), keptTrusted?.text ?? null]),
+        JSON.stringify([true, true, false, "R294 trusted words"]),
+        "[a GM's trusted private words drawn by the catch-all as written; the entry kept them as the history cleans them; "
+            + "the entry holds a handler or a frame; its words]");
     }],
     ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card", async () => {
         /*
@@ -8097,6 +8175,12 @@ const INVARIANTS = [
             equal(JSON.stringify([threw, typeof broken?.close, broken?.body?.textContent ?? null, broken?.added.length ?? null]),
                 JSON.stringify([null, "function", "R293 drawn anyway", 0]),
                 "[what showPopup threw when the recorder did; what it returned; the card's words; entries kept]");
+
+            /* A kind and a tone off popup.mjs's lists (E81 fix r1-G4; review round 1's O8): kept as the card is
+               dressed, "info" and no tone - the normalisation at the recorder, which no clause reached before. */
+            const offList = draw("<p>R293 off the lists</p>", { kind: "banana", tone: "loud" });
+            equal(JSON.stringify(offList.added.map(entry => [entry.kind, entry.tone])), JSON.stringify([["info", null]]),
+                "[the entries a card of kind \"banana\" and tone \"loud\" adds, as [kind, tone]]");
         } finally {
             for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
             NH.holdNoticeHistory(false);

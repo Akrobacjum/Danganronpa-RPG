@@ -530,7 +530,7 @@ export function showPopup(bodyHtml, {
 
     /* CLOSED FOR A REASON (E81 C3; the A7 design's P3-3): "user", "withdrawn", "unseen" or "code".
        Closed by its reader - its close button or a click on it - the notice was read; closed by code
-       (the function this returns), by a deletion or by "+N", it was not, and the history says so. `instant` takes a card that was
+       (the function this returns) or by a deletion, it was not, and the history says so. `instant` takes a card that was
        never on screen down at once instead of waiting for a transition it never ran. */
     let dismissed = false;
     const dismiss = ({ reason = "code", instant = false } = {}) => {

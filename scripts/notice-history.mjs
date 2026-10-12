@@ -273,7 +273,11 @@ function cleanChildren(parent, gm) {
             node.remove();
             continue;
         }
+        /* A refused link is kept as its words - the words of what is left of it once its own children are
+           cleaned (E81 fix r1-G4; review round 1's O5). Taken before they were, a GM-only span, an svg's text or
+           a style's rules inside the link came through as text for a player (R294's refused links, 12.10.2026). */
         if (tag === "a" && !linkAllowed(node)) {
+            cleanChildren(node, gm);
             node.replaceWith(node.ownerDocument.createTextNode(node.textContent));
             continue;
         }
@@ -281,10 +285,20 @@ function cleanChildren(parent, gm) {
         /* An element parsed with `is` keeps it past `removeAttribute`: the serializer writes the element's own
            "is value" back out, and R294's first run (12.10.2026, the harness's jsdom) read `is="r294-div"` in a
            stored snapshot. The HTML standard's serializer says the same of a browser; not measured in one. A
-           fresh element of the tag has no is value. */
+           fresh element of the tag has no is value. The parser takes attribute names `setAttribute` refuses:
+           `<p is="x" "foo"=1>` gives an attribute `"foo"`, and copying it threw InvalidCharacterError ("did not
+           match the Name production", the harness's jsdom, 12.10.2026), which kept the card with an empty body
+           (review round 1's O4). Such an attribute is left behind; `keepAttributes` would drop it anyway. */
         if (el.hasAttribute("is")) {
             el = node.ownerDocument.createElement(tag);
-            for (const attr of node.attributes) if (attr.name !== "is") el.setAttribute(attr.name, attr.value);
+            for (const attr of node.attributes) {
+                if (attr.name === "is") continue;
+                try {
+                    el.setAttribute(attr.name, attr.value);
+                } catch {
+                    // a name the parser accepts and the DOM does not
+                }
+            }
             el.append(...node.childNodes);
             node.replaceWith(el);
         }
