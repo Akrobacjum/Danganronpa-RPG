@@ -27,7 +27,7 @@
  *   b  p1 moves Aiko's hall token from one of the hall's rooms to the other during the trial: vetoes,
  *      Aiko's actions, the chat, and every other write the move caused; and (C1) what every browser, the
  *      hall active and on its screen, takes for the school and makes of the hall.
- *   h  `voiceTargets()` on each browser in the trial.
+ *   h  `voiceTargets()` on each browser in the trial: since E13 C4 one room for everybody (D8).
  *   c  `closeTrial()`: where every browser looks, the hall's tokens, their ids.
  *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes).
  *   f  `p4` connects held at the end of its load while the trial opens and the hall is activated; where it
@@ -59,6 +59,8 @@
  * E13 C1's b2: 14 checks in 36.6 s, one run on 12.10.2026 (alone, `--verbose`).
  * E13 C2's a3: 15 checks in 36.5 s, 41 s from the command to its exit, one run on 12.10.2026 (alone, `--verbose`).
  * E13 C3b's i: 20 checks in 47.1 s, one run on 12.10.2026 (alone, `--verbose`; C3's j and e were in it already).
+ * E13 C4's h1 (rewritten, no check added): 20 checks in 52.1 s, and 49.8 s with HEAD's voice.mjs, one run each on
+ * 12.10.2026 (`--verbose`, lane A; other harness runs were on the machine at the time, so not alone).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -242,21 +244,27 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     /* ------------------------------ h. the voice in the trial ------------------------------ */
     phase("h: the voice rooms in the trial", { flow: "class-trial" });
     const voices = {};
-    for (const c of clients) voices[c.who] = await c.eval(`const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
-        const { rows } = await voiceTargets(); return rows.map(r => [r.actor.name, r.target]);`, { timeout: 30000 });
+    const accounts = {};
+    for (const c of clients) {
+        const read = await c.eval(`const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
+            const { rows, byUser } = await voiceTargets();
+            return { rows: rows.map(r => [r.actor.name, r.target]), byUser: [...byUser].map(([id, r]) => [game.users.get(id)?.name ?? id, r.target]).sort() };`,
+            { timeout: 30000 });
+        voices[c.who] = read.rows;
+        accounts[c.who] = read.byUser;
+    }
     /* Read 12.10.2026 at 48efd99, the same on all four: Aiko, Botan and Monokuma in the hall's Stand, Chie (unticked,
        her hall token hidden) in the Academy's Dorm B, Daichi, the dead student and the test student with no room.
        Read 12.10.2026 with E13 C1, the same on all four: the hall is no place, so each is where their Academy token
        stands - Aiko in Dorm A, Botan in the Cafeteria, Chie in Dorm B, Monokuma in the Academy's Hall - and the three
-       others with no room, as before. */
-    const rowOf = (who, name) => voices[who].find(([n]) => n === name)?.[1];
-    const inAcademy = (name, room) => String(rowOf("gm", name)).startsWith(`drpg-${IDS.scene}-${room}-`);
-    check("h1: voiceTargets in the trial puts nobody in the hall: each student in the Academy room their token stands in, the same on every browser (E13 C1; C4 puts every row in the one room: target null)",
-        Object.values(voices).every(v => J(v) === J(voices.gm)) && !voices.gm.some(([, target]) => String(target).startsWith(`drpg-${built.hall}-`))
-            && inAcademy("Aiko Hoshino", "dorm-a") && inAcademy("Botan Kage", "cafeteria") && inAcademy("Monokuma", "hall")
-            && inAcademy("Chie Mori", "dorm-b")
-            && ["Daichi Sato", "S41 Ghost", "S41 Test"].every(name => rowOf("gm", name) === null) && voices.gm.length === 7,
-        J(voices), { flow: "class-trial" });
+       others with no room, as before.
+       Since E13 C4 (D8) the trial is one voice room: every row and every connected account is sent to the main room
+       (target null), the dead student and Monokuma too, the same on all four. */
+    check("h1: in the trial every character and every connected account is sent to the one main room (target null), the hall's and the school's rooms alike, the same on every browser (E13 C4, D8, R117)",
+        Object.values(voices).every(v => J(v) === J(voices.gm)) && Object.values(accounts).every(v => J(v) === J(accounts.gm))
+            && voices.gm.length === 7 && voices.gm.every(([, target]) => target === null)
+            && J(accounts.gm.map(([name]) => name)) === J(["GM", "PlayerOne", "PlayerThree", "PlayerTwo"]) && accounts.gm.every(([, target]) => target === null),
+        J({ voices, accounts }), { flow: "class-trial" });
 
     /* ------------------------------ c. closeTrial ------------------------------ */
     phase("c: closeTrial", { flow: "class-trial" });

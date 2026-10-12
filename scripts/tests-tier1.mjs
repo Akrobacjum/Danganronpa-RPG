@@ -6796,6 +6796,60 @@ const INVARIANTS = [
             "[a player in the trial off the hall, after it on the hall; a player already where the GM put the table (twice), in a trial the GM took "
             + "elsewhere; a GM (twice); no hall linked; registerTrialScene listens to canvasReady once through selfRepair, and never on every one]");
     }],
+    ["R117 - in the Class Trial everybody is in one voice room: the living, the dead, a Monocub, Monokuma and an account with no character (D8)", async () => {
+        /*
+         * E13 C4, 12.10.2026; S11-10, the owner's decision D8 (option 1: one room in the trial, also without linked
+         * scenes), plan-E13 2.3. Before C4 the trial ran in room voice: each living student followed the school room their
+         * token was left in, a Monocub and Monokuma likewise, the dead went to the main room, and an account with no
+         * character was not moved at all - so the trial's speakers sat in several breakouts. voice.mjs `voiceClaim` is the
+         * per-person decision `voiceTargets` asks, here asked of plain people standing in a school: in the trial all six
+         * get the main room (target null) with one claim of their own, and neither where anybody stands nor who is dead
+         * is asked - so no token, and no linked school or hall, can change the answer. Outside the trial the same six keep
+         * the answers they had (the two living and the Monocub their rooms, Monokuma the Hall, the dead the main room).
+         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and asks the accounts with
+         * no character only in an Eclipse or the trial, and a browser that asks for its own room (`targetForUser`, the
+         * answer to a client that connects mid-trial) is answered from that one decision, not from its token. Scenario 41 h reads it on four browsers in a real trial, and the
+         * tier-2 test "the Class Trial takes every connected voice ..." on this world. Red before C4: no `voiceClaim`.
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.voiceClaim === "function", "voice.mjs has no `voiceClaim` - the trial's voice rule is not one anybody can ask");
+        if (typeof V.voiceClaim !== "function") return;
+        const school = { id: "R117SCHOOL000000", name: "R117 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        let asked = 0;
+        const standing = room => () => { asked++; return room ? { scene: school, room } : null; };
+        const dead = value => () => { asked++; return value; };
+        const people = [
+            { user: account("R117PLAYERA00000"), silenced: dead(false), locate: standing("Dorm A") },
+            { user: account("R117PLAYERB00000"), silenced: dead(false), locate: standing("Cafeteria") },
+            { user: account("R117PLAYERC00000"), silenced: dead(true), locate: standing("Dorm B") },
+            { user: account("R117PLAYERD00000"), silenced: dead(false), locate: standing("Dorm B") },
+            { user: account("R117GM0000000000", true), monokuma: true, locate: standing("Hall") },
+            { user: account("R117SPECTATOR000") }
+        ];
+        const inTrial = people.map(p => V.voiceClaim({ ...p, trial: true }));
+        const askedInTrial = asked;
+        const outside = people.map(p => V.voiceClaim({ ...p, trial: false }));
+        const sources = await moduleSources();
+        must(sources.get("voice.mjs")?.length, "voice.mjs is not among the module's sources - this would measure nothing");
+        const voice = stripComments(sources.get("voice.mjs"));
+        const decide = fnSource(voice, "voiceTargets"), answer = fnSource(voice, "targetForUser");
+        equal(JSON.stringify([
+            inTrial.map(r => r.target), new Set(inTrial.map(r => r.claim)).size, inTrial.some(r => outside.some(o => o.claim === r.claim)),
+            inTrial.every(r => r.why === game.i18n.localize("DRPG.Voice.claimTrial")), askedInTrial,
+            outside.map(r => r.target),
+            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /if \(eclipse \|\| trial\)/.test(decide),
+            /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
+            JSON.stringify([
+                [null, null, null, null, null, null], 1, false, true, 0,
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), null,
+                    V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
+                true, true, true]),
+            "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
+            + "character; one claim for all, a claim of the trial's own; the trial's reason; nobody's place or death asked; outside the "
+            + "trial the same six; voiceTargets reads the trial from the clock and places accounts with no character only in an Eclipse or the trial; "
+            + "a browser's own question is answered from voiceTargets, not from its token]");
+    }],
 ];
 
 /**

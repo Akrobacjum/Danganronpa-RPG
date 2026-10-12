@@ -28985,6 +28985,39 @@ const SCENARIOS = [
         equal([...after.byUser.values()].filter(r => r.room).length, placed.length,
             "the rooms did not come back when the lights did");
     }],
+    ["the Class Trial takes every connected voice to the main room and gives the rooms back when it ends", async () => {
+        /*
+         * E13 C4, 12.10.2026; S11-10, D8 (one room in the trial, also without linked scenes), R117. The trial is the one
+         * scene the whole table is meant to hear, and before C4 it ran in room voice: every account here kept the school
+         * room its character's token stood in, so the trial's speakers sat in several breakouts. Read on this world as it
+         * is (in the harness nothing is linked, so the table does not move), the phase set to the trial and back by the clock's one
+         * writer: in the trial every connected account, and every character's row, is sent to the main room (target
+         * null) and no account is pulled two ways; after it the same accounts are in rooms again and nobody is placed
+         * who was not placed before (an account with no character stays where it was). Scenario 41 h reads it on four
+         * browsers with the school and the hall linked, a dead student among them.
+         */
+        needs(world.atLeast("occupiedRooms"), "a voice to take off a room");
+        const was = getClock().phase;
+        const before = await voiceTargets();
+        must(!before.eclipse && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const placed = byUser => [...byUser].filter(([, r]) => r.room).map(([id]) => id).sort();
+        ok(placed(before.byUser).length, "Foundry has a token standing in a room, and voiceTargets() places no account in one");
+
+        await setClock({ phase: "classTrial" });
+        await settle();
+        const during = await voiceTargets();
+        const connected = game.users.filter(u => u.active).map(u => u.id).sort();
+        await setClock({ phase: was });
+        await settle();
+        const after = await voiceTargets();
+
+        equal(JSON.stringify([
+            during.trial, [...during.byUser.keys()].sort(), [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))],
+            during.contested.size, after.trial ?? null, placed(after.byUser), [...after.byUser.keys()].sort()]),
+            JSON.stringify([true, connected, [null], 0, false, placed(before.byUser), [...before.byUser.keys()].sort()]),
+            "[in the trial: the clock's answer, every connected account placed, every target the main room, nobody pulled two ways; "
+            + "after it: no trial, the same accounts in rooms, nobody placed who was not before]");
+    }],
 
     ["a trial whose verdict is in does not open another", async () => {
         /*
