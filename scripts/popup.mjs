@@ -369,6 +369,9 @@ function raiseIfObjecting(stage) {
  *   a card whose words change after it is drawn is kept as it last read (default true).
  * @param {"browser"|"session"} [options.persist]  "session": kept by this page
  *   only, never written to the setting.
+ * @param {string|null} [options.fromMessage]  The chat card that raised it, for the
+ *   history alone: kept as that card's entry, one across this login's tabs, while the
+ *   notice itself stays when the card is deleted (the safeword's banner; E81 fix r1-G5).
  *
  * The interface every later recorder takes (E18, E50, E62 and E70 after E81): a
  * surface that raises a card through `showPopup` is kept by passing these, and
@@ -437,7 +440,7 @@ function noticeSource(source, messageId, author) {
 
 export function showPopup(bodyHtml, {
     title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null,
-    record = true, source = null, link = null, observe = true, persist = "browser", author = null
+    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
@@ -489,7 +492,7 @@ export function showPopup(bodyHtml, {
         try {
             notice = recordNotice({
                 kind: KINDS.includes(kind) ? kind : "info", tone: TONES.includes(tone) ? tone : null,
-                title, html: body.innerHTML, messageId, link, persist, ...noticeSource(source, messageId, author)
+                title, html: body.innerHTML, messageId: messageId ?? fromMessage, link, persist, ...noticeSource(source, messageId ?? fromMessage, author)
             });
             if (notice) {
                 card.dataset.drpgNotice = notice;

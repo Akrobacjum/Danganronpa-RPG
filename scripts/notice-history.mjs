@@ -71,6 +71,8 @@ export const NOTICE_TONES = Object.freeze(["hope", "fear", "critical"]);
 export const NOTICE_SOURCES = Object.freeze(["mine", "public", "player", "messenger", "evidence", "summary", "safeword", "notDone"]);
 const STATES = ["open", "read", "unread"];
 const MARKS = [null, "rerolled", "settled", "deleted"];
+/* How far a notice has come: two tabs' copies of one entry, or of one card, keep the further (E81 fix r1-G5). */
+const RANK = Object.freeze({ open: 0, unread: 1, read: 2 });
 
 /**
  * The reset groups whose cut moves the epoch (the A7 design, 1c): a reset that clears the clock, the
@@ -380,6 +382,9 @@ export function createNoticeEngine(env) {
     let timer = null;
     let flushing = null, again = false;
     let room = 1;                  // the share of the section's and the value's budgets this session keeps: 1/2 once it gave way
+    let edits = 0, written = 0;    // the changes this client made to its section, and how many of them a write has held (E81 fix r1-G5)
+    let heldFrom = null;           // this login's section as the suite's hold found it, given back at the release
+    const aliases = new Map();     // an id this page recorded -> its card (`pairOf`), for a copy another tab's merge kept instead
     const listeners = new Set();
 
     const epochNow = () => noticeEpoch(env.clock());
@@ -472,29 +477,65 @@ export function createNoticeEngine(env) {
     /* ------------------------------- merging ------------------------------ */
 
     /**
+     * Which card an entry keeps, for "one entry per card": its chat card and source; a day summary, which has
+     * no chat card, by its words - the same summary drawn in two tabs of one login is one card (E81 fix r1-G5;
+     * review round 1's N3: it was kept twice). Null for an entry that is only itself.
+     */
+    function pairOf(entry) {
+        if (entry.messageId !== null) return `${entry.messageId}|${entry.source}`;
+        return entry.source === "summary" ? `summary|${entry.title}|${entry.text}|${entry.html}` : null;
+    }
+
+    /** The entry with its state moved on to `state` when that is further (`RANK`), never back. */
+    const atLeast = (entry, state) => (RANK[state] > RANK[entry.state] ? { ...entry, state } : entry);
+
+    /**
      * Another tab's copy of this login's section into this one: the union by id (this tab's copy of an
-     * entry both hold wins), one entry per message and source (the newest), nothing at or before the
-     * last Clear and nothing buried; tombstones older than ten minutes let go.
+     * entry both hold wins, its state the further of the two), one entry per card (`pairOf`: the newest,
+     * with the furthest state of the copies it stands for - E81 fix r1-G5, N3: a card closed in the
+     * older of two tabs was left `open` in the newer one's copy), nothing at or before the last Clear and
+     * nothing buried; tombstones older than ten minutes let go.
      */
     function mergeInto(into, theirs) {
         if (theirs) {
             into.clearedAt = Math.max(into.clearedAt, theirs.clearedAt);
             for (const [id, at] of Object.entries(theirs.gone)) into.gone[id] = Math.max(into.gone[id] ?? 0, at);
-            const ids = new Set(into.entries.map(entry => entry.id));
-            for (const entry of theirs.entries) if (!ids.has(entry.id)) into.entries.push(entry);
+            const ids = new Map(into.entries.map((entry, i) => [entry.id, i]));
+            for (const entry of theirs.entries) {
+                const i = ids.get(entry.id);
+                if (i === undefined) into.entries.push(entry);
+                else into.entries[i] = atLeast(into.entries[i], entry.state);
+            }
         }
         const now = env.now();
         for (const [id, at] of Object.entries(into.gone)) if (now - at > TOMBSTONE_MS) delete into.gone[id];
-        const newest = new Map();
+        const newest = new Map(), furthest = new Map();
         for (const entry of into.entries) {
-            if (entry.messageId === null) continue;
-            const pair = `${entry.messageId}|${entry.source}`;
+            const pair = pairOf(entry);
+            if (pair === null) continue;
             if (!newest.has(pair) || newest.get(pair).at <= entry.at) newest.set(pair, entry);
+            if (!furthest.has(pair) || RANK[entry.state] > RANK[furthest.get(pair)]) furthest.set(pair, entry.state);
         }
         into.entries = into.entries
             .filter(entry => entry.at > into.clearedAt && !Object.hasOwn(into.gone, entry.id)
-                && (entry.messageId === null || newest.get(`${entry.messageId}|${entry.source}`) === entry))
+                && (pairOf(entry) === null || newest.get(pairOf(entry)) === entry))
+            .map(entry => (pairOf(entry) === null ? entry : atLeast(entry, furthest.get(pairOf(entry)))))
             .sort((a, b) => a.at - b.at);
+    }
+
+    /**
+     * Whether this page holds something of this login's history that `theirs` (the stored copy, or null) does
+     * not: an entry, a further state, a tombstone, a later Clear. Read after a merge, so what another tab
+     * changed is already in; what is left is what a write of an older copy lost (E81 fix r1-G5). Entries this
+     * page keeps for itself (`persist: "session"`) are never written, and so never missing.
+     */
+    function lacks(theirs) {
+        const kept = mine.entries.filter(entry => !sessionOnly.has(entry.id));
+        if (!theirs) return kept.length > 0 || mine.clearedAt > 0 || Object.keys(mine.gone).length > 0;
+        const stored = new Map(theirs.entries.map(entry => [entry.id, entry.state]));
+        return mine.clearedAt > theirs.clearedAt
+            || Object.keys(mine.gone).some(id => !Object.hasOwn(theirs.gone, id))
+            || kept.some(entry => !stored.has(entry.id) || RANK[entry.state] > RANK[stored.get(entry.id)]);
     }
 
     /* ------------------------------- budgets ------------------------------ */
@@ -599,7 +640,23 @@ export function createNoticeEngine(env) {
         return { ...sections, [ownKey]: { ...own, entries: own.entries.filter(entry => !sessionOnly.has(entry.id)) } };
     }
 
+    /*
+     * A WRITE ONLY WHEN SOMETHING CHANGED (E81 fix r1-G5, 12.10.2026; review round 1's O2). `flush` wrote on every
+     * call, and the page calls it on every `pagehide` and every hidden `visibilitychange`: both reviewers measured
+     * it at 0697d0f - a login that had recorded nothing found its empty section written at the first hide, and
+     * rewritten at the next (`touched` moved), so a GM who switched tabs during a tier 0/1 run turned "tier 0/1
+     * changed nothing in the world" red (worldDump reads every client setting of the module), every sibling tab
+     * took a `storage` event, and `touched` meant "last hidden". Every change to this login's section passes
+     * here and counts one; a write counts as done only once it succeeded, and `flush` returns at once when
+     * nothing is left to write. A change under the suite's hold does not count: the release forgets it.
+     */
     function schedule() {
+        if (held) return;
+        edits++;
+        arm();
+    }
+
+    function arm() {
         if (held || !saving || timer !== null) return;
         timer = env.timers.set(() => { timer = null; void flush(); }, DEBOUNCE_MS);
     }
@@ -617,7 +674,10 @@ export function createNoticeEngine(env) {
         if (halve) mine.entries.splice(0, Math.ceil(mine.entries.length / 2));
         trimSection(mine);
         mine.touched = env.now();
-        value.sections[ownKey] = mine;
+        /* A login with nothing to keep has no section (E81 fix r1-G5): the reset's clean-up of other sections
+           writes, and wrote an empty one for this login with it. */
+        if (mine.entries.length || mine.clearedAt || Object.keys(mine.gone).length) value.sections[ownKey] = mine;
+        else delete value.sections[ownKey];
         return trimValue(value);
     }
 
@@ -629,17 +689,19 @@ export function createNoticeEngine(env) {
 
     /**
      * Read the stored value afresh, clear what the epoch ended, merge this login's section in, keep the
-     * budgets and write. This login's section missing from the value (another account's write, or a
-     * console) is written again from memory. A write that throws drops the oldest quarter and tries once
+     * budgets and write - when this login's section changed since the last write (`schedule`). This login's
+     * section missing from the value (another account's write, or a console) is written again from memory at
+     * that write, or at once when another tab's write is what took it (`external`). A write that throws drops the oldest quarter and tries once
      * more; a second failure keeps the history in memory for the rest of the session (`status`), with no
      * notification: the window's footer says it (E81 C7). So does a value this world's other accounts fill
      * (`trimValue`, E81 fix r1-G2), before anything is written.
      */
     async function flush() {
         if (timer !== null) { env.timers.clear(timer); timer = null; }
-        if (!opened || held || !saving) return;
+        if (!opened || held || !saving || edits === written) return;
         if (flushing) { again = true; return flushing; }
         flushing = (async () => {
+            const upTo = edits;
             const value = readValue();
             if (value.newer) {
                 saving = false;
@@ -655,6 +717,7 @@ export function createNoticeEngine(env) {
             for (let attempt = 0; ; attempt++) {
                 try {
                     await env.storage.write({ v: FORMAT, sections: forStorage(value.sections) });
+                    written = Math.max(written, upTo);
                     return;
                 } catch (err) {
                     if (attempt) {
@@ -699,6 +762,7 @@ export function createNoticeEngine(env) {
         const value = readValue();
         if (value.newer) return 0;
         const before = sizeOf({ v: FORMAT, sections: value.sections });
+        const upTo = edits;
         const world = env.worldId();
         for (const key of Object.keys(value.sections)) if (worldOfKey(key) !== world) delete value.sections[key];
         const crowded = !gather(value, { halve: true });
@@ -711,6 +775,7 @@ export function createNoticeEngine(env) {
             if (crowded) changed();
             return 0;
         }
+        written = Math.max(written, upTo);
         changed();
         return Math.max(0, before - sizeOf(next));
     }
@@ -753,7 +818,8 @@ export function createNoticeEngine(env) {
         if (mine.epoch !== epochNow()) mine = emptySection();
         /* `at <= clearedAt` is what a merge refuses, so nothing recorded after a Clear may share its millisecond. */
         entry.at = Math.max(entry.at, mine.clearedAt + 1);
-        if (entry.messageId !== null) mine.entries = mine.entries.filter(e => e.messageId !== entry.messageId || e.source !== entry.source);
+        const pair = pairOf(entry);
+        if (pair !== null) mine.entries = mine.entries.filter(e => pairOf(e) !== pair);
         mine.entries.push(entry);
         trimSection(mine);
         schedule();
@@ -780,6 +846,7 @@ export function createNoticeEngine(env) {
             return null;
         }
         if (input.persist === "session") sessionOnly.add(entry.id);
+        if (pairOf(entry) !== null) aliases.set(entry.id, pairOf(entry));
         if (!opened) pending.push(entry);
         else add(entry);
         changed();
@@ -816,7 +883,10 @@ export function createNoticeEngine(env) {
      */
     function update(id, patch = {}) {
         const list = mine?.entries ?? pending;
-        const at = list.findIndex(entry => entry.id === id);
+        /* An entry a merge dropped for another tab's copy of the same card is moved through that copy (E81 fix
+           r1-G5, N3: the older tab's X reached nothing, and the card stayed "open" in the history). */
+        let at = list.findIndex(entry => entry.id === id);
+        if (at < 0 && aliases.has(id)) at = list.findIndex(entry => pairOf(entry) === aliases.get(id));
         if (at < 0) return false;
         let next = { ...list[at] };
         if (STATES.includes(patch.state)) next.state = patch.state;
@@ -906,13 +976,20 @@ export function createNoticeEngine(env) {
             changed();
             return true;
         },
-        /** Another tab wrote the value (the `storage` event): its copy of this login's section merged in, nothing written. */
+        /**
+         * Another tab wrote the value (the `storage` event): its copy of this login's section merged in. Written
+         * back only when that write lost something this page holds (`lacks`): a tab writing from a copy older
+         * than this one's, or an account's write without this login's section (E81 fix r1-G5). Before the
+         * clean-write rule every flush rewrote it anyway; since, nothing else would.
+         */
         external() {
             if (!opened) return;
             const value = readValue();
             const theirs = normalizeSection(value.sections[ownKey]);
             if (mine.epoch !== epochNow()) mine = emptySection();
-            mergeInto(mine, theirs?.epoch === mine.epoch ? theirs : null);
+            const same = theirs?.epoch === mine.epoch ? theirs : null;
+            mergeInto(mine, same);
+            if (lacks(same)) schedule();
             changed();
         },
         /** The clock changed: a reset since this section was written clears it now, and the others at the write. */
@@ -926,16 +1003,32 @@ export function createNoticeEngine(env) {
         /**
          * The suite's hold (tests.mjs, beside `gmStoreHold`): what was waiting is written first (the
          * promise answered settles when it is, so the runner reads the setting after it), then nothing is
-         * until the hold is let go; let go, the memory is what the setting holds, and whatever a test
-         * recorded meanwhile is forgotten.
+         * until the hold is let go. Let go, this login's history is what it was when the hold was taken -
+         * whatever a test recorded meanwhile is forgotten, and so is a real notice that arrived while it was
+         * held, which the engine cannot tell from a test's (a tier-1 test holds for under a second; tier 2
+         * is not run during play).
+         * THE RELEASE GIVES BACK WHAT IT HELD (E81 fix r1-G5, 12.10.2026; review round 1's N4 and O3). It
+         * read the setting again (`open`), so a history kept in memory only - its writes had failed, or a
+         * newer build owned the value - lost the whole session at a tier-1 run, and anything not yet written
+         * went with it. It gives back its own copy now, and writes later only what the setting lacks.
          */
         hold(on) {
             if (on) {
                 const waiting = !held && (timer !== null || flushing) ? flush() : null;
+                if (!held && mine) heldFrom = structuredClone(mine);
                 held++;
                 return waiting ?? Promise.resolve();
             }
-            if (held && !--held && opened) open({ atReady: false });
+            if (!held || --held) return Promise.resolve();
+            if (opened && heldFrom) {
+                mine = heldFrom;
+                const stored = normalizeSection(readValue().sections[ownKey]);
+                if (lacks(stored?.epoch === mine.epoch ? stored : null)) schedule();
+                else if (edits !== written) arm();
+            } else if (opened) {
+                open({ atReady: false });
+            }
+            heldFrom = null;
             return Promise.resolve();
         },
         status: () => ({ saving, note: saving ? null : NOTICE_TEXTS.notSaved }),

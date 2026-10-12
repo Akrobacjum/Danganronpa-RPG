@@ -217,10 +217,12 @@ function nextCard(ms) {
  * `observe: false`): what `awaitCard` adds to the caller's card afterwards is that browser's
  * own news, so the entry is the same frozen sentence on every browser and names nobody (R297).
  * `author`: the player whose chat card raised it, which the history bounds like any other sender's
- * (E81 fix r1-G1); a GM's card and the caller's own press pass none. Exported for the suite, which
+ * (E81 fix r1-G1); a GM's card and the caller's own press pass none. `messageId`: that chat card, by
+ * which two tabs of one login keep one entry (E81 fix r1-G5, review round 1's N3: they kept two); the
+ * banner does not go when the card is deleted, as it did not before. Exported for the suite, which
  * raises it without a chat card.
  */
-export function raiseCard(author = null) {
+export function raiseCard(author = null, messageId = null) {
     const said = document.createElement("p");
     said.textContent = game.i18n.localize("DRPG.Safeword.announced");
     showPopup(said, {
@@ -231,7 +233,8 @@ export function raiseCard(author = null) {
         sticky: true,
         source: "safeword",
         observe: false,
-        author
+        author,
+        fromMessage: messageId
     });
     return said;
 }
@@ -420,7 +423,7 @@ export function registerSafeword() {
         // GMs raised it at the press; the GM's card - or its own, when none
         // came in time - is that one, arriving.
         if (ownCallAt && Date.now() - ownCallAt < TIMING.safewordRepeatMs) ownCallAt = 0;
-        else raiseCard(message.author && !message.author.isGM ? message.author.id : null);
+        else raiseCard(message.author && !message.author.isGM ? message.author.id : null, message.id);
 
         // Exactly one client pauses, or several GMs race on the same toggle.
         // A player cannot pause a Foundry game at all, which is the whole reason

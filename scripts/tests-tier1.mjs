@@ -7343,7 +7343,8 @@ const INVARIANTS = [
         tick(); one.clear();
         await one.flush(); await two.flush(); two.external();
         const cleared = [ids().length, two.entries().length, Object.keys(stored(store).sections[KEY].gone).length > 0];
-        tick(11 * 60 * 1000); await one.flush();
+        /* Let go at the next write: since E81 fix r1-G5 a flush with nothing changed writes nothing, so a card comes first. */
+        tick(11 * 60 * 1000); one.record(card("after")); await one.flush();
         const tombstones = Object.keys(stored(store).sections[KEY].gone).length;
         /* A copy older than the Clear, its tombstones let go: what is kept out now is `clearedAt` alone. */
         const late = stored(store), STALE = "SuiteStaleCopy01";
@@ -7383,6 +7384,54 @@ const INVARIANTS = [
         }
         equal(JSON.stringify(failed), JSON.stringify([6, 6, null, null, 6, "DRPG.Notices.notSaved"]),
             "[a write failed once: a quarter of 8 gone and the rest written; failed twice: nothing written, 6 kept in memory, the footer's text]");
+
+        /*
+         * A write only when something changed (E81 fix r1-G5; review round 1's O2). The page flushes at every hide,
+         * and at 0697d0f each flush wrote: a login that had recorded nothing found an empty section of its own
+         * written, then rewritten (both reviewers measured it), and a hide during tier 0/1 moved the setting the
+         * runner's "changed nothing" check reads. Here: two flushes with nothing recorded; one card and three
+         * flushes; the other road to an empty section - the reset's clean-up of another account's ended section,
+         * which writes; and the one write a clean page still owes: another tab's stale copy that lost this
+         * page's entry is written back, and the tab that lost nothing writes nothing.
+         */
+        const clean = [];
+        {
+            let s = fresh(), x = bench(s);
+            x.open();
+            await x.flush();
+            await x.flush();
+            clean.push(s.raw, s.writes);
+            tick(); x.record(card("once"));
+            await x.flush();
+            tick(); await x.flush();
+            await x.flush();
+            clean.push(s.writes, stored(s).sections[KEY]?.entries?.length ?? 0);
+            s = fresh();
+            s.raw = JSON.stringify({ v: 1, sections: { [`${W}.${U2}`]: { epoch: "an-ended-season", touched: 1, clearedAt: 0, gone: {}, entries: [] } } });
+            x = bench(s);
+            x.open();
+            await x.flush();
+            clean.push(s.writes, Object.keys(stored(s).sections));
+            s = fresh();
+            const tabA = bench(s), tabB = bench(s);
+            tabA.open(); tabB.open();
+            tick(); const lost = tabA.record(card("lost"));
+            await tabA.flush();
+            const stale = stored(s);
+            stale.sections[KEY].entries = [];
+            s.raw = JSON.stringify(stale);
+            const w = s.writes;
+            tabA.external();
+            await tabA.flush();
+            const repaired = [stored(s).sections[KEY].entries.map(entry => entry.id).includes(lost), s.writes - w];
+            tabB.external();
+            await tabB.flush();
+            clean.push([...repaired, s.writes - w]);
+        }
+        equal(JSON.stringify(clean), JSON.stringify([null, 0, 1, 1, 1, [], [true, 1, 1]]),
+            "[nothing recorded, flushed twice: the stored value, the writes; one card, flushed three times: the writes, its section's entries; "
+            + "the reset's clean-up of another account's section: the writes, the sections left; a stale copy that lost this tab's entry: [written back, by one write; "
+            + "the writes after the tab that lost nothing flushed]]");
     }],
 
     ["R297 - each account keeps what its own browser showed it: every account's section stays in the value to the season's reset, and the reset clears them all", async () => {
@@ -7767,7 +7816,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const hook = stripComments(sources.get("safeword.mjs") ?? "");
-        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null\)/.test(hook), deleted }), JSON.stringify({
+        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null, message\.id\)/.test(hook), deleted }), JSON.stringify({
             flood: { gm: [true, true, true, "safeword 29", true, true], player: [true, true, true, "safeword 29", true, true] },
             crowd: { gm: [true, true, true], player: [true, true, true] },
             bound: [true, true, true, true],
@@ -7778,7 +7827,7 @@ const INVARIANTS = [
         }), "[the engine, a GM's and a player's: [own 5 kept, a second author's 3 kept, a heavy sender within 40 entries and a quarter, its newest, "
             + "160 short within 40, grown stubs within a quarter]; six senders: [own kept, each one's newest, the section within its budget]; "
             + "this GM through the roads: [own 5 kept, a second author's 3 kept, the player within 40 entries, within 25 000 characters]; "
-            + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player; "
+            + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player and its card (E81 fix r1-G5); "
             + "a plain deletion: [cards closing], [the entries' [source, state, mark]]]");
     }],
 
@@ -7792,30 +7841,58 @@ const INVARIANTS = [
          * "the suite left this browser's notice history as it found it" after it - which is the measurement of a run;
          * this test is what keeps it there.
          */
+        /*
+         * ON AN ENGINE OF ITS OWN (E81 fix r1-G5, 12.10.2026; review round 1's O3 and N4). It held the module's
+         * engine for about 700 ms and read the stored text before the awaited hold, which writes what waits - red
+         * on timing, not on the hold (O3 a) - and a real notice drawn in that window was forgotten at the release
+         * (O3 b). Now the hold is measured on `noticeBench`'s engine over a value in memory: the text read after the
+         * hold, a notice recorded while held kept in memory and never written, forgotten at the release with what
+         * was there before kept; and a history kept in memory only (its writes failed) given back whole by the
+         * release - at 0697d0f the release read the setting again and the session's history was gone (N4). The
+         * module's engine is read by its source alone.
+         */
         const NH = await import("./notice-history.mjs").catch(() => null);
-        ok(typeof NH?.holdNoticeHistory === "function", "there is no notice history to hold, and no reading of it across the run");
-        const stored = () => game.settings.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.noticeHistory`) ?? "";
-        const before = stored();
-        let id = null, kept = false, after = null;
-        await NH.holdNoticeHistory(true);
+        ok(typeof NH?.holdNoticeHistory === "function" && typeof NH.createNoticeEngine === "function", "there is no notice history to hold, and no reading of it across the run");
+        const at = { now: 4_000_000 }, clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const note = title => ({ source: "mine", kind: "info", title, text: title, html: `<p>${title}</p>` });
+        const store = { raw: null, writes: 0, fail: 0 };
+        const engine = noticeBench(NH.createNoticeEngine, { store, user: "SuitePlayerR47301", world: "suite-world", at, clock });
+        engine.open();
+        engine.record(note("R473 before"));
+        await engine.hold(true);
+        const before = store.raw;
+        let id = null, held = null;
         try {
-            id = NH.recordNotice({ source: "mine", kind: "info", title: "R473", text: "R473", html: "<p>R473</p>" });
-            kept = NH.noticeEntries().some(entry => entry.id === id);
-            await settle();
-            await wait(600);
-            after = stored();
+            at.now++;
+            id = engine.record(note("R473 held"));
+            await engine.flush();
+            held = [engine.entries().some(entry => entry.id === id), store.raw === before, store.writes];
         } finally {
-            NH.holdNoticeHistory(false);
+            engine.hold(false);
         }
-        must(id !== null, "the history refused the suite's notice - the hold would be measured on nothing");
+        must(id !== null && before !== null, "the hold wrote nothing of what waited, or refused the suite's notice - it would be measured on nothing");
+        await engine.flush();
+        const released = [engine.entries().map(entry => entry.title), store.raw === before, store.writes];
+        const lost = { raw: null, writes: 0, fail: 2 };
+        const memory = noticeBench(NH.createNoticeEngine, { store: lost, user: "SuitePlayerR47302", world: "suite-world", at, clock });
+        memory.open();
+        for (let n = 1; n <= 4; n++) { at.now++; memory.record(note(`R473 memory ${n}`)); }
+        await memory.flush();
+        at.now++; memory.record(note("R473 memory 5"));
+        await memory.hold(true);
+        at.now++; memory.record(note("R473 memory held"));
+        memory.hold(false);
+        const kept = [memory.status().saving, memory.entries().map(entry => entry.title), lost.raw];
         const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
         const start = bodyOf(src, "gmStoreHold(true);", { length: 2000 });
         const release = bodyOf(src, "gmStoreHold(false);", { length: 700 });
-        equal(JSON.stringify([kept, after === before, NH.noticeEntries().some(entry => entry.id === id),
+        equal(JSON.stringify([held, released, kept,
             /^gmStoreHold\(true\);\s*await holdNoticeHistory\(true\);\s*noticesFound = noticeHistoryText\(\);/.test(start), /^gmStoreHold\(false\);\s*holdNoticeHistory\(false\);/.test(release),
             /name: "the suite left this browser's notice history as it found it"/.test(release) && /outcome: "fail"/.test(release)]),
-            JSON.stringify([true, true, false, true, true, true]),
-            "[held, the notice in memory; the stored history unchanged past the debounce; forgotten at the release; "
+            JSON.stringify([[true, true, 1], [["R473 before"], true, 1],
+                [false, ["R473 memory 2", "R473 memory 3", "R473 memory 4", "R473 memory 5"], null], true, true, true]),
+            "[held: the notice in memory, the stored text as the hold left it, the writes; released and flushed: the entries, the stored text unchanged, the writes; "
+            + "kept in memory only, released: saving, the entries, the stored value; "
             + "the runner holds it beside the GM store and reads it; releases it beside the GM store; fails the run on a difference]");
     }],
     ["R294 - a kept notice holds only what a past card may show: what another user's markup carried in is gone through the recorder, from a value written raw into the setting and from a GM's trusted words, and the card's own text stays", async () => {
@@ -8200,6 +8277,57 @@ const INVARIANTS = [
             /recordNotice\(\{[^}]*\bpersist\b/.test(fnSource(popup, "showPopup"))]),
         JSON.stringify([["R293 kept", "R293 this page"], ["R293 kept"], true]),
         "[this page's entries; the written ones; showPopup hands its persist to recordNotice]");
+
+        /*
+         * Two tabs of one login (E81 fix r1-G5; review round 1's N3, measured there at 0697d0f): the same card drawn
+         * in both, closed in the older - its X reached nothing, the merge had kept the newer tab's copy, and the
+         * history said "open"; the same day summary drawn in both was kept twice. And the safeword's banner, which
+         * every tab raises from one chat card, now names that card to the history and stays when it is deleted.
+         */
+        const shared = { raw: null, writes: 0, fail: 0 }, U2 = "SuitePlayerR29302", KEY2 = `suite-world.${U2}`, MSGS = ["SuiteMessageR293", "SuiteMessageR29B"];
+        const tab = () => noticeBench(NH.createNoticeEngine, { store: shared, user: U2, world: "suite-world", at, clock });
+        const older = tab(), newer = tab();
+        older.open(); newer.open();
+        const CARD = messageId => ({ source: "public", kind: "info", title: "R293 both tabs", text: "", html: "<p>R293 both tabs</p>", messageId });
+        /* Closed in the older tab before either wrote: the merge keeps the newer copy, with the older one's state. */
+        const early = older.record(CARD(MSGS[0]));
+        at.now++; const late = newer.record(CARD(MSGS[0]));
+        older.update(early, { state: "read" });
+        await older.flush(); await newer.flush(); older.external();
+        /* Closed in the older tab after the merge: its X reaches the copy kept. */
+        at.now++; const mine = older.record(CARD(MSGS[1]));
+        at.now++; const theirs = newer.record(CARD(MSGS[1]));
+        await older.flush(); await newer.flush(); older.external();
+        const closed = older.update(mine, { state: "read" });
+        await older.flush(); newer.external();
+        /* The newer tab's cards then close by code: what was read stays read. */
+        newer.update(late, { state: "unread" });
+        newer.update(theirs, { state: "unread" });
+        await newer.flush();
+        const states = MSGS.map(id => (JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? []).filter(entry => entry.messageId === id).map(entry => entry.state));
+        older.external();
+        const SUMMARY = { source: "summary", kind: "info", title: "R293 summary", text: "R293 the day", html: "<p>R293 the day</p>" };
+        at.now++; older.record(SUMMARY);
+        at.now++; newer.record(SUMMARY);
+        await older.flush(); await newer.flush(); older.external(); await older.flush();
+        const both = JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? [];
+        let banner = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const S = await import("./safeword.mjs");
+            const had = new Set(NH.noticeEntries().map(entry => entry.id));
+            S.raiseCard(null, "SuiteSafeword293");
+            const card = newest();
+            banner = [NH.noticeEntries().filter(entry => !had.has(entry.id)).map(entry => [entry.source, entry.messageId]), card?.dataset.drpgMessage ?? null];
+            card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([closed, states, MSGS.map(id => both.filter(entry => entry.messageId === id).map(entry => entry.state)), both.filter(entry => entry.source === "summary").length,
+            older.entries().filter(entry => entry.source === "summary").length, banner]),
+        JSON.stringify([true, [["read"], ["read"]], [["read"], ["read"]], 1, 1, [[["safeword", "SuiteSafeword293"]], null]]),
+        "[the older tab's X after the merge moved the copy kept; each card's kept states (closed before the merge, after it) as the newer tab wrote them and at the end; the day summaries kept, written and in the older tab; "
+        + "the banner's entries [source, its chat card], the card's data-drpg-message]");
     }],
     ["R295 - a card the module takes back leaves the notice history, any other deletion leaves its entry marked deleted, and a Reroll or a ruling marks an entry without moving what it showed", async () => {
         /*
