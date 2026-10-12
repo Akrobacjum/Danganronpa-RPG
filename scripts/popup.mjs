@@ -329,6 +329,7 @@ function capacityOf(host) {
 }
 
 const PARKED = "drpg-popup-parked";
+const STICKY = "drpg-popup-sticky";
 
 /* Arrival order, kept on each card, because the two stacks lay it out differently: the
    corner tile puts the newest on TOP (see `showPopup`), the evidence stage puts it at
@@ -436,6 +437,18 @@ function unparkInto(host) {
  * On the title bar of the OLDEST shown card, beside its close button: the parked
  * cards are older than everything shown, so they sit next to it in the stack and it
  * is the one they come back beside. One badge per stack, moved rather than multiplied.
+ *
+ * "+N" CLOSES EVERY CARD THAT IS NOT STICKY (E81 C11, 12.10.2026; audit S11-39, the owner's Q2 of 07.10:
+ * "Tak"). It was a label that said "close one to see the next", so a stack with notices parked under it
+ * cost one X per card to clear. Now, while the stack holds a card that is not sticky, it is a button:
+ * `closeLoose` takes every such card down, and the sticky ones - a card somebody has to read - stay, with
+ * the label on them should more of them wait. Nothing is lost by it: every card is in the notice history,
+ * and a parked card goes there unread, because nobody saw it, while a card on screen goes read, as its X
+ * would have closed it - so the ones "+N" took down unseen are among what the history's button counts
+ * (R298 (8): two parked cards taken down, a badge of 2). No confirmation and no toast, as the X has none.
+ * With only sticky cards in the stack - and the Class Trial's evidence stage takes nothing else (`hostFor`)
+ * - it is the label as it was, with its tooltip; the button's own, `moreCloseAll`, does not say "close
+ * one", which beside a close-all would contradict it.
  */
 function markParked(host) {
     setFloor(host);
@@ -446,13 +459,41 @@ function markParked(host) {
         .sort(byArrival)[0];
     const top = oldest?.querySelector(".drpg-popup-title");
     if (!top) return;
-    const badge = document.createElement("span");
+    const closes = host.querySelector(`.drpg-popup:not(.leaving):not(.${STICKY})`) !== null;
+    const badge = document.createElement(closes ? "button" : "span");
     badge.className = "drpg-popup-more";
     badge.textContent = `+${waiting}`;
-    const tip = plural("DRPG.Popup.moreTip", { n: waiting });
+    const tip = plural(closes ? "DRPG.Popup.moreCloseAll" : "DRPG.Popup.moreTip", { n: waiting });
     badge.dataset.tooltip = tip;
     badge.setAttribute("aria-label", tip);
+    if (closes) {
+        badge.type = "button";
+        badge.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLoose(host);
+        });
+    }
     top.insertBefore(badge, top.querySelector(".drpg-popup-close"));
+}
+
+/**
+ * Every card of a stack that is not sticky, closed (E81 C11): a parked one at once and unread - it was never
+ * on screen, so there is no transition to wait for and nothing was read -, a shown one as its reader's own
+ * close, read. Which is which is read once, before the first closes: a parked card taken down calls
+ * `unparkInto`, which could bring another parked card to the screen before its own turn, and that one still
+ * goes as it was found, unread. The parked ones go first, while the shown ones still hold their seats, so
+ * `unparkInto` finds a free seat only where a card was already leaving (read in the code, not measured).
+ * Through each card's own `drpg-dismiss`, so everything a card does when it closes - the history's state,
+ * the floor, the seat - is what its X would have done.
+ */
+function closeLoose(host) {
+    const loose = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${STICKY})`));
+    const parked = loose.filter(card => card.classList.contains(PARKED));
+    const shown = loose.filter(card => !parked.includes(card));
+    const close = (card, detail) => card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail }));
+    parked.forEach(card => close(card, { reason: "unseen", instant: true }));
+    shown.forEach(card => close(card, { reason: "user" }));
 }
 
 /**
@@ -778,8 +819,8 @@ export function showPopup(bodyHtml, {
     }
 
     /* CLOSED FOR A REASON (E81 C3; the A7 design's P3-3): "user", "withdrawn", "unseen" or "code".
-       Closed by its reader - its close button or a click on it - the notice was read; closed by code
-       (the function this returns), by a deletion or by "+N", it was not, and the history says so. `instant` takes a card that was
+       Closed by its reader - its close button, a click on it, or "+N" while it was on screen - the notice was read; closed by code
+       (the function this returns), by a deletion or by "+N" while it was parked, it was not, and the history says so. `instant` takes a card that was
        never on screen down at once instead of waiting for a transition it never ran. */
     let dismissed = false;
     const dismiss = ({ reason = "code", instant = false } = {}) => {

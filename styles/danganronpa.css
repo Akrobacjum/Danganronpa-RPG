@@ -1534,6 +1534,7 @@ body.drpg-hide-system-fear #resource-fear {
 .drpg-mini-button:focus-visible,
 .drpg-advance-button:focus-visible,
 .drpg-popup-close:focus-visible,
+.drpg-popup-more:focus-visible,
 .character-header-sheet .drpg-action-pip.gm-editable:focus-visible,
 #drpg-despair.gm-editable .drpg-despair-pip:focus-visible {
     outline: 2px solid var(--drpg-gold);
@@ -6168,6 +6169,28 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     opacity: 0.75;
     pointer-events: auto;
     cursor: help;
+}
+/* "+N" AS A BUTTON (E81 C11, 12.10.2026; audit S11-39). While the stack holds a card that is not sticky,
+   "+N" closes every such card (popup.mjs `closeLoose`), so it is a button with the close button's target -
+   its 1.6rem height, its pointer, its hover and, in the focus list above, its ring - and keeps the label's
+   frame, which is what reads as a count. The label with the help cursor is left for a stack of sticky cards
+   only. Under Stained Glass its colour is the close button's by the title band's `:is(button, i)` rule
+   (stained-glass.css). The 44 px touch target is E63's; how it draws is not measured here (no browser). */
+.drpg-popup-title button.drpg-popup-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    box-shadow: none;
+    cursor: pointer;
+}
+.drpg-popup-title button.drpg-popup-more:hover {
+    opacity: 1;
+    background: rgba(var(--drpg-eye-rgb), 0.14);
 }
 
 .drpg-popup-close {

@@ -3809,6 +3809,10 @@
         "one": "{n} more notice waits under these. Close one to see it.",
         "other": "{n} more notices wait under these. Close one to see the next."
       },
+      "moreCloseAll": {
+        "one": "{n} more notice waits. Click to close every card except the ones to read.",
+        "other": "{n} more notices wait. Click to close every card except the ones to read."
+      },
       "kind": {
         "info": "Notice",
         "error": "Refused",

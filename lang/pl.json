@@ -4013,6 +4013,12 @@
         "many": "Pod nimi czeka jeszcze {n} powiadomień. Zamknij jedno, żeby zobaczyć następne.",
         "other": "Pod nimi czeka jeszcze {n} powiadomienia. Zamknij jedno, żeby zobaczyć następne."
       },
+      "moreCloseAll": {
+        "one": "Czeka jeszcze {n} powiadomienie. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+        "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+        "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
+        "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
+      },
       "kind": {
         "info": "Uwaga",
         "error": "Odmowa",

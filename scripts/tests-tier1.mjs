@@ -8171,7 +8171,7 @@ const INVARIANTS = [
                 ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
             "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
     }],
-    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free and, under Monokuma Legacy on a desk, the empty tile following the clock; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free, a '+N' that closes every card that is not sticky and, under Monokuma Legacy on a desk, the empty tile following the clock; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
         /*
          * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
          * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
@@ -8230,6 +8230,16 @@ const INVARIANTS = [
          * the empty Legacy desk tile's box and its place under the window layer, the hide rule on a stacked screen,
          * `applyTheme` firing the hook after it has set the classes, and `ensureNoticeTile` binding the watch from
          * `ready`. Where the tile and the button then stand, and over which windows: R299 (b), in a browser.
+         * (8) E81 C11, 12.10.2026; the owner's Q2, audit S11-39, the stage's V13 and D6: '+N' closes every card that is
+         * not sticky. The harm: '+N' was a label that said "close one to see the next", so a stack that had parked
+         * notices cost one X per card. Recorded under the suite's hold, on the suite's own cards: sticky cards only,
+         * more than the stack shows - the label as it was, with `moreTip`; then cards that close on any click drawn
+         * until one is parked, and a sticky card after them, so two of them wait and '+N' stands on the oldest shown one:
+         * a button named by `moreCloseAll`, never by "close one". Pressed (a click of its own, cancelable): the click is
+         * cancelled and reaches no card - no card's own click runs -, the parked ones are gone at once and unread, the
+         * shown ones leave read, the sticky card stays on screen and open, nothing waits so no '+N' is left, and the
+         * history's button counts the two taken down unseen. Last, in the stylesheet: the button's focus ring is the
+         * close button's and its target the close button's height with a pointer. How it draws: a browser only.
          */
         const NH = await import("./notice-history.mjs").catch(() => null);
         ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
@@ -8600,6 +8610,69 @@ const INVARIANTS = [
         ]), J([true, true, true, true, true]),
             "[the empty Legacy desk tile has a card's width and the corner's height; it stands under the window layer until a card is shown; on a stacked screen "
             + "the button is hidden with no card; applyTheme fires drpgThemeApplied after it sets the classes; ensureNoticeTile listens for it and binds the watch from ready]");
+
+        /* (8) '+N' closes every card that is not sticky (E81 C11). */
+        must(shownOnTile().length === 0, "a card is on the notice tile - close it: '+N' is measured on the suite's own cards");
+        const moreAt = () => {
+            const more = host.querySelector(".drpg-popup-more");
+            if (!more) return null;
+            const name = more.getAttribute("aria-label");
+            return [more.localName, more.getAttribute("type"), more.textContent, more.dataset.tooltip === name ? name : null,
+                more.closest(".drpg-popup")?.querySelector(".drpg-popup-body")?.textContent.trim() ?? null];
+        };
+        const looseClosers = [], drawnLoose = {}, loose = {};
+        let looseClicks = 0;
+        const drawLoose = (words, options = {}) => {
+            looseClosers.push(P.showPopup(`<p>${words}</p>`, { title: "R298 more", ...options }));
+            drawnLoose[words] = [...host.querySelectorAll(".drpg-popup")].find(card => card.textContent.includes(words)) ?? null;
+        };
+        const stateOf = words => NH.noticeEntries().find(entry => entry.id === drawnLoose[words]?.dataset.drpgNotice)?.state ?? null;
+        const whereIs = words => {
+            const card = drawnLoose[words];
+            return !card?.isConnected ? "gone" : card.classList.contains("leaving") ? "leaving" : card.classList.contains("drpg-popup-parked") ? "parked" : "shown";
+        };
+        await NH.holdNoticeHistory(true);
+        try {
+            NH.markNoticesRead();
+            /* Sticky cards only: the label. */
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) drawLoose(`R298 sticky ${i}`, { sticky: true });
+            loose.label = moreAt();
+            /* Closed by code, so unread: read again, so the badge counts what '+N' takes down and nothing else. */
+            looseClosers.splice(0).forEach(close => close({ instant: true }));
+            NH.markNoticesRead();
+            /* Cards that close on any click until one waits, then a sticky one: two wait, '+N' on the oldest shown. */
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) drawLoose(`R298 loose ${i}`, { onClick: () => { looseClicks++; } });
+            drawLoose("R298 stays", { sticky: true });
+            const words = Object.keys(drawnLoose).filter(w => /R298 (loose|stays)/.test(w));
+            const waiting = words.filter(w => whereIs(w) === "parked"), onScreen = words.filter(w => w !== "R298 stays" && whereIs(w) === "shown");
+            must(waiting.length === 2 && onScreen.length >= 1 && whereIs("R298 stays") === "shown",
+                `the stack did not park two loose cards with one shown beside the sticky one (${J(words.map(w => [w, whereIs(w)]))}) - '+N' is measured on that stack`);
+            loose.button = moreAt();
+            const press = new MouseEvent("click", { bubbles: true, cancelable: true });
+            host.querySelector(".drpg-popup-more")?.dispatchEvent(press);
+            loose.pressed = { cancelled: press.defaultPrevented, clicks: looseClicks, more: moreAt(), badge: button.dataset.unread ?? null, count: NH.noticeUnread() };
+            loose.cards = words.map(w => [whereIs(w), stateOf(w)]);
+            loose.expected = words.map(w => w === "R298 stays" ? ["shown", "open"] : waiting.includes(w) ? ["gone", "unread"] : ["leaving", "read"]);
+        } finally {
+            for (const close of looseClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            NH.holdNoticeHistory(false);
+            await until(() => ![...host.querySelectorAll(".drpg-popup")].some(card => card.textContent.includes("R298 ")), 3000);
+            host.querySelectorAll(".drpg-popup").forEach(card => { if (/R298 (sticky|loose|stays)/.test(card.textContent)) card.remove(); });
+        }
+        equal(J(loose), J({
+            label: ["span", null, "+1", plural("DRPG.Popup.moreTip", { n: 1 }), "R298 sticky 2"],
+            button: ["button", "button", "+2", plural("DRPG.Popup.moreCloseAll", { n: 2 }), "R298 loose 3"],
+            pressed: { cancelled: true, clicks: 0, more: null, badge: "2", count: 2 },
+            cards: loose.expected ?? [],
+            expected: loose.expected ?? []
+        }), "[sticky cards only: '+N' as tag, type, text, its tooltip its name, on which card; with loose cards parked: the same; pressed: the click cancelled, "
+            + "the cards' own clicks run, '+N' left, the history button's badge and the unread count; each card where it is and its state after, against "
+            + "parked: gone and unread, shown: leaving and read, sticky: shown and open]");
+        equal(J([
+            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-gold\);/.test(styles),
+            /\.drpg-popup-title button\.drpg-popup-more \{[^}]*height: 1\.6rem;[^}]*cursor: pointer;/.test(styles),
+            /body\.drpg-theme-stained-glass \.drpg-popup-title :is\(button, i\) \{ color:/.test(styles)
+        ]), J([true, true, true]), "[the '+N' button's focus ring is the close button's; its target the close button's height, with a pointer; under Stained Glass its colour the close button's]");
     }],
     ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
         /*
