@@ -237,7 +237,7 @@ With somebody else in the room the saboteur also rolls Shadow against **16** to 
 > [!NOTE]
 > The damage is applied by a GM's client - if no GM confirms in time the roll succeeded but the target may not be broken, and the player is told to say so.
 
-**Critical rolls** grant **2 Hope** (`CRITICAL.hope`). A roll with Despair that used the item in the character's hand takes one point of its durability (section 10).
+**Critical rolls** grant **2 Hope** (`CRITICAL.hope`). A roll with Despair that used the item in the character's hand takes one point of its durability, and a Tier 0 item is spent by any roll that used it, a critical included (section 10).
 
 ---
 
@@ -484,14 +484,14 @@ A GM give ignores the carry limit and marks the excess.
 
 | Tier | Usables | Weapons and cleaning tools | Durability |
 |---|---|---|---|
-| 0 | "a random, seemingly useless item, open to creative use"; comes to you to rule on | useless | **1** point |
+| 0 | "a random, seemingly useless item, open to creative use"; comes to you to rule on | useless | **single use** |
 | 1 | restores 1 | meant for something else but usable | **1** point |
 | 2 | restores 2 | partly intended for the job | **2** points |
 | 3 | restores 2 Health or 2 Sanity, the player's choice, plus 2 Hope | made strictly for it | **3** points |
 
 A Murder Weapon's tier is its damage in an incident; a Cleaning Tool's tier comes off the clean-up DC and off Move the body; a **Tool held ready** gives advantage on project work and sabotage and takes its tier off the threshold (`TOOL_IN_HAND`).
 
-**Durability** (the last column above). A roll that lands with **Despair** - success or failure, never a critical - takes one point off the item in the character's hand <ins>when the roll used it</ins>: a Tool on project work or sabotage, a Cleaning Tool on a clean-up, a Murder Weapon on a swing. The point that empties it breaks it. A broken item stays in its slot, broken wherever it goes next; its holder gets rid of it by stashing it or throwing it away (a Shadow roll that always leaves a trace). The Rot darkening wears everything by one but never takes the last point.
+**Durability** (the last column above). A roll that lands with **Despair** - success or failure, never a critical - takes one point off the item in the character's hand <ins>when the roll used it</ins>: a Tool on project work or sabotage, a Cleaning Tool on a clean-up, a Murder Weapon on a swing. The point that empties it breaks it. A **Tier 0** item is **single use** instead: any roll that used it breaks it - Hope, Despair or a critical, success or failure - and the sheet shows it "Single use" rather than a durability track; a Reroll of an incident action gives it back with the action and the replay spends it again. Creative use of a Tier 0 usable is not a roll and stays your ruling, as before - including whether it is used up. A broken item stays in its slot, broken wherever it goes next; its holder gets rid of it by stashing it or throwing it away (a Shadow roll that always leaves a trace). The Rot darkening wears everything by one but never takes the last point.
 
 **Item tables** (`scripts/tables.mjs`, Between sessions > Item tables). Search draws from RollTables: one **tier pool** per category and tier ("DRPG Murder Weapons - Tier 2", "DRPG Usables (Healing) - Tier 1", and so on), found by name, plus optional **room pools** a room can be pointed at from Room Setup. The editor has three tabs - Tier pools, Room pools and Create an item - and an **Install / reinstall** button: the one-time install of the module's own mundane, school-shaped lists, as 20 RollTables in a "Danganronpa RPG" folder; if they exist you choose between **Keep mine** and rebuilding. From Tier 2 up a pool entry may carry one second role ("also serves as"), so an axe is a tool and a mop is a weapon. Renamed labels keep old tables findable.
 

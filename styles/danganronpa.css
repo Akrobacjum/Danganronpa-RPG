@@ -2133,6 +2133,14 @@ section[data-application-part="biography"] .experiences .value {
     vertical-align: middle;
 }
 
+/* A tier 0 thing's "Single use" in the place of the pips (E13 C8, sheet.mjs `wearMarkup`):
+   small and quiet, as the tier beside it is. Not measured in a browser. */
+.drpg-item-wear.drpg-single-use {
+    font-size: var(--font-size-11, 0.7rem);
+    opacity: 0.6;
+    white-space: nowrap;
+}
+
 .drpg-inventory-list .drpg-item-tier {
     font-size: var(--font-size-11, 0.7rem);
     opacity: 0.6;

@@ -480,6 +480,14 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * rounding: tier 1 is the first thing worth carrying, not the first thing that
  * lasts. What tier 2 buys is a second chance; tier 3 buys a third.
  *
+ * TIER 0'S ONE IS A SINGLE USE, NOT A DURABILITY (the owner's amend of
+ * 25.09.2026; E13 C8): a tier 0 tool or weapon is spent by the first roll it
+ * is used in, whatever the roll (use-items.mjs `rollSpends`), and the sheet
+ * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the
+ * spending goes through `wearItem` like any wear - one point, and the point
+ * that fills it breaks it - so a Reroll gives it back as it gives a wear back,
+ * and the Rot, which never takes the last point, still passes it by.
+ *
  * Read through `durabilityOf`, which answers 1 for anything with no tier
  * recorded - a hand-made item, a world made before this existed - so an
  * unknown thing behaves exactly as everything did before.

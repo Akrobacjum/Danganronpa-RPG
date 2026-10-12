@@ -409,12 +409,12 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 
 | Tier | Użytkowy | Narzędzie zbrodni / do sprzątania | Wytrzymałość |
 |---|---|---|---|
-| 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | 1 |
+| 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | jednorazowy |
 | 1 | przywraca 1 Health (leczący) albo 1 Sanity (uspokajający) | przeznaczony do czegoś innego, ale się nada | 1 |
 | 2 | przywraca 2 Health albo 2 Sanity, zależnie od rodzaju | częściowo przeznaczony do tej roboty | 2 |
 | 3 | przywraca 2 Health **albo** 2 Sanity - do wyboru - plus 2 Hope | zrobiony wyłącznie do tej roboty | 3 |
 
-**Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Zużyty użytkowy też jest Zepsuty.
+**Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
 > Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**.

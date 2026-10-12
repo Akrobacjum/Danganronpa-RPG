@@ -1344,7 +1344,10 @@ function swungWeapon(held, def, id, recorded = false) {
  * from. `breakOnDespair` posts its notice as before; while the incident runs the card is
  * veiled whoever posts it (secret.mjs `incidentVeils`), its words to the actor's player.
  * A roll-less take (a free one, the third's choices) wears nothing. Answers what a Reroll
- * needs to give the wear back (`undoLastCrisis`), or null when nothing wore.
+ * needs to give the wear back (`undoLastCrisis`), or null when nothing wore. A tier 0 weapon
+ * is spent by any swing that rolled, with Hope or critical too (E13 C8, use-items.mjs
+ * `rollSpends`, its tier read off `weapon` as the GMs hold it); the break is answered here as
+ * a wear is, so a Reroll gives it back and the replay spends it again.
  */
 async function wearSwing(actor, weapon, { withHope, isCritical, rolled }) {
     if (!weapon || !rolled || isBroken(weapon)) return null;

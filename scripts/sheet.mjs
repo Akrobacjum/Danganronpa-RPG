@@ -47,7 +47,7 @@ import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
-import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
@@ -268,10 +268,17 @@ function dropTypeHeading(root) {
  * Nothing is drawn for a broken item: its row already says BROKEN in crimson,
  * and three hollow pips beside that word only says it again, more quietly.
  *
+ * A TIER 0 THING HAS NO TRACK (the owner's amend of 25.09.2026; E13 C8). It is spent by the
+ * first roll it is used in, whatever the roll (use-items.mjs `rollSpends`), so one pip would
+ * read as "one Despair and it is gone", which is no longer the rule; the row says "Single use"
+ * instead, its tooltip the rule. Tier is read as the rule reads it (`tierOf`: no tier recorded
+ * is 0). Where the words sit in a narrow row is not measured: no layout here (R439 reads the
+ * markup only).
+ *
  * @param {Item} item
  * @returns {string} HTML, or "" when there is nothing worth saying.
  */
-function wearMarkup(item) {
+export function wearMarkup(item) {
     if (!item || isBroken(item)) return "";
 
     /*
@@ -286,6 +293,14 @@ function wearMarkup(item) {
      * by being used, or by being taken.
      */
     if (!isEquippable(item)) return "";
+
+    if (tierOf(item) === 0) {
+        const hint = game.i18n.localize("DRPG.Items.singleUseTooltip");
+        return `<span class="drpg-item-wear drpg-single-use" data-tooltip="${
+            foundry.utils.escapeHTML(hint)}" aria-label="${
+            foundry.utils.escapeHTML(hint)}">${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.singleUse"))}</span>`;
+    }
 
     const total = durabilityOf(item);
     if (!(total > 0)) return "";

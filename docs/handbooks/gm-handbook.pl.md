@@ -237,7 +237,7 @@ Gdy w pokoju jest ktoś jeszcze, sabotażysta rzuca też Shadow przeciw **16**, 
 > [!NOTE]
 > Uszkodzenie nakłada klient GMa - jeśli żaden GM nie potwierdzi na czas, rzut się udał, ale cel może nie być zepsuty, i gracz ma o tym powiedzieć.
 
-**Krytyki** dają **2 Hope** (`CRITICAL.hope`). Rzut z Despair, w którym użyto przedmiotu trzymanego w ręku, zdejmuje z niego jeden punkt wytrzymałości (sekcja 10).
+**Krytyki** dają **2 Hope** (`CRITICAL.hope`). Rzut z Despair, w którym użyto przedmiotu trzymanego w ręku, zdejmuje z niego jeden punkt wytrzymałości, a przedmiot Tier 0 zużywa każdy rzut, który go użył, także krytyk (sekcja 10).
 
 ---
 
@@ -484,14 +484,14 @@ Nadanie przez GMa ignoruje limit i oznacza nadmiar.
 
 | Tier | Usables | Broń i narzędzia do sprzątania | Wytrzymałość |
 |---|---|---|---|
-| 0 | "losowa, pozornie bezużyteczna rzecz, otwarta na kreatywne użycie"; trafia do ciebie do rozstrzygnięcia | bezużyteczne | **1** punkt |
+| 0 | "losowa, pozornie bezużyteczna rzecz, otwarta na kreatywne użycie"; trafia do ciebie do rozstrzygnięcia | bezużyteczne | **jednorazowy** |
 | 1 | przywraca 1 | przeznaczone do czegoś innego, ale się nada | **1** punkt |
 | 2 | przywraca 2 | częściowo do tej roboty | **2** punkty |
 | 3 | przywraca 2 Health albo 2 Sanity do wyboru gracza plus 2 Hope | stworzone wyłącznie do niej | **3** punkty |
 
 Tier Murder Weapon to obrażenia w incydencie; Tier Cleaning Tool schodzi z DC sprzątania i z Przenieś ciało; **Tool w ręku** daje przewagę na pracę nad projektem i sabotaż i zdejmuje swój Tier z progu (`TOOL_IN_HAND`).
 
-**Wytrzymałość** (ostatnia kolumna powyżej). Rzut, który wypadnie z **Despair** - sukces czy porażka, nigdy krytyk - zdejmuje jeden punkt z przedmiotu trzymanego w ręku, <ins>jeśli rzut go użył</ins>: Tool przy pracy nad projektem albo sabotażu, Cleaning Tool przy sprzątaniu, Murder Weapon przy ciosie. Gdy zejdzie ostatni punkt, przedmiot się psuje. Zepsuty przedmiot zostaje w swoim slocie i jest zepsuty, dokądkolwiek trafi; posiadacz pozbywa się go, chowając go do skrytki albo wyrzucając (rzut Shadow, który zawsze zostawia ślad). Zaciemnienie Rot zużywa wszystko o jeden, ale nigdy nie zabiera ostatniego punktu.
+**Wytrzymałość** (ostatnia kolumna powyżej). Rzut, który wypadnie z **Despair** - sukces czy porażka, nigdy krytyk - zdejmuje jeden punkt z przedmiotu trzymanego w ręku, <ins>jeśli rzut go użył</ins>: Tool przy pracy nad projektem albo sabotażu, Cleaning Tool przy sprzątaniu, Murder Weapon przy ciosie. Gdy zejdzie ostatni punkt, przedmiot się psuje. Przedmiot **Tier 0** jest za to **jednorazowy**: psuje go każdy rzut, który go użył - z Hope, z Despair albo krytyk, sukces czy porażka - a karta pokazuje mu "Jednorazowy" zamiast paska wytrzymałości; Reroll akcji w incydencie oddaje go razem z akcją, a powtórka zużywa go znowu. Kreatywne użycie przedmiotu użytkowego Tier 0 nie jest rzutem i jak dotąd zostaje twoim orzeczeniem - także o tym, czy się zużył. Zepsuty przedmiot zostaje w swoim slocie i jest zepsuty, dokądkolwiek trafi; posiadacz pozbywa się go, chowając go do skrytki albo wyrzucając (rzut Shadow, który zawsze zostawia ślad). Zaciemnienie Rot zużywa wszystko o jeden, ale nigdy nie zabiera ostatniego punktu.
 
 **Tabele przedmiotów** (`scripts/tables.mjs`, Między sesjami > Tabele przedmiotów). Search losuje z tabel losowych: jedna **pula Tier** na kategorię i Tier ("DRPG Murder Weapons - Tier 2", "DRPG Usables (Healing) - Tier 1" itd.), znajdowana po nazwie, plus opcjonalne **pule pokoi**, na które można wskazać pokój w Ustawieniach pokoi. Edytor ma trzy zakładki - Pule Tier, Pule pokoi i Utwórz przedmiot - oraz przycisk **Zainstaluj / przeinstaluj**: jednorazowa instalacja własnych, zwyczajnych, szkolnych list modułu, jako 20 tabel losowych w folderze "Danganronpa RPG"; jeśli już istnieją, wybierasz między **Zachowaj moje** a przebudową. Od Tier 2 wzwyż wpis może mieć jedną dodatkową rolę ("służy też jako"), więc siekiera jest narzędziem, a mop bronią. Zmienione etykiety nie gubią starych tabel.
 

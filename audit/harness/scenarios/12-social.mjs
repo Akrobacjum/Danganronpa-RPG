@@ -368,6 +368,41 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     `, { timeout: 60000 });
     check("INVENTORY: Gear limit of 2 is enforced (3rd blocked or stashed)", inv.carried <= 2, JSON.stringify(inv));
 
+    /* A TIER 0 TOOL IS SPENT BY ANY ROLL, ON THE PLAYER'S OWN BROWSER (E13 C8, 12.10.2026; the owner's amend of 25.09:
+       tier 0 things are single-use). A project, a sabotage and a clean-up wear their tool on the roller's browser,
+       after the dice (use-items.mjs `breakOnDespair`). The GM hands Aiko a tier 0 and a tier 1 Tool; p1's browser -
+       her player's - runs `breakOnDespair` on each after a roll with Hope, as those roads do. Read on the GM: the tier 0
+       one broken on the document and as the GMs hold it (sheet-audit.mjs `itemsHeldNow`: true on 12.10.2026, so the
+       GMs keep a player's own single use), the tier 1 one whole with no wear; on p1 what each call answered and whether the card it posted names the
+       tier 0 Tool single-use. Red before C8: the tier 0 Tool stayed whole. The two Tools are taken away after. */
+    phase("a tier 0 tool's single use");
+    const once = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const zero = await INV.grantItem(aiko, { name: "C8 tier 0 tool", category: "tool", tier: 0, override: true, quiet: true });
+        const one = await INV.grantItem(aiko, { name: "C8 tier 1 tool", category: "tool", tier: 1, override: true, quiet: true });
+        return { zero: zero?.id ?? null, one: one?.id ?? null };`, { timeout: 60000 });
+    await settle(600);
+    const spent = await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        const a = game.actors.get("${ids.aiko}"), hope = { total: 14, withHope: true, withFear: false, isCritical: false };
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const names = [await U.breakOnDespair(a, a.items.get(${JSON.stringify(once.zero)}), hope), await U.breakOnDespair(a, a.items.get(${JSON.stringify(once.one)}), hope)];
+        const words = game.i18n.format("DRPG.Items.singleUseSpent", { item: "C8 tier 0 tool" });
+        const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const told = () => game.messages.contents.filter(m => !had.has(m.id)).some(m => String(S.contentOf(m) ?? "").includes(words));
+        return { names, told: await until(told) };`, { timeout: 60000 });
+    await settle(900);
+    const spentGm = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"); const { itemsHeldNow } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const read = id => { const doc = id ? aiko.items.get(id) : null, held = id ? itemsHeldNow(aiko).find(i => i.id === id) : null;
+            return doc ? { broken: INV.isBroken(doc), held: held ? INV.isBroken(held) : "none", wear: INV.wearOf(doc) } : null; };
+        const out = { zero: read(${JSON.stringify(once.zero)}), one: read(${JSON.stringify(once.one)}) };
+        for (const id of [${JSON.stringify(once.zero)}, ${JSON.stringify(once.one)}]) if (id) await aiko.items.get(id)?.delete();
+        return out;`, { timeout: 60000 });
+    check("p1: a tier 0 Tool used on a roll with Hope is spent on the player's own browser and stays broken on the GM's; a tier 1 Tool is not",
+        Boolean(once.zero && once.one) && spent.names[0] === "C8 tier 0 tool" && spent.names[1] === null && spent.told === true
+        && spentGm.zero?.broken === true && spentGm.zero?.held === true && spentGm.one?.broken === false && spentGm.one?.wear === 0,
+        JSON.stringify({ once, spent, spentGm }));
+
     // --- movement / search tokens per room ---
     phase("movement");
     const search = await gm.eval(`

@@ -169,6 +169,18 @@ export function readiedItem(actor) {
 }
 
 /**
+ * Whether a roll costs the tool it used a point of its wear: a tier 0 thing on any roll (the
+ * amend of 25.09.2026, `breakOnDespair`'s note), anything else on a Despair that is no critical.
+ * `held` is the tool as the caller holds it - the GMs' copy on a GM's road. Pure, so tier 1
+ * reads the rule without writing (R439).
+ */
+export function rollSpends(held, roll) {
+    if (!roll) return false;
+    if (tierOf(held) === 0) return true;
+    return Boolean(roll.withFear) && !roll.isCritical;
+}
+
+/**
  * Despair breaks whatever was in your hands.
  *
  * The guide has no durability rule, so this is the module's, and it is decided
@@ -179,6 +191,18 @@ export function readiedItem(actor) {
  *     success with Despair  BREAKS
  *     failure with Hope     whole
  *     failure with Despair  BREAKS
+ *
+ * A TIER 0 THING IS SPENT BY ANY ROLL (the owner's amend of 25.09.2026; E13 C8). The table
+ * above is tiers 1 to 3. A tier 0 tool or weapon - "a random, seemingly useless object" - breaks
+ * after every roll it was the tool or weapon of, whatever the roll, critical included: the five
+ * roads that call this (a project, a sabotage, a clean-up, Stage 6, the incident's and the
+ * murder's swing, murder-rules.mjs `wearSwing`) all pass the roll they threw. Its one point of
+ * `ITEM_DURABILITY` is that single use, spent through `wearItem` like any other wear, so a
+ * Reroll of a swing gives it back as it gives back a wear (`undoLastCrisis`) and the replay
+ * spends it again. The tier is read off `held` (`rollSpends`), where a GM's road holds it.
+ * Creative use (`useItem` of a tier 0 usable) is the GM's ruling, not a roll, and does not come
+ * here. Until this commit a tier 0 tool used on a roll with Hope stayed whole (R439 and the
+ * tier-2 test "a tier-0 tool is spent by any roll it was used in" read it, red at C7's tree).
  *
  * One sentence to remember: Despair breaks the tool, whether or not the action
  * worked. That is consistent with everything else Despair does in this system -
@@ -204,7 +228,7 @@ export function readiedItem(actor) {
  */
 export async function breakOnDespair(actor, tool, roll, held = tool) {
     if (!tool || !roll) return null;
-    if (!roll.withFear || roll.isCritical) return null;
+    if (!rollSpends(held, roll)) return null;
     if (isBroken(held)) return null;
 
     let outcome = null;
@@ -248,7 +272,10 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
         // (the player's), from Stage 6 (the player's) and from the incident
         // resolver (the GM's). The flag follows the card to the owner in all
         // three, which is the one audience that is right in all three.
-        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.brokeOnDespair", {
+        // A Despair says so whatever the tier, as it always did; a tier 0 thing spent by any
+        // other roll is told it was single-use, not that a Despair broke it.
+        const despair = roll.withFear && !roll.isCritical;
+        await whisperToOwner(actor, `<p>${game.i18n.format(despair ? "DRPG.Items.brokeOnDespair" : "DRPG.Items.singleUseSpent", {
             item: foundry.utils.escapeHTML(tool.name)
         })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
     } catch {

@@ -3857,6 +3857,107 @@ const SCENARIOS = [
         }
     }],
 
+    ["a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a Despair", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09: a tier 0 thing - "a random, seemingly useless object" - is
+         * single-use, broken after every roll it was the tool or weapon of, whatever the roll. Until C8 it wore as a
+         * tier 1 tool does, only on a Despair that was no critical, so a sack of nothing held ready through a run of
+         * Hope rolls lasted as long as a real tool. Driven through use-items.mjs `breakOnDespair` with each result, as
+         * the roads that wear a tool call it after their dice (action-rolls.mjs `workOnProject` and `performSabotage`,
+         * cleanup.mjs `attemptCleanup` and `attemptStageSix`; the swing has its own test below), on three tier 0
+         * Tools and one tier 1 Tool readied by a student. Read: what each call answered (the name of what broke),
+         * whether each tier 0 Tool is broken and out of the hand, the tier 1 Tool's broken and wear after a Hope and
+         * a critical and broken after a Despair, and whether the card the Hope roll's break posted names the thing
+         * single-use. The Tools are taken away after.
+         */
+        const [actor] = cast(1);
+        const INV = await import("./inventory.mjs");
+        const { breakOnDespair, isEquipped } = await import("./use-items.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const hope = { total: 14, withHope: true, withFear: false, isCritical: false };
+        const fear = { total: 14, withHope: false, withFear: true, isCritical: false };
+        const crit = { total: 20, withHope: false, withFear: false, isCritical: true };
+        const made = [];
+        const tool = async (tier, name) => {
+            const item = await INV.grantItem(actor, { name, category: "tool", tier, override: true, quiet: true });
+            if (item) made.push(item);
+            return item;
+        };
+        try {
+            const zero = [await tool(0, "Suite tier 0 tool - Hope"), await tool(0, "Suite tier 0 tool - Despair"), await tool(0, "Suite tier 0 tool - critical")];
+            const one = await tool(1, "Suite tier 1 tool");
+            must(zero.every(Boolean) && one, "could not hand the student the four Tools - this would measure nothing");
+            for (const item of [...zero, one]) await item.setFlag(MODULE_ID, "equipped", true);
+            const had = new Set(game.messages.contents.map(m => m.id));
+            const answered = [];
+            for (const [item, roll] of [[zero[0], hope], [zero[1], fear], [zero[2], crit]]) answered.push(await breakOnDespair(actor, item, roll));
+            answered.push(await breakOnDespair(actor, one, hope), await breakOnDespair(actor, one, crit));
+            const doc = item => actor.items.get(item.id);
+            const whole = [INV.isBroken(doc(one)), INV.wearOf(doc(one))];
+            answered.push(await breakOnDespair(actor, one, fear));
+            await settle();
+            const words = game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) });
+            const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(words));
+            equal(stableJson([answered, zero.map(item => [INV.isBroken(doc(item)), isEquipped(doc(item))]), whole, INV.isBroken(doc(one)), told]),
+                stableJson([[...zero.map(item => item.name), null, null, one.name], [[true, false], [true, false], [true, false]], [false, 0], true, true]),
+                "a tier 0 Tool outlived a roll, or a tier 1 Tool broke without a Despair (answers; each tier 0 Tool broken and in hand after Hope, Despair, a critical; "
+                + "the tier 1 Tool's broken and wear after Hope and a critical, broken after a Despair; the single-use card told)");
+        } finally {
+            for (const item of made) if (actor.items.has(item.id)) await item.delete();
+        }
+    }],
+
+    ["a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay to spend again", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09, the incident's and the murder's road. A tier 0 weapon is
+         * single-use like a tier 0 tool: the swing breaks it whatever the roll. The GM wears the swung weapon after
+         * the damage (murder-rules.mjs `wearSwing`), and until C8 only on a Despair, so a tier 0 knife that hit with
+         * Hope stayed in the hand for the next swing. At the killer's turn (`swingFixture`) the knife is made tier 0,
+         * so the damage asks the GM what it counts as (`rateTierZero`, answered 0 here and counted); the killer hits
+         * with Hope; then the Reroll's replay arrives as the bridge hands it on, a hit with Hope, which gives the
+         * break back before it swings the knife the receipt recorded (`undoLastCrisis`). Read: the knife broken and
+         * in the hand after the swing, the tier asked, then after the Reroll broken and in hand, the tier asked (a
+         * replay that found the knife still broken would swing nothing and ask nothing), and what the killer was
+         * handed (an unarmed hit improvises a weapon).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBroken } = await import("./inventory.mjs");
+        const { isEquipped } = await import("./use-items.mjs");
+        const { M, killer, knife, putBack, handed } = await swingFixture();
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait"), inner = D.wait;
+        const rate = game.i18n.localize("DRPG.Murder.tierZeroTitle");
+        let rated = 0;
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== rate) return inner.call(D, cfg);
+            rated++;
+            return "0";
+        };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.tier`]: 0 });
+            globalThis.__forceRoll = { hope: 11, fear: 8 };
+            const taken = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            must(taken?.roll?.total >= 15 && taken.roll.withHope && !taken.roll.isCritical,
+                `the fixture's swing was not a hit with Hope: ${stableJson(taken?.roll ?? null)}`);
+            const swung = killer.items.get(knife.id);
+            const first = [isBroken(swung), isEquipped(swung), rated];
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, undo: true });
+            await settle();
+            const now = killer.items.get(knife.id);
+            equal(stableJson([...first, isBroken(now), isEquipped(now), rated, handed()]), stableJson([true, false, 1, true, false, 2, 0]),
+                "a tier 0 knife outlived a hit with Hope, or the Reroll did not give it back for the replay to spend again (broken, in hand, tier asked after the swing; "
+                + "broken, in hand, tier asked after the Reroll; items handed)");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+        }
+    }],
+
     ["a Reroll of a crisis action that killed is refused before the Hope is paid", async () => {
         /*
          * E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9, the owner's answer (A). A Reroll

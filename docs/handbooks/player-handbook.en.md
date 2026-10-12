@@ -409,12 +409,12 @@ None of these ever takes you below one action or one search token. You see "?" f
 
 | Tier | Usable | Murder Weapon / Cleaning Tool | Durability |
 |---|---|---|---|
-| 0 | a random, seemingly useless item - open to creative use; the GM rules | a random, seemingly useless item | 1 |
+| 0 | a random, seemingly useless item - open to creative use; the GM rules | a random, seemingly useless item | single use |
 | 1 | restores 1 Health (Healing) or 1 Sanity (Sanity Relief) | meant for something else, but usable | 1 |
 | 2 | restores 2 Health or 2 Sanity, by its kind | partly intended for the job | 2 |
 | 3 | restores 2 Health **or** 2 Sanity - your choice - plus 2 Hope | made strictly for the job | 3 |
 
-**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A used usable is Broken too.
+**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
 > A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**.

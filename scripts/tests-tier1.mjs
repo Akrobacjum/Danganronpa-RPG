@@ -7020,6 +7020,62 @@ const INVARIANTS = [
             "[the rule's words in en.json and pl.json; Start preloads the hall before its window; counts the cast after the judgements; shows the hall line; shows the rule; "
             + "the console's footer offers the door; its Show the hall is showCourtroom; its Back to school is showSchool; Edit campaign's trial question says where the table goes; game.drpg's four calls]");
     }],
+    ["R439 - a tier 0 tool or weapon is spent by any roll it was used in, a tier 1 to 3 one only by a Despair, and the sheet draws a tier 0 one no durability track", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09 (the ledger's A25): tier 0 things are single-use - they break
+         * after every roll in which they were the tool or weapon (an action, a clean-up, a murder, the incident),
+         * whatever the result; creative use is unchanged; the sheet shows them no durability bar; tiers 1 to 3 are
+         * unchanged. Until C8 a tier 0 tool wore only on a Despair that was no critical, like a tier 1 one, and the
+         * sheet drew it one pip. Asked of plain objects, so it reads no document and writes nothing (tier 1):
+         * use-items.mjs `rollSpends` - the rule `breakOnDespair` asks - for tiers 0 to 3 and an item with no tier
+         * recorded (which every reader takes as tier 0, `tierOf`), each after a roll with Hope, one with Despair and a
+         * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
+         * tier 0 usable (no track, and no "Single use" either: it is not readied for a roll). Then, in the source with
+         * comments blanked: `breakOnDespair` asks `rollSpends` before it wears; the five roads that wear a tool after
+         * their dice still call it, as a statement of its own (action-rolls.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
+         * `attemptStageSix`; murder-rules.mjs `wearSwing`); and creative use (`useItem`, `useCreatively`) reaches no
+         * wear. The tier-2 tests "a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a
+         * Despair" and "a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay
+         * to spend again" and scenario 12's single-use check run it on documents. Red before C8: there was no
+         * `rollSpends`.
+         */
+        const U = await import("./use-items.mjs");
+        const S = await import("./sheet.mjs");
+        const made = typeof U.rollSpends === "function" && typeof S.wearMarkup === "function";
+        ok(made, "a tier 0 thing wears as a tier 1 one does - use-items.mjs has no `rollSpends`, or sheet.mjs no `wearMarkup` to read");
+        if (!made) return;
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const item = (tier, category = "tool") => ({ name: `R439 ${category} ${tier}`,
+            getFlag: (scope, key) => scope === MODULE_ID ? { [ITEM_FLAGS.tier]: tier, [ITEM_FLAGS.category]: category }[key] : undefined });
+        const hope = { total: 14, withHope: true, withFear: false, isCritical: false };
+        const fear = { total: 14, withHope: false, withFear: true, isCritical: false };
+        const crit = { total: 20, withHope: false, withFear: false, isCritical: true };
+        equal(JSON.stringify([0, undefined, 1, 2, 3].map(tier => [hope, fear, crit].map(roll => U.rollSpends(item(tier), roll))).concat([[U.rollSpends(item(0), null)]])),
+            JSON.stringify([[true, true, true], [true, true, true], [false, true, false], [false, true, false], [false, true, false], [false]]),
+            "[tier 0, no tier, tier 1, 2, 3 - each after Hope, Despair, a critical; tier 0 with no roll]");
+
+        const pips = html => (html.match(/drpg-wear-pip/g) ?? []).length;
+        const single = html => html.includes("drpg-single-use") && html.includes(game.i18n.localize("DRPG.Items.singleUse"));
+        const marks = [item(0), item(1), item(3), item(0, "crimeTool"), item(0, "cleaningTool"), item(0, "usable")].map(S.wearMarkup);
+        equal(JSON.stringify(marks.map(html => [pips(html), single(html)])),
+            JSON.stringify([[0, true], [1, false], [3, false], [0, true], [0, true], [0, false]]),
+            "[pips and \"Single use\" for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon, Cleaning Tool and usable]");
+
+        const files = new Map(await otherSources());
+        must(["use-items.mjs", "action-rolls.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
+        const src = file => stripComments(files.get(file));
+        // A statement of its own: a road that asked a Fear of its own first (`if (roll.withFear) await ...`) would
+        // spend a tier 0 tool on a Despair alone again, and still "call" it.
+        const calls = (file, name) => /^\s*await breakOnDespair\(/m.test(fnSource(src(file), name));
+        const wears = /\b(?:breakOnDespair|rollSpends|wearItem|breakItem)\(/;
+        const breaks = fnSource(src("use-items.mjs"), "breakOnDespair");
+        equal(JSON.stringify([breaks.indexOf("rollSpends(held, roll)") > 0 && breaks.indexOf("rollSpends(held, roll)") < breaks.indexOf("wearItem("),
+            calls("action-rolls.mjs", "workOnProject"), calls("action-rolls.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
+            calls("cleanup.mjs", "attemptStageSix"), calls("murder-rules.mjs", "wearSwing"),
+            wears.test(fnSource(src("use-items.mjs"), "useItem")), wears.test(fnSource(src("use-items.mjs"), "useCreatively"))]),
+            JSON.stringify([true, true, true, true, true, true, false, false]),
+            "[breakOnDespair asks rollSpends before it wears; workOnProject, performSabotage, attemptCleanup, attemptStageSix and wearSwing call it unconditionally; useItem and useCreatively wear nothing]");
+    }],
 ];
 
 /**
