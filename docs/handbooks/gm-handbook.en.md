@@ -424,7 +424,7 @@ For the fog to work a scene needs Foundry's own vision off:
 
 **Door controls.** With token vision off, Foundry would show a player the control of every door on the map. The module shows a player only the doors of rooms the fog leaves clear or veiled for them on the floor on screen - the door out of the room they stand in included - and never a secret door there. Who may open a door is still Foundry's.
 
-**Rooms drawn during play.** When a scene gains its first room during play - a GM draws or marks one - the primary GM's browser prepares the scene as `prepareScenes()` would, and every browser looking at a scene repaints its fog when one of its regions is drawn, changed or deleted. Adding or removing a region's behaviour (a Teleport, say) is not such a change: the fog catches up at the next move or redraw.
+**Rooms drawn during play.** When a scene gains its first room during play - a GM draws or marks one - the primary GM's browser prepares the scene as `prepareScenes()` would, and every browser looking at a scene repaints its fog when one of its regions is drawn, changed or deleted. Adding or removing a region's behaviour (a Teleport, say) is such a change too: a Teleport taken off a marked region makes it a room, and prepares its scene when it is the scene's first, and one put back repaints the fog at once (scenario 66 X3, X4). Switching a Teleport off in place is not a change the module reads: a region carrying a Teleport is a passage whether it is switched on or off (scenario 66 X7).
 
 ### 9.3 Movement and charging
 

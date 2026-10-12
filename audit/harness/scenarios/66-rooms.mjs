@@ -123,6 +123,8 @@
  * 58.7 s, one run of the side line's fast set on 11.10.2026 while its other two lanes and another group's run were busy.
  * The merge of the side fix line (r2-S1's O1 renamed R1, since r2-H1 had taken O; R stands before X, which stays last):
  * 54 checks; their time is the merge commit's fast set's, in its message.
+ * E13 fix n1-N1 (X7 added beside X3 and X4; X6 stays last): one more check; its time is that commit's fast set's, in its
+ * message.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -1386,6 +1388,28 @@ export async function run({ gm, gm0, gm2, p1, check, note, phase, settle, connec
     check("X4: p1, with the Hall on screen, repaints its fog when the GM puts a Teleport back on the Hall (E12 fix r2-S2)",
         viewX.scene === hallX.scene && !/has no room/.test(viewX.before ?? "") && putX.behaviours === 1
             && /has no room/.test(readX.after ?? "") && readX.back === IDS.scene, J({ viewX, putX, readX }));
+
+    /* A marked region carrying a Teleport, on a scene with Foundry's vision on; the GM switches the Teleport off in place
+       (`disabled`), which fires `updateRegionBehavior` - a hook the fog does not register. The handbook said until E13 fix
+       n1-N1 that no change of a behaviour reached the fog; X3 and X4 measure that adding and removing one do, and this
+       measures what switching one off does: rooms.mjs `passageBehaviour` reads a behaviour's type and not whether it is
+       switched on, so the region stays a passage and the scene has no room to be prepared for. `disabled` is read back
+       first, so the switch-off is known to have landed: the shim read it null until the same fix (client-entry.mjs
+       `applyRemote` puts a field an update brings on the document, as v14 does). */
+    const gateX = await gm.eval(`const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const scene = await Scene.create({ name: "66 X Gate", width: 2000, height: 1000, grid: { size: 100 }, active: false,
+            navigation: false, tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const [gate] = await scene.createEmbeddedDocuments("Region", [{ name: "Gate X", shapes: ${rect(200, 200)}, flags: ${ROOM},
+            behaviors: [{ type: "teleportToken", name: "Out", system: { destination: null } }] }]);
+        await new Promise(r => setTimeout(r, 1000));
+        const [teleport] = Array.from(gate.behaviors);
+        await teleport.update({ disabled: true });
+        await new Promise(r => setTimeout(r, 1500));
+        const out = { disabled: teleport.disabled ?? null, room: R.isRoom(gate), vision: scene.tokenVision };
+        await scene.delete();
+        return out;`, { timeout: 30000 });
+    check("X7: the Gate's Teleport switched off in place leaves the Gate a passage, and its scene on Foundry's vision (E13 fix n1-N1)",
+        gateX.disabled === true && gateX.room === false && gateX.vision === true, J(gateX));
 
     /* A scene with Foundry's vision on and an unmarked region on it. The GM marks the region a room and then renames it, both
        through the scene's own update - the harness's shim fires `updateScene` for that and no `updateRegion`

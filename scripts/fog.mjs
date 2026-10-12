@@ -787,8 +787,10 @@ export async function prepareScenes() {
 
     // SAID OUT LOUD, both ways. A write to a world document that fails quietly
     // is the shape of failure this file has paid for more than once.
+    // Counted on `count`, the field the sentence names (E13 fix n1-N1, 12.10.2026): `plural` counts
+    // on `n` unless told otherwise, read 0 here, and one scene was said as "1 scenes".
     if (changed) {
-        ui.notifications.info(plural("DRPG.Fog.scenesPrepared", { count: changed }));
+        ui.notifications.info(plural("DRPG.Fog.scenesPrepared", { count: changed }, "count"));
     }
     if (failed.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Fog.scenesFailed", { scenes: failed.join(", ") }));

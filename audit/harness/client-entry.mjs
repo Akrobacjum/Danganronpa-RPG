@@ -1369,6 +1369,17 @@ function applyRemote(msg) {
         const doc = coll(collName).get(msg.docId);
         if (!doc) return;
         U.applyDocChanges(collName, doc._source, msg.changes);
+        /* A FIELD AN UPDATE BRINGS IS READ AS A PROPERTY (E13 fix n1-N1, 12.10.2026). The shim put a document's
+           fields on it at construction only (lib/shim.mjs `_exposeSource`; `updateSource` already re-ran it), so a
+           field the create had not written read `undefined` after the update that wrote it: 66 X7's
+           `behavior.update({ disabled: true })` read `disabled` null, and a scene made without `fog` never read the
+           fog the room fog wrote, so `prepareScenes` counted every scene with rooms again at each call (three for
+           one, the tier-2 test "one scene put into room-based vision is said as one scene and two as two"). In v14
+           every field of the schema is on the document from its creation and follows each update (fvtt-types
+           14.366.0-beta: common/abstract/data.d.mts `_initialize` copies the source to the instance, and
+           common/documents/region-behavior.d.mts:328 has `disabled` a BooleanField) - read in the typings, not
+           at a table. The shim still holds no defaults: a field nobody wrote reads `undefined`, as before. */
+        doc._exposeSource?.();
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
         if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
@@ -1418,6 +1429,7 @@ function applyRemote(msg) {
                 for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
                 if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
+                doc._exposeSource?.();   // the field the update brought, as for a world document above
                 rebuildEmbedded(doc);
                 hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
@@ -1444,7 +1456,7 @@ function rebuildEmbedded(doc) {
         for (const d of raw) {
             seen.add(d._id);
             const existing = c.get(d._id);
-            if (existing) existing._source = d;
+            if (existing) { existing._source = d; existing._exposeSource?.(); }
             else c.set(d._id, new cls(d, { parent: doc }));
         }
         for (const id of [...c.keys()]) if (!seen.has(id)) c.delete(id);

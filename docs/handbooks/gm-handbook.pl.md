@@ -424,7 +424,7 @@ By mgła działała, scena musi mieć wyłączone własne widzenie Foundry:
 
 **Ikony drzwi.** Przy wyłączonym token vision Foundry pokazałoby graczowi ikonę każdych drzwi na mapie. Moduł pokazuje graczowi tylko drzwi pokoi, które mgła zostawia mu czyste albo za zasłoną na piętrze na ekranie - łącznie z drzwiami z pokoju, w którym stoi - i nigdy drzwi ukrytych (secret) na tym piętrze. To, kto może drzwi otworzyć, nadal rozstrzyga Foundry.
 
-**Pokoje rysowane w trakcie gry.** Gdy scena dostaje w trakcie gry swój pierwszy pokój - GM go rysuje albo oznacza - przeglądarka głównego GMa przygotowuje scenę tak, jak zrobiłoby to `prepareScenes()`, a każda przeglądarka, która na scenę patrzy, przerysowuje mgłę, gdy któryś z jej regionów zostanie narysowany, zmieniony albo usunięty. Dodanie albo usunięcie zachowania regionu (na przykład teleportu) taką zmianą nie jest: mgła nadrabia przy następnym ruchu albo przerysowaniu.
+**Pokoje rysowane w trakcie gry.** Gdy scena dostaje w trakcie gry swój pierwszy pokój - GM go rysuje albo oznacza - przeglądarka głównego GMa przygotowuje scenę tak, jak zrobiłoby to `prepareScenes()`, a każda przeglądarka, która na scenę patrzy, przerysowuje mgłę, gdy któryś z jej regionów zostanie narysowany, zmieniony albo usunięty. Dodanie albo usunięcie zachowania regionu (na przykład teleportu) też jest taką zmianą: teleport zdjęty z oznaczonego regionu robi z niego pokój, a gdy to pierwszy pokój sceny, przygotowuje scenę, a teleport dodany z powrotem od razu przerysowuje mgłę (scenariusz 66 X3, X4). Wyłączenie teleportu w miejscu nie jest zmianą, którą moduł czyta: region z teleportem jest przejściem, czy teleport jest włączony, czy wyłączony (scenariusz 66 X7).
 
 ### 9.3 Ruch i naliczanie
 

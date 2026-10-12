@@ -47932,6 +47932,68 @@ const SCENARIOS = [
             + "put back on by hand and kept through a reshape of its room");
     }],
 
+    ["one scene put into room-based vision is said as one scene and two as two", async () => {
+        /*
+         * E13 fix n1-N1, 12.10.2026 (the 1.2.74 notes' draft found it). `prepareScenes` says how many
+         * scenes it switched to room-based vision with a counted sentence whose field is `count`, and
+         * asked `plural` to count on `n`, its default: the count read 0, the form was always "other",
+         * and one scene read "1 scenes" (in Polish the form for 5). Here scenes of the suite's own, one
+         * room each: a room's region event prepares each (E12 C7), the suite gives the vision back
+         * (`restoreSceneVisionMode`) and asks `prepareScenes` again, once with one scene to switch and
+         * once with two, and reads what the GM was told. Two takes `few` in Polish and `other` in
+         * English (`Intl.PluralRules`), and the English file has no `few`. `prepareScenes` reads every
+         * scene of the world, so it is asked once before the two readings, its sentence not read: a
+         * world scene with rooms still to be switched would otherwise be counted with the suite's (the
+         * harness's own scene was, three for one, until E13 fix n1-N1 gave the shim's documents the
+         * fields an update brings - client-entry.mjs `applyRemote`). The name holds no comma: the
+         * tools that run a test by name split their lists on commas.
+         * Red before the fix: both sentences took the `other` form.
+         */
+        needs(env.primaryGm(), "`prepareScenes` writes on the primary GM alone");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - nothing would prepare a scene, and this would measure nothing");
+        const KEY = "DRPG.Fog.scenesPrepared";
+        const data = name => ({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const info = ui.notifications.info;
+        const scenes = [];
+        let read = null;
+        // The vision given back on these scenes, then `prepareScenes` asked, with what it says to the GM caught.
+        const prepare = async again => {
+            for (const scene of again) await F.restoreSceneVisionMode(scene);
+            const said = [];
+            ui.notifications.info = message => { said.push(String(message)); };
+            try {
+                const { changed } = await F.prepareScenes();
+                return [changed, said];
+            } finally {
+                ui.notifications.info = info;
+            }
+        };
+        try {
+            for (const name of ["SUITE E13 n1-N1 the first scene", "SUITE E13 n1-N1 the second scene"]) {
+                const scene = await Scene.create(data(name));
+                scenes.push(scene);
+                await scene.createEmbeddedDocuments("Region", [{ name: "Parlour", shapes: [{ type: "rectangle", x: 100, y: 100, width: 600, height: 600 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            }
+            await until(() => scenes.every(scene => scene.tokenVision === false), 4000);
+            await settle();
+            must(scenes.every(scene => scene.tokenVision === false && scene.getFlag(MODULE_ID, "visionBefore") !== undefined),
+                "the suite's scenes were not prepared when their rooms were drawn - giving their vision back would change nothing");
+            await prepare([]);
+            read = [await prepare(scenes.slice(0, 1)), await prepare(scenes)];
+        } finally {
+            ui.notifications.info = info;
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        const two = game.i18n.has(`${KEY}.few`) ? "few" : "other";
+        equal(stableJson(read), stableJson([[1, [game.i18n.format(`${KEY}.one`, { count: 1 })]], [2, [game.i18n.format(`${KEY}.${two}`, { count: 2 })]]]),
+            "how many scenes `prepareScenes` switched to room-based vision, and what it told the GM, with one scene to switch and with two");
+    }],
+
     ["a GM's rename of a room carries its stash, its keys, the notes of its stash found and its discovery", async () => {
         /*
          * E12 C8, 11.10.2026; plan-E12 C8, audit S08-18 and S07-25. A stashed item, a key, a note of a

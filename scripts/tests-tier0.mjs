@@ -10595,6 +10595,41 @@ const REGRESSIONS = [
             read: IDS.map(id => code.includes(`"${id}"`))
         }), JSON.stringify({ requires: [...IDS].sort(), shape: IDS.map(() => true), recommends: [], read: IDS.map(() => true) }),
             "[the ids module.json requires, whether each is a module with a manifest and a reason, which of the three it only recommends, whether the code names each]");
+    }],
+
+    ["R471 - a counted sentence is counted on a field its data names", async () => {
+        /*
+         * E13 fix n1-N1, 12.10.2026 (the 1.2.74 notes' draft found it). `plural(key, data, countOn)` picks the
+         * sentence's form by `data[countOn]`, `n` when no third argument is given, and reads a missing field as 0:
+         * `prepareScenes` passed `{ count }` and no third argument, so its form was always "other" and one scene
+         * read "1 scenes" - nothing threw and nothing looked wrong in the code. This reads every `plural(` call in
+         * the module's sources with comments and literals blanked: where the data is an object literal, one of its
+         * own fields (or a spread) must be the field the call counts on. Measured on the scripts on disk at a8f036e
+         * with node and these same readers: 130 calls, 128 with their data written out, 1 wrong (fog.mjs's). A call
+         * whose data is not written out where it is made (gm-stores.mjs's row texts, `healthLine`) is not judged
+         * here; its keys were read in the code on the same day, each counting on `n`, as their rows give it. The
+         * tier-2 test "one scene put into room-based vision is said as one scene and two as two" reads the
+         * sentence itself.
+         */
+        const wrong = [];
+        let judged = 0;
+        for (const [file, src] of await otherSources()) {
+            const code = blankComments(src), blank = blankLiterals(code);
+            for (const m of blank.matchAll(/(?<![\w$.])(?<!function\s+)plural\s*\(/g)) {
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const data = args[1] ? blank.slice(args[1].start, args[1].end) : "";
+                const brace = data.search(/\S/);
+                if (data[brace] !== "{") continue;
+                judged++;
+                const countOn = args[2] ? code.slice(args[2].start, args[2].end).trim().replace(/^"(.*)"$/, "$1") : "n";
+                const { args: fields } = callArgs(blank, args[1].start + brace);
+                const names = fields.map(f => blank.slice(f.start, f.end).trim())
+                    .map(f => (f.startsWith("...") ? "..." : (f.match(/^([A-Za-z_$][\w$]*)\s*(?::|$)/)?.[1] ?? f)));
+                if (!names.includes(countOn) && !names.includes("...")) wrong.push(`${file}:${lineAt(code, m.index)} counts on ${countOn}, data holds ${names.join(", ")}`);
+            }
+        }
+        ok(judged > 100, `only ${judged} plural() calls with written-out data were found - this test measured nothing`);
+        equal(JSON.stringify(wrong), "[]", "[every plural() call whose data does not hold the field it counts on]");
     }]
 ];
 
