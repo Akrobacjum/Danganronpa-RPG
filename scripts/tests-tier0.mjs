@@ -7978,6 +7978,10 @@ const REGRESSIONS = [
          * against 115 rows (harness, 11.10.2026, once).
          * E13 C2 added two HOOK rows, trial-scene.mjs's `updateToken` and `createToken` listeners on the trial hall: 117
          * places - 53 PACKET, 21 SOCKET, 26 HOOK, 8 SHEET, 9 STORE - counted in this table (12.10.2026).
+         * E12 fix k3-K3 added one STORE row, the name a renamed piece left (rooms.mjs `RENAMED_FROM`, a Region flag
+         * since E12 fix k3-K2): it decides whether a rename carries a room or joins one, as the room flag decides
+         * what a room is. 118 places - 53 PACKET, 21 SOCKET, 26 HOOK, 8 SHEET, 10 STORE - against 118 rows
+         * (harness, 12.10.2026, once).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8098,6 +8102,7 @@ const REGRESSIONS = [
             ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told, while a GM is connected (a change made with none is taken by the next GM's ready pass as a GM's, read in the code); a region whose mark the GM never saw is left as it is and told (E12 fix r1-G5); `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
             ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`, while a GM is connected - a region a player draws with none is never recorded, read in the code, LIVE-E12-04) [1b.1]"],
             ["STORE movement.mjs#standings", "not a source: the primary's memory of where each token stands and the last room it stood in lawfully (Maps in movement.mjs, in no document or setting; no other GM keeps one), written by `judgeArrival` from the hook's `userId` and, for a token it never saw, by `standingOf` (lawful where it stands), with each student's newest standing on a scene beside it (`droppedFrom`); a client that becomes the primary forgets what it holds and judges from `gmSeen`, which every GM keeps since E12 fix r2-H3 (`judgingHere`) - an unlawful standing does not survive a change of primary [3.4]"],
+            ["STORE Region#renamedFrom", "not a source: a GM document - the name a piece of a room left on a GM's rename, written in the rename's own update by the renaming GM's client (vault.mjs `clearSplitPiece`, which judges only its own user's rename), read by `joinsAnotherRoom` to tell the rename of a room's next piece from a join, and taken off by the primary once the room is carried (fog.mjs `dropRenameRecords`) (E12 fix k3-K2); nothing puts back a non-GM's write of it (read in the code; whether a player can update a Region in v14: NOT MEASURED, LIVE-E12-04); scenario 66 Q2 and Q3, and tier 2 \"a GM's rename of a room piece by piece carries its seal ...\" (E12 fix k3-K3)"],
             ["STORE Region#vaultFlags", "not a source: a GM document written by Room Setup (a GM window); C4 writes to the scene it was opened on (R119); C14 writes Neighbours to every piece [1b.1 Room Setup] (E12 C4, E12 C14)"],
             ["STORE settings.mjs#discoveredRooms", "not a source: a world setting the primary writes through the ledger road (`guardFogShare`); a GM's rename moves its rooms since E12 C8 (`carryRename`); since E12 C11 the fog of another floor and the floor switcher draw from it with no new read (3.5) (E12 C11)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; the manager's save writes `room` only when the GM changed it (`applyProjectManager`, projects-ui.mjs), and lists every place scene's rooms, a room on none kept and labelled (`roomSelectOptions`); tier 2 \"the project manager keeps a room it did not change, whatever scene is on screen\", scenario 66 A1 (E12 C5); a GM's rename of the room carries `room` on the primary since E12 fix r2-H4 (fog.mjs `carryRoomInWorld`)"],
@@ -8123,7 +8128,9 @@ const REGRESSIONS = [
             // E12 C1: the room flag and the record of a player's regions.
             ["STORE Region#roomFlag", "rooms.mjs", "ROOM_FLAG"], ["STORE settings.mjs#playerRegions", "settings.mjs", "playerRegions"],
             // E12 C12: the witness judge's standing map.
-            ["STORE movement.mjs#standings", "movement.mjs", "standings"]];
+            ["STORE movement.mjs#standings", "movement.mjs", "standings"],
+            // E12 fix k3-K3: the name a renamed piece left (E12 fix k3-K2).
+            ["STORE Region#renamedFrom", "rooms.mjs", "RENAMED_FROM"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
@@ -10306,6 +10313,11 @@ const REGRESSIONS = [
          * book and lang file is asserted to have loaded and each function to have been cut
          * (`fnSource` fails on a renamed one), so nothing passes on an empty read. Whether a player
          * can rename a Region at all on v14 is LIVE-E12-04 and is not read here.
+         * E12 fix k3-K3, 12.10.2026 (fixes-k3.md K3): E12 fix k3-K2 moved the record of a rename onto the
+         * piece, carried a Despair Call's seal and the bodies found with the room, and named the scene on a
+         * trap's card, and the books said a seal and a body were not carried and the card named the room
+         * alone. Four claims more - `renameRecord`, `renameSeal`, `renameBodies`, `trapScene` - and those two
+         * old sentences are stale; `renameWorld` and `joins` name the seal and the bodies.
          */
         const sources = await moduleSources();
         const code = file => {
@@ -10331,6 +10343,16 @@ const REGRESSIONS = [
             joins: /const joins = joinsAnotherRoom\(scene, region, was, now\);/.test(split)
                 && /const split = roomRegions\(scene, was\)\.some\(piece => piece\.id !== region\.id\);/.test(split)
                 && /\[ROOM_FLAGS\.neighbours, "DRPG\.Vault\.neighboursColumn"\]/.test(fnSource(vault, "pieceData")),
+            renameRecord: /piece\.getFlag\?\.\(MODULE_ID, RENAMED_FROM\) !== was/.test(fnSource(code("rooms.mjs"), "joinsAnotherRoom"))
+                && /const from = split && !joins && isRoom\(region\) \? was : null;/.test(split)
+                && /await dropRenameRecords\(scene, from, to\);/.test(fnSource(fog, "carryRename")),
+            renameSeal: /sealed: await carrySealedRoom\(from, to, places\.some\(s => roomRegions\(s, from\)\.length\)\)/.test(world)
+                && /sealed\.filter\(room => stillStands \|\| room !== from\)/.test(fnSource(code("call-world.mjs"), "carrySealedRoom")),
+            renameBodies: /bodies: await carryBodyRooms\(scene\.id, from, to, firstHere\)/.test(world)
+                && /const firstHere = at >= 0 && !places\.slice\(0, at\)\.some\(s => roomRegions\(s, from\)\.length\);/.test(world)
+                && /row\?\.room === from && \(row\.sceneId \? row\.sceneId === sceneId : firstHere\)/.test(fnSource(code("settings.mjs"), "carryBodyRooms")),
+            trapScene: /trap\.trigger\.kind === "item" \? await sceneOfEvent\(actor\) : onScene \?\? projectScene\(trap\.id\)/.test(fnSource(code("traps.mjs"), "alert"))
+                && /scene: esc\(scene\?\.name \?\? "\?"\)/.test(fnSource(code("traps.mjs"), "alert")),
             oneScene: /place\.scene\.id === projectScene\(countdownId\)\?\.id/.test(fnSource(code("projects.mjs"), "standsAtProject"))
                 && /standsAtProject\(\{ room, scene \}, trap\.id\)/.test(fnSource(code("traps.mjs"), "armedIn"))
                 && /return sameRoom\(actor, victim\);/.test(fnSource(code("cleanup.mjs"), "bodyIsHere"))
@@ -10352,8 +10374,12 @@ const REGRESSIONS = [
                     renameLast: [/carries what pointed at the old name over to the new one once the room's last piece of the old name on that scene has the new one - until then a room of the old name still stands and keeps it all\./],
                     renameLimits: [/the keys when the room is a bedroom and no other scene has a bedroom of the old name, a character's stashed items when no other scene has a stash of theirs in a room of the old name\./],
                     keysCarried: [/^> Keys name their room in a flag: a GM's rename of the room carries them \(section 9\.1 says when\)/],
-                    renameWorld: [/the room of a project, of a planted item and of a called assembly that stood there, the Mastermind's room once no scene has a room of the old name, and the other rooms' Neighbours lists naming it/],
-                    joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
+                    renameWorld: [/the room of a project, of a planted item and of a called assembly that stood there, the Mastermind's room once no scene has a room of the old name, the other rooms' Neighbours lists naming it, a Despair Call's seal on it and the room of the bodies found there/],
+                    renameRecord: [/The name a renamed piece left is written on the piece itself, so a GM who connects between the renames of a room's pieces, or becomes the primary GM between them, reads them as the GM who saw the first one does; the primary GM takes it off the pieces once the room is carried\./],
+                    renameSeal: [/A seal names no scene either and shuts every room of its name: the new name is sealed, and the old one stays sealed while another scene still has a room of the old name\./],
+                    renameBodies: [/A found body's record names its scene and goes when that is this one; a record with none - the body the GMs have still to answer is one - goes when no scene before this one, the school first, has a room of the old name\./],
+                    trapScene: [/it names the trigger, the person, the room and the scene it is on \(for a trap on an object, the room and the scene its holder stands in\) and the time of day/],
+                    joins: [/A rename onto the name of a room already on the scene is no rename but a piece joining that room: nothing is carried, the seal and the bodies found neither, the piece's own Room Setup values \(the owner, the stashes, the locks, the seal, the Neighbours and the rest\) come off it/,
                         /Renaming one piece of a room of several takes the room's values off that piece the same way; the other pieces keep them\./],
                     oneScene: [/a project is listed, worked and sabotaged in its room on the scene of its map token/, /a trap built as a project springs only there/,
                         /Move the body needs the body in the killer's room on the same scene and floor, and is refused before it is paid for otherwise/,
@@ -10364,7 +10390,8 @@ const REGRESSIONS = [
                 player: {
                     stairsGate: [/^Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse\.$/]
                 },
-                stale: [/renaming a region orphans/i, /A project's room, a seal, a body found there/, /a name no region on the scene carries/, /one named Region per room/, /^- \*\*No stairs, no climb\.\*\*.*as before 1\.2\.74\.$/]
+                stale: [/renaming a region orphans/i, /A project's room, a seal, a body found there/, /A seal, a body found there and the wording of a key's description are not carried/,
+                    /the person, the room and the time of day/, /a name no region on the scene carries/, /one named Region per room/, /^- \*\*No stairs, no climb\.\*\*.*as before 1\.2\.74\.$/]
             },
             pl: {
                 guide: "> **Jak rysować pokoje** (instrukcja z wiersza): ",
@@ -10376,8 +10403,12 @@ const REGRESSIONS = [
                     renameLast: [/przenosi na nową nazwę to, co wskazywało na starą, kiedy ostatni kawałek pokoju o starej nazwie na tej scenie dostanie nową - do tego czasu pokój o starej nazwie wciąż stoi i wszystko zatrzymuje\./],
                     renameLimits: [/klucze, gdy pokój jest sypialnią, a żadna inna scena nie ma sypialni o starej nazwie, przedmioty postaci, gdy żadna inna scena nie ma jej skrytki w pokoju o starej nazwie\./],
                     keysCarried: [/^> Klucze nazywają swój pokój we fladze: zmiana nazwy pokoju przez GMa je przenosi \(kiedy - mówi sekcja 9\.1\)/],
-                    renameWorld: [/pokój projektu, podłożonego przedmiotu i zwołanego zebrania, które tam były, pokój Masterminda, gdy żadna scena nie ma już pokoju o starej nazwie, i listy Sąsiadów innych pokoi, które go wymieniają/],
-                    joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
+                    renameWorld: [/pokój projektu, podłożonego przedmiotu i zwołanego zebrania, które tam były, pokój Masterminda, gdy żadna scena nie ma już pokoju o starej nazwie, listy Sąsiadów innych pokoi, które go wymieniają, pieczęć Despair Calla na nim i pokój ciał tam znalezionych/],
+                    renameRecord: [/Nazwa, którą przemianowany kawałek porzucił, jest zapisana na samym kawałku, więc GM, który połączy się między zmianami nazw kawałków pokoju albo zostanie między nimi głównym GMem, odczytuje je tak samo jak GM, który widział pierwszą; główny GM zdejmuje ten zapis z kawałków, gdy pokój zostanie przeniesiony\./],
+                    renameSeal: [/Pieczęć też nie wymienia sceny i zamyka każdy pokój o swojej nazwie: nowa nazwa zostaje zapieczętowana, a stara pozostaje zapieczętowana, dopóki inna scena ma pokój o starej nazwie\./],
+                    renameBodies: [/Zapis znalezionego ciała wymienia swoją scenę i idzie, gdy to ta scena; zapis bez sceny - takie jest ciało, na które GMowie jeszcze nie odpowiedzieli - idzie, gdy żadna scena przed tą, licząc od szkoły, nie ma pokoju o starej nazwie\./],
+                    trapScene: [/nazywa wyzwalacz, osobę, pokój i scenę, na której jest \(dla pułapki na przedmiot - pokój i scenę, w których stoi ten, kto go trzyma\), i porę dnia/],
+                    joins: [/Zmiana nazwy na nazwę pokoju, który już jest na scenie, to nie zmiana nazwy, tylko kawałek dołączający do tamtego pokoju: nic się nie przenosi, ani pieczęć, ani znalezione ciała, z kawałka znikają jego własne wartości z Ustawień pokoi \(właściciel, skrytki, zamknięcia, pieczęć, Sąsiedzi i reszta\)/,
                         /Zmiana nazwy jednego z kilku kawałków pokoju tak samo zdejmuje z niego wartości pokoju; pozostałe kawałki je zachowują\./],
                     oneScene: [/projekt widać, rozwija się go i sabotuje w jego pokoju na scenie jego tokenu na mapie/, /a pułapka zbudowana jako projekt zadziała tylko tam/,
                         /Move the body wymaga ciała w pokoju zabójcy na tej samej scenie i piętrze i bez tego jest odrzucane, zanim się za nie zapłaci/,
@@ -10388,7 +10419,8 @@ const REGRESSIONS = [
                 player: {
                     stairsGate: [/^GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse\.$/]
                 },
-                stale: [/zmiana nazwy regionu je osieroca/i, /Nie przenosi pokoju projektu/, /której nie nosi żaden region sceny/, /jeden nazwany region na pokój/, /^- \*\*Bez schodów nie ma wspinaczki\.\*\*.*jak przed 1\.2\.74\.$/]
+                stale: [/zmiana nazwy regionu je osieroca/i, /Nie przenosi pokoju projektu/, /Nie przenosi pieczęci, ciała tam znalezionego/,
+                    /osobę, pokój i porę dnia/, /której nie nosi żaden region sceny/, /jeden nazwany region na pokój/, /^- \*\*Bez schodów nie ma wspinaczki\.\*\*.*jak przed 1\.2\.74\.$/]
             }
         };
         for (const [lang, says] of Object.entries(SAYS)) {

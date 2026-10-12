@@ -50631,6 +50631,129 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[true, true, false], [true, false, true]]),
             "[a card came, it names the scene on screen, it names the suite's scene] for the crossing on the scene on screen and for the crossing on the suite's scene");
     }],
+
+    ["an item trap's card names the room and the scene its holder stands in and not the trap's own", async () => {
+        /*
+         * E12 fix k3-K3, 12.10.2026 (fixes-k3.md K3: a road k3-K2 left driven by no test). A trap that
+         * watches an object fires where the object is used, and that is wherever its holder stands:
+         * traps.mjs `alert` reads the room off the holder since E02 and the scene since k3-K2
+         * (`sceneOfEvent`, the holder's own tokens). Here the trap is built in a room of the scene on
+         * screen, with its token there; its object is planted and handed to a character of the suite's
+         * own whose one token stands in a room of a scene of the suite's own, and a use card for it is
+         * posted, as the GM's browser posts one. Read: whether the alert names the holder's room and
+         * scene and neither of the trap's. K3 changes no code, so this passes at its parent (1a16a87);
+         * red first is the code put wrong (e12run/k3k3m): the trap's scene (k3k3-m1), the scene on
+         * screen (k3k3-m2) or the trap's room (k3k3-m3) on the card each turn it red.
+         */
+        needs(env.primaryGm(), "a trap is judged on the primary GM alone (traps.mjs `onChatMessage`)");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const INV = await import("./inventory.mjs");
+        const { allRooms, locateActor } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const home = canvas?.scene ?? null;
+        const [builder] = cast(1);
+        const ROOM = home ? allRooms(home)[0] ?? null : null;
+        must(builder && ROOM, "a living student and a room on the scene on screen - this would measure nothing");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const AWAY = "SUITE E12 k3-K3 a back room", NAME = "SUITE k3-K3 item trap", THING = "SUITE k3-K3 a bottle";
+        let scene = null, holder = null, trapId = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 k3-K3 a second school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: AWAY, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            holder = await Actor.create({ name: "SUITE E12 k3-K3 the holder", type: "character" });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: holder.id, actorLink: true, name: holder.name, x: 300, y: 300, width: 1, height: 1 }]);
+            const trap = await P.createProject({ name: NAME, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "item", afterDark: false, notBuilder: true } });
+            must(trap?.id, "could not build a trap - this would measure nothing");
+            trapId = trap.id;
+            if (PM.projectTokenOf(trap.id)?.parent?.id !== home.id) {
+                await PM.removeProjectToken(trap.id);
+                await PM.placeProjectToken(trap.id, { scene: home });
+            }
+            await P.addProgress(trap.id, 1, { by: builder.id });
+            const identity = await T.plantItem(trap.id, ROOM, { sceneId: home.id, name: THING });
+            const item = await INV.grantItem(holder, { name: THING, category: "healing", tier: 1, extraFlags: { [INV.ITEM_FLAGS.identity]: identity } });
+            await settle();
+            const where = locateActor(holder);
+            must(identity && T.trapForItemId(identity) === trap.id && item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identity
+                && T.diagnoseTraps().list.some(t => t.name === NAME) && P.projectScene(trap.id)?.id === home.id
+                && where?.scene === scene && where?.room === AWAY,
+                "the trap is not watching for its object on the scene on screen, or its holder does not stand in the suite's room - this would measure nothing");
+            const had = new Set(game.messages.contents.map(m => m.id));
+            await ChatMessage.create({ content: `<p>${esc(THING)}</p>`, speaker: { actor: holder.id },
+                flags: { [MODULE_ID]: { usedItem: { id: identity, actorId: holder.id, name: THING } } } });
+            const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(esc(NAME))) ?? null;
+            await until(() => find(), 4000);
+            const text = String(contentOf(find()) ?? "");
+            read = [text.length > 0, text.includes(esc(AWAY)), text.includes(esc(scene.name)), text.includes(esc(ROOM)), text.includes(esc(home.name))];
+        } finally {
+            if (trapId) await P.deleteProject(trapId).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await holder?.delete();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, false, false]),
+            "[a card came, it names the holder's room, the holder's scene, the trap's room, the trap's scene] after the holder used the trap's object");
+    }],
+
+    ["a GM's rename of a room piece by piece carries its seal at the last piece and keeps the old name sealed while another scene has a room of it", async () => {
+        /*
+         * E12 fix k3-K3, 12.10.2026 (fixes-k3.md K3: a road k3-K2 left driven by no test). A Despair
+         * Call's seal is a name and shuts every room of it (call-world.mjs `isSealed`); a GM's rename
+         * carries it on the primary once the room's last piece of the old name has the new one
+         * (fog.mjs `noteRegionName`), and `carrySealedRoom` keeps the old name sealed while a place
+         * scene still has a room of it. Here a room in two pieces on a scene of the suite's own and a
+         * room of its name on a second one are sealed, and the GM renames the two pieces one after the
+         * other. Read after each: whether the new and the old name are sealed, and the record of the
+         * name the pieces left (rooms.mjs `RENAMED_FROM`). K3 changes no code, so this passes at its
+         * parent (1a16a87); red first is the code put wrong (e12run/k3k3m): the old name unsealed
+         * whatever stands (k3k3-m4), the record unread so the second piece reads as a join (k3k3-m5),
+         * or the room carried at its first piece (k3k3-m6) each turn it red.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const R = await import("./rooms.mjs");
+        const CW = await import("./call-world.mjs");
+        const OLD = "SUITE E12 k3-K3 Vault", NEW = "SUITE E12 k3-K3 Strongroom";
+        const before = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms));
+        const piece = x => ({ name: OLD, shapes: [{ type: "rectangle", x, y: 100, width: 400, height: 400 }],
+            flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const scenes = [];
+        let read = null;
+        try {
+            for (const name of ["SUITE E12 k3-K3 a split vault", "SUITE E12 k3-K3 another vault"]) {
+                scenes.push(await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false }));
+            }
+            const [split, other] = scenes;
+            const [first, second] = await split.createEmbeddedDocuments("Region", [piece(100), piece(600)]);
+            await other.createEmbeddedDocuments("Region", [piece(100)]);
+            await CW.sealRoom(OLD);
+            await settle();
+            const holding = R.placeScenes().filter(s => R.roomRegions(s, OLD).length);
+            must(CW.isSealed(OLD) && !CW.isSealed(NEW) && R.roomRegions(split, OLD).length === 2 && holding.includes(split) && holding.includes(other),
+                "the old name is not sealed, the new one is, or the two scenes are not place scenes holding the room - this would measure nothing");
+            const records = () => R.roomRegions(split, NEW).map(p => p.getFlag(MODULE_ID, R.RENAMED_FROM) ?? null);
+            await first.update({ name: NEW });
+            await settle();
+            const mid = [CW.isSealed(NEW), CW.isSealed(OLD), records()];
+            await second.update({ name: NEW });
+            await until(() => CW.isSealed(NEW) && !records().some(Boolean), 6000);
+            await settle();
+            read = [mid, [CW.isSealed(NEW), CW.isSealed(OLD), records()]];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, before);
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
+            "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
+    }],
     ...GRID
 ];
 
