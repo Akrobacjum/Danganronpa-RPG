@@ -931,7 +931,7 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
-      "endTrialScene": "The living students go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. The trial hall's tokens stay hidden.",
+      "endTrialScene": "The living students who took part go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. A student left unticked is not moved. The tokens the module made in the trial hall are deleted, yours hidden.",
       "endTrialRoom": "Room",
       "endTrialMoves": {
         "one": "{n} student goes to {room}.",
@@ -1913,12 +1913,12 @@
         "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
         "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
       },
-      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
       "noScene": "- none -",
       "castHeading": "Who takes part",
-      "reveal": "Ticked: they have a token in the hall when the Class Trial opens - the GMs' own if there is one, else one the module makes. Unticked: no token of theirs is shown - a test student, or a player nobody should see yet.",
+      "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",
       "noCast": "The world has no student or Monokuma yet.",
       "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
       "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",

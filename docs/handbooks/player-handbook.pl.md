@@ -648,7 +648,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
 
-Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących do pokoju, który wybierze GM. Token twojej postaci w sali ustawia, pokazuje i ukrywa GM. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
+Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących, którzy brali udział, do pokoju, który wybierze GM. Na czas rozprawy moduł stawia token twojej postaci w sali, a potem go usuwa; GM wybiera, kto bierze udział. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 

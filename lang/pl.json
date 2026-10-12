@@ -918,7 +918,7 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
-      "endTrialScene": "Żyjący uczniowie idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Tokeny sali rozpraw zostają ukryte.",
+      "endTrialScene": "Żyjący uczniowie, którzy brali udział, idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Uczeń bez zaznaczenia nie jest przenoszony. Tokeny zrobione przez moduł w sali rozpraw zostają usunięte, twoje ukryte.",
       "endTrialRoom": "Pokój",
       "endTrialMoves": {
         "one": "{n} uczeń idzie do: {room}.",
@@ -1993,12 +1993,12 @@
         "many": "{n} żyjących uczniów w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}.",
         "other": "{n} żyjącego ucznia w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}."
       },
-      "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i daje tam token każdemu uczniowi zaznaczonemu niżej - własny token GM-ów w sali, jeśli jest, a jeśli nie, token zrobiony przez moduł; koniec zabiera tokeny modułu, zapamiętując, gdzie stały, ukrywa tokeny GM-ów i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami z każdej sceny z pokojami, każda inna droga do szkoły. Moduł nigdy nie usuwa tokenu, który GM postawił w sali.",
+      "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i daje tam token każdemu uczniowi zaznaczonemu niżej - własny token GM-ów w sali, jeśli jest, a jeśli nie, token zrobiony przez moduł; koniec zabiera tokeny modułu, zapamiętując, gdzie stały, ukrywa tokeny GM-ów i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami, którzy brali udział, z każdej sceny z pokojami, każda inna droga do szkoły. Moduł nigdy nie usuwa tokenu, który GM postawił w sali.",
       "school": "Szkoła",
       "hall": "Sala rozpraw",
       "noScene": "- brak -",
       "castHeading": "Kto bierze udział",
-      "reveal": "Zaznaczony: ma token w sali, gdy zaczyna się Class Trial - własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł. Bez zaznaczenia: żaden jego token nie jest pokazywany - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
+      "reveal": "Zaznaczony: bierze udział - ma token w sali, gdy zaczyna się Class Trial (własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł), i trafia do pokoju, który wybierze Zakończ Class Trial. Bez zaznaczenia: żaden jego token nie jest pokazywany i po rozprawie nie jest przenoszony - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
       "noCast": "W świecie nie ma jeszcze żadnego ucznia ani Monokumy.",
       "sameScene": "Szkoła i sala rozpraw to ta sama scena. Wybierz dwie różne - do tego czasu Zastosuj czeka.",
       "hallInTrial": "W podpiętej sali rozpraw trwa Class Trial. Zakończ rozprawę, zanim podepniesz inną salę albo odepniesz tę - do tego czasu Zastosuj czeka.",

@@ -648,7 +648,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living to a room the GM picks. Your character's token in the hall is the GM's to place, show and hide. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
+When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living who took part to a room the GM picks. In the trial the module places your character's token in the hall and removes it afterwards; the GM chooses who takes part. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
 
 The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 

@@ -619,6 +619,17 @@ export function handPlacedActors(hall) {
 }
 
 /**
+ * Who takes part in the hall's trial, as a set of actor ids (E81 fix r1-D3; the DZ6 design's 5): every
+ * `castActors` actor ticked as the GMs' stored choice has it, else as `defaultReveal` does - the rule
+ * `stageHall` makes the tokens by, read the same way. The return from the trial moves, carries and names
+ * these alone: a student the GMs left unticked had no token in the hall and is not brought out of it.
+ */
+export function castActorIds(hall) {
+    const stored = readTrialCast(hall);
+    return new Set(readCastActors().filter(actor => (actor.id in stored ? stored[actor.id] : defaultReveal(actor))).map(actor => actor.id));
+}
+
+/**
  * Into the trial, on a GM: note the scene the table leaves (the hall's `trialReturnTo`), stage the
  * hall (`stageHall`: the cast's tokens made or shown, the GMs told of anybody left without one), then
  * activate the hall - the tokens stand before anybody arrives (whether a player's browser draws them
@@ -661,9 +672,10 @@ export async function leaveTrialScene(hall = trialScene()) {
 }
 
 /**
- * The living students into the room `room` of `scene`, after the trial (the owner's f, 09.10, and item 1 of
- * 10.10): first the living with no token there carried over from the scene with rooms they stand on
- * (`carryTheLiving`), then the body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in
+ * The living students who took part into the room `room` of `scene`, after the trial (the owner's f, 09.10, and
+ * item 1 of 10.10; since E81 fix r1-D3 the cast only - `castActorIds`, read once after `judgedFor`, as the DZ6
+ * decision of 12.10 has it: whom the GM chose out is neither moved nor named): first the living with no token
+ * there carried over from the scene with rooms they stand on (`carryTheLiving`), then the body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in
  * the room, as a body's gather places them - with each actor read as the GMs hold it (`flagsHeldNow`, once the
  * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box for the
  * fallback. Called from `leaveTrialScene` alone, after the stage has cleared the hall, so a hall token is never
@@ -671,13 +683,20 @@ export async function leaveTrialScene(hall = trialScene()) {
  * (`leftBehind`), those a carry left on both scenes, and the living left with a token on another scene, the ones
  * whose every token in the room is hidden apart (`standingTwice`). Answers
  * `{ room, moved, carried, left, others, hidden, twice }`, the last five by actor id.
+ *
+ * The cast is read here, after the stage has cleared the hall, and not before it as the DZ6 design's 5 wrote:
+ * the stage writes nothing `castActorIds` reads - the store's rows and the actors stay as they were, and the
+ * tokens it deletes are the module's, which no 1.2.74 row was kept under (read in the code, 12.10.2026) - and
+ * after `judgedFor` the `monokuma` flags it reads through `readCastActors` are the settled ones, as every
+ * other read here.
  */
 export async function returnTheLiving(scene, room, hall = trialScene()) {
     await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
-    const { carried, twice } = await carryTheLiving(scene, room, hall);
-    const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true });
-    const left = await leftBehind(scene, hall);
-    const { others, hidden } = await standingTwice(scene, hall, twice);
+    const only = castActorIds(hall);
+    const { carried, twice } = await carryTheLiving(scene, room, hall, only);
+    const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true, only });
+    const left = await leftBehind(scene, hall, only);
+    const { others, hidden } = await standingTwice(scene, hall, twice, only);
     const names = actors => actors.map(actor => esc(actor.name)).join(", ");
     const lines = [plural("DRPG.Floor.endTrialMoves", { n: moved, room: esc(room) })];
     if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: names(left) }));
@@ -694,14 +713,14 @@ export async function returnTheLiving(scene, room, hall = trialScene()) {
  * (call-world.mjs `carryAcross`): the token `locateActor` reads as where they stand, which is never the hall's
  * (no rooms) nor one on a scene with no rooms. Answers `{ carried, twice }`, in the world's order: the carried, and
  * the students a carry left on both scenes - its copy could not be taken back. A student whose carry was taken back
- * is in neither, and `leftBehind` names them after.
+ * is in neither, and `leftBehind` names them after. `only`, the cast's actor ids, as `leftBehind` takes it.
  */
-async function carryTheLiving(scene, room, hall) {
+async function carryTheLiving(scene, room, hall, only = null) {
     const carried = [], twice = [];
     const region = roomRegions(scene, room)[0];
     if (!region) return { carried, twice };
     const { locateActor } = await import("./movement.mjs");
-    for (const actor of await leftBehind(scene, hall)) {
+    for (const actor of await leftBehind(scene, hall, only)) {
         const place = locateActor(actor);
         if (!place || place.scene.id === scene.id || place.scene.id === hall?.id) continue;
         const done = await carryAcross(place.tokenDoc, scene, region);
@@ -717,16 +736,18 @@ async function carryTheLiving(scene, room, hall) {
  * any scene but the destination and the hall, or played by a player (`ownerIdsOf`) with none there. Before the return carries them these are whom it tries; after, whom it could not
  * move. A student standing only on a scene with no rooms was neither moved nor named until review r1 (cor A):
  * the scenes were read through `isPlaceScene`. A student nobody plays whose only token is in the hall is not
- * named: hiding the cast is what the hall gets. In the world's order.
+ * named: hiding the cast is what the hall gets. In the world's order. With `only` (a set of actor ids: the
+ * return hands the cast, E81 fix r1-D3) nobody outside it; without, every student - the suite's `fenceHeld`
+ * asks so, for whom the return could carry under any choice.
  */
-export async function leftBehind(destination, hall = trialScene()) {
+export async function leftBehind(destination, hall = trialScene(), only = null) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     const actorsOn = scene => [...(scene?.tokens ?? [])].map(token => token.actorId);
     const here = new Set(actorsOn(destination));
     const elsewhere = new Set(game.scenes.filter(scene => scene.id !== destination.id && scene.id !== hall?.id).flatMap(actorsOn));
     return game.actors.filter(actor => {
-        if (actor.type !== "character" || here.has(actor.id)) return false;
+        if (actor.type !== "character" || here.has(actor.id) || (only && !only.has(actor.id))) return false;
         if (!elsewhere.has(actor.id) && !ownerIdsOf(actor).length) return false;
         const held = flagsHeldNow(actor);
         return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
@@ -738,9 +759,10 @@ export async function leftBehind(destination, hall = trialScene()) {
  * the hall (review r2 cor A), living by the gather's own rule as the GMs hold them, as `leftBehind` reads it -
  * `flagsHeldNow(actor)` once per student in one synchronous pass. Answers `{ others, hidden }`: `hidden` those whose
  * every token on `destination` is hidden while one elsewhere is shown - a player sees only the one left behind -
- * and `others` the rest; the students in `skip` (a carry left on both, named on their own line) in neither.
+ * and `others` the rest; the students in `skip` (a carry left on both, named on their own line) in neither, nor,
+ * when `only` is handed (the cast's actor ids, E81 fix r1-D3), anybody outside it.
  */
-export async function standingTwice(destination, hall = trialScene(), skip = []) {
+export async function standingTwice(destination, hall = trialScene(), skip = [], only = null) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     const byActor = scenes => {
@@ -752,7 +774,7 @@ export async function standingTwice(destination, hall = trialScene(), skip = [])
     const skipped = new Set(skip.map(actor => actor.id));
     const others = [], hidden = [];
     for (const actor of game.actors) {
-        if (actor.type !== "character" || skipped.has(actor.id) || !here.has(actor.id) || !away.has(actor.id)) continue;
+        if (actor.type !== "character" || skipped.has(actor.id) || (only && !only.has(actor.id)) || !here.has(actor.id) || !away.has(actor.id)) continue;
         const held = flagsHeldNow(actor);
         if (isMonokuma(held) || (isDeadForGm(held) && !isMonocub(held))) continue;
         const veiled = here.get(actor.id).every(token => token.hidden) && away.get(actor.id).some(token => !token.hidden);

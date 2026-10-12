@@ -47,7 +47,8 @@
  *      only token stands on another place scene, and a Monocub on the school; Aiko and Chie walked out of
  *      the room of the body and the executed, the trial opened, and that room chosen. Its buttons and
  *      rooms; where every browser looks; which tokens moved and where to; whom the GMs were told of; and
- *      the body cards and discovery stamps, before and after (the ledger's V12).
+ *      the body cards and discovery stamps, before and after (the ledger's V12). Since E81 fix r1-D3 only the cast
+ *      goes: the three students made here are ticked, and Chie, unticked since a, stays where she stood, unnamed (i5).
  *   j  (C3) the chapter end during the trial (`applyChapterEnd({ endTrial: true })`, the screen's "End the
  *      trial" ticked; the owner's 10.10 item 2: it offers no scene or room): where every browser looks, the
  *      hall's tokens, and whether any token of the school moved.
@@ -653,8 +654,12 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
        token of every scene by position and room, before and after; End the trial pressed in its window drawn on the GM, the
        body's room on the Academy chosen in it. Until E13 fix r1-F1 the student on the other place scene stayed there and
        was named (i2 and i3 read that at 45e6bcf); now it comes as a copy of its token, under a new id, and the one the
-       module cannot move is the one on the map with no rooms, which C3b neither moved nor named (review r1 cor A). */
-    const fixI = await gm.eval(`const R = await import("${repoUrl}/scripts/rooms.mjs");
+       module cannot move is the one on the map with no rooms, which C3b neither moved nor named (review r1 cor A).
+       E81 fix r1-D3 (12.10.2026; the owner's DZ6, the design's 5 and 9 i5): the return takes the hall's cast only. The three
+       students made here are nobody's, so unticked by default: the GM ticks them for the hall (the stage makes their
+       tokens there on the way in, and deletes them on the way out), and drops the rows before they go. Chie, unticked
+       since a, walked out of the room with Aiko: she stays in that room and nobody is told of her. */
+    const fixI = await gm.eval(`const R = await import("${repoUrl}/scripts/rooms.mjs"); const T = await import("${repoUrl}/scripts/trial-scene.mjs");
         const awayStudent = await Actor.create({ name: "S41 Away", type: "character" });
         const stray = await Actor.create({ name: "S41 Stray", type: "character" });
         const map = await Scene.create({ name: "41 Stray Map", width: 2000, height: 2000, grid: { size: 100 }, active: false, navigation: false });
@@ -666,6 +671,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         await place.createEmbeddedDocuments("Token", [{ name: awayStudent.name, actorId: awayStudent.id, actorLink: true, x: 1200, y: 1200, width: 1, height: 1 }]);
         const [cubToken] = await game.scenes.get("${IDS.scene}").createEmbeddedDocuments("Token", [{ name: cub.name, actorId: cub.id, actorLink: true,
             x: 600, y: 600, width: 1, height: 1 }]);
+        await T.saveTrialCast(game.scenes.find(s => s.name === "41 Trial Hall"), { [awayStudent.id]: true, [cub.id]: true, [stray.id]: true });
         return { place: place.id, map: map.id, actors: [awayStudent.id, cub.id, stray.id], cubToken: cubToken.id };`, { timeout: 30000 });
     const outI = [await walk(IDS.aiko, away), await walk(IDS.chie, away)];
     const PLACES = `const M = await import("${repoUrl}/scripts/movement.mjs"); const where = {};
@@ -696,15 +702,17 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
     const viewsI = await readAll();
     /* A whisper's words are read as the GM's browser reads them (secret.mjs `wordsOf`): its `content` is a placeholder. */
     const i1 = await gm.eval(`${PLACES} ${CARDS} const said = new Set(${J(i0.said)}); const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
-        return { where, cards: cards(), stamps: game.settings.get("${MOD}", "bodiesFound"),
+        return { where, cards: cards(), stamps: game.settings.get("${MOD}", "bodiesFound"), chie: game.actors.get("${IDS.chie}")?.name ?? null,
             told: await Promise.all(game.messages.filter(m => !said.has(m.id) && (m.whisper?.length ?? 0) > 0).map(m => wordsOf(m, 2000))) };`);
     await gm.eval(`await game.scenes.get(${J(fixI.place)})?.delete(); await game.scenes.get(${J(fixI.map)})?.delete();
         const ids = ${J(fixI.actors)}, academy = game.scenes.get("${IDS.scene}");
+        const { saveTrialCast } = await import("${repoUrl}/scripts/trial-scene.mjs");
+        await saveTrialCast(game.scenes.find(s => s.name === "41 Trial Hall"), Object.fromEntries(ids.map(id => [id, null])));
         const made = [...academy.tokens].filter(t => ids.includes(t.actorId)).map(t => t.id);
         if (made.length) await academy.deleteEmbeddedDocuments("Token", made);
         for (const id of ids) await game.actors.get(id)?.delete(); return true;`, { timeout: 30000 });
     const academyName = Object.keys(i0.where).find(key => key.endsWith("/Aiko") && i0.where[key].room !== null)?.split("/")[0] ?? null;
-    const MOVERS = ["Aiko", "Chie", "S41 Cub"].map(name => `${academyName}/${name}`);
+    const MOVERS = ["Aiko", "S41 Cub"].map(name => `${academyName}/${name}`), CHIE = `${academyName}/Chie`;
     const movedI = Object.keys(i0.where).filter(key => J(i0.where[key].at) !== J(i1.where[key]?.at)).sort();
     const AWAY = ["41 Away Place/S41 Away", `${academyName}/S41 Away`], awayCopy = i1.where[AWAY[1]] ?? null;
     check("i1: End the trial's window offers End the trial and Cancel only and every room of each place scene, the school's first room chosen; ended there, every browser is on the school with the hall's cast hidden (E13 C3b; the owner's items 3 of 10.10)",
@@ -712,7 +720,7 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
             && endI.read.options.includes("41 Away Place/Shed") && endI.read.first === endI.read.options[0].split("/").slice(1).join("/")
             && endI.ended === true && endI.phase === "dailyLife" && views(viewsI).every(v => v === "school") && Object.values(viewsI).every(r => J(shown(r)) === J(["Decor"])),
         J({ fixI, outI, endI, viewsI: views(viewsI) }), { flow: "trial-scene" });
-    check("i2: the living on the school and the Monocub go to the chosen room, and the living student on another place scene comes too, its token there gone and a copy under a new id in the room; the dead, Monokuma, the hall's tokens and the student on a map with no rooms stay where they stood (E13 C3b and fix r1-F1; the owner's f and item 1 of 10.10)",
+    check("i2: the living of the cast on the school and the Monocub go to the chosen room, and the living student on another place scene comes too, its token there gone and a copy under a new id in the room; the dead, Monokuma, the hall's tokens and the student on a map with no rooms stay where they stood (E13 C3b and fix r1-F1; the owner's f and item 1 of 10.10)",
         academyName && outI.every(r => r === away) && J(movedI) === J([...MOVERS, AWAY[0]].sort()) && MOVERS.every(key => i1.where[key]?.room === found.room)
             && !(AWAY[0] in i1.where) && !(AWAY[1] in i0.where) && awayCopy?.room === found.room && awayCopy.id !== i0.where[AWAY[0]]?.id,
         J({ academyName, movedI, awayCopy, before: i0.where, after: i1.where }), { flow: "trial-scene" });
@@ -722,6 +730,10 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         J(i1.told), { flow: "trial-scene" });
     check("i4: the living entering the room of the body and the executed post no body card and leave the stamps as they were (E13 C3b; the ledger's V12)",
         i1.cards === i0.cards && J(i1.stamps) === J(i0.stamps), J({ before: [i0.cards, i0.stamps], after: [i1.cards, i1.stamps] }), { flow: "trial-scene" });
+    /* Red at 3148dc0 (the return took every living student): Chie went to the chosen room with the rest. */
+    check("i5: End the trial leaves Chie, left out of the cast, where she stood on the school, and no whisper names her (E81 fix r1-D3; the owner's DZ6 of 12.10, the design's 5)",
+        academyName && i0.where[CHIE]?.room === away && J(i1.where[CHIE]?.at) === J(i0.where[CHIE]?.at) && i1.chie && i1.told.length > 0 && !i1.told.some(text => text.includes(i1.chie)),
+        J({ before: i0.where[CHIE] ?? null, after: i1.where[CHIE] ?? null, chie: i1.chie, told: i1.told }), { flow: "trial-scene" });
 
     /* ------------------------------ j. the chapter end during the trial ------------------------------ */
     phase("j: the chapter end ends the trial", { flow: "trial-scene" });
