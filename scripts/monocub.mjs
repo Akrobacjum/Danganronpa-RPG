@@ -244,9 +244,9 @@ export const CUB_TARGETS = Object.freeze({
      * A living student in the Monocub's room. `list`: `othersInRoom` already excludes
      * Monokumas and hidden tokens, which is exactly right here too - a Monocub Meddles
      * with a fellow student, not with the DMs walking the map as their own Monokumas.
-     * `refuses`: `sameRoom` rather than `othersInRoom`, for the reason its own comment
-     * gives - `othersInRoom` reads the canvas and answers for the client that is
-     * looking at it, and the GM asking it is usually somewhere else.
+     * `refuses`: `sameRoom` rather than `othersInRoom`: it asks about the one target
+     * named, on the same scene and floor. (`othersInRoom` read the canvas until E12 C3,
+     * which was the reason first given here.)
      */
     roomStudent: {
         async list(actor) {

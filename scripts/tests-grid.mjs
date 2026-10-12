@@ -586,7 +586,7 @@ const STEPS = {
     /* The killer and the victim stood alone in a room nobody is in (tests-tier2.mjs `aloneTogether`, by teleport). */
     async stand(run) {
         const { allRooms, othersInNamedRoom, positionIn } = await import("./movement.mjs");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         for (const a of [run.who.K, run.who.V]) await placeIn(run, a, room, positionIn);
         run.room = room;

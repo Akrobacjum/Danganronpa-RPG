@@ -319,8 +319,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
        Breath, 1 Hope - and uses the item on her Health, the two windows answered on p3's page. */
     const restRoad = async label => {
         const set = await gm.eval(`const INV = await import("${SCRIPT("inventory")}"), M = await import("${SCRIPT("movement")}"), REST = await import("${SCRIPT("rest")}");
-            const c = game.actors.get("${chie}"), room = M.roomOfActor(c), roomWas = room ? REST.restRooms("short").includes(room) : null;
-            if (room && !roomWas) await REST.setRestRoom(room, { short: true });
+            const c = game.actors.get("${chie}"), room = M.roomOfActor(c), roomWas = room ? REST.restRooms("short", canvas?.scene).includes(room) : null;
+            if (room && !roomWas) await REST.setRestRoom(room, { short: true, scene: canvas?.scene });
             await game.drpg.setActions(c, game.drpg.actionsMax(c));
             await c.update({ "system.resources.hitPoints.value": 3, "system.resources.hope.value": 1 });
             if (c.getFlag("${MOD}", "restsTaken")) await c.unsetFlag("${MOD}", "restsTaken");
@@ -344,7 +344,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const r = await m.since();
         const after = await sheetOf(chie);
         await gm.eval(`const REST = await import("${SCRIPT("rest")}");
-            if (${J(set.room)} && !${J(set.roomWas)}) await REST.setRestRoom(${J(set.room)}, { short: false });
+            if (${J(set.room)} && !${J(set.roomWas)}) await REST.setRestRoom(${J(set.room)}, { short: false, scene: canvas?.scene });
             await game.actors.get("${chie}").items.get("${set.kit}")?.delete(); return true;`, { timeout: 30000 });
         road(label, "Chie's Short Rest takes its Breath (1 Hope) and her tier-3 item heals 2 Health and gives 2 Hope, each standing on its judge",
             done.rested && after.hope - before.hope === 3 && before.hp - after.hp === 2 && Boolean(after.rests?.short)
@@ -517,7 +517,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const c = game.actors.get("${chie}");
         if (c.system.resources.stress.value > 3) await c.update({ "system.resources.stress.value": 0 });
         const M2 = await import("${SCRIPT("movement")}");
-        const t = await game.drpg.placeRemnant({ room: M2.roomOfActor(c), type: "incident", visibility: "subtle", note: "83: Stage 6's trace" });
+        const t = await game.drpg.placeRemnant({ sceneId: canvas.scene.id, room: M2.roomOfActor(c), type: "incident", visibility: "subtle", note: "83: Stage 6's trace" });
         return { byDice: by !== "incident", stage: M.murderState()?.stage ?? null, trace: t?.id ?? null };`, { timeout: 90000 });
     await settle(600);
     const l9Six = await p3.eval(`const Cl = await import("${SCRIPT("cleanup")}");

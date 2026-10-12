@@ -482,7 +482,7 @@ export function randomItem(category, tier, goal = null) {
  *
  * @returns {Promise<{name: string, fromTable: boolean}|null>}
  */
-export async function drawItem(category, tier, { goal = null, room = null } = {}) {
+export async function drawItem(category, tier, { goal = null, room = null, scene = null } = {}) {
     // The room's own table first, when it has one. A kitchen and a boiler room
     // should not be drawing from the same bag - the guide says outright that
     // what turns up can depend on where you are.
@@ -502,7 +502,7 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
     // Tier 2" answers a Tier 2 roll in the Kuchnia before the flat "Kuchnia"
     // does. A GM who does not want that precision keeps one flat table and the
     // lookup falls straight through - same bargain as the category split.
-    const roomBase = room ? await tableForRoom(room) : null;
+    const roomBase = room ? await tableForRoom(room, scene) : null;
     const roomNames = roomBase
         ? [
             `${roomBase} - Tier ${tier}`,
@@ -613,11 +613,11 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
     return null;
 }
 
-/** The RollTable a room draws from, if the GM pointed it at one. */
-async function tableForRoom(room) {
+/** The RollTable a room on this scene draws from, if the GM pointed it at one. */
+async function tableForRoom(room, scene) {
     try {
         const { roomTable } = await import("./vault.mjs");
-        return roomTable(room);
+        return roomTable(room, scene);
     } catch {
         return null;
     }
@@ -1416,7 +1416,8 @@ async function presetTargetsFor(tables, preset) {
     if (preset?.category) {
         const wanted = tableNameCandidates(preset.category, preset.tier ?? 0);
         if (preset.room) {
-            const base = await tableForRoom(preset.room);
+            const { sceneOfRoom } = await import("./rooms.mjs");
+            const base = await tableForRoom(preset.room, sceneOfRoom(preset.room));
             if (base) {
                 wanted.push(base, `${base} - ${ITEM_CATEGORIES[preset.category]?.plural ?? ""}`);
             }

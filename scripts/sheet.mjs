@@ -47,7 +47,7 @@ import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
-import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf, tierOf }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
@@ -56,7 +56,7 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
-import { roomOfActor, neighbouringRooms, othersInRoom } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -268,10 +268,17 @@ function dropTypeHeading(root) {
  * Nothing is drawn for a broken item: its row already says BROKEN in crimson,
  * and three hollow pips beside that word only says it again, more quietly.
  *
+ * A TIER 0 THING HAS NO TRACK (the owner's amend of 25.09.2026; E13 C8). It is spent by the
+ * first roll it is used in, whatever the roll (use-items.mjs `rollSpends`), so one pip would
+ * read as "one Despair and it is gone", which is no longer the rule; the row says "Single use"
+ * instead, its tooltip the rule. Tier is read as the rule reads it (`tierOf`: no tier recorded
+ * is 0). Where the words sit in a narrow row is not measured: no layout here (R439 reads the
+ * markup only).
+ *
  * @param {Item} item
  * @returns {string} HTML, or "" when there is nothing worth saying.
  */
-function wearMarkup(item) {
+export function wearMarkup(item) {
     if (!item || isBroken(item)) return "";
 
     /*
@@ -286,6 +293,14 @@ function wearMarkup(item) {
      * by being used, or by being taken.
      */
     if (!isEquippable(item)) return "";
+
+    if (tierOf(item) === 0) {
+        const hint = game.i18n.localize("DRPG.Items.singleUseTooltip");
+        return `<span class="drpg-item-wear drpg-single-use" data-tooltip="${
+            foundry.utils.escapeHTML(hint)}" aria-label="${
+            foundry.utils.escapeHTML(hint)}">${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.singleUse"))}</span>`;
+    }
 
     const total = durabilityOf(item);
     if (!(total > 0)) return "";
@@ -2314,7 +2329,7 @@ function buildItemRow(li, item, app, actor, inGroup) {
     // Any stash anywhere, exactly as before - `stow` is what
     // decides whether you are standing at one. Location-gating
     // the button would be a different rule, not a translation.
-    if (stashRoomsFor(actor).length) addStashButton(li, item, app, { stowing: true });
+    if (stashRoomsFor(actor, sceneOfActor(actor)).length) addStashButton(li, item, app, { stowing: true });
 }
 
 function groupInventory(app, element) {
@@ -2490,14 +2505,16 @@ function buildStashSection(box, actor, app) {
     // One section per stash you own, in room order. A character with two of
     // them has two drawers in two places, and merging them into one list would
     // hide the only thing that matters about a stash: where you have to be
-    // standing to reach it.
-    for (const entry of stashRoomsFor(actor)) {
-        buildOneStashSection(box, actor, app, entry.room);
+    // standing to reach it. On the scene the character stands on (E12 C6), where `stow` and
+    // `retrieve` reach them; until 1.2.74 the sheet listed the stashes of the scene on screen.
+    const scene = sceneOfActor(actor);
+    for (const entry of stashRoomsFor(actor, scene)) {
+        buildOneStashSection(box, actor, app, entry.room, scene);
     }
 }
 
-function buildOneStashSection(box, actor, app, room) {
-    const items = stashItemsIn(actor, room);
+function buildOneStashSection(box, actor, app, room, scene) {
+    const items = stashItemsIn(actor, room, scene);
 
     const section = document.createElement("div");
     section.className = "drpg-inventory-group drpg-stash-group";
@@ -3960,7 +3977,8 @@ function roomBlockFor(actor, key) {
         // every other caller in the module treats it as a string, and reading
         // `.name` off it silently yields undefined, which reads as "outside
         // every room" no matter where the token is standing.
-        const here = roomOfActor(actor);
+        const place = locateActor(actor);
+        const here = place?.room ?? null;
 
         // SABOTAGE USED TO BE ANSWERED HERE, and is not any more: it has no
         // tile to dim. It is the third row of the Projects menu now, where
@@ -3974,21 +3992,21 @@ function roomBlockFor(actor, key) {
         // Sealed first: it outranks the counter, and it is the more useful
         // sentence. A room with nothing to find in it reading "already picked
         // clean" sends the player back at the next time of day to try again.
-        if (key === "search" && SearchTokens.sealed(here))
+        if (key === "search" && SearchTokens.sealed(here, place?.scene))
             return game.i18n.localize("DRPG.SearchTokens.sealed");
 
         // `exhausted`, not `pickedClean` - the latter says "the action is
         // spent", which is true after a roll and a lie before one.
-        if (key === "search" && SearchTokens.left(here) <= 0)
+        if (key === "search" && SearchTokens.left(here, place?.scene) <= 0)
             return game.i18n.localize("DRPG.SearchTokens.exhausted");
 
-        if (key === "listen" && neighbouringRooms(here).length === 0)
+        if (key === "listen" && neighbouringRooms(place?.scene, here).length === 0)
             return game.i18n.localize("DRPG.Listen.noNeighbours");
 
         // Palm needs a pocket, and a pocket needs somebody standing in it -
-        // true of both directions. The same question `performPalm` asks;
-        // `othersInRoom` reads the canvas, so this is the tile telling the
-        // truth about the room the player is looking at rather than guessing.
+        // true of both directions. The same question `performPalm` asks, on
+        // the scene the character stands on (`othersInRoom`, E12 C3), so the
+        // tile tells the truth about the room rather than guessing.
         if (key === "palm" && othersInRoom(actor).length === 0)
             return game.i18n.localize("DRPG.Steal.nobodyHere");
 

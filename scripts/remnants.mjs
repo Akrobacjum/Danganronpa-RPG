@@ -15,11 +15,11 @@
 
 import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
     BROKEN_ITEMS, observeDc, TIMING } from "./config.mjs";
-// Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
+// Statically imported: `remnantsInRoom` and `tokenFor` are synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
-import { roomOfToken } from "./movement.mjs";
+import { roomOfToken, locateActor } from "./movement.mjs";
 import { SETTINGS, isDeceased, isDeadForGm, seasonEpoch, sameSeason } from "./settings.mjs";
-import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, warn, error, plural, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
 import { remnantStore, bulletStore, upgradeMark } from "./gm-stores.mjs";
@@ -95,21 +95,21 @@ export const REMNANT_FLAGS = {
 };
 
 /**
- * The token to drop a Remnant on.
+ * The token to drop a Remnant on: the one the character stands on (`locateActor`, a place
+ * scene), else their first token on any scene in the world's order.
  *
- * `getActiveTokens()` only returns tokens that are *rendered* and on the scene
- * this client is currently looking at, so it comes back empty often enough to
- * matter - a GM resolving something on another scene, a canvas mid-load. The
- * scene's own token list is checked as well, which needs neither.
+ * Read off the world's token lists only (E12 C6, 11.10.2026; plan-E12 3.3). Until 1.2.74 this
+ * took `getActiveTokens()` first - a token rendered on this client's canvas - and then the
+ * scene on screen, so which of a character's tokens got the trace depended on what the
+ * browser that ran it was looking at.
  */
 export function tokenFor(actor) {
     if (!actor) return null;
 
-    const active = actor.getActiveTokens?.()?.[0];
-    if (active?.document) return active;
+    const place = locateActor(actor);
+    if (place?.tokenDoc) return { document: place.tokenDoc };
 
-    for (const scene of [canvas?.scene, ...game.scenes]) {
-        if (!scene) continue;
+    for (const scene of game.scenes ?? []) {
         const doc = scene.tokens.find(t => t.actorId === actor.id);
         if (doc) return { document: doc };
     }
@@ -352,7 +352,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
                 if (!tied) {
                     const { locateActor } = await import("./movement.mjs");
                     const where = locateActor(game.actors.get(state.victimId));
-                    const sceneId = data.sceneId ?? data.scene?.id ?? canvas?.scene?.id ?? null;
+                    const sceneId = data.sceneId ?? data.scene?.id ?? null;
                     tied = Boolean(where?.room && data.room && data.room === where.room
                         && (!where.scene || !sceneId || where.scene.id === sceneId));
                 }
@@ -376,7 +376,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null, d
         itemIdentity = null
     } = data;
 
-    const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
+    const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null);
     if (!target) return null;
 
     /*
@@ -2191,7 +2191,7 @@ export async function retuneRemnant(sceneId, tokenId,
         return res.ok ? { pending: true } : null;
     }
 
-    const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
+    const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? sceneOfRemnant(tokenId);
     const token = scene?.tokens?.get(tokenId);
     if (!token) return null;
 
@@ -2292,7 +2292,7 @@ export async function retuneRemnant(sceneId, tokenId,
  *   question, and this shelf is what answers theirs instead.
  * @returns {Array<{token: TokenDocument, data: object, dc: number}>} easiest first.
  */
-export function rankForObserve(room, scene = workingScene(), { preferSource = null } = {}) {
+export function rankForObserve(room, scene, { preferSource = null } = {}) {
     const ranked = remnantsInRoom(room, scene)
         .map(token => {
             const data = remnantData(token);
@@ -2830,9 +2830,19 @@ async function seedPublicIfMissing(tokenDoc) {
 }
 
 /** Every Remnant token on a scene. */
-export function remnantsOn(scene = workingScene()) {
+export function remnantsOn(scene) {
     if (!scene) return [];
     return scene.tokens.filter(t => t.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant));
+}
+
+/**
+ * The scene a Remnant token stands on, by its id: for a reader holding a trace's id and no
+ * scene (a Reroll's bookmark from before it carried one, a packet that named none). Null when
+ * no scene has it - never the scene on screen (E12 C6).
+ */
+export function sceneOfRemnant(tokenId) {
+    if (!tokenId) return null;
+    return (game.scenes?.contents ?? []).find(scene => scene.tokens?.get(tokenId)) ?? null;
 }
 
 /**
@@ -2843,7 +2853,7 @@ export function remnantsOn(scene = workingScene()) {
  * all here: Remnant tokens are created by script, and Foundry has not populated
  * their region membership at that point.
  */
-export function remnantsInRoom(room, scene = workingScene()) {
+export function remnantsInRoom(room, scene) {
     if (!room) return [];
     return remnantsOn(scene).filter(t => roomOfToken(t) === room);
 }

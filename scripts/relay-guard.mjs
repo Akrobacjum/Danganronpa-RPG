@@ -497,8 +497,8 @@ export function judgeRelay(payload, sender, world = liveWorld()) {
     }
     if (payload?.action === GM_CREATE) {
         const type = textOf(data?.documentType ?? "?");
-        // D-a: every region in this game is a room (movement.mjs reads rooms off
-        // region names), so a player's Daggerheart area would move the map.
+        // D-a: the map's regions are the GM's (a room is a region a GM marked,
+        // rooms.mjs, E12 C1), so a Daggerheart area a player places is refused.
         if (type === "Region") return refuseAs("DhGMCreate", "refused", "a Daggerheart area (a Region) placed by a player");
         return refuseAs("DhGMCreate", "forged", `a new ${type}`);
     }

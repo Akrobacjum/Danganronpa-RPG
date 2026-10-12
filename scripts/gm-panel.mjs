@@ -18,6 +18,7 @@ import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./s
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
 import { roomOfToken } from "./movement.mjs";
+import { trialScene } from "./rooms.mjs";
 import { keyPlanStatus, keysToPlace } from "./investigation.mjs";
 import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
@@ -44,20 +45,67 @@ export function registerGmPanel() {
     Hooks.on("renderSceneControls", injectLauncher);
 }
 
+/**
+ * The GM's chrome (GM_CHROME below), registered by module.mjs BEFORE its requirements check and
+ * apart from the panel (E13 fix r1-F3, 12.10.2026; S12-18). The stylesheet hides the Scenes tab, the
+ * scene navigation and the hotbar unless the element carries the class this puts on it, and a
+ * Foundry that links the module's stylesheet links it whether or not the module's script went on
+ * to start - so while this sat in `registerGmPanel`, after the check, a world missing Dice So Nice,
+ * Isometric Perspective or LiveKit (C10) stopped the module and took those three from the GM as
+ * well, the directory to enable the missing module in included. Measured headless on 12.10.2026: a
+ * GM's client booted with LiveKit off (00-boot, "the GM's chrome when the module stops") computed
+ * all three `display: none` before this moved, shown after. Whether Foundry v14 links the sheet of a
+ * module whose requirements are missing is LIVE-E13-11. Nothing here reads a setting: none is
+ * registered on that road.
+ */
+export function registerGmChrome() {
+    /* The sidebar, the scene navigation and the hotbar are applications of their own, and an
+     * element one of them draws anew carries no class; `ready` stamps what is drawn by then. The
+     * three render names are Foundry's `render` + the application's class name, read from memory
+     * and not measured on v14: headless, 00-boot's "GM's chrome" fires them itself (LIVE-E13-09
+     * looks at the table). The scene controls' render stamps the rail as the launcher did. */
+    Hooks.once("ready", markGmChrome);
+    for (const hook of ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"]) Hooks.on(hook, markGmChrome);
+}
+
+/**
+ * The parts of Foundry's interface the stylesheet hides unless the element carries the class
+ * a GM's client puts on it (E13 C7, 12.10.2026; S12-18). The scene navigation was the first
+ * (`drpg-gm-nav`); the Scenes tab and the hotbar were hidden for the GM as well, the tab
+ * shown again by Stained Glass alone - so under Legacy a GM had no scene directory to build
+ * the trial hall in (D7: the hall is a scene the GM makes and links in Room Setup > Scenes),
+ * and nobody had the hotbar - a GM's macros included (the repository carries five, macros/).
+ */
+const GM_CHROME = [
+    ["#scene-controls", "drpg-gm-rail"],
+    ["#scene-navigation", "drpg-gm-nav"],
+    ['#sidebar-tabs button[data-tab="scenes"], #sidebar .tabs button[data-tab="scenes"]', "drpg-gm-scenes"],
+    ["#hotbar", "drpg-gm-hotbar"]
+];
+
+/* The GM-only styling is keyed on classes THIS function puts on the
+ * elements themselves, not on `body.drpg-gm`: on a long-lived client
+ * an ancestor-class selector was measured matching the element and
+ * still not applying - present in the sheet, `matches()` true,
+ * computed style ignoring it - while a same-element class works
+ * everywhere. What GM_CHROME names is hidden by default in the
+ * stylesheet and only a GM's client ever runs this to show it, so a
+ * player needs no selector gymnastics at all - and a client where the
+ * module never ran shows nobody any of it. A module that stopped at
+ * its requirements check still runs this for the GM (`registerGmChrome`,
+ * E13 fix r1-F3); a client that never loaded the script shows the GM none
+ * of it, as the stylesheet cannot tell a GM without it. */
+function markGmChrome() {
+    if (!game.user?.isGM) return;
+    for (const [selector, mark] of GM_CHROME) {
+        for (const element of document.querySelectorAll(selector)) element.classList.add(mark);
+    }
+}
+
 function injectLauncher() {
     try {
         if (!game.user?.isGM) return;
-
-        /* The GM-only styling is keyed on classes THIS function puts on the
-         * elements themselves, not on `body.drpg-gm`: on a long-lived client
-         * an ancestor-class selector was measured matching the element and
-         * still not applying - present in the sheet, `matches()` true,
-         * computed style ignoring it - while a same-element class works
-         * everywhere. The scene navigation is hidden by default in the
-         * stylesheet and only a GM's client ever runs this line to show it,
-         * so a player needs no selector gymnastics at all. */
-        document.getElementById("scene-controls")?.classList.add("drpg-gm-rail");
-        document.getElementById("scene-navigation")?.classList.add("drpg-gm-nav");
+        markGmChrome();
 
         if (document.getElementById("drpg-gm-launcher")) return;
         const column = document.getElementById("ui-left-column-1");
@@ -1461,12 +1509,13 @@ export function correctsTheHour(from, to) {
 
 /* A question Edit campaign asks before a field that does more than correct (E11 C6). Cancel is the first button
    and the only default, as `confirmNewTrial`'s (trial-floor-ui.mjs): Enter presses the first submit button (E10
-   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. */
-async function confirmCorrection(titleKey, textKey) {
+   C4's finding), so Enter keeps what the clock holds; the rest of the window is applied either way. `more` is
+   a second paragraph, already localized (E13 C6: where the trial takes the table). */
+async function confirmCorrection(titleKey, textKey, more = "") {
     const answer = await DialogV2.wait({
         window: { title: game.i18n.localize(titleKey) },
         classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>`),
+        content: dialogContent(`<p>${game.i18n.localize(textKey)}</p>${more ? `<p>${more}</p>` : ""}`),
         buttons: [
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
             { action: "ok", label: game.i18n.localize(titleKey) }
@@ -1628,13 +1677,18 @@ export async function openClockDialog() {
     /* AND ENTERING THE TRIAL FROM HERE IS NOT A CORRECTION (E11 C6; audit S10-22). The phase moved into the
        Class Trial runs `reconcilePhase`'s entry (clock.mjs): the trial's budget handed out, the chapter's trial
        record blanked and Monokuma's charge for the Key Remnants nobody found - Despair that no Edit campaign
-       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict. */
+       takes back. So it asks first, Cancel the default, and only then E10 C11's question about a verdict.
+       And it says that the trial takes the table to the linked hall (E13 C6; plan-E13 C6): since E13 C3 this
+       write activates the hall as Start the Class Trial's does, and the question named only the budget and the
+       charge. One sentence, only when a hall is linked - with none the table stays. Scenario 41 d1 reads it. */
     let phase = result.phase;
     if (phase === "classTrial" && getClock().phase !== "classTrial") {
+        const hall = trialScene();
+        const moves = hall ? game.i18n.format("DRPG.TrialScene.phaseSwitchesScene", { hall: esc(hall.name) }) : "";
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
             phase = getClock().phase;
-        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit"))) {
+        } else if (!(await confirmCorrection("DRPG.Clock.trialFromEditTitle", "DRPG.Clock.trialFromEdit", moves))) {
             phase = getClock().phase;
         } else {
             const { confirmNewTrial } = await import("./trial-floor-ui.mjs");

@@ -152,6 +152,17 @@ export async function setClock(patch = {}) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.eclipseFirst"));
         return null;
     }
+    /* AND NO ECLIPSE BEGINS IN A TRIAL, BY THIS DOOR EITHER (E13 fix r1-G1, 12.10.2026; the orchestrator's
+       default of the same day). r1-F3 refused it in eclipse.mjs `startEclipse`, the module's one writer of
+       `eclipse: true`; a clock written here with it - the API's `setClock` from a console, a macro - still
+       began one inside a running trial, and the trial's one voice room (D8) split into a room each. Refused
+       with `startEclipse`'s words, only when the Eclipse would begin: a write that keeps one already on (from
+       before this check) or ends it goes through, and a write that also opens the trial is the edge's refusal
+       above. Tier 2 "the clock refuses an Eclipse in the Class Trial" (red at 5b2b2ed). */
+    if (!trialEdge && next.phase === "classTrial" && next.eclipse === true && before.eclipse !== true) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
+        return null;
+    }
     // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
     // flag set again later by hand must not inherit the last Eclipse's name.
     if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
@@ -592,6 +603,22 @@ async function reconcilePhase(from, to) {
             tellUnfoundDeaths();
         } catch (err) {
             error("Could not count the deaths nobody has found at the trial's start", err);
+        }
+    }
+
+    /* THE TABLE AND THE HALL'S CAST (E13 C2, C3): into the trial the hall's cast the GMs chose is
+       shown and the hall activated, so every browser is taken there; out of it the school is
+       activated and the cast hidden - trial-scene.mjs `followPhase`, on this GM's client. Every road
+       into and out of the trial reaches it here and only here (R113): it is why no door activates a
+       scene itself. Last, after every rule step above: it is a draw, and a hall that cannot be
+       updated or activated must not hold up the budget or the reset. No hall linked, it does
+       nothing. */
+    if (from === "classTrial" || to === "classTrial") {
+        try {
+            const { followPhase } = await import("./trial-scene.mjs");
+            await followPhase(from, to);
+        } catch (err) {
+            error("Could not move the table to or from the trial hall after the phase changed", err);
         }
     }
 }

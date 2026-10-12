@@ -792,6 +792,9 @@
       "alsoServes": "Also works as a {role}.",
       "woreOnDespair": "“{item}” took the worst of that - {left} of {total} left before it breaks.",
       "brokeOnDespair": "“{item}” did not survive that. It stays in your pack, useless - Despair breaks a tool whether or not the work succeeded.",
+      "singleUseSpent": "“{item}” is used up. A Tier 0 thing lasts one roll, whatever the roll - it stays in your pack, useless.",
+      "singleUse": "Single use",
+      "singleUseTooltip": "Tier 0: it breaks after the first roll it is used in, whatever the roll.",
       "brokenUseless": "{item} is broken.",
       "discardTooltip": "Throw it away. Leaves a trace.",
       "discardTitle": "Throw away {item}",
@@ -928,6 +931,12 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
+      "endTrialScene": "The living students go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. The trial hall's tokens stay hidden.",
+      "endTrialRoom": "Room",
+      "endTrialMoves": {
+        "one": "{n} student goes to {room}.",
+        "other": "{n} students go to {room}."
+      },
       "trialEnded": "The Class Trial has ended; the chapter has not.",
       "lead": {
         "start": "No Class Trial is running. Start the Class Trial: the phase moves, the table is told, and the trial opens in discussion.",
@@ -969,6 +978,12 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
+      "startTrialHall": {
+        "one": "The table moves to the trial hall, {hall}, and {n} token there is shown.",
+        "other": "The table moves to the trial hall, {hall}, and {n} tokens there are shown."
+      },
+      "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
+      "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Events": {
@@ -1679,14 +1694,19 @@
       "stole": "You take {item} out of {who}'s stash.",
       "noticed": "Something has been moved in your stash, and something is missing from it. You have no idea whose hands have been in it.",
       "tabStashes": "Stashes",
-      "stashesIntro": "Who has a stash in which room, and whether it is hidden. Click a cell to cycle: none, open, hidden. A bedroom gives its owner an open stash automatically - the shaded column - and you can take that away here.",
+      "stashesIntro": "Who has a stash in which room, and whether it is hidden. Click a cell to cycle: none, open, hidden. A bedroom gives its owner an open stash automatically - its cell is shaded - and you can take that away here.",
       "stashesNote": "An open stash is open: anyone standing in the room can go through it for free. A hidden one has to be found first, with a Search at a penalty. A stash in somebody else's room does NOT come with a key to it.",
       "stashCycle": "Click to cycle: none / open / hidden",
+      "stashNone": "No stash",
+      "stashOpen": "Open",
+      "stashHidden": "Hidden",
+      "stashOwnBedroom": "The owner's own bedroom",
       "stashNotEmpty": {
         "one": "{name} has one thing in the stash in {room} - take it out before removing it.",
         "other": "{name} has {n} things in the stash in {room} - take them out before removing it."
       },
       "manageTitle": "Room setup",
+      "manageTitleOn": "Room setup - {scene}",
       "manageIntro": "Everything a room is, one kind of fact per tab. Apply saves every tab at once, whichever one is showing.",
       "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
       "bedroomsIntro": "Whose bedroom each room is, and whether the stash in it is hidden. One student, one bedroom.",
@@ -1700,14 +1720,18 @@
       "table": "Draws from",
       "favours": "Good place to look for",
       "hinders": "Bad place to look for",
+      "placeColumn": "Good or bad place to look for",
+      "placeNeither": "Neither",
+      "placeCycle": "Click to cycle: neither / good place / bad place",
       "lockedColumn": "Locked",
       "globalPool": "The global pool",
       "noRooms": "This scene has no room regions yet.",
       "noneSet": "No bedrooms have been assigned yet.",
+      "noStashesOnScene": "No stashes on this scene.",
       "twoRooms": "{name} cannot have two bedrooms ({a} and {b}). Pick one.",
-      "saved": {
-        "one": "Updated {n} room.",
-        "other": "Updated {n} rooms."
+      "appliedOn": {
+        "one": "{count} room changed on {scene}.",
+        "other": "{count} rooms changed on {scene}."
       },
       "tabBedrooms": "Bedrooms",
       "tabDoors": "Doors",
@@ -1719,6 +1743,7 @@
       "descriptionIntro": "What each room looks like, in your own words. Anyone standing in a room can read its description by clicking the clock at the top of the screen.",
       "descriptionNote": "Plain text - it is shown to players exactly as typed. Leave one blank and the room simply has nothing written about it.",
       "tabFog": "Fog",
+      "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all - it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
       "fogNote": "Discover all / Hide all tick or clear every checkbox above for every character at once. Nothing changes until you press Apply. The individual checkboxes are for one room, one character.",
@@ -1751,9 +1776,15 @@
       "noKeysToTake": "{actor} holds no key to anybody else's room.",
       "lockedAtStartColumn": "Locked at start",
       "lockedAtStartHint": "Whether this door is locked when a season begins. A season reset puts every door back to this.",
-      "notSharedColumn": "Not a room",
+      "isRoomColumn": "This is a room",
+      "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
+      "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“Not a room” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
+      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
+      "neighboursColumn": "Neighbours",
+      "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
+      "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
+      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbours, where it connects nothing."
     },
     "Chapter": {
       "deathTitle": "A character dies",
@@ -1861,6 +1892,58 @@
         "morning": "opening the next morning",
         "hold": "clearing the body's discovery"
       }
+    },
+    "TrialScene": {
+      "castUnavailable": "The trial opened and nobody in the trial hall was shown: the GMs' choice of its tokens had not reached this client yet. Show them by hand on the hall's scene.",
+      "duplicateToken": "More than one token in the trial hall stands for the same character, and only the first was shown. Kept hidden: {names}.",
+      "playerTokenCreated": "{user} made a token in the trial hall: {name}. It is hidden - showing the hall's tokens is the GM's - and stays where it is; the next trial treats it as any token of the hall.",
+      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. The module makes no tokens in the hall, so it stays gone - put it back by hand if the trial needs it.",
+      "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as the GMs left it.",
+      "noSchool": "The Class Trial ended, but no school scene is linked and the scene the trial opened from is gone, so the table stays in the trial hall and its tokens stay as they are. Activate a scene by hand.",
+      "missingTokens": {
+        "one": "The trial hall has no token for {n} student a player plays, so the trial cannot show them: {names}. Place one on the hall's scene.",
+        "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
+      },
+      "notMoved": {
+        "one": "{n} living student could not be moved and stays where they stood: {names}. Move them by hand.",
+        "other": "{n} living students could not be moved and stay where they stood: {names}. Move them by hand."
+      },
+      "carryUnfinished": {
+        "one": "{n} student carried out of the Class Trial stands twice - the copy and the token it was made from, which was not deleted: {names}. Delete the one you do not want.",
+        "other": "{n} students carried out of the Class Trial stand twice - each a copy and the token it was made from, which was not deleted: {names}. Delete the ones you do not want."
+      },
+      "hiddenHere": {
+        "one": "{n} living student's token in the room is hidden, and a shown token of theirs stays on another scene: {names}.",
+        "other": "{n} living students' tokens in the room are hidden, and shown tokens of theirs stay on other scenes: {names}."
+      },
+      "tokensStay": {
+        "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
+        "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
+      },
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it hides them and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
+      "school": "School",
+      "hall": "Trial hall",
+      "noScene": "- none -",
+      "castHeading": "The hall's cast",
+      "reveal": "Ticked: shown when the Class Trial opens. A token left unticked stays hidden - a test token, or a player nobody should see yet.",
+      "noCast": "The hall holds no token of a student or of Monokuma yet.",
+      "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
+      "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",
+      "hallFirstInTrial": "A Class Trial is running without a trial hall. Link one after the trial ends - Apply waits until then.",
+      "noSchoolLinked": "No school is linked: ending the trial goes back to the scene that was active when it opened.",
+      "hallHasRooms": "This scene has regions marked as rooms: {names}. In the trial hall they are not rooms - is this the school's map? Regions not marked as rooms are fine here.",
+      "duplicateInHall": "More than one token in the hall stands for the same character, and a trial shows only the first. The others: {names}.",
+      "unlinkedToken": "Tokens in the hall not linked to their character: {names}. The dead overlay and the player's control are read off the character, so link each to its character.",
+      "hallDark": "The trial hall still has Foundry's token vision on, its global light off or its exploration fog on. For everybody to see the whole hall, tick \"Prepare the hall\" in Room Setup's Scenes tab and press Apply.",
+      "prepare": "Prepare the hall on Apply: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
+      "preparePlaylist": "Also clear the hall's playlist",
+      "prepareVoice": "Also switch Proximity Voice Chat off in the hall (in the trial everybody is in one voice room)",
+      "prepareDone": "The trial hall {scene} is prepared.",
+      "tableOn": "The table is on {scene}.",
+      "showHall": "Show the hall",
+      "backToSchool": "Back to school",
+      "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
+      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -1992,10 +2075,11 @@
       "takeAway": "Take a Truth Bullet away",
       "noneToTake": "{actor} is not carrying any Truth Bullets.",
       "tabFromRemnant": "From a Remnant",
+      "onScene": "On {scene}",
       "tabWriteNew": "Write a new one",
-      "pickRemnant": "Which trace on this scene",
+      "pickRemnant": "Which trace",
       "remnantNote": "The bullet copies the trace: type, difficulty, room, the action that left it, and whether it is tied to the murder. The marker becomes visible to whoever holds it and nobody else. Renaming it here renames the trace.",
-      "remnantEmpty": "No Remnants on this scene. Place one on the map, or write a bullet by hand on the other tab.",
+      "remnantEmpty": "No Remnants on any scene. Place one on a map, or write a bullet by hand on the other tab.",
       "remnantGone": "That Remnant is no longer on the map.",
       "alreadyHeld": "already has a copy",
       "needsName": "The Truth Bullet needs a name.",
@@ -2232,6 +2316,7 @@
       "newRuleNote": "{cost} Despair buys a permanent change to the game. Make it count.",
       "newRuleAnnounced": "The new rule was announced to everyone.",
       "noSuchRoom": "There is no region called “{room}” on this scene.",
+      "gatherNoRoom": "There is no room called “{room}” on {scene}. Nothing was spent.",
       "progressedTo": "{name} is now at {current}/{target}.",
       "progressSent": "{name}: {n} progress sent to the GM.",
       "overflowFed": "{n} Despair poured into the overflow.",
@@ -2327,6 +2412,7 @@
     "Eclipse": {
       "already": "An Eclipse is already running.",
       "bodyFirst": "A body has been found - start the Investigation first.",
+      "trialFirst": "A Class Trial is running, so no Eclipse was started: in the trial everybody is in one voice room. End the trial first.",
       "announce": {
         "one": "Lights out. Place your token - one connected room, no more. Nobody sees anyone else until the Eclipse ends.",
         "other": "Lights out. Place your token - up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends."
@@ -2358,6 +2444,11 @@
       "bodyLocked": "The Eclipse is running. A body cannot be discovered - by hand or automatically - until everyone has finished placing.",
       "panelLocked": "Locked while the Eclipse runs - nobody has finished placing yet."
     },
+    "Movement": {
+      "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
+      "outsideRooms": "outside the rooms",
+      "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
+    },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
       "cannotReach": "You cannot get there from {from}.",
@@ -2376,6 +2467,7 @@
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "noBudgetLong": "No Free Move and no actions left - this crossing was not paid for, so your token was put back.",
       "locked": "The door is locked.",
+      "noStairs": "No stairs lead from {from} to that floor.",
       "dead": "They are dead. The body stays where it fell."
     },
     "Project": {
@@ -2410,6 +2502,8 @@
       "toolRelief": "{item} is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",
       "anyRoom": "- any room -",
+      "roomElsewhere": "{room} (on no scene now)",
+      "roomOnNoScene": "No project was made: {room} is a room on no scene now. Name a room a scene holds, or none.",
       "indirect": "Indirect murder",
       "cardTitle": "A project",
       "cardProgress": "Progress",
@@ -2812,6 +2906,7 @@
       "title": "Danganronpa - GM Panel",
       "launcher": "GM",
       "gmOnly": "Only a GM can open the panel.",
+      "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
       "nextLabel": "Next",
       "nextGo": "Do it",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
@@ -3029,10 +3124,6 @@
       },
       "how": "Install or enable them in Manage Modules - on the Forge, in the game's module list - then reload the world. Nothing has been changed here, so that is the whole of the repair.",
       "understood": "Understood",
-      "recommendTitle": "Danganronpa RPG is running without two things it asks for",
-      "recommendIntro": "Everything works without these. They are how this game was built to be played, and here is what each one does:",
-      "recommendSilence": "Do not mention this again on this computer",
-      "recommendNotice": "Danganronpa RPG runs better with {modules}. Nothing is broken without them.",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",
       "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
@@ -3257,6 +3348,7 @@
     "Voice": {
       "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
       "mainRoom": "the main room",
+      "claimTrial": "the Class Trial - everybody in one room",
       "notActive": "LiveKit AVClient is not installed, not active, or not connected.",
       "needsAvclient": "Regional voice is on, but LiveKit AVClient is not active.",
       "avDisabled": "Regional voice is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
@@ -3457,7 +3549,11 @@
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",
-      "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
+      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room Setup. Movement, Search, Listen and every incident are answered in terms of them.",
+      "step.roomsMarked": "Every named region is decided: a room or not",
+      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room Setup (the Doors tab). These named regions have not been decided yet.",
+      "step.scenes": "The school and the trial hall are linked",
+      "hint.scenes": "Room Setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
       "step.mastermind": "The Mastermind (optional)",
@@ -3581,7 +3677,7 @@
       "resetButton": "Reset the season",
       "resetMistyped": "Not reset - you have to type {word} exactly.",
       "resetDone": "The season has been reset. The cast and the maps are untouched.",
-      "roomGuide": "Walls first, then one named Region per room, drawn to them with snapping on. An unnamed region is not a room and never counts as a neighbour. Neighbours touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
+      "roomGuide": "Walls first, then a Region for each room, drawn to them with snapping on; a room may be drawn as several regions of one name. A region is a room only once a GM ticks “This is a room” for it in Room Setup (the Doors tab): a region nobody ticked, a passage (a region that teleports a token or changes its level) and a region a player drew are no rooms and never count as neighbours. Neighbours touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
       "checkRooms": "Check the rooms on this scene",
       "checkClean": "Nothing to report - the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
@@ -3663,8 +3759,41 @@
         "other": "Room-based visibility switched on for {count} scenes."
       },
       "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
-      "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
-      "checksScenes": "Scenes and rooms"
+      "noRoomScenes": "No scene has rooms (named Regions a GM marked as rooms), so no scene uses room-based visibility.",
+      "checksScenes": "Scenes and rooms",
+      "floors": "Floors",
+      "floorUnnamed": "Floor {n}",
+      "floorsHint": "The floors you can look at: the ones your character stands on and the ones holding a room you have found. A room you have never been in stays under the fog on every floor.",
+      "notRooms": {
+        "one": "{n} named region is not a room",
+        "other": "{n} named regions are not rooms"
+      },
+      "notRoom": {
+        "problem": "Named, but not a room",
+        "passage": "It carries a {type} behaviour, so it is a passage, not a room: the fog draws no outline or reveal for it and no doorway leads into it.",
+        "player": "A player drew it, so it is never a room: the fog draws no outline or reveal for it and no doorway leads into it.",
+        "unmarked": "It is not marked as a room (Room Setup, the Doors tab, “This is a room”), so the fog draws no outline or reveal for it and no doorway leads into it."
+      }
+    },
+    "Rooms": {
+      "reportTitle": "Rooms marked",
+      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room Setup's Doors tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
+      "migrated": {
+        "one": "{n} room marked: {names}.",
+        "other": "{n} rooms marked: {names}."
+      },
+      "skippedBehaviours": "Left for you to decide in Room Setup, because they carry behaviours: {names}.",
+      "skippedPlayer": "Never rooms, because a player drew them: {names}.",
+      "skippedNoName": {
+        "one": "{n} region without a name was left alone: a room needs a name.",
+        "other": "{n} regions without a name were left alone: a room needs a name."
+      },
+      "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
+      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbours lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}, the seal of a Despair Call: {sealed}, bodies found there: {bodies}.",
+      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room Setup (the Doors tab).",
+      "renameJoined": "“{room}” on {scene} was renamed “{name}”, the name of a room that was already there, so it is now one more piece of that room. Nothing that named “{room}” was carried: its keys, stashed items, notes of a stash found and discovery still name “{room}”. Taken off the region, so that it adds nothing to “{name}”: {carried}.",
+      "carriedNothing": "nothing",
+      "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
     },
     "Migrate": {
       "gmOnly": "Only a GM can run the data migration.",
@@ -3717,7 +3846,7 @@
       "armedTitle": "The trap is watching",
       "armedBody": "It is finished and armed. The module is watching for: {trigger} - {room}. You will get a card when it sees it.",
       "alertTitle": "{name} - something set it off",
-      "alertReading": "{who}, in {room}, {when}.",
+      "alertReading": "{who}, in {room} ({scene}), {when}.",
       "rearm": "Keep watching",
       "rearmed": "The trap is watching again.",
       "plantTitle": "Leave something behind",
@@ -3797,6 +3926,7 @@
         "pendingMurders": "The Direct Murders declared in the dark",
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
+        "trialCast": "Which of the trial hall's tokens the trial shows",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",

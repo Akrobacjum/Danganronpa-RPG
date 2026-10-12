@@ -1,7 +1,10 @@
 /** Boot sanity: four clients, module registers, world sync works. */
 export const layers = ["ci"];
+/* A second GM who joins late with LiveKit switched off (E13 fix r1-F3): the module stops on that browser. The id sorts
+   after the seeded GM's, so the primary GM stays the seeded one while it is connected. */
+export const accounts = [{ who: "gmoff", id: "USERGX0000000000", name: "GM Without LiveKit", role: 4, character: null, color: "#444444", late: true }];
 
-export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
+export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect, disconnect, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -158,6 +161,64 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         && booted.release?.generation === environment.foundry.generation && booted.release?.build === environment.foundry.build
         && booted.system === environment.system.version && environment.modules.every(m => booted.modules[m.id] === m.version),
         JSON.stringify({ environment, booted }));
+
+    /* The GM's chrome (E13 C7, 12.10.2026; S12-18; R438 reads the sheets). The Scenes tab, the
+       scene navigation and the hotbar are hidden unless the element carries the class a GM's
+       client puts on it (GM_CHROME, gm-panel.mjs). The harness draws only `#hotbar`
+       (client-entry.mjs); the other two are drawn here after the module's `ready`, their render
+       hooks fired as Foundry fires them on a render, and taken away again. Read through jsdom's
+       cascade in both themes: the one each client booted with, then the other (the theme is
+       the client's own setting), and the first put back. */
+    const chrome = c => c.eval(`const drawn = [];
+        const draw = (id, html) => { if (document.getElementById(id)) return; const t = document.createElement("template");
+            t.innerHTML = html; drawn.push(t.content.firstElementChild); document.body.append(t.content.firstElementChild); };
+        draw("scene-navigation", '<nav id="scene-navigation"></nav>');
+        draw("sidebar-tabs", '<nav id="sidebar-tabs"><button type="button" class="ui-control" data-tab="scenes"></button></nav>');
+        Hooks.callAll("renderSceneNavigation"); Hooks.callAll("renderSidebar");
+        const shown = sel => getComputedStyle(document.querySelector(sel)).display !== "none";
+        const read = () => ({ theme: [...document.body.classList].filter(c => c.startsWith("drpg-theme")).join(" "),
+            hotbar: shown("#hotbar"), nav: shown("#scene-navigation"), scenes: shown('#sidebar-tabs button[data-tab="scenes"]') });
+        const was = game.settings.get("danganronpa-rpg", "theme");
+        const seen = [read()];
+        await game.settings.set("danganronpa-rpg", "theme", was === "stainedGlass" ? "monokumaLegacy" : "stainedGlass");
+        seen.push(read());
+        await game.settings.set("danganronpa-rpg", "theme", was);
+        drawn.forEach(el => el.remove());
+        return { seen, back: game.settings.get("danganronpa-rpg", "theme") === was };`);
+    const gmChrome = await chrome(gm), playerChrome = await chrome(p1);
+    const themes = r => r.seen.map(s => s.theme).sort().join(",");
+    check("the GM's chrome: in both themes a GM's client shows the Scenes tab, the scene navigation and the hotbar, and a player's hides all three",
+        [gmChrome, playerChrome].every(r => r.back && themes(r) === "drpg-theme-monokuma-legacy,drpg-theme-stained-glass")
+        && gmChrome.seen.every(s => s.hotbar && s.nav && s.scenes)
+        && playerChrome.seen.every(s => !s.hotbar && !s.nav && !s.scenes),
+        JSON.stringify({ gm: gmChrome, p1: playerChrome }));
+
+    /* The GM's chrome when the module stops (E13 fix r1-F3, 12.10.2026; goal S12-18's other half; R470 reads the
+       order). A GM joins with LiveKit switched off, so the requirements check stops the module on that browser
+       (R442) while the harness links its stylesheets as on every client - whether Foundry v14 does is LIVE-E13-11.
+       Read as above, in the one theme a module that never set one leaves (none), after its `ready`, one element at a
+       time: the hotbar as `ready` left it, then the navigation drawn and its render fired, then the Scenes tab drawn and
+       the sidebar's render fired - `markGmChrome` stamps every element there is, so one hook fired before an element is
+       read would answer for the others. Until the fix the chrome was registered after the check, and a GM there
+       computed all three hidden. */
+    await connect("gmoff", { modulesOff: ["avclient-livekit"] });
+    await settle(300);
+    const stopped = await gmoff.eval(`const drawn = [];
+        const draw = (id, html) => { if (document.getElementById(id)) return; const t = document.createElement("template");
+            t.innerHTML = html; drawn.push(t.content.firstElementChild); document.body.append(t.content.firstElementChild); };
+        const shown = sel => getComputedStyle(document.querySelector(sel)).display !== "none";
+        const read = { stopped: !game.drpg && !game.settings.settings.has("danganronpa-rpg.theme"), gm: game.user.isGM, hotbar: shown("#hotbar") };
+        draw("scene-navigation", '<nav id="scene-navigation"></nav>');
+        Hooks.callAll("renderSceneNavigation");
+        read.nav = shown("#scene-navigation");
+        draw("sidebar-tabs", '<nav id="sidebar-tabs"><button type="button" class="ui-control" data-tab="scenes"></button></nav>');
+        Hooks.callAll("renderSidebar");
+        read.scenes = shown('#sidebar-tabs button[data-tab="scenes"]');
+        drawn.forEach(el => el.remove());
+        return read;`);
+    await disconnect("gmoff");
+    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off still shows the Scenes tab, the scene navigation and the hotbar",
+        stopped.stopped === true && stopped.gm === true && stopped.hotbar && stopped.nav && stopped.scenes, JSON.stringify(stopped));
 
     await settle(300);
 }

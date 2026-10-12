@@ -25,7 +25,7 @@ import { error, plural } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
-import { roomOfActor } from "./movement.mjs";
+import { roomOfActor, locateActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
@@ -161,7 +161,8 @@ function openingCard() {
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
     const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;
-    try { room = victim ? (roomOfActor(victim)?.name ?? null) : null; } catch { /* a victim outside every room */ }
+    // The room's name: `roomOfActor` answers a string, so its `.name` was always undefined (E12 C3; plan-E12 1.x item 5).
+    try { room = victim ? (locateActor(victim)?.room ?? null) : null; } catch { /* a victim outside every room */ }
     const who = game.user.isGM && killer && victim ? `${killer.name} → ${victim.name}` : (victim?.name ?? "");
     return {
         kind: "incident",
@@ -220,7 +221,7 @@ function incidentCard() {
     });
 
     let room = null;
-    try { room = roomOfActor(victim)?.name ?? null; } catch { /* a victim outside every room */ }
+    try { room = locateActor(victim)?.room ?? null; } catch { /* a victim outside every room */ }
     const sub = killer
         ? game.i18n.format(room ? "DRPG.Events.incidentSubRoom" : "DRPG.Events.incidentSub", { killer: killer.name, victim: victim.name, room })
         : victim.name;

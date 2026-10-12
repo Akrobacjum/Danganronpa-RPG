@@ -480,9 +480,20 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * rounding: tier 1 is the first thing worth carrying, not the first thing that
  * lasts. What tier 2 buys is a second chance; tier 3 buys a third.
  *
+ * TIER 0'S ONE IS A SINGLE USE, NOT A DURABILITY (the owner's amend of
+ * 25.09.2026; E13 C8): a tier 0 tool or weapon is spent by the first roll it
+ * is used in, whatever the roll (use-items.mjs `rollSpends`), and the sheet
+ * draws it no track (sheet.mjs `wearMarkup`). The number stays 1 because the
+ * spending goes through `wearItem` like any wear - one point, and the point
+ * that fills it breaks it - so a Reroll gives it back as it gives a wear back,
+ * and the Rot, which never takes the last point, still passes it by.
+ *
  * Read through `durabilityOf`, which answers 1 for anything with no tier
- * recorded - a hand-made item, a world made before this existed - so an
- * unknown thing behaves exactly as everything did before.
+ * recorded - a hand-made item, a world made before this existed. Since E13 C8
+ * such a thing is also single use: `tierOf` reads a missing tier as 0, so
+ * `rollSpends` spends it on the first roll it is used in, whatever the roll
+ * (R439 asks it of an item with no tier). Before C8 it took a point on a
+ * Despair only, as everything did.
  */
 export const ITEM_DURABILITY = { 0: 1, 1: 1, 2: 2, 3: 3 };
 
@@ -1687,10 +1698,10 @@ function analysableBulletCount(actor) {
 /** Projects this character could work on from where they are standing. */
 function workableProjectCount(actor) {
     const api = globalThis.game?.drpg;
-    if (!actor || !api?.projectsAvailableIn || !api?.roomOfActor) return 1;
-    const room = api.roomOfActor(actor);
-    if (!room) return 0;                                  // nothing here to push
-    return api.projectsAvailableIn(room)?.length ?? 0;
+    if (!actor || !api?.projectsAvailableIn || !api?.locateActor) return 1;
+    const place = api.locateActor(actor);                 // the room on its scene (E12 fix r1-G3)
+    if (!place?.room) return 0;                           // nothing here to push
+    return api.projectsAvailableIn(place)?.length ?? 0;
 }
 
 /**

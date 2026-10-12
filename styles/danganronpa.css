@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.73";
+    --drpg-css-version: "1.2.74";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1024,6 +1024,34 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
        negative number is the whole rule. */
     order: -1;
     margin: 0 0 4px;
+}
+
+/* THE FLOOR SWITCHER (E12 C11): one button per floor this browser may look at
+   (fog.mjs `floorSwitcher`), placed right after the clock. The clock's order, so
+   the two stay together above the launcher and the tools; how it looks at a table
+   under either theme was not seen - the harness draws no layout (LIVE-E12-02). */
+#ui-left-column-1 > #drpg-floors {
+    order: -1;
+}
+
+#drpg-floors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 4px;
+    pointer-events: auto;
+}
+
+#drpg-floors > button {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 2px 8px;
+    font-size: var(--font-size-13, 0.82rem);
+}
+
+#drpg-floors > button[aria-pressed="true"] {
+    border-color: var(--drpg-bone);
+    font-weight: 600;
 }
 
 #drpg-hud > *,
@@ -2103,6 +2131,14 @@ section[data-application-part="biography"] .experiences .value {
 .drpg-item-kind .drpg-item-wear {
     margin-left: 6px;
     vertical-align: middle;
+}
+
+/* A tier 0 thing's "Single use" in the place of the pips (E13 C8, sheet.mjs `wearMarkup`):
+   small and quiet, as the tier beside it is. Not measured in a browser. */
+.drpg-item-wear.drpg-single-use {
+    font-size: var(--font-size-11, 0.7rem);
+    opacity: 0.6;
+    white-space: nowrap;
 }
 
 .drpg-inventory-list .drpg-item-tier {
@@ -3770,13 +3806,15 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    button cycles the three states that actually exist. */
 .drpg-stash-cell {
     text-align: center;
-    width: 7ch;
 }
 
-/* The bedroom owner's column, so a GM can see which stash appeared by itself
-   when they assigned the room rather than by their own hand. */
-.drpg-stash-cell.drpg-stash-bedroom {
-    background: rgba(var(--drpg-bone-rgb), 0.05);
+/* The bedroom owner's cell, so a GM can see which stash appeared by itself
+   when they assigned the room rather than by their own hand. The swatch is the
+   legend's (E12 C15). 0.05 of bone was all but invisible in the audit's
+   screenshot (S12-23); 0.14 is a choice, not a reading - LIVE-E12-06 looks. */
+.drpg-stash-cell.drpg-stash-bedroom,
+.drpg-stash-swatch {
+    background: rgba(var(--drpg-bone-rgb), 0.14);
 }
 
 .drpg-stash-toggle {
@@ -3805,8 +3843,137 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     opacity: 0.85;
 }
 
+/* 0.35 read as an empty cell with nothing in it at all (S12-23); 0.7 is a
+   choice, not a reading, as the shading above. */
 .drpg-stash-none {
-    opacity: 0.35;
+    opacity: 0.7;
+}
+
+/* ---- Room Setup's tables (E12 C15, audit S08-26 and S12-23) ---------------
+   FIXED COLUMNS. Every table of the window states its columns (`<col>`, one
+   class a kind of cell: `roomSetupColumns` in vault.mjs) and is laid out
+   fixed, so a column is as wide as its kind says and not as its content
+   happens to push it. `width: 1px` is what lets the table be as wide as its
+   columns and no wider: a fixed table is the larger of its stated width and
+   the sum of its columns (CSS 2.1, 17.5.2.1; read in the specification, not
+   measured here - the harness lays nothing out), so the window is fitted to
+   the widest tab (`fitWindowToTabs`) and a narrower tab leaves the rest of
+   the line empty instead of stretching its columns over it. `!important`
+   because the dialog-table rule above (`width: max-content; min-width: 100%;
+   table-layout: auto`) is the one it has to beat, for the reason written on
+   `.drpg-room-check-table`.
+
+   The widths are the audit's (a Room column of about 220 px) and choices for
+   the rest, one width a kind, not readings: LIVE-E12-06 is Room Setup at a
+   desk and on a narrow screen. Every column needs one - a fixed table of
+   width 1px gives a column without a width nothing. */
+.drpg-room-setup-table {
+    table-layout: fixed !important;
+    width: 1px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+.drpg-room-setup-table .drpg-col-room { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table :is(.drpg-col-check, .drpg-col-student) { width: calc(96px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-step { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-prose { width: calc(560px * var(--drpg-legacy-scale, 1)); }
+
+/* A room's name wraps inside its 220 px rather than running under the next
+   column: the dialog-table rule keeps every cell on one line, and a fixed
+   column does not grow to hold it. */
+.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table td:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.drpg-room-setup-table input[type="text"] {
+    width: 100%;
+}
+
+/* A student's name on one line, centred, cut where the column ends; the
+   whole name is the heading's title (`studentHeads`). */
+.application.dialog.drpg-room-setup .dialog-content .drpg-room-setup-table thead th.drpg-student-head {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/* The search-token counter's four pieces in one row. The buttons are flex
+   items here, so Foundry's block-level button cannot take a line of its own. */
+.drpg-token-step {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+}
+.drpg-token-step > * {
+    flex: none;
+}
+
+/* The place switches of a row, as many to a line as the column holds. */
+.drpg-place-switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+/* `!important` against any rule that draws a checkbox: these two are the
+   form's values, the button beside them is what the GM sees. */
+.drpg-place-box {
+    display: none !important;
+}
+.drpg-place-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    padding: 1px 6px;
+    background: none;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
+    border-radius: 3px;
+    color: var(--drpg-bone);
+    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    white-space: nowrap;
+    cursor: pointer;
+}
+/* The state's colour is this theme's; Stained Glass draws every button of a
+   panel with its own brush, and there the glyph (a circle, a thumb up, a
+   thumb down) is what tells the three apart. */
+.drpg-place-toggle[data-drpg-place=""] {
+    opacity: 0.7;
+}
+.drpg-place-toggle[data-drpg-place="good"] {
+    border-color: rgba(var(--drpg-bone-rgb), 0.8);
+    background: rgba(var(--drpg-bone-rgb), 0.16);
+}
+.drpg-place-toggle[data-drpg-place="bad"] {
+    border-color: rgba(var(--drpg-eye-rgb), 0.8);
+    background: rgba(var(--drpg-eye-rgb), 0.2);
+}
+
+/* The legend over the Stashes matrix and the bulk buttons over the Fog one. */
+.drpg-stash-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+.drpg-stash-swatch {
+    display: inline-block;
+    width: 1.2em;
+    height: 1em;
+    vertical-align: middle;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3);
+}
+.drpg-fog-bulk {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0;
+}
+.drpg-fog-bulk > button {
+    flex: none;
+    width: auto;
 }
 
 .drpg-room-check-table td:first-child { width: 2.5ch; }
@@ -7571,9 +7738,15 @@ html body {
 
 /* --- surfaces this game does not use ------------------------------------ */
 
-/* No macros: every action in this game is a button on the sheet or a tile in
-   the GM panel, and the bar was 60px of screen explaining nothing. */
-#hotbar {
+/* No macros for a player: every action in this game is a button on the sheet
+   or a tile in the GM panel, and the bar was 60px of screen explaining
+   nothing. The GM keeps it (E13 C7, 12.10.2026; S12-18): the repository
+   carries five macro scripts (macros/) and a GM's own macros need the bar,
+   which had gone for the GM as well. `drpg-gm-hotbar` is the element class
+   the GM's client puts on it (GM_CHROME in gm-panel.mjs), the scene
+   navigation's pattern below - hidden unless the class is there, so a client
+   the module never ran on hides it. */
+#hotbar:not(.drpg-gm-hotbar) {
     display: none !important;
 }
 
@@ -7636,7 +7809,7 @@ html body {
    translucency stays where it belongs, on the background; the glyph is ink.
 
    `.drpg-gm-rail` is put on the RAIL ITSELF by the GM's client (see
-   injectLauncher in gm-panel.mjs) rather than read off `body.drpg-gm`: an
+   GM_CHROME in gm-panel.mjs) rather than read off `body.drpg-gm`: an
    ancestor-class selector was measured on a long-lived client matching the
    button and still not applying - in the sheet, `matches()` true, computed
    style ignoring it - while a same-element class held everywhere. */
@@ -7692,12 +7865,16 @@ html body {
     color: var(--drpg-eye-light) !important;
 }
 
-/* The Scenes tile goes, for the GM as well (Dawid, 29.08).
-   The scene list is on the left rail, under the clock, with the names written
-   out; this tile is a second door to the same room, one icon wide and with no
-   names on it. A player has no tiles at all, so this is the GM's copy. */
-#sidebar-tabs button.ui-control[data-tab="scenes"],
-#sidebar .tabs button.ui-control[data-tab="scenes"] {
+/* The Scenes tile went for the GM as well (Dawid, 29.08): the scene list on the
+   left rail, under the clock, names the scenes, and this tile was a second door
+   to the same room, one icon wide. It is also the door to the scene DIRECTORY,
+   though - creating, importing and configuring a scene - and the trial hall is a
+   scene the GM builds and links in Room Setup > Scenes (D7), so the GM keeps it
+   in every theme (E13 C7, 12.10.2026; S12-18: until then only Stained Glass gave
+   it back). A player has no tiles at all; the class is put on the button by the
+   GM's client (GM_CHROME in gm-panel.mjs), as on the scene navigation below. */
+#sidebar-tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes),
+#sidebar .tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes) {
     display: none !important;
 }
 
@@ -11783,8 +11960,9 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     overflow-wrap: anywhere;
 }
 
-/* The search-token counter in Room Setup: a number, then three small controls
-   that act at once. `white-space: nowrap` keeps "2 / 3" from breaking across
+/* The search-token counter in Room Setup: a minus, the number, a plus and a
+   refill, the controls acting at once (in one row since E12 C15: see
+   `.drpg-token-step`). `white-space: nowrap` keeps "2 / 3" from breaking across
    two lines when the table is narrow - the count and its cap are one value. */
 .drpg-token-cell {
     white-space: nowrap;
@@ -13612,7 +13790,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* The scene navigation is the GM's - a player has one scene and no business
    being reminded of the others. Hidden by DEFAULT and shown by the class the
-   GM's own client puts on it (injectLauncher, gm-panel.mjs) - the fail-safe
+   GM's own client puts on it (GM_CHROME, gm-panel.mjs) - the fail-safe
    direction: a client where the module never ran shows a player nothing
    extra, and the ancestor-class trap documented on the rail above cannot
    reopen it. */

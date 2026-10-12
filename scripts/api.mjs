@@ -9,7 +9,8 @@
 import { DRPG, MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, bodyDiscovery, clearBodyDiscovery }
     from "./settings.mjs";
-import { SearchTokens } from "./search-tokens.mjs";
+import { SearchTokens, showSearchTokens } from "./search-tokens.mjs";
+import { sceneOfRoom, sceneRoles } from "./rooms.mjs";
 import { getUltimate, setUltimate, findDuplicateUltimates } from "./sheet.mjs";
 import { openAdvancement, openAdvancementFor, applyAdvancement } from "./level-up.mjs";
 import { auditAnonymity, explainOwnership } from "./anonymity.mjs";
@@ -81,7 +82,7 @@ import {
 import { performAction, currentRoom } from "./action-rolls.mjs";
 import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor,
     tableNameCandidates, refreshTableCopy } from "./tables.mjs";
-import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
+import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf, locateActor } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
 import {
@@ -246,6 +247,38 @@ import {
     clamp,
     log
 } from "./utils.mjs";
+
+/*
+ * A SHORTHAND WITH NO SCENE SAYS SO (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4). Since
+ * E12 C6 nothing a rule calls defaults to the scene on screen, and these five did nothing, in
+ * silence, for a console or a macro that named none (scenarios 10, 72 and 83 placed traces so
+ * until C6 handed them the scene). The
+ * three that name a room take the room's scene, the school's room of the name first, as
+ * `tokensLeft` does (rooms.mjs `sceneOfRoom`) - the answer the module gives everywhere it holds a
+ * name and no scene. `placeRemnant` names a point and `applySceneVisionMode` a scene, so there is
+ * nothing to look a scene up by: they, and a room no place scene has, are told to the GM instead.
+ */
+function sceneNamed(fn, scene) {
+    if (!scene && game.user?.isGM) ui.notifications.warn(game.i18n.format("DRPG.Panel.noSceneNamed", { fn }));
+    return scene ?? null;
+}
+
+/*
+ * A PROJECT IN A ROOM NO SCENE HOLDS IS REFUSED, AND THE GM IS TOLD (E12 fix r2-S1, 11.10.2026;
+ * review round 2 O1). The console's `createProject` took any name for a room and put the
+ * project's token on no scene, in silence; the project manager offers such a room only labelled
+ * "(on no scene now)" (`DRPG.Project.roomElsewhere`). The console refuses it now and says why; a
+ * room a place scene holds (rooms.mjs `sceneOfRoom`), or none, is created as before. The manager
+ * and a repair call projects.mjs `createProject` itself and are not changed here.
+ */
+async function createProjectNamed(data = {}) {
+    const room = data?.room ?? null;
+    if (room && game.user?.isGM && !sceneOfRoom(room)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Project.roomOnNoScene", { room }));
+        return null;
+    }
+    return createProject(data);
+}
 
 export const DrpgApi = {
     /** Static rules data straight from the guide. */
@@ -412,9 +445,13 @@ export const DrpgApi = {
     /** Which room region the character's token is standing in. */
     currentRoom,
     roomOfActor,
+    /** Where a character stands, without the camera: `{ tokenDoc, scene, room, level }` - what the project lists take. */
+    locateActor,
     roomOfToken,
     othersInRoom,
     allRooms,
+    /** The linked scenes, `{ school, trial }` (scene ids) and any later field: read only (E13 C1). */
+    sceneRoles: () => ({ ...sceneRoles() }),
 
     /** Rooms adjacent to this one - used by Listen. */
     neighbouringRooms,
@@ -451,7 +488,8 @@ export const DrpgApi = {
     isComplete,
     addProgress,
     setProjectMeta,
-    createProject,
+    /** Refuses a room no place scene holds, and says so (`createProjectNamed`). */
+    createProject: createProjectNamed,
 
     /** Rename, re-scale, re-room or re-portrait a project without losing its
      *  progress or its id - everything pointing at it keeps pointing at it. */
@@ -479,13 +517,15 @@ export const DrpgApi = {
     takeRest,
     roomAllows,
     restRooms,
-    setRestRoom,
+    setRestRoom: (roomName, options = {}) =>
+        setRestRoom(roomName, { ...options, scene: sceneNamed("setRestRoom", options.scene ?? sceneOfRoom(roomName)) }),
 
     /* ---- remnants & inventory ------------------------------------------ */
 
     /** Drop a Remnant where a character stands: hidden, translucent, under tokens. */
     dropRemnant,
-    placeRemnant,
+    placeRemnant: async (data = {}, options = {}) => (game.user.isGM && !sceneNamed("placeRemnant", data?.scene
+        ?? (data?.sceneId ? game.scenes.get(data.sceneId) : null))) ? null : placeRemnant(data, options),
     remnantsOn,
     remnantsInRoom,
     revealRemnant,
@@ -548,7 +588,8 @@ export const DrpgApi = {
     stashRoomsFor,
     stashItemsIn,
     primaryStashRoom,
-    setStash,
+    setStash: (room, actorId, options = {}) =>
+        setStash(room, actorId, { ...options, scene: sceneNamed("setStash", options.scene ?? sceneOfRoom(room)) }),
     allBedrooms,
     myStashHere,
     rifleStash: rifleStashDialog,
@@ -606,7 +647,8 @@ export const DrpgApi = {
     favoursCategory,
     roomHinders,
     hindersCategory,
-    setVaultRoom,
+    setVaultRoom: (room, options = {}) =>
+        setVaultRoom(room, { ...options, scene: sceneNamed("setVaultRoom", options.scene ?? sceneOfRoom(room)) }),
 
     /** Owner, concealment, table and favoured categories, on one screen. */
     roomSetup: openRoomSetupDialog,
@@ -738,6 +780,15 @@ export const DrpgApi = {
     closeTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeTrial(...a)),
     openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
     closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
+    /** The trial hall and the school (E13 C6). Inside a running trial the table taken to the hall (its cast
+     *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
+     *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
+     *  active one, the hall's tokens the next entry shows and the Scenes tab's warnings (GM only, else null);
+     *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
+    showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
+    showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
+    trialSceneReport: () => import("./trial-scene.mjs").then(m => m.trialSceneReport()),
+    openTrialCast: () => import("./vault.mjs").then(m => m.openRoomSetupDialog({ tab: "scenes" })),
 
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not
@@ -1216,11 +1267,12 @@ export const DrpgApi = {
 
     searchTokens: SearchTokens,
 
-    /** Shorthands kept for the existing GM macros. */
-    tokensLeft: roomName => SearchTokens.left(roomName),
-    useToken: roomName => SearchTokens.spend(roomName),
+    /** Shorthands kept for the existing GM macros. A room's scene, unless one is named: the
+     *  school's room of that name before another scene's (`sceneOfRoom`), never the camera's (E12 C6). */
+    tokensLeft: (roomName, scene = sceneOfRoom(roomName)) => SearchTokens.left(roomName, scene),
+    useToken: (roomName, scene = sceneOfRoom(roomName)) => SearchTokens.spend(roomName, scene?.id ?? null),
     resetTokens: () => SearchTokens.reset(),
-    showTokens: () => SearchTokens.report(),
+    showTokens: () => showSearchTokens(),
 
     /* ---- chat ---------------------------------------------------------- */
 
@@ -1291,7 +1343,7 @@ export const DrpgApi = {
     /** Repaint now, after editing the fog table or a Region by hand. */
     repaintFog,
     /** GM: put this scene into room-based visibility (token vision off). */
-    applySceneVisionMode,
+    applySceneVisionMode: scene => applySceneVisionMode(sceneNamed("applySceneVisionMode", scene)),
     /** Primary GM: do the same for EVERY scene that has rooms drawn on it. */
     prepareScenes,
     /** GM: give one scene back the vision settings it had before the module. */

@@ -68,8 +68,10 @@ export const FLOWS = Object.freeze([
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+    // E12 C5 (11.10.2026): 66-rooms's phase I (a body in a locked room) is tagged with this flow and now named.
+    // E12 C12 (11.10.2026): its I1-I4 read whom the discovery counts when a student reached the room past the rules.
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
-        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season"], status: "covered", stage: "<=1.2.50" },
+        entry: { api: ["discoverBody"] }, scenarios: ["10-murder", "65-season", "66-rooms"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
     // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
@@ -135,8 +137,17 @@ export const FLOWS = Object.freeze([
     // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+    // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
+    // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
+    // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
+    // E12 C11 (11.10.2026): G offers a player their own floor and the floors of rooms they found, sends a view of any
+    // other floor back, and shades a floor a console put on screen by the rule of one floor.
+    // E12 C16 (11.10.2026): still partial. Since C12 the primary judges every player's arrival again by the veto's
+    // rules, the stairs included (movement.mjs `judgeArrival`), and 66 I drives that judge on one floor only - no check
+    // drives a floor change past it; what a crossing costs is judged on the mover's browser until E39 (layer two); and
+    // G measures the harness's model of levels (lib/shim.mjs `LevelList`), not v14's (LIVE-E12-02, LIVE-E12-03).
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
-        entry: {}, scenarios: [], status: "planned", stage: "E39" },
+        entry: {}, scenarios: ["66-rooms"], status: "partial", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts
@@ -178,9 +189,11 @@ export const FLOWS = Object.freeze([
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+    // E12 C5 (11.10.2026): 66-rooms's phases A and E (the manager's room, what a player knows of a project) are tagged
+    // with this flow and now named.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.
@@ -250,6 +263,18 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow", "61-gmstore-case"], status: "covered", stage: "1.2.66" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
+    // E13 C3 (12.10.2026): every road into and out of the trial moves the table - the linked hall activated on the way in,
+    // the school on the way out (trial-scene.mjs `followPhase`, R113); 41-trial-scene reads it on four browsers and a late one.
+    // E13 C3b (12.10.2026): End the trial asks for a room of a place scene and the living go there (`returnTheLiving`, R436);
+    // 41-trial-scene i drives its window on the GM.
+    // E13 C9 (12.10.2026): the trial hall is a flow of its own, out of class-trial (whose vote and offers 41 never drove):
+    // 41's checks were tagged class-trial until now. Covered at 1.2.74 on what a harness can read - the activation, the
+    // cast's `hidden`, the late browser, the return, the doors; what it cannot (where a loading browser lands, whether a
+    // player may change their own token's `hidden`, the hall's draw) is LIVE-E13-01..11 in AUDIT section 9.
+    { id: "trial-scene", what: "The trial hall: every road into and out of the trial moves the table, the GMs' cast shown and hidden, the living taken to the GM's room",
+        entry: { api: ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"],
+            calls: ["trial-scene.mjs#followPhase", "trial-scene.mjs#selfRepair", "trial-scene.mjs#watchCast"] },
+        scenarios: ["41-trial-scene"], status: "covered", stage: "1.2.74" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",
         entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",

@@ -1269,7 +1269,8 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         }
     } else if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
-        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null });
+        const { sceneOfActor } = await import("./movement.mjs");
+        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null, scene: sceneOfActor(actor) });
         if (drawn?.name) {
             drawnName = drawn.name;
             const { grantItem } = await import("./inventory.mjs");
@@ -1720,12 +1721,14 @@ export async function heardLines(actor, lines) {
 
 async function listenLines(actor, { room, target, total, isCritical }) {
     const def = ACTIONS.listen;
-    const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
-    const neighbours = room ? neighbouringRooms(room) : [];
-    const labelOf = listenLabels(neighbours, roomsKnownToMe());
+    const { neighbouringRooms, occupantsOf, roomsKnownToMe, locateActor } = await import("./movement.mjs");
+    // One scene for the doors, the rooms found and who is behind them: the roller's (E12 fix r1-G4).
+    const scene = locateActor(actor)?.scene ?? null;
+    const neighbours = room ? neighbouringRooms(scene, room) : [];
+    const labelOf = listenLabels(neighbours, roomsKnownToMe(scene));
     const shown = r => labelOf.get(r) ?? r;
     const named = r => {
-        const who = occupantsOf(r, actor).map(a => a.name);
+        const who = occupantsOf(r, actor, scene).map(a => a.name);
         return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
     };
     const hit = resolveThreshold(Number(total), def.thresholds);
@@ -1734,7 +1737,7 @@ async function listenLines(actor, { room, target, total, isCritical }) {
     if (isCritical) return neighbours.map(r => `${shown(r)} - ${named(r)}`);
     if (hit && hit.min >= namedFrom) return [game.i18n.format("DRPG.Listen.named", { room: shown(target), who: named(target) })];
     if (hit) {
-        const count = occupantsOf(target, actor).length;
+        const count = occupantsOf(target, actor, scene).length;
         return [count
             ? plural("DRPG.Listen.anonymous", { room: shown(target), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: shown(target) })];
@@ -1822,7 +1825,7 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         const doc = placed?.document ?? placed;
         if (traceFeedback(gate, doc)) done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
         return doc?.id
-            ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? canvas?.scene?.id ?? null }
+            ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? null }
             : {};
     }
 
@@ -1864,10 +1867,10 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
  * the console. A trace that is gone is not asked about; the retune finds nothing, as before.
  */
 async function traceKept(actor, bookmark, { removal, total }) {
-    const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? canvas?.scene;
+    const { remnantData, remnantGmEdited, sceneOfRemnant } = await import("./remnants.mjs");
+    const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? sceneOfRemnant(bookmark.remnantId);
     const token = scene?.tokens?.get(bookmark.remnantId) ?? null;
     if (!token) return false;
-    const { remnantData, remnantGmEdited } = await import("./remnants.mjs");
     const { removalRefusal } = await import("./bridge-guards.mjs");
     const data = remnantData(token);
     let copied = false;

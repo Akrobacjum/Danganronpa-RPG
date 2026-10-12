@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * The console's two questions about a scene, which read the map and the drawn
  * layer and change neither: `checkRegions`, every room checked against the rules
- * the fog layer depends on (`namedRegions`, `overlapCheck`, `adriftCheck`,
+ * the fog layer depends on (`roomsToCheck`, `overlapCheck`, `adriftCheck`,
  * `noWayOutCheck`, `latticeCheck`, with `pointOf`, `commonestOffset`,
  * `gridOffset` and `overlapArea`), and `whatIsHere`, which of the outline, the
  * glow and the raster drew a point (`findNamed`, `nearestOutline`,
@@ -25,14 +25,15 @@
  * No other name here is read outside it, so none was exported for the move and
  * the module's API is the one it was. Nothing here imports fog.mjs back (R161
  * would see the cycle). Below it are config.mjs (`MODULE_ID`), movement.mjs
- * (`boundsOf`), fog-geometry.mjs, fog-doorways.mjs (the wall test, the openings,
- * the `DOORWAY_*` numbers the checks measure with and `ADRIFT_WARN_RUN`) and
- * fog-reveal.mjs (`roomOutline`).
+ * (`boundsOf`), the rooms.mjs leaf (what a room is, E12 C2b), fog-geometry.mjs,
+ * fog-doorways.mjs (the wall test, the openings, the `DOORWAY_*` numbers the
+ * checks measure with and `ADRIFT_WARN_RUN`) and fog-reveal.mjs (`roomOutline`).
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { boundsOf } from "./movement.mjs";
-import { regionShapes, inPolygons, polygonArea } from "./fog-geometry.mjs";
+import { regionShapes, inPolygons, polygonArea, piecesAsOne } from "./fog-geometry.mjs";
+import { roomPieces, playerRegionIds, isRoomWith, passageBehaviour, onLevel, floorsOf } from "./rooms.mjs";
 import {
     DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET, DOORWAY_WALL_NEAR, ADRIFT_WARN_RUN, wallAlongEdge, neighbourBeyond,
     doorwayEdges
@@ -113,8 +114,7 @@ function glowAlphaAt(group, at, report) {
 /** The nearest room border to the point, in pixels and squares. */
 function nearestBorderTo(scene, at, grid, report) {
     let nearestBorder = null;
-    for (const region of scene.regions ?? []) {
-        if (!region.name) continue;
+    for (const region of roomPieces(scene)) {
         for (const flat of regionShapes(region, { x: 0, y: 0 })) {
             for (let i = 0; i < flat.length; i += 2) {
                 const j = (i + 2) % flat.length;
@@ -244,9 +244,36 @@ export function whatIsHere(x = null, y = null) {
     return report;
 }
 
-/** The regions that are rooms, with their polygons; the nameless and the shapeless are reported and skipped. */
-function namedRegions(scene, add) {
-    const named = [];
+/**
+ * The rooms, each a list of its pieces; the nameless, the named regions that are no room and the
+ * shapeless are reported and skipped. `asChecked` makes each list one shape with its polygons.
+ *
+ * ROOMS, NOT NAMES, AND THE REST REPORTED APART (E12 C2b, 11.10.2026; plan-E12 3.1, audit
+ * S07-05/06). Every named region was checked as a room until 1.2.74. Now a room is what a GM
+ * marked (rooms.mjs), and one of several pieces is checked once, as the outline draws it
+ * (fog-geometry.mjs `piecesAsOne`): two pieces of a Kitchen that overlap are not two rooms
+ * sharing a floor, and the line where they touch leads into no other room. A named region that
+ * is no room gets a note saying which of the three reasons holds, since the fog now leaves it
+ * out and a room the migration left undecided would otherwise just go dark.
+ */
+/*
+ * A ROOM NAMED BY FOUNDRY (E12 fix r2-S2, 11.10.2026; review O4, audit S07-06). The audit asked the
+ * map check to warn of regions left with Foundry's own name. Since E12 C1 a region is a room only
+ * when a GM marked it, so the warning is asked of rooms alone - and the migration marks a plain
+ * region of Foundry's name too (review goal-r2, G-a). Foundry names a new document by its
+ * kind and, when that name is taken, a number ("Region", "Region (2)"): recalled from Foundry's
+ * `defaultName`, not read in v14's source here; the kind's word is asked in both its English and
+ * the world's language. Scenario 66 X1 reads the row.
+ */
+function foundryDefaultName(name) {
+    const kinds = new Set(["Region", game.i18n?.localize?.("DOCUMENT.Region")].filter(Boolean));
+    const numbered = /^(.*) \(\d+\)$/.exec(name ?? "");
+    return kinds.has(name) || Boolean(numbered && kinds.has(numbered[1]));
+}
+
+function roomsToCheck(scene, add) {
+    const players = playerRegionIds();
+    const pieces = new Map();
     for (const region of scene.regions ?? []) {
         if (!region.name) {
             add("info", "(unnamed)", "Region with no name",
@@ -255,16 +282,41 @@ function namedRegions(scene, add) {
                 pointOf(region));
             continue;
         }
-        const shapes = regionShapes(region, { x: 0, y: 0 });
-        if (!shapes.length) {
+        if (!isRoomWith(region, players)) {
+            add("info", region.name, game.i18n.localize("DRPG.Fog.notRoom.problem"), notRoomWhy(region, players), pointOf(region));
+            continue;
+        }
+        if (foundryDefaultName(region.name)) {
+            add("warning", region.name, "Room still has the name Foundry gave it",
+                "A room is its name: players read it on the map, and keys, stashes and Room Setup all "
+                + "name it. Give it the room's own name before play.", pointOf(region));
+        }
+        if (!regionShapes(region, { x: 0, y: 0 }).length) {
             add("error", region.name, "No geometry the fog can read",
                 "The region exists but its shape came back empty - nothing about this room "
                 + "will be drawn.", pointOf(region));
             continue;
         }
-        named.push({ region, polys: shapes.map(f => new PIXI.Polygon(f)) });
+        if (!pieces.has(region.name)) pieces.set(region.name, []);
+        pieces.get(region.name).push(region);
     }
-    return named;
+    return [...pieces.values()];
+}
+
+/** Each room's pieces as one shape (fog-geometry.mjs `piecesAsOne`) with its polygons; a room with no piece left is dropped. */
+function asChecked(lists) {
+    return lists.filter(list => list.length).map(list => {
+        const region = piecesAsOne(list);
+        return { region, polys: regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)) };
+    });
+}
+
+/** Why a named region is no room, in the GM's language: a passage, a player's, or not marked. */
+function notRoomWhy(region, players) {
+    const passage = passageBehaviour(region);
+    if (passage) return game.i18n.format("DRPG.Fog.notRoom.passage", { type: passage });
+    if (players.has(region.id)) return game.i18n.localize("DRPG.Fog.notRoom.player");
+    return game.i18n.localize("DRPG.Fog.notRoom.unmarked");
 }
 
 /* ---- 1. overlapping rooms - the first cause on the list --------------- */
@@ -365,13 +417,13 @@ function adriftCheck(region, edges, walls, grid, add) {
  * Warning, not error: a genuinely sealed room is a thing a killing game
  * may well want.
  */
-function noWayOutCheck(scene, region, edges, grid, add) {
+function noWayOutCheck(scene, region, edges, grid, add, floor = null) {
     const openTotal = edges.reduce((a, e) =>
         a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
     if (edges.length && openTotal <= 0) {
         const others = [];
-        for (const other of scene.regions ?? []) {
-            if (!other.name || other === region) continue;
+        for (const other of roomPieces(scene)) {
+            if (other.name === region.name || !onLevel(other, floor)) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
         }
         const reach = grid * DOORWAY_PROBE_OUT;
@@ -441,6 +493,18 @@ function latticeCheck(region, polys, lattice, latticeOrigin, add) {
  * carries the room's name and a coordinate, and the fixing happens in the
  * region editor by somebody who can see what the room is meant to be.
  *
+ * FLOOR BY FLOOR (E12 C10, 11.10.2026; plan-E12 C10 and 1.x item 10, audit S07-45). On a scene of
+ * several floors (rooms.mjs `floorsOf`, lowest first) the overlap, the doorways and the way out
+ * are asked of each floor's room pieces (rooms.mjs `onLevel`) apart, and each of those rows
+ * names its floor in the `floor` column - `level` was already this table's word for how bad a
+ * finding is. Until 1.2.74 every floor was checked as one: a room's border could open onto a
+ * room drawn only on the other floor, and two rooms stacked on two floors - the whole of what a
+ * second floor is - read as an overlap (both read in the code). The corners' lattice is the map's, not
+ * a floor's, and is checked once over every piece, as the notes on regions that are no room
+ * are: those rows and every row on a scene of one floor (or none) carry no floor. Scenario 66 G4 reads
+ * the column on the harness's two floors; the overlap and the doorways are not measured
+ * headless (the harness's polygons contain no point - E12 C2b).
+ *
  * @returns {Array<object>} one row per problem, worst first.
  */
 export function checkRegions() {
@@ -453,10 +517,14 @@ export function checkRegions() {
     const grid = canvas?.grid?.size ?? 100;
     const walls = Array.from(scene.walls ?? []);
     const findings = [];
-    const add = (level, room, problem, detail, at = null) =>
-        findings.push({ level, room, problem, detail, at });
+    const addOn = floor => (level, room, problem, detail, at = null) =>
+        findings.push({ level, room, floor: floor?.name || floor?.id || null, problem, detail, at });
+    const add = addOn(null);
 
-    const named = namedRegions(scene, add);
+    const rooms = roomsToCheck(scene, add);
+    const named = asChecked(rooms);
+    // A scene that names one floor is checked as before: its every row would name the same floor.
+    const floors = floorsOf(scene).length > 1 ? floorsOf(scene) : [];
 
     /*
      * WHERE THE LATTICE ACTUALLY IS, read off the map rather than assumed.
@@ -476,28 +544,37 @@ export function checkRegions() {
     const lattice = grid / 2;
     const latticeOrigin = commonestOffset(named, lattice);
 
-    overlapCheck(named, grid, add);
+    for (const floor of floors.length ? floors : [null]) {
+        const addHere = addOn(floor);
+        const here = floor ? asChecked(rooms.map(list => list.filter(region => onLevel(region, floor)))) : named;
+        // The walls of this floor alone, as `doorwayEdges` reads them (E12 fix r2-S2; review EARLY-C10-3):
+        // a wall of the floor above along a border hid "Border runs away from the walls" below. Scenario 66 X1.
+        const wallsHere = floor ? walls.filter(wall => onLevel(wall, floor)) : walls;
 
-    /* ---- 2..4 - per room, measured off the same edges the fog uses -------- */
-    for (const { region, polys } of named) {
-        const edges = doorwayEdges(region);
+        overlapCheck(here, grid, addHere);
 
-        adriftCheck(region, edges, walls, grid, add);
-        noWayOutCheck(scene, region, edges, grid, add);
+        /* ---- 2..4 - per room, measured off the same edges the fog uses -------- */
+        for (const { region } of here) {
+            const edges = doorwayEdges(region, floor);
 
-        // 3. (there is no check on how LONG an opening is. A doorway has no
-        //     upper size - see ADRIFT_WARN_RUN. A border that has wandered off
-        //     its wall is caught above, which is the fault that check was
-        //     standing in for.)
+            adriftCheck(region, edges, wallsHere, grid, addHere);
+            noWayOutCheck(scene, region, edges, grid, addHere, floor);
 
-        latticeCheck(region, polys, lattice, latticeOrigin, add);
+            // 3. (there is no check on how LONG an opening is. A doorway has no
+            //     upper size - see ADRIFT_WARN_RUN. A border that has wandered off
+            //     its wall is caught above, which is the fault that check was
+            //     standing in for.)
+        }
     }
+
+    for (const { region, polys } of named) latticeCheck(region, polys, lattice, latticeOrigin, add);
 
     const order = { error: 0, warning: 1, info: 2 };
     findings.sort((a, b) => order[a.level] - order[b.level]);
 
     const counts = findings.reduce((acc, f) => ({ ...acc, [f.level]: (acc[f.level] ?? 0) + 1 }), {});
-    console.log(`${MODULE_ID} | region check on "${scene.name}" - ${named.length} named room(s), `
+    console.log(`${MODULE_ID} | region check on "${scene.name}" - ${named.length} room(s), `
+        + (floors.length ? `${floors.length} floor(s), ` : "")
         + `${walls.length} wall(s): ${counts.error ?? 0} error(s), ${counts.warning ?? 0} warning(s), `
         + `${counts.info ?? 0} note(s).`);
     if (findings.length) console.table(findings);
@@ -633,9 +710,9 @@ export function sceneUncoveredPercent(scene = canvas?.scene) {
     const total = (dims?.width ?? scene.width ?? 0) * (dims?.height ?? scene.height ?? 0);
     if (!total) return 0;
 
+    // Rooms only (E12 C2b): the floor of a named region that is no room belongs to no room.
     let covered = 0;
-    for (const region of scene.regions ?? []) {
-        if (!region.name) continue;
+    for (const region of roomPieces(scene)) {
         for (const poly of region.polygons ?? []) {
             covered += polygonArea(poly.points ?? []);
         }

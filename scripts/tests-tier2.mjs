@@ -459,6 +459,42 @@ async function withAnsweredWindows(answer, run) {
 }
 
 /**
+ * Every window `run` opens through DialogV2.wait answered through its own form (E12 fix r1-G2,
+ * 11.10.2026): the content is drawn into a detached element, `choose(element, n)` sets its fields
+ * (`n` counts the windows from 0) and answers true to press the default button, whose callback reads
+ * the drawn form as a click would, or false to close the window. A browser's form answers its
+ * controls by name (`form.room`) and jsdom's does not (measured 11.10.2026: `form.name` is the
+ * form's own name attribute there), so each named control is set on its form as that. Answers the
+ * elements drawn, in order; Foundry's own `wait` is put back.
+ */
+async function withFormAnswered(choose, run) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const drawn = [];
+    D.wait = async cfg => {
+        const element = document.createElement("div");
+        if (typeof cfg?.content === "string") element.innerHTML = cfg.content;
+        else if (cfg?.content) element.append(cfg.content.cloneNode(true));
+        for (const form of element.querySelectorAll("form")) {
+            for (const control of form.querySelectorAll("[name]")) {
+                Object.defineProperty(form, control.getAttribute("name"), { value: control, configurable: true });
+            }
+        }
+        drawn.push(element);
+        if (!choose(element, drawn.length - 1)) return null;
+        const button = (cfg?.buttons ?? []).find(b => b.default) ?? null;
+        return button?.callback ? button.callback(new Event("click"), button, { element }) : (button?.action ?? null);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own);
+        else delete D.wait;
+    }
+    return drawn;
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -571,7 +607,7 @@ const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { qu
 async function markRestRoom(room, short) {
     const { regionsByName } = await import("./vault.mjs");
     const { REST_FLAGS } = await import("./rest.mjs");
-    const region = regionsByName().get(room);
+    const region = regionsByName(canvas?.scene).get(room);
     must(region, `the room ${room} has no region to mark`);
     const had = region.getFlag(MODULE_ID, REST_FLAGS.short), now = () => region.getFlag(MODULE_ID, REST_FLAGS.short);
     if (Boolean(had) !== short) await region.setFlag(MODULE_ID, REST_FLAGS.short, short);
@@ -644,7 +680,7 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
     const scene = canvas?.scene;
     const tokens = [killer, victim].filter(Boolean).map(a => scene?.tokens?.find(t => t.actorId === a.id));
     ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
     ok(room, "every named room on the scene on screen has somebody in it");
     const was = tokens.map(t => ({ x: t.x, y: t.y }));
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
@@ -2224,7 +2260,7 @@ async function standAlone(actor) {
     const scene = canvas?.scene;
     const token = scene?.tokens?.find(t => t.actorId === actor.id);
     must(token, `${actor.name} has no token on the scene on screen`);
-    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
     must(room, "every named room on the scene on screen has somebody in it");
     const was = { x: token.x, y: token.y };
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
@@ -2612,7 +2648,7 @@ async function c3Pick(actor, kind, key, trait, variant = null) {
 async function c3Room(actor, flags) {
     const V = await import("./vault.mjs");
     const stood = await standAlone(actor);
-    const region = V.regionsByName().get(stood.room);
+    const region = V.regionsByName(canvas?.scene).get(stood.room);
     const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
     const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
     const path = k => `flags.${MODULE_ID}.${k}`;
@@ -2810,8 +2846,8 @@ const MODIFIER_FIXTURES = Object.freeze([
             const gone = async () => { if (item) await t.other.items.get(item.id)?.delete(); };
             if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room.room });
             await settle();
-            if (!item || V.stashItemsIn(t.other, room.room).length !== 1) { await gone(); await room.back(); }
-            must(item && V.stashItemsIn(t.other, room.room).length === 1, "the thing is not in the hidden stash - this would measure nothing");
+            if (!item || V.stashItemsIn(t.other, room.room, canvas?.scene).length !== 1) { await gone(); await room.back(); }
+            must(item && V.stashItemsIn(t.other, room.room, canvas?.scene).length === 1, "the thing is not in the hidden stash - this would measure nothing");
             return { off: async () => { await gone(); await room.set(); }, undo: async () => { await gone(); await room.back(); } };
         },
         claim: (t, s, on) => ({ edit: p => ({ ...p, context: { category: "usable", ...(on ? { stashDie: true } : {}) } }) }),
@@ -2990,6 +3026,25 @@ async function offListDraw(edit, kind) {
     } finally {
         for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
     }
+}
+
+/*
+ * THE FENCE HELD (E13 fix r2-H3, 12.10.2026; review r2 sec S2-3). End the trial carries every living student it finds
+ * on another scene with rooms (trial-scene.mjs `returnTheLiving`), so the four tests that drive it on scenes of their
+ * own fence the world's students first: a hidden token each on the chosen place, where the return finds them and
+ * carries none. Past the fence a real student's token is deleted and its copy goes with the suite's scene in the
+ * test's `finally`. Nobody checked the fence until this fix: a token another module refused at its create, or a
+ * student made after it, stood outside it and was carried (scenario 41 m2 and m3). So each test reads it before it
+ * chooses the trial's exit - a fence that did not hold stops the test with nothing carried and no exit held - through
+ * `leftBehind`, the return's own list of whom it would carry or name: a student on it who is not the test's own is
+ * one the fence missed.
+ */
+async function fenceHeld(place, hall, ours) {
+    const { leftBehind } = await import("./trial-scene.mjs");
+    const own = new Set(ours.map(actor => actor.id));
+    const outside = (await leftBehind(place, hall)).filter(actor => !own.has(actor.id));
+    must(!outside.length, `the fence around the world's students did not hold - ${outside.map(actor => actor.name).join(", ")} stood outside it `
+        + "(a module refused the token, or the student was made after it); stopped before End the trial could carry a student of the world's");
 }
 
 const SCENARIOS = [
@@ -3815,6 +3870,107 @@ const SCENARIOS = [
             equal(stableJson([...worn, wearOf(now), isEquipped(now), handed()]), stableJson([false, 1, 0, true, 0]),
                 "a Reroll of a Despair that wore the knife without breaking it did not leave it in the hand (broken, wear after the Despair, wear after the Reroll, in hand, items handed)");
         } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+        }
+    }],
+
+    ["a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a Despair", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09: a tier 0 thing - "a random, seemingly useless object" - is
+         * single-use, broken after every roll it was the tool or weapon of, whatever the roll. Until C8 it wore as a
+         * tier 1 tool does, only on a Despair that was no critical, so a sack of nothing held ready through a run of
+         * Hope rolls lasted as long as a real tool. Driven through use-items.mjs `breakOnDespair` with each result, as
+         * the roads that wear a tool call it after their dice (action-rolls.mjs `workOnProject` and `performSabotage`,
+         * cleanup.mjs `attemptCleanup` and `attemptStageSix`; the swing has its own test below), on three tier 0
+         * Tools and one tier 1 Tool readied by a student. Read: what each call answered (the name of what broke),
+         * whether each tier 0 Tool is broken and out of the hand, the tier 1 Tool's broken and wear after a Hope and
+         * a critical and broken after a Despair, and whether the card the Hope roll's break posted names the thing
+         * single-use. The Tools are taken away after.
+         */
+        const [actor] = cast(1);
+        const INV = await import("./inventory.mjs");
+        const { breakOnDespair, isEquipped } = await import("./use-items.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const hope = { total: 14, withHope: true, withFear: false, isCritical: false };
+        const fear = { total: 14, withHope: false, withFear: true, isCritical: false };
+        const crit = { total: 20, withHope: false, withFear: false, isCritical: true };
+        const made = [];
+        const tool = async (tier, name) => {
+            const item = await INV.grantItem(actor, { name, category: "tool", tier, override: true, quiet: true });
+            if (item) made.push(item);
+            return item;
+        };
+        try {
+            const zero = [await tool(0, "Suite tier 0 tool - Hope"), await tool(0, "Suite tier 0 tool - Despair"), await tool(0, "Suite tier 0 tool - critical")];
+            const one = await tool(1, "Suite tier 1 tool");
+            must(zero.every(Boolean) && one, "could not hand the student the four Tools - this would measure nothing");
+            for (const item of [...zero, one]) await item.setFlag(MODULE_ID, "equipped", true);
+            const had = new Set(game.messages.contents.map(m => m.id));
+            const answered = [];
+            for (const [item, roll] of [[zero[0], hope], [zero[1], fear], [zero[2], crit]]) answered.push(await breakOnDespair(actor, item, roll));
+            answered.push(await breakOnDespair(actor, one, hope), await breakOnDespair(actor, one, crit));
+            const doc = item => actor.items.get(item.id);
+            const whole = [INV.isBroken(doc(one)), INV.wearOf(doc(one))];
+            answered.push(await breakOnDespair(actor, one, fear));
+            await settle();
+            const words = game.i18n.format("DRPG.Items.singleUseSpent", { item: foundry.utils.escapeHTML(zero[0].name) });
+            const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(words));
+            equal(stableJson([answered, zero.map(item => [INV.isBroken(doc(item)), isEquipped(doc(item))]), whole, INV.isBroken(doc(one)), told]),
+                stableJson([[...zero.map(item => item.name), null, null, one.name], [[true, false], [true, false], [true, false]], [false, 0], true, true]),
+                "a tier 0 Tool outlived a roll, or a tier 1 Tool broke without a Despair (answers; each tier 0 Tool broken and in hand after Hope, Despair, a critical; "
+                + "the tier 1 Tool's broken and wear after Hope and a critical, broken after a Despair; the single-use card told)");
+        } finally {
+            for (const item of made) if (actor.items.has(item.id)) await item.delete();
+        }
+    }],
+
+    ["a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay to spend again", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09, the incident's and the murder's road. A tier 0 weapon is
+         * single-use like a tier 0 tool: the swing breaks it whatever the roll. The GM wears the swung weapon after
+         * the damage (murder-rules.mjs `wearSwing`), and until C8 only on a Despair, so a tier 0 knife that hit with
+         * Hope stayed in the hand for the next swing. At the killer's turn (`swingFixture`) the knife is made tier 0,
+         * so the damage asks the GM what it counts as (`rateTierZero`, answered 0 here and counted); the killer hits
+         * with Hope; then the Reroll's replay arrives as the bridge hands it on, a hit with Hope, which gives the
+         * break back before it swings the knife the receipt recorded (`undoLastCrisis`). Read: the knife broken and
+         * in the hand after the swing, the tier asked, then after the Reroll broken and in hand, the tier asked (a
+         * replay that found the knife still broken would swing nothing and ask nothing), and what the killer was
+         * handed (an unarmed hit improvises a weapon).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBroken } = await import("./inventory.mjs");
+        const { isEquipped } = await import("./use-items.mjs");
+        const { M, killer, knife, putBack, handed } = await swingFixture();
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait"), inner = D.wait;
+        const rate = game.i18n.localize("DRPG.Murder.tierZeroTitle");
+        let rated = 0;
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== rate) return inner.call(D, cfg);
+            rated++;
+            return "0";
+        };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.tier`]: 0 });
+            globalThis.__forceRoll = { hope: 11, fear: 8 };
+            const taken = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            must(taken?.roll?.total >= 15 && taken.roll.withHope && !taken.roll.isCritical,
+                `the fixture's swing was not a hit with Hope: ${stableJson(taken?.roll ?? null)}`);
+            const swung = killer.items.get(knife.id);
+            const first = [isBroken(swung), isEquipped(swung), rated];
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, undo: true });
+            await settle();
+            const now = killer.items.get(knife.id);
+            equal(stableJson([...first, isBroken(now), isEquipped(now), rated, handed()]), stableJson([true, false, 1, true, false, 2, 0]),
+                "a tier 0 knife outlived a hit with Hope, or the Reroll did not give it back for the replay to spend again (broken, in hand, tier asked after the swing; "
+                + "broken, in hand, tier asked after the Reroll; items handed)");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
             await putBack();
@@ -9518,7 +9674,7 @@ const SCENARIOS = [
         const V = await import("./vault.mjs");
         const INV = await import("./inventory.mjs");
         const stood = await standAlone(theirs);
-        const region = V.regionsByName().get(stood.room);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
@@ -9533,7 +9689,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
-            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             // ceil((1 - 0.01) * 6) = 6 on the GM; ceil((1 - 0.99) * 6) = 1 on the searcher's half.
             Dice.randomUniform = () => 0.01;
             F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, context: { category: "usable", stashDie: true } }) });
@@ -10942,7 +11098,7 @@ const SCENARIOS = [
             const item = await INV.grantItem(owner, { name: NAME, category: "usable", tier: 1, override: true, quiet: true });
             must(item, `${owner.name} could not be handed an item - this would measure nothing`);
             await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: where.room });
-            must(V.stashItemsIn(owner, where.room).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
+            must(V.stashItemsIn(owner, where.room, canvas?.scene).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
             const searched = [];
             for (const total of [3, 20]) {
                 const { message } = await neutralRoll(actor);
@@ -15298,13 +15454,13 @@ const SCENARIOS = [
         const self = regions.find(r => r.name === room);
         // The harness's six rooms are drawn apart, so none has a neighbour by its walls (read 08.10.2026); a room
         // without one is given the next room by name - the GM's own declared list - and has it taken off afterwards.
-        const declared = neighbouringRooms(room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
+        const declared = neighbouringRooms(scene, room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
         let read = null, target = null;
         const body = tokenOf(victim), mine = tokenOf(killer), was = { x: body.x, y: body.y };
         const tokens = new Set(scene.tokens.map(t => t.id));
         try {
             if (declared) await self.setFlag(MODULE_ID, "drpgNeighbours", declared);
-            target = neighbouringRooms(room).find(r => r !== room) ?? null;
+            target = neighbouringRooms(scene, room).find(r => r !== room) ?? null;
             must(target, `${room} connects to no room the body could be carried to - this would measure nothing`);
             await fightOpen(M, killer, victim);
             await turnFor(M, killer, "finishingBlow");
@@ -17593,7 +17749,7 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
         const thrown = [];
         try {
-            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            must(SearchTokens.left(stood.room, canvas?.scene) > 0 && !SearchTokens.sealed(stood.room, canvas?.scene), `${stood.room} has no search token left`);
             actor.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
             await performAction(actor, "search", { free: true });
             const root = document.createElement("div");
@@ -17726,7 +17882,7 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
         const thrown = [];
         try {
-            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            must(SearchTokens.left(stood.room, canvas?.scene) > 0 && !SearchTokens.sealed(stood.room, canvas?.scene), `${stood.room} has no search token left`);
             await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed");
@@ -24450,9 +24606,9 @@ const SCENARIOS = [
 
             ok(projects.canSee(id, user) === false,
                 "the fixture project was not secret from the observer to begin with");
-            ok(projects.secretsUnknownIn(room, user).some(p => p.id === id),
+            ok(projects.secretsUnknownIn(locateActor(actor), user).some(p => p.id === id),
                 "a secret project in the observer's own room was not a candidate");
-            ok(projects.secretsUnknownIn(room, game.users.find(u => u.isGM)).length === 0,
+            ok(projects.secretsUnknownIn(locateActor(actor), game.users.find(u => u.isGM)).length === 0,
                 "a GM was offered secret projects to discover, which they are already in on");
 
             /* ---- the wrong declaration never carries it -------------------- */
@@ -26155,9 +26311,11 @@ const SCENARIOS = [
 
             let region = null, walls = [];
             try {
+                // Marked a room: since E12 C2b `checkRegions` checks rooms and notes a named region that is no room.
                 region = (await scene.createEmbeddedDocuments("Region", [{
                     name: "Suite staircase fixture",
-                    shapes: [{ type: "polygon", points }]
+                    shapes: [{ type: "polygon", points }],
+                    flags: { [MODULE_ID]: { room: true } }
                 }]))[0];
                 ok(region, `could not place the ${T}-square fixture`);
                 walls = (await scene.createEmbeddedDocuments("Wall", [
@@ -26188,7 +26346,8 @@ const SCENARIOS = [
             const L = n * g;
             bare = (await scene.createEmbeddedDocuments("Region", [{
                 name: "Suite open fixture",
-                shapes: [{ type: "polygon", points: [x0, y0, x0 + L, y0, x0 + L, y0 + L, x0, y0 + L] }]
+                shapes: [{ type: "polygon", points: [x0, y0, x0 + L, y0, x0 + L, y0 + L, x0, y0 + L] }],
+                flags: { [MODULE_ID]: { room: true } }
             }]))[0];
             const { checkRegions } = await import("./fog.mjs");
             const adrift = checkRegions().find(r =>
@@ -26387,8 +26546,8 @@ const SCENARIOS = [
         needs(world.atLeast("namedRooms"), "the trap is built in a room");
 
         // A room with nobody in it, so "alone" is a fact rather than a guess.
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
 
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         let made = null;
@@ -26457,10 +26616,10 @@ const SCENARIOS = [
         const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
         const [killer, other] = cast(2);
         needs(world.atLeast("namedRooms"), "the trap is built in a room");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         const inWorld = id => P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor(id), f));
-        const armedHere = id => T.armedIn(room).some(t => t.id === id);
+        const armedHere = id => T.armedIn(room, P.projectScene(id)).some(t => t.id === id);
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         let made = null;
         try {
@@ -26526,9 +26685,9 @@ const SCENARIOS = [
         const { allRooms } = await import("./movement.mjs");
 
         needs(world.atLeast("namedRooms"), "the thing is planted in a room");
-        const room = allRooms()[0];
+        const room = allRooms(canvas?.scene)[0];
         const [actor] = cast(1);
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
 
         // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
         let granted = null;
@@ -26584,8 +26743,8 @@ const SCENARIOS = [
         const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
         const { allRooms } = await import("./movement.mjs");
         needs(world.atLeast("namedRooms"), "the thing is planted in a room");
-        const room = allRooms()[0];
-        must(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene)[0];
+        must(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         // The plants are a GM store since E04: tier 2's restore puts them back.
         const spend = SearchTokens.spend;
         SearchTokens.spend = async () => true;
@@ -26722,7 +26881,7 @@ const SCENARIOS = [
         const room = roomOfActor(actor);
         ok(room, `${actor?.name} is not standing in a room`);
 
-        const had = Boolean(V.stashIn(room, actor.id));
+        const had = Boolean(V.stashIn(room, actor.id, canvas?.scene));
         /* The room's list AS IT WAS (E30, 24.09.2026). The finally put the stash back
            with setStash, which writes a list, so a room that had no list was left
            with an empty one: "regions.REGDORMA00000000.flags.danganronpa-rpg (none) ->
@@ -26730,29 +26889,29 @@ const SCENARIOS = [
            absent list is read as the bedroom owner's own stash (stashesIn), an empty
            one as no stash at all - so in a world with an owned bedroom this took the
            owner's stash away. */
-        const region = V.regionsByName().get(room);
+        const region = V.regionsByName(canvas?.scene).get(room);
         const listBefore = foundry.utils.deepClone(region?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
         let item = null;
         try {
-            if (!had) await V.setStash(room, actor.id, { present: true });
+            if (!had) await V.setStash(room, actor.id, { present: true, scene: canvas?.scene });
             await settle();
 
             item = await INV.grantItem(actor, { name: "SUITE stowed", category: "usable", tier: 1 });
             ok(await V.stow(actor, item), "could not put the thing in the stash");
             await settle();
-            equal(V.stashItemsIn(actor, room).length, 1, "the thing did not go in");
+            equal(V.stashItemsIn(actor, room, canvas?.scene).length, 1, "the thing did not go in");
 
-            const refused = await V.setStash(room, actor.id, { present: false });
+            const refused = await V.setStash(room, actor.id, { present: false, scene: canvas?.scene });
             await settle();
             equal(refused, null, "a stash holding something was removed");
-            ok(V.stashIn(room, actor.id), "the stash is gone and the thing is still in it");
+            ok(V.stashIn(room, actor.id, canvas?.scene), "the stash is gone and the thing is still in it");
 
             // And an EMPTY one still goes, because that is the whole point of
             // the control.
             await V.retrieve(actor, item);
             await settle();
-            equal(V.stashItemsIn(actor, room).length, 0, "could not take the thing back out");
-            ok(await V.setStash(room, actor.id, { present: false }) !== null,
+            equal(V.stashItemsIn(actor, room, canvas?.scene).length, 0, "could not take the thing back out");
+            ok(await V.setStash(room, actor.id, { present: false, scene: canvas?.scene }) !== null,
                 "an empty stash refused to be removed");
         } finally {
             if (item) await item.delete().catch(() => {});
@@ -27439,8 +27598,8 @@ const SCENARIOS = [
         const killer = livingStudents().find(a => ownerOf(a)?.active);
         must(killer, "no living student has a connected player - this would measure nothing");
         const owner = ownerOf(killer);
-        const room = allRooms()[0];
-        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const room = allRooms(canvas?.scene)[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms(canvas?.scene) finds none");
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
@@ -28945,6 +29104,132 @@ const SCENARIOS = [
         ok(!after.eclipse, "the Eclipse did not end");
         equal([...after.byUser.values()].filter(r => r.room).length, placed.length,
             "the rooms did not come back when the lights did");
+    }],
+    ["the Class Trial takes every connected voice to the main room and gives the rooms back when it ends", async () => {
+        /*
+         * E13 C4, 12.10.2026; S11-10, D8 (one room in the trial, also without linked scenes), R117. The trial is the one
+         * scene the whole table is meant to hear, and before C4 it ran in room voice: every account here kept the school
+         * room its character's token stood in, so the trial's speakers sat in several breakouts. Read on this world as it
+         * is (in the harness nothing is linked, so the table does not move), the phase set to the trial and back by the clock's one
+         * writer: in the trial every connected account, and every character's row, is sent to the main room (target
+         * null) and no account is pulled two ways; after it the same accounts are in rooms again and nobody is placed
+         * who was not placed before (an account with no character stays where it was). Scenario 41 h reads it on four
+         * browsers with the school and the hall linked, a dead student among them.
+         */
+        needs(world.atLeast("occupiedRooms"), "a voice to take off a room");
+        const was = getClock().phase;
+        const before = await voiceTargets();
+        must(!before.eclipse && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const placed = byUser => [...byUser].filter(([, r]) => r.room).map(([id]) => id).sort();
+        ok(placed(before.byUser).length, "Foundry has a token standing in a room, and voiceTargets() places no account in one");
+
+        await setClock({ phase: "classTrial" });
+        await settle();
+        const during = await voiceTargets();
+        const connected = game.users.filter(u => u.active).map(u => u.id).sort();
+        await setClock({ phase: was });
+        await settle();
+        const after = await voiceTargets();
+
+        equal(JSON.stringify([
+            during.trial, [...during.byUser.keys()].sort(), [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))],
+            during.contested.size, after.trial ?? null, placed(after.byUser), [...after.byUser.keys()].sort()]),
+            JSON.stringify([true, connected, [null], 0, false, placed(before.byUser), [...before.byUser.keys()].sort()]),
+            "[in the trial: the clock's answer, every connected account placed, every target the main room, nobody pulled two ways; "
+            + "after it: no trial, the same accounts in rooms, nobody placed who was not before]");
+    }],
+
+    ["an Eclipse waits for the Class Trial's end: the API is refused with the reason and the trial keeps its one voice room", async () => {
+        /*
+         * E13 fix r1-F3, 12.10.2026 (the orchestrator's default, put to the owner beside it; C4's handoff, goal S11-10's
+         * note). In a trial everybody is in one voice room (D8), and `voiceClaim` asks the Eclipse first - so an Eclipse
+         * started during a trial put every account in a room of its own. Opening a trial in an Eclipse was already refused
+         * (clock.mjs, E10 fix r2-G5); starting one in a trial was not. The roads that start one all call `startEclipse`:
+         * the API's, read here; the HUD's chevron, which the HUD does not draw in a trial (its trial slot takes the clock's
+         * place, hud.mjs `trialSlot`) - read here as drawn; the GM panel's "Do it" (`toggleEclipse`; in a trial its next
+         * line takes the trial's branch - read in the code, not driven). The phase set to the trial by the clock's one writer. Read: what
+         * the API answered, whether an Eclipse ran, the GM told the reason, the HUD's chevron, and every voice target after
+         * it - the main room (null) for all.
+         */
+        const E = await import("./eclipse.mjs");
+        const { renderHud } = await import("./hud.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { voiceTargets } = await import("./voice.mjs");
+        const reason = game.i18n.localize("DRPG.Eclipse.trialFirst");
+        const was = getClock().phase;
+        must(!isEclipse() && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const warn = ui.notifications.warn, told = [];
+        try {
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - this would measure nothing");
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await game.drpg.startEclipse();
+            await settle();
+            const api = [answered === null, isEclipse(), told.filter(m => m === reason).length];
+            renderHud();
+            const chevron = Boolean(document.querySelector("#drpg-hud .fa-chevron-right"));
+            const during = await voiceTargets();
+            const targets = [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))];
+            equal(stableJson([api, chevron, targets]), stableJson([[true, false, 1], false, [null]]),
+                "an Eclipse started in the Class Trial, or the GM was not told why, or the HUD offered the chevron, or a voice left the "
+                + "trial's one room ([the API: answered null, an Eclipse running, told], [the chevron drawn], [the voice targets])");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: was });
+            await settle();
+        }
+    }],
+
+    ["the clock refuses an Eclipse in the Class Trial with the reason and the trial keeps its one voice room; a trial is not opened in an Eclipse", async () => {
+        /*
+         * E13 fix r1-G1, 12.10.2026 (the orchestrator's default of r1, the clock's road r1-F3 left open). The test above
+         * reads `startEclipse`; the clock written by hand - the API's `setClock`, as a GM's console or a macro calls it -
+         * began an Eclipse inside a running trial, and `voiceClaim` asks the Eclipse first, so every account went to a
+         * voice room of its own (red at 5b2b2ed: the write answered, an Eclipse ran, nobody was told, the targets split).
+         * And the other road, kept: an Eclipse begun outside the trial, then the trial opened by the clock - refused with
+         * the edge's words (E10 fix r2-G5). Read: what the write answered, whether an Eclipse ran, the GM told the reason,
+         * every voice target; then whether the Eclipse ran, the trial's write answered, the phase, and the edge's words.
+         */
+        const E = await import("./eclipse.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const reason = game.i18n.localize("DRPG.Eclipse.trialFirst"), edge = game.i18n.localize("DRPG.Floor.eclipseFirst");
+        const was = getClock().phase;
+        must(!isEclipse() && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const warn = ui.notifications.warn, told = [];
+        try {
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - this would measure nothing");
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await game.drpg.setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+            await settle();
+            const during = await voiceTargets();
+            const hand = [answered === null, isEclipse(), told.filter(m => m === reason).length,
+                [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))]];
+            await setClock({ phase: was });
+            await settle();
+            await setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+            const opened = await setClock({ phase: "classTrial" });
+            await settle();
+            const other = [isEclipse(), opened === null, getClock().phase, told.filter(m => m === edge).length];
+            equal(stableJson([hand, other]), stableJson([[true, false, 1, [null]], [true, true, was, 1]]),
+                "an Eclipse began in the Class Trial by the clock, or the GM was not told why, or a voice left the trial's one room, or a "
+                + "trial opened in an Eclipse ([the clock in the trial: answered null, an Eclipse running, told, the voice targets], "
+                + "[the trial opened in an Eclipse: the Eclipse running, answered null, the phase, told])");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (getClock().phase !== was) await setClock({ phase: was });
+            await settle();
+        }
     }],
 
     ["a trial whose verdict is in does not open another", async () => {
@@ -31305,7 +31590,17 @@ const SCENARIOS = [
            own `DialogV2.wait` (answered null, so nothing is drawn): the defaults, The vote (absent, closed or
            open), the lead line, how many sections, and how many lines the last section holds. Then End the
            trial's question with the verdict in and without one (answered no). The clock, the floor and the
-           trial's record are put back here. */
+           trial's record are put back here.
+
+           E13 fix r2-H3 (12.10.2026; review r2 cor C): since E13 C3b End the trial asks through `DialogV2.wait`
+           when a trial hall is linked and a scene with rooms exists, and only `confirm` was read here - at a table
+           with a hall linked both readings came out null (cor C's probe, red), and the trial this test opens drove
+           the world's hall. The runner now holds the world's links empty for tier 2 (tests.mjs), and this test
+           checks that no hall is linked before it opens a trial; then it reads End the trial's question on both
+           branches: through `confirm` with no hall, and through the `wait` titled End the trial with a hall and
+           a place of its own linked for that one call (linking moves nothing in a trial - read in the code: the
+           setting's `onChange` lets go of the held links, and live.mjs and hud.mjs redraw what is open). Scenario
+           41 m1 runs this test with the world's hall linked. */
         const UI = await import("./trial-floor-ui.mjs");
         const floorMod = await import("./trial-floor.mjs");
         const { closeOpen } = await import("./live.mjs");
@@ -31319,14 +31614,24 @@ const SCENARIOS = [
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const R = await import("./rooms.mjs");
+        must(!R.trialScene(), "a trial hall is linked - the trial this test opens would take the table into it (tests.mjs holds the links empty for tier 2)");
+        const KEY = "sceneRoles", rolesBefore = game.settings.get(MODULE_ID, KEY) ?? {};
+        const scenes = [];
         let opened = null, asked = null;
+        // End the trial's question, by the window that asked it: its text, an element's or a string's.
+        const ask = (via, config) => {
+            const content = config?.content;
+            asked = { via, text: typeof content === "string" ? content : content?.textContent ?? String(content ?? "") };
+        };
         D.wait = async config => {
             if (config?.window?.title === consoleTitle) opened = config;
+            if (config?.window?.title === endTitle) ask("wait", config);
             return null;
         };
         // Any other question (a Key charge on entering the phase) is answered no, and only End the trial's is kept.
         D.confirm = async config => {
-            if (config?.window?.title === endTitle) asked = String(config?.content ?? "");
+            if (config?.window?.title === endTitle) ask("confirm", config);
             return false;
         };
         const phase = async name => {
@@ -31350,13 +31655,28 @@ const SCENARIOS = [
             return [buttons.filter(b => b.default).map(b => b.action), !voteButton ? "absent" : voteButton.disabled ? "closed" : "open",
                 content?.querySelector?.(".drpg-trial-lead")?.textContent?.trim() ?? null, sections.length, lines];
         };
-        const endAsks = async () => {
+        /* `withHall` links the suite's own hall for this one call, beside a place scene of its own, so the question
+           has a room to offer in any world; the links are put back before the trial goes on. */
+        let hall = null;
+        const endAsks = async (withHall = false) => {
             asked = null;
-            await UI.endClassTrial();
-            return asked === null ? null : asked.includes(notChapter);
+            if (withHall) await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, trial: hall.id });
+            try {
+                await UI.endClassTrial();
+            } finally {
+                if (withHall) await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            }
+            return asked === null ? null : [asked.via, asked.text.includes(notChapter)];
         };
         const readings = {};
         try {
+            const P = "SUITE E13 r2-H3";
+            for (const name of ["the hall", "a place"]) {
+                scenes.push(await Scene.create({ name: `${P} ${name}`, width: 2000, height: 2000, grid: { size: 100 }, active: false, navigation: false }));
+            }
+            [hall] = scenes;
+            await scenes[1].createEmbeddedDocuments("Region", [{ name: `${P} the yard`, shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
             await phase("dailyLife");
             await record({});
             readings.noTrial = await read();
@@ -31364,6 +31684,7 @@ const SCENARIOS = [
             await record({});
             readings.discussion = await read();
             readings.endWithoutVerdict = await endAsks();
+            readings.hallWithoutVerdict = await endAsks(true);
             await floorMod.startFloor({ seconds: 180 });
             await settle();
             readings.debate = await read();
@@ -31376,6 +31697,7 @@ const SCENARIOS = [
             await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
             readings.verdictIn = await read();
             readings.endAfterVerdict = await endAsks();
+            readings.hallAfterVerdict = await endAsks(true);
             await phase("dailyLife");
             await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
             readings.ended = await read();
@@ -31386,22 +31708,27 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await setClock(clock);
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            if (stableJson(game.settings.get(MODULE_ID, KEY) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            for (const made of scenes) await made.delete();
             await settle();
         }
         const lead = step => game.i18n.localize(`DRPG.Floor.lead.${step}`);
         equal(stableJson(readings), stableJson({
             noTrial: [["start"], "absent", lead("start"), 0, null],
             discussion: [["openDebate"], "open", lead("openDebate"), 3, 2],
-            endWithoutVerdict: false,
+            endWithoutVerdict: ["confirm", false],
+            hallWithoutVerdict: ["wait", false],
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
             verdictIn: [["chapterEnd"], "open", lead("chapterEnd"), 3, 0],
-            endAfterVerdict: true,
+            endAfterVerdict: ["confirm", true],
+            hallAfterVerdict: ["wait", true],
             ended: [["chapterEnd"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
         }), "the console's default, The vote, its lead line or its sections are not the trial's next step in some state, or End the trial "
             + "after a verdict does not say the chapter is not ended (read per state: the defaults, The vote absent/closed/open, the lead, "
-            + "the sections, the lines under the last one; End the trial's question naming the chapter)");
+            + "the sections, the lines under the last one; End the trial's question - the window that asked it and whether it names the chapter - "
+            + "with no hall linked and with the suite's own)");
     }],
 
     ["the vote window opens once and its count waits for ballots", async () => {
@@ -32013,7 +32340,7 @@ const SCENARIOS = [
         const first = livingStudentsForGm().find(a => a.id !== builder.id);
         const victim = rest.find(a => a.id !== first?.id);
         must(victim, "no living student but the builder and the one the window proposes first");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0) ?? allRooms(canvas?.scene)[0];
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const had = new Set(game.messages.contents.map(m => m.id));
         let made = null;
@@ -32101,7 +32428,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-        const [here, there] = allRooms();
+        const [here, there] = allRooms(canvas?.scene);
         const was = tokens.map(t => ({ x: t.x, y: t.y }));
         const PLACE = { teleport: true, movementAction: "displace", animate: false };
         const stand = async (token, room) => { await token.update(positionIn(room, token), PLACE); };
@@ -37624,6 +37951,19 @@ const SCENARIOS = [
                 gone: (report, key) => !S.keyPlanStore.has(key),
                 back: key => stableJson([S.keyPlanStore.get(key)?.name, S.keyPlanStore.get(key)?.note]) === stableJson(["SUITE backed-up clue", "SUITE backed-up note"])
             },
+            // The trial hall's choice for one token, through its writer (E13 C2): a token of the scene on screen, which no
+            // trial opens on unless it is linked as the hall, and then shows that token only if it is the cast's.
+            trialCast: {
+                seed: async () => {
+                    const { saveTrialCast, castKey } = await import("./trial-scene.mjs");
+                    const token = scene?.tokens?.contents?.[0];
+                    must(token, "the scene on screen has no token to choose for");
+                    await saveTrialCast(scene, { [token.id]: false });
+                    return castKey(scene.id, token.id);
+                },
+                gone: (report, key) => !S.trialCastStore.has(key),
+                back: key => S.trialCastStore.get(key)?.reveal === false
+            },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {
                 seed: async () => {
@@ -38017,19 +38357,28 @@ const SCENARIOS = [
          * so a token dragged onto a black patch came back with the name of the room under
          * it. `known` is what `roomsKnownToMe` answers on a player's browser; the suite runs
          * on a GM's, where it answers null and every name may be said. The Eclipse's
-         * refusal asks the same question and must use the same sentence.
+         * refusal asks the same question and must use the same sentence. Since E12 fix r1-G4 the
+         * veto's two refusals and the Eclipse's hand it the rooms found on the scene the token
+         * crossed on (`roomsKnownToMe(scene)`), not on the scene on screen - read in the source.
+         * Since E12 fix r2-H1 all three go through one refusal, `crossingRefused`, which carries the
+         * stairs rule: the veto's Eclipse branch and daily life's, and eclipse.mjs.
          */
         const M = await import("./movement.mjs");
-        const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
-        const [here, there, next] = M.allRooms();
+        const sources = await moduleSources();
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const veto = stripComments(sources.get("movement.mjs") ?? "");
+        const [here, there, next] = M.allRooms(canvas?.scene);
         must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
         const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
         const listed = game.i18n.format("DRPG.Move.notConnected", { from: here, to: there, rooms: next });
         equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
             stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
             "a refusal named a destination the viewer has not found, or no longer names one they have");
-        ok(/notConnectedText\(from, to, connected\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
-            "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
+        ok(/crossingRefused\(scene, from, to, floors\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+            "the Eclipse's refusal does not go through the veto's (crossingRefused), so it can still name an unknown room");
+        equal(stableJson([(fnSource(veto, "crossingRefused").match(/notConnectedText\(from, to, connected, roomsKnownToMe\(scene\)\)/g) ?? []).length,
+            (fnSource(veto, "crossingVerdict").match(/crossingRefused\(scene, from, to, floors\)/g) ?? []).length]), stableJson([1, 2]),
+            "[the refusals in crossingRefused that filter by the rooms found on the scene the token crossed on; the veto's roads (the Eclipse's, daily life's) that ask it]");
     }],
 
     ["the Rest window names no rest room the viewer has not found", async () => {
@@ -38041,9 +38390,9 @@ const SCENARIOS = [
         const R = await import("./rest.mjs");
         const V = await import("./vault.mjs");
         const M = await import("./movement.mjs");
-        const rooms = M.allRooms().slice(0, 2);
+        const rooms = M.allRooms(canvas?.scene).slice(0, 2);
         must(rooms.length === 2, "the scene has fewer than two rooms - there is no list to filter");
-        const regions = rooms.map(room => V.regionsByName().get(room));
+        const regions = rooms.map(room => V.regionsByName(canvas?.scene).get(room));
         must(regions.every(Boolean), "a room has no region to mark");
         const key = `flags.${MODULE_ID}.${R.REST_FLAGS.short}`;
         const before = regions.map(region => region.getFlag(MODULE_ID, R.REST_FLAGS.short));
@@ -38051,8 +38400,8 @@ const SCENARIOS = [
             for (const region of regions) await region.update({ [key]: true });
             await settle();
             const say = known => typeof R.restRoomsSentence === "function"
-                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, known) : null;
-            const all = R.restRooms("short");
+                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, canvas?.scene, known) : null;
+            const all = R.restRooms("short", canvas?.scene);
             must(rooms.every(room => all.includes(room)), "the two rooms were not marked");
             equal(stableJson([say(new Set([rooms[0]])), say(new Set()), say(null)]), stableJson([
                 game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms[0] }),
@@ -38086,7 +38435,7 @@ const SCENARIOS = [
         const [who, owner] = cast(2);
         const room = roomOfActor(who);
         must(room, `${who.name} is not standing in a room`);
-        const region = V.regionsByName().get(room);
+        const region = V.regionsByName(canvas?.scene).get(room);
         must(region, `${room} has no region`);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
@@ -38099,7 +38448,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
             await settle();
-            must(V.stashItemsIn(owner, room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
             equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
                 stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
@@ -38141,7 +38490,7 @@ const SCENARIOS = [
         const { wordsOf, cardFlag } = await import("./secret.mjs");
         const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
         const stood = await standAlone(actor);
-        const region = V.regionsByName().get(stood.room);
+        const region = V.regionsByName(canvas?.scene).get(stood.room);
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
         const path = k => `flags.${MODULE_ID}.${k}`;
@@ -38159,7 +38508,7 @@ const SCENARIOS = [
             must(item, "the stash's thing was not made");
             await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
             await settle();
-            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            must(V.stashItemsIn(owner, stood.room, canvas?.scene).length === 1, "the thing is not in the hidden stash");
             const total = low + 1;
             actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
                 options: { roll: { trait: "instinct" } },
@@ -38174,7 +38523,7 @@ const SCENARIOS = [
             const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
             const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
             equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
-                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room).length]),
+                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room, canvas?.scene).length]),
             stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
             "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
         } finally {
@@ -43817,22 +44166,38 @@ const SCENARIOS = [
          * (its centre within the rectangle the test drew) or where it stood. What a body does is
          * scenario 65's P1; the window and the step's place are R354's. Red at the parent (C10) on its
          * first check, no `placeCast` (measured on the harness, 10.10.2026).
+         * The other map is the test's own (E12 fix r2-S2, 11.10.2026; k2 on 8109466): since E12 C7 the
+         * first room a GM draws on a scene puts that scene into room-based vision, and the bedrooms
+         * were the Annex's first rooms - deleting them leaves the scene prepared, as it leaves a GM's
+         * (fog.mjs `prepareRoomScene`), and the suite's restore read the Annex's Token Vision, global
+         * light and fog as left behind. The hook is right to prepare a scene nobody views (Room Setup
+         * writes to the scene it was opened on, E12 C4). Given back with `restoreSceneVisionMode`,
+         * the harness's Annex still read changed: its seed holds none of the three fields, and after
+         * the restore each held a value (the suite's restore, read on 11.10.2026). So the bedrooms go
+         * on a scene made here and deleted after, and the scene on screen, whose start point could
+         * prepare it in a world where it holds no room, is put back and read as found.
          */
         const { placeCast } = await import("./season-setup.mjs");
         ok(typeof placeCast === "function", "season-setup.mjs has no step that places the cast (`placeCast`) - the reset leaves every token where it was");
         if (typeof placeCast !== "function") return;
-        needs(world.atLeast("scenes", 2), "a bedroom on another map than the one on screen");
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
         const V = await import("./vault.mjs");
         const here = game.scenes.viewed ?? game.scenes.contents[0];
-        const there = game.scenes.contents.find(scene => scene.id !== here.id);
         const RECT = { width: 600, height: 600 };
+        const { restoreSceneVisionMode } = await import("./fog.mjs");
+        const visionOf = scene => stableJson([scene.tokenVision, scene.environment?.globalLight?.enabled ?? null,
+            scene.fog?.mode ?? scene.fog?.exploration ?? null, scene.getFlag(MODULE_ID, "visionBefore") ?? null]);
+        const visionFound = visionOf(here), unprepared = here.getFlag(MODULE_ID, "visionBefore") === undefined;
+        let visionLeft = null, there = null;
+        // Marked rooms (E12 fix r1-G3; k1, 11.10.2026): a region drawn after the migration is a room only when a GM marked
+        // it (E12 C1), and the unmarked bedrooms were no bedrooms from E12 C2a on, so the choice moved nobody.
         const room = (name, x, owner) => ({ name, shapes: [{ type: "rectangle", x, y: 0, ...RECT }],
-            flags: owner ? { [MODULE_ID]: { [V.VAULT_FLAGS.owner]: owner } } : {} });
+            flags: { [MODULE_ID]: { room: true, ...(owner ? { [V.VAULT_FLAGS.owner]: owner } : {}) } } });
         let actors = [], made = [];
         try {
             actors = await Actor.createDocuments(["A", "B", "C"].map(n => ({ name: `SUITE E11 C10b student ${n}`, type: "character" })));
+            there = await Scene.create({ name: "SUITE E11 C10b another map", width: 4000, height: 3000, grid: { size: 100 }, active: false, navigation: false });
             const [a, b, c] = actors;
             const [bedA, bedC] = await there.createEmbeddedDocuments("Region", [room("SUITE E11 C10b A's bedroom", 0, a.id), room("SUITE E11 C10b C's bedroom", 700, c.id)]);
             const [point] = await here.createEmbeddedDocuments("Region", [room("SUITE E11 C10b the start point", 0, null)]);
@@ -43876,7 +44241,12 @@ const SCENARIOS = [
                 if (left.length) await scene.deleteEmbeddedDocuments(kind, left);
             }
             if (actors.length) await Actor.deleteDocuments(actors.map(actor => actor.id));
+            if (there) await there.delete();
+            if (unprepared && here.getFlag(MODULE_ID, "visionBefore") !== undefined) await restoreSceneVisionMode(here);
+            visionLeft = visionOf(here);
         }
+        equal(visionLeft, visionFound, "the vision of the scene on screen (Token Vision, global light, fog, the record of the vision before), "
+            + "as the test found it and as it left it");
     }],
     ["a reset takes a Level Up's experience and keeps the GM's", async () => {
         /*
@@ -44085,7 +44455,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -44150,7 +44520,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the trial");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -44406,7 +44776,7 @@ const SCENARIOS = [
         const { isMonokuma } = await import("./monokuma.mjs");
         const { isMonocub } = await import("./monocub.mjs");
         const scene = canvas.scene;
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         const was = new Map([...scene.tokens].filter(t => t.actor?.type === "character").map(t => [t.id, { x: t.x, y: t.y }]));
         const gathered = [...scene.tokens].filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
@@ -44921,7 +45291,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [convict, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the execution");
         must(!isDeadForGm(convict), `${convict.name} is dead before the verdict - this would measure nothing`);
@@ -44999,7 +45369,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -45095,7 +45465,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [victim, bystander].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the press would be refused for that");
         const other = { id: "!E11G2otherGM", name: "E11 G2 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
@@ -45331,7 +45701,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [body, old, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the four students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -46072,7 +46442,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const tokens = [mastermind, first, second].map(a => scene?.tokens?.find(t => t.actorId === a.id));
         must(tokens.every(Boolean), "one of the three students has no token on the scene on screen");
-        const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+        const room = allRooms(canvas?.scene).find(r => othersInNamedRoom(r).length === 0);
         must(room, "every named room on the scene on screen has somebody in it");
         must(!bodyDiscovery() && !isEclipse(), "a discovery is waiting on the GM or an Eclipse is open - the walk would be passed over for that, not for the verdict");
         const cards = () => game.messages.filter(m => m.flags?.[MODULE_ID]?.sfx?.key === "bodyFound").length;
@@ -46770,8 +47140,4340 @@ const SCENARIOS = [
             + "a body to find after the hold])");
     }],
 
+    ["the room-marking pass marks each named region of a scene once and tells why it left the others", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. From 1.2.74 a region is a room only when a GM
+         * marked it (rooms.mjs `isRoom`), so a world made before it is marked once by the migration's
+         * clause `markRooms`, or every map loses every room. That clause runs over every scene of the
+         * world; this test runs its pass (`markRoomsOn`) over a scene of its own, never the table's
+         * (scenario 66 H asks the clause itself, on the harness). The scene: four named regions with no
+         * behaviour, a "Lift" carrying a Teleport, a region with no name and a "Den" recorded as a
+         * player's. Read: what the pass marked and what it left with each reason, the scene's rooms and
+         * its stamp; then a GM unticks the Office, a "Late" is drawn, and the pass again marks nothing
+         * and the untick stands. Red before C1 on its first check, no `markRoomsOn`.
+         */
+        const MG = await import("./migrate.mjs");
+        ok(typeof MG.markRoomsOn === "function", "migrate.mjs has no room-marking pass (`markRoomsOn`) - a world made before 1.2.74 would lose every room");
+        if (typeof MG.markRoomsOn !== "function") return;
+        const R = await import("./rooms.mjs");
+        const NAME = "SUITE E12 C1 the marking";
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        const rect = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const plain = (name, x) => ({ name, shapes: rect(x), flags: {}, behaviors: [] });
+        let scene = null, read = null;
+        try {
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 4400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            const made = await scene.createEmbeddedDocuments("Region", [plain("Ward A", 0), plain("Ward B", 500), plain("Office", 1000),
+                plain("Lobby", 1500), { ...plain("Lift", 2000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] },
+                plain("", 2500), plain("Den", 3000)]);
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...playersBefore, made.at(-1).id]);
+            const first = await MG.markRoomsOn([scene]);
+            const rooms = R.roomNames(scene), stamp = scene.getFlag(MODULE_ID, R.ROOMS_MARKED_FLAG) ?? null;
+            await scene.regions.find(r => r.name === "Office").setFlag(MODULE_ID, R.ROOM_FLAG, false);
+            const [late] = await scene.createEmbeddedDocuments("Region", [plain("Late", 3500)]);
+            const again = await MG.markRoomsOn([scene]);
+            read = [(first ?? []).map(({ sceneId, ...row }) => ({ ...row, here: sceneId === scene.id })), rooms, typeof stamp === "string",
+                again, R.roomNames(scene), R.roomDecided(late)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([[{ scene: NAME, marked: ["Ward A", "Ward B", "Office", "Lobby"], unnamed: 1, behaviours: ["Lift"], players: ["Den"], here: true }],
+            ["Lobby", "Office", "Ward A", "Ward B"], true, null, ["Lobby", "Ward A", "Ward B"], false]),
+        "the pass over a scene of four named regions, a Teleport, a nameless region and a player's, run twice around an untick and a late region "
+            + "([the report, the rooms, the scene stamped, the second report, the rooms after, the late region decided])");
+    }],
+
+    ["a region a player created is never a room and a player's change to the room mark is told and leaves the GM's mark", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. Whether v14 lets a player create or update a
+         * Region outside Daggerheart's relay has not been read (LIVE-E12-04), so movement.mjs answers both
+         * on the primary GM from the user id Foundry hands the hook (`noteRegionCreated`,
+         * `judgeRoomFlagChange`). A player's write cannot be made on the GM's client, so this hands the
+         * two hooks a player's id over regions the GM made - what reaches the primary when the write is
+         * real; scenario 66 J drives p1's own. Read: a region whose creation names a player is recorded
+         * and is no room though it carries the mark; a player's change naming the mark of a GM's room
+         * leaves it a room, and the GMs are told once. Red before C1 on its first check: no setting
+         * records a player's region.
+         * E12 fix r1-G5 (11.10.2026; review EARLY-C1-1, SEC-4, EARLY-C1-4): the change is now made, not
+         * only told - the Gym is unticked on the document before the hook, so a put-back that writes
+         * nothing reads false here (until then the hook was handed `false` over a region that still
+         * held `true`, and deleting the put-back left this green). The Gym arrives with its scene, so
+         * no `createRegion` of its own primes the GM's memory: until this fix the memory had no entry,
+         * read "never seen" as "seen unset" and unset the GM's mark. And a Shed recorded as a player's
+         * through the setting alone - as after a GM's reload, when the memory of the create is gone -
+         * takes its author's write to its flags without a put-back or a word to the GMs; until this
+         * fix it was unset and told.
+         */
+        ok(Boolean(SETTINGS.playerRegions) && game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`),
+            "no world setting records the regions a player created - a region a player drew and named is a room");
+        if (!SETTINGS.playerRegions) return;
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose region is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone records a player's region and puts a mark back - this would measure nothing");
+        const { contentOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const NAME = "SUITE E12 C1 a player's region";
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        let scene = null, read = null;
+        try {
+            scene = await CONFIG.Scene.documentClass.create({ name: NAME, width: 2000, height: 800, grid: { size: 100 }, active: false, navigation: false,
+                regions: [{ name: "SUITE E12 C1 Gym", shapes: [{ type: "rectangle", x: 0, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] }] });
+            const kept = scene.regions.find(r => r.name === "SUITE E12 C1 Gym");
+            must(kept?.getFlag(MODULE_ID, R.ROOM_FLAG) === true, "the scene was not made with its marked Gym - this would measure nothing");
+            const [drawn, shed] = await scene.createEmbeddedDocuments("Region", [
+                { name: "SUITE E12 C1 Den", shapes: [{ type: "rectangle", x: 600, y: 0, width: 400, height: 400 }], flags: mark, behaviors: [] },
+                { name: "SUITE E12 C1 Shed", shapes: [{ type: "rectangle", x: 1200, y: 0, width: 400, height: 400 }], flags: {}, behaviors: [] }]);
+            const wasRoom = R.isRoom(drawn);
+            Hooks.callAll("createRegion", drawn, {}, player.id);
+            const recorded = await until(() => R.playerRegionIds().has(drawn.id));
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...R.playerRegionIds(), shed.id]);
+            const from = game.messages.size;
+            const told = name => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(name));
+            shed.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } });
+            Hooks.callAll("updateRegion", shed, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } } }, {}, player.id);
+            kept.updateSource({ flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } });
+            Hooks.callAll("updateRegion", kept, { flags: { [MODULE_ID]: { [R.ROOM_FLAG]: false } } }, {}, player.id);
+            await until(() => told("SUITE E12 C1 Gym").length > 0);
+            await settle();
+            read = [wasRoom, recorded, R.isRoom(drawn), R.isRoom(kept), kept.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Gym").length,
+                shed.getFlag(MODULE_ID, R.ROOM_FLAG) ?? null, told("SUITE E12 C1 Shed").length];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([true, true, false, true, true, 1, true, 0]),
+            `${player.name}'s region and ${player.name}'s changes to a GM's room and to a region of ${player.name}'s ([the region a room before its creation `
+            + "was judged, recorded as a player's, a room after, the GM's room a room, its mark, the GMs told; the Shed's mark as its author left it, the GMs told])");
+    }],
+
+    ["two pieces are one room: Room Setup writes both and the lock and the seal and the neighbours read either piece", async () => {
+        /*
+         * E12 C2a, 11.10.2026; plan-E12 V4, audit S07-05, S08-17. A room is its name over every piece
+         * that is a room (rooms.mjs). Until 1.2.74 Room Setup wrote a room's flags through
+         * `regionsByName`, whose map kept the LAST region of a name, while the veto (`isLocked`), the
+         * search (`SearchTokens.sealed`) and `neighbouringRooms` read the FIRST, on the camera's scene;
+         * scenario 66 D drives Room Setup's Apply and a player's walk on the harness. This runs on a
+         * scene of its own: a Kitchen drawn in two pieces far apart, a Hall against piece 1, a Pantry
+         * against piece 2 and, below piece 2, a Lift marked a room that carries a Teleport. Read: the
+         * owner Room Setup's `setVaultRoom` writes, on each piece, and whether a stranger may enter;
+         * the lock set on piece 1 and the seal on piece 2, through the veto's and the search's readers; the
+         * room at the centre of piece 2 and of the Lift; the neighbours of the Kitchen and of the
+         * Pantry; the scene's rooms. Red before C2a on its first check: movement.mjs exports no
+         * `isLocked`.
+         */
+        const M = await import("./movement.mjs");
+        ok(typeof M.isLocked === "function", "movement.mjs exports no isLocked - the veto's lock reader cannot be asked about a room of two pieces");
+        if (typeof M.isLocked !== "function") return;
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const [owner, stranger] = (await import("./monokuma.mjs")).studentActors();
+        must(owner && stranger, "two students, a bedroom's owner and a stranger - this would measure nothing");
+        const NAME = "SUITE E12 C2a two pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y = 0, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], flags: mark, behaviors });
+        const at = (scene, x, y) => M.roomAt(x - 50, y - 50, { parent: scene, width: 1, height: 1, elevation: 0 });
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            // 20 px between neighbours, inside the 35 px a 100 px grid allows for a wall.
+            const [one, two] = await scene.createEmbeddedDocuments("Region", [room(K, 0), room(K, 2000), room("SUITE Hall", 420),
+                room("SUITE Pantry", 2420), room("SUITE Lift", 2000, 420, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
+            await V.setVaultRoom(K, { owner: owner.id, scene });
+            // The lock on one piece and the seal on the other (E12 fix r1-G1; review EARLY-C2a-3): both on
+            // piece 2, the last, passed a reader that took the last region of a name.
+            await one.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
+            await two.update({ [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true });
+            read = [[one, two].map(piece => piece.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) === owner.id), V.mayEnterBedroom(stranger, K, scene),
+                M.isLocked(scene, K), SearchTokens.sealed(K, scene), at(scene, 2200, 200), at(scene, 2200, 620),
+                M.neighbouringRooms(scene, K), M.neighbouringRooms(scene, "SUITE Pantry"), M.allRooms(scene)];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([[true, true], false, true, true, K, null, ["SUITE Hall", "SUITE Pantry"], [K],
+            ["SUITE Hall", K, "SUITE Pantry"]]),
+            "a Kitchen of two pieces on a scene of its own ([the owner on each piece, a stranger let in, locked by piece 1's flag and sealed by piece 2's, "
+            + "the room at piece 2 and at the Lift, the Kitchen's neighbours, the Pantry's, the scene's rooms])");
+    }],
+
+    ["the fog draws a two-piece room from both pieces and seeds it on a scene off screen", async () => {
+        /*
+         * E12 C2b, 11.10.2026; plan-E12 V4 and 3.3, audit S07-05, S07-06. The fog family drew a
+         * room's outline, its reveal and its doorway glow from `regions.find(r => r.name === room)`
+         * - the first piece only - and seeded the discovery ledger on the scene the primary GM's
+         * camera showed. It now asks rooms.mjs, hands the drawing one shape over every piece
+         * (`roomShapeOn`, fog-geometry `piecesAsOne`) and seeds the scene it is handed - a token's
+         * own, from `createToken`. This runs on a scene of its own, never viewed: a Kitchen of two
+         * marked pieces far apart, an unmarked Shed and a Lift marked a room that carries a
+         * Teleport, and a student standing in piece 2. Read: the Kitchen's shape - its name, its
+         * rings, its box, the ring of each border edge `doorwayEdges` walks for the outline's gaps
+         * and the glow; what the Shed and the Lift give; and the rooms the ledger holds for the
+         * student on that scene once it is seeded, in a GM-store world of the suite's own
+         * (`withGmStoreWorld`), so the real ledger is not written. Not read here: WHICH edges open
+         * onto another room. The harness's PIXI.Polygon answers no to every point
+         * (audit/harness/lib/shim.mjs, `contains() { return false; }`), so on it no edge opens, a marked Hall 20 px from piece 2
+         * included (measured 11.10.2026); that an unmarked region is no neighbour is a reading for
+         * a real canvas, and R381 keeps the doorways off `scene.regions`. Red before C2b on its
+         * first check: fog.mjs exports no `roomShapeOn`.
+         */
+        const fog = await import("./fog.mjs");
+        ok(typeof fog.roomShapeOn === "function", "fog.mjs exports no roomShapeOn - the outline has no reader for a room of two pieces");
+        if (typeof fog.roomShapeOn !== "function") return;
+        const { regionShapes } = await import("./fog-geometry.mjs");
+        const { doorwayEdges } = await import("./fog-doorways.mjs");
+        const { boundsOf } = await import("./movement.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const [student] = (await import("./monokuma.mjs")).studentActors();
+        must(student, "a student to stand in the Kitchen - the seed would measure nothing");
+        const NAME = "SUITE E12 C2b two pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const piece = (name, x, y = 0, flags = mark, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y, width: 400, height: 400 }], flags, behaviors });
+        let read = null;
+        await E.withGmStoreWorld(`suite-c2b-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [piece(K, 0), piece(K, 2000), piece("SUITE Shed", 420, 0, {}),
+                    piece("SUITE Lift", 2000, 420, mark, [{ type: "teleportToken", name: "Up", system: { destination: null } }])]);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, name: student.name, x: 2100, y: 100, width: 1, height: 1 }]);
+                await fog.seedDiscovery(scene);
+                await settle();
+                const shape = fog.roomShapeOn(scene, K);
+                read = [shape?.name, regionShapes(shape, { x: 0, y: 0 }).length, boundsOf(shape), doorwayEdges(shape).map(edge => edge.ring),
+                    fog.roomShapeOn(scene, "SUITE Shed"), fog.roomShapeOn(scene, "SUITE Lift"), fog.discoveredFor(scene.id, student.id)];
+            } finally {
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson([K, 2, { x: 0, y: 0, w: 2400, h: 400 }, [0, 0, 0, 0, 1, 1, 1, 1], null, null, [K]]),
+            `a Kitchen of two pieces on a scene off screen ([its name, its rings, its box, the ring of each border edge the doorways walk, `
+            + `the Shed's shape, the Lift's, the rooms seeded for ${student.name} standing in piece 2])`);
+    }],
+
+    ["where a student stands and the lights' verdict on a murder are the same viewing either scene", async () => {
+        /*
+         * E12 C3, 11.10.2026; plan-E12 V9 (its documents' half; the table's is LIVE-E12-01), audit
+         * S11-15 and S10-14, decision D7. `locateActor` took the rendered token and then the scene the
+         * reader was looking at first, and `othersInRoom` counted the canvas's tokens, so the primary
+         * GM judging the declared murders at the end of an Eclipse judged them on whatever scene it had
+         * on screen. Here a killer stands with two others in one room of the scene on screen and has a
+         * second token, in a room alone, on a scene of the suite's own that holds a room (a place
+         * scene, `isPlaceScene`). Viewing each scene in turn (`Scene#view`), read where `locateActor`
+         * puts the killer (and the room `roomOfActor` names, which read the rendered tokens first and
+         * the canvas's after them until C3), then open an Eclipse, declare the murder in the killer's room and end it:
+         * which reason the GMs are told it came to nothing for - two witnesses, or nobody there. The
+         * same on both scenes, and the room of three. In a GM-store world of the suite's own
+         * (`withGmStoreWorld`): a token made on a scene with rooms seeds its discovery there (fog.mjs,
+         * E12 C2b), and the real ledger is not to keep a row for a scene this deletes. Red before C3:
+         * viewing the suite's scene the killer was placed there, in its room, and the murder came to
+         * nothing with nobody present. Measured on the harness only: what `Scene#view` does at a
+         * table beyond the camera (the user's viewed scene, the fog's redraw) is not read here.
+         */
+        const [killer, first, second] = cast(3);
+        needs(world.atLeast("studentTokensOnScreen", 3), "the killer and two witnesses are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const Ev = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { plural } = await import("./utils.mjs");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const home = canvas?.scene ?? null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const NAME = "SUITE E12 C3 the other scene", ROOM = "SUITE Annex room", NOTE = "SUITE E12 C3 declared in the dark";
+        const stood = await aloneTogether(killer, first, { asked: true });
+        const third = home?.tokens?.find(t => t.actorId === second.id) ?? null;
+        const was = third ? { x: third.x, y: third.y } : null;
+        const readings = [];
+        try {
+            ok(third, `${second.name} has no token on the scene on screen`);
+            if (!third) return;
+            await third.update(Mv.positionIn(stood.room, third), PLACE);
+            await settle();
+            await G.withGmStoreWorld(`suite-c3-${foundry.utils.randomID(8)}`, async () => {
+                let scene = null;
+                try {
+                    scene = await Scene.create({ name: NAME, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                    await scene.createEmbeddedDocuments("Token", [{ actorId: killer.id, actorLink: true, name: killer.name, x: 300, y: 300, width: 1, height: 1 }]);
+                    await settle();
+                    must(R.homeScene() === home, "the school (`homeScene`) is not the scene on screen - which of the killer's two tokens counts is then another question");
+                    for (const view of [home, scene]) {
+                        await view.view();
+                        await settle();
+                        const where = Mv.locateActor(killer);
+                        const from = game.messages.size;
+                        await Ev.startEclipse();
+                        await settle();
+                        must(Ev.isEclipse(), `the Eclipse did not open viewing ${view.name}`);
+                        await Ev.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE });
+                        await Ev.endEclipse({ advance: false });
+                        await settle();
+                        const kept = game.messages.contents.slice(from).map(m => contentOf(m));
+                        const told = reason => kept.some(c => c.includes(game.i18n.format("DRPG.Action.murderCancelled", {
+                            killer: foundry.utils.escapeHTML(killer.name), room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(reason) })));
+                        readings.push([where?.scene?.id ?? null, where?.room ?? null, Mv.roomOfActor(killer),
+                            told(plural("DRPG.Action.murderWitness", { n: 1 })), told(game.i18n.localize("DRPG.Action.murderNobody"))]);
+                    }
+                } finally {
+                    await home?.view();
+                    if (Ev.isEclipse()) await Ev.endEclipse({ advance: false }).catch(() => {});
+                    await scene?.delete();
+                    await settle();
+                }
+            });
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.dropMany([killer.id]);
+            if (third && was && home?.tokens?.has(third.id)) await third.update(was, PLACE);
+            await stood.back();
+        }
+        const expected = [home?.id ?? null, stood.room, stood.room, true, false];
+        equal(stableJson(readings), stableJson([expected, expected]),
+            `where ${killer.name} stands (scene, room; \`roomOfActor\`'s room) and what the GMs were told the murder came to nothing for (two witnesses, nobody), `
+            + `viewing the scene on screen and then a scene of the suite's own holding ${killer.name}'s second token`);
+    }],
+
+    ["a theft is refused across two scenes whose rooms share a name", async () => {
+        /*
+         * E12 C3, 11.10.2026; audit S08-39 (the plan's other road for C3). `stealFromPerson` and
+         * `plantOnPerson` compared the thief's room with the victim's by name, with no scene, so a
+         * student in another scene's room of the same name could be robbed from here. They ask
+         * `sameRoom` now (scene, floor and room). Here the victim's tokens on every place scene are
+         * hidden and a token of theirs stands, shown, on a scene of the suite's own in a room named
+         * as the thief's: `locateActor` puts the victim there (the one token a GM has not hidden),
+         * `sameRoom` says no and the theft - a failed roll, so a mutant that lets it through takes
+         * nothing - is refused before anything is read off the victim (null). Without the room's
+         * refusal a failed theft answers `{ took: false, ... }`. In a GM-store world of the suite's
+         * own, as the test above, for the token's seeded discovery. Red before C3: the victim was
+         * placed on the scene on screen, in the thief's room, and the theft went through to its roll.
+         */
+        const [thief, victim] = cast(2);
+        const Mv = await import("./movement.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const here = Mv.locateActor(thief);
+        must(here?.room, `${thief.name} stands in no room - the theft would be refused before the rooms are compared`);
+        const shown = Array.from(game.scenes).filter(s => R.isPlaceScene(s))
+            .flatMap(s => Array.from(s.tokens).filter(t => t.actorId === victim.id && !t.hidden));
+        let read = null;
+        await G.withGmStoreWorld(`suite-c3-steal-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                for (const t of shown) await t.update({ hidden: true });
+                scene = await Scene.create({ name: "SUITE E12 C3 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: victim.id, actorLink: true, name: victim.name, x: 300, y: 300, width: 1, height: 1 }]);
+                await settle();
+                const there = Mv.locateActor(victim);
+                const stolen = await V.stealFromPerson({ thiefId: thief.id, victimId: victim.id, total: 0, isCritical: false, unseenTotal: 0, unseenCritical: false });
+                read = [there?.scene?.id === scene.id, there?.room ?? null, Mv.sameRoom(thief, victim), stolen];
+            } finally {
+                await scene?.delete();
+                for (const t of shown) if (t.parent?.tokens?.has(t.id)) await t.update({ hidden: false });
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson([true, here.room, false, null]),
+            `${victim.name} on a scene of the suite's own, in a room named as ${thief.name}'s "${here.room}" `
+            + "(placed there, the room, the same room, what the theft answered)");
+    }],
+
+    ["a stash taken away is forgotten on its own scene only", async () => {
+        /*
+         * E12 C3, 11.10.2026; audit S08-39. A finder's note about a stash is keyed
+         * `sceneId::room::ownerId` (vault.mjs `foundKey`), and taking a stash away
+         * (`setStash(..., { present: false })`) cleared every note whose key ENDED in
+         * `::room::ownerId` - so the same owner's stash in another scene's room of the same
+         * name was forgotten with it, and its finder paid to find it again. `forgetStashFound`
+         * clears the one scene's key now (and a key with no scene, `?`, which names none). Here
+         * a finder holds two notes about the owner's stash in the owner's room, one on the
+         * owner's scene and one on a scene id of the suite's own (no scene document is needed:
+         * the note is a string); the stash is set and taken away on the owner's scene, and the
+         * other scene's note must stay. Red before C3: both notes went.
+         */
+        const V = await import("./vault.mjs");
+        const Mv = await import("./movement.mjs");
+        const [owner, finder] = cast(2);
+        const here = Mv.locateActor(owner);
+        must(here?.room, `${owner.name} stands in no room`);
+        const region = V.regionsByName(here.scene).get(here.room);
+        must(region, `"${here.room}" has no region on ${here.scene.name}`);
+        must(!V.stashItemsIn(owner, here.room, here.scene).length, `${owner.name}'s stash in "${here.room}" holds something - it could not be taken away`);
+        const other = { id: `SUITE-E12C3-${foundry.utils.randomID(8)}` };
+        const notes = [`${here.scene.id}::${here.room}::${owner.id}`, `${other.id}::${here.room}::${owner.id}`];
+        const listBefore = foundry.utils.deepClone(region.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
+        const foundBefore = foundry.utils.deepClone(finder.getFlag(MODULE_ID, V.VAULT_FLAGS.found));
+        let read = null;
+        try {
+            await V.setStash(here.room, owner.id, { present: true, scene: here.scene });
+            await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, notes);
+            await settle();
+            must(V.hasFoundStash(finder, here.room, owner.id, here.scene) && V.hasFoundStash(finder, here.room, owner.id, other),
+                "the two notes are not read as `foundKey` writes them - the test's keys no longer match the module's");
+            await V.setStash(here.room, owner.id, { present: false, scene: here.scene });
+            await settle();
+            read = [V.hasFoundStash(finder, here.room, owner.id, here.scene), V.hasFoundStash(finder, here.room, owner.id, other)];
+        } finally {
+            if (foundBefore === undefined) await finder.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+            else await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            if (listBefore === undefined) await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: forcedDeletion() });
+            else await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: listBefore });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true]),
+            `${finder.name}'s notes about ${owner.name}'s stash in "${here.room}" after it was taken away on ${here.scene.name} (this scene's, the other scene's)`);
+    }],
+
+    ["Room Setup writes to the scene it was opened on, whatever scene is on screen when Apply is pressed", async () => {
+        /*
+         * E12 C4, 11.10.2026; plan-E12 V2, audit S08-16; the A5 project's R119, whose number the
+         * tier-0 guard carries (a tier-2 test is named, not numbered: tools/registry.mjs). Room Setup read the
+         * scene on screen when it opened and drew its table from it, but Apply wrote the rows to the
+         * scene on screen when it was pressed, and the Stashes tab's cells and the stash a new
+         * bedroom owner is given to `setStash`'s default, the camera again; and Apply counted one
+         * "room" per write. Here two scenes of the suite's own each hold a room of one name. The
+         * window is opened viewing the first, its form answered as a GM answers it - the room locked,
+         * a stash for one student, the room given to another as a bedroom - and the second scene is
+         * viewed before the Apply button's own callback runs. Read: whether the title names the scene
+         * opened on, the lock, the stashes and the owner on each scene, and the count Apply answers.
+         * Red before C4: everything landed on the scene viewed at Apply and the count was 3. In a
+         * GM-store world of the suite's own (`withGmStoreWorld`), as the C3 tests that view a scene of
+         * their own; the bedroom key Apply's sweep hands the owner is taken back here. Measured on
+         * the harness: what `Scene#view` does at a table beyond the camera is not read here, and the
+         * window is answered without being drawn (its `render` hook does not run); its content reached
+         * `wait` as an element on the harness (read 11.10.2026), so a string and an element are both read.
+         */
+        const [stasher, owner] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE R119 Gym", NAMES = ["SUITE E12 C4 opened on", "SUITE E12 C4 on screen at Apply"];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === ROOM).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c4-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            try {
+                for (const name of NAMES) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                const [opened, other] = scenes;
+                await opened.view();
+                await settle();
+                let title = null;
+                D.wait = async cfg => {
+                    title = cfg?.window?.title ?? null;
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [lock, stash, bedroom] = [field(`locked:${ROOM}`), field(`stash:${ROOM}:${stasher.id}`), field(`owner:${ROOM}`)];
+                    must(lock && stash && bedroom, `Room Setup drew no lock, stash cell or owner for "${ROOM}" (${JSON.stringify([Boolean(lock), Boolean(stash), Boolean(bedroom)])}) - the answer would change nothing`);
+                    lock.checked = true;
+                    stash.value = "open";
+                    bedroom.value = owner.id;
+                    await other.view();
+                    await settle();
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const answered = await V.openRoomSetupDialog();
+                await settle();
+                const piece = scene => scene.regions.find(r => r.name === ROOM);
+                reading = [
+                    title === game.i18n.format("DRPG.Vault.manageTitleOn", { scene: opened.name }),
+                    scenes.map(scene => Boolean(piece(scene)?.getFlag(MODULE_ID, ROOM_FLAGS.locked))),
+                    scenes.map(scene => V.stashesIn(ROOM, scene).map(entry => entry.actorId).sort()),
+                    scenes.map(scene => V.vaultOwnerOf(ROOM, scene)),
+                    answered
+                ];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                for (const actor of [stasher, owner]) {
+                    const keys = keyFor(actor);
+                    if (keys.length) await actor.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([true, [true, false], [[owner.id, stasher.id].sort(), []], [owner.id, null], 1]),
+            `Room Setup opened on a scene of the suite's own and applied viewing another: the title names the first, then on each scene the lock, `
+            + `the stashes (${stasher.name}'s cell, ${owner.name}'s as the new owner) and the owner, and the rooms Apply says it changed`);
+    }],
+
+    ["a project's room is known on its own scene, whatever scene is on screen", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 V5, audit S16-06; the A5 project's R118, whose number the
+         * tier-0 guard carries (a tier-2 test is named, not numbered: tools/registry.mjs).
+         * `knowsProject` asked the discovery record of the scene this client's camera showed, so a
+         * player whose character had found a project's room knew the project while looking at that
+         * scene and not while looking at another (scenario 66 E1 read [true, false, false] for the
+         * school, the Annex and no scene at 180df61). Here one scene of the suite's own holds two
+         * rooms, a second scene another room, and a student of a player's has found the first room
+         * and not the second; a project in each. Read on this GM for that player
+         * (`knowsProject(id, user)`), viewing each scene: the found room's project known on both,
+         * the other on neither. In a GM-store world of the suite's own, as C4's test, so the
+         * discovery is the suite's and leaves with it.
+         */
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "a GM knows every project, so the reading would be \"yes\" whatever the scene");
+        const user = game.users.find(u => !u.isGM && student.testUserPermission(u, "OWNER"));
+        const P = await import("./projects.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const FOUND = "SUITE E12 C5 found room", UNFOUND = "SUITE E12 C5 unfound room";
+        const LAYOUT = [["SUITE E12 C5 the projects' scene", [FOUND, UNFOUND]], ["SUITE E12 C5 another scene", ["SUITE E12 C5 another room"]]];
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c5-knows-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [], made = [];
+            try {
+                for (const [name, rooms] of LAYOUT) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", rooms.map((room, i) => ({ name: room,
+                        shapes: [{ type: "rectangle", x: i * 1000, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                }
+                await F.applyDiscoveryChanges(scenes[0], [{ actorId: student.id, room: FOUND, value: true }]);
+                for (const room of [FOUND, UNFOUND]) {
+                    const id = (await P.createProject({ name: `SUITE E12 C5 ${room}`, target: 6, room }))?.id ?? null;
+                    must(id, "could not create a project - this would measure nothing");
+                    made.push(id);
+                }
+                await settle();
+                must(F.discoveredFor(scenes[0].id, student.id).includes(FOUND), `${student.name} has not found "${FOUND}" - this would measure nothing`);
+                reading = [];
+                for (const scene of scenes) {
+                    await scene.view();
+                    await settle();
+                    reading.push(made.map(id => P.knowsProject(id, user)));
+                }
+            } finally {
+                await home?.view();
+                for (const id of made) await P.deleteProject(id);
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify([[true, false], [true, false]]),
+            `whether ${user.name} knows the project in the room ${student.name} found and the one in the room not found, viewing the projects' scene and another`);
+    }],
+
+    ["the project manager keeps a room it did not change, whatever scene is on screen", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 V1, audit S09-03. The manager's room select listed the rooms
+         * of the scene on the GM's screen, so a project whose room was on another scene had no option
+         * for it, the select fell to "any room", and Save wrote that back to every row (scenario 66
+         * A1 read the Gym's project's room null after a save viewing the Annex, at 180df61). Here a
+         * scene of the suite's own holds a room and a second scene another; three projects - one in
+         * the first room, one in a room on no scene, one in the first room that a GM moves to the
+         * second while the window is open. The window is opened viewing the second scene and answered
+         * as a GM answers it, changing nothing, by its Save button's own callback. Read: the value and
+         * the label chosen in the first two rows, and each project's room after the save. In a GM-store world of the suite's own, as C4's test; measured on the
+         * harness, where the window is answered without being drawn.
+         */
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E12 C5 Gym", MOVED = "SUITE E12 C5 Hall", GONE = "SUITE E12 C5 a room on no scene";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-c5-manager-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [], made = {};
+            try {
+                for (const [name, room] of [["SUITE E12 C5 the Gym's scene", ROOM], ["SUITE E12 C5 the Hall's scene", MOVED]]) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                for (const [key, room] of [["kept", ROOM], ["gone", GONE], ["moved", ROOM]]) {
+                    made[key] = (await P.createProject({ name: `SUITE E12 C5 ${key}`, target: 6, room }))?.id ?? null;
+                    must(made[key], "could not create a project - this would measure nothing");
+                }
+                await scenes[1].view();
+                await settle();
+                let seen = null;
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const select = id => form.querySelector(`[name="room.${CSS.escape(id)}"]`);
+                    must(Object.values(made).every(select), "the manager drew no room select for a project of this test - the answer would change nothing");
+                    const chosen = id => [select(id).value, select(id).selectedOptions[0]?.textContent ?? null];
+                    seen = [chosen(made.kept), chosen(made.gone)];
+                    await S.setProjectMeta(made.moved, { room: MOVED });
+                    const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                    return save.callback(new Event("click"), save, { element });
+                };
+                await UI.openProjectManager();
+                await settle();
+                reading = [seen, [made.kept, made.gone, made.moved].map(id => P.roomOf(id))];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                for (const id of Object.values(made)) if (id) await P.deleteProject(id);
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify([[[ROOM, ROOM], [GONE, game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE })]], [ROOM, GONE, MOVED]]),
+            "the manager saved viewing another scene: the value and label chosen in the Gym's row and in the row of a room on no scene, and each project's room after the save "
+            + "(the Gym's kept, the one on no scene kept, the one moved while the window was open left where it was moved)");
+    }],
+
+    ["a Public Announcement gathers in a room of the caller's scene, whatever scene is on screen, and is refused before it is paid for any other", async () => {
+        /*
+         * E12 C5, 11.10.2026; plan-E12 section 4's C5, audit S16-07. The gather's room was looked up
+         * on the scene the GM had on screen when the order was written: an order bought while the GM
+         * looked at another map was refused for a room of the school, and one for a room of that map
+         * was held there (scenario 66 E2 read two refusals at 180df61). Since C5 the scene is the
+         * caller's (`gatherSceneOf`: where `locateActor` places the caller, else the school,
+         * `homeScene`), and a room it does not hold is refused by `gatherRefusal`, which
+         * `spendDespairCallFor` asks before the pool is touched and the effect asks again. Here the
+         * caller has no token - the school - and the GM views a scene of the suite's own holding a
+         * room the school has not. Read: the refusal before paying for that room and for a room of
+         * the school; then the effect itself (`applyCall`, the road after the payment) for each, and
+         * the order it leaves; and how often the refusal was told. In a GM-store world of the suite's
+         * own, as C4's test; the order this writes is called off before it ends.
+         */
+        const CE = await import("./call-effects.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const call = DESPAIR_CALLS.publicAnnouncement;
+        must(call?.gathersEveryone && call.defers, "the Public Announcement no longer orders a gather - this would measure nothing");
+        must(!CE.pendingGather(), "an assembly is already pending - its order would be read as this test's");
+        needs(world.atLeast("namedRooms", 1), "the school is a scene of this world that holds a room");
+        ok(typeof CE.gatherRefusal === "function", "call-effects.mjs exports no gatherRefusal - a gather's room is not asked before the Despair is paid (E12 C5)");
+        const home = canvas?.scene ?? null;
+        const AWAY = "SUITE E12 C5 a room of another scene";
+        const seen = [];
+        const warn = ui.notifications.warn.bind(ui.notifications);
+        let reading = null, expected = null;
+        await G.withGmStoreWorld(`suite-c5-gather-${foundry.utils.randomID(8)}`, async () => {
+            let away = null;
+            try {
+                away = await Scene.create({ name: "SUITE E12 C5 another scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await away.createEmbeddedDocuments("Region", [{ name: AWAY, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                const school = R.homeScene();
+                must(school && school !== away, `the school is the suite's own scene (${school?.name ?? "none"}): no other scene holds a marked room - this would measure nothing`);
+                const room = R.roomNames(school).find(name => !R.roomRegions(away, name).length);
+                must(room, `${school.name} holds no room the suite's scene has not - this would measure nothing`);
+                await away.view();
+                await settle();
+                ui.notifications.warn = text => { seen.push(String(text)); return null; };
+                const refusals = [await CE.gatherRefusal(call, { room: AWAY }, null), await CE.gatherRefusal(call, { room }, null)];
+                const effects = [];
+                for (const where of [AWAY, room]) {
+                    const out = await CE.applyCall(null, "publicAnnouncement", "despair", { room: where });
+                    effects.push([Boolean(out?.failed), CE.pendingGather()?.sceneId ?? null]);
+                }
+                const told = game.i18n.format("DRPG.Calls.gatherNoRoom", { room: AWAY, scene: school.name });
+                reading = [refusals, effects, seen.filter(text => text === told).length];
+                expected = [[told, null], [[true, null], [false, school.id]], 1];
+            } finally {
+                ui.notifications.warn = warn;
+                await CE.cancelGather();
+                await home?.view();
+                await away?.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(reading), JSON.stringify(expected),
+            "a caller with no token (so the school's), viewing another scene: the refusal before paying for that scene's room and for the school's, "
+            + "what the effect did with each (failed, the order's scene), and how often the refusal was told");
+    }],
+    ["a character's stash and search odds are read on the scene the character stands on whatever scene is on screen", async () => {
+        /*
+         * E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15. A room's stashes, favours and hindrances
+         * were read on the scene on screen (`stashesIn(room, scene = workingScene())` and its kin),
+         * so a GM looking at another map answered a character's Search and listed the stashes in
+         * their room off a room of the same name there. They are read on the character's own
+         * scene now (`locateActor`, `sceneOfActor`). Here a scene of the suite's own holds a room
+         * named as the student's, with another student's open stash in it and a category it
+         * favours that the student's own room neither favours nor hinders; the student has no
+         * token on it. The open stashes and the odds are read with the camera on the student's
+         * scene and then on the suite's, and must not move. Red before C6: with the camera on the
+         * suite's scene the other student's stash was listed and the room's favour counted (+1).
+         */
+        const [student, other] = cast(2);
+        const Mv = await import("./movement.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const A = await import("./action-rolls.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const here = Mv.locateActor(student);
+        const home = canvas?.scene ?? null;
+        must(here?.room && here.scene === home, `${student.name} stands in no room of the scene on screen (${here?.scene?.name ?? "none"}) - the two readings would not differ by the camera`);
+        must(!V.stashesIn(here.room, here.scene).some(entry => entry.actorId === other.id), `${other.name} already keeps a stash in "${here.room}" - the scene of the suite's own could not add one`);
+        const category = Object.keys(ITEM_CATEGORIES).find(key => key !== "truthBullet"
+            && !V.favoursCategory(here.room, key, here.scene) && !V.hindersCategory(here.room, key, here.scene));
+        must(category, `"${here.room}" favours or hinders every category - a favour on the other scene would not show`);
+        const reading = () => [V.openStashesHere(student).map(entry => entry.owner.id),
+            A.searchOdds(student, here.room, category, V).situational];
+        let read = null, first = null;
+        await G.withGmStoreWorld(`suite-c6-camera-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: "SUITE E12 C6 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: other.id, concealed: false }],
+                        [V.VAULT_FLAGS.favours]: [category] } }, behaviors: [] }]);
+                await settle();
+                must(Mv.locateActor(student)?.scene === home, `${student.name} is placed on ${Mv.locateActor(student)?.scene?.name ?? "no scene"} once the suite's scene exists - the test reads nothing about the camera`);
+                first = reading();
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - this would measure nothing");
+                read = [first, reading()];
+            } finally {
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        const expected = [first[0].filter(id => id !== other.id), 0];
+        equal(stableJson(read), stableJson([expected, expected]),
+            `${student.name}'s open stashes in "${here.room}" (owners' ids) and the Search odds' situational step for "${category}", `
+            + "with the camera on their scene and then on a scene of the suite's own that holds a room of the same name");
+    }],
+
+    ["a room drawn in play prepares its scene and repaints the fog of the scene on screen; a scene with only a Teleport region is left alone", async () => {
+        /*
+         * E12 C7, 11.10.2026; plan-E12 C7, audit S07-11 and S07-12. A scene was put into
+         * room-based vision only when a GM's canvas drew it or once a session on the primary, and
+         * nothing listened to a region: the first rooms a GM drew on the map in front of them left
+         * Foundry's vision on - a black screen for players on v14 - until that GM reloaded, and the
+         * fog of the scene on screen was not repainted until a token moved. Here two scenes of the
+         * suite's own, both with Foundry's vision on: the GM views the first, draws a room on it,
+         * and draws a region with a Teleport behaviour, marked a room by hand, on the second; then
+         * the GM views the second. The first must be prepared and its fog repainted (the reason
+         * the fog last gave is no longer "no room"); the second, a passage and no room, must keep
+         * its vision whichever road asks - the region's hook, or the GM's canvas drawing it. Last,
+         * Token Vision is put back on the first by hand and its room reshaped: a scene that held a
+         * room already is not prepared again by a region's event (plan-E12 C7, "when
+         * `sceneHoldsRooms` changes").
+         * Red before C7: the first scene kept Token Vision on and its fog still read "no room".
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        // The scene is prepared on the primary alone (`prepareRoomScene`): elsewhere the wait below would lapse (E12 fix r2-S2; review EARLY-C7-1).
+        needs(env.primaryGm(), "the primary GM's write of a scene's vision");
+        must(F.fogEnabled(), "the room fog is switched off in this world - nothing would prepare a scene, and this would measure nothing");
+        const home = canvas?.scene ?? null;
+        const box = x => [{ type: "rectangle", x, y: 100, width: 600, height: 600 }];
+        const vision = scene => [scene.tokenVision, scene.environment?.globalLight?.enabled ?? null, scene.getFlag(MODULE_ID, "visionBefore") !== undefined];
+        const data = name => ({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            tokenVision: true, environment: { globalLight: { enabled: false } } });
+        let study = null, closet = null, read = null;
+        try {
+            study = await Scene.create(data("SUITE E12 C7 a room drawn in play"));
+            closet = await Scene.create(data("SUITE E12 C7 a Teleport and no room"));
+            must(stableJson([vision(study), vision(closet)]) === stableJson([[true, false, false], [true, false, false]]),
+                "the suite's scenes were not created with Foundry's vision on - the module's write would not show");
+            await study.view();
+            await settle();
+            must(canvas?.scene === study, "the camera did not move to the suite's scene - the repaint would measure nothing");
+            const before = F.diagnoseFog().lastReason;
+            await closet.createEmbeddedDocuments("Region", [{ name: "Closet", shapes: box(100),
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [{ type: "teleportToken", name: "Out", system: { destination: null } }] }]);
+            await study.createEmbeddedDocuments("Region", [{ name: "Study", shapes: box(100), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await until(() => study.tokenVision === false, 4000);
+            await settle();
+            const after = F.diagnoseFog().lastReason;
+            await closet.view();
+            await settle();
+            const prepared = vision(study);
+            // Token Vision put back on by hand, then the room reshaped, with the camera elsewhere: the scene held a
+            // room already, so the region's event is not one that prepares it.
+            await study.update({ tokenVision: true });
+            await study.regions.find(r => r.name === "Study")?.update({ shapes: box(200) });
+            await settle();
+            read = [prepared, vision(closet), /has no room/.test(before), /has no room/.test(after), study.tokenVision];
+        } finally {
+            await home?.view();
+            await study?.delete();
+            await closet?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[false, true, true], [true, false, false], true, false, true]),
+            "the scene a room was drawn on (Token Vision, global light, the module's record of the scene before) and the Teleport's scene, "
+            + "whether the fog on screen said \"no room\" before the room was drawn and after it, and the first scene's Token Vision "
+            + "put back on by hand and kept through a reshape of its room");
+    }],
+
+    ["one scene put into room-based vision is said as one scene and two as two", async () => {
+        /*
+         * E13 fix n1-N1, 12.10.2026 (the 1.2.74 notes' draft found it). `prepareScenes` says how many
+         * scenes it switched to room-based vision with a counted sentence whose field is `count`, and
+         * asked `plural` to count on `n`, its default: the count read 0, the form was always "other",
+         * and one scene read "1 scenes" (in Polish the form for 5). Here scenes of the suite's own, one
+         * room each: a room's region event prepares each (E12 C7), the suite gives the vision back
+         * (`restoreSceneVisionMode`) and asks `prepareScenes` again, once with one scene to switch and
+         * once with two, and reads what the GM was told. Two takes `few` in Polish and `other` in
+         * English (`Intl.PluralRules`), and the English file has no `few`. `prepareScenes` reads every
+         * scene of the world, so it is asked once before the two readings, its sentence not read: a
+         * world scene with rooms still to be switched would otherwise be counted with the suite's (the
+         * harness's own scene was, three for one, until E13 fix n1-N1 gave the shim's documents the
+         * fields an update brings - client-entry.mjs `applyRemote`). The name holds no comma: the
+         * tools that run a test by name split their lists on commas.
+         * Red before the fix: both sentences took the `other` form.
+         */
+        needs(env.primaryGm(), "`prepareScenes` writes on the primary GM alone");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        must(F.fogEnabled(), "the room fog is switched off in this world - nothing would prepare a scene, and this would measure nothing");
+        const KEY = "DRPG.Fog.scenesPrepared";
+        const data = name => ({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+            tokenVision: true, environment: { globalLight: { enabled: false } } });
+        const info = ui.notifications.info;
+        const scenes = [];
+        let read = null;
+        // The vision given back on these scenes, then `prepareScenes` asked, with what it says to the GM caught.
+        const prepare = async again => {
+            for (const scene of again) await F.restoreSceneVisionMode(scene);
+            const said = [];
+            ui.notifications.info = message => { said.push(String(message)); };
+            try {
+                const { changed } = await F.prepareScenes();
+                return [changed, said];
+            } finally {
+                ui.notifications.info = info;
+            }
+        };
+        try {
+            for (const name of ["SUITE E13 n1-N1 the first scene", "SUITE E13 n1-N1 the second scene"]) {
+                const scene = await Scene.create(data(name));
+                scenes.push(scene);
+                await scene.createEmbeddedDocuments("Region", [{ name: "Parlour", shapes: [{ type: "rectangle", x: 100, y: 100, width: 600, height: 600 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            }
+            await until(() => scenes.every(scene => scene.tokenVision === false), 4000);
+            await settle();
+            must(scenes.every(scene => scene.tokenVision === false && scene.getFlag(MODULE_ID, "visionBefore") !== undefined),
+                "the suite's scenes were not prepared when their rooms were drawn - giving their vision back would change nothing");
+            await prepare([]);
+            read = [await prepare(scenes.slice(0, 1)), await prepare(scenes)];
+        } finally {
+            ui.notifications.info = info;
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        const two = game.i18n.has(`${KEY}.few`) ? "few" : "other";
+        equal(stableJson(read), stableJson([[1, [game.i18n.format(`${KEY}.one`, { count: 1 })]], [2, [game.i18n.format(`${KEY}.${two}`, { count: 2 })]]]),
+            "how many scenes `prepareScenes` switched to room-based vision, and what it told the GM, with one scene to switch and with two");
+    }],
+
+    ["a GM's rename of a room carries its stash, its keys, the notes of its stash found and its discovery", async () => {
+        /*
+         * E12 C8, 11.10.2026; plan-E12 C8, audit S08-18 and S07-25. A stashed item, a key, a note of a
+         * stash found and the discovery record each name a room by its name, and nothing followed a
+         * region renamed: a GM who corrected a room's name left the owner's things in a drawer nobody
+         * could open, every key to it opening nothing, the finders' notes pointing at nothing and the
+         * room fogged over for everyone who had found it. Here a room of the suite's own, drawn in two
+         * pieces on a scene of the suite's own and owned by the first of three students, who has a
+         * hidden stash in it with one thing inside; the second holds its key and has discovered it,
+         * the third has found the stash. The GM renames one piece, then the other. While one piece
+         * keeps the old name the room of that name is still there, and everything goes on naming it;
+         * once both carry the new name, everything names the new one - read through the rules' own
+         * readers (`stashItemsIn`, `mayEnterBedroom`, `hasFoundStash`, `discoveredFor`) - and the GMs
+         * were told. Red before C8: after the second rename the new name read [0, false, false, false].
+         * The new name with one piece renamed reads "may enter" since E12 fix r1-G1: the piece renamed
+         * off the room carries no owner any more (vault.mjs `clearSplitPiece`), so it is nobody's
+         * bedroom and `mayEnterBedroom` lets anybody in without asking for a key - measured by the k2
+         * suite on 8109466 (11.10.2026, [0, true, false, false] there), which expected the C8 reading
+         * of a piece that still carried the owner. The primary does the carry (E12 fix r2-H4, early
+         * review EARLY-C8-4).
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [owner, holder, finder] = cast(3);
+        const ROOM = "SUITE E12 C8 Gym", NEW = "SUITE E12 C8 Hall";
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const foundBefore = foundry.utils.deepClone(finder.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const messagesBefore = new Set(game.messages.contents.map(m => m.id));
+        // A whisper's words are read as the GM reads them: `contentOf`, not `content` (secret.mjs).
+        const told = () => game.messages.contents.some(m => !messagesBefore.has(m.id) && String(contentOf(m) ?? "").includes(NEW));
+        let scene = null, key = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 C8 a renamed room", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const flags = { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: true }] } };
+            const pieces = await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: box(100), flags, behaviors: [] },
+                { name: ROOM, shapes: box(500), flags, behaviors: [] }]);
+            const reading = name => [V.stashItemsIn(owner, name, scene).length, V.mayEnterBedroom(holder, name, scene),
+                V.hasFoundStash(finder, name, owner.id, scene), F.discoveredFor(scene.id, holder.id).includes(name)];
+            await E.withGmStoreWorld(`suite-e12-c8-${foundry.utils.randomID(8)}`, async () => {
+                key = await V.grantBedroomKey(holder, ROOM, { silent: true, scene });
+                item = await INV.grantItem(owner, { name: "SUITE E12 C8 a box", category: "usable", tier: 1, override: true, quiet: true });
+                if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: ROOM });
+                await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, [...(foundBefore ?? []), `${scene.id}::${ROOM}::${owner.id}`]);
+                await F.applyDiscoveryChanges(scene, [{ actorId: holder.id, room: ROOM, value: true }]);
+                await until(() => stableJson(reading(ROOM)) === stableJson([1, true, true, true]), 4000);
+                must(pieces.length === 2 && key && item && stableJson(reading(ROOM)) === stableJson([1, true, true, true]),
+                    `the room's stash, key, found note and discovery did not stand before the rename (${stableJson(reading(ROOM))}) - this would measure nothing`);
+                await pieces[0].update({ name: NEW });
+                await settle();
+                const onePiece = [reading(ROOM), reading(NEW)];
+                await pieces[1].update({ name: NEW });
+                await until(() => stableJson(reading(NEW)) === stableJson([1, true, true, true]) && told(), 4000);
+                await settle();
+                read = [...onePiece, reading(ROOM), reading(NEW), told()];
+            });
+        } finally {
+            for (const [actor, made] of [[holder, key], [owner, item]]) if (made) await actor.items.get(made.id)?.delete();
+            if (foundBefore === null) await finder.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+            else await finder.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[1, true, true, true], [0, true, false, false], [0, true, false, false], [1, true, true, true], true]),
+            "the old name and the new one, each as [the owner's things in its stash, whether the key holder may enter, whether the finder "
+            + "has found the owner's stash there, whether the key holder has discovered it], with one piece renamed and then both; "
+            + "and whether the GMs were told");
+    }],
+
+    ["a move up the stairs costs a crossing like a door, a floor change inside one room is free, and the room is read on the token's floor", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2 and C9, audit S07-45, the owner's answer Q1 a. A scene of two
+         * floors in plain objects, as Foundry v14 draws one (a token's `level`, a region's `levels`, empty
+         * for every floor; the shapes asked through `testPoint`): a Lab under an Attic, a Hall under a
+         * Landing with stairs between them - a region carrying the Change Level behaviour, never a room -
+         * and a Stairwell drawn on both floors. Read: the room at the Lab's footprint on each floor
+         * (`roomAt` with the floor); the price of a step (`crossingCost`) up the stairs into another room,
+         * up the Stairwell, through a door on one floor and inside one room; and the rooms the stairs
+         * link (`stairLinks`), on this scene and on one with no stairs. A route is priced step by step on
+         * these (movement.mjs `crossingsAlong`); scenario 66 G3 drives a real climb through the charge.
+         * Red before C9 on its first check: `roomAt` asked every floor and read the Attic on the ground.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = [], room = true) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const rooms = [region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+            region("Stairwell", 1000, [])];
+        const levels = [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }];
+        const scene = { grid: { size: 100 }, levels, regions: new Set([...rooms, region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }], false)]) };
+        const flat = { grid: { size: 100 }, levels, regions: new Set(rooms) };
+        const at = level => M.roomAt(100, 100, { x: 100, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene }, level);
+        const step = (room, level) => ({ room, level });
+        const costs = typeof M.crossingCost === "function" ? [
+            M.crossingCost(step("Hall", L1), step("Landing", L2)), M.crossingCost(step("Stairwell", L1), step("Stairwell", L2)),
+            M.crossingCost(step("Lab", L1), step("Hall", L1)), M.crossingCost(step("Lab", L1), step("Lab", L1))] : "no crossingCost";
+        const links = typeof M.stairLinks === "function" ? [M.stairLinks(scene), M.stairLinks(flat)] : "no stairLinks";
+        equal(stableJson([at(L1), at(L2), costs, links]), stableJson(["Lab", "Attic", [1, 0, 1, 0], [[["Hall", "Landing"]], null]]),
+            "[the room at the Lab's footprint on the ground floor, on the upper; the crossings a step costs [up the stairs into another room, "
+                + "up the Stairwell, through a door, inside one room]; the rooms the stairs link here, and on a scene with no stairs]");
+    }],
+
+    ["a level-only move into a locked room on another floor is refused with the lock's words", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45 (V8). The veto (`onPreUpdateToken`) returned at
+         * once for a change naming neither x nor y, so a player's update of the level alone walked into a
+         * locked room upstairs and nothing was asked. Here the veto Foundry calls, taken off
+         * `Hooks.events` so no other module's listener sees the suite's plain token, is handed a student's
+         * token as a player's browser hands it (`asConsole`): from the Corridor up into the locked Vault
+         * above it; from the Lab up into the Attic on a scene whose stairs lead elsewhere; and up the
+         * Stairwell, one room on both floors. And `crossingVerdict` asked of the room the stairs do lead
+         * to. With the movement cost on (the stairs rule is part of adjacency, which that setting governs)
+         * and the clock out of a trial and an Eclipse; restore() puts both back. Red before C9 on its first
+         * check: the veto let the climb into the Vault through, and said nothing.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const [actor] = (await import("./monokuma.mjs")).studentActors();
+        const veto = (Hooks.events?.preUpdateToken ?? []).map(entry => entry.fn).find(fn => fn?.name === "onPreUpdateToken");
+        must(actor && veto, "no student, or no movement veto registered on preUpdateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, flags = {}, behaviors = []) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: !behaviors.length, ...flags }[key] : undefined) });
+        const levels = [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }];
+        const scene = { grid: { size: 100 }, levels, regions: new Set([region("Corridor", 0, [L1]), region("Vault", 0, [L2], { [M.ROOM_FLAGS.locked]: true }),
+            region("Lab", 500, [L1]), region("Attic", 500, [L2]), region("Hall", 1000, [L1]), region("Landing", 1000, [L2]),
+            region("Stairwell", 1500, []), region("Stairs", 1100, [L1, L2], {}, [{ type: "changeLevel" }])]) };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        const climb = x => {
+            const token = { id: "suite-e12-c9", x, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor };
+            const first = warned.length;
+            const answer = asConsole(() => veto(token, { level: L2 }, {}, game.user.id));
+            return [answer === false ? "refused" : "let through", warned.slice(first)];
+        };
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            const stairs = typeof M.crossingVerdict === "function"
+                ? M.crossingVerdict(actor, "Hall", "Landing", scene, { from: L1, to: L2 }) !== game.i18n.format("DRPG.Move.noStairs", { from: "Hall" })
+                : "no crossingVerdict";
+            read = [climb(0), climb(500), climb(1500), stairs];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([["refused", [game.i18n.localize("DRPG.Move.locked")]],
+            ["refused", [game.i18n.format("DRPG.Move.noStairs", { from: "Lab" })]], ["let through", []], true]),
+            "[a player's level-only move from the Corridor up into the locked Vault, from the Lab up into the Attic where no stairs lead, "
+                + "up the Stairwell - each as [the veto's answer, what the player was told]; and whether the crossing the stairs do lead along "
+                + "is refused for the stairs]");
+    }],
+
+    ["a crossing refused for its price puts the token back on the floor it left", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45. The charge (`onUpdateToken`) gated on x, y and
+         * the elevation, and remembered a token's place as x and y (`lastPosition`), so a send-back after
+         * a climb put the token back by x and y and left it upstairs. Here movement.mjs's charge, taken
+         * off `Hooks.events` as Foundry would call it (fog.mjs has a listener of the same name; this one
+         * settles a route), is handed a plain token of a plain character no connected player owns - so the
+         * primary GM pays, as for an absent player - with no Free Move, no action and no grant left. Its
+         * place is recorded as our own revert records it, then it climbs from the Lab to the Attic above
+         * by its level alone, as a player's update. Read: what the send-back wrote to the token, and what
+         * the GM was told. The whisper the refusal sends names the plain character to the GMs. Red before
+         * C9: the charge never looked at a level-only change, and nothing was written.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, levels) => ({ id: name, name, levels: new Set(levels), behaviors: [], bounds: { x: 0, y: 0, width: 400, height: 400 },
+            testPoint: point => point.x >= 0 && point.x <= 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e12-c9-scene", grid: { size: 100 }, levels: [{ id: L1 }, { id: L2 }], regions: new Set([region("Lab", [L1]), region("Attic", [L2])]) };
+        const actor = { id: "suite-e12-c9-actor", name: "SUITE E12 C9 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeMoveUsed ? true : undefined), testUserPermission: () => false };
+        const written = [];
+        const token = { id: `suite-e12-c9-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor,
+            update: async data => { written.push(data); return token; } };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            token.level = L2;
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+            read = [written, warned];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([[{ x: 0, y: 100, level: L1 }], [game.i18n.localize("DRPG.Move.noBudget")]]),
+            "[what the send-back wrote to a token that climbed from the Lab to the Attic with nothing to pay with, what the GM was told]");
+    }],
+
+    ["a room on another floor looks as it does on yours", async () => {
+        /*
+         * E12 C11, 11.10.2026; plan-E12 3.5, the owner's answer Q2 (b) of 09.10. A scene of two floors in
+         * plain objects, as Foundry v14 draws one (C9's test above): a Hall under a Landing, an Attic and a
+         * Vault upstairs. The player has found the Hall, the Landing and the Attic and never been in the
+         * Vault; two other students stand upstairs, one in the Attic and one in the Vault. The upper floor is
+         * read twice - with the player's token on it, in the Landing, and with the token downstairs in the
+         * Hall - each time as the fog and the token rule read it: the rooms the token stands in (`roomOfToken`,
+         * as fog.mjs `myCurrentRooms` names them), the pieces drawn on that floor (`fogRegionsFor`), the
+         * shading of each (`roomShading`) and the verdict on each other token (visibility.mjs `tokenShownTo`).
+         * The Attic and the Vault must read the same from either floor: the Attic under the veil and the
+         * Vault under full fog, both students hidden. Red before C11 by absence (neither function existed);
+         * the mutants that veil or clear a found room only when the viewer stands on its floor are what
+         * show this measures something. Scenario 66 G8 reads the same on a floor a player's console put on
+         * screen, through the real fog.
+         */
+        const F = await import("./fog.mjs");
+        const V = await import("./visibility.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels) => ({ id: name, name, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "suite-e12-c11", grid: { size: 100 }, levels: [{ id: L2, name: "Upper", elevation: 10 }, { id: L1, name: "Ground", elevation: 0 }],
+            regions: new Set([region("Hall", 0, [L1]), region("Landing", 0, [L2]), region("Attic", 500, [L2]), region("Vault", 1000, [L2])]) };
+        const token = (x, level) => ({ x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, actor: { type: "character" } });
+        const others = [token(600, L2), token(1100, L2)];
+        const discovered = new Set(["Hall", "Landing", "Attic"]);
+        const upstairs = mine => {
+            const current = new Set([roomOfToken(mine)].filter(Boolean));
+            const viewer = { gm: false, eclipse: false, enforcing: true, rooms: current, lair: null, owns: doc => doc === mine };
+            const shading = F.roomShading({ regions: F.fogRegionsFor(scene, L2), current, discovered });
+            return { current: [...current], shading, others: others.map(doc => V.tokenShownTo(doc, viewer)) };
+        };
+        const seen = read => stableJson([read.shading.Attic, read.shading.Vault, read.others]);
+        let read = "no roomShading or no tokenShownTo";
+        if (typeof F.roomShading === "function" && typeof V.tokenShownTo === "function") {
+            const on = upstairs(token(100, L2)), below = upstairs(token(100, L1));
+            read = [seen(on), seen(below), on.current, on.shading.Landing, below.current, below.shading.Landing];
+        }
+        equal(stableJson(read),
+            stableJson([stableJson(["veil", "fog", ["hide", "hide"]]), stableJson(["veil", "fog", ["hide", "hide"]]), ["Landing"], "clear", ["Hall"], "veil"]),
+            "[the upper floor read with the token upstairs, then downstairs - each as [the found Attic's shading, the never-visited "
+                + "Vault's, the verdicts on a student in each]; the room the token stands in upstairs and the Landing's shading there; "
+                + "the same downstairs]");
+    }],
+
+    ["the switcher offers your floor and floors you have discovered, in floor order", async () => {
+        /*
+         * E12 C11, 11.10.2026; plan-E12 C11, the owner's items 4 and 5 of 09.10. A scene of three floors in
+         * plain objects, listed out of order (the top floor first) - a Ward on the ground floor, a Study on
+         * the first, a Loft on the second - with the player's token in the Ward and the Loft found. Read:
+         * the floors `floorOffer` gives the player, a viewer offered every floor (the GM's and the
+         * Mastermind's branch), this browser's own viewer (`floorViewer`, a GM here, so the same branch -
+         * whether `iAmTheMastermind` reaches it is the setting's, not read here), the floor a view
+         * resting elsewhere is sent to (`defaultFloor`); the player with no token on the scene; and the
+         * same floors on a scene with no room (E13's hall) and on a scene of one floor. The player's token is
+         * read off the scene's own tokens: this scene is in no world list, so a reading through
+         * `locateActor` finds none. Red before C11 by absence (no `floorOffer`); its mutants offer every
+         * floor, the scene's own order and the token through `locateActor`'s road. Whether v14 lets a
+         * player view a floor where they observe no token is LIVE-E12-02; scenario 66 G6 and G7 read the
+         * buttons and the move back on a player's browser.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const F1 = "SUITEFLOORONE000", F2 = "SUITEFLOORTWO000", F3 = "SUITEFLOORTHREE0";
+        const region = (name, levels, room = true) => ({ id: name, name, levels: new Set(levels), behaviors: [],
+            bounds: { x: 0, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= 0 && point.x <= 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const levels = [{ id: F3, name: "Second", elevation: 20 }, { id: F1, name: "Ground", elevation: 0 }, { id: F2, name: "First", elevation: 10 }];
+        const mine = { id: "suite-e12-c11-mine", x: 100, y: 100, width: 1, height: 1, level: F1, actor: { type: "character" } };
+        const scene = { id: "suite-e12-c11-stack", grid: { size: 100 }, levels, tokens: [mine],
+            regions: new Set([region("Ward", [F1]), region("Study", [F2]), region("Loft", [F3])]) };
+        mine.parent = scene;
+        const player = { everyFloor: false, owns: doc => doc === mine, discovered: new Set(["Loft"]) };
+        const stranger = { everyFloor: false, owns: () => false, discovered: new Set(["Loft"]) };
+        const every = { everyFloor: true, owns: () => false, discovered: new Set() };
+        const hall = { ...scene, id: "suite-e12-c11-hall", regions: new Set([region("Stage", [F1], false)]) };
+        const flat = { ...scene, id: "suite-e12-c11-flat", levels: [levels[1]] };
+        const read = typeof F.floorOffer === "function" ? [F.floorOffer(scene, player), F.defaultFloor(scene, player), F.floorOffer(scene, every),
+            F.floorOffer(scene, F.floorViewer(scene)), F.floorOffer(scene, stranger), F.defaultFloor(scene, stranger),
+            F.floorOffer(hall, every), F.floorOffer(flat, every)] : "no floorOffer";
+        equal(stableJson(read), stableJson([[F1, F3], F1, [F1, F2, F3], [F1, F2, F3], [F3], F3, [], []]),
+            "[the floors offered to a player standing on the ground floor who found the Loft, and the floor a view resting elsewhere is sent "
+                + "to; offered to a GM or the Mastermind; to this browser's own viewer (a GM); to a player with no token here, and their default; "
+                + "on a scene with no room; on a scene of one floor]");
+    }],
+
+    ["a student a player's console put in a room the rules refuse is no witness until they stand somewhere lawful", async () => {
+        /*
+         * E12 C12, 11.10.2026; plan-E12 3.4, audit Q5a, the owner's Q3 a. The room veto runs on the
+         * mover's browser and a revert skips it, so the discovery counted a student a console jumped
+         * into a locked room (scenario 66 I1 at E12 C0). The primary now judges each arrival again
+         * (movement.mjs `judgeArrival`) from the token's last lawful room. Here it is handed a plain
+         * token of a living student who is not the Mastermind, on a plain scene of a Hall whose
+         * neighbours are a locked Storage, another student's Bedroom and a Den, as `noteGmPosition` hands
+         * it each move: dropped in the Hall by this GM; jumped into the Storage by a player with the
+         * revert mark; stepped inside it by the player; walked back to the Hall; into the Bedroom, with no
+         * key; into the Den; placed in the Storage by this GM. Read after each: lawful, the room it counts
+         * in (`lawfulRoomOf`), the reason; whether `witnessesOf` counts it in the Storage through that
+         * room and through the plain one; and how many notices the GMs were sent of it. And a plain student
+         * with no free Move and no action left walks from the Hall into the Den with the movement cost on:
+         * lawful, for the judge asks no price (`pay: false`; what a crossing costs is the charge's). The
+         * clock out of a trial and an Eclipse, the cost on; restore() puts them back and the notices. Red
+         * before C12: no `judgeArrival`.
+         */
+        needs(env.primaryGm(), "the witness judge records and tells on the primary GM alone (`judgeArrival`, `tellUnlawful`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const trio = cast(3);
+        const actor = trio.find(a => !isMastermind(a)), owner = trio.find(a => a !== actor);
+        must(actor && owner, "no living student who is not the Mastermind - the lock binds nobody here, this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const player = game.users.find(u => !u.isGM)?.id ?? null;
+        const region = (name, x, flags = {}) => ({ id: name, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const NEXT = "drpgNeighbours";
+        const scene = { id: "suite-e12-c12-scene", name: "SUITE E12 C12", grid: { size: 100 }, regions: new Set([
+            region("Hall", 0, { [NEXT]: "Storage,Bedroom,Den" }), region("Storage", 500, { [M.ROOM_FLAGS.locked]: true, [NEXT]: "Hall" }),
+            region("Bedroom", 1000, { [ROOM_OWNER_FLAG]: owner.id, [NEXT]: "Hall" }), region("Den", 1500, { [NEXT]: "Hall" })]) };
+        const token = { id: "suite-e12-c12", name: actor.name, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene, actor };
+        const spent = { id: "suite-e12-c12-spent", name: "SUITE E12 C12 spent", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.freeMoveUsed ? true : undefined) };
+        const walker = { id: "suite-e12-c12-walker", name: spent.name, x: 100, y: 100, width: 1, height: 1, elevation: 0, parent: scene, actor: spent };
+        const walked = () => {
+            const dropped = M.judgeArrival(walker, game.user.id);
+            walker.x = 1600;
+            const walk = M.judgeArrival(walker, player);
+            return [dropped?.lawful ?? null, walk?.lawful ?? null, walk?.reason ?? null];
+        };
+        const told = () => game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-unlawful="suite-e12-c12"')).length;
+        const before = told();
+        const step = (x, y, userId, options) => {
+            Object.assign(token, { x, y });
+            const now = M.judgeArrival(token, userId, options);
+            return [now?.lawful ?? null, M.lawfulRoomOf(token), now?.reason ?? null];
+        };
+        const counted = roomOf => witnessesOf({ tokens: [token], room: "Storage", students: new Set([actor.id]), roomOf }).length;
+        const read = typeof M.judgeArrival === "function" ? [step(100, 100, game.user.id), step(600, 100, player, { revert: true }),
+            step(650, 150, player), [counted(M.lawfulRoomOf), counted(M.roomOfToken)], step(150, 100, player), step(1100, 100, player),
+            step(1600, 100, player), step(600, 100, game.user.id), walked()]
+            : "no judgeArrival";
+        await until(() => told() - before >= 2, 3000);
+        await settle();
+        const locked = game.i18n.localize("DRPG.Move.locked"), keyless = game.i18n.format("DRPG.Vault.keyMissing", { room: "Bedroom" });
+        equal(stableJson([read, told() - before]), stableJson([[[true, "Hall", null], [false, null, locked], [false, null, locked], [0, 1],
+            [true, "Hall", null], [false, null, keyless], [true, "Den", null], [true, "Storage", null], [true, true, null]], 2]),
+            "[[lawful, the room it counts in, the reason] dropped in the Hall by a GM, jumped into the locked Storage by a player with the "
+                + "revert mark, stepped inside it, [counted a witness in the Storage through the lawful room, through the plain one], walked "
+                + "back to the Hall, into another's Bedroom with no key, into the Den, placed in the Storage by a GM; [a spent student dropped in the Hall by a GM, its walk into the Den]; the notices the GMs were sent]");
+    }],
+
+    ["a student a send-back put in a locked room walks in on no incident there until a GM moves them", async () => {
+        /*
+         * E12 C12, 11.10.2026; plan-E12 3.4, the owner's Q3 a. A third party is somebody who walks into
+         * the room of a running incident (murder-rules.mjs `maybeThirdParty`), and the room was the
+         * token's wherever it got to. A send-back the bridge writes for a player (`handleSendback`) is a
+         * GM's write marked as our revert, so it carries `SENT_BACK` and is judged as the player's
+         * (`judgeArrival`). Here the killer and the victim are stood alone in a room and fight, the room
+         * is locked, and a third student who is not the Mastermind is put in it by an update marked as a
+         * player's send-back to a spot it never stood on: it walks in on nothing and stands unlawfully.
+         * A spot it never stood on in the last minute (E12 fix r2-H3, 11.10.2026): the room's centre was
+         * one, and the whole suite at 8109466 (k2) read the third lawful there - in the suite's order the
+         * third had stood on the Hall's centre 40.5 s before (a probe of the nineteen tests before this
+         * one in the suite's order, on the harness), and a send-back to where a token stood a moment ago is honoured as the judge
+         * left it there (`judgeArrival`). The code was right; the spot is now off the centre and checked.
+         * Then this GM moves it a pixel inside the room: lawful, and it walks in. Read: the incident's
+         * third after each, and the standing the primary read. Tokens, the lock and the clock put back;
+         * the incident by restore(). Red before C12: the third walked in on the send-back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the three are stood in rooms by their tokens");
+        needs(env.primaryGm(), "the witness judge and the third party are the primary GM's (`judgeArrival`, `maybeThirdParty`)");
+        const M = await import("./murder.mjs");
+        const MV = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const trio = cast(3);
+        const third = trio.find(a => !isMastermind(a));
+        must(third, "no student who is not the Mastermind to walk in - the lock binds nobody here, this would measure nothing");
+        const [killer, victim] = trio.filter(a => a !== third);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const scene = canvas?.scene;
+        const thirdToken = scene?.tokens?.find(t => t.actorId === third.id);
+        must(thirdToken, `${third.name} has no token on the scene on screen`);
+        const was = { x: thirdToken.x, y: thirdToken.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const { room, back } = await aloneTogether(killer, victim);
+        const pieces = R.roomRegions(scene, room).map(r => [r, r.getFlag(MODULE_ID, MV.ROOM_FLAGS.locked)]);
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            for (const [piece] of pieces) await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, true);
+            const centre = MV.positionIn(room, thirdToken);
+            const spot = { x: centre.x + 37, y: centre.y + 23 };
+            must(!MV.recentPositions(thirdToken.id).some(h => h.x === spot.x && h.y === spot.y),
+                `${third.name} stood on the spot a moment ago - the send-back would be honoured and this would measure nothing`);
+            await thirdToken.update(spot, { ...PLACE, [MV.REVERT]: true, [MV.SENT_BACK]: true });
+            await settle();
+            await wait(400);
+            const sentIn = [MV.roomOfToken(thirdToken), M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"];
+            await thirdToken.update({ x: spot.x + 1 }, PLACE);
+            await until(() => M.murderState()?.thirdId === third.id, 3000);
+            read = [sentIn, [M.murderState()?.thirdId ?? null, MV.standingOf?.(thirdToken)?.lawful ?? "no standingOf"]];
+        } finally {
+            for (const [piece, old] of pieces) {
+                if (old === undefined || old === null) await piece.unsetFlag(MODULE_ID, MV.ROOM_FLAGS.locked);
+                else await piece.setFlag(MODULE_ID, MV.ROOM_FLAGS.locked, old);
+            }
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(was, PLACE);
+            await back();
+        }
+        equal(stableJson(read), stableJson([[room, null, false], [third.id, true]]),
+            `[[the third's room, the incident's third, whether it stands lawfully] put in the locked ${room} by a player's send-back; `
+                + "[the incident's third, lawful] after this GM moved it a pixel]");
+    }],
+
+    ["a corner is not a door; a one-sided override counts both ways", async () => {
+        /*
+         * E12 C14, 11.10.2026; plan-E12 C14, audit S07-32. `neighbouringRooms` padded both boxes by
+         * a wall's thickness on both axes at once, so two rooms that met at a corner, or across one
+         * diagonally, were neighbours; and a room's Neighbours list (`drpgNeighbours`) was read off
+         * that room alone, so a Kitchen whose list named the Hall led to the Hall with no way back,
+         * and the Storage beside it, listing nothing, walked into it by its walls. Here a plain scene
+         * of the suite's own (no document: nothing is written) holds a Hall with a Study across the
+         * wall above it, a Nook touching its corner and a Closet across that corner; and a Storage
+         * with a Pantry across the wall below it and a Kitchen across the wall beside it, whose list
+         * names the Hall (the Pantry meets the Kitchen across a corner). Read: each room's neighbours,
+         * and whether a living student who is not the Mastermind may cross between them in daily
+         * life with the movement cost on and in an Eclipse that is no free placement - `crossingVerdict`
+         * as the veto and the witness judge ask it, with no price (`pay: false`). The clock and the
+         * setting are put back by restore(). Red before C14 (this test on the harness with the module
+         * of 7906034, 11.10.2026): the Hall's neighbours were the Closet, the Nook and the Study, the
+         * Nook's and the Closet's the Hall, the Storage's the Kitchen and the Pantry; the walks from the
+         * Hall to the Nook and the Closet and from the Storage and the Pantry to the Kitchen were let
+         * through and the one from the Hall to the Kitchen refused, in both. Not asked here: where a room the
+         * lists and the walls leave with no neighbour (the Nook, the Closet) may go - nowhere since E12 fix
+         * r2-H2, tier 2 "a room the lists or the walls leave with no neighbour reaches no room by crossing ...".
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        const room = (name, x, y, width, height, flags = {}) => ({ id: `suite-e12-c14-${name}`, name, behaviors: [], levels: new Set(),
+            bounds: { x, y, width, height },
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const scene = { id: "suite-e12-c14-scene", name: "SUITE E12 C14", grid: { size: 100 }, regions: new Set([
+            room("Hall", 1000, 1000, 400, 400), room("Study", 1000, 580, 400, 400), room("Nook", 800, 1400, 200, 200),
+            room("Closet", 1420, 1420, 200, 200), room("Storage", 3000, 0, 400, 400), room("Pantry", 3000, 420, 400, 400),
+            room("Kitchen", 3420, 0, 400, 400, { drpgNeighbours: "Hall" })]) };
+        const NAMES = ["Hall", "Study", "Nook", "Closet", "Storage", "Pantry", "Kitchen"];
+        const WALKS = [["Hall", "Study"], ["Hall", "Nook"], ["Hall", "Closet"], ["Storage", "Kitchen"], ["Pantry", "Kitchen"],
+            ["Hall", "Kitchen"], ["Kitchen", "Hall"]];
+        const walks = () => WALKS.map(([from, to]) => M.crossingVerdict(actor, from, to, scene, null, { pay: false }) === true);
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const neighbours = NAMES.map(name => M.neighbouringRooms(scene, name));
+        const daily = walks();
+        // An Eclipse that places freely asks no adjacency: the clock moves on a time of day only then.
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const OPEN = [true, false, false, false, false, true, true];
+        equal(stableJson([neighbours, daily, eclipse]),
+            stableJson([[["Kitchen", "Study"], ["Hall"], [], [], ["Pantry"], ["Storage"], ["Hall"]], OPEN, OPEN]),
+            `[the neighbours of ${NAMES.join(", ")}; whether ${actor.name} may cross ${WALKS.map(w => w.join(" > ")).join(", ")} in daily life; `
+                + "the same in an Eclipse]");
+    }],
+
+    ["Room Setup draws fixed columns with its counter on one line and one switch a category and keeps its footer still", async () => {
+        /*
+         * E12 C15, 11.10.2026; audit S08-26 and S12-23 (plan-E12 C15). Room Setup's look, read off the window as
+         * it is drawn. The harness lays nothing out, so what is read here is what the look is built from, and what
+         * it looks like is LIVE-E12-06. One reading for each of the audit's harms: the search-token counter's three
+         * buttons stood one under another after the count, a room's row about 128 px tall - the order of the
+         * counter's pieces and whether one row holds them all; a category could be marked a good and a bad place
+         * at once, in two columns of boxes - whether each category is one switch and no box is left to tick, and
+         * what three clicks of one switch say; the tables were laid out by their content (checkbox columns of
+         * 190-460 px, a Room column of 1030 px) - whether every table is the fixed kind and states one column a
+         * heading; the student headings broke over two and three lines - whether each carries its whole name as
+         * its title; the stash icons had no legend - the states the legend shows; Discover all and Hide all, in
+         * the footer on the Fog tab only, moved Apply when the tab was opened - the footer's buttons on each tab,
+         * and whether the Fog tab's own two tick and clear its boxes with the window still open. Nothing is
+         * applied: the window is cancelled, and Room Setup writes on Apply only - but for the first room's refill,
+         * pressed to read the counter again after its live recount; it acts at once on the search-token setting,
+         * which the runner's restore puts back.
+         */
+        needs(env.dialogs(), "the window is drawn and its controls pressed");
+        needs(world.atLeast("namedRooms", 1), "Room Setup lists the named regions of the scene on screen");
+        cast(1);
+        const V = await import("./vault.mjs");
+        const drawn = () => [...foundry.applications.instances.values()]
+            .filter(app => app.rendered && app.element?.classList?.contains("drpg-window-rooms"));
+        must(!drawn().length, "a Room Setup window is open already, and a second is not drawn");
+        const answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(() => "threw");
+        let reading = null;
+        try {
+            must(await until(() => drawn().length === 1, 6000), "Room Setup drew no window");
+            await settle();
+            const root = drawn()[0].element;
+            const footers = {};
+            for (const tab of root.querySelectorAll("[data-drpg-tab]")) {
+                tab.click();
+                footers[tab.dataset.drpgTab] = [...root.querySelectorAll("footer.form-footer button")]
+                    .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
+            }
+            const cell = root.querySelector(".drpg-token-cell");
+            const counter = () => {
+                const pieces = [...(cell?.querySelectorAll("[data-drpg-token-by], [data-drpg-tokens]") ?? [])];
+                const step = cell?.querySelector(".drpg-token-step") ?? null;
+                return [pieces.map(piece => piece.dataset.drpgTokenBy ?? "count"), Boolean(step) && pieces.every(piece => step.contains(piece))];
+            };
+            const drawnFirst = counter();
+            // And once more after the refill, which acts at once and is counted again in place (`recountTokenCells`):
+            // the row is drawn by the window and rewritten by the count, and the count must leave it one row.
+            cell?.querySelector('[data-drpg-token-by="max"]')?.click();
+            await settle();
+            const recounted = counter();
+            const boxes = [...root.querySelectorAll('input[name^="fav:"], input[name^="hin:"]')];
+            const fav = boxes.find(box => box.name.startsWith("fav:")) ?? null;
+            const hin = fav ? root.querySelector(`[name="${CSS.escape(fav.name.replace(/^fav:/, "hin:"))}"]`) : null;
+            const toggle = fav?.parentElement?.querySelector("[data-drpg-place]") ?? null;
+            const state = () => [fav.checked && "good", hin.checked && "bad"].filter(Boolean).join("+") || "none";
+            let clicks = null;
+            if (toggle && hin) {
+                const was = state();
+                clicks = [];
+                for (let i = 0; i < 3; i++) {
+                    toggle.click();
+                    clicks.push(state());
+                }
+                clicks = [[...clicks].sort(), clicks[2] === was];
+            }
+            const tables = [...root.querySelectorAll("table.drpg-vault-table")];
+            const heads = [...root.querySelectorAll('[data-drpg-panel="stashes"] thead th, [data-drpg-panel="fog"] thead th')]
+                .filter(th => th.cellIndex > 0);
+            const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
+            const press = which => {
+                const button = root.querySelector(`[data-drpg-fog-all="${which}"]`);
+                if (!button) return null;
+                button.click();
+                return fogBoxes().map(box => box.checked);
+            };
+            const discovered = press("discover"), hidden = press("hide");
+            reading = {
+                footers,
+                counter: [drawnFirst, recounted],
+                place: [root.querySelectorAll("[data-drpg-place]").length * 2 === boxes.length && boxes.length > 0,
+                    boxes.filter(box => !box.hidden).length, clicks],
+                tables: tables.map(table => table.classList.contains("drpg-room-setup-table")
+                    && table.querySelectorAll("col").length === table.querySelectorAll("thead th").length),
+                heads: heads.length > 0 && heads.every(th => th.title === th.textContent.trim()),
+                legend: [...root.querySelectorAll("[data-drpg-stash-legend] [data-drpg-stash-state]")].map(entry => entry.dataset.drpgStashState),
+                fog: [fogBoxes().length > 0, discovered?.every(Boolean) ?? null, hidden?.every(on => !on) ?? null, drawn().length === 1]
+            };
+        } finally {
+            for (const app of drawn()) app.element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+            for (const app of drawn()) await app.close();
+        }
+        /* Every tab the window names, read from its one list (vault.mjs `ROOM_SETUP_TABS`): this listed the seven
+           tabs by hand, and E13 C5's Scenes tab, Apply and Cancel like the rest, failed it at k4 on 45e6bcf as a
+           footer that differed (E13 fix r1-G1, 12.10.2026). A footer that moves on any tab still fails it. */
+        const both = ["ok", "cancel"];
+        equal(stableJson(reading), stableJson({
+            footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, both])),
+            counter: [[["-1", "count", "1", "max"], true], [["-1", "count", "1", "max"], true]],
+            place: [true, 0, [["bad", "good", "none"], true]],
+            tables: Array(7).fill(true),
+            heads: true,
+            legend: ["", "open", "hidden"],
+            fog: [true, true, true, true]
+        }), "Room Setup as drawn: the footer's buttons on each tab; the counter's pieces in order and whether one row holds them, drawn and after a refill; "
+            + "whether each category is one switch with no box to tick, and three clicks of one (the states, and back where it began); "
+            + "whether each table is fixed with a column a heading; whether each student heading carries the whole name; the legend's states; "
+            + "and the Fog tab's own Discover all and Hide all (boxes there, all ticked, all cleared, the window still open)");
+    }],
+
+    ["a room's piece drawn and marked after the room was set up reads and writes as the room and a passage of its name takes none of it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-1, EARLY-C2a-1, goal-r1 N2 and the security review's
+         * note on `setRoomFlag`. E12 C2a made every writer write every region of a room's name, while every
+         * rule reader but the owner, the lock and the seal read the LAST room piece (`regionsByName`). The
+         * review measured on b5baaf5 what a second piece drawn and marked after a Kitchen was set up does:
+         * its stash, its bedroom, its rest, its table gone (`stashesIn` 1 -> 0, `roomAllows(long)` true ->
+         * false, `sharedRooms` [] -> [Kitchen]), and the next stash edit wrote the new piece's empty list
+         * over the old one; a Teleport of the name took the room mark and the stash list with the rest.
+         * Here, on a scene of the suite's own that nobody views: a Kitchen set up in one piece through the
+         * module's writers (a bedroom, its owner's stash, a long rest, a table, a favour, a hindrance, a
+         * description), then a second piece and a Teleport of the same name drawn, the name marked a room
+         * through Room Setup's writer of the mark, and another student given a stash there. Read: every
+         * room reader before and after the mark, the stashes after the edit, and the flags the Teleport
+         * carries. Red before this commit on the readers after the mark.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const [favoured, hindered] = Object.keys(ITEM_CATEGORIES).filter(key => key !== "truthBullet");
+        must(favoured && hindered && owner && other, "two students and two categories - this would measure nothing");
+        const K = "SUITE r1-G1 Kitchen", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const read = scene => [V.stashesIn(K, scene).map(entry => entry.actorId), V.stashRoomsFor(owner, scene).map(entry => entry.room),
+            V.primaryStashRoom(owner, scene), V.vaultRoomOwnedBy(owner, scene), V.vaultOwnerOf(K, scene), V.roomTable(K, scene),
+            V.roomDescription(K, scene), V.roomFavours(K, scene), V.roomHinders(K, scene), Rest.roomAllows(K, "long", scene),
+            Rest.restRooms("long", scene), V.sharedRooms(scene), V.allVaults(scene).map(entry => [entry.room, entry.owner?.id, entry.bedroom])];
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece drawn later", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", favours: [favoured], hinders: [hindered], description: "SUITE r1-G1 tiles", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            const before = read(scene);
+            const [, lift] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(2000), behaviors: [] },
+                { name: K, shapes: box(1000), behaviors: [{ type: "teleportToken", name: "Up", system: { destination: null } }] }]);
+            await R.setRoomFlag(scene, K, R.ROOM_FLAG, true);
+            const marked = read(scene);
+            await V.setStash(K, other.id, { concealed: false, scene });
+            reading = [before, marked, V.stashesIn(K, scene).map(entry => entry.actorId).sort(),
+                Object.keys(scene.regions.get(lift.id)?.flags?.[MODULE_ID] ?? {}), R.roomRegions(scene, K).length];
+        } finally {
+            await scene?.delete();
+        }
+        const set = [[owner.id], [K], K, K, owner.id, "SUITE r1-G1 table", "SUITE r1-G1 tiles", [favoured], [hindered], true, [K], [], [[K, owner.id, true]]];
+        equal(stableJson(reading), stableJson([set, set, [owner.id, other.id].sort(), [], 2]),
+            `a Kitchen set up in one piece, then a second piece and a Teleport of its name drawn and the name marked a room ([every room reader before the mark: `
+            + "the stashes, the owner's stash rooms, primary stash room and bedroom, the bedroom's owner, the table, the description, the favours, the hindrances, "
+            + "a long rest, the long-rest rooms, the shared rooms, every stash; the same after the mark; the stashes after another student's was added; "
+            + "the Teleport's flags; the room's pieces])");
+    }],
+
+    ["Room Setup shows a room of several pieces as one and writes only the pieces that can be rooms and counts only the rooms it wrote", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 EARLY-C2a-1, EARLY-C2a-2 and EARLY-C4-1. Room Setup read
+         * each row off the LAST region of its name and wrote the row to every region of it, so with a
+         * Teleport of a bedroom's name drawn last, a GM who ticked one box and pressed Apply wrote the
+         * Teleport's empty owner over the bedroom's; it showed a room locked on one piece and sealed on
+         * another as neither, while the rules read it both; and it counted a room changed for a stash cell
+         * of a name no room carries, where nothing was written. Here, on a scene of the suite's own viewed
+         * for the window: a Kitchen set up in one piece (a bedroom, its owner's stash, a long rest, locked),
+         * a second piece marked and sealed, a Teleport of the name last, and a Teleport "Closet" alone. The
+         * window is answered as the C4 test answers it: read the Kitchen's owner, long rest, lock, seal and
+         * owner's stash cell, tick its short rest, give another student an open stash in the Closet, Apply.
+         * Read: the cells, the owner on each piece and through the reader, the short rest, what each
+         * Teleport carries, and the count Apply answers. Red before this commit on the cells. In a GM-store
+         * world of the suite's own, as the C4 test; the bedroom key Apply's sweep hands the owner is taken
+         * back here.
+         */
+        const [owner, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const Rest = await import("./rest.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const { SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const home = canvas?.scene ?? null;
+        const K = "SUITE r1-G1 Kitchen", CLOSET = "SUITE r1-G1 Closet", box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === K).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g1-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            try {
+                scene = await Scene.create({ name: "SUITE E12 fix r1-G1 Room Setup", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const [one] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await V.setVaultRoom(K, { owner: owner.id, scene });
+                await Rest.setRestRoom(K, { long: true, scene });
+                await V.setStash(K, owner.id, { concealed: false, scene });
+                await one.update({ [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: true });
+                const [two, lift, closet] = await scene.createEmbeddedDocuments("Region", [
+                    { name: K, shapes: box(2000), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [SEARCH_FLAGS.sealed]: true } }, behaviors: [] },
+                    { name: K, shapes: box(1000), behaviors: up }, { name: CLOSET, shapes: box(3000), behaviors: up }]);
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - Room Setup would open on another");
+                let cells = null;
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [bedroom, long, lock, seal, stash, short, closetStash] = [`owner:${K}`, `long:${K}`, `locked:${K}`, `nosearch:${K}`,
+                        `stash:${K}:${owner.id}`, `short:${K}`, `stash:${CLOSET}:${other.id}`].map(field);
+                    must(bedroom && long && lock && seal && stash && short && closetStash, `Room Setup drew no owner, rest, lock, seal or stash cell for "${K}" or no stash cell for "${CLOSET}" - the answer would change nothing`);
+                    cells = [bedroom.value, long.checked, lock.checked, seal.checked, stash.value];
+                    short.checked = true;
+                    closetStash.value = "open";
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const answered = await V.openRoomSetupDialog();
+                await settle();
+                const flagsOf = region => Object.keys(scene.regions.get(region.id)?.flags?.[MODULE_ID] ?? {}).sort();
+                reading = [cells, [one, two].map(piece => scene.regions.get(piece.id)?.getFlag(MODULE_ID, V.VAULT_FLAGS.owner) ?? null),
+                    V.vaultOwnerOf(K, scene), Rest.roomAllows(K, "short", scene), Rest.roomAllows(K, "long", scene), flagsOf(lift), flagsOf(closet), answered];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                const keys = keyFor(owner);
+                if (keys.length) await owner.deleteEmbeddedDocuments("Item", keys);
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[owner.id, true, true, true, "open"], [owner.id, owner.id], owner.id, true, true, [], [], 1]),
+            `Room Setup over a Kitchen of two pieces with a Teleport of its name last, and a Teleport "Closet" alone ([the Kitchen's cells: owner, long rest, `
+            + "locked, sealed, the owner's stash; the owner on each piece after Apply; the owner through the reader; a short and a long rest; the flags "
+            + "on the Kitchen's Teleport and on the Closet; the rooms Apply says it changed])");
+    }],
+
+    ["a piece renamed out of a room of several takes none of the room with it and the GMs are told while a room's only piece renamed keeps it", async () => {
+        /*
+         * E12 fix r1-G1, 11.10.2026; review round 1 CR1-3. Every room writer writes every piece of the
+         * name, so each piece carries a whole copy of the room; the review measured on b5baaf5 that
+         * renaming one piece of a two-piece Kitchen to "Pantry" left `vaultOwnerOf("Pantry")` the
+         * Kitchen's owner (a second bedroom, shut to the rest, and a key at the next Apply). A GM's
+         * rename of such a piece now takes the room's flags off it in the same update (vault.mjs
+         * `clearSplitPiece`, in `preUpdateRegion`) and the GMs are told; a room's only piece renamed is
+         * the room's own rename, E12 C8's, and keeps them. Here, on a scene of the suite's own that
+         * nobody views: a Kitchen of two marked pieces set up through the module's writers (a bedroom,
+         * its owner's stash, a long rest, a table) and locked and sealed on both, and a Den of one piece
+         * with the same owner's stash. One Kitchen piece is renamed Pantry, the Den renamed Study.
+         * Read: the Pantry's owner, stashes, rest, table, lock and seal and whether it is a room; the
+         * Kitchen's owner, stashes, rest and lock; the Study's stashes; and the GM whispers that name
+         * the Pantry. Red before this commit on the Pantry's owner. Since E12 fix r2-H2 (correctness review r2
+         * R2-1, security review r2 SEC2-6) both Kitchen pieces also carry a Neighbours list, and the Pantry's
+         * piece is read for it: red before that fix, the Pantry kept the Kitchen's list.
+         */
+        const [owner] = cast(1);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const Rest = await import("./rest.mjs");
+        const { SearchTokens, SEARCH_FLAGS } = await import("./search-tokens.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const K = "SUITE r1-G1 Kitchen", P = "SUITE r1-G1 Pantry", DEN = "SUITE r1-G1 Den", STUDY = "SUITE r1-G1 Study", HALL = "SUITE r1-G1 Hall";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const from = game.messages.size;
+        const told = () => game.messages.contents.slice(from).filter(m => String(contentOf(m) ?? "").includes(P)).length;
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G1 a piece renamed", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [one, two, den] = await scene.createEmbeddedDocuments("Region", [{ name: K, shapes: box(0), flags: mark, behaviors: [] },
+                { name: K, shapes: box(2000), flags: mark, behaviors: [] }, { name: DEN, shapes: box(3000), flags: mark, behaviors: [] }]);
+            await V.setVaultRoom(K, { owner: owner.id, table: "SUITE r1-G1 table", scene });
+            await Rest.setRestRoom(K, { long: true, scene });
+            await V.setStash(K, owner.id, { concealed: false, scene });
+            await V.setStash(DEN, owner.id, { concealed: false, scene });
+            for (const piece of [one, two]) await piece.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true, [`flags.${MODULE_ID}.${SEARCH_FLAGS.sealed}`]: true,
+                [`flags.${MODULE_ID}.${M.ROOM_FLAGS.neighbours}`]: HALL });
+            must(V.vaultOwnerOf(K, scene) === owner.id && V.stashesIn(DEN, scene).length === 1, "the Kitchen has no owner or the Den no stash before the renames - this would measure nothing");
+            await two.update({ name: P });
+            await den.update({ name: STUDY });
+            await until(() => told() > 0);
+            reading = [V.vaultOwnerOf(P, scene), V.stashesIn(P, scene).length, Rest.roomAllows(P, "long", scene), V.roomTable(P, scene),
+                M.isLocked(scene, P), SearchTokens.sealed(P, scene), R.isRoom(scene.regions.get(two.id)),
+                V.vaultOwnerOf(K, scene), V.stashesIn(K, scene).length, Rest.roomAllows(K, "long", scene), M.isLocked(scene, K),
+                V.stashesIn(STUDY, scene).length, told(),
+                [two, one].map(piece => scene.regions.get(piece.id)?.getFlag(MODULE_ID, M.ROOM_FLAGS.neighbours) ?? null)];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(reading), stableJson([null, 0, false, null, false, false, true, owner.id, 1, true, true, 1, 1, [null, HALL]]),
+            "a piece of a two-piece Kitchen renamed Pantry, and a one-piece Den renamed Study ([the Pantry's owner, stashes, long rest, table, lock, seal, "
+            + "whether it is a room; the Kitchen's owner, stashes, long rest, lock; the Study's stashes; the GM whispers naming the Pantry; "
+            + "the Neighbours list on the Pantry's piece and on the Kitchen's other])");
+    }],
+
+    ["the Case dashboard's Final Truth goes to the room picked on the scene picked whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-1 and CR1-6. The dashboard's Final Truth
+         * select listed the rooms of the scene on the GM's screen (`allRooms(workingScene())`) and Save
+         * handed the placement a room name only, which E12 C5 looks up on the school first
+         * (`sceneOfRoom`): a GM viewing the Annex who picked its Kitchen had the Final Truth placed in
+         * the school's Kitchen, and a room only the school has was not offered. Here a scene of the
+         * suite's own holds a room named as one of the school's; with the camera on it the dashboard
+         * is opened, that scene's room of the name is picked and Save pressed. Read: the scene the new
+         * Final Truth stands on, and whether every school room was offered. Red on 8eb3801: placed on
+         * the school, and the school's other rooms missing from the list.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        must(ROOM, "no scene holds a room - the school has nothing to place a Final Truth in");
+        let annex = null, reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-final-${foundry.utils.randomID(8)}`, async () => {
+            let placed = [];
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 the Annex", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's Annex - this would measure nothing");
+                const before = new Set(MM.finalRemnants().map(f => f.token.id));
+                let offered = [];
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const options = [...element.querySelectorAll('select[name="finalRoom"] option')];
+                    offered = options.map(o => o.value);
+                    const pick = options.find(o => o.value === ROOM && (o.dataset.scene ?? annex.id) === annex.id);
+                    if (pick) pick.selected = true;
+                    return Boolean(pick);
+                }, () => openInvestigationDashboard());
+                await settle();
+                placed = MM.finalRemnants().filter(f => !before.has(f.token.id));
+                reading = [placed.map(f => f.token.parent?.id ?? null), R.roomNames(school).every(r => offered.includes(r))];
+            } finally {
+                for (const f of placed) if (f.token.parent?.tokens?.has(f.token.id)) await f.token.delete();
+                await home?.view();
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[annex.id], true]),
+            `the Case dashboard saved with the camera on a scene of the suite's own and its "${ROOM}" picked ([the scenes the new Final Truth stands on, `
+            + "whether every room of the school was offered])");
+    }],
+
+    ["a Trap plant ruled with another scene on screen is found by a Search in the project's room", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-2 and CR1-6. The plant window listed the
+         * rooms of the scene on the GM's screen and keyed the plant on it, while a Search takes a
+         * plant on the scene its searcher stands on (action-rolls.mjs `searchDraw`): a GM ruling a
+         * Trap whose project is in the school's room, with another map holding a room of that name
+         * on screen, found that room chosen and planted it there, and the Search in the school's
+         * room never found it. Here a project is made in a school room and a scene of the suite's
+         * own holds a room of the same name; with the camera on it the plant window is answered as
+         * drawn (the room it chose) with an item's name, and a Search's take is asked on the school.
+         * Read: the plant's name the take gets. Red on 8eb3801: nothing.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const ROOM = school ? R.roomNames(school)[0] ?? null : null;
+        const ITEM = "SUITE E12 fix r1-G2 a planted kit";
+        must(ROOM, "no scene holds a room - a project has nowhere to be");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-plant-${foundry.utils.randomID(8)}`, async () => {
+            let annex = null, id = null;
+            try {
+                annex = await Scene.create({ name: "SUITE E12 fix r1-G2 a room of the project's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await annex.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                id = (await P.createProject({ name: "SUITE E12 fix r1-G2 a Trap", target: 6, room: ROOM }))?.id ?? null;
+                must(id, "could not create a project - this would measure nothing");
+                await annex.view();
+                await settle();
+                must(canvas?.scene === annex, "the camera did not move to the suite's scene - this would measure nothing");
+                await withFormAnswered((element, n) => {
+                    if (n > 0) return false;
+                    const name = element.querySelector('input[name="name"]');
+                    if (name) name.value = ITEM;
+                    return Boolean(name);
+                }, () => T.openPlantDialog(id));
+                const taken = await T.takePlant(ROOM, school.id);
+                reading = [taken?.name ?? null];
+            } finally {
+                if (annex) await T.takePlant(ROOM, annex.id);
+                await home?.view();
+                if (id) await P.deleteProject(id);
+                await annex?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([ITEM]),
+            `a plant ruled with the camera on a scene of the suite's own holding a "${ROOM}", taken by a Search in the school's "${ROOM}" ([the plant's name])`);
+    }],
+
+    ["Season setup names a region nobody decided on a scene that is not on screen", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-4 and CR1-6. The Pre-season row "every named
+         * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
+         * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
+         * suite's own holds one named region nobody marked, and the camera stays where it is; the
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         */
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
+        const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
+        const home = canvas?.scene ?? null;
+        let floor = null, reading = null;
+        try {
+            floor = await Scene.create({ name: "SUITE E12 fix r1-G2 a floor not on screen", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
+            await settle();
+            must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
+            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const row = [...(drawn[0]?.querySelectorAll(".drpg-setup-step") ?? [])].find(li => li.querySelector("strong")?.textContent === title);
+            must(row, "the checklist drew no row for the named regions - this would measure nothing");
+            reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
+        } finally {
+            await floor?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
+    }],
+
+    ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
+         * of the scene on the GM's screen, and Apply writes the select whenever it differs from the
+         * store: opened with a map on screen that has no room of the lair's name, the select read "-"
+         * and Apply cleared the lair. Here, in a GM-store world of the suite's own, a student is the
+         * Mastermind with a school room for a lair, then a lair no scene has; each time the window is
+         * opened with the camera on a scene of the suite's own (one room of another name) and applied
+         * as drawn. Read: the lair option the window chose (its label: a school room by its name, a
+         * lair on no scene marked so) and the lair after each. Red on 8eb3801: "-" chosen and the
+         * lair cleared both times.
+         */
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const MM = await import("./mastermind.mjs");
+        const [student] = cast(1);
+        const home = canvas?.scene ?? null;
+        const school = R.homeScene();
+        const LAIR = school ? R.roomNames(school)[0] ?? null : null, GONE = "SUITE E12 fix r1-G2 a lair on no scene";
+        must(LAIR, "no scene holds a room - there is no lair to keep");
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r1g2-lair-${foundry.utils.randomID(8)}`, async () => {
+            let other = null;
+            try {
+                other = await Scene.create({ name: "SUITE E12 fix r1-G2 a scene with no lair", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await other.createEmbeddedDocuments("Region", [{ name: "SUITE E12 fix r1-G2 a hall", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await other.view();
+                await settle();
+                must(canvas?.scene === other, "the camera did not move to the suite's scene - this would measure nothing");
+                reading = [];
+                for (const lair of [LAIR, GONE]) {
+                    await S.mastermindStore.patch("record", { actorId: student.id, room: lair });
+                    must(MM.mastermindActor()?.id === student.id && MM.mastermindLair() === lair, `${student.name} is not the Mastermind with "${lair}" for a lair - this would measure nothing`);
+                    let chosen = null;
+                    await withFormAnswered((element, n) => {
+                        chosen = n === 0 ? element.querySelector('select[name="lair"]')?.selectedOptions?.[0]?.textContent ?? null : chosen;
+                        return n === 0;
+                    }, () => MM.openMastermindDialog());
+                    await settle();
+                    reading.push([chosen, MM.mastermindLair()]);
+                }
+            } finally {
+                await home?.view();
+                await other?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([[LAIR, LAIR], [game.i18n.format("DRPG.Project.roomElsewhere", { room: GONE }), GONE]]),
+            "the Mastermind window applied as drawn with the camera on a scene with no room of the lair's name ([the lair option it chose, the lair after it], "
+            + "for a school room and for a room on no scene)");
+    }],
+
+    ["the stash window lists a thing once when its owner keeps stashes of one name on two scenes", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-2. A stashed thing carries its room's
+         * name and no scene, and since E12 C5 the stash window lists every place scene's stashes, each
+         * with what lies in it (`stashItemsIn` on its scene): a student with a "Storage" stash on two
+         * scenes had each thing in it listed twice. Here two scenes of the suite's own each hold a
+         * room of one name with the student's stash, and the student a thing stashed there. Read: how
+         * often the window names it. Red on 8eb3801: twice.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const [owner] = cast(1);
+        const STORE = "SUITE E12 fix r1-G2 Storage", ITEM = "SUITE E12 fix r1-G2 a stashed lamp";
+        const scenes = [];
+        let thing = null, reading = null;
+        try {
+            for (const name of ["SUITE E12 fix r1-G2 Floor 1", "SUITE E12 fix r1-G2 Floor 2"]) {
+                const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                scenes.push(scene);
+                await scene.createEmbeddedDocuments("Region", [{ name: STORE, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: false }] } }, behaviors: [] }]);
+            }
+            [thing] = await owner.createEmbeddedDocuments("Item", [moduleItemData(ITEM, { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: STORE })],
+                { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+            await settle();
+            must(scenes.every(scene => V.stashItemsIn(owner, STORE, scene).some(i => i.id === thing?.id)),
+                `${owner.name}'s stashed thing does not read as lying in "${STORE}" on both scenes - this would measure nothing`);
+            const drawn = await withFormAnswered(() => false, () => V.openVaultInspector());
+            reading = [(drawn[0]?.textContent ?? "").split(ITEM).length - 1];
+        } finally {
+            if (thing && owner.items.has(thing.id)) await thing.delete({ [AUDIT_ASIDE]: true });
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([1]), `the stash window with ${owner.name}'s "${STORE}" stash on two scenes and one thing in it ([how often it names the thing])`);
+    }],
+
+    ["the console's room setters take the room's scene and a placement that names no scene is told", async () => {
+        /*
+         * E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4. Since E12 C6 nothing defaults to the
+         * scene on screen, and `game.drpg`'s setters returned null in silence to a console or a macro
+         * that named no scene (scenarios 10 and 72 fell into it). The room setters take the room's
+         * scene now (`sceneOfRoom`, as `tokensLeft` does), and a placement, which names a point and no
+         * room to look a scene up by, warns the GM. Here a scene of the suite's own holds a room no
+         * other scene has; `game.drpg.setStash` is called for it with no scene, and
+         * `game.drpg.placeRemnant` with a point and no scene. Read: whether the stash was written, what
+         * the placement answered and how many warnings name it. Red on 8eb3801: no stash, no warning.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const [owner] = cast(1);
+        const LARDER = "SUITE E12 fix r1-G2 Larder";
+        const warned = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        let scene = null, reading = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G2 the larder's scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: LARDER, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await settle();
+            must(R.sceneOfRoom(LARDER) === scene, `"${LARDER}" is not found on the suite's scene - this would measure nothing`);
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message ?? "")); return own?.value?.call(ui.notifications, message, ...rest); };
+            await game.drpg.setStash(LARDER, owner.id, { concealed: false });
+            const placed = await game.drpg.placeRemnant({ x: 100, y: 100, room: LARDER, type: "prep", visibility: "obvious" });
+            reading = [V.stashesIn(LARDER, scene).some(entry => entry.actorId === owner.id), placed ?? null,
+                warned.filter(m => m.includes("placeRemnant")).length];
+        } finally {
+            if (own) Object.defineProperty(ui.notifications, "warn", own);
+            else delete ui.notifications.warn;
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([true, null, 1]),
+            `game.drpg.setStash for "${LARDER}" and game.drpg.placeRemnant at a point, both with no scene ([the stash written on the room's scene, what the placement answered, the warnings naming it])`);
+    }],
+
+    ["a project is reached only on its own scene and not through a room of its name on another", async () => {
+        /*
+         * E12 fix r1-G3, 11.10.2026; review round 1 SEC-1. The lists a character builds where they
+         * stand (projects.mjs `projectsListedIn`, `sabotageTargetsIn`) and the GM's guards of a Work,
+         * a Sabotage and a trait ruling for a project (bridge-guards.mjs `guardProjectRoom`,
+         * `guardSabotageRoom`, `projectWithinReach`) compared the project's room by its name, so a
+         * character standing in a room of that name on another scene was offered the project, and its
+         * progress and sabotage passed. Here a connected player's character stands in a room on its
+         * scene, and a scene of the suite's own holds a room of the same name. Two public projects in
+         * that room: one stands on the suite's scene (its token put there, as a project placed by
+         * `sceneOfRoom` on another floor stands), one on the character's own. Read for each, as that
+         * player: whether the Work list and the Sabotage list offer it (the lists took the room's name
+         * until this fix, its place since), whether a trait ruling for it is refused as out of reach,
+         * the GM's answer to +1 progress naming a roll the record says came to 13 and the bar after,
+         * then to a Sabotage naming one at 13 and the freeze. Red on 0e49709: the project on the other
+         * scene is listed, the ruling passes its reach and both requests pass.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const F = await projectPackets(player, actor);
+        const OUT_OF_REACH = "that project is not one the character can work on or break here";
+        let other = null, reading = null;
+        try {
+            other = await Scene.create({ name: "SUITE E12 fix r1-G3 a floor with a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const away = await F.project(where.room), here = await F.project(where.room);
+            for (const [id, scene] of [[away, other], [here, where.scene]]) {
+                if (PM.projectTokenOf(id)?.parent?.id !== scene.id) {
+                    await PM.removeProjectToken(id);
+                    await PM.placeProjectToken(id, { scene });
+                }
+                must(PM.projectTokenOf(id)?.parent?.id === scene.id, `a project's token is not on ${scene.name} - this would measure nothing`);
+            }
+            const at = F.P.projectScene ? where : where.room;
+            const lists = id => [F.P.projectsListedIn(at, player).some(p => p.id === id), F.P.sabotageTargetsIn(at, { user: player }).some(p => p.id === id)];
+            const ruling = async id => (await G.guardTraitRuling(player, { actorId: actor.id, kind: "project", key: id, variant: null }, {})) === OUT_OF_REACH;
+            reading = [];
+            for (const id of [away, here]) reading.push([...lists(id), await ruling(id)]);
+            for (const [n, id] of [away, here].entries()) {
+                const worked = await F.rolled(13);
+                reading[n].push(await F.ask("project.progress", { countdownId: id, amount: 1, rollId: worked.id }), F.progress(id));
+                const broke = await F.rolled(13, "sabotage");
+                reading[n].push(await F.ask("project.sabotage", { targetId: id, difficulty: 8, rollId: broke.id, penalty: 0, relief: 0 }), F.P.isFrozen(id));
+            }
+        } finally {
+            await F.putBack();
+            await other?.delete();
+            await settle();
+        }
+        equal(stableJson(reading), stableJson([[false, false, true, "notThere", 0, "notThere", false], [true, true, false, null, 1, null, true]]),
+            `a project in "${where.room}" on another scene, then one on the character's own ([Work list, Sabotage list, ruling out of reach, progress code, bar, sabotage code, frozen])`);
+    }],
+
+    ["who stands in a room is counted on the scene the character stands on whatever scene is on screen", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1 (re-sized to major by the security
+         * review). `occupantsOf` counted the canvas's tokens, so what a Listen heard (action-rolls.mjs
+         * `performListen`, its Reroll's lines in reroll.mjs `heardLines`) and who received a Monocub's
+         * dice (private-rolls.mjs `sameRoomAudience`) were read on whichever map the browser had on
+         * screen: a GM looking at another scene counted a room of the same name there. Here a scene
+         * of the suite's own holds a room named as the student's, with another student's second
+         * token standing in it; the student has no token on it. Read with the camera on the
+         * student's scene and then on the suite's: who `occupantsOf` counts, the names a named
+         * Listen's line hears there, and the users a Monocub's roll would reach. Red before this
+         * fix: with the camera on the suite's scene the other student is counted, heard and reached.
+         */
+        const pool = cast(3), student = pool[0];
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const PR = await import("./private-rolls.mjs");
+        const { heardLines } = await import("./reroll.mjs");
+        const here = Mv.locateActor(student);
+        const home = canvas?.scene ?? null;
+        must(here?.room && here.scene === home, `${student.name} stands in no room of the scene on screen (${here?.scene?.name ?? "none"}) - the two readings would not differ by the camera`);
+        const other = pool.slice(1).find(a => !Mv.othersInNamedRoom(here.room, student, home).some(b => b.id === a.id)) ?? null;
+        must(other, `every other student of the cast stands in "${here.room}" - the other scene's token would not show`);
+        const reading = async () => [Mv.occupantsOf(here.room, student).map(a => a.id).sort(),
+            (await heardLines(student, [{ listen: { room: here.room, target: here.room, total: 99, isCritical: false } }])).some(line => line.includes(other.name)),
+            [...(typeof PR.sameRoomAudience === "function" ? PR.sameRoomAudience(student) : [])].sort()];
+        let read = null, first = null, scene = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: other.id, actorLink: true, name: other.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await settle();
+            must(Mv.locateActor(student)?.scene === home && Mv.othersInNamedRoom(here.room, null, scene).some(a => a.id === other.id),
+                `${student.name} is not placed on the scene on screen, or ${other.name}'s token on the suite's scene stands in no "${here.room}" - this would measure nothing`);
+            first = await reading();
+            await scene.view();
+            await settle();
+            must(canvas?.scene === scene, "the camera did not move to the suite's scene - this would measure nothing");
+            read = [first, await reading()];
+        } finally {
+            await home?.view();
+            await scene?.delete();
+            await settle();
+        }
+        ok(!first[0].includes(other.id) && first[1] === false, `${other.name} was counted in "${here.room}" with the camera on ${student.name}'s own scene`);
+        equal(stableJson(read), stableJson([first, first]),
+            `who stands in "${here.room}" beside ${student.name} (actor ids), whether a named Listen there hears ${other.name}, and a Monocub's dice audience (user ids), `
+            + "with the camera on the student's scene and then on a scene of the suite's own whose room of that name holds another student");
+    }],
+
+    ["a trap that waits for somebody alone counts the room on the scene the crossing happened on", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-1. traps.mjs `isAlone` counted the room a
+         * crossing named on the scene `locateActor` chose - the school's, when the character has a
+         * token there too - so a student who walked alone into a room of another scene was counted
+         * with whoever stood in the school's room of that name, and an "alone" trap there stayed
+         * quiet. Here a student with a player stands with another in a room of the scene on screen,
+         * and has a second token, alone, in a room of that name on a scene of the suite's own; a
+         * third student builds an "alone" trap in that room. Three crossings: on the scene on screen
+         * as the GM's own browser raises it (the other is there: quiet), on the suite's scene as the
+         * GM's own browser raises it (the token that crossed), and on the suite's scene as the
+         * player's browser relays it (judged on the primary, its `sceneId` a hint among the
+         * student's own tokens). The trap is re-armed after it speaks. Red before this fix: quiet
+         * on all three.
+         *
+         * THE TRAP STANDS ON THE SUITE'S SCENE (E12 fix k3-K1, 12.10.2026; k3's red 1). E12 fix r2-S1
+         * made a trap spring only in its room on its own scene (`armedIn`), and this test's trap,
+         * built with no scene, stands on the first scene with the room - the one on screen - so it
+         * stayed quiet on all three: the k3 suite on 48efd99 read "[false,false,false]", and so did
+         * this test alone on 48efd99 and on r2-S1's own 19abd42 (e12run/scratch/k3k1; S1's fast set
+         * did not run it). `isAlone` was not at fault: on the suite's scene it counted nobody,
+         * lawful or not. So the trap's token is now put on the suite's scene, and the control is a
+         * crossing there with the other student beside the first (quiet), in place of a crossing on
+         * the scene on screen, where the trap is not since r2-S1 and which "a trap springs only in
+         * its room on its own scene" reads.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const pool = cast(3);
+        const student = pool.find(playerOf) ?? null;
+        const [builder, other] = pool.filter(a => a !== student);
+        must(student && builder && other, "three living students, one with a connected player - this would measure nothing");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const stood = await aloneTogether(student, other);
+        const home = canvas?.scene ?? null;
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let made = null, scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room to be alone in", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: stood.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            const mine = home?.tokens?.find(t => t.actorId === student.id) ?? null;
+            made = await P.createProject({ name: "SUITE r1-G4 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            must(made?.id, "could not build the trap - this would measure nothing");
+            if (PM.projectTokenOf(made.id)?.parent?.id !== scene.id) {
+                await PM.removeProjectToken(made.id);
+                await PM.placeProjectToken(made.id, { scene });
+            }
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            must(T.diagnoseTraps().armed === 1 && P.projectScene(made.id)?.id === scene.id && mine && away,
+                "the trap is not watching on the suite's scene, or a token of the student is missing - this would measure nothing");
+            must(locateActor(student)?.scene === home, `${student.name} is not placed on the scene on screen while both tokens show - this would measure nothing`);
+            const fires = async raise => {
+                const count = game.messages.size;
+                await raise();
+                const spoke = await until(() => game.messages.size > count, 3000);
+                if (spoke) {
+                    await until(() => T.diagnoseTraps().armed === 0);
+                    await T.rearmTrap(made.id);
+                    await until(() => T.diagnoseTraps().armed === 1);
+                }
+                return spoke;
+            };
+            const [beside] = await scene.createEmbeddedDocuments("Token", [{ actorId: other.id, actorLink: true, name: other.name, x: 400, y: 300, width: 1, height: 1 }]);
+            const together = await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away }));
+            await beside.delete();
+            read = [
+                together,
+                await fires(() => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: away })),
+                await fires(() => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: stood.room, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} }))
+            ];
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([false, true, true]),
+            `the "alone" trap in "${stood.room}" on a scene of the suite's own spoke for ${student.name}'s crossing there with ${other.name} beside them, alone there `
+            + `(${other.name} with them in "${stood.room}" on the scene on screen) as the GM's browser raises it, and the same relayed by the player's browser`);
+    }],
+
+    ["Move the body is refused before it is paid for when the body lies in a room of the same name on another scene", async () => {
+        /*
+         * E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C3-3. cleanup.mjs `bodyIsHere` compared the
+         * killer's room and the body's by name alone, so a killer standing in a room of the body's
+         * room's name on another scene passed the killer's browser's check and the GM's, and the GM's
+         * side charged its price (`resolveStageSix`, a packet that names no paid step) before
+         * `applyMoveBody` looked for the body on the killer's scene and found none. Here the killer
+         * kills in Stage 6's fixture, then stands, by their only token a GM has not hidden, in a room
+         * named as the body's on a scene of the suite's own. Read: `bodyIsHere`, the GM's answer to
+         * Move the body naming no paid step, the Sanity it marked, and the body's room. Red before this
+         * fix: the body is "here", the move is not refused and a Sanity step is taken; the body stays.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const R = await import("./rooms.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const home = canvas?.scene ?? null;
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => home?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const standing = livingStudents().filter(a => playerOf(a) && tokenOf(a) && locateActor(a)?.room);
+        const [killer, victim] = standing;
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(killer._source, STRESS)) || 0;
+        must(Number(killer.system.resources?.stress?.max) >= 2, `${killer.name}'s Sanity cannot take a step - this would measure nothing`);
+        const had = marks(), mine = tokenOf(killer);
+        let scene = null, read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            const body = locateActor(victim);
+            scene = await Scene.create({ name: "SUITE E12 fix r1-G4 a room of the body's name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: body.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await scene.createEmbeddedDocuments("Token", [{ actorId: killer.id, actorLink: true, name: killer.name, x: 300, y: 300, width: 1, height: 1 }]);
+            await mine.update({ hidden: true });
+            await killer.update({ [STRESS]: 0 });
+            await settle();
+            const there = locateActor(killer);
+            must(body.scene === home && there?.scene === scene && there.room === body.room,
+                `the killer is not placed in "${body.room}" on the suite's scene with the body on the scene on screen - this would measure nothing`);
+            const answer = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: null, total: 30, isCritical: false, withHope: true, price: null });
+            await settle();
+            read = [CL.bodyIsHere(killer), answer?.refused ?? null, marks(), locateActor(victim)?.scene?.id ?? null, locateActor(victim)?.room ?? null];
+            read.unshift(body.room);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (home?.tokens?.has(mine?.id)) await mine.update({ hidden: false });
+            await scene?.delete();
+            await killer.update({ [STRESS]: had });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([read?.[0], false, "the body is not in the killer's room", 0, home?.id ?? null, read?.[0]]),
+            `[the body's room, bodyIsHere, the GM's refusal, ${killer.name}'s Sanity marks, the body's scene and room] with the killer in a room of that name on another scene`);
+    }],
+
+    ["a room drawn in touching and overlapping pieces is outlined round its outside only and named inside its largest piece", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review EARLY-C2b-1, EARLY-C2b-2, plan-E12 3.1 ("the outline and
+         * the fog's reveal union the pieces"). E12 C2b handed the outline every piece of a room
+         * (fog-geometry `piecesAsOne`) without joining them, so where two pieces touch or overlap
+         * each piece's own border was drawn across the room's floor, and the name sat at the middle
+         * of the box round every piece - in none of them when the pieces lie apart. Here a Kitchen
+         * on a scene of its own: A and B touching along x = 400, E overlapping B's corner, and a
+         * larger C far off. The outline is traced as the room's outline is (`doorwayEdges`, then
+         * `traceOutlineGapped`, with no margin and no shortest run) into a recorder, so it reads the
+         * same in Foundry and on the harness; nothing else stands on the scene, so no edge opens.
+         * Read: the length stroked, the strokes with the room's floor two pixels either side, and
+         * where the name is drawn (fog-reveal `labelPoint`). The outside of A, B and E is 3400 px and
+         * C's 2400. Red before this fix: 7200 px stroked, the shared line and the overlaps among them.
+         */
+        const fog = await import("./fog.mjs");
+        const reveal = await import("./fog-reveal.mjs");
+        const { doorwayEdges, traceOutlineGapped } = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        const NAME = "SUITE E12 r1-G5 pieces", K = "SUITE Kitchen", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const boxes = [[0, 0, 400, 400], [400, 0, 400, 400], [700, 200, 400, 400], [2000, 0, 600, 600]];
+        const inFloor = (x, y) => boxes.some(([bx, by, w, h]) => x > bx && x < bx + w && y > by && y < by + h);
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", boxes.map(([x, y, width, height]) => ({ name: K,
+                shapes: [{ type: "rectangle", x, y, width, height }], flags: mark, behaviors: [] })));
+            const shape = fog.roomShapeOn(scene, K);
+            must(shape?.pieces?.length === 4, "the Kitchen was not handed as one room of four pieces - this would measure nothing");
+            const strokes = [];
+            let pen = null;
+            const recorder = { line: { width: 4 }, moveTo(x, y) { pen = { x, y }; }, lineTo(x, y) { strokes.push([pen.x, pen.y, x, y]); pen = { x, y }; } };
+            traceOutlineGapped(recorder, doorwayEdges(shape), { x: 0, y: 0 }, 0, 0);
+            const across = strokes.filter(([x1, y1, x2, y2]) => {
+                const length = Math.hypot(x2 - x1, y2 - y1);
+                if (length < 1) return false;
+                const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, nx = -(y2 - y1) / length * 2, ny = (x2 - x1) / length * 2;
+                return inFloor(mx + nx, my + ny) && inFloor(mx - nx, my - ny);
+            });
+            read = [Math.round(strokes.reduce((sum, [x1, y1, x2, y2]) => sum + Math.hypot(x2 - x1, y2 - y1), 0)), across.length,
+                typeof reveal.labelPoint === "function" ? reveal.labelPoint(shape) : null];
+        } finally {
+            await scene?.delete();
+        }
+        equal(stableJson(read), stableJson([5800, 0, { x: 2300, y: 300 }]),
+            "a Kitchen of four pieces, two touching, one overlapping and one apart ([the length its outline strokes, the strokes across its own floor, "
+            + "where its name is drawn])");
+    }],
+
+    ["a cast point that is no room moves nobody: a Teleport, a player's region or a region nobody marked", async () => {
+        /*
+         * E12 fix r1-G5, 11.10.2026; review goal-r1 N1, audit S07-06. The reset's "everyone to one
+         * room" offered every named region of every map (season-setup.mjs `castPoints`), and
+         * `placeCast` moved the cast into whichever region the choice named: a Teleport's, a region a
+         * player drew, a region no GM marked a room. Both read rooms.mjs now. Here a scene of the
+         * suite's own holds a Teleport marked a room, a region marked a room and recorded as a
+         * player's, and a named region nobody marked, with a student of the suite's own (no player
+         * owns it, so no client follows a move) standing outside them. Read: whom `placeCast` moves
+         * and where the token stands after each. Red before this fix: moved each time.
+         */
+        const { placeCast } = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which alone places the cast - this would measure nothing");
+        const NAME = "SUITE E12 r1-G5 cast", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const region = (name, x, flags, behaviors = []) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }], flags, behaviors });
+        const playersBefore = [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? [])];
+        let scene = null, actor = null, read = null;
+        try {
+            [actor] = await Actor.createDocuments([{ name: "SUITE E12 r1-G5 student", type: "character" }]);
+            scene = await Scene.create({ name: NAME, width: 3000, height: 1200, grid: { size: 100 }, active: false, navigation: false });
+            const points = await scene.createEmbeddedDocuments("Region", [
+                region("SUITE Lift", 0, mark, [{ type: "teleportToken", name: "Up", system: { destination: null } }]),
+                region("SUITE Den", 600, mark), region("SUITE Shed", 1200, {})]);
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...playersBefore, points[1].id]);
+            const [token] = await scene.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, actorLink: true, x: 2000, y: 800, width: 1, height: 1 }]);
+            must(points.every(point => !R.isRoom(point)), "a point of the test is a room - this would measure nothing");
+            read = [];
+            for (const point of points) {
+                const placed = await placeCast({ to: "point", scene: scene.id, region: point.id }, [actor]);
+                await settle();
+                const t = scene.tokens.get(token.id);
+                read.push([point.name, placed?.moved?.length ?? null, placed?.stayed?.length ?? null, `${t?.x},${t?.y}`]);
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.playerRegions, playersBefore);
+            await scene?.delete();
+            await actor?.delete();
+        }
+        equal(stableJson(read), stableJson([["SUITE Lift", 0, 1, "2000,800"], ["SUITE Den", 0, 1, "2000,800"], ["SUITE Shed", 0, 1, "2000,800"]]),
+            "the cast sent to a point that is no room ([the point, moved, stayed, where the token stands after])");
+    }],
+
+    ["a trap springs only in its room on its own scene, not through a room of its name on another", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 SEC2-2. traps.mjs looked an armed trap up by its
+         * room's name alone - a crossing (`armedIn`), a successful Search, a Rest and a stash hunt -
+         * so the same thing done in a room of that name on another scene sprang the trap a killer
+         * built here, and spent it. Here a student with a player stands in a room of the scene on
+         * screen and has a second token in a room of that name on a scene of the suite's own; a
+         * third student builds four traps in the room here, one each on a crossing, a Search, a
+         * Rest and a stash hunt. Read, each trap re-armed after it speaks: the four done here (the
+         * controls); a crossing of the second token as the GM's browser raises it and as the
+         * player's browser relays it; then, with the token here hidden so that the student stands
+         * on the suite's scene, a Search, a Rest and a stash hunt there. Red before this fix: all
+         * nine spring their trap.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const R = await import("./rooms.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const pool = cast(3);
+        const student = pool.find(a => playerOf(a) && locateActor(a)?.room && locateActor(a).scene === home) ?? null;
+        const builder = pool.find(a => a !== student) ?? null;
+        must(student && builder, "two living students, one with a connected player standing in a room of the scene on screen - this would measure nothing");
+        const ROOM = locateActor(student).room, mine = home.tokens.find(t => t.actorId === student.id && !t.hidden) ?? null;
+        must(mine, `${student.name} has no token a GM has not hidden on the scene on screen - this would measure nothing`);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const KINDS = ["enters", "search", "rest", "stash"], traps = {};
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 fix r2-S1 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            for (const kind of KINDS) {
+                const made = await P.createProject({ name: `SUITE r2-S1 ${kind} trap`, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                    condition: "suite", trigger: { kind, afterDark: false, notBuilder: true } });
+                must(made?.id, `could not build the ${kind} trap - this would measure nothing`);
+                traps[kind] = made.id;
+                await P.addProgress(made.id, 1, { by: builder.id });
+            }
+            await settle();
+            must(T.diagnoseTraps().armed === KINDS.length && KINDS.every(kind => P.projectScene(traps[kind])?.id === home.id),
+                `the four traps are not armed in "${ROOM}" on the scene on screen - this would measure nothing`);
+            must(locateActor(student)?.scene === home, `${student.name} is not placed on the scene on screen while both tokens show - this would measure nothing`);
+            const fires = async (kind, raise) => {
+                const fired = () => Boolean(P.secretsOf(traps[kind]).trigger?.firedAt);
+                await raise();
+                const spoke = await until(fired, 2500);
+                if (spoke) {
+                    await T.rearmTrap(traps[kind]);
+                    await until(() => !fired() && T.diagnoseTraps().armed === KINDS.length);
+                }
+                return spoke;
+            };
+            const standing = async () => [
+                await fires("search", () => Hooks.callAll("drpgActionResolved", { actor: student, actionKey: "search", outcome: { success: true, room: ROOM } })),
+                await fires("rest", () => Hooks.callAll("drpgRested", { actor: student, kind: "short", picks: [], room: ROOM })),
+                await fires("stash", () => Hooks.callAll("drpgStashHunted", { actor: student, room: ROOM, total: 10 }))
+            ];
+            read = [await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: mine })),
+                ...await standing(),
+                await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: away })),
+                await fires("enters", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: ROOM, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} }))];
+            await mine.update({ hidden: true });
+            must(locateActor(student)?.scene === scene, `${student.name} is not placed on the suite's scene with the token here hidden - this would measure nothing`);
+            read.push(...await standing());
+        } finally {
+            if (mine?.hidden) await mine.update({ hidden: false });
+            for (const id of Object.values(traps)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, true, false, false, false, false, false]),
+            `the traps in "${ROOM}" on the scene on screen spoke for ${student.name}'s crossing, Search, Rest and stash hunt there; for a crossing into a room of that name `
+            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; and for a Search, a Rest and a stash hunt there");
+    }],
+
+    ["a secret project is a non-obvious Observe's find only in its room on its own scene", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 SEC2-3. A non-obvious Observe's candidates were the
+         * secret projects whose room had the observer's room's NAME (projects.mjs `secretsUnknownIn`,
+         * handed `where.room` by observe.mjs), so an Observe in a room of that name on another scene
+         * was let in on a secret project standing here - round 1 closed that road for a Work and a
+         * Sabotage and left this one. Here a connected player's character stands in a room on its
+         * scene, and a scene of the suite's own holds a room of the same name. A secret project
+         * nobody is in on stands in that room there (its token put on the suite's scene): read
+         * whether the primary's non-obvious Observe for that character carries a project. Then a
+         * second one stands in the character's own room (the control): the same read. Red before
+         * this fix: the first Observe carries the project on the other scene.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the observer stands in a room");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the observer has a player who is not in on the project");
+        const { player, actor, where } = await playerInRoom();
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const O = await import("./observe.mjs");
+        const R = await import("./rooms.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        let other = null, read = null;
+        const carries = async () => {
+            const looking = await O.chooseObserveTarget({ actorId: actor.id, declaration: "nonObvious" });
+            return looking?.ok ? O.pendingShape(looking.key)?.hasProject === true : false;
+        };
+        const secret = async (scene, n) => {
+            const project = await P.createProject({ name: `SUITE r2-S1 secret ${n}`, target: 6, room: where.room, secret: true, viewers: [] });
+            must(project?.id, "could not create a secret project - this would measure nothing");
+            made.push(project.id);
+            if (PM.projectTokenOf(project.id)?.parent?.id !== scene.id) {
+                await PM.removeProjectToken(project.id);
+                await PM.placeProjectToken(project.id, { scene });
+            }
+            must(PM.projectTokenOf(project.id)?.parent?.id === scene.id && !P.canSee(project.id, player),
+                `the secret project's token is not on ${scene.name}, or ${player.name} is in on it - this would measure nothing`);
+        };
+        try {
+            other = await Scene.create({ name: "SUITE E12 fix r2-S1 an Observe's room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await other.createEmbeddedDocuments("Region", [{ name: where.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            await secret(other, 1);
+            read = [await carries()];
+            await secret(where.scene, 2);
+            read.push(await carries());
+        } finally {
+            await O.clearPendingObserves();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await other?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true]),
+            `whether ${actor.name}'s non-obvious Observe in "${where.room}" carries a secret project: one standing in a room of that name on another scene, then one in the room itself`);
+    }],
+
+    ["the console's createProject refuses a room no scene holds and tells the GM", async () => {
+        /*
+         * E12 fix r2-S1, 11.10.2026; review round 2 O1. `game.drpg.createProject` took any name for a
+         * room: a project in a room no place scene holds was made and its token put on no scene, and
+         * nothing said so - the project manager offers such a room only labelled "(on no scene now)".
+         * Read: what the console answers for such a room, whether a project of that name exists
+         * after, whether a warning naming the room was shown; then for a room a place scene holds
+         * (the control) whether the project is made and its token placed. Red before this fix: the
+         * first is made, and nothing is said.
+         */
+        const R = await import("./rooms.mjs");
+        const P = await import("./projects.mjs");
+        const PM = await import("./projects-map.mjs");
+        const ROOM = R.placeRoomNames()[0] ?? null, GONE = "SUITE E12 fix r2-S1 a room on no scene";
+        must(ROOM && !R.sceneOfRoom(GONE), "no place scene holds a room, or one holds the suite's made-up room - this would measure nothing");
+        const NAMES = ["SUITE r2-S1 nowhere", "SUITE r2-S1 somewhere"];
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+        const made = [];
+        let read = null;
+        try {
+            const gone = await game.drpg.createProject({ name: NAMES[0], target: 4, room: GONE });
+            if (gone?.id) made.push(gone.id);
+            const kept = await game.drpg.createProject({ name: NAMES[1], target: 4, room: ROOM });
+            if (kept?.id) made.push(kept.id);
+            read = [Boolean(gone?.id), P.allProjects().some(p => p.name === NAMES[0]), warned.some(line => line.includes(GONE)),
+                Boolean(kept?.id), Boolean(kept?.id && PM.projectTokenOf(kept.id))];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, false, true, true, true]),
+            `the console asked for a project in "${GONE}" ([made, a project of its name exists, a warning names the room]) and then in "${ROOM}" ([made, its token placed])`);
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
+    ["a change of floor between rooms only a player's stairs link is refused in daily life and in an Eclipse by the veto and the witness judge and by the Eclipse's own judge", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C9-1 and EARLY-C9-3, correctness review r2 R2-4. A scene of two
+         * floors in plain objects, as C9's tests draw one: a Lab under an Attic, a Hall under a Landing, the GM's stairs
+         * (a Change Level region) between the Hall and the Landing, and a Change Level region over the Lab and the Attic
+         * that a player drew - its id is put in the record of players' regions (`SETTINGS.playerRegions`). Read, for a
+         * living student who is not the Mastermind: `crossingVerdict` with no price (`pay: false`, as the witness judge
+         * asks it) for the climb from the Lab to the Attic and up the GM's stairs, in daily life with the movement cost on
+         * and in an Eclipse that is no free placement; eclipse.mjs `judgeEclipseCrossing` for the Lab-to-Attic climb, what
+         * it answers and what it warns (refused before it counts anything); the witness judge's own road, movement.mjs
+         * `judgeArrival`, for a token of the student a GM put in the Lab and a player then moved to the floor above, into
+         * the Attic, in the Eclipse (the floors it hands the veto are its own line, `arrivalVerdict`); the same climb by
+         * its level alone settled
+         * in the Eclipse by movement.mjs's charge (taken off `Hooks.events` as in C9's tests, for a plain token of a plain
+         * character the primary GM pays for), which hands the judge each end's floor: what the send-back wrote and what
+         * was warned; and the rooms the stairs link. Red before the
+         * fix: the player's region linked the Lab and the Attic, so daily life let the climb through, and the Eclipse's
+         * roads never asked the stairs and let it through for one crossing. The free-placement Eclipse is not asked: it
+         * places a token anywhere, adjacency and stairs alike (movement.mjs `crossingVerdict`). restore() puts the clock and
+         * the settings back.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        must(game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`), "no record of players' regions is registered - this would measure nothing");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = []) => ({ id: `suite-e12-h1-${name}`, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? !behaviors.length : undefined) });
+        const drawn = region("PlayerStairs", 0, [L1, L2], [{ type: "changeLevel" }]);
+        const scene = { id: "suite-e12-h1-scene", name: "SUITE E12 H1", grid: { size: 100 }, levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }],
+            regions: new Set([region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+                region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }]), drawn]) };
+        const climb = { from: L1, to: L2 };
+        const walks = () => [M.crossingVerdict(actor, "Lab", "Attic", scene, climb, { pay: false }),
+            M.crossingVerdict(actor, "Hall", "Landing", scene, climb, { pay: false })];
+        await game.settings.set(MODULE_ID, SETTINGS.playerRegions, [...(game.settings.get(MODULE_ID, SETTINGS.playerRegions) ?? []), drawn.id]);
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const links = M.stairLinks(scene);
+        const daily = walks();
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const witness = { id: `suite-e12-h1-judged-${foundry.utils.randomID(6)}`, name: actor.name, x: 100, y: 100, width: 1, height: 1, elevation: 0,
+            level: L1, parent: scene, actor };
+        const dropped = M.judgeArrival(witness, game.user.id);
+        witness.level = L2;
+        const climbed = M.judgeArrival(witness, player.id);
+        const judge = [dropped?.lawful ?? null, climbed?.lawful ?? null, climbed?.reason ?? null];
+        const warned = [], settled = [];
+        const warn = ui.notifications.warn;
+        const plain = { id: "suite-e12-h1-actor", name: "SUITE E12 H1 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: () => undefined, testUserPermission: () => false };
+        const written = [];
+        const token = { id: `suite-e12-h1-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene,
+            actor: plain, update: async data => { written.push(data); return token; } };
+        let judged = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            judged = await E.judgeEclipseCrossing(actor, "Lab", "Attic", scene, climb);
+            ui.notifications.warn = message => { settled.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            token.level = L2;
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        const refused = game.i18n.format("DRPG.Move.noStairs", { from: "Lab" });
+        equal(stableJson([links, daily, eclipse, judge, [judged, warned], [written, settled]]), stableJson([[["Hall", "Landing"]], [refused, true], [refused, true],
+            [true, false, refused], [false, [refused]], [[{ x: 0, y: 100, level: L1 }], [refused]]]),
+            `[the rooms the stairs link; whether ${actor.name} may climb from the Lab to the Attic and up the GM's stairs, in daily life; `
+                + "the same in an Eclipse; [lawful when a GM put the token in the Lab, lawful in the Attic a player moved it to, why not] by the witness judge; "
+                + "what the Eclipse's own judge answers and warns for the Lab-to-Attic climb; "
+                + "what the charge's send-back wrote and what it warned for a plain token's level-only climb from the Lab to the Attic in the Eclipse]");
+    }],
+
+    ["a route refused at the stairs after a paid crossing puts the token back on the floor it paid for", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C9-2 (MAP-11). A route of two crossings settles one at a time, and
+         * the one that cannot be paid for puts the token back in the room the route last paid for, at that room's centre
+         * (movement.mjs `settleRoute`, `positionIn`) - without its floor, so a route that paid its way from the Lab into
+         * the Hall and failed on the stairs up to the Landing was put back at the Hall's x and y upstairs. Here
+         * movement.mjs's charge, taken off `Hooks.events` as in C9's test above, is handed a plain token of a plain
+         * character no connected player owns (the primary GM pays) with the free Move and nothing else: its place
+         * recorded as our own revert records it in the Lab, a step of the drag in flight in the Hall, and the drag's end on
+         * the Landing above. Whether one v14 drag can change floor midway is LIVE-E12-02; the waypoints here are the
+         * harness's and Foundry's field (`movement.pending.waypoints`) as the charge reads it. Read: what the send-back
+         * wrote, what was spent and what the GM was told. Red before the fix: the write named no floor.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
+        const player = game.users.find(user => !user.isGM);
+        const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
+            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+        must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const region = (name, x, levels, behaviors = []) => ({ id: name, name, levels: new Set(levels), behaviors,
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? !behaviors.length : undefined) });
+        const scene = { id: "suite-e12-h1-route", grid: { size: 100 }, levels: [{ id: L1 }, { id: L2 }],
+            regions: new Set([region("Lab", 0, [L1]), region("Hall", 500, [L1]), region("Landing", 500, [L2]),
+                region("Stairs", 600, [L1, L2], [{ type: "changeLevel" }])]) };
+        const flags = { [FLAGS.freeMoveUsed]: false };
+        const actor = { id: "suite-e12-h1-actor", name: "SUITE E12 H1 a climber", type: "character", items: [], system: { resources: {} },
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined), testUserPermission: () => false,
+            update: async changes => {
+                for (const [key, value] of Object.entries(changes)) if (key.startsWith(`flags.${MODULE_ID}.`)) flags[key.slice(`flags.${MODULE_ID}.`.length)] = value;
+                return actor;
+            } };
+        const written = [];
+        const token = { id: `suite-e12-h1-${foundry.utils.randomID(6)}`, x: 0, y: 100, width: 1, height: 1, elevation: 0, level: L1, parent: scene, actor,
+            update: async data => { written.push(data); return token; } };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let read = null;
+        try {
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            await charge(token, { x: 0, y: 100 }, { [M.REVERT]: true }, game.user.id);
+            Object.assign(token, { x: 600, movement: { pending: { waypoints: [{ x: 600, y: 100 }] } } });
+            await charge(token, { x: 600 }, {}, player.id);
+            Object.assign(token, { level: L2, movement: { pending: { waypoints: [] } } });
+            await charge(token, { level: L2 }, {}, player.id);
+            await until(() => written.length > 0, 2000);
+            read = [written, flags[FLAGS.freeMoveUsed], warned];
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        equal(stableJson(read), stableJson([[{ x: 650, y: 150, level: L1 }], true, [game.i18n.localize("DRPG.Move.noBudget")]]),
+            "[what the send-back wrote to a token whose route paid into the Hall and failed on the stairs to the Landing, "
+                + "whether the free Move was spent, what the GM was told]");
+    }],
+
+    ["a room the lists or the walls leave with no neighbour reaches no room by crossing while one drawn apart or unmeasured reaches any", async () => {
+        /*
+         * E12 fix r2-H2, 11.10.2026; early review EARLY-C14-1 (and EARLY-C14-2's list of unknown names). `crossingRefused`
+         * read an empty neighbour list as a map it could not read and let every crossing through, and E12 C14 gave
+         * measured rooms an empty list: a Storage whose last wall a Kitchen's list closes, a Nook that meets the Hall only
+         * at a corner, a Lab whose list names only an Attic the scene does not have - each walked into the Hall (the
+         * reviewer's probe, S/e12-review/c14-copies/nb.mjs). Here, in plain objects as the C14 test draws them: those
+         * three, a Hall with a Study across its wall, and an Island drawn apart from everything; on a second scene a Shed
+         * whose shape cannot be measured beside a Yard whose list names only a Gate. Read, for a living student who is
+         * not the Mastermind: the neighbours of the room each walk starts in; `crossingVerdict` with no price (as the
+         * witness judge asks it) for the Hall to the Study, the Nook, the Storage, the Lab and the Island to the Hall
+         * and the Shed to the Yard, in daily life with the movement cost on and in an Eclipse that is no free placement;
+         * and eclipse.mjs `judgeEclipseCrossing` for the three into the Hall that are refused, what it answers and what
+         * it warns (refused before it counts anything). Red before the fix: the Nook, the Storage and the Lab walked into
+         * the Hall on every road. The Island and the Shed keep the freedom they had (e12-review/fixes-r2.md H2). restore()
+         * puts the clock and the setting back.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./eclipse.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const actor = cast(3).find(a => !isMastermind(a));
+        must(actor, "no living student who is not the Mastermind - every crossing would be let through, this would measure nothing");
+        const room = (name, box, flags = {}) => ({ id: `suite-e12-h2-${name}`, name, behaviors: [], levels: new Set(), shapes: [],
+            ...(box ? { bounds: { x: box[0], y: box[1], width: box[2], height: box[3] } } : {}),
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, ...flags }[key] : undefined) });
+        const scene = { id: "suite-e12-h2-scene", name: "SUITE E12 H2", grid: { size: 100 }, regions: new Set([
+            room("Hall", [1000, 1000, 400, 400]), room("Study", [1000, 580, 400, 400]), room("Nook", [800, 1400, 200, 200]),
+            room("Storage", [3000, 0, 400, 400]), room("Kitchen", [3420, 0, 400, 400], { drpgNeighbours: "Hall" }),
+            room("Lab", [5000, 0, 400, 400], { drpgNeighbours: "Attic" }), room("Island", [7000, 3000, 200, 200])]) };
+        const yard = { id: "suite-e12-h2-yard", name: "SUITE E12 H2 yard", grid: { size: 100 }, regions: new Set([
+            room("Shed", null), room("Yard", [8000, 0, 400, 400], { drpgNeighbours: "Gate" })]) };
+        const WALKS = [[scene, "Hall", "Study"], [scene, "Nook", "Hall"], [scene, "Storage", "Hall"], [scene, "Lab", "Hall"],
+            [scene, "Island", "Hall"], [yard, "Shed", "Yard"]];
+        const walks = () => WALKS.map(([on, from, to]) => M.crossingVerdict(actor, from, to, on, null, { pay: false }));
+        if (getClock()?.phase === "classTrial" || getClock()?.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const neighbours = WALKS.map(([on, from]) => M.neighbouringRooms(on, from));
+        const daily = walks();
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { ECLIPSE_FREE_PLACEMENT } = await import("./config.mjs");
+        await setClock({ eclipse: true, ...(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(getClock())) ? { timeOfDay: "morning" } : {}) });
+        const eclipse = walks();
+        const SHUT = ["Nook", "Storage", "Lab"];
+        const judged = [];
+        const warn = ui.notifications.warn;
+        try {
+            for (const from of SHUT) {
+                const warned = [];
+                ui.notifications.warn = message => { warned.push(String(message)); };
+                judged.push([await E.judgeEclipseCrossing(actor, from, "Hall", scene, null), warned]);
+            }
+        } finally {
+            ui.notifications.warn = warn;
+        }
+        const refused = from => game.i18n.format("DRPG.Move.notConnectedShort", { from, to: "Hall" });
+        const VERDICTS = [true, ...SHUT.map(refused), true, true];
+        equal(stableJson([neighbours, daily, eclipse, judged]),
+            stableJson([[["Kitchen", "Study"], [], [], [], [], []], VERDICTS, VERDICTS, SHUT.map(from => [false, [refused(from)]])]),
+            `[the neighbours of ${WALKS.map(w => w[1]).join(", ")}; whether ${actor.name} may cross ${WALKS.map(w => `${w[1]} > ${w[2]}`).join(", ")} `
+                + `in daily life; the same in an Eclipse; what the Eclipse's own judge answers and warns for ${SHUT.join(", ")} > Hall]`);
+    }],
+
+    ["Room Setup warns of a Neighbours name that is no room on the scene and not of a region marked a room in the same Apply", async () => {
+        /*
+         * E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2. Apply checked the names typed into a Neighbours cell
+         * against the window's rows, and a row is any named region that could be a room - so a list naming a region
+         * nobody marked was written without a word, though the rules read rooms only and the name connects nothing.
+         * Here, on a scene of the suite's own viewed for the window, as the r1-G1 Room Setup test: a Hall marked a
+         * room, a Teleport "Lift", and two regions nobody decided, a Gate and a Porch, whose room boxes the window draws
+         * ticked (it offers an undecided region as a room). The window is answered: the three names typed in lower case
+         * into the Hall's Neighbours, the Gate's room box cleared and the Porch's left ticked, Apply. Read: the list on the
+         * Hall's piece, the warnings that name the Gate, the Lift or the Porch, and whether the Gate and the Porch are
+         * rooms. Red before the fix on the warnings (none; first written with the Gate's box left as drawn, this read no
+         * warning on the fixed tree either, rightly: that Apply marks the Gate a room). In a GM-store world of the
+         * suite's own, as that test.
+         */
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const home = canvas?.scene ?? null;
+        const HALL = "SUITE r2-H2 Hall", GATE = "SUITE r2-H2 Gate", PORCH = "SUITE r2-H2 Porch", LIFT = "SUITE r2-H2 Lift";
+        const up = [{ type: "teleportToken", name: "Up", system: { destination: null } }];
+        const box = x => [{ type: "rectangle", x, y: 0, width: 400, height: 400 }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        let reading = null;
+        await G.withGmStoreWorld(`suite-r2h2-${foundry.utils.randomID(8)}`, async () => {
+            let scene = null;
+            const warned = [];
+            try {
+                scene = await Scene.create({ name: "SUITE E12 fix r2-H2 Room Setup", width: 4000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const [hall, gate, porch] = await scene.createEmbeddedDocuments("Region", [
+                    { name: HALL, shapes: box(0), flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] },
+                    { name: GATE, shapes: box(1000), behaviors: [] }, { name: PORCH, shapes: box(2000), behaviors: [] },
+                    { name: LIFT, shapes: box(3000), behaviors: up }]);
+                await scene.view();
+                await settle();
+                must(canvas?.scene === scene, "the camera did not move to the suite's scene - Room Setup would open on another");
+                D.wait = async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const [list, notRoom, room] = [`neighbours:${HALL}`, `isroom:${GATE}`, `isroom:${PORCH}`].map(field);
+                    must(list && notRoom && room && !notRoom.disabled && !room.disabled,
+                        `Room Setup drew no Neighbours cell for "${HALL}" or no room box for "${GATE}" or "${PORCH}" - this would measure nothing`);
+                    list.value = [GATE, LIFT, PORCH].map(name => name.toLowerCase()).join(", ");
+                    notRoom.checked = false;
+                    room.checked = true;
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                ui.notifications.warn = message => { warned.push(String(message)); return warn.call(ui.notifications, message); };
+                await V.openRoomSetupDialog({ tab: "doors" });
+                await settle();
+                reading = [scene.regions.get(hall.id)?.getFlag(MODULE_ID, ROOM_FLAGS.neighbours) ?? null,
+                    warned.filter(message => [GATE, LIFT, PORCH].some(name => message.includes(name))), [gate, porch].map(region => R.isRoom(scene.regions.get(region.id)))];
+            } finally {
+                ui.notifications.warn = warn;
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await home?.view();
+                await scene?.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([`${GATE}, ${LIFT}, ${PORCH}`,
+            [game.i18n.format("DRPG.Vault.neighboursUnknown", { room: HALL, names: `${GATE}, ${LIFT}` })], [false, true]]),
+            "Room Setup over a Hall, a Teleport Lift, and a Gate and a Porch nobody decided, Apply with the three typed in the Hall's Neighbours, the "
+                + "Gate's room box cleared and the Porch's ticked ([the list on the Hall's piece, the warnings naming the Gate, the Lift or the Porch, "
+                + "whether the Gate and the Porch are rooms])");
+    }],
+
+    ["a token a player drops is judged from where the student last stood on the scene, and two tokens of one student are one witness", async () => {
+        /*
+         * E12 fix r2-H3, 11.10.2026; security review r2 SEC2-1 (confirmed by running there), the fix list's
+         * decision. A token a player dropped had no standing and was judged from nowhere (`judgeArrival` from
+         * no room): lawful in any room no lock, seal or bedroom shuts, however far from where the student
+         * stood; and `witnessesOf` (chapter.mjs) counted tokens, so one student's two tokens in a room were two
+         * witnesses. Here, on a plain scene of a Hall, a Den beside it and a Far room beside the Den alone
+         * (each with its Neighbours list; the scene lists no tokens, as though the student's were deleted), a
+         * living student who is not the Mastermind is placed in the Hall by this GM; a player then drops a
+         * token of that student in the Far room and another in the Hall, as `noteGmCreated` is handed a drop,
+         * and a token of a second student, never seen on the scene, in the Far room. Read: whether each drop
+         * stands lawfully and the room it counts in; `witnessesOf` in the Far room over the first drop and in
+         * the Hall over the placed token and the second drop (through `lawfulRoomOf`); and the GMs' notices
+         * naming each drop - unlawful, and placed from nowhere. The movement cost on, the clock out of a trial
+         * and an Eclipse; restore() puts them back and the notices. Red before this fix: the Far drop lawful,
+         * two witnesses in the Hall, no notice of the drop from nowhere.
+         */
+        needs(env.primaryGm(), "the witness judge records and tells on the primary GM alone (`judgeArrival`, `tellUnlawful`)");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { witnessesOf } = await import("./chapter.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [actor, stranger] = cast(3).filter(a => !isMastermind(a));
+        must(actor && stranger, "no two living students who are not the Mastermind - this would measure nothing");
+        const player = game.users.find(u => !u.isGM)?.id ?? null;
+        must(player, "no player account - a player's drop cannot be told from a GM's");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const region = (name, x, next) => ({ id: name, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => point.x >= x && point.x <= x + 400 && point.y >= 0 && point.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true, [M.ROOM_FLAGS.neighbours]: next }[key] : undefined) });
+        const id = foundry.utils.randomID(6);
+        const scene = { id: `suite-e12-h3-${id}`, name: "SUITE E12 fix r2-H3", grid: { size: 100 },
+            regions: new Set([region("Hall", 0, "Den"), region("Den", 500, "Hall,Far"), region("Far", 1000, "Den")]) };
+        const token = (name, of, x) => ({ id: `suite-e12-h3-${name}-${id}`, name: of.name, x, y: 100, width: 1, height: 1, elevation: 0,
+            parent: scene, actor: of, actorId: of.id });
+        const placed = token("placed", actor, 100), far = token("far", actor, 1100), beside = token("beside", actor, 150), stray = token("stray", stranger, 1150);
+        const notices = (kind, t) => game.messages.filter(m => String(contentOf(m) ?? "").includes(`data-drpg-${kind}="${t.id}"`)).length;
+        // At the parent `noteGmCreated` was not exported; on the primary it handed the drop to `judgeArrival` as it is here.
+        const drop = typeof M.noteGmCreated === "function" ? M.noteGmCreated : (t, user) => M.judgeArrival(t, user);
+        M.judgeArrival(placed, game.user.id);
+        const read = [far, beside, stray].map(t => {
+            drop(t, player);
+            return [M.standingOf(t)?.lawful ?? null, M.lawfulRoomOf(t)];
+        });
+        const count = (room, tokens) => witnessesOf({ tokens, room, students: new Set([actor.id, stranger.id]), roomOf: M.lawfulRoomOf }).length;
+        read.push([count("Far", [far]), count("Hall", [placed, beside])]);
+        await until(() => notices("unlawful", far) >= 1 && notices("dropped", stray) >= 1, 3000);
+        await settle();
+        const told = [notices("unlawful", far), notices("unlawful", beside) + notices("dropped", beside), notices("unlawful", stray), notices("dropped", stray)];
+        equal(stableJson([read, told]), stableJson([[[false, null], [true, "Hall"], [true, "Far"], [0, 1]], [1, 0, 0, 1]]),
+            "[[lawful, the room it counts in] of a player's drop of the student placed in the Hall, in the Far room, in the Hall beside the placed token, "
+                + "and of a second student never seen on the scene, in the Far room; [the witnesses in the Far room over the first drop, in the Hall over "
+                + "the placed token and the second drop]]; [the GMs' notices of the Far drop unlawful, of the Hall drop, of the second student's drop "
+                + "unlawful, of it placed from nowhere]");
+    }],
+
+    ["a student a send-back put in a room past the rules keeps no trap for somebody alone quiet and is nobody at the lights", async () => {
+        /*
+         * E12 fix r2-H3, 11.10.2026; security review r2 SEC2-7, goal review N5, the owner's Q3 a, the fix list.
+         * The witness judge kept an unlawful student out of the discovery and the third party only: a trap's
+         * "alone" (traps.mjs `isAlone`) and the Eclipse's verdict on a declared murder (eclipse.mjs
+         * `judgePendingMurders`) counted every token in the room. Here a student and another who is not the
+         * Mastermind are stood alone in a room by this GM; the other is moved by this GM to another room, the
+         * room is locked, and the other is put back in it by an update marked as a player's send-back
+         * (`SENT_BACK`) to a spot it never stood on - unlawful there; the lock is lifted again (the standing
+         * stays until the token moves; a first draft looked for a room the neighbours shut instead, and the
+         * harness's seeded scene has none into the Hall). A third student builds an "alone" trap in
+         * the room and the first crosses into it as the GM's own browser raises the crossing; then an Eclipse
+         * opens, the first declares a murder in the room and the Eclipse ends, the GM's question at the lights
+         * answered no. Read: the other's standing and room, whether the trap spoke, whether the GM was asked
+         * about a murder, and whether the GMs were told it came to nothing with nobody there. The lights'
+         * `present` is also whom the murder falls on, so a student standing unlawfully is not its victim
+         * either (the fix list: presence read through the standing). Red before this fix: the trap quiet and
+         * a murder of the other asked about.
+         *
+         * A SPOT THE OTHER HAS NOT STOOD ON (E12 fix k3-K1, 12.10.2026; k3's red 2). The spot was the
+         * room's centre moved by (37, 23), which "a student a send-back put in a locked room walks in
+         * on no incident there until a GM moves them" also picks for its own send-back, and in the
+         * harness's world both put Aiko Hoshino's token there: that test, run first, leaves the spot
+         * in her token's last positions (`recentPositions`, the send-back judge's own record of eight,
+         * which no test should clear), so the k3 suite on 48efd99 stopped this one at its
+         * precondition. Measured in e12run/scratch/k3k1: this test alone green, the two in suite order
+         * red. So the first of ten spots round the centre that is not among those positions; eight
+         * are kept, so one is free.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "the student and another are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        needs(env.primaryGm(), "the witness judge, the traps and the lights are the primary GM's");
+        const Mv = await import("./movement.mjs");
+        const P = await import("./projects.mjs");
+        const R = await import("./rooms.mjs");
+        const T = await import("./traps.mjs");
+        const Ev = await import("./eclipse.mjs");
+        const M = await import("./murder.mjs");
+        const { isMastermind } = await import("./mastermind.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const pool = cast(3);
+        const other = pool.find(a => !isMastermind(a)) ?? null;
+        const [student, builder] = pool.filter(a => a !== other);
+        must(other && student && builder, "no living student who is not the Mastermind - the judge binds nobody here, this would measure nothing");
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const home = canvas?.scene ?? null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stood = await aloneTogether(student, other);
+        const theirs = home.tokens.find(t => t.actorId === other.id), mine = home.tokens.find(t => t.actorId === student.id);
+        const away = Mv.allRooms(home).find(r => r !== stood.room) ?? null;
+        const pieces = R.roomRegions(home, stood.room).map(r => [r, r.getFlag(MODULE_ID, Mv.ROOM_FLAGS.locked)]);
+        const unlock = async () => {
+            for (const [piece, old] of pieces) {
+                if (old === undefined || old === null) await piece.unsetFlag(MODULE_ID, Mv.ROOM_FLAGS.locked);
+                else await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, old);
+            }
+        };
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let made = null, read = null;
+        try {
+            must(away, `no second room on the scene on screen - this would measure nothing`);
+            await theirs.update(Mv.positionIn(away, theirs), PLACE);
+            for (const [piece] of pieces) await piece.setFlag(MODULE_ID, Mv.ROOM_FLAGS.locked, true);
+            await settle();
+            const centre = Mv.positionIn(stood.room, theirs);
+            const stoodOn = new Set(Mv.recentPositions(theirs.id).map(h => `${h.x} ${h.y}`));
+            const spot = [[37, 23], [-37, 23], [37, -23], [-37, -23], [23, 37], [-23, 37], [23, -37], [-23, -37], [41, 0], [0, 41]]
+                .map(([dx, dy]) => ({ x: centre.x + dx, y: centre.y + dy })).find(at => !stoodOn.has(`${at.x} ${at.y}`));
+            must(spot && !Mv.recentPositions(theirs.id).some(h => h.x === spot.x && h.y === spot.y),
+                `${other.name} stood on the spot a moment ago - the send-back would be honoured and this would measure nothing`);
+            await theirs.update(spot, { ...PLACE, [Mv.REVERT]: true, [Mv.SENT_BACK]: true });
+            await settle();
+            const standing = [Mv.roomOfToken(theirs), Mv.standingOf(theirs)?.lawful ?? null];
+            await unlock();
+            made = await P.createProject({ name: "SUITE r2-H3 trap", target: 1, room: stood.room, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            must(made?.id && T.diagnoseTraps().armed === 1, "the trap is not watching - this would measure nothing");
+            const count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: stood.room, tokenDoc: mine });
+            const spoke = await until(() => game.messages.size > count, 3000);
+            await P.deleteProject(made.id);
+            made = null;
+            T.forgetArmedTraps();
+            const asked = [];
+            D.confirm = async config => { asked.push(config?.window?.title ?? null); return false; };
+            const from = game.messages.size;
+            await Ev.startEclipse();
+            await settle();
+            must(Ev.isEclipse(), "the Eclipse did not open");
+            await Ev.parkDirectMurder({ killerId: student.id, room: stood.room, note: "SUITE E12 fix r2-H3 declared in the dark" });
+            await Ev.endEclipse({ advance: false });
+            await settle();
+            const nobody = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(student.name),
+                room: foundry.utils.escapeHTML(stood.room), reason: foundry.utils.escapeHTML(game.i18n.localize("DRPG.Action.murderNobody")) });
+            read = [standing, spoke, asked.length, game.messages.contents.slice(from).some(m => String(contentOf(m) ?? "").includes(nobody))];
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own);
+            else delete D.confirm;
+            await unlock();
+            if (Ev.isEclipse()) await Ev.endEclipse({ advance: false }).catch(() => {});
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([[stood.room, false], true, 0, true]),
+            `[[the room ${other.name} stands in, lawfully] after a send-back from ${away} into ${stood.room} locked; whether the "alone" trap there spoke for `
+                + `${student.name}'s crossing; how often the GM was asked about a murder at the lights; whether the GMs were told it came to nothing with nobody there]`);
+    }],
+    ["a GM's rename of a bedroom onto another bedroom's name carries nothing into it and takes its room off the piece", async () => {
+        /*
+         * E12 fix r2-H4, 11.10.2026; early review EARLY-C8-1 widened by the correctness review r2, the
+         * fix list's decision. E12 C8 carried a room's keys, stashes and discovery when its last piece
+         * took a new name, and asked only that a room of that name stood afterwards - which a room
+         * already there passed. Here the first student's one-piece bedroom, drawn before the second's,
+         * with a stashed thing in it; the third holds its key and has discovered it. The GM renames it
+         * onto the second student's bedroom's name, and then back. Read through the rules' own readers:
+         * the joined room's owner and stashes, whether the key holder may enter it, the key's and the
+         * stashed thing's room, the discovery, and whether the GMs were told; then, after the rename
+         * back, the key, the thing and the discovery again. Red at 5a4ba6f (this fix's parent): the key
+         * holder entered the second bedroom, whose owner read as the first student (`flagOver` reads the
+         * first piece in region order) with the first student's stash, and the rename back carried
+         * nothing home, so the key named a room the first student no longer had.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [aiko, ben, holder] = cast(3);
+        const DORM_A = "SUITE E12 H4 Dorm A", DORM_B = "SUITE E12 H4 Dorm B";
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
+        const messagesBefore = new Set(game.messages.contents.map(m => m.id));
+        // The join's whisper is the one with a warning's class that names both rooms (vault.mjs `clearSplitPiece`).
+        const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
+            .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
+        let scene = null, key = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 H4 two bedrooms", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [dormA] = await scene.createEmbeddedDocuments("Region", [{ name: DORM_A, shapes: box(100), flags: room(aiko), behaviors: [] },
+                { name: DORM_B, shapes: box(500), flags: room(ben), behaviors: [] }]);
+            const keyRoom = () => V.keyRoomOf(holder.items.get(key?.id));
+            const drawer = () => aiko.items.get(item?.id)?.getFlag(MODULE_ID, INV.ITEM_FLAGS.stashRoom) ?? null;
+            const found = name => F.discoveredFor(scene.id, holder.id).includes(name);
+            await E.withGmStoreWorld(`suite-e12-h4a-${foundry.utils.randomID(8)}`, async () => {
+                key = await V.grantBedroomKey(holder, DORM_A, { silent: true, scene });
+                item = await INV.grantItem(aiko, { name: "SUITE E12 H4 a box", category: "usable", tier: 1, override: true, quiet: true });
+                if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: DORM_A });
+                await F.applyDiscoveryChanges(scene, [{ actorId: holder.id, room: DORM_A, value: true }]);
+                await until(() => found(DORM_A), 4000);
+                must(key && item && keyRoom() === DORM_A && drawer() === DORM_A && found(DORM_A) && V.vaultOwnerOf(DORM_B, scene) === ben.id
+                    && V.mayEnterBedroom(holder, DORM_A, scene) && !V.mayEnterBedroom(holder, DORM_B, scene),
+                    "the two bedrooms, the key, the stashed box and the discovery did not stand before the rename - this would measure nothing");
+                await dormA.update({ name: DORM_B });
+                await until(() => told() > 0 || keyRoom() === DORM_B, 4000);
+                await settle();
+                const joined = [V.vaultOwnerOf(DORM_B, scene) === ben.id, V.stashesIn(DORM_B, scene).map(entry => entry.actorId === aiko.id ? "first" : "other"),
+                    V.mayEnterBedroom(holder, DORM_B, scene), keyRoom() === DORM_A, drawer() === DORM_A, found(DORM_B), told()];
+                await dormA.update({ name: DORM_A });
+                await settle();
+                read = [joined, [keyRoom() === DORM_A, drawer() === DORM_A, found(DORM_A)]];
+            });
+        } finally {
+            for (const [actor, made] of [[holder, key], [aiko, item]]) if (made) await actor.items.get(made.id)?.delete();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, [], false, true, true, false, 1], [true, true, true]]),
+            "[[the second bedroom's owner is the second student, its stashes, whether the key holder may enter it, whether the key and the stashed box "
+            + "still name the first bedroom, whether the key holder has discovered the second, how often the GMs were told of the join] after the first "
+            + "was renamed onto it; [the key, the box and the discovery name the first again] after the rename back]");
+    }],
+
+    ["a GM's two renames in a row carry a room's project and plant and the Mastermind's room and assembly and the Neighbours lists naming it", async () => {
+        /*
+         * E12 fix r2-H4, 11.10.2026; early review EARLY-C8-2, EARLY-C8-3, EARLY-C14-3, goal review r2 N7
+         * (audit S07-25: public projects left the players' knowledge). A Lab of the suite's own on a
+         * scene of its own holds a project's room, a trap's plant, the Mastermind's room and a called
+         * assembly, and the Hall's Neighbours list names it; the first student has a stashed thing in it
+         * and the second has discovered it. The GM renames a third room (an Annex) and, while that
+         * carry runs, the Lab twice in a row: to a Middle name and at once to an End. Read: where each
+         * record points once the renames are carried. Red at 5a4ba6f (this fix's parent): the project,
+         * the plant, the Mastermind's room, the assembly and the Hall's list stayed on the Lab, a name no
+         * room has; and the two renames in a row were judged when their turn came, after both had
+         * landed, so the stashed thing and the discovery stayed on the Lab too.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const T = await import("./traps.mjs");
+        const MM = await import("./mastermind.mjs");
+        const PS = await import("./projects-secrecy.mjs");
+        const { trapPlantStore, trapLedgerStore } = await import("./gm-stores.mjs");
+        const [owner, finder] = cast(2);
+        const LAB = "SUITE E12 H4 Lab", MID = "SUITE E12 H4 Middle", END = "SUITE E12 H4 End", HALL = "SUITE E12 H4 Hall",
+            ANNEX = "SUITE E12 H4 Annex", WING = "SUITE E12 H4 Wing", DEN = "SUITE E12 H4 Den";
+        const PROJECT = `suiteH4${foundry.utils.randomID(9)}`;
+        const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
+        const metaBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {});
+        const gatherBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.pendingGather) ?? {});
+        let scene = null, item = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 H4 a renamed lab", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const marked = (extra = {}) => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, ...extra } });
+            const [lab, , annex] = await scene.createEmbeddedDocuments("Region", [
+                { name: LAB, shapes: box(100), flags: marked({ [V.VAULT_FLAGS.stashes]: [{ actorId: owner.id, concealed: true }] }), behaviors: [] },
+                { name: HALL, shapes: box(500), flags: marked({ drpgNeighbours: `${LAB}, ${DEN}` }), behaviors: [] },
+                { name: ANNEX, shapes: box(900), flags: marked(), behaviors: [] }]);
+            const plantAt = name => Boolean(trapPlantStore.entries()[`${scene.id}::${name}`]);
+            const drawer = () => owner.items.get(item?.id)?.getFlag(MODULE_ID, INV.ITEM_FLAGS.stashRoom) ?? null;
+            const reading = name => [PS.metaFor(PROJECT).room === name, plantAt(name), MM.mastermindLair() === name,
+                game.settings.get(MODULE_ID, SETTINGS.pendingGather)?.room === name, drawer() === name, F.discoveredFor(scene.id, finder.id).includes(name)];
+            await E.withGmStoreWorld(`suite-e12-h4b-${foundry.utils.randomID(8)}`, async () => {
+                try {
+                    item = await INV.grantItem(owner, { name: "SUITE E12 H4 a jar", category: "usable", tier: 1, override: true, quiet: true });
+                    if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: LAB });
+                    await PS.setProjectMeta(PROJECT, { room: LAB });
+                    await T.plantItem(PROJECT, LAB, { sceneId: scene.id, name: "SUITE E12 H4 a note" });
+                    await MM.setMastermindLair(LAB);
+                    const clock = getClock();
+                    await game.settings.set(MODULE_ID, SETTINGS.pendingGather, { room: LAB, sceneId: scene.id, by: "", chapter: clock.chapter,
+                        session: clock.session, timeOfDay: clock.timeOfDay, at: Date.now() });
+                    await F.applyDiscoveryChanges(scene, [{ actorId: finder.id, room: LAB, value: true }, { actorId: finder.id, room: ANNEX, value: true }]);
+                    await until(() => reading(LAB).every(Boolean) && F.discoveredFor(scene.id, finder.id).includes(ANNEX), 4000);
+                    must(item && stableJson(reading(LAB)) === stableJson([true, true, true, true, true, true]),
+                        `the Lab's project, plant, Mastermind's room, assembly, stashed jar and discovery did not stand before the rename (${stableJson(reading(LAB))}) - this would measure nothing`);
+                    // The Annex's carry is under way (its discovery row) when the Lab's two renames land, one after the other.
+                    const annexRenamed = annex.update({ name: WING });
+                    await lab.update({ name: MID });
+                    await lab.update({ name: END });
+                    await annexRenamed;
+                    await until(() => reading(END).every(Boolean) && R.roomFlag(scene, HALL, "drpgNeighbours") === `${END}, ${DEN}`, 6000);
+                    await settle();
+                    read = [reading(END), reading(LAB), reading(MID), R.roomFlag(scene, HALL, "drpgNeighbours")];
+                } finally {
+                    await Promise.all([trapPlantStore.dropMany([`${scene.id}::${LAB}`, `${scene.id}::${MID}`, `${scene.id}::${END}`]),
+                        trapLedgerStore.dropMany(Object.keys(trapLedgerStore.entries()).filter(id => trapLedgerStore.entries()[id]?.projectId === PROJECT))]);
+                }
+            });
+        } finally {
+            if (item) await owner.items.get(item.id)?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, metaBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.pendingGather, gatherBefore);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true, true, true, true, true], [false, false, false, false, false, false],
+            [false, false, false, false, false, false], `${END}, ${DEN}`]),
+            "[the project's room, the plant, the Mastermind's room, the assembly's room, the stashed jar's room, the discovery] on the End, the Lab "
+            + "and the Middle once the Lab was renamed twice in a row; and the Hall's Neighbours list");
+    }],
+    ["the trial hall is no place: a student's token on it stands in no room and is never where the student is - whatever its regions say", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 2.3 and V2 (R114's world half; the tier-1 R114 reads the shape), audit S07-47.
+         * Until 1.2.74 a room marked on the trial hall was a room like any other, so the student's token standing in it
+         * stood somewhere: in that room, on a place scene, and where `locateActor` found the student when a packet named
+         * the hall - and a walk across the hall was judged as a crossing (scenario 41 b). Here a hall of the suite's own
+         * holds a named region a GM marked as a room and a shown token of a living student standing in it; the student's
+         * own token stays where it is. The hall is linked as the trial hall and the school as found (`homeScene()`) as the
+         * school, the setting written here as the Scenes tab will write it (plan-E13 C5) and put back. Read: the hall
+         * token's room, the hall's room pieces, whether it is a place scene, the scene `locateActor` finds the student on
+         * when asked with the hall's id, whether `placesOf` answers the hall, and home. Red before C1: the token stood in
+         * the room, the hall held it and was a place, and the student was found on it. Not read here: the body's discovery
+         * (its finder's room is `roomOfToken`'s) and E12 C11's floor switcher (shown on a place scene only) - both ask what
+         * this reads; and the voice plan's warning of a scene with characters and no rooms, which R114 reads in the source:
+         * `voicePlan` filters `game.modules` as Foundry's collection, and the harness's has no `filter` (it threw so here,
+         * 12.10.2026).
+         */
+        const [student] = cast(1);
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const school = R.homeScene();
+        must(school?.tokens?.some(t => t.actorId === student.id), `${student.name} has no token on the school - where they are would not be asked against the hall`);
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const NAME = "SUITE E13 C1 the trial hall", ROOM = "SUITE E13 C1 the stand";
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: NAME, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await hall.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [token] = await hall.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300,
+                width: 1, height: 1, hidden: false }]);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: school.id, trial: hall.id });
+            await settle();
+            read = [linkable, Mv.roomOfToken(token), R.roomPieces(hall).length, R.isPlaceScene(hall),
+                Mv.locateActor(student, { sceneId: hall.id })?.scene?.id === school.id, Mv.placesOf(student).some(place => place.scene === hall),
+                R.homeScene() === school];
+        } finally {
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            await hall?.delete();
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, null, 0, false, true, false, true]),
+            `[the roles can be linked, the room of ${student.name}'s hall token, the hall's room pieces, the hall is a place, ${student.name} is found `
+            + "on the school when the hall is named, `placesOf` answers the hall, home is the school]");
+    }],
+
+    ["a school linked as the school is home whatever scene the GM has on screen - and Room Setup opened viewing the trial hall opens on it", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 2.3 and V3 (R115's world half; the tier-1 R115 reads the shape), audit S11-15.
+         * `homeScene()` guessed the school - the only scene with rooms, else the active one if it held a room, else the
+         * one of most room pieces - and Room Setup opened on the scene on screen. Here a school and a hall of the suite's
+         * own, the hall holding two marked rooms to the school's one, are linked (the setting written here and put back),
+         * and the GM views the hall. Read: home, the title Room Setup opens with (the window is answered at once, its form
+         * unread), and home again once the school's id names a scene that is gone - E12's guess then, never the hall.
+         * The hall is not made active here: an activation moves every browser at the table, and scenario 41 b reads home
+         * on four browsers with the hall active and viewed. Red before C1: home was the guess and Room Setup named the
+         * hall. In a GM-store world of the suite's own, as the E12 tests that view a scene of their own.
+         */
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const viewing = canvas?.scene ?? null;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c1-${foundry.utils.randomID(8)}`, async () => {
+            let school = null, hall = null;
+            try {
+                school = await Scene.create({ name: "SUITE E13 C1 the school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await school.createEmbeddedDocuments("Region", [room("SUITE E13 C1 a classroom", 0)]);
+                hall = await Scene.create({ name: "SUITE E13 C1 the hall on screen", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await hall.createEmbeddedDocuments("Region", [room("SUITE E13 C1 the stand", 0), room("SUITE E13 C1 the gallery", 1000)]);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: school.id, trial: hall.id });
+                await hall.view();
+                await settle();
+                const titles = [];
+                D.wait = async cfg => { titles.push(cfg?.window?.title ?? null); return null; };
+                await V.openRoomSetupDialog();
+                const home = R.homeScene();
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: "R115NOSUCHSCENE0", trial: hall.id });
+                const guessed = R.homeScene();
+                read = [linkable, canvas?.scene === hall, home?.name ?? null, titles, Boolean(guessed) && guessed !== hall];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+                await viewing?.view();
+                await school?.delete();
+                await hall?.delete();
+                await settle();
+            }
+        });
+        equal(JSON.stringify(read), JSON.stringify([true, true, "SUITE E13 C1 the school",
+            [game.i18n.format("DRPG.Vault.manageTitleOn", { scene: "SUITE E13 C1 the school" })], true]),
+            "[the roles can be linked, the GM views the hall, home, the titles Room Setup opened with, home once the school's scene is gone is a scene and not the hall]");
+    }],
+    ["entering the trial shows the GMs' choice of the linked hall's cast and leaving hides it - nothing made or deleted and only `hidden` written", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (V4: R116's world half, R433's store half), decisions D7 and D12, audit
+         * S06-57. Until 1.2.74 nothing showed anybody in a trial hall: a GM showed the tokens by hand (scenario 41 a). Here
+         * a hall of the suite's own holds, hidden, a token of each of two students players play, a second token of the
+         * first, a token of a student nobody plays (made here) and Monokuma's, and a prop of no actor, shown; it is linked
+         * as the trial hall (the setting put back). In a GM-store world of the suite's own, the GMs' choice unticks the
+         * second student, and a row of the season before ticks the one nobody plays. Read: what `revealTrialTokens` and
+         * `hideTrialTokens` answer, twice each, and what is shown after each; the tokens made and deleted on the hall
+         * meanwhile and the fields each update carried; the hall's ids; an entry whose store did not open (`open`
+         * answering "late"); what the GMs were whispered; and whether `compactGmStores` on the primary drops the past
+         * season's row and keeps this season's. Called directly, not through the phase: scenario 41 a, c and d read the
+         * phase's road on four browsers. Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(T, "there is no trial-scene.mjs - nothing shows the hall's cast (S06-57)");
+        if (!T) return;
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(played.length >= 2 && monokuma, "the world has fewer than two students players play, or no Monokuma, to stand in the hall");
+        const [first, second] = played;
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c2-${foundry.utils.randomID(8)}`, async () => {
+            let hall = null, nobody = null;
+            const seen = { made: 0, gone: 0, fields: [] };
+            const hooks = [["createToken", doc => { if (doc.parent === hall) seen.made++; }], ["deleteToken", doc => { if (doc.parent === hall) seen.gone++; }],
+                ["updateToken", (doc, changed) => { if (doc.parent === hall) seen.fields.push(Object.keys(changed).filter(k => k !== "_id").sort().join(",")); }]]
+                .map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
+            try {
+                nobody = await Actor.create({ name: "SUITE E13 C2 nobody plays", type: "character" });
+                hall = await Scene.create({ name: "SUITE E13 C2 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                const token = (name, actorId, x, hidden = true) => ({ name, actorId, actorLink: Boolean(actorId), x, y: 300, width: 1, height: 1, hidden });
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100), token("second", second.id, 200), token("first again", first.id, 300),
+                    token("nobody", nobody.id, 400), token("Monokuma", monokuma.id, 500), token("prop", null, 600, false)]);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+                const id = name => hall.tokens.find(t => t.name === name)?.id;
+                const saved = await T.saveTrialCast(hall, { [id("second")]: false });
+                await S.trialCastStore.patch(T.castKey(hall.id, id("nobody")), { reveal: true, epoch: seasonEpoch() - 1 });
+                await settle();
+                const ids = hall.tokens.map(t => t.id).sort();
+                Object.assign(seen, { made: 0, gone: 0, fields: [] });
+                const shown = () => hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
+                const names = list => list.map(tokenId => hall.tokens.get(tokenId)?.name ?? tokenId).sort();
+                const named = r => r && { shown: names(r.shown), hidden: names(r.hidden), seconds: names(r.seconds) };
+                const step = async fn => { const r = named(await fn()); await settle(); return [r, shown(), seen.fields.splice(0)]; };
+                const late = await step(() => T.applyTrialCast(hall, { reveal: true, open: async () => "late" }));
+                const steps = [late, await step(() => T.revealTrialTokens(hall)), await step(() => T.revealTrialTokens(hall)),
+                    await step(() => T.hideTrialTokens(hall)), await step(() => T.hideTrialTokens(hall))];
+                const compacted = await S.compactGmStores({ primary: true });
+                read = [linkable, saved, steps, seen.made, seen.gone, stableJson(hall.tokens.map(t => t.id).sort()) === stableJson(ids),
+                    await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000))), compacted?.trialCastPastSeasons ?? 0,
+                    S.trialCastStore.has(T.castKey(hall.id, id("nobody"))), S.trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+            } finally {
+                for (const [hook, hookId] of hooks) Hooks.off(hook, hookId);
+                if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+                await hall?.delete();
+                await nobody?.delete();
+                for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+                await settle();
+            }
+        });
+        const none = { shown: [], hidden: [], seconds: ["first again"] };
+        const told = key => `<p>${game.i18n.format(`DRPG.TrialScene.${key}`, { names: "first again" })}</p>`;
+        equal(JSON.stringify(read), JSON.stringify([true, true, [
+            [null, ["prop"], []],
+            [{ shown: ["Monokuma", "first"], hidden: [], seconds: ["first again"] }, ["Monokuma", "first", "prop"], ["hidden", "hidden"]],
+            [none, ["Monokuma", "first", "prop"], []],
+            [{ shown: [], hidden: ["Monokuma", "first"], seconds: ["first again"] }, ["prop"], ["hidden", "hidden"]],
+            [none, ["prop"], []]],
+            0, 0, true, [told("castUnavailable"), told("duplicateToken"), told("duplicateToken")], 1, false, false]),
+            "[the roles can be linked, the choice was stored, each step's answer, what is shown after it and the fields each update carried - an entry whose store did not open, "
+            + "two entries, two exits - tokens made and deleted on the hall, its ids as before, what the GMs were whispered, the past season's rows compacted, "
+            + "the past season's row still kept, this season's untick]");
+    }],
+    ["entering the trial whispers the GMs once by name the students a player plays who have no token in the hall and nothing when every one has", async () => {
+        /*
+         * E13 fix l1-L1, 12.10.2026; the 1.2.74 ledger's verify E13-6, plan-E13 2.3 (Q-E13-1 a: the dead are shown too).
+         * `enterTrialScene` tells the GMs whom the hall cannot show (trial-scene.mjs `studentsWithoutHallToken`), and
+         * until this test nothing drove that whisper: R120 reads the Scenes tab's warning row, scenario 41 never has a
+         * student missing from its hall. Here a hall of the suite's own, not linked, holds a hidden token of every student
+         * a player plays in this world; it is entered three times - with every one there, with the first one's token
+         * deleted, with the second one's too. Read each time: what `enterTrialScene` answers as `missing`, and the words
+         * of every whisper it sent. The hall's `activate` is the suite's stub, so no browser at the table is moved (as
+         * the End the trial tests stub their place's). The sentence is built here from the key's form for the module's
+         * language (Intl's rule, the English one and other, the Polish one and few), not through `plural`.
+         * Measured red by mutant only (the whisper dropped; the owner filter dropped), 12.10.2026: the code at
+         * 8b4974a is the code this test passes on.
+         */
+        const T = await import("./trial-scene.mjs");
+        const G = await import("./gm-store.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { moduleLanguage } = await import("./settings.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const played = game.actors.filter(a => a.type === "character" && ownerIdsOf(a).length);
+        must(played.length >= 2, "the world has fewer than two students players play - nobody to leave out of the hall");
+        must(played.every(a => !/[&<>"']/.test(a.name)), "a played student's name needs escaping - the sentence built here would not be the whisper's");
+        const [first, second] = played;
+        const key = "DRPG.TrialScene.missingTokens";
+        const sentence = list => {
+            const n = list.length, form = new Intl.PluralRules(moduleLanguage()).select(n);
+            return `<p>${game.i18n.format(`${key}.${game.i18n.has(`${key}.${form}`) ? form : "other"}`, { n, names: list.map(a => a.name).join(", ") })}</p>`;
+        };
+        const said = new Set(game.messages.map(m => m.id));
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13l1-${foundry.utils.randomID(8)}`, async () => {
+            let hall = null;
+            try {
+                hall = await Scene.create({ name: "SUITE E13 l1 a hall short of a token", width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                let activated = 0;
+                hall.activate = async () => { activated++; return hall; };
+                await hall.createEmbeddedDocuments("Token", played.map((a, i) => ({ name: a.name, actorId: a.id, actorLink: true, x: 100 * (i + 1), y: 300, width: 1, height: 1, hidden: true })));
+                await settle();
+                const dark = T.hallIsDark(hall) ? [`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`] : [];
+                const seen = new Set(game.messages.map(m => m.id));
+                const enter = async () => {
+                    const entered = await T.enterTrialScene(hall);
+                    await settle();
+                    const fresh = game.messages.filter(m => !seen.has(m.id) && (m.whisper?.length ?? 0) > 0);
+                    for (const m of fresh) seen.add(m.id);
+                    return [entered?.missing ?? null, await Promise.all(fresh.map(m => wordsOf(m, 2000)))];
+                };
+                const gone = async actor => { await hall.deleteEmbeddedDocuments("Token", hall.tokens.filter(t => t.actorId === actor.id).map(t => t.id)); await settle(); };
+                const all = await enter();
+                await gone(first);
+                const one = await enter();
+                await gone(second);
+                const two = await enter();
+                read = { steps: [all, one, two], activated, dark };
+            } finally {
+                await hall?.delete();
+                for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+                await settle();
+            }
+        });
+        const { dark = [] } = read ?? {};
+        equal(stableJson(read?.steps ?? null), stableJson([
+            [[], [...dark]],
+            [[first.id], [sentence([first]), ...dark]],
+            [[first.id, second.id], [sentence([first, second]), ...dark]]]),
+            `[what enterTrialScene answers as missing, the words of each whisper it sent] with every student's token in the hall, with ${first.name}'s deleted, `
+            + `with ${second.name}'s too - one whisper naming them in the world's order, in the key's form for one and for two, and none with every one there `
+            + `(the hall dark: ${dark.length > 0}; activations stubbed: ${read?.activated ?? null})`);
+    }],
+
+    ["a player's change to whether a hall cast token is hidden is put back by the primary GM and told to the GMs; a GM's stands", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (MARKED, decision D2; R434's world half). Whether Foundry v14 lets a
+         * token's owner write its `hidden` is not measured (LIVE-E13-08): what the primary hears when one does is its
+         * `updateToken` hook with that player's id, and trial-scene.mjs `watchCast` is that listener - called here as
+         * Foundry calls it, after the GM wrote the state the player's write would have left. Since E13 fix r1-F2 every
+         * GM's client notes the `hidden` a GM writes as the GMs' (review r1 sec A), so that stand-in write is made with
+         * the registered listener off (`quiet`), and the GM's own writes between the steps are heard by it; a GM's id is
+         * handed to `watchCast` as well. Scenario 41 a3 and a4 have players' browsers write it. A hall of the suite's
+         * own, linked as the trial hall (the setting put back), is given a shown token of a student a player owns.
+         * Read, each time, whether the token is hidden after: a player's hide; the same carrying this module's
+         * `trialCast` option (a writer's claim); a player's show of a token the GM hid; a GM's hide; and two changes
+         * of a player's both landed before the primary answers the first, on a token the GM showed (r1-F2: C2 answered
+         * each against itself and left the token hidden, with two whispers). First of all, a player's show of a hidden
+         * token made before the hall was linked, the first write on the hall this client hears: no GM's write of it was
+         * heard, so it goes back to where the module leaves a hall token out of the trial, hidden. And what the GMs were
+         * whispered. Red before C2: there was no trial-scene.mjs, and a player's change stood.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(T, "there is no trial-scene.mjs - a player's change to a hall token's hidden stands");
+        if (!T) return;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - the put-back is the primary's, and would not run here");
+        const player = game.users.find(u => !u.isGM);
+        const student = player && game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        must(student, "the world has no player who owns a student, to change a hall token");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: "SUITE E13 C2 the hall a player touches", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [unheard] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 500, y: 300,
+                width: 1, height: 1, hidden: true }]);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            await settle();
+            const quiet = async (doc, hidden) => {
+                Hooks.off("updateToken", T.watchCast);
+                try { await doc.update({ hidden }); } finally { Hooks.on("updateToken", T.watchCast); }
+            };
+            await quiet(unheard, false);
+            await T.watchCast(unheard, { hidden: false }, {}, player.id);
+            await settle();
+            const unseen = hall.tokens.get(unheard.id).hidden;
+            const [token] = await hall.createEmbeddedDocuments("Token", [{ name: student.name, actorId: student.id, actorLink: true, x: 300, y: 300,
+                width: 1, height: 1, hidden: false }]);
+            await settle();
+            const by = async (hidden, userId, options = {}) => {
+                await quiet(token, hidden);
+                await T.watchCast(token, { hidden }, options, userId);
+                await settle();
+                return hall.tokens.get(token.id).hidden;
+            };
+            const hides = [await by(true, player.id), await by(true, player.id, { [MODULE_ID]: { trialCast: true } })];
+            await token.update({ hidden: true });
+            const shows = await by(false, player.id);
+            await token.update({ hidden: false });
+            const gm = await by(true, game.user.id);
+            await token.update({ hidden: false });
+            await quiet(token, true);
+            await quiet(token, false);
+            await T.watchCast(token, { hidden: true }, {}, player.id);
+            await T.watchCast(token, { hidden: false }, {}, player.id);
+            await settle();
+            const twice = hall.tokens.get(token.id).hidden;
+            read = [linkable, unseen, hides, shows, gm, twice, await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)))];
+        } finally {
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            await hall?.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const told = `<p>${game.i18n.format("DRPG.TrialScene.hiddenPutBack", { user: player.name, name: student.name })}</p>`;
+        equal(JSON.stringify(read), JSON.stringify([true, true, [false, false], true, true, false, [told, told, told, told]]),
+            "[the roles can be linked, hidden after a player's show of a token no GM's write of was heard, after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide, "
+            + "after a player's hide and show both landed before the first was answered; what the GMs were whispered]");
+    }],
+    ["End the trial moves the living to the GM's room by the gather's own rule read as the GMs hold it; the hall's tokens stay hidden where they stand; a student on a scene with no rooms is left and named", async () => {
+        /*
+         * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 1, 3 and 6 of 10.10, plan-E13 3.2, the ledger's Af,
+         * O1, O6 and D5's headless half. Until this commit leaving the trial took the table back to a scene (C3) and moved
+         * no token: every student stood where the incident had left them and the GM moved them by hand. Here, on scenes
+         * of the suite's own: a place scene with three rooms holds a living student, a Monocub and Monokuma in its first
+         * room and a dead student in its third; another place scene, made first, holds a room of the same name as the
+         * chosen one, a living student and a dead one, outside it; a hall linked as the trial hall (the setting put back)
+         * holds the living student's token, shown. The chosen scene's `activate` is this document's own counter, so the
+         * world's active scene is not changed. Read: what `setTrialExit` holds for a room of no scene's, for the hall, and
+         * for the chosen room; what `leaveTrialScene` answers and holds after; the room each token of the chosen scene
+         * stands in; whether the hall's and the other scene's tokens kept their places, and the hall's is hidden; whom the
+         * return names, and what the GMs were whispered. Then the other road of the held read: the gather handed a reader
+         * that holds the living student as Monokuma, which a document read would not see. The headless regions cannot
+         * teleport, so the room's box is the fallback's (call-world.mjs `teleportInto`'s note); Foundry's teleport is
+         * LIVE-E13-10. Scenario 41 i drives End the trial's window on four browsers. Red before C3b: there was no
+         * `setTrialExit`.
+         *
+         * E13 fix r1-F1 (12.10.2026; review r1 cor A): the living student away stood on another place scene until this
+         * fix, and since it is carried over (the next test) it stands on a map with no rooms, which the return cannot
+         * move it from. At 45e6bcf it was then neither moved nor named - `leftBehind` read only scenes with rooms - and
+         * this test read it as not named (red first); it is named now.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.setTrialExit === "function", "trial-scene.mjs holds no room for the end of the trial - End the trial moves nobody (the owner's f)");
+        if (typeof T.setTrialExit !== "function") return;
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const { gatherEveryone } = await import("./call-world.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(monokuma, "the world has no Monokuma to stand in the chosen room");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 C3b", [SQUARE, GYM, STORE] = [`${P} the square`, `${P} the gym`, `${P} the store`];
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false });
+        const actors = [], scenes = [];
+        const make = async (name, flags = {}) => {
+            const actor = await Actor.create({ name: `${P} ${name}`, type: "character", flags: { [MODULE_ID]: flags } });
+            actors.push(actor);
+            return actor;
+        };
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            return made;
+        };
+        let read = null;
+        try {
+            const living = await make("living"), cub = await make("cub", { [FLAGS.deceased]: true, [FLAGS.monocub]: true });
+            const dead = await make("dead", { [FLAGS.deceased]: true }), away = await make("away"), awayDead = await make("away and dead", { [FLAGS.deceased]: true });
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(GYM, 0)]);
+            await other.createEmbeddedDocuments("Token", [token(awayDead, 1500, 1300)]);
+            const map = await scene("a map with no rooms", 2000);
+            await map.createEmbeddedDocuments("Token", [token(away, 1300, 1300)]);
+            const place = await scene("the chosen place", 3600);
+            await place.createEmbeddedDocuments("Region", [room(SQUARE, 0), room(GYM, 1200), room(STORE, 2400)]);
+            await place.createEmbeddedDocuments("Token", [token(living, 300, 300), token(cub, 500, 300), token(monokuma, 700, 300), token(dead, 2700, 300)]);
+            const hall = await scene("the trial hall", 2000);
+            await hall.createEmbeddedDocuments("Token", [token(living, 300, 300)]);
+            /* E13 fix r1-F1: the world's own students stand on its school, a scene with rooms, and the return now carries
+               every living student it finds elsewhere - here, and the cleanup would delete them with this scene, at a
+               table too. Each gets a hidden token on the chosen scene outside its rooms first, so the return finds them
+               here and carries none; the gather takes the living among them into the room, and they are counted apart. */
+            const fence = await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a)
+                && ![...place.tokens].some(t => t.actorId === a.id)).map(a => token(a, 50, 1500)).map(t => ({ ...t, hidden: true })));
+            const fenced = name => fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === name).length;
+            const fenceIds = new Set(fence.map(t => t.id));
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            let activated = 0;
+            place.activate = async () => { activated++; return place; };
+            await settle();
+            const kept = () => [...hall.tokens, ...other.tokens, ...map.tokens].map(t => `${t.name}@${t.x},${t.y}`);
+            const keptBefore = kept();
+            const rooms = () => Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name, Mv.roomOfToken(t)]));
+            await fenceHeld(place, hall, actors);
+            const refused = [T.setTrialExit({ sceneId: place.id, room: `${P} nowhere` }), T.setTrialExit({ sceneId: hall.id, room: GYM })];
+            const held = T.setTrialExit({ sceneId: place.id, room: GYM });
+            const left = await T.leaveTrialScene(hall);
+            await settle();
+            const after = rooms(), fencedIn = fenced(GYM);
+            const leftIds = left?.gathered?.left ?? [];
+            const names = leftIds.map(id => game.actors.get(id)?.name ?? id).join(", ");
+            /* E13 fix r2-H1: the whisper names every living student left on two scenes - here only the world's own behind
+               the fence, read off the answer (none of the suite's students stands on two such scenes). */
+            const fenceActors = new Set(fence.map(t => t.actorId));
+            const theirs = list => (list ?? []).filter(id => fenceActors.has(id)).map(id => game.actors.get(id)?.name);
+            const line = (key, list) => (list.length ? `<p>${plural(key, { n: list.length, names: list.join(", ") })}</p>` : "");
+            const twice = [...(left?.gathered?.hidden ?? []), ...(left?.gathered?.others ?? [])].filter(id => !fenceActors.has(id));
+            const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
+            const holdsLiving = actor => actor?.id === living.id
+                ? { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => (key === FLAGS.monokuma ? true : actor.getFlag(scope, key)) }
+                : flagsHeldNow(actor);
+            const again = await gatherEveryone(SQUARE, place, { held: holdsLiving, box: true }) - fenced(SQUARE);
+            await settle();
+            read = [linkable, refused, held && held.sceneId === place.id && held.room === GYM, left?.destination === place.id, left?.activated, activated,
+                (left?.gathered?.moved ?? NaN) - fencedIn, T.trialExitHeld(), after, stableJson(kept()) === stableJson(keptBefore), hall.tokens.contents.map(t => t.hidden),
+                [away, awayDead, living, cub, dead, monokuma].map(actor => leftIds.includes(actor.id)),
+                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 2 + fencedIn, room: GYM })}</p>`
+                    + `<p>${plural("DRPG.TrialScene.notMoved", { n: leftIds.length, names })}</p>`
+                    + line("DRPG.TrialScene.hiddenHere", theirs(left?.gathered?.hidden)) + line("DRPG.TrialScene.tokensStay", theirs(left?.gathered?.others))]) && !twice.length,
+                again, rooms()];
+        } finally {
+            T.setTrialExit(null);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const [living, cub, dead] = ["living", "cub", "dead"].map(name => `${P} ${name}`);
+        equal(stableJson(read), stableJson([true, [null, null], true, true, true, 1, 2, null,
+            { [living]: GYM, [cub]: GYM, [monokuma.name]: SQUARE, [dead]: STORE }, true, [true],
+            [true, false, false, false, false, false], true,
+            1, { [living]: GYM, [cub]: SQUARE, [monokuma.name]: SQUARE, [dead]: STORE }]),
+            "[the roles can be linked; what is held for a room of no scene's and for the hall, and whether the chosen room is held; leaving goes to the chosen scene, "
+            + "activates it, how often; how many the return moved; what is held after; the room each token of the chosen scene stands in; the hall's and the other "
+            + "scene's tokens where they were; the hall's token hidden; whom the return names, of the living and the dead away, the moved, the dead and Monokuma; "
+            + "the GMs' whisper; a gather reading the living student held as Monokuma: how many it moves and where each token stands]");
+    }],
+
+    ["End the trial carries a living student from another scene with rooms into the GM's room under a new token id and names the rest", async () => {
+        /*
+         * E13 fix r1-F1, 12.10.2026; the owner's item 1 of 10.10 ("a student whose token stands on another scene is moved
+         * too, if it can be done"), review r1 goal Af-1, sec and cor open item 1, cor A. At 45e6bcf the return moved only the
+         * living already on the chosen scene: a living student on another scene with rooms stayed there and was named, and
+         * this test read every one of them where they stood (red first). Here, on scenes of the suite's own: the chosen place
+         * (two rooms) holds a living student; another place holds the living student away - an unlinked token with a delta,
+         * another module's flag and hidden, moved once by the GM so movement.mjs holds a record under its id - a dead
+         * student, and one of the two tokens of a student who has another, hidden, on a third place; a fourth place refuses
+         * every delete (its `deleteEmbeddedDocuments` does nothing, as a refused delete leaves the token); the hall holds
+         * the first living student, a player's student who has no other token and a student nobody plays. A stand-in for
+         * Foundry's combats (the harness has none) holds a combatant for away's token. Read: what the return answers, the
+         * room each token of the chosen scene stands in and its id, what stands on every other scene after, away's copy
+         * (its delta, the other module's flag, hidden), what the stand-in was asked, the GM's records under away's old id
+         * before and after, the copy's standing, and the whisper. The order of the return - carry, then the gather of
+         * everybody on the scene - is `returnTheLiving`'s; Foundry's own teleport across scenes is LIVE-E13-10.
+         */
+        const T = await import("./trial-scene.mjs");
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player to play the student who stands only in the hall");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the trial hall cannot be linked - the return would read no hall");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 r1-F1", [SQUARE, GYM, SHED, BARN, PIT] = ["square", "gym", "shed", "barn", "pit"].map(name => `${P} the ${name}`);
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y, more = {}) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false, ...more });
+        const actors = [], scenes = [];
+        const make = async (name, more = {}) => {
+            const actor = await Actor.create({ name: `${P} ${name}`, type: "character", ...more });
+            actors.push(actor);
+            return actor;
+        };
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            return made;
+        };
+        const hadCombats = Object.prototype.hasOwnProperty.call(game, "combats"), combatsBefore = game.combats;
+        let read = null;
+        try {
+            const here = await make("here"), away = await make("away"), dead = await make("dead", { flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } });
+            const twice = await make("twice"), stuck = await make("stuck");
+            const played = await make("played", { ownership: { default: 0, [player.id]: 3 } }), unplayed = await make("unplayed");
+            const place = await scene("the chosen place", 2400);
+            await place.createEmbeddedDocuments("Region", [room(SQUARE, 0), room(GYM, 1200)]);
+            await place.createEmbeddedDocuments("Token", [token(here, 300, 300)]);
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(SHED, 0)]);
+            const DELTA = { flags: { [MODULE_ID]: { suiteKept: 1 } } }, OTHER = { "suite-other-module": { mark: 7 } };
+            const [awayToken] = await other.createEmbeddedDocuments("Token", [token(away, 300, 300, { actorLink: false, delta: DELTA, flags: OTHER, hidden: true }),
+                token(dead, 500, 300), token(twice, 700, 300)]);
+            const third = await scene("a third place", 2000);
+            await third.createEmbeddedDocuments("Region", [room(BARN, 0)]);
+            await third.createEmbeddedDocuments("Token", [token(twice, 300, 300, { hidden: true })]);
+            const fourth = await scene("a place that keeps its tokens", 2000);
+            await fourth.createEmbeddedDocuments("Region", [room(PIT, 0)]);
+            await fourth.createEmbeddedDocuments("Token", [token(stuck, 300, 300)]);
+            fourth.deleteEmbeddedDocuments = async () => [];
+            const hall = await scene("the trial hall", 2000);
+            await hall.createEmbeddedDocuments("Token", [token(here, 300, 300), token(played, 500, 300), token(unplayed, 700, 300)]);
+            /* The world's own students would be carried here and deleted with this scene (the test above says why): each
+               gets a hidden token on the chosen scene outside its rooms, and those are counted apart. */
+            const fence = await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a))
+                .map(a => token(a, 50, 1500, { hidden: true })));
+            const fenceIds = new Set(fence.map(t => t.id));
+            await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            place.activate = async () => place;
+            await awayToken.update({ x: 400 });
+            await settle();
+            const oldId = awayToken.id, before = Mv.recentPositions(oldId).length;
+            const asked = [];
+            game.combats = [{ combatants: [{ id: "suiteCombatant", tokenId: oldId, sceneId: other.id }],
+                async updateEmbeddedDocuments(name, rows) { asked.push([name, rows]); return []; } }];
+            await fenceHeld(place, hall, actors);
+            T.setTrialExit({ sceneId: place.id, room: GYM });
+            const left = await T.leaveTrialScene(hall);
+            await settle();
+            const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
+            const copy = [...place.tokens].find(t => t.actorId === away.id) ?? null;
+            const fencedIn = fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === GYM).length;
+            const byName = s => [...s.tokens].map(t => t.name.slice(P.length + 1)).sort();
+            const g = left?.gathered ?? {};
+            const ids = list => (list ?? null) && list.map(id => game.actors.get(id)?.name.slice(P.length + 1) ?? id);
+            /* E13 fix r2-H1: the whisper names every living student left on two scenes - the world's own behind the fence
+               among them, read off the answer; the suite's students are written out. */
+            const fenceActors = new Set(fence.map(t => t.actorId));
+            const theirs = list => (list ?? []).filter(id => fenceActors.has(id)).map(id => game.actors.get(id)?.name);
+            const line = (key, names) => (names.length ? `<p>${plural(key, { n: names.length, names: names.join(", ") })}</p>` : "");
+            read = [ids(g.carried), ids(g.left), ids(g.others?.filter(id => !fenceActors.has(id))), (g.moved ?? NaN) - fencedIn,
+                Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name.slice(P.length + 1), Mv.roomOfToken(t)])),
+                [byName(other), byName(third), byName(fourth), byName(hall)],
+                copy && [copy.id !== oldId, stableJson(copy.toObject().delta) === stableJson(DELTA), copy.toObject().flags?.["suite-other-module"]?.mark ?? null, copy.hidden],
+                stableJson(asked) === stableJson([["Combatant", [{ _id: "suiteCombatant", sceneId: place.id, tokenId: copy?.id }]]]),
+                before > 0, Mv.recentPositions(oldId).length, copy ? Mv.standingOf(copy)?.lawful ?? null : null,
+                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 3 + fencedIn, room: GYM })}</p>`
+                    + `<p>${plural("DRPG.TrialScene.notMoved", { n: 2, names: [stuck.name, played.name].join(", ") })}</p>`
+                    + line("DRPG.TrialScene.hiddenHere", theirs(g.hidden)) + line("DRPG.TrialScene.tokensStay", [...theirs(g.others), twice.name])]) || whispered];
+        } finally {
+            T.setTrialExit(null);
+            if (hadCombats) game.combats = combatsBefore;
+            else delete game.combats;
+            await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["away", "twice"], ["stuck", "played"], ["twice"], 3,
+            { here: GYM, away: GYM, twice: GYM },
+            [["dead"], ["twice"], ["stuck"], ["here", "played", "unplayed"]],
+            [true, true, 7, true], true, true, 0, true, true]),
+            "[whom the return carried, could not move, and carried with a token left elsewhere; how many it moved; the room each token of the chosen scene "
+            + "stands in; what stands on the other place, the third, the place that keeps its tokens and the hall after; away's copy: a new id, the delta, "
+            + "the other module's flag, hidden; the combatant pointed at the copy; the GM held a record under the old id before, and how many after; "
+            + "the copy stands lawfully; the GMs' whisper]");
+    }],
+
+    ["End the trial carries a student's token across scenes whole: every field of its data; its actor's items and Hope and Stress and HP; its combatant", async () => {
+        /*
+         * E13 fix r1-G1, 12.10.2026; the owner's question of 12.10 (does the student come over whole?), default A: the
+         * module's own create and delete (call-world.mjs `carryAcross`). Driven on End the trial's road from its window
+         * on: the hall linked, the trial opened by the clock, then `closeTrial` with the room the window would hand it -
+         * its phase write runs `leaveTrialScene` and the carry. On scenes of the suite's own: two living students on
+         * another place, one linked (a Truth Bullet and a second item on the actor, Hope, Stress and HP set) and one
+         * unlinked (its delta holds its own Hope, Stress, HP and an item), each with an image, another module's flag, the
+         * unlinked one hidden; a stand-in for Foundry's combats (the harness has none) holds the unlinked one's combatant.
+         * Every field of each token's data is compared before and after but the id, the position and the floor, which the
+         * carry sets; and through the copy's actor, the actor's id, items and the three resources. The scenes' own
+         * `activate` does nothing here, so the table's scene stays where the world had it. What reads a token's id
+         * elsewhere (a chat card's speaker) is in `carryAcross`'s note, read in the code.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const R = await import("./rooms.mjs");
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the trial hall cannot be linked - End the trial would carry nobody");
+        const clockBefore = foundry.utils.deepClone(getClock());
+        must(clockBefore.phase !== "classTrial" && !isEclipse(), "a trial or an Eclipse was already running - this test opens and ends one");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 r1-G1", [YARD, HUT] = ["yard", "hut"].map(name => `${P} the ${name}`);
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y, more = {}) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false, ...more });
+        const RES = (hope, stress, hp) => ({ resources: { hope: { value: hope, max: 6 }, stress: { value: stress, max: 6 }, hitPoints: { value: hp, max: 6 } } });
+        const actors = [], scenes = [];
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            made.activate = async () => made;
+            scenes.push(made);
+            return made;
+        };
+        const hadCombats = Object.prototype.hasOwnProperty.call(game, "combats"), combatsBefore = game.combats;
+        const SET = ["_id", "x", "y", "level"];
+        const actorOf = actor => [actor?.id ?? null, [...(actor?.items ?? [])].map(item => [item.id, item.name, item.type]).sort(),
+            ["hope", "stress", "hitPoints"].map(key => actor?.system?.resources?.[key]?.value ?? null)];
+        let read = null, ended = null;
+        try {
+            const linked = await Actor.create({ name: `${P} linked`, type: "character", system: RES(4, 2, 3) });
+            const unlinked = await Actor.create({ name: `${P} unlinked`, type: "character", system: RES(5, 1, 6) });
+            actors.push(linked, unlinked);
+            const bullet = await createTruthBullet(linked, { name: `${P} bullet`, playerText: "kept" });
+            must(bullet, "no Truth Bullet was made for the linked student - its items would measure less");
+            await linked.createEmbeddedDocuments("Item", [{ name: `${P} lantern`, type: "loot" }]);
+            const place = await scene("the chosen place", 2400);
+            await place.createEmbeddedDocuments("Region", [room(YARD, 0)]);
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(HUT, 0)]);
+            const OTHER = mark => ({ "suite-other-module": { mark } });
+            const DELTA = { system: RES(1, 4, 2), items: [{ _id: "suiteG1deltaItem", name: `${P} charm`, type: "loot" }], flags: { [MODULE_ID]: { suiteKept: 2 } } };
+            const [linkedToken, unlinkedToken] = await other.createEmbeddedDocuments("Token", [
+                token(linked, 300, 300, { texture: { src: "suite/g1-linked.webp" }, flags: OTHER(3) }),
+                token(unlinked, 500, 300, { actorLink: false, delta: DELTA, texture: { src: "suite/g1-unlinked.webp" }, flags: OTHER(4), hidden: true })]);
+            const hall = await scene("the trial hall", 2000);
+            /* The world's own students would be carried here and deleted with this scene (the r1-F1 test says why). */
+            await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a))
+                .map(a => token(a, 50, 1500, { hidden: true })));
+            const before = new Map([linkedToken, unlinkedToken].map(t => [t.actorId, { id: t.id, src: t.toObject(), actor: actorOf(t.actor) }]));
+            game.combats = [{ combatants: [{ id: "suiteG1Combatant", tokenId: unlinkedToken.id, sceneId: other.id }],
+                async updateEmbeddedDocuments(name, rows) { this.asked.push([name, rows]); return []; }, asked: [] }];
+            await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - End the trial would measure nothing");
+            await fenceHeld(place, hall, actors);
+            ended = await UI.closeTrial({ sceneId: place.id, room: YARD });
+            await settle();
+            const after = {};
+            for (const actor of [linked, unlinked]) {
+                const was = before.get(actor.id), copy = [...place.tokens].find(t => t.actorId === actor.id) ?? null;
+                const src = copy?.toObject() ?? {};
+                const fields = [...new Set([...Object.keys(was.src), ...Object.keys(src)])].filter(key => !SET.includes(key))
+                    .filter(key => stableJson(was.src[key] ?? null) !== stableJson(src[key] ?? null)).sort();
+                after[actor.name.slice(P.length + 1)] = [Boolean(copy) && copy.id !== was.id, other.tokens.has(was.id),
+                    fields, stableJson(actorOf(copy?.actor)) === stableJson(was.actor)];
+            }
+            const copyOf = actor => [...place.tokens].find(t => t.actorId === actor.id);
+            read = [ended, getClock().phase, after, stableJson(game.combats[0].asked)
+                === stableJson([["Combatant", [{ _id: "suiteG1Combatant", sceneId: place.id, tokenId: copyOf(unlinked)?.id }]]]),
+                before.get(linked.id).actor[1].some(([id]) => id === bullet.id)];
+        } finally {
+            if (hadCombats) game.combats = combatsBefore;
+            else delete game.combats;
+            if (getClock().phase === "classTrial") await UI.closeTrial();
+            await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            if (getClock().phase !== clockBefore.phase) await setClock({ phase: clockBefore.phase });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const whole = [true, false, [], true];
+        equal(stableJson(read), stableJson([true, "dailyLife", { linked: whole, unlinked: whole }, true, true]),
+            "[End the trial answered; the phase after; for each student: a copy on the chosen place under a new id, the old token "
+            + "still on the other place, the token's fields that changed but the id, position and floor, all of them the same, "
+            + "and its actor's id, items and Hope, Stress and HP the same through the copy; the combatant pointed at the copy; "
+            + "the Truth Bullet among the linked actor's items]");
+    }],
+
+    ["End the trial never leaves a living student without a token, names every living student it leaves on two scenes, and a GM's load names a carry stopped half-way", async () => {
+        /*
+         * E13 fix r2-H1, 12.10.2026; review r2 cor A, cor B and sec S2-2, and the orchestrator's rule of 12.10 ("a carry
+         * never leaves a student with no token ... and the GMs are told by name"). On scenes of the suite's own, End the
+         * trial's return into the chosen place's one room (`leaveTrialScene` with the GM's choice set): `lost` stands on
+         * a place whose delete removes the token and then throws, with a combatant in a stand-in for Foundry's combats;
+         * `stuck` on a place that refuses every delete, while the chosen place refuses the delete of its copy too, and
+         * `echo` beside it, whose copy the chosen place makes and then reports an error for; `veiled` has a hidden token on the chosen place and a shown one on another place, and so has a dead student; `both` a
+         * shown token on each. After the return, `halted` is carried from a place whose delete never answers - the
+         * carrying GM's browser gone between the create and the delete - and a GM's load is run by hand
+         * (`nameUnfinishedCarries`, the `ready` listener), then once more after both sources are deleted. Read: whom the
+         * return answers for, what stands where, the copies' marks, what the stand-in was asked, the GMs' whispers, and
+         * what each load named and cleared, and that `registerTrialScene` listens to `ready` with it. At 36f559d (red
+         * first): `lost` had no token on the chosen place or on its own, the return answered it in nothing and moved
+         * four of the suite's tokens, not five; `stuck` and `echo` stood on both places and the return answered
+         * neither; `veiled` and `both` were in no answer. The reading is cut there, before the marks, the whisper and
+         * the loads. The world's own students stand behind the fence the r1-F1 test builds; whoever of them has a token on another scene is named
+         * too, and is read off the answer - the suite's students are written out.
+         */
+        const T = await import("./trial-scene.mjs");
+        const C = await import("./call-world.mjs");
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the trial hall cannot be linked - the return would read no hall");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 r2-H1", [GYM, SHED, BARN, PIT, DEN] = ["gym", "shed", "barn", "pit", "den"].map(name => `${P} the ${name}`);
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y, more = {}) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false, ...more });
+        const actors = [], scenes = [];
+        const make = async (name, more = {}) => {
+            const actor = await Actor.create({ name: `${P} ${name}`, type: "character", ...more });
+            actors.push(actor);
+            return actor;
+        };
+        const scene = async (name, rooms) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width: 2400, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            return [made, ...(rooms.length ? await made.createEmbeddedDocuments("Region", rooms) : [])];
+        };
+        const told = async since => Promise.all(game.messages.filter(m => !since.has(m.id)).map(m => wordsOf(m, 2000)));
+        const MARK = "carriedFrom", markOf = t => t?.getFlag?.(MODULE_ID, MARK) ?? null;
+        const hadCombats = Object.prototype.hasOwnProperty.call(game, "combats"), combatsBefore = game.combats;
+        let read = null;
+        try {
+            const lost = await make("lost"), stuck = await make("stuck"), veiled = await make("veiled"), both = await make("both");
+            const dead = await make("dead", { flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } }), halted = await make("halted"), echo = await make("echo");
+            const [place, gym] = await scene("the chosen place", [room(GYM, 0)]);
+            await place.createEmbeddedDocuments("Token", [token(veiled, 1500, 1500, { hidden: true }), token(both, 300, 300),
+                token(dead, 1700, 1500, { hidden: true })]);
+            const [throws] = await scene("a place whose delete fails after removing", [room(SHED, 0)]);
+            const [lostToken] = await throws.createEmbeddedDocuments("Token", [token(lost, 300, 300)]);
+            const remove = throws.deleteEmbeddedDocuments.bind(throws);
+            throws.deleteEmbeddedDocuments = async (...args) => {
+                await remove(...args);
+                throw new Error("suite: the token was removed, and then the delete failed");
+            };
+            const [keeps] = await scene("a place that keeps its tokens", [room(BARN, 0)]);
+            const [stuckToken, echoToken] = await keeps.createEmbeddedDocuments("Token", [token(stuck, 300, 300), token(echo, 500, 300)]);
+            const keepsDelete = keeps.deleteEmbeddedDocuments.bind(keeps);
+            keeps.deleteEmbeddedDocuments = async () => [];
+            /* Only stuck's and echo's copies are refused here: lost's copy must be deletable, or an undo that ran on
+             * the delete's error (36f559d) would keep it only because this place refused, and measure nothing. */
+            const placeDelete = place.deleteEmbeddedDocuments.bind(place), refused = new Set([stuck.id, echo.id]);
+            place.deleteEmbeddedDocuments = async (name, ids, ...rest) =>
+                placeDelete(name, ids.filter(id => !refused.has(place.tokens.get(id)?.actorId)), ...rest);
+            const [home] = await scene("another place", [room(PIT, 0)]);
+            await home.createEmbeddedDocuments("Token", [token(veiled, 300, 300), token(both, 500, 300), token(dead, 700, 300)]);
+            const [hall] = await scene("the trial hall", []);
+            /* The world's own students would be carried here and deleted with this scene (the r1-F1 test says why). */
+            const fence = await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a))
+                .map(a => token(a, 50, 1500, { hidden: true })));
+            const fenceActors = new Set(fence.map(t => t.actorId)), fenceIds = new Set(fence.map(t => t.id));
+            await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            place.activate = async () => place;
+            const create = place.createEmbeddedDocuments.bind(place);
+            place.createEmbeddedDocuments = async (name, rows, ...rest) => {
+                const made = await create(name, rows, ...rest);
+                if (rows?.some?.(row => row.actorId === echo.id)) throw new Error("suite: the copy was made, and then the create failed");
+                return made;
+            };
+            const asked = [];
+            game.combats = [{ combatants: [{ id: "suiteH1Combatant", tokenId: lostToken.id, sceneId: throws.id }],
+                async updateEmbeddedDocuments(name, rows) { asked.push([name, rows]); return []; } }];
+            await fenceHeld(place, hall, actors);
+            T.setTrialExit({ sceneId: place.id, room: GYM });
+            const left = await T.leaveTrialScene(hall);
+            await settle();
+            const whispered = await told(said);
+            const g = left?.gathered ?? {};
+            const mine = list => (list ?? null) && list.filter(id => !fenceActors.has(id)).map(id => game.actors.get(id)?.name.slice(P.length + 1) ?? id);
+            const theirs = list => (list ?? []).filter(id => fenceActors.has(id)).map(id => game.actors.get(id)?.name);
+            const fencedIn = fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === GYM).length;
+            const copyOf = actor => [...place.tokens].find(t => t.actorId === actor.id) ?? null;
+            const [lostCopy, stuckCopy, echoCopy] = [copyOf(lost), copyOf(stuck), copyOf(echo)];
+            const line = (key, names) => (names.length ? `<p>${plural(key, { n: names.length, names: names.join(", ") })}</p>` : "");
+            const expected = `<p>${plural("DRPG.Floor.endTrialMoves", { n: 5 + fencedIn, room: GYM })}</p>`
+                + line("DRPG.TrialScene.carryUnfinished", [stuck.name, echo.name]) + line("DRPG.TrialScene.hiddenHere", [...theirs(g.hidden), veiled.name])
+                + line("DRPG.TrialScene.tokensStay", [...theirs(g.others), both.name]);
+            const byName = s => [...s.tokens].filter(t => !fenceIds.has(t.id)).map(t => `${t.name.slice(P.length + 1)}${t.hidden ? " (hidden)" : ""}`).sort();
+            const returned = [mine(g.carried), mine(g.left), mine(g.twice), mine(g.hidden), mine(g.others), (g.moved ?? NaN) - fencedIn,
+                Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name.slice(P.length + 1), Mv.roomOfToken(t)])),
+                [byName(throws), byName(keeps), byName(home)],
+                [Boolean(lostCopy) && lostCopy.id !== lostToken.id, markOf(lostCopy), lostCopy ? MODULE_ID in (lostCopy.toObject().flags ?? {}) : null],
+                [markOf(stuckCopy) === `${keeps.id}.${stuckToken.id}`, Boolean(keeps.tokens.get(stuckToken.id)), markOf(echoCopy) === `${keeps.id}.${echoToken.id}`],
+                stableJson(asked) === stableJson([["Combatant", [{ _id: "suiteH1Combatant", sceneId: place.id, tokenId: lostCopy?.id }]]]) || asked,
+                stableJson(whispered) === stableJson([expected]) || whispered];
+            /* The carrying GM's browser gone between the create and the delete: the delete never answers. */
+            const [halt] = await scene("a place the carrying GM left", [room(DEN, 0)]);
+            const [haltedToken] = await halt.createEmbeddedDocuments("Token", [token(halted, 300, 300)]);
+            const haltDelete = halt.deleteEmbeddedDocuments.bind(halt);
+            halt.deleteEmbeddedDocuments = () => new Promise(() => {});
+            C.carryAcross(haltedToken, place, gym);
+            await settle();
+            const haltedCopy = copyOf(halted);
+            const halfway = [Boolean(haltedCopy), markOf(haltedCopy) === `${halt.id}.${haltedToken.id}`];
+            const loads = [];
+            for (const round of [1, 2]) {
+                if (round === 2) {
+                    await keepsDelete("Token", [stuckToken.id, echoToken.id]);
+                    await haltDelete("Token", [haltedToken.id]);
+                }
+                const since = new Set(game.messages.map(m => m.id));
+                const load = typeof T.nameUnfinishedCarries === "function" ? await T.nameUnfinishedCarries() : null;
+                await settle();
+                const named = s => (s ?? null) && s.map(id => [...place.tokens].find(t => t.id === id)?.name.slice(P.length + 1) ?? id);
+                loads.push([named(load?.twice), named(load?.cleared), await told(since), [markOf(stuckCopy), markOf(echoCopy), markOf(haltedCopy)]]);
+            }
+            const register = fnSource(stripComments((await moduleSources()).get("trial-scene.mjs") ?? ""), "registerTrialScene");
+            read = [returned, halfway, loads[0].slice(0, 2),
+                stableJson(loads[0][2]) === stableJson([`<p>${plural("DRPG.TrialScene.carryUnfinished", { n: 3, names: [stuck.name, echo.name, halted.name].join(", ") })}</p>`]) || loads[0][2],
+                loads[1], register.includes('Hooks.once("ready", nameUnfinishedCarries)')];
+        } finally {
+            T.setTrialExit(null);
+            if (hadCombats) game.combats = combatsBefore;
+            else delete game.combats;
+            await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[["lost"], [], ["stuck", "echo"], ["veiled"], ["both"], 5,
+            { veiled: GYM, both: GYM, dead: null, lost: GYM, stuck: GYM, echo: GYM },
+            [[], ["echo", "stuck"], ["both", "dead", "veiled"]],
+            [true, null, false], [true, true, true], true, true],
+            [true, true], [["stuck", "echo", "halted"], []], true,
+            [[], ["stuck", "echo", "halted"], [], [null, null, null]], true]),
+            "[the return: whom it carried, could not move, left on both scenes, named with every token in the room hidden, named with a token "
+            + "elsewhere; how many it moved; the room each token of the chosen place stands in; what stands on the place whose delete failed "
+            + "after removing, the place that keeps its tokens and the other place; lost's copy: a new id, its mark, the module's flags at all; "
+            + "stuck's copy marked with its source, which stands, and echo's marked; the combatant pointed at lost's copy only; the GMs' whisper. The carry the GM "
+            + "left: a copy marked with its source. A GM's load: the copies it named and cleared, its whisper; after both sources are deleted: "
+            + "the same, and the three marks; registerTrialScene listens to ready with it]");
+    }],
+    ["the verdict does not end the trial: the clock is not written and no card says the trial is over", async () => {
+        /*
+         * E13 C3b, 12.10.2026; the owner's answer f of 09.10 ("the trial ends only when the GM decides, never right after
+         * the vote"), the ledger's D5. The trial is ended by `closeTrial` alone - End the trial, the chapter end and the API
+         * - and C3b put the move of every living student behind it: a verdict that ended the trial would send the table
+         * back to the school and gather it before the GM said so. Here a wrong verdict naming one Blackened, with the
+         * verdict not yet given (`withVerdictOpen`) and every Level Up window closed: read how often the clock setting was
+         * written, whether the phase moved, and whether a new card says the trial is over. Green at C3's tree (recorded
+         * for C3b, 12.10.2026): vote.mjs names neither `setClock` nor `closeTrial`.
+         */
+        const [killer] = cast(1);
+        const { applyVerdict } = await import("./vote.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const CLOCK = `${MODULE_ID}.${SETTINGS.clock}`, phase = getClock().phase;
+        const over = game.i18n.localize("DRPG.Floor.trialOver");
+        const from = new Set(game.messages.map(m => m.id));
+        let writes = 0, read = null;
+        const hook = Hooks.on("updateSetting", setting => { if (setting?.key === CLOCK) writes++; });
+        try {
+            await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
+            await settle();
+            const cards = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 2000)));
+            read = [writes, getClock().phase === phase, cards.length > 0, cards.some(text => String(text).includes(over))];
+        } finally {
+            Hooks.off("updateSetting", hook);
+            if (deferredOfferStore.has(killer.id)) await deferredOfferStore.drop(killer.id);
+        }
+        equal(stableJson(read), stableJson([0, true, true, false]),
+            "[how often the verdict wrote the clock, the phase as it was, the verdict posted a card at all, a card says the trial is over]");
+    }],
+    ["the Scenes tab links the school and the hall and stores the GMs' choice of the cast hidden outside the trial; one scene in both roles writes nothing; the room rows read the school while the hall is on screen", async () => {
+        /*
+         * E13 C5, 12.10.2026; plan-E13 C5 (V6, doneWhen 3; R120 asks the same functions of plain objects), the owner's
+         * answers Q-E13-1 d and e (09.10), decision D7. Until C5 the school and the hall were linked, and the cast chosen,
+         * from a console. Here, in a GM-store world of the suite's own, a scene with no region is viewed and Room Setup
+         * opened over it (answered at once); then a school (one room) and a hall (a region marked as a room, an unmarked
+         * zone; a token of each of two students players play, a second token of the first, Monokuma's, an unlinked token of
+         * a student nobody plays (made here), and a prop; isometric-perspective's flag set) are made, a stored field the tab
+         * does not show is written beside the roles, and the GM views the school. Room Setup is answered three times by a
+         * stand-in for DialogV2.wait that wires the Scenes tab as the window's render does and presses Apply: the school
+         * and the hall picked, the second student unticked and "Prepare the hall" ticked; then both roles on the hall; then
+         * nothing touched. Read: the tab the bare scene opened on; the warnings the hall drew; the roles stored and the
+         * field kept; the choice stored; the hall's tokens shown after the first Apply (outside the trial the cast is
+         * hidden; the prop is not cast); what Prepare left to do and the isometric flag; the warning of the clash and the
+         * writes of the role setting in the last two; and Season setup's room rows and the Scenes row with the school, then
+         * the hall, on screen. Scenario 41 a drives the drawn window on four browsers. Red before C5: no Scenes tab.
+         * Since E13 fix r1-F3 the hall's warnings include "hallDark": it is made dark here before the first Apply.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
+        if (typeof T.wireScenesTab !== "function") return;
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const SS = await import("./season-setup.mjs");
+        const { trialCastStore } = await import("./gm-stores.mjs");
+        const { getClock } = await import("./settings.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(played.length >= 2 && monokuma, "the world has fewer than two students players play, or no Monokuma, to stand in the hall");
+        must(getClock().phase !== "classTrial", "the world is in a Class Trial - the hall's cast would be shown, not hidden");
+        const [first, second] = played;
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the scene roles are not a setting - nothing could be linked");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const viewing = canvas?.scene ?? null;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const set = game.settings.set, warn = ui.notifications.warn;
+        const ZONE = "SUITE-E13C5-ZONE";
+        const region = (name, x, room) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 800, height: 800 }],
+            flags: room ? { [MODULE_ID]: { [R.ROOM_FLAG]: true } } : {}, behaviors: [] });
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c5-${foundry.utils.randomID(8)}`, async () => {
+            let bare = null, school = null, hall = null, nobody = null, absent = false;
+            const warned = [];
+            let writes = 0;
+            try {
+                game.settings.set = async (...args) => { if (args[0] === MODULE_ID && args[1] === KEY) writes++; return set.apply(game.settings, args); };
+                ui.notifications.warn = message => { warned.push(String(message)); return warn.call(ui.notifications, message); };
+                const scene = name => Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                bare = await scene("SUITE E13 C5 a map with no region");
+                await bare.view();
+                await settle();
+                must(canvas?.scene === bare, "the camera did not move to the suite's bare scene - Room Setup would open on another");
+                let opened = null;
+                D.wait = async cfg => {
+                    const box = document.createElement("div");
+                    if (typeof cfg?.content === "string") box.innerHTML = cfg.content;
+                    else if (cfg?.content) box.append(cfg.content.cloneNode(true));
+                    opened = box.querySelector(".drpg-dashboard-tab.active")?.dataset.drpgTab ?? null;
+                    return null;
+                };
+                await V.openRoomSetupDialog();
+                school = await scene("SUITE E13 C5 the school");
+                await school.createEmbeddedDocuments("Region", [region("SUITE E13 C5 a classroom", 0, true)]);
+                hall = await Scene.create({ name: "SUITE E13 C5 the hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+                    fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } },
+                    flags: { "isometric-perspective": { isometricEnabled: true } } });
+                await hall.createEmbeddedDocuments("Region", [region("Stand", 0, true), region("Zone", 1000, false)]);
+                nobody = await Actor.create({ name: "SUITE E13 C5 nobody plays", type: "character" });
+                const token = (name, actorId, x, hidden, actorLink = Boolean(actorId)) => ({ name, actorId, actorLink, x, y: 300, width: 1, height: 1, hidden });
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100, false), token("second", second.id, 200, false),
+                    token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
+                    token("prop", null, 600, false)]);
+                const id = name => hall.tokens.find(t => t.name === name)?.id;
+                absent = T.studentsWithoutHallToken(hall).length > 0;
+                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
+                await school.view();
+                await settle();
+                must(canvas?.scene === school, "the camera did not move to the suite's school - Room Setup would open on another");
+                /* The room fog took Foundry's vision off the hall when its Stand was drawn, before it was linked
+                   (fog.mjs `applySceneVisionMode`; the harness logs it), so the three fields are put back here for
+                   Prepare to find. `fog` is given at creation: the harness's documents expose only the fields they
+                   were made with, and an update of one they lacked is not read back (measured 12.10: Prepare's
+                   `fog.exploration` stayed due). */
+                await hall.update({ fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } } });
+                const prepareBefore = Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })).sort();
+                let drawn = null;
+                const answer = fill => async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    T.wireScenesTab(element);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    must(field("scenes:school") && field("scenes:trial"), "Room Setup drew no Scenes tab - this would measure nothing");
+                    fill(field, element);
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const pick = (field, role, value) => { field(`scenes:${role}`).value = value; field(`scenes:${role}`).dispatchEvent(new Event("change")); };
+                D.wait = answer((field, element) => {
+                    pick(field, "school", school.id);
+                    pick(field, "trial", hall.id);
+                    drawn = [[...element.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).sort(),
+                        element.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
+                            === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Stand" }),
+                        element.querySelector("[data-drpg-cast]")?.dataset.drpgCast === hall.id, Boolean(field(`cast:${id("first again")}`)?.disabled)];
+                    must(field(`cast:${id("second")}`)?.checked, "the second student's box was not ticked - unticking it would change nothing");
+                    field(`cast:${id("second")}`).checked = false;
+                    field("scenes:prepare").checked = true;
+                });
+                await V.openRoomSetupDialog();
+                await settle();
+                const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
+                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().zones ?? null), writes];
+                const stored = [trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, id("first")))];
+                const prepared = [prepareBefore, Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })),
+                    hall.flags?.["isometric-perspective"]?.isometricEnabled ?? null];
+                writes = 0;
+                warned.length = 0;
+                D.wait = answer(field => { pick(field, "school", hall.id); pick(field, "trial", hall.id); });
+                const refused = await V.openRoomSetupDialog();
+                await settle();
+                const clash = [refused, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
+                writes = 0;
+                D.wait = answer(() => {});
+                await V.openRoomSetupDialog();
+                await settle();
+                const untouched = [writes, trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+                const rows = () => SS.steps().filter(row => ["roomCount", "rooms", "scenes"].includes(row.key))
+                    .map(row => [row.key, row.done, row.extra?.() ?? null]);
+                const onSchool = rows();
+                await hall.view();
+                await settle();
+                must(canvas?.scene === hall, "the camera did not move to the suite's hall");
+                const onHall = rows();
+                read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
+                    onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
+                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["missingTokens"] : []), "unlinkedToken"]];
+            } finally {
+                game.settings.set = set;
+                ui.notifications.warn = warn;
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await set.call(game.settings, MODULE_ID, KEY, rolesBefore ?? {});
+                await viewing?.view();
+                for (const doc of [bare, school, hall, nobody]) await doc?.delete();
+                await settle();
+            }
+        });
+        const warnings = read?.at(-1) ?? [];
+        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true],
+            [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
+            [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
+            [null, true, 0, true], [0, false],
+            [["rooms", true], ["scenes", true]], true, warnings]),
+            "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's and its second token "
+            + "off; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
+            + "a row for the first; the hall's tokens shown after Apply; what Prepare had to do and has left, and the isometric flag; the clash's answer, its "
+            + "warning, its writes, the school still linked; an untouched Apply's writes and the untick kept; the Rooms and Scenes rows with the school "
+            + "on screen, and the room rows (the count's line too) the same with the hall on screen; the warnings expected]");
+    }],
+    ["a GM's rename of a room carries its Despair Call seal and the bodies found in it but not another scene's", async () => {
+        /*
+         * E12 fix k3-K2, 12.10.2026; open road O-b of r2-H4 (fixes-k3.md K2, the orchestrator's decision:
+         * a rename that carries a room carries everything the world keeps about it by name). A Despair
+         * Call's seal (call-world.mjs `sealedRooms`), the stamps of the bodies found (settings.mjs
+         * `bodiesFound`) and the hold the GM has still to answer (`bodyFound`) each name a room, and a
+         * GM's rename of it left them on a name no room had: the room stood open again, and the Event
+         * card named a room that was gone. Here a room of the suite's own on a scene of its own is sealed;
+         * three stamps name it - one of this scene, one written with no scene, one of another scene
+         * (an id no scene has) - and so does the hold. The GM renames the room's one piece. Read: whether
+         * the new and the old name are sealed, each stamp's room and the hold's. Red at 5bd35b0 (this
+         * fix's parent): the seal, both stamps of this room and the hold stayed on the old name.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const R = await import("./rooms.mjs");
+        const CW = await import("./call-world.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const OLD = "SUITE E12 k3-K2 Vault", NEW = "SUITE E12 k3-K2 Strongroom", KEY = "suite-k3k2:0";
+        const before = Object.fromEntries([SETTINGS.sealedRooms, SETTINGS.bodiesFound, SETTINGS.bodyFound]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]));
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 k3-K2 a sealed vault", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [vault] = await scene.createEmbeddedDocuments("Region", [{ name: OLD, shapes: [{ type: "rectangle", x: 100, y: 100, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const clock = getClock();
+            await CW.sealRoom(OLD);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...(before[SETTINGS.bodiesFound] ?? {}), [KEY]: [
+                { room: OLD, sceneId: scene.id, victimIds: [], at: 1 }, { room: OLD, victimIds: [], at: 2 },
+                { room: OLD, sceneId: "SUITEK3K2NOSCENE", victimIds: [], at: 3 }] });
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, { room: OLD, victimId: null, chapter: clock.chapter, day: clock.day ?? 1,
+                timeOfDay: clock.timeOfDay, at: Date.now() });
+            const rooms = () => (game.settings.get(MODULE_ID, SETTINGS.bodiesFound)?.[KEY] ?? []).map(row => row.room);
+            must(CW.isSealed(OLD) && stableJson(rooms()) === stableJson([OLD, OLD, OLD]) && bodyDiscovery()?.room === OLD
+                && R.placeScenes().find(s => R.roomRegions(s, OLD).length) === scene,
+                "the seal, the three stamps and the hold did not name the room, or its scene is not the first holding it - this would measure nothing");
+            await vault.update({ name: NEW });
+            await until(() => CW.isSealed(NEW) && rooms()[0] === NEW && bodyDiscovery()?.room === NEW, 6000);
+            await settle();
+            read = [CW.isSealed(NEW), CW.isSealed(OLD), rooms(), bodyDiscovery()?.room ?? null];
+        } finally {
+            for (const [key, value] of Object.entries(before)) await game.settings.set(MODULE_ID, key, value);
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, false, [NEW, NEW, OLD], NEW]),
+            "[the new name sealed, the old name sealed, the rooms of the stamps of this scene, of no scene and of another scene, the hold's room] after the GM renamed the room");
+    }],
+
+    ["a trap's card names the scene its room is on beside the room", async () => {
+        /*
+         * E12 fix k3-K2, 12.10.2026; open road O-c of r2-S1 (fixes-k3.md K2: the card names the scene,
+         * always). Since r2-S1 a trap springs only in its room on its own scene, and its card named the
+         * room alone (DRPG.Trap.alertReading): with a room of one name on two scenes the GM could not
+         * tell which trap had gone off. Here a student stands in a room of the scene on screen and has a
+         * second token in a room of that name on a scene of the suite's own; a third student builds an
+         * "enters" trap in each - the first where the room is on screen, the second with its token on
+         * the suite's scene. One crossing on each scene, as the GM's own browser raises it. Read: whether
+         * each card names its own scene and not the other. Red at 5bd35b0 (this fix's parent): neither
+         * card named a scene.
+         */
+        needs(env.primaryGm(), "a trap is judged on the primary GM alone (traps.mjs `onCrossed`)");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const home = canvas?.scene ?? null;
+        const pool = cast(2);
+        const student = pool.find(a => locateActor(a)?.room && locateActor(a).scene === home) ?? null;
+        const builder = pool.find(a => a !== student) ?? null;
+        must(student && builder, "two living students, one standing in a room of the scene on screen - this would measure nothing");
+        const ROOM = locateActor(student).room, mine = home.tokens.find(t => t.actorId === student.id && !t.hidden) ?? null;
+        must(mine, `${student.name} has no token a GM has not hidden on the scene on screen - this would measure nothing`);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const SECOND = "SUITE E12 k3-K2 a second school", made = [];
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: SECOND, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            const [away] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 300, y: 300, width: 1, height: 1 }]);
+            for (const [i, where] of [home, scene].entries()) {
+                const trap = await P.createProject({ name: `SUITE k3-K2 trap ${i + 1}`, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                    condition: "suite", trigger: { kind: "enters", afterDark: false, notBuilder: true } });
+                must(trap?.id, "could not build a trap - this would measure nothing");
+                made.push(trap.id);
+                if (PM.projectTokenOf(trap.id)?.parent?.id !== where.id) {
+                    await PM.removeProjectToken(trap.id);
+                    await PM.placeProjectToken(trap.id, { scene: where });
+                }
+                await P.addProgress(trap.id, 1, { by: builder.id });
+            }
+            await settle();
+            must(T.diagnoseTraps().armed === 2 && P.projectScene(made[0])?.id === home.id && P.projectScene(made[1])?.id === scene.id,
+                "the two traps are not watching, one on each scene - this would measure nothing");
+            const had = new Set(game.messages.contents.map(m => m.id));
+            const card = async (i, tokenDoc) => {
+                const name = foundry.utils.escapeHTML(`SUITE k3-K2 trap ${i + 1}`);
+                const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(name)) ?? null;
+                Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc });
+                await until(() => find(), 4000);
+                const text = String(contentOf(find()) ?? "");
+                return [text.length > 0, text.includes(foundry.utils.escapeHTML(home.name)), text.includes(foundry.utils.escapeHTML(SECOND))];
+            };
+            read = [await card(0, mine), await card(1, away)];
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[true, true, false], [true, false, true]]),
+            "[a card came, it names the scene on screen, it names the suite's scene] for the crossing on the scene on screen and for the crossing on the suite's scene");
+    }],
+
+    ["an item trap's card names the room and the scene its holder stands in and not the trap's own", async () => {
+        /*
+         * E12 fix k3-K3, 12.10.2026 (fixes-k3.md K3: a road k3-K2 left driven by no test). A trap that
+         * watches an object fires where the object is used, and that is wherever its holder stands:
+         * traps.mjs `alert` reads the room off the holder since E02 and the scene since k3-K2
+         * (`sceneOfEvent`, the holder's own tokens). Here the trap is built in a room of the scene on
+         * screen, with its token there; its object is planted and handed to a character of the suite's
+         * own whose one token stands in a room of a scene of the suite's own, and a use card for it is
+         * posted, as the GM's browser posts one. Read: whether the alert names the holder's room and
+         * scene and neither of the trap's. K3 changes no code, so this passes at its parent (1a16a87);
+         * red first is the code put wrong (e12run/k3k3m): the trap's scene (k3k3-m1), the scene on
+         * screen (k3k3-m2) or the trap's room (k3k3-m3) on the card each turn it red.
+         */
+        needs(env.primaryGm(), "a trap is judged on the primary GM alone (traps.mjs `onChatMessage`)");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./rooms.mjs");
+        const PM = await import("./projects-map.mjs");
+        const INV = await import("./inventory.mjs");
+        const { allRooms, locateActor } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const home = canvas?.scene ?? null;
+        const [builder] = cast(1);
+        const ROOM = home ? allRooms(home)[0] ?? null : null;
+        must(builder && ROOM, "a living student and a room on the scene on screen - this would measure nothing");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const AWAY = "SUITE E12 k3-K3 a back room", NAME = "SUITE k3-K3 item trap", THING = "SUITE k3-K3 a bottle";
+        let scene = null, holder = null, trapId = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E12 k3-K3 a second school", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [{ name: AWAY, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+            holder = await Actor.create({ name: "SUITE E12 k3-K3 the holder", type: "character" });
+            await scene.createEmbeddedDocuments("Token", [{ actorId: holder.id, actorLink: true, name: holder.name, x: 300, y: 300, width: 1, height: 1 }]);
+            const trap = await P.createProject({ name: NAME, target: 1, room: ROOM, indirectMurder: true, killerId: builder.id,
+                condition: "suite", trigger: { kind: "item", afterDark: false, notBuilder: true } });
+            must(trap?.id, "could not build a trap - this would measure nothing");
+            trapId = trap.id;
+            if (PM.projectTokenOf(trap.id)?.parent?.id !== home.id) {
+                await PM.removeProjectToken(trap.id);
+                await PM.placeProjectToken(trap.id, { scene: home });
+            }
+            await P.addProgress(trap.id, 1, { by: builder.id });
+            const identity = await T.plantItem(trap.id, ROOM, { sceneId: home.id, name: THING });
+            const item = await INV.grantItem(holder, { name: THING, category: "healing", tier: 1, extraFlags: { [INV.ITEM_FLAGS.identity]: identity } });
+            await settle();
+            const where = locateActor(holder);
+            must(identity && T.trapForItemId(identity) === trap.id && item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identity
+                && T.diagnoseTraps().list.some(t => t.name === NAME) && P.projectScene(trap.id)?.id === home.id
+                && where?.scene === scene && where?.room === AWAY,
+                "the trap is not watching for its object on the scene on screen, or its holder does not stand in the suite's room - this would measure nothing");
+            const had = new Set(game.messages.contents.map(m => m.id));
+            await ChatMessage.create({ content: `<p>${esc(THING)}</p>`, speaker: { actor: holder.id },
+                flags: { [MODULE_ID]: { usedItem: { id: identity, actorId: holder.id, name: THING } } } });
+            const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(esc(NAME))) ?? null;
+            await until(() => find(), 4000);
+            const text = String(contentOf(find()) ?? "");
+            read = [text.length > 0, text.includes(esc(AWAY)), text.includes(esc(scene.name)), text.includes(esc(ROOM)), text.includes(esc(home.name))];
+        } finally {
+            if (trapId) await P.deleteProject(trapId).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await holder?.delete();
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, true, true, false, false]),
+            "[a card came, it names the holder's room, the holder's scene, the trap's room, the trap's scene] after the holder used the trap's object");
+    }],
+
+    ["a GM's rename of a room piece by piece carries its seal at the last piece and keeps the old name sealed while another scene has a room of it", async () => {
+        /*
+         * E12 fix k3-K3, 12.10.2026 (fixes-k3.md K3: a road k3-K2 left driven by no test). A Despair
+         * Call's seal is a name and shuts every room of it (call-world.mjs `isSealed`); a GM's rename
+         * carries it on the primary once the room's last piece of the old name has the new one
+         * (fog.mjs `noteRegionName`), and `carrySealedRoom` keeps the old name sealed while a place
+         * scene still has a room of it. Here a room in two pieces on a scene of the suite's own and a
+         * room of its name on a second one are sealed, and the GM renames the two pieces one after the
+         * other. Read after each: whether the new and the old name are sealed, and the record of the
+         * name the pieces left (rooms.mjs `RENAMED_FROM`). K3 changes no code, so this passes at its
+         * parent (1a16a87); red first is the code put wrong (e12run/k3k3m): the old name unsealed
+         * whatever stands (k3k3-m4), the record unread so the second piece reads as a join (k3k3-m5),
+         * or the room carried at its first piece (k3k3-m6) each turn it red.
+         */
+        needs(env.primaryGm(), "a rename is carried on the primary GM alone (fog.mjs `carryRename`)");
+        const R = await import("./rooms.mjs");
+        const CW = await import("./call-world.mjs");
+        const OLD = "SUITE E12 k3-K3 Vault", NEW = "SUITE E12 k3-K3 Strongroom";
+        const before = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms));
+        const piece = x => ({ name: OLD, shapes: [{ type: "rectangle", x, y: 100, width: 400, height: 400 }],
+            flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const scenes = [];
+        let read = null;
+        try {
+            for (const name of ["SUITE E12 k3-K3 a split vault", "SUITE E12 k3-K3 another vault"]) {
+                scenes.push(await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false }));
+            }
+            const [split, other] = scenes;
+            const [first, second] = await split.createEmbeddedDocuments("Region", [piece(100), piece(600)]);
+            await other.createEmbeddedDocuments("Region", [piece(100)]);
+            await CW.sealRoom(OLD);
+            await settle();
+            const holding = R.placeScenes().filter(s => R.roomRegions(s, OLD).length);
+            must(CW.isSealed(OLD) && !CW.isSealed(NEW) && R.roomRegions(split, OLD).length === 2 && holding.includes(split) && holding.includes(other),
+                "the old name is not sealed, the new one is, or the two scenes are not place scenes holding the room - this would measure nothing");
+            const records = () => R.roomRegions(split, NEW).map(p => p.getFlag(MODULE_ID, R.RENAMED_FROM) ?? null);
+            await first.update({ name: NEW });
+            await settle();
+            const mid = [CW.isSealed(NEW), CW.isSealed(OLD), records()];
+            await second.update({ name: NEW });
+            await until(() => CW.isSealed(NEW) && !records().some(Boolean), 6000);
+            await settle();
+            read = [mid, [CW.isSealed(NEW), CW.isSealed(OLD), records()]];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, before);
+            for (const scene of scenes) await scene.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
+            "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
+    }],
     ...GRID
 ];
 

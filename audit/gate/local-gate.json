@@ -3,26 +3,26 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.73"
+    "version": "1.2.74"
   },
-  "commit": "be642b6ef2caeff00ca64e61ceb424af923110ff",
+  "commit": "5810de2ed4c9633b877c1d86e0388b4717df0498",
   "bound": {
-    "scripts": "f8800026d12a95add457f92d409d91279804290c",
-    "styles": "094a2a5045ab6a47972a0a35c35f01386755cf46",
-    "lang": "3cbb0eb441a5c8997743cd5c4e95b82731688c9f",
+    "scripts": "d3d26cda440a214599f24985e9f69729d6ed66a8",
+    "styles": "444c880222964179628577d1b4c2fb923b9fa654",
+    "lang": "df0c0319d3503ddcac2d03ccef27354ae8d73b83",
     "fonts": "285990edcaa5a47a91f00390ecf70c59630da540",
     "icons": "61fff800a2dc045b02f681d4aa217e43110eab84",
-    "module.json": "d0718f3604df269e2cc9a633707be7b5876368b0",
+    "module.json": "179f7c984182cbd360463a652fbe5ed1698c5ca0",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "1990fd1ad45cf2b35898e92ef399abee1d4f9316",
     "audit/live": "964f9698c1ed29fbea0619e999b29db08ba184e0",
-    "audit/harness/lib/seed.mjs": "fe42c733fd9e801157a1b1700a2c18e2ebfbb9c3",
+    "audit/harness/lib/seed.mjs": "a4042e96a07d89928eb9b2bb7bdaaec5a6e1b887",
     "audit/harness/scenarios/14-quiet.mjs": "33fe577903cd8a2670667fe4c83e95b0664eeb5f",
-    "audit/harness/scenarios/60-ledger.mjs": "873190ececfea53e4e784788ccc1287ed53581ad",
-    "audit/harness/scenarios/83-roll-integrity.mjs": "2121847903ff916ca48ae99195e2d63cfc6ba1e1"
+    "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
+    "audit/harness/scenarios/83-roll-integrity.mjs": "617297f88d6aa88b1d2f8183e2cc5a98176f27fe"
   },
-  "startedAt": "2026-10-11T08:50:38.460Z",
-  "finishedAt": "2026-10-11T08:50:38.579Z",
+  "startedAt": "2026-10-12T13:17:49.080Z",
+  "finishedAt": "2026-10-12T13:17:49.208Z",
   "host": {
     "node": "v22.22.2",
     "platform": "linux-x64",
@@ -105,6 +105,6 @@
     "notRun": 6
   },
   "verdict": "incomplete",
-  "digest": "sha256:27533314914ba454466f17284ae2bcdd1083e8a48a4de699576be45776875b7e",
+  "digest": "sha256:338a42920f5ba09baa4f6db3991b17a698dd34c433f69d8325aee8f8472de02a",
   "hmac": null
 }

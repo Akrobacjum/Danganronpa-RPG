@@ -550,7 +550,7 @@ const WORLD = {
     studentsWithoutPlayer: ["living students no player account owns", () => living()
         .filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))).length],
     fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
-    stashes: ["stashes", () => allVaults().length],
+    stashes: ["stashes", () => allVaults(canvas?.scene).length],
     /* Read off the item's own flag, not through vaultContents: the invariant this
        serves hunts a stashed item whose stash is gone, and must not lose the item
        it hunts to the reader it checks. A row of its own, added with that test. */

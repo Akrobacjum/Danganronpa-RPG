@@ -43,6 +43,8 @@ import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow } from "./utils.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
+// A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
+import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -874,8 +876,12 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        marked done - measured on the harness (10-murder): with the GM looking at another scene,
        two witnesses walked in on two kept bodies and the one the watcher did not name stayed
        a death nobody had found. `checkBodyFound` passes the scene the walk happened on and the
-       GM's form the one it chose its room from. */
-    const where = scene ?? canvas?.scene ?? game.scenes?.active ?? null;
+       GM's form the one it chose its room from.
+       AND NEVER THE CAMERA (E12 C5, 1.2.74; audit S16-07). A caller that passed no scene - the
+       console's `discoverBody` - still fell back to the scene in view, then the active one; it
+       gets the scene that holds the room now (rooms.mjs `sceneOfRoom`: the school first), and
+       the stamp's `sceneId` is that scene, not the camera's. */
+    const where = scene ?? sceneOfRoom(room);
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
     // the note on `maybeBodyFound`. Two things refuse before this now:
@@ -1166,10 +1172,15 @@ export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seas
  * the GMs - the dead are not witnesses, only a Monocub is. Until 1.2.73 a dead student's token
  * standing in the room counted, so one living student walking in on a body beside an earlier
  * victim's was "two witnesses". `held` and `pending` as `bodiesToDiscover` reads them; `roomOf` is
- * movement.mjs `roomOfToken`.
+ * movement.mjs `roomOfToken`, or `lawfulRoomOf` (E12 C12).
+ *
+ * WITNESSES ARE STUDENTS, NOT TOKENS (E12 fix r2-H3, 11.10.2026; security review r2 SEC2-1). One
+ * student with two tokens in the room was two witnesses, so one player's second token opened the
+ * discovery the rule of two keeps for two people. One token a student is kept, the first that counts.
  */
 export function witnessesOf({ tokens = [], room = null, bodies = new Set(), students = new Set(), held = actor => actor,
     pending = id => pendingDeath({ id }), roomOf = () => null } = {}) {
+    const counted = new Set();
     return [...tokens].filter(t => {
         const actor = t.actor;
         if (!actor || actor.type !== "character") return false;
@@ -1178,7 +1189,9 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
         if (!students.has(actor.id)) return false;            // excludes Monokumas
         const view = held(actor);
         if (deadIn(view, pending) && !view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
-        return roomOf(t) === room;
+        if (roomOf(t) !== room || counted.has(actor.id)) return false;
+        counted.add(actor.id);
+        return true;
     });
 }
 
@@ -1220,7 +1233,7 @@ async function checkBodyFound(tokenDoc) {
        mark (`flagsHeldNow`) without waiting for the audit - a walk waits on nothing a judgement
        waits on. */
     const { isEclipse } = await import("./eclipse.mjs");
-    const { roomOfToken } = await import("./movement.mjs");
+    const { roomOfToken, lawfulRoomOf } = await import("./movement.mjs");
     const { blackenedIds, killerIds, murderState } = await import("./murder.mjs");
     const { flagsHeldNow } = await import("./sheet-audit.mjs");
 
@@ -1271,8 +1284,12 @@ async function checkBodyFound(tokenDoc) {
        their own Stage 6. The running incident's killers count as involved too. */
     const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
 
-    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`).
-    const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: roomOfToken });
+    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`). Nor is a student
+    // who reached the room by a crossing the rules refuse, until they stand somewhere lawful (E12
+    // C12, the owner's Q3 a): the room they count in is the witness judge's (movement.mjs
+    // `lawfulRoomOf`), read in this same step. Scenario 66 I1 read Aiko, jumped into the locked
+    // Storage by her player's console, as the second witness until 1.2.74.
+    const witnesses = witnessesOf({ tokens: scene.tokens, room, bodies, students, held: flagsHeldNow, roomOf: lawfulRoomOf });
 
     /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
        on a body nobody has found with nobody else there sees it - told privately by the GMs,
@@ -1356,12 +1373,23 @@ export async function openBodyDiscoveryDialog() {
         return null;
     }
 
-    const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms();
-    if (!rooms.length) {
+    /* THE GM PICKS THE SCENE WITH THE ROOM (E12 C5, 1.2.74; audit S16-07). The rooms were the
+       scene on this GM's screen, and the discovery was handed that scene: a GM looking at another
+       map announced a body in a same-named room there, or had no room to pick. Every place
+       scene's rooms are offered, grouped under the scene's name when there is more than one, the
+       school's first and its first room chosen (rooms.mjs `placeScenes`, `homeScene`); the option
+       carries its scene, and the discovery is handed it. */
+    const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    if (!places.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.noRooms"));
         return null;
     }
+    const roomOption = (scene, r) => `<option value="${foundry.utils.escapeHTML(r)}" data-scene="${scene.id}">${
+        foundry.utils.escapeHTML(r)}</option>`;
+    const roomOptions = places.length === 1
+        ? places[0].rooms.map(r => roomOption(places[0].scene, r)).join("")
+        : places.map(({ scene, rooms }) => `<optgroup label="${foundry.utils.escapeHTML(scene.name ?? scene.id)}">${
+            rooms.map(r => roomOption(scene, r)).join("")}</optgroup>`).join("");
 
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them. One this chapter has announced says so (E11 fix
@@ -1387,9 +1415,7 @@ export async function openBodyDiscoveryDialog() {
         classes: ["drpg-panel", "drpg-window-body"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
-                <select name="room">${rooms
-                    .map(r => `<option value="${foundry.utils.escapeHTML(r)}">${
-                        foundry.utils.escapeHTML(r)}</option>`).join("")}</select></label>
+                <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
                 <select name="victim">
                     <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
@@ -1402,7 +1428,7 @@ export async function openBodyDiscoveryDialog() {
                 action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { room: f.room.value, victimId: f.victim.value };
+                    return { room: f.room.value, sceneId: f.room.selectedOptions?.[0]?.dataset.scene ?? null, victimId: f.victim.value };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -1415,7 +1441,8 @@ export async function openBodyDiscoveryDialog() {
     return discoverBody({
         room: result.room,
         victim: result.victimId ? game.actors.get(result.victimId) : null,
-        scene: canvas?.scene ?? null
+        // The scene of the option chosen; an answer that names none (a caller of the window's own) gets the room's.
+        scene: game.scenes.get(result.sceneId ?? "") ?? sceneOfRoom(result.room)
     });
 }
 

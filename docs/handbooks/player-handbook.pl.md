@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.73, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.74, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -107,6 +107,7 @@ Szkoła narysowana jest jako pokoje. Wszystko - ruch, Search, Listen, to, kto ci
 | Ruch wewnątrz własnego pokoju | zawsze za darmo |
 | Pierwsze przejście do połączonego pokoju o tej porze dnia | twój **Free Move** |
 | Każde kolejne przejście | **1 akcja** za każde |
+| Po schodach w górę lub w dół do innego pokoju | przejście jak każde inne; zmiana piętra na klatce schodowej to ruch wewnątrz własnego pokoju |
 | Przejście kupione Hope Callem Sprint | za darmo |
 
 Przeciągnij token; koszt naliczany jest, gdy dotrzesz. Przejście, którego nie masz czym opłacić, zostaje odrzucone, a token wraca.
@@ -116,6 +117,7 @@ Zawraca cię:
 | Przyczyna | Szczegóły |
 |---|---|
 | pokój, który **nie łączy się** z twoim | odmowa wymienia tylko te sąsiednie pokoje, w których już byłeś |
+| **piętro**, na które schody z twojego pokoju nie prowadzą | na mapie ze schodami tylko one zabiorą cię w górę lub w dół |
 | **zamknięte drzwi** | GM zamknął pokój |
 | **zapieczętowany pokój** | Despair Call Behind Closed Doors, na jedną porę dnia |
 | **Chained** z Despair Calla | nie wyjdziesz z pokoju do końca pory dnia |
@@ -124,16 +126,20 @@ Zawraca cię:
 | **morderstwo**, w którym bierzesz udział, dopóki trwa | nikt nie wychodzi z incydentu |
 | **Class Trial** w toku | nikt nie opuszcza sali rozpraw |
 
+GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
+
 ### Co widzisz
 
 - Pokój, w którym jesteś, jest w pełnym kolorze. Pokoje, w których już byłeś, prześwitują zza zasłony. Reszta szkoły tonie we mgle, dopóki do niej nie wejdziesz - pokój odkrywa się wejściem, raz, per postać. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną.
+- Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
+- Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
 ### Głos
 
-Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
+Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4).
@@ -403,12 +409,12 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 
 | Tier | Użytkowy | Narzędzie zbrodni / do sprzątania | Wytrzymałość |
 |---|---|---|---|
-| 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | 1 |
+| 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | jednorazowy |
 | 1 | przywraca 1 Health (leczący) albo 1 Sanity (uspokajający) | przeznaczony do czegoś innego, ale się nada | 1 |
 | 2 | przywraca 2 Health albo 2 Sanity, zależnie od rodzaju | częściowo przeznaczony do tej roboty | 2 |
 | 3 | przywraca 2 Health **albo** 2 Sanity - do wyboru - plus 2 Hope | zrobiony wyłącznie do tej roboty | 3 |
 
-**Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Zużyty użytkowy też jest Zepsuty.
+**Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
 > Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**.
@@ -641,6 +647,8 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 ## 12. Class Trial
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
+
+Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących do pokoju, który wybierze GM. Token twojej postaci w sali ustawia, pokazuje i ukrywa GM. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 

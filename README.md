@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.73. If a later version and a handbook ever disagree,
+They describe version 1.2.74. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -218,10 +218,10 @@ https://github.com/Akrobacjum/Danganronpa-RPG/releases/latest/download/module.js
 ```
 
 Install the Daggerheart system and the modules below from their own package
-pages. Without Dice So Nice the module does not start and tells the GM what is
-missing. The two recommended modules are optional: if one is missing, the GM
-gets a warning that can be switched off, and the rest of the module works
-without it.
+pages. The three modules are required: without any one of them the module
+does not start, and it tells the GM which one is missing - not installed, or
+installed but switched off. Required means installed and switched on; nothing
+checks that a LiveKit server answers.
 
 | Needs | Version |
 |---|---|
@@ -231,8 +231,8 @@ without it.
 | Module | What it is for | |
 |---|---|---|
 | [Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice) | The 3D duality dice | required |
-| [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | Isometric maps, which is how the game is played | recommended |
-| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Voice that follows the rooms | recommended |
+| [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | Isometric maps, which is how the game is played | required |
+| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Voice that follows the rooms | required |
 
 The module is developed and played on [The Forge](https://forge-vtt.com/).
 

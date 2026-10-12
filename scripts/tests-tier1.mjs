@@ -207,9 +207,9 @@ const INVARIANTS = [
         needs(world.atLeast("stashedItems"), "an orphan is a stashed item whose stash has gone");
         for (const actor of game.actors.filter(a => a.type === "character")) {
             for (const item of vaultContents(actor)) {
-                const room = stashRoomOfItem(item, actor);
+                const room = stashRoomOfItem(item, actor, canvas?.scene);
                 ok(room, `"${item.name}" on ${actor.name} is stashed nowhere`);
-                ok(stashIn(room, actor.id),
+                ok(stashIn(room, actor.id, canvas?.scene),
                     `"${item.name}" on ${actor.name} names the stash in "${room}", which does not exist`);
             }
         }
@@ -220,7 +220,7 @@ const INVARIANTS = [
         // list of ghosts is what makes the Stashes tab draw a column for nobody
         // and `openStashesHere` offer a drawer that cannot be opened.
         needs(world.atLeast("stashes"), "a stash to hold to its owner");
-        for (const entry of allVaults()) {
+        for (const entry of allVaults(canvas?.scene)) {
             ok(entry.owner, `a stash in "${entry.room}" belongs to no actor that exists`);
         }
     }],
@@ -1070,20 +1070,20 @@ const INVARIANTS = [
         const { stashRoomsFor, stashIn, stashesIn } = await import("./vault.mjs");
         const wrong = [];
         for (const actor of studentActors()) {
-            const owned = stashRoomsFor(actor).map(entry => entry.room);
+            const owned = stashRoomsFor(actor, canvas?.scene).map(entry => entry.room);
             for (const room of owned) {
-                if (!stashIn(room, actor.id)) {
+                if (!stashIn(room, actor.id, canvas?.scene)) {
                     wrong.push(`${actor.name} owns a stash in ${room} that the room denies`);
                 }
-                if (!stashesIn(room).some(entry => entry.actorId === actor.id)) {
+                if (!stashesIn(room, canvas?.scene).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${actor.name}'s stash in ${room} is not in that room's list`);
                 }
             }
             // And the other direction: a room that names them, which their own
             // list left out.
-            for (const room of (await import("./movement.mjs")).allRooms()) {
+            for (const room of (await import("./movement.mjs")).allRooms(canvas?.scene)) {
                 if (owned.includes(room)) continue;
-                if (stashesIn(room).some(entry => entry.actorId === actor.id)) {
+                if (stashesIn(room, canvas?.scene).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${room} says ${actor.name} has a stash there and their own list does not`);
                 }
             }
@@ -1129,7 +1129,7 @@ const INVARIANTS = [
         ok(!errors.length, `the map has ${errors.length} region error(s): ${
             errors.map(e => `${e.room} ${e.problem}`).join("; ")}`);
 
-        const rooms = allRooms();
+        const rooms = allRooms(canvas?.scene);
         const named = [...scene.regions].filter(r => rooms.includes(r.name));
         const box = region => {
             const xs = [], ys = [];
@@ -1872,11 +1872,12 @@ const INVARIANTS = [
 
         // Listen names only the rooms the listener has discovered - its first throw and, since
         // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
-        // `listenLines`), through the one rule (`listenLabels`).
+        // `listenLines`), through the one rule (`listenLabels`), on the scene the character
+        // stands on (E12 fix r1-G4; what a player's browser answers is scenario 66 K1).
         const listen = src("action-rolls.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
         const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
-        const doors = /listenLabels\(neighbours, roomsKnownToMe\(\)\)/;
+        const doors = /listenLabels\(neighbours, roomsKnownToMe\(scene\)\)/;
         ok(doors.test(body) && doors.test(rerolled),
             "Listen names every neighbouring room again, discovered or not (the first throw or the Reroll)");
         const { listenLabels } = await import("./action-rolls.mjs");
@@ -6355,7 +6356,821 @@ const INVARIANTS = [
             for (const key of Object.keys(flat).filter(key => /^DRPG\.Season\.(group\.sheetNotes|resetSheetNotes)/.test(key))) wrong.push(`${lang} ${key} is left`);
         }
         equal(JSON.stringify(wrong), "[]", "the reset window's groups and labels against what the reset clears");
-    }]
+    }],
+
+    ["R380 - a room is a named region a GM marked, with no passage behaviour and not drawn by a player; a room is a name on a scene", async () => {
+        /*
+         * E12 C1, 11.10.2026; plan-E12 3.1, audit S07-06. Until 1.2.74 every named region was a room, so
+         * a Teleport's region, a staircase's level change and a region a player drew were rooms as soon as
+         * they had a name. rooms.mjs `isRoom` is the predicate: a name, the room flag set to true, no
+         * behaviour of `NOT_ROOM_BEHAVIOURS` (any other behaviour may stand in a room), not in the
+         * primary's record of regions a player created. Read on regions of plain objects - an id, a name,
+         * flags, a behaviour list - so the answer is the predicate's, not a world's; the record is handed
+         * in (`isRoomWith`) where the world's would otherwise be read. Then a room as a name on a scene:
+         * its pieces, its names sorted once each, a flag read as OR over its pieces, whether the scene
+         * holds a room (and so is a place, `isPlaceScene`; since E13 C1 `roomPieces` finds no room on the
+         * linked trial hall, so the hall is none - rooms.mjs `isPlaceScene`), and the named regions no GM
+         * has decided - the ones Season setup names and the migration marks. Red before C1 on its
+         * first check: the record of a player's regions is not a setting, so nothing could refuse one.
+         */
+        ok(game.settings.settings.has(`${MODULE_ID}.playerRegions`),
+            "no world setting records the regions a player created - a region a player drew and named would be a room");
+        const R = await import("./rooms.mjs").catch(() => null);
+        ok(typeof R?.isRoomWith === "function", "there is no rooms.mjs `isRoomWith` - a room is still any region with a name");
+        if (typeof R?.isRoomWith !== "function") return;
+        const region = (id, name, flags = {}, behaviours = []) => ({ id, name, behaviors: behaviours.map(type => ({ type })),
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const drawn = new Set(["drawn"]);
+        const CASES = [
+            ["marked", region("a", "Gym", { room: true }), true, true],
+            ["never decided", region("b", "Gym"), false, true],
+            ["unticked", region("c", "Gym", { room: false }), false, true],
+            ["a Teleport", region("d", "Lift", { room: true }, ["teleportToken"]), false, false],
+            ["a level change", region("e", "Stairs", { room: true }, ["changeLevel"]), false, false],
+            ["another behaviour", region("f", "Hall", { room: true }, ["executeScript"]), true, true],
+            ["no name", region("g", "", { room: true }), false, false],
+            ["a player's", region("drawn", "Den", { room: true }), false, false]];
+        equal(JSON.stringify(CASES.map(([what, r]) => [what, R.isRoomWith(r, drawn), R.canBeRoom(r, drawn)])),
+            JSON.stringify(CASES.map(([what, , room, may]) => [what, room, may])),
+            "a region is a room when, and only when, it has a name, a GM's mark, no passage behaviour and no player for its author ([case, is a room, may be one])");
+        equal(R.ROOM_FLAG, "room", "the room flag's key moved - every world marked by the migration carries `room`");
+
+        const scene = { regions: [
+            region("k1", "Kitchen", { room: true }), region("k2", "Kitchen", { room: true, drpgLocked: true }), region("k3", "Kitchen"),
+            region("b1", "Bath", { room: true }), region("a1", "Attic", { room: false }), region("l1", "Lift", { room: true }, ["teleportToken"]),
+            region("n1", "", { room: true }), region("s1", "Shed", {}, ["executeScript"])] };
+        const bare = { regions: [region("x", "Hall", { room: false }), region("y", "Yard")] };
+        equal(JSON.stringify([R.roomNames(scene), R.roomRegions(scene, "Kitchen").map(r => r.id), R.roomFlag(scene, "Kitchen", "drpgLocked"),
+            R.roomFlag(scene, "Bath", "drpgLocked"), R.roomRegions(scene, "Lift").length, R.unmarkedRegions(scene).map(r => r.id),
+            R.sceneHoldsRooms(scene), R.isPlaceScene(scene), R.sceneHoldsRooms(bare), R.isPlaceScene(bare), R.namedRegions(scene, "Kitchen").length]),
+        JSON.stringify([["Bath", "Kitchen"], ["k1", "k2"], true, null, 0, ["k3"], true, true, false, false, 3]),
+        "a room as a name on a scene: [its names, the Kitchen's pieces, the Kitchen's lock as OR over them, the Bath's, the Lift's pieces, "
+            + "the regions no GM decided, the scene holds a room, is a place, a scene of no marked room holds one, is a place, the Kitchen's named regions]");
+    }],
+
+    ["R384 - a room is read on the token's floor, and the hit test's fallback names no room on another floor or outside a shape it can ask", async () => {
+        /*
+         * E12 C9, 11.10.2026; plan-E12 3.2, audit S07-45 and S07-22. Until 1.2.74 a footprint was a room
+         * on every floor: `roomOfToken` took Foundry's `token.regions` first (whether v14's keeps to the
+         * token's floor was not read) and `roomAt` asked every room piece of the scene, so a token on the ground floor under
+         * the Attic stood in the Attic. And when `testPoint` rejected a point everywhere, the fallback
+         * took the box of any piece on the scene - the room above, or the corner an L-shaped room does not
+         * cover. Read on a scene of plain objects, so the answer is the reader's and not a world's: an
+         * Attic on the upper floor whose `testPoint` says yes to its footprint whatever the floor (as the
+         * harness's regions and a v14 region asked without a level do), a Lab beside it on the ground
+         * floor, an Ell on the ground floor whose polygon tree says no where its box says yes, and a
+         * Stairwell on every floor; the other three's `testPoint` says no, so the ground floor's reading
+         * of the Attic's footprint goes through the fallback. Then the fields that make a move
+         * (rooms.mjs `isMoveChange`). Red before C9 on its first check: the Attic's footprint read the
+         * Attic on the ground floor, through the token's own list and through `roomAt`, and the Ell
+         * read the Ell.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const piece = (name, x, levels, answer, extra = {}) => ({ id: name, name, behaviors: [], levels: new Set(levels),
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: point => answer && point.x >= x && point.x <= x + 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined), ...extra });
+        const attic = piece("Attic", 0, [L2], true);
+        const scene = { grid: { size: 100 }, regions: new Set([attic, piece("Lab", 500, [L1], false),
+            piece("Ell", 1000, [L1], false, { polygonTree: { testPoint: () => false } }), piece("Stairwell", 1500, [], false)]) };
+        const token = (x, level) => ({ x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, regions: new Set([attic]) });
+        const room = (x, level) => M.roomAt(x, 100, token(x, level), level);
+        const read = [M.roomOfToken(token(100, L1)), M.roomOfToken(token(100, L2)), room(100, L1), room(100, L2), room(600, L1), room(600, L2),
+            room(1100, L1), room(1600, L1), room(1600, L2)];
+        equal(JSON.stringify(read), JSON.stringify([null, "Attic", null, "Attic", "Lab", null, null, "Stairwell", "Stairwell"]),
+            "the room of [a token on the ground floor under the Attic, one on the upper floor; and by `roomAt`: the Attic's footprint on "
+                + "the ground floor and the upper, the Lab's on each, the box of the Ell outside its shape, the Stairwell on each floor]");
+        const moves = typeof R.isMoveChange === "function"
+            ? [{ level: L2 }, { x: 1 }, { elevation: 5 }, { hidden: true }, {}].map(changes => R.isMoveChange(changes)) : "no isMoveChange";
+        equal(JSON.stringify(moves), JSON.stringify([true, true, true, false, false]),
+            "whether a change of [the level alone, x, the elevation, `hidden`, nothing] is a move");
+    }],
+
+    ["R385 - the fog draws the room pieces of the floor it is asked for, a piece on no floor in particular on each, and a scene's floors lowest first", async () => {
+        /*
+         * E12 C10, 11.10.2026; plan-E12 C10 and 2.3 (V6), audit S07-45, stage-E12 verify "Levels: a
+         * scene of two floors, the fog draws only the token's floor". Until 1.2.74 `repaintFog` drew
+         * every room piece of the scene on screen whatever the floor, so the Attic's fog lay over the
+         * Lab under it. Read on a scene of plain objects, so the answer is the reader's and not a
+         * world's: a Lab on the ground floor, an Attic and a Vault on the upper one, a Stairwell on
+         * no floor in particular (every floor), and a Closet on the upper floor that is no room. The
+         * floor is asked by its id and by the level itself, as `canvas.level` hands it; null is every
+         * floor. The floors are listed in the wrong order on purpose: `checkRegions` walks them
+         * through rooms.mjs `floorsOf`, lowest first (the owner's item 5). Red before C10: there was
+         * no `fogRegionsFor` to ask, and `repaintFog` drew `roomPieces(scene)`.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const piece = (name, levels, room = true) => ({ id: `${name}Id`, name, behaviors: [], levels: new Set(levels),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? room : undefined) });
+        const upper = { id: L2, name: "Upper", elevation: 10 }, ground = { id: L1, name: "Ground", elevation: 0 };
+        const scene = { levels: [upper, ground], regions: new Set([piece("Lab", [L1]), piece("Attic", [L2]), piece("Vault", [L2]),
+            piece("Stairwell", []), piece("Closet", [L2], false)]) };
+        const drawn = level => (typeof F.fogRegionsFor === "function" ? F.fogRegionsFor(scene, level).map(r => r.id).sort() : "no fogRegionsFor");
+        equal(JSON.stringify([drawn(L2), drawn(upper), drawn(L1), drawn(null)]),
+            JSON.stringify([["AtticId", "StairwellId", "VaultId"], ["AtticId", "StairwellId", "VaultId"], ["LabId", "StairwellId"],
+                ["AtticId", "LabId", "StairwellId", "VaultId"]]),
+            "the room pieces drawn on [the upper floor by id, by the level, the ground floor, every floor]");
+        equal(JSON.stringify(typeof R.floorsOf === "function" ? R.floorsOf(scene).map(level => level.name) : "no floorsOf"),
+            JSON.stringify(["Ground", "Upper"]), "the scene's floors, lowest first");
+    }],
+
+    ["R386 - a player is shown a door control only on a room the fog leaves clear or veiled, asked on both sides of the door", async () => {
+        /*
+         * E12 C13, 11.10.2026; plan-E12 C13, audit S07-04. The room fog switches token vision off,
+         * and with it off Foundry's door control answers "shown" at once (the audit's reading of
+         * Foundry's door-control.mjs; LIVE-E12-05), so a player saw the icon of every door on the
+         * map - those of wings never visited included. Read on plain objects, so the answer is the
+         * rule's and not a canvas's: four square rooms in a row and one under the third - the Hall
+         * clear (a token of the viewer stands in it), the Library veiled (found), the Gym and the
+         * Pool under fog (never visited), each a flat polygon as `regionShapes` hands it - and doors
+         * asked on their two sides, a fifth of a square out (`doorSides`). Red before C13: there
+         * was no `doorShownTo`, and no class of the module's made the door controls.
+         * E12 fix r2-S2 (11.10.2026; review EARLY-C13-1): a Den, clear, drawn 30 px inside the wall
+         * of its door - a border the map check takes for the wall's (`DOORWAY_WALL_NEAR`, 0.6 of a
+         * square). Asked a fifth of a square out alone, both points fell in the gap and the player
+         * standing in the Den was shown none of its doors (red at 19abd42 on the Den's door and on
+         * the points); each side is asked at both depths now.
+         */
+        const F = await import("./fog.mjs");
+        const square = (x, y) => [[x, y, x + 100, y, x + 100, y + 100, x, y + 100]];
+        const rooms = [{ shading: "clear", polygons: square(0, 0) }, { shading: "veil", polygons: square(100, 0) },
+            { shading: "fog", polygons: square(200, 0) }, { shading: "fog", polygons: square(200, 100) }, { shading: "clear", polygons: square(430, 0) }];
+        const sides = typeof F.doorSides === "function"
+            ? [F.doorSides([100, 200, 300, 200], 100), F.doorSides([100, 0, 100, 100], 100), F.doorSides([5, 5, 5, 5], 100)] : "no doorSides";
+        equal(JSON.stringify(sides), JSON.stringify([[{ x: 200, y: 218 }, { x: 200, y: 182 }, { x: 200, y: 260 }, { x: 200, y: 140 }],
+            [{ x: 82, y: 50 }, { x: 118, y: 50 }, { x: 40, y: 50 }, { x: 160, y: 50 }], [{ x: 5, y: 5 }]]),
+            "the points a door is asked on, for [a level wall, an upright one, a wall of no length] on a grid of 100");
+        const doors = [[100, 20, 100, 80], [200, 20, 200, 80], [300, 20, 300, 80], [220, 100, 280, 100], [500, 500, 560, 500], [120, 0, 180, 0],
+            [400, 20, 400, 80]];
+        const shown = typeof F.doorShownTo === "function" && typeof F.doorSides === "function"
+            ? doors.map(c => F.doorShownTo(F.doorSides(c, 100), rooms)) : "no doorShownTo";
+        equal(JSON.stringify(shown), JSON.stringify([true, true, false, false, false, true, true]),
+            "whether a player is shown the door [Hall-Library, Library-Gym, Gym-outside, Gym-Pool, in no room, Library-outside, "
+            + "the Den's, 30 px outside the Den]");
+        equal(CONFIG.Canvas?.doorControlClass?.name ?? null, "RoomDoorControl", "the class Foundry makes door controls from is the module's");
+    }],
+    ["R411 - a floor is asked by its id whatever form the caller holds, and floors with v14's elevation come lowest first", async () => {
+        /*
+         * E12 fix r2-H1, 11.10.2026; early review EARLY-C10-1 and EARLY-C10-4. The rules hand rooms.mjs `onLevel` a
+         * token's level (an id) and the fog `canvas.level` (a level), and it handed either on to `includedInLevel`
+         * unchanged; the harness's regions answer both, so nothing headless could tell which side v14 would refuse. Here
+         * an Attic whose `includedInLevel` answers an id alone, as the stricter reading of v14 would, is asked by its
+         * floor's id and by the floor itself - through `onLevel` and through what the fog draws (fog.mjs `fogRegionsFor`).
+         * And three floors whose `elevation` is `{bottom, top}`, as the v14 typings give a level, listed out of order,
+         * through `floorsOf`. Plain objects: the answer is the readers', not a world's. Red before the fix: the Attic
+         * asked by the floor itself was on no floor and not drawn, and the floors kept the order they were listed in.
+         */
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
+        const upper = { id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }, ground = { id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } };
+        const cellar = { id: "SUITEFLOORCELLAR", name: "Cellar", elevation: { bottom: -10, top: 0 } };
+        const attic = { id: "AtticId", name: "Attic", behaviors: [], levels: new Set([L2]), includedInLevel: level => level === L2,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) };
+        const scene = { levels: [upper, cellar, ground], regions: new Set([attic]) };
+        const drawn = level => F.fogRegionsFor(scene, level).map(region => region.id);
+        equal(JSON.stringify([R.onLevel(attic, L2), R.onLevel(attic, upper), R.onLevel(attic, ground), drawn(L2), drawn(upper), drawn(ground)]),
+            JSON.stringify([true, true, false, ["AtticId"], ["AtticId"], []]),
+            "[whether the Attic is on the upper floor asked by its id, by the floor, on the ground floor; the pieces drawn on each of the three]");
+        equal(JSON.stringify(R.floorsOf(scene).map(level => level.name)), JSON.stringify(["Cellar", "Ground", "Upper"]), "the scene's floors, lowest first");
+    }],
+
+    ["R114 - nothing on the trial hall is a room or a place: its role is read by name, the leaf finds no room there, and every walk of the scenes asks it", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 C1 and 2.3 (V2), audit S07-47, the A5 project's reserved R114. The trial hall was
+         * one more scene with regions on it, so a room a GM had drawn and marked there was a room: a student's hall token
+         * was a place `locateActor` answered for a packet naming the hall, and scenario 41 b read the courtroom rule
+         * refusing a walk across it (12.10.2026). The roles are read here on plain objects first, so the answer is the
+         * reader's and not a world's: a field read by its name with a later one (`zones`) beside it, an id that is no
+         * string, a scene linked as both, a role naming a scene that is gone. Then, in the source with comments blanked,
+         * the shape that keeps the hall nobody's place: `roomPieces` answers none on the hall before it reads a region,
+         * `isPlaceScene` is a scene that holds a room, `placesOf` and voice's `sceneRoomWarnings` and `followsVoice` ask
+         * before they read a hall token, the arrival judge asks before it reads the room it holds (scenario 41 b1 read that
+         * room predating the link, 12.10.2026), and a character's token is taken off a scene's list by its actor only in
+         * remnants.mjs `tokenFor` (after `locateActor`) and cleanup.mjs `applyMoveBody` - the victim's token on the scene
+         * `locateActor` found the cleaner on, so not `here.tokenDoc`, the cleaner's own, as plan 1.x 9 offered. The
+         * tier-2 "the trial hall is no place ..." reads it on documents. Red before C1: rooms.mjs had no `sceneRole`.
+         */
+        const R = await import("./rooms.mjs");
+        ok(typeof R.sceneRole === "function", "rooms.mjs has no `sceneRole` - no scene can be the trial hall");
+        if (typeof R.sceneRole !== "function") return;
+        const roles = { school: "R114SCHOOL000000", trial: "R114HALL00000000", zones: { a: "R114ZONEA0000000", b: "R114ZONEB0000000" } };
+        const at = id => ({ id });
+        equal(JSON.stringify([R.sceneRole(at(roles.school), roles), R.sceneRole(at(roles.trial), roles), R.sceneRole(at(roles.zones.a), roles),
+            R.sceneRole(at("R114OTHER0000000"), roles), R.sceneRole(null, roles), R.sceneRole(at(roles.trial), { school: roles.trial, trial: roles.trial }),
+            R.sceneRole(at(roles.trial), { trial: [roles.trial] }), R.sceneRole(at(roles.trial), {})]),
+            JSON.stringify(["school", "trial", null, null, null, "trial", null, null]),
+            "the role of [the school, the hall, a zone's scene, another scene, no scene, a scene linked as both, the hall named in a list, the hall with nothing linked]");
+        const some = game.scenes.contents[0] ?? null;
+        must(some, "the world has no scene - a linked scene could not be looked up by its id");
+        const GONE = "R114NOSUCHSCENE0";
+        equal(JSON.stringify([R.schoolScene({ school: GONE }), R.trialScene({ trial: GONE }), R.schoolScene({ school: some.id })?.id ?? null,
+            R.trialScene({ trial: some.id, zones: {} })?.id ?? null, R.schoolScene({ school: some.id, trial: some.id })]),
+            JSON.stringify([null, null, some.id, some.id, null]),
+            "the linked [school whose scene is gone, hall whose scene is gone, school, hall with a later field beside it, school linked as the hall too]");
+
+        const sources = await moduleSources();
+        must(["rooms.mjs", "movement.mjs", "voice.mjs"].every(file => sources.get(file)?.length), "rooms.mjs, movement.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        const plain = file => stripComments(sources.get(file));
+        const lines = (file, fn) => fnSource(plain(file), fn).split("\n").slice(1).map(line => line.trim()).filter(Boolean);
+        const before = (file, fn, first, then) => {
+            const body = fnSource(plain(file), fn), a = body.indexOf(first), b = body.indexOf(then);
+            return a >= 0 && b > a;
+        };
+        equal(JSON.stringify([lines("rooms.mjs", "roomPieces")[0], lines("rooms.mjs", "isPlaceScene")[0], lines("rooms.mjs", "sceneHoldsRooms")[0],
+            before("movement.mjs", "placesOf", "if (!isPlaceScene(scene)) continue;", "scene?.tokens"),
+            before("voice.mjs", "sceneRoomWarnings", "if (isTrialScene(scene)) continue;", "roomPieces(scene)"),
+            /!isTrialScene\(tokenDoc\.parent\)/.test(fnSource(plain("voice.mjs"), "followsVoice")),
+            before("movement.mjs", "arrivalVerdict", "if (!isPlaceScene(tokenDoc.parent)) return true;", "roomOfToken(tokenDoc)")]),
+        JSON.stringify(["if (isTrialScene(scene)) return [];", "return sceneHoldsRooms(scene);", "return roomPieces(scene).length > 0;", true, true, true, true]),
+            "[`roomPieces`' first line, `isPlaceScene`'s, `sceneHoldsRooms`'; whether `placesOf` skips a scene that is no place before it reads a token, "
+            + "`sceneRoomWarnings` the hall before it reads its rooms, `followsVoice` asks about the hall, and `arrivalVerdict` asks before it reads a room]");
+
+        const TAKEN = /\btokens\??\.(?:find|filter|some)\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.actorId\b/g;
+        const DECLARED = /^(?:export )?(?:async )?function (\w+)\(/gm;
+        const taken = [];
+        for (const [file, raw] of sources) {
+            if (file.startsWith("tests")) continue;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(TAKEN)) taken.push(`${file}#${[...text.slice(0, m.index).matchAll(DECLARED)].at(-1)?.[1] ?? "(top level)"}`);
+        }
+        equal(JSON.stringify([...new Set(taken)].sort()), JSON.stringify(["cleanup.mjs#applyMoveBody", "remnants.mjs#tokenFor"]),
+            "the functions that take a character's token off a scene's list by its actor, outside `locateActor`'s walk of the place scenes");
+    }],
+
+    ["R115 - the school linked as the school is home over the active scene and the one on screen, and Room Setup never opens on the hall", async () => {
+        /*
+         * E13 C1, 12.10.2026; plan-E13 1.x 7 and 2.3 (V3), audit S11-15, the A5 project's reserved R115, restated as
+         * plan 1.x 7 says once E12 C6 had made `workingScene` the camera for windows only. `homeScene()` guessed the
+         * school - the only scene with rooms, else the active one if it held a room, else the one of most room pieces -
+         * so a hall with rooms marked on it and made active for the trial was the school; and Room Setup opened on
+         * whatever the GM had on screen, the hall included. Read in the source with comments blanked: `homeScene`
+         * answers `schoolScene()` before it guesses, and `openRoomSetupDialog` puts `homeScene()` in place of a trial
+         * scene after it reads the camera and before it reads a region. And of the world as it is: home is never the
+         * hall, and a linked school is home. The tier-2 "a school linked as the school ..." reads both on documents, the
+         * hall on screen; scenario 41 b on four browsers with the hall active and viewed. Red before C1: there was no
+         * `schoolScene`.
+         */
+        const R = await import("./rooms.mjs");
+        ok(typeof R.schoolScene === "function", "rooms.mjs has no `schoolScene` - the school is still a guess");
+        if (typeof R.schoolScene !== "function") return;
+        const sources = await moduleSources();
+        must(sources.get("rooms.mjs")?.length && sources.get("vault.mjs")?.length, "rooms.mjs or vault.mjs is not among the module's sources - this would measure nothing");
+        const rooms = stripComments(sources.get("rooms.mjs")), vault = stripComments(sources.get("vault.mjs"));
+        const home = fnSource(rooms, "homeScene").split("\n").slice(1, 3).map(line => line.trim());
+        const open = fnSource(vault, "openRoomSetupDialog");
+        const [camera, swap, read] = ["let scene = workingScene();", "if (isTrialScene(scene)) scene = homeScene();", "namedByName(scene)"].map(text => open.indexOf(text));
+        equal(JSON.stringify([home, camera >= 0 && camera < swap && swap < read]),
+            JSON.stringify([["const school = schoolScene();", "if (school) return school;"], true]),
+            "[`homeScene`'s first two lines; whether Room Setup puts home in place of the hall between reading the camera and reading a region]");
+        const school = R.homeScene();
+        equal(JSON.stringify([R.isTrialScene(school), !R.schoolScene() || school === R.schoolScene()]), JSON.stringify([false, true]),
+            `[home (${school?.name ?? "none"}) is the trial hall, home is the linked school when one is linked]`);
+
+        /* And the way back (E13 C3, 12.10.2026; plan-E13 2.3's R115 rows, the owner's answer Q-E13-1 b): leaving the trial
+           takes the table to the linked school, else to the scene the trial opened from (`trialReturnTo`), never to the
+           hall, and with neither the GMs are told and nothing changes. Asked of plain scenes, and in the source of
+           `leaveTrialScene`: it whispers `noSchool` and returns before it activates or hides anything. Red before C3:
+           there was no `leaveDestination`. Scenario 41 c, d, e and j read the return on four browsers. */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.leaveDestination === "function", "trial-scene.mjs has no `leaveDestination` - leaving the trial takes the table nowhere");
+        if (typeof T.leaveDestination !== "function") return;
+        const [linked, from, hall] = [{ id: "school" }, { id: "from" }, { id: "hall" }];
+        const to = args => T.leaveDestination(args)?.id ?? null;
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const leave = fnSource(stripComments(sources.get("trial-scene.mjs")), "leaveTrialScene");
+        const [told, activates, hides] = ['"DRPG.TrialScene.noSchool"', ".activate(", "hideTrialTokens("].map(text => leave.indexOf(text));
+        const back = told >= 0 ? leave.indexOf("return null;", told) : -1;
+        equal(JSON.stringify([to({ school: linked, returnTo: from, hall }), to({ returnTo: from, hall }), to({ school: hall, returnTo: hall, hall }), to({ hall }),
+            leave.includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })"), told >= 0 && told < back && back < activates && activates < hides]),
+            JSON.stringify(["school", "from", null, null, true, true]),
+            "[the way back with a school and a scene the trial opened from, with that scene only, with only the hall named, with nothing; "
+            + "leaveTrialScene asks the school and the flag; it tells the GMs and returns before it activates, and activates before it hides]");
+    }],
+    ["R116 - the trial shows the GMs' choice of the hall's cast and hides it again: only `hidden` changes, and a second run changes nothing", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (V4), decision D7, the owner's answer Q-E13-1 a, audit S06-57, the A5
+         * project's reserved R116 restated under D7. Until 1.2.74 nothing showed anybody in a trial hall: a GM showed the
+         * tokens by hand (scenario 41 a). The rule is trial-scene.mjs `castDiff` over the cast as `readCast` hands it,
+         * driven here on plain rows, so nothing in this browser is read or written: a student a player plays, a dead one a
+         * player plays (Q-E13-1 a: shown, under the dead overlay), Monokuma, a test student nobody plays, a student the
+         * GMs unticked (a row of this season), a test student somebody left shown, and a second token of the first
+         * student. Read: what the entry changes, what a second entry on its result changes, what the exit changes and a
+         * second exit after it, the fields each change carries, the second token, and `defaultReveal` on its own. And of
+         * the world, which tokens are the cast: a token of a student is, a token of an actor of another type or of no
+         * actor is not. The tier-2 "entering the trial shows the GMs' choice ..." reads it on a hall's documents, and
+         * scenario 41 a, c and d through the phase on four browsers. Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castDiff === "function", "trial-scene.mjs has no `castDiff` - entering the trial shows nobody in the hall (S06-57)");
+        if (typeof T?.castDiff !== "function") return;
+        const EPOCH = 7000, HALL = "R116HALL00000000";
+        const token = (id, fields = {}) => ({ id, name: id, actorId: `${id}-ACTOR`, hidden: true, monokuma: false, player: false, second: false, ...fields });
+        const cast = [token("PLAYED", { player: true }), token("DEAD", { player: true, deceased: true }), token("MONOKUMA", { monokuma: true }),
+            token("TEST"), token("UNTICKED", { player: true }), token("LEFTSHOWN", { hidden: false }),
+            token("PLAYED2", { actorId: "PLAYED-ACTOR", player: true, second: true })];
+        const rows = { [T.castKey(HALL, "UNTICKED")]: { reveal: false, epoch: EPOCH } };
+        const after = (list, diff) => list.map(t => ({ ...t, hidden: diff.find(d => d._id === t.id)?.hidden ?? t.hidden }));
+        const entry = T.castDiff(cast, { reveal: true, sceneId: HALL, rows, epoch: EPOCH });
+        const inside = after(cast, entry.diff);
+        const again = T.castDiff(inside, { reveal: true, sceneId: HALL, rows, epoch: EPOCH });
+        const exit = T.castDiff(inside, { reveal: false, sceneId: HALL, rows, epoch: EPOCH });
+        const out = T.castDiff(after(inside, exit.diff), { reveal: false, sceneId: HALL, rows, epoch: EPOCH });
+        const fields = [...entry.diff, ...exit.diff].map(d => Object.keys(d).sort().join(","));
+        equal(JSON.stringify([entry, again.diff, exit.diff, out.diff, [...new Set(fields)]]), JSON.stringify([
+            { diff: [{ _id: "PLAYED", hidden: false }, { _id: "DEAD", hidden: false }, { _id: "MONOKUMA", hidden: false }, { _id: "LEFTSHOWN", hidden: true }], seconds: ["PLAYED2"] },
+            [], [{ _id: "PLAYED", hidden: true }, { _id: "DEAD", hidden: true }, { _id: "MONOKUMA", hidden: true }], [], ["_id,hidden"]]),
+            "[the entry (the student played, the dead played and Monokuma shown, the test student left shown hidden, the unticked one, the test student and the second token kept hidden; the second token named), "
+            + "a second entry, the exit (the cast hidden), a second exit, the fields a change carries]");
+        const rule = [{}, { player: true }, { monokuma: true }, { player: true, second: true }, { monokuma: true, second: true }].map(given => T.defaultReveal(given));
+        equal(JSON.stringify(rule), JSON.stringify([false, true, true, false, false]),
+            "[`defaultReveal` of a student nobody plays, one a player plays, Monokuma, and a second token of each of the last two]");
+        const student = game.actors.find(a => a.type === "character");
+        must(student, "the world has no character to stand a hall token for - which tokens are the cast would measure nothing");
+        const other = game.actors.find(a => a.type !== "character");
+        const kinds = [{ actorId: student.id }, { actorId: null }, { actorId: "R116NOSUCHACTOR0" }, ...(other ? [{ actorId: other.id }] : [])].map(t => T.isCastToken(t));
+        equal(JSON.stringify(kinds), JSON.stringify([true, false, false, ...(other ? [false] : [])]),
+            `[a token is the cast: of a student, of no actor, of an actor that is gone${other ? `, of ${other.name} (${other.type})` : ""}]`);
+    }],
+
+    ["R433 - the cast choice is the GMs' own: kept in a GM store with its season, never on a token or a world setting, and read only in its season", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 (A5's R121, which tools/registry.mjs reserves for A4) and 1.x 2, decisions D7
+         * and D12. The audit's fix for S06-57 named a flag on the hall token, and a token's flags are written by whoever
+         * owns it - the student's own player. Read in the source with comments blanked: trial-scene.mjs writes no setting and
+         * one flag only (E13 C3: `trialReturnTo`, on the hall SCENE, which `enterTrialScene` writes and a GM's client
+         * reads - the owner's answer 1b; the count was 0 at C2 and R433 failed at C3 on the 1 until it was said here), and
+         * one setting (E13 C5, 12.10.2026: Room Setup's Scenes tab stores the school and hall roles in `sceneRoles`; R433
+         * failed on that 1 at C5 until it was named here, and the count of that exact write is the second 1 below, so a
+         * second setting write, or the cast going into this one, still moves it),
+         * and writes the choice only through `trialCastStore`; `applyTrialCast` waits for the store to open
+         * before it reads the cast, so a store that did not open shows nobody (the tier-2 "entering the trial ..." drives
+         * that branch). Of the store: its spec (a ledger, cut with the trial floor's group, backed up and synced among the
+         * GMs) and its setting, this browser's own storage. Of the rule on plain rows: a row of this season reads, a row of
+         * another season and a row with no `reveal` read as no row. Whether the primary drops the past season's rows is
+         * the tier-2 test's (`compactGmStores`). Red before C2: there was no trial-scene.mjs.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castRow === "function", "trial-scene.mjs has no `castRow` - the GMs' choice is kept nowhere (S06-57, D7)");
+        if (typeof T?.castRow !== "function") return;
+        const { trialCastStore } = await import("./gm-stores.mjs");
+        const sources = await moduleSources();
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const code = stripComments(sources.get("trial-scene.mjs"));
+        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,", "settings.set(MODULE_ID, SETTINGS.sceneRoles,"]
+            .map(text => code.split(text).length - 1);
+        const apply = fnSource(code, "applyTrialCast");
+        const [waits, reads] = ["await open()", "readCast(scene)"].map(text => apply.indexOf(text));
+        const { name, kind, resetGroup, backup, sync, key } = trialCastStore.spec;
+        const setting = game.settings.settings.get(`${MODULE_ID}.${key}`);
+        const H = "R433HALL00000000", K = T.castKey(H, "TOKEN");
+        const at = (row, epoch) => T.castRow({ [K]: row }, H, "TOKEN", epoch);
+        const seasons = [at({ reveal: false, epoch: 5 }, 5), at({ reveal: true, epoch: 4 }, 5), at({ reveal: true, epoch: 6 }, 5), at({ epoch: 5 }, 5), at(undefined, 5)];
+        equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
+            JSON.stringify([[1, 0, 1, 0, 1, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+                "client", [{ reveal: false }, null, null, null, null]]),
+            "[trial-scene.mjs's setFlag (the one, on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles); `applyTrialCast` waits for the store before it reads the cast; "
+            + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
+    }],
+
+    ["R434 - a player's change to whether a hall cast token is hidden is put back; a GM's stands, and so does any token that is not the hall's cast", async () => {
+        /*
+         * E13 C2, 12.10.2026; plan-E13 2.3 and 3.3 (MARKED, decision D2). A player who owns a hall token may be able to
+         * write its `hidden` from their own browser - whether Foundry v14 lets an owner do that is not measured
+         * (LIVE-E13-08) - and a token shown or hidden by its player would undo the GMs' choice in front of the table. The
+         * rule is trial-scene.mjs `castPutBack`, which the primary's `updateToken` watcher asks with the user Foundry names
+         * as the writer; here on plain objects and a student of this world (the cast is a token of a "character"), each
+         * token holding what the change left and asked with what the GMs last wrote. Read: a player's hide and a player's
+         * show of a hall cast token, the same hide carrying this module's own `trialCast` option (a writer's claim, exempt
+         * from nothing), a GM's hide, a player's move, a player's hide of a token of no actor, of a token on another
+         * scene, with no hall linked, and by a user nobody knows. Since E13 fix r1-F2 (review r1 sec A) the put-back
+         * writes what the GMs last wrote, not the other state: a player's show the token no longer holds (an earlier
+         * put-back or their own next write undid it), a hide sent whole (`diff: false`) onto a token already hidden, and
+         * a show sent whole onto a token the GMs hid - C2's rule answered the first two with a write against the GMs'
+         * choice. The tier-2 "a player's change ..." drives the watcher on a hall's documents; scenario 41 a3 and a4 have
+         * players' browsers write it. Red before C2: there was no trial-scene.mjs, and a player's change stood.
+         */
+        const T = await import("./trial-scene.mjs").catch(() => null);
+        ok(typeof T?.castPutBack === "function", "trial-scene.mjs has no `castPutBack` - a player's change to a hall token's hidden stands");
+        if (typeof T?.castPutBack !== "function") return;
+        const student = game.actors.find(a => a.type === "character");
+        must(student, "the world has no character to stand a hall token for - every case below would read a token that is not the cast");
+        const hall = { id: "R434HALL00000000" };
+        const tok = (fields = {}) => ({ id: "R434TOKEN0000000", name: "R434", actorId: student.id, parent: hall, hidden: true, ...fields });
+        const player = { id: "R434PLAYER000000", isGM: false }, gm = { id: "R434GM0000000000", isGM: true };
+        const shown = tok({ hidden: false });
+        const asks = [
+            [tok(), { hidden: true }, {}, player, hall, false], [shown, { hidden: false }, {}, player, hall, true],
+            [tok(), { hidden: true }, { [MODULE_ID]: { trialCast: true } }, player, hall, false], [tok(), { hidden: true }, {}, gm, hall, false],
+            [tok(), { x: 300 }, {}, player, hall, false], [tok({ actorId: null }), { hidden: true }, {}, player, hall, false],
+            [tok({ parent: { id: "R434OTHER0000000" } }), { hidden: true }, {}, player, hall, false], [tok(), { hidden: true }, {}, player, null, false],
+            [tok(), { hidden: true }, {}, null, hall, false],
+            [shown, { hidden: true }, {}, player, hall, false], [tok(), { hidden: true }, { diff: false }, player, hall, true],
+            [shown, { hidden: false }, { diff: false }, player, hall, true]
+        ].map(args => T.castPutBack(...args));
+        equal(JSON.stringify(asks), JSON.stringify([{ hidden: false }, { hidden: true }, { hidden: false }, null, null, null, null, null, null,
+            null, null, { hidden: true }]),
+            "[put back: a player's hide, a player's show, a player's hide with the module's option; stands: a GM's hide, a player's move, "
+            + "a token of no actor, a token of another scene, no hall linked, a writer nobody knows; since r1-F2, nothing written for a hide the token no "
+            + "longer holds or one sent whole onto a token the GMs hid, and a show sent whole put back]");
+    }],
+    ["R435 - a player's browser puts its own view right once after a load: the hall in the trial, the school after it, never a GM's", async () => {
+        /*
+         * E13 C3, 12.10.2026; plan-E13 3.4, the owner's answer Q-E13-1 c (players only, once per load), LIVE-E13-02. When
+         * the trial opens the hall is activated and Foundry moves every connected browser there; a browser still loading
+         * then only warns and stays (A5's reading of Foundry, not read in v14) - scenario 41 f read p4 left on the school
+         * after its first draw (12.10.2026, C2's tree). trial-scene.mjs `viewRepair` names the scene a browser switches to
+         * on its first `canvasReady`, asked here of plain scenes: a player in the trial viewing the school while the hall
+         * is active goes to the hall; after the trial, viewing the hall while the school is active, to the school; a
+         * player already where the GM made active, a GM, a trial whose active scene is not the hall (the GM took the
+         * table elsewhere), and no hall linked, nowhere. Since E13 fix r1-F2 (review r1 cor B) after the trial the scene a
+         * GM made active, whichever it is: the scene of the room End the trial chose, and with no school linked the scene
+         * the trial opened from - C3 asked for the school alone, and both left a late browser in the hall. And in the
+         * source with comments blanked: `registerTrialScene`
+         * listens to `canvasReady` once (a GM's later pull stands) and through `selfRepair`. Scenario 41 f reads it on a
+         * late browser, the pull included. Red before C3: there was no `viewRepair`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.viewRepair === "function", "trial-scene.mjs has no `viewRepair` - a browser that missed the activation stays where it was");
+        if (typeof T.viewRepair !== "function") return;
+        const [hall, school, chosen] = [{ id: "hall" }, { id: "school" }, { id: "chosen" }];
+        const goes = args => T.viewRepair({ hall, school, ...args })?.id ?? null;
+        const trial = "classTrial", daily = "dailyLife";
+        const sources = await moduleSources();
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(stripComments(sources.get("trial-scene.mjs")), "registerTrialScene");
+        equal(JSON.stringify([
+            goes({ phase: trial, active: hall, viewed: school }), goes({ phase: daily, active: school, viewed: hall }),
+            goes({ phase: trial, active: hall, viewed: hall }), goes({ phase: daily, active: hall, viewed: hall }),
+            goes({ phase: trial, active: school, viewed: school }), goes({ phase: trial, active: hall, viewed: school, isGM: true }),
+            goes({ phase: daily, active: school, viewed: hall, isGM: true }), T.viewRepair({ phase: trial, active: hall, viewed: school, school }),
+            register.includes('Hooks.once("canvasReady", selfRepair)'), /Hooks\.on\(\s*["']canvasReady["']/.test(register),
+            goes({ phase: daily, active: chosen, viewed: hall }), T.viewRepair({ phase: daily, active: chosen, viewed: hall, hall })?.id ?? null,
+            goes({ phase: daily, active: chosen, viewed: chosen })]),
+            JSON.stringify(["hall", "school", null, null, null, null, null, null, true, false, "chosen", "chosen", null]),
+            "[a player in the trial off the hall, after it on the hall; a player already where the GM put the table (twice), in a trial the GM took "
+            + "elsewhere; a GM (twice); no hall linked; registerTrialScene listens to canvasReady once through selfRepair, and never on every one; "
+            + "since r1-F2, after the trial on the hall with the chosen room's scene active, the same with no school linked, and already there]");
+    }],
+    ["R117 - in the Class Trial everybody is in one voice room: the living, the dead, a Monocub, Monokuma and an account with no character (D8)", async () => {
+        /*
+         * E13 C4, 12.10.2026; S11-10, the owner's decision D8 (option 1: one room in the trial, also without linked
+         * scenes), plan-E13 2.3. Before C4 the trial ran in room voice: each living student followed the school room their
+         * token was left in, a Monocub and Monokuma likewise, the dead went to the main room, and an account with no
+         * character was not moved at all - so the trial's speakers sat in several breakouts. voice.mjs `voiceClaim` is the
+         * per-person decision `voiceTargets` asks, here asked of plain people standing in a school: in the trial all six
+         * get the main room (target null) with one claim of their own, and neither where anybody stands nor who is dead
+         * is asked - so no token, and no linked school or hall, can change the answer. Outside the trial the same six keep
+         * the answers they had (the two living and the Monocub their rooms, Monokuma the Hall, the dead the main room).
+         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and asks the accounts with
+         * no character only in an Eclipse or the trial, and a browser that asks for its own room (`targetForUser`, the
+         * answer to a client that connects mid-trial) is answered from that one decision, not from its token. Scenario 41 h reads it on four browsers in a real trial, and the
+         * tier-2 test "the Class Trial takes every connected voice ..." on this world. Red before C4: no `voiceClaim`.
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.voiceClaim === "function", "voice.mjs has no `voiceClaim` - the trial's voice rule is not one anybody can ask");
+        if (typeof V.voiceClaim !== "function") return;
+        const school = { id: "R117SCHOOL000000", name: "R117 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        let asked = 0;
+        const standing = room => () => { asked++; return room ? { scene: school, room } : null; };
+        const dead = value => () => { asked++; return value; };
+        const people = [
+            { user: account("R117PLAYERA00000"), silenced: dead(false), locate: standing("Dorm A") },
+            { user: account("R117PLAYERB00000"), silenced: dead(false), locate: standing("Cafeteria") },
+            { user: account("R117PLAYERC00000"), silenced: dead(true), locate: standing("Dorm B") },
+            { user: account("R117PLAYERD00000"), silenced: dead(false), locate: standing("Dorm B") },
+            { user: account("R117GM0000000000", true), monokuma: true, locate: standing("Hall") },
+            { user: account("R117SPECTATOR000") }
+        ];
+        const inTrial = people.map(p => V.voiceClaim({ ...p, trial: true }));
+        const askedInTrial = asked;
+        const outside = people.map(p => V.voiceClaim({ ...p, trial: false }));
+        const sources = await moduleSources();
+        must(sources.get("voice.mjs")?.length, "voice.mjs is not among the module's sources - this would measure nothing");
+        const voice = stripComments(sources.get("voice.mjs"));
+        const decide = fnSource(voice, "voiceTargets"), answer = fnSource(voice, "targetForUser");
+        equal(JSON.stringify([
+            inTrial.map(r => r.target), new Set(inTrial.map(r => r.claim)).size, inTrial.some(r => outside.some(o => o.claim === r.claim)),
+            inTrial.every(r => r.why === game.i18n.localize("DRPG.Voice.claimTrial")), askedInTrial,
+            outside.map(r => r.target),
+            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /if \(eclipse \|\| trial\)/.test(decide),
+            /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
+            JSON.stringify([
+                [null, null, null, null, null, null], 1, false, true, 0,
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), null,
+                    V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
+                true, true, true]),
+            "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
+            + "character; one claim for all, a claim of the trial's own; the trial's reason; nobody's place or death asked; outside the "
+            + "trial the same six; voiceTargets reads the trial from the clock and places accounts with no character only in an Eclipse or the trial; "
+            + "a browser's own question is answered from voiceTargets, not from its token]");
+    }],
+
+    ["R120 - the Scenes tab: one scene cannot hold both roles, the hall's rooms and missing students are named, and an Apply that changed nothing writes nothing", async () => {
+        /*
+         * E13 C5, 12.10.2026; plan-E13 2.3 (V6, R120), doneWhen 3, amend 28.09, the owner's answers Q-E13-1 d and e
+         * (09.10), the A5 project's reserved R120. Until C5 no window linked the school and the hall or kept the
+         * cast's choice: a GM typed the setting into a console (scenario 41 a did, and the suite), and nothing said
+         * that the hall was the school's map, that a student had no token there, or that both roles named one
+         * scene. Asked of plain objects, so it reads no document and writes nothing (tier 1): Room Setup's tabs and
+         * the tab it opens on; `hallRoomNames` of a hall holding a region marked as a room, one marked "not a room"
+         * and an unmarked zone (amend 28.09: only the first is named); `sceneReport`'s rows for one scene in both
+         * roles, for a hall with a room, a second token of one actor, an unlinked token and one or two students
+         * without a token (the plural), for a hall with no school, and for a pair with nothing wrong;
+         * `scenesTabWrites` for an untouched form, a changed school (a stored field the tab does not show kept), a
+         * clash, a stored role whose scene is gone, a cast list of another hall, and "Prepare"; and
+         * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one; `hallLocked` (E13 fix
+         * r1-F2, review r1 cor C) for a hall relinked and one unlinked in a running trial, the same out of it, a trial with
+         * the hall select untouched, and no reading; `hallLockReason` (E13 fix r2-H2, review r2 cor E) for a relink, a
+         * first hall linked in a running trial, and the same out of it. Then the
+         * window's own wiring, on a form drawn from the world's roles and never attached to the page: both
+         * selects set to one scene hold Apply, show the warning and decide no write; the Bedrooms tab's hold
+         * outlives the Scenes tab's (`setApplyBlock`); and the untouched form's Apply, with `game.settings.set`
+         * counted, sets nothing. The tier-2 "the Scenes tab links ..." and scenario 41 a apply it to documents.
+         * Red before C5: there was no `sceneReport`.
+         */
+        const T = await import("./trial-scene.mjs");
+        const V = await import("./vault.mjs");
+        const { plural } = await import("./utils.mjs");
+        ok(typeof T.sceneReport === "function" && typeof V.roomSetupTab === "function", "there is no Scenes tab - trial-scene.mjs has no `sceneReport`");
+        if (typeof T.sceneReport !== "function" || typeof V.roomSetupTab !== "function") return;
+        const tabs = [V.ROOM_SETUP_TABS.map(([key]) => key).at(-1), V.ROOM_SETUP_TABS.length,
+            V.roomSetupTab(null, true), V.roomSetupTab(null, false), V.roomSetupTab("doors", false), V.roomSetupTab("nonsense", true)];
+        const region = (name, room) => ({ id: `R120${name}`, name, behaviors: [], getFlag: (scope, key) => (scope === MODULE_ID && key === "room" ? room : undefined) });
+        const rooms = T.hallRoomNames({ regions: [region("Stand", true), region("Gallery", false), region("Zone", undefined)] });
+        const keys = report => report.map(row => `${row.key}${row.block ? "!" : ""}`);
+        const [A, B] = [{ id: "R120SCENEA" }, { id: "R120SCENEB" }];
+        const cast = [{ name: "Aiko", second: false, linked: true }, { name: "Aiko again", second: true, linked: true }, { name: "Prop", second: false, linked: false }];
+        const full = T.sceneReport({ school: A, hall: B, rooms: ["Stand"], cast, missing: ["Botan"] });
+        const two = T.sceneReport({ school: A, hall: B, missing: ["Botan", "Chie"] });
+        const reports = [keys(T.sceneReport({ school: A, hall: A })), keys(full), keys(T.sceneReport({ hall: B })), keys(T.sceneReport({ school: A, hall: B })),
+            full.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 1, names: "Botan" }),
+            two.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 2, names: "Botan, Chie" })];
+        const stored = { school: "R120SCENEA", trial: "R120SCENEB", zones: ["R120ZONE"] };
+        const read = (over = {}) => ({ school: "R120SCENEA", trial: "R120SCENEB", drawn: { school: "R120SCENEA", trial: "R120SCENEB" },
+            cast: { sceneId: "R120SCENEB", changes: {} }, prepare: null, ...over });
+        const writes = [T.scenesTabWrites(read(), stored), T.scenesTabWrites(read({ school: "R120SCENEC" }), stored),
+            T.scenesTabWrites(read({ school: "R120SCENEB" }), stored),
+            T.scenesTabWrites(read({ school: "", drawn: { school: "", trial: "R120SCENEB" } }), { ...stored, school: "R120GONE" }),
+            T.scenesTabWrites(read({ cast: { sceneId: "R120OTHER", changes: { t1: false } } }), stored),
+            T.scenesTabWrites(read({ cast: { sceneId: "R120SCENEB", changes: { t1: false } }, prepare: { playlist: true, voice: false } }), stored)];
+        const bare = { fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } }, playlist: "R120LIST", playlistSound: null,
+            flags: { "isometric-perspective": { isometricEnabled: true } }, getFlag: () => false };
+        const done = { fog: { exploration: false }, tokenVision: false, environment: { globalLight: { enabled: true } }, playlist: null, getFlag: () => true };
+        const patches = [[false, false, true], [true, false, true], [false, true, true], [false, true, false]]
+            .map(([playlist, voice, voiceActive]) => Object.keys(T.hallPreparePatch(bare, { playlist, voice, voiceActive })).sort());
+        patches.push(Object.keys(T.hallPreparePatch(done, { playlist: true, voice: true, voiceActive: true })));
+        const locked = typeof T.hallLocked === "function" ? [T.hallLocked(read({ trial: "R120SCENEC" }), "classTrial"),
+            T.hallLocked(read({ trial: "" }), "classTrial"), T.hallLocked(read({ trial: "R120SCENEC" }), "dailyLife"), T.hallLocked(read({ trial: "" }), "dailyLife"),
+            T.hallLocked(read({ school: "R120SCENEC" }), "classTrial"), T.hallLocked(null, "classTrial")] : "no hallLocked";
+        const reasons = typeof T.hallLockReason === "function" ? [T.hallLockReason(read({ trial: "R120SCENEC" }), "classTrial"),
+            T.hallLockReason(read({ trial: "R120SCENEC", drawn: { school: "R120SCENEA", trial: "" } }), "classTrial"),
+            T.hallLockReason(read({ trial: "R120SCENEC" }), "dailyLife")] : "no hallLockReason";
+
+        must(game.scenes?.size >= 1, "the world has no scene to draw the Scenes tab's selects with - this would measure nothing");
+        const draw = () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<form>${T.scenesTabHtml()}</form><footer><button type="button" data-action="ok"></button></footer>`;
+            T.wireScenesTab(root, reason => V.setApplyBlock(root, "scenes", reason));
+            return root;
+        };
+        const root = draw();
+        const apply = root.querySelector('footer button[data-action="ok"]');
+        const [school, trial] = ["school", "trial"].map(role => root.querySelector(`[name="scenes:${role}"]`));
+        const one = game.scenes.contents[0].id;
+        school.value = one;
+        trial.value = one;
+        trial.dispatchEvent(new Event("change"));
+        const clash = [apply.disabled, Boolean(root.querySelector('[data-drpg-scene-warning="sameScene"]')),
+            JSON.stringify(T.scenesTabWrites(T.readScenesTab(root), (await import("./rooms.mjs")).sceneRoles()))];
+        V.setApplyBlock(root, "bedrooms", "R120 two bedrooms");
+        trial.value = "";
+        trial.dispatchEvent(new Event("change"));
+        const held = apply.disabled;
+        V.setApplyBlock(root, "bedrooms", null);
+        clash.push(held, apply.disabled);
+        const set = game.settings.set;
+        let sets = 0, applied = null;
+        try {
+            game.settings.set = async (...args) => { sets++; return null; };
+            applied = await T.applyScenesTab(T.readScenesTab(draw()));
+        } finally {
+            game.settings.set = set;
+        }
+
+        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
+            ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
+            [["sameScene!"], ["hallHasRooms", "missingTokens", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true],
+            [{ roles: null, cast: null, prepare: null },
+                { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
+                { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null },
+                { roles: null, cast: { sceneId: "R120SCENEB", changes: { t1: false } }, prepare: { sceneId: "R120SCENEB", playlist: true, voice: false } }],
+            [["environment.globalLight.enabled", "fog.exploration", "tokenVision"],
+                ["environment.globalLight.enabled", "fog.exploration", "playlist", "playlistSound", "tokenVision"],
+                ["environment.globalLight.enabled", "flags.proximity-voice-chat.disabled", "fog.exploration", "tokenVision"],
+                ["environment.globalLight.enabled", "fog.exploration", "tokenVision"], []],
+            [true, true, JSON.stringify({ roles: null, cast: null, prepare: null }), true, false],
+            0, { roles: false, cast: false, shown: null, prepared: null }, [true, true, false, false, false, false],
+            ["DRPG.TrialScene.hallInTrial", "DRPG.TrialScene.hallFirstInTrial", null]]),
+            "[Room Setup's last tab, its count, the tab it opens on (a scene with rooms, one without, Doors asked, a tab that is none); the hall's room names; "
+            + "the report's rows for one scene twice, a hall with everything wrong, no school, nothing wrong, and its one and two missing students; what Apply "
+            + "would write for an untouched form, a changed school, a clash, a gone role untouched, another hall's cast, a tick and Prepare; Prepare's fields "
+            + "bare, with the playlist, with the voice, with the voice ticked and its module off, and on a prepared scene; the drawn tab with one scene twice: "
+            + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply; "
+            + "the hall relinked and unlinked in a running trial (locked), the same out of it, the school changed in it, no reading; "
+            + "the reason for a relink and for a first hall linked in a running trial, and none out of it]");
+    }],
+
+    ["R437 - Start the Class Trial names the trial hall and the table's rule, and the trial console's one door takes the table to the hall or back without the phase", async () => {
+        /*
+         * E13 C6, 12.10.2026; plan-E13 C6, decision D8, doneWhen 4 (the ledger's D4: the table's rule "the dead listen
+         * but do not speak in the trial" in one sentence beside Start the Class Trial). Since C3 the phase takes every
+         * browser to the linked hall, and Start the Class Trial's window named the phase, the discussion and the
+         * announcement - not the hall, not how many of its tokens would be shown, and no rule for the dead; Edit
+         * campaign's question about the trial named the budget and the charge; and inside a trial a GM had only
+         * Foundry's own activation to look at the school, which left the hall's cast shown. Asked of plain objects, so
+         * it reads no document and writes nothing (tier 1): `startTrialLines` for a hall whose name needs escaping with
+         * one token shown and with four (the plural) and for no hall; `tableDoor` out of a trial, with no hall, with
+         * the table on the school, in the hall with somewhere to go and with nowhere, and with no active scene. Then
+         * the rule's words in both language files (the doneWhen's own, en and pl), and in the source with comments
+         * blanked: the Start window preloads the hall on every client before it opens and counts the cast through
+         * `castShownOnEntry` after the judgements; its content carries both lines; the console's footer offers the
+         * door and its two actions are the two doors; Edit campaign's trial question carries
+         * `phaseSwitchesScene`; and game.drpg has the four calls. Scenario 41 k1-k4 and d1 run them on documents and
+         * windows. Red before C6: there was no `startTrialLines`.
+         */
+        const T = await import("./trial-scene.mjs");
+        const { plural } = await import("./utils.mjs");
+        const made = typeof T.startTrialLines === "function" && typeof T.tableDoor === "function";
+        ok(made, "Start the Class Trial says nothing of the hall or the rule - trial-scene.mjs has no `startTrialLines` or `tableDoor`");
+        if (!made) return;
+        const hall = { id: "HALL", name: "Hall <b>" }, school = { id: "SCHOOL", name: "School" };
+        const one = T.startTrialLines({ hall, shown: 1 }), four = T.startTrialLines({ hall, shown: 4 }), none = T.startTrialLines({ hall: null, shown: 3 });
+        equal(JSON.stringify([one.table, four.table, none.table, one.rule, none.rule, four.table.includes("<b>")]),
+            JSON.stringify([plural("DRPG.Floor.startTrialHall", { n: 1, hall: "Hall &lt;b&gt;" }), plural("DRPG.Floor.startTrialHall", { n: 4, hall: "Hall &lt;b&gt;" }),
+                game.i18n.localize("DRPG.Floor.startTrialNoHall"), game.i18n.localize("DRPG.Floor.tableRuleDead"),
+                game.i18n.localize("DRPG.Floor.tableRuleDead"), false]),
+            "[the hall line with one token and with four (the name escaped), the line with no hall, the rule with a hall and without, the raw name in the line]");
+        const door = args => T.tableDoor(args);
+        equal(JSON.stringify([door({ running: false, hall, active: hall, back: school }), door({ running: true, hall: null, active: school, back: school }),
+            door({ running: true, hall, active: school, back: school }), door({ running: true, hall, active: hall, back: school }),
+            door({ running: true, hall, active: hall, back: null }), door({ running: true, hall, active: null, back: school })]),
+            JSON.stringify([null, null, { scene: "School", action: "showHall" }, { scene: "Hall <b>", action: "backToSchool" },
+                { scene: "Hall <b>", action: null }, { scene: null, action: "showHall" }]),
+            "[out of a trial, no hall linked, the table on the school, in the hall with somewhere to go, in the hall with nowhere, no active scene]");
+
+        const { MODULE_ID } = await import("./config.mjs");
+        const rule = async lang => {
+            const r = await fetch(`modules/${MODULE_ID}/lang/${lang}.json`);
+            must(r.ok, `${lang}.json: HTTP ${r.status}`);
+            return foundry.utils.expandObject(await r.json()).DRPG?.Floor?.tableRuleDead ?? "";
+        };
+        const [en, pl] = await Promise.all([rule("en"), rule("pl")]);
+
+        const files = new Map(await otherSources());
+        must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
+        const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(files.get("gm-panel.mjs"));
+        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
+        const at = text => start.indexOf(text);
+        equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
+            at("game.scenes.preload?.(hall.id, true)") > 0 && at("game.scenes.preload?.(hall.id, true)") < at("DialogV2.wait("),
+            at("judgedFor(") > 0 && at("judgedFor(") < at("castShownOnEntry(hall)"), at("${lines.table}") > at("DialogV2.wait("), at("${lines.rule}") > at("DialogV2.wait("),
+            /\.\.\.\(table\?\.action\s*\?\s*\[\{ action: table\.action/.test(fnSource(ui, "trialButtons")),
+            /showHall: async \(\) => \{\s*const \{ showCourtroom \} = await import\("\.\/trial-scene\.mjs"\);\s*await showCourtroom\(\);/.test(ui),
+            /backToSchool: async \(\) => \{\s*const \{ showSchool \} = await import\("\.\/trial-scene\.mjs"\);\s*await showSchool\(\);/.test(ui),
+            /confirmCorrection\("DRPG\.Clock\.trialFromEditTitle", "DRPG\.Clock\.trialFromEdit", moves\)/.test(edit) && edit.includes('"DRPG.TrialScene.phaseSwitchesScene"'),
+            ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"].map(name => typeof game.drpg?.[name])]),
+            JSON.stringify([true, true, true, true, true, true, true, true, true, true, ["function", "function", "function", "function"]]),
+            "[the rule's words in en.json and pl.json; Start preloads the hall before its window; counts the cast after the judgements; shows the hall line; shows the rule; "
+            + "the console's footer offers the door; its Show the hall is showCourtroom; its Back to school is showSchool; Edit campaign's trial question says where the table goes; game.drpg's four calls]");
+    }],
+    ["R439 - a tier 0 tool or weapon is spent by any roll it was used in, a tier 1 to 3 one only by a Despair, and the sheet draws a tier 0 one no durability track", async () => {
+        /*
+         * E13 C8, 12.10.2026; the owner's amend of 25.09 (the ledger's A25): tier 0 things are single-use - they break
+         * after every roll in which they were the tool or weapon (an action, a clean-up, a murder, the incident),
+         * whatever the result; creative use is unchanged; the sheet shows them no durability bar; tiers 1 to 3 are
+         * unchanged. Until C8 a tier 0 tool wore only on a Despair that was no critical, like a tier 1 one, and the
+         * sheet drew it one pip. Asked of plain objects, so it reads no document and writes nothing (tier 1):
+         * use-items.mjs `rollSpends` - the rule `breakOnDespair` asks - for tiers 0 to 3 and an item with no tier
+         * recorded (which every reader takes as tier 0, `tierOf`), each after a roll with Hope, one with Despair and a
+         * critical; sheet.mjs `wearMarkup` for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon and Cleaning Tool and a
+         * tier 0 usable (no track, and no "Single use" either: it is not readied for a roll). Then, in the source with
+         * comments blanked: `breakOnDespair` asks `rollSpends` before it wears; the five roads that wear a tool after
+         * their dice still call it, as a statement of its own (action-rolls.mjs `workOnProject`, `performSabotage`; cleanup.mjs `attemptCleanup`,
+         * `attemptStageSix`; murder-rules.mjs `wearSwing`); and creative use (`useItem`, `useCreatively`) reaches no
+         * wear. The tier-2 tests "a tier-0 tool is spent by any roll it was used in and a tier-1 tool only by a
+         * Despair" and "a tier-0 knife swung on a hit with Hope is spent and a Reroll gives it back for the replay
+         * to spend again" and scenario 12's single-use check run it on documents. Red before C8: there was no
+         * `rollSpends`.
+         */
+        const U = await import("./use-items.mjs");
+        const S = await import("./sheet.mjs");
+        const made = typeof U.rollSpends === "function" && typeof S.wearMarkup === "function";
+        ok(made, "a tier 0 thing wears as a tier 1 one does - use-items.mjs has no `rollSpends`, or sheet.mjs no `wearMarkup` to read");
+        if (!made) return;
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const item = (tier, category = "tool") => ({ name: `R439 ${category} ${tier}`,
+            getFlag: (scope, key) => scope === MODULE_ID ? { [ITEM_FLAGS.tier]: tier, [ITEM_FLAGS.category]: category }[key] : undefined });
+        const hope = { total: 14, withHope: true, withFear: false, isCritical: false };
+        const fear = { total: 14, withHope: false, withFear: true, isCritical: false };
+        const crit = { total: 20, withHope: false, withFear: false, isCritical: true };
+        equal(JSON.stringify([0, undefined, 1, 2, 3].map(tier => [hope, fear, crit].map(roll => U.rollSpends(item(tier), roll))).concat([[U.rollSpends(item(0), null)]])),
+            JSON.stringify([[true, true, true], [true, true, true], [false, true, false], [false, true, false], [false, true, false], [false]]),
+            "[tier 0, no tier, tier 1, 2, 3 - each after Hope, Despair, a critical; tier 0 with no roll]");
+
+        const pips = html => (html.match(/drpg-wear-pip/g) ?? []).length;
+        const single = html => html.includes("drpg-single-use") && html.includes(game.i18n.localize("DRPG.Items.singleUse"));
+        const marks = [item(0), item(1), item(3), item(0, "crimeTool"), item(0, "cleaningTool"), item(0, "usable")].map(S.wearMarkup);
+        equal(JSON.stringify(marks.map(html => [pips(html), single(html)])),
+            JSON.stringify([[0, true], [1, false], [3, false], [0, true], [0, true], [0, false]]),
+            "[pips and \"Single use\" for a tier 0, 1 and 3 Tool, a tier 0 Murder Weapon, Cleaning Tool and usable]");
+
+        const files = new Map(await otherSources());
+        must(["use-items.mjs", "action-rolls.mjs", "cleanup.mjs", "murder-rules.mjs"].every(file => files.has(file)), "the files the roads live in are not served - this would measure nothing");
+        const src = file => stripComments(files.get(file));
+        // A statement of its own: a road that asked a Fear of its own first (`if (roll.withFear) await ...`) would
+        // spend a tier 0 tool on a Despair alone again, and still "call" it.
+        const calls = (file, name) => /^\s*await breakOnDespair\(/m.test(fnSource(src(file), name));
+        const wears = /\b(?:breakOnDespair|rollSpends|wearItem|breakItem)\(/;
+        const breaks = fnSource(src("use-items.mjs"), "breakOnDespair");
+        equal(JSON.stringify([breaks.indexOf("rollSpends(held, roll)") > 0 && breaks.indexOf("rollSpends(held, roll)") < breaks.indexOf("wearItem("),
+            calls("action-rolls.mjs", "workOnProject"), calls("action-rolls.mjs", "performSabotage"), calls("cleanup.mjs", "attemptCleanup"),
+            calls("cleanup.mjs", "attemptStageSix"), calls("murder-rules.mjs", "wearSwing"),
+            wears.test(fnSource(src("use-items.mjs"), "useItem")), wears.test(fnSource(src("use-items.mjs"), "useCreatively"))]),
+            JSON.stringify([true, true, true, true, true, true, false, false]),
+            "[breakOnDespair asks rollSpends before it wears; workOnProject, performSabotage, attemptCleanup, attemptStageSix and wearSwing call it unconditionally; useItem and useCreatively wear nothing]");
+    }],
+
+    ["R442 - a missing or switched-off companion stops the module: Isometric Perspective and LiveKit as Dice So Nice", async () => {
+        /*
+         * E13 C10, 12.10.2026; the owner's amendment d of 09.10 (the ledger's Ad; LIVE-E13-11's headless half).
+         * Required means installed and switched on (d2), and the check is the one Dice So Nice always had:
+         * requirements.mjs `missingRequirements` lists every module this world's manifest requires that the module map
+         * does not hold (`absent`) or holds switched off (`disabled`), and `requirementsMet` answers whether it listed
+         * none. Both take the map as an argument since C10, so this asks about worlds this one is not, with plain Maps,
+         * and touches nothing the running module reads: all three on; Isometric Perspective installed but off; LiveKit
+         * never installed; Dice So Nice off. Before C10 the two stood under `recommends`, the check never saw them, and
+         * the second and third worlds read as met. Then module.mjs with comments blanked: `init` returns on
+         * `requirementsMet()` before it registers a setting (R147 keeps the relay guard ahead of it), `setup` returns on
+         * it first, and `ready` announces what is missing and returns before anything else. What the GM's window and the
+         * player's notice say at a table, and whether Foundry's own prompt offers the two, is LIVE-E13-11 (not run).
+         */
+        const R = await import("./requirements.mjs");
+        must(typeof R.missingRequirements === "function" && typeof R.requirementsMet === "function", "requirements.mjs has no check to ask");
+        const IDS = ["dice-so-nice", "isometric-perspective", "avclient-livekit"];
+        const ask = world => {
+            const map = new Map(IDS.filter(id => world[id] !== "absent").map(id => [id, { id, title: id, active: world[id] !== "disabled" }]));
+            return { missing: R.missingRequirements(map).map(row => `${row.id}:${row.state}`), met: R.requirementsMet(map) };
+        };
+        equal(JSON.stringify([ask({}), ask({ "isometric-perspective": "disabled" }), ask({ "avclient-livekit": "absent" }), ask({ "dice-so-nice": "disabled" })]),
+            JSON.stringify([{ missing: [], met: true }, { missing: ["isometric-perspective:disabled"], met: false },
+                { missing: ["avclient-livekit:absent"], met: false }, { missing: ["dice-so-nice:disabled"], met: false }]),
+            "[what is missing and whether the module may start: all three on; Isometric Perspective switched off; LiveKit not installed; Dice So Nice switched off]");
+
+        const src = stripComments(new Map(await otherSources()).get("module.mjs") ?? "");
+        const init = bodyOf(src, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const stop = init.search(/if \(!requirementsMet\(\)\) \{[^{}]*\breturn;\s*\}/);
+        equal(JSON.stringify([stop > 0 && stop < init.indexOf("registerSettings("),
+            /^Hooks\.once\("setup", \(\) => \{\s*if \(!requirementsMet\(\)\) return;/.test(bodyOf(src, 'Hooks.once("setup"', { until: 'Hooks.once("ready"' })),
+            /^Hooks\.once\("ready", \(\) => \{\s*if \(!requirementsMet\(\)\) \{\s*announceMissingRequirements\(\)[^{}]*\);\s*return;\s*\}/
+                .test(bodyOf(src, 'Hooks.once("ready"', { length: 600 }))]),
+            JSON.stringify([true, true, true]),
+            "[init returns on the check before it registers a setting; setup returns on it first; ready announces and returns first]");
+    }],
+    ["R470 - a GM keeps the Scenes tab, the scene navigation and the hotbar when the module stops at its requirements check", async () => {
+        /*
+         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hides the three unless the element carries
+         * the class a GM's client puts on it (GM_CHROME, R438), and that was registered in `registerGmPanel`, after the
+         * requirements check `init` returns on (R442) - so a world missing a required module, which C10 made likelier,
+         * took the three from its GM too. Read in module.mjs with comments blanked: `init` registers the GM's chrome
+         * after the relay guard and before the check; and in gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on
+         * `ready` and on the four renders (the scene controls', the sidebar's, the navigation's and the hotbar's), and
+         * neither function reads a setting - none is registered on that road. What a GM's client then computes is
+         * 00-boot's "the GM's chrome when the module stops" (a GM booted with LiveKit off); whether Foundry v14 links
+         * the sheet of a module that stopped is LIVE-E13-11 (not run).
+         */
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("module.mjs") ?? "");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const init = bodyOf(src, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const at = needle => init.indexOf(needle);
+        const chrome = at(", registerGmChrome)");
+        // Read as empty where there is no such function (before the fix), so the answer is a wrong reading, not a stop.
+        const register = panel.includes("export function registerGmChrome")
+            ? bodyOf(panel, "export function registerGmChrome", { until: "\nfunction markGmChrome" }) : "";
+        const mark = bodyOf(panel, "function markGmChrome", { length: 400 });
+        const hooked = ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
+        equal(JSON.stringify([at("registerRelayGuard") >= 0 && chrome > at("registerRelayGuard"), chrome >= 0 && chrome < at("if (!requirementsMet())"),
+            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
+            /game\.settings|getSetting|SETTINGS\./.test(register + mark)]),
+            JSON.stringify([true, true, true, 4, true, false]),
+            "[the GM's chrome after the relay guard; before the requirements check; stamped at ready; the renders hooked; "
+            + "each to markGmChrome; a setting read on that road]");
+    }],
 ];
 
 /**
@@ -6387,6 +7202,10 @@ const INVARIANTS = [
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
+    // E12 C1: the row that names the regions no GM has decided.
+    "DRPG.Season.step.roomsMarked", "DRPG.Season.hint.roomsMarked",
+    // E13 C5: the row that says whether the school and the trial hall are linked.
+    "DRPG.Season.step.scenes", "DRPG.Season.hint.scenes",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
     "DRPG.Monocub.help", "DRPG.Monocub.hinder",

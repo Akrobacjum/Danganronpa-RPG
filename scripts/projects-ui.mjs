@@ -21,7 +21,7 @@ import {
     revealProject, viewersOf, sealAudience, builderIds, secretsOf, withoutLeak, createProject, deleteProject,
     setProjectImage, updateProject
 } from "./projects.mjs";
-import { allRooms } from "./movement.mjs";
+import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
@@ -121,12 +121,28 @@ function rowName(columnKey, project) {
     return foundry.utils.escapeHTML(`${game.i18n.localize(columnKey)}: ${project.name}`);
 }
 
+/**
+ * A project's room select: "any room", every room of every place scene, and the project's own
+ * room kept and chosen when no place scene has it (E12 C5, 1.2.74; audit S09-03). The list was
+ * the scene on the GM's screen, so a project whose room was elsewhere had no option for it, the
+ * select fell back to "any room" and Save wrote that back: the manager saved with the camera on
+ * the Annex took the Gym's project's room away (scenario 66 A1 at 180df61, 11.10.2026).
+ */
+function roomSelectOptions(rooms, current) {
+    const esc = foundry.utils.escapeHTML;
+    const kept = current && !rooms.includes(current)
+        ? [`<option value="${esc(current)}" selected>${esc(game.i18n.format("DRPG.Project.roomElsewhere", { room: current }))}</option>`]
+        : [];
+    return [
+        `<option value=""${current ? "" : " selected"}>${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
+        ...rooms.map(r => `<option value="${esc(r)}"${r === current ? " selected" : ""}>${esc(r)}</option>`),
+        ...kept
+    ].join("");
+}
+
 /** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
 function projectManagerRows(projects, rooms) {
-    const roomOptions = id => [
-        `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
-        ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${roomOf(id) === r ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
-    ].join("");
+    const roomOptions = id => roomSelectOptions(rooms, roomOf(id) ?? "");
 
     const players = playerList();
     return projects.map(p => {
@@ -245,6 +261,11 @@ async function applyProjectManager(result, projects) {
 
         const before = projects.find(p => p.id === entry.id);
         if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
+        /* THE ROOM ONLY WHEN THIS ROW CHANGED IT (E12 C5, 1.2.74; audit S09-03). Every row's room was
+           written back on every Save, so a room the project gained while the window was open - its
+           token dragged into another room (`onProjectTokenMoved`), another GM's edit - was put back
+           to the one the window had read. Compared with the room the window opened with. */
+        const room = (entry.room || null) !== (before?.room ?? null) ? { room: entry.room || null } : null;
 
         // A project that has only just been marked as an indirect murder is
         // sealed with it - that is the default the guide wants, and the box in
@@ -257,11 +278,11 @@ async function applyProjectManager(result, projects) {
             const meta = secretsOf(entry.id);
             if (!meta.killerId && !meta.by) {
                 ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
-                await setProjectMeta(entry.id, { room: entry.room || null });
+                if (room) await setProjectMeta(entry.id, room);
                 continue;
             }
         }
-        await setProjectMeta(entry.id, { room: entry.room || null, indirectMurder: entry.murder });
+        await setProjectMeta(entry.id, { ...room, indirectMurder: entry.murder });
 
         // After that first moment the checkbox is simply the answer.
         //
@@ -298,7 +319,7 @@ export async function openProjectManager() {
     }
 
     const projects = allProjects();
-    const rooms = allRooms();
+    const rooms = placeRoomNames();
 
     // No projects yet? Go straight to creating one.
     if (!projects.length) {
@@ -460,7 +481,7 @@ export function projectTraitOptions(current = "") {
  *   the same as `project`: nothing has been created, so this still takes the
  *   create path and the GM can change every answer before it does.
  */
-export async function openProjectDialog({ project = null, preset = null, rooms = allRooms() } = {}) {
+export async function openProjectDialog({ project = null, preset = null, rooms = placeRoomNames() } = {}) {
     const editing = Boolean(project);
     const start = project ?? preset ?? null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
@@ -483,12 +504,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             game.i18n.format("DRPG.Project.customScale", { n: currentTarget })}</option>`
         : "";
 
-    const roomOptions = [
-        `<option value=""${currentRoom ? "" : " selected"}>${
-            game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
-        ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${
-            r === currentRoom ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
-    ].join("");
+    const roomOptions = roomSelectOptions(rooms, currentRoom);
 
     const players = playerList();
 
@@ -782,7 +798,7 @@ async function applySecrecy(id, wanted, viewers = null) {
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */
-async function openCreateDialog(rooms = allRooms()) {
+async function openCreateDialog(rooms = placeRoomNames()) {
     return openProjectDialog({ rooms });
 }
 

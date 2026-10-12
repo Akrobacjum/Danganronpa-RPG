@@ -127,7 +127,7 @@ function canWrite(userId, op) {
         return actorOwned(doc, userId); // update + embedded ops on owned actor, its items' effects included (`via`, E29 fix r1-G3)
     }
     if (collName === "Scene") {
-        // players may update tokens of actors they own; nothing else
+        // players may update tokens of actors they own, create or delete one of an actor they own (below), and touch a Region; nothing else
         if (action === "embedded-update" && op.embeddedName === "Token") {
             const scene = world.collections.Scene.find(s => s._id === op.docId);
             if (!scene) return false;
@@ -135,6 +135,48 @@ function canWrite(userId, op) {
                 const tok = scene.tokens.find(t => t._id === u._id);
                 const actor = tok && world.collections.Actor.find(a => a._id === tok.actorId);
                 return actor && actorOwned(actor, userId);
+            });
+        }
+        /*
+         * A PLAYER'S REGION (E12 C1, 11.10.2026). Whether v14 lets a player create, update or
+         * delete a Region on a scene is not known here (LIVE-E12-04: not read off Foundry's
+         * permission table, not tried at a table). A gate stricter than Foundry's would hide the
+         * road the module has to answer - a region a player drew, a player's change to the room
+         * flag (movement.mjs `noteRegionCreated`, `judgeRoomFlagChange`) - so this lets it
+         * through, and scenario 66 J drives it. What a real server refuses on that road, the
+         * module never sees.
+         */
+        if (action.startsWith("embedded-") && op.embeddedName === "Region") return true;
+        /*
+         * A PLAYER'S TOKEN (E13 fix r1-F2, 12.10.2026; review r1 sec B). Foundry lets a user whose role
+         * the world grants "Create New Tokens" (TOKEN_CREATE) make a token - a drag from the Actors
+         * tab - and this harness does not model that permission (lib/shim.mjs `can`). Refusing every
+         * player's create, as this did, hid a road the module answers (trial-scene.mjs
+         * `watchCastCreated`): review r1's check of it passed only because the create was refused. So
+         * a player's create of a Token of an actor they own goes through, as at a table that grants
+         * the permission. Which roles v14 grants it by default, and whether it lets a player make a
+         * token of an actor they do not own, is not read here; such a create is still refused.
+         */
+        if (action === "embedded-create" && op.embeddedName === "Token") {
+            return (op.payload ?? []).every(t => {
+                const actor = t?.actorId && world.collections.Actor.find(a => a._id === t.actorId);
+                return Boolean(actor) && actorOwned(actor, userId);
+            });
+        }
+        /*
+         * A PLAYER'S DELETE OF A TOKEN (E13 fix r2-H2, 12.10.2026; review r2 sec S2-4), for the same reason as the create
+         * above: refusing every player's delete hid a road the module answers (trial-scene.mjs `watchCastDeleted`). A
+         * delete of tokens of actors the player owns goes through, as at a table whose world grants TOKEN_DELETE; which
+         * roles v14 grants it by default, and whether it asks for the token's ownership too, is not read here. Any other
+         * is still refused.
+         */
+        if (action === "embedded-delete" && op.embeddedName === "Token") {
+            const scene = world.collections.Scene.find(s => s._id === op.docId);
+            if (!scene) return false;
+            return (op.payload ?? []).every(id => {
+                const tok = scene.tokens.find(t => t._id === id);
+                const actor = tok && world.collections.Actor.find(a => a._id === tok.actorId);
+                return Boolean(actor) && actorOwned(actor, userId);
             });
         }
         return false;
@@ -189,8 +231,18 @@ function applyOp(userId, op, onLegacyKey = null) {
         case "update": {
             const doc = list.find(d => d._id === op.docId);
             if (!doc) throw new Error(`${collName} ${op.docId} does not exist`);
+            /* ONE ACTIVE SCENE (E13 C0, 11.10.2026; plan-E13 2.1 item 1). A scene made active leaves every other
+               scene inactive, in the world and on every client: the rows that were active go out first, as
+               updates of their own, so a client that views the new scene on its `active` (client-entry.mjs
+               `applyRemote`) finds it the only active one. Until C0 the old row stayed active here and the
+               world had two. Whether v14 does this on the server or in the client's update operation was
+               recalled, not read; what a client sees - two rows changed, one active - is what is modelled. */
+            const others = collName === "Scene" && op.changes?.active === true
+                ? list.filter(d => d._id !== op.docId && d.active) : [];
+            for (const other of others) other.active = false;
             U.applyDocChanges(collName, doc, op.changes, { onLegacyKey: path => onLegacyKey?.(path) });
-            return { broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: op.changes, userId, options: op.options }, result: op.docId };
+            return { first: others.map(other => ({ t: "apply", action: "update", collName, docId: other._id, changes: { active: false }, userId, options: op.options })),
+                broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: op.changes, userId, options: op.options }, result: op.docId };
         }
         case "delete": {
             const i = list.findIndex(d => d._id === op.docId);
@@ -230,7 +282,8 @@ function applyOp(userId, op, onLegacyKey = null) {
 }
 
 function embKey(collName, embeddedName) {
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" } };
+    // A region's behaviours (E12 fix r2-S2, 11.10.2026): scenario 66 X3 and X4 take one off and put one on, `via` the region.
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     const k = map[collName]?.[embeddedName];
     if (!k) throw new Error(`no embedded ${embeddedName} in ${collName}`);
     return k;
@@ -304,17 +357,21 @@ function closeClients(ms) {
     });
 }
 
-function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null } = {}) {
+function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null, holdLoading = false, modulesOff = null } = {}) {
     /* A GM WHO JOINS LATE (E04, 26.09.2026). `world` is the `game.world.id` this client
        reports (the same browser opening another world on one server), `storage` what
        its localStorage holds before the module loads (a browser that has been here
        before), `clockSkewMs` how far its machine clock is off - Date.now moves, and
        game.time.serverTime, the server's, does not. The storage rides in the snapshot
-       rather than the environment: a remnants store is larger than one variable holds. */
+       rather than the environment: a remnants store is larger than one variable holds.
+       `modulesOff` names the companion modules this browser finds switched off (E13 fix r1-F3,
+       12.10.2026): the module's requirements check then stops it, as at a table missing one. */
     const env = { ...process.env, DRPG_USER: who, DRPG_REPO: REPO };
     delete env.DRPG_WORLD;
     delete env.DRPG_CLOCK_SKEW_MS;
+    delete env.DRPG_MODULES_OFF;
     if (world) env.DRPG_WORLD = String(world);
+    if (modulesOff?.length) env.DRPG_MODULES_OFF = [...modulesOff].join(",");
     if (clockSkewMs) env.DRPG_CLOCK_SKEW_MS = String(Number(clockSkewMs));
     const proc = fork(path.join(HERE, "client-entry.mjs"), [], {
         env,
@@ -324,7 +381,8 @@ function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = 
        stdout, stderr and log lines, kept per client with the phase for the canary
        (lib/canary.mjs), capped so a chatty run cannot grow without end. */
     bootInfo.delete(who);
-    const entry = { proc, userId, storage, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0 };
+    const entry = { proc, userId, storage, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0, holdLoading };
+    entry.held = holdLoading ? new Promise(res => { entry.reachedHold = res; }) : null;
     const keep = (stream, text) => {
         for (const line of String(text).split("\n")) {
             if (!line) continue;
@@ -385,7 +443,11 @@ function broadcast(msg, { except = null } = {}) {
 function onClientMessage(who, entry, msg) {
     switch (msg.t) {
         case "hello":
-            entry.proc.send({ ...snapshotFor(entry.userId), storage: entry.storage ?? null });
+            entry.proc.send({ ...snapshotFor(entry.userId), storage: entry.storage ?? null, holdLoading: Boolean(entry.holdLoading) });
+            break;
+        case "loading":
+            // The client has reached the end of its canvas's load and holds there (`connect`'s `holdLoading`).
+            entry.reachedHold?.(msg);
             break;
         case "ready":
             bootInfo.set(who, msg);
@@ -413,6 +475,7 @@ function onClientMessage(who, entry, msg) {
                 result = applied.result;
                 opLog.push({ who, action: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null,
                     embeddedName: msg.op.embeddedName ?? null, at: Date.now() });
+                for (const before of applied.first ?? []) broadcast(before);
                 broadcast(applied.broadcast);
             } catch (err) {
                 error = err.message;
@@ -503,8 +566,16 @@ const lateAccounts = new Map();
  * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026). An account that has
  * disconnected may connect again, with the storage it left with (`storageOf`) or
  * another. The seeded four are spawned at start and cannot.
+ *
+ * A BROWSER STILL LOADING ITS SCENE (E13 C0, 11.10.2026; plan-E13 2.1 item 2). With `holdLoading`
+ * the client boots up to the end of its canvas's load - its `ready` hooks run, `canvas.loading` is
+ * still true and its first `canvasReady` has not fired - and stays there; `connect` answers once it
+ * is there, and `finishLoading(who)` lets it finish (the rest of what `connect` does then happens
+ * there). What a scenario does in between reaches a browser that is loading - an activation, which
+ * only warns there (lib/shim.mjs `Scene#view`). In Foundry the draw comes before `ready`; here it
+ * comes after, as every client of the harness has always booted.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false, holdLoading = false, modulesOff = null } = {}) {
     const account = lateAccounts.get(who);
     if (!account) throw new Error(`${who} is not an account declared late: true`);
     const existing = clients.get(who);
@@ -512,11 +583,30 @@ async function connect(who, { storage = null, world = null, clockSkewMs = null, 
     const rec = userRec(account.id);
     if (rec) rec.active = true;
     if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
-    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs });
+    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs, holdLoading, modulesOff });
+    entry.announceFirst = announceFirst;
+    if (holdLoading) {
+        const info = await Promise.race([entry.held, entry.ready]);
+        if (info?.t === "bootFailed") throw new Error(`${who} did not boot: ${info.error}`);
+        return true;
+    }
+    return joined(who, entry);
+}
+
+async function joined(who, entry) {
     const info = await entry.ready;
     if (info?.t === "bootFailed") throw new Error(`${who} did not boot: ${info.error}`);
-    if (!announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
+    if (!entry.announceFirst) broadcast({ t: "userActivity", userId: entry.userId, active: true }, { except: who });
     return true;
+}
+
+/** Let a client `connect` held at the end of its load finish it: its first `canvasReady`, then ready. */
+async function finishLoading(who) {
+    const entry = clients.get(who);
+    if (!entry?.holdLoading || entry.gone) throw new Error(`${who} is not a client held loading`);
+    entry.holdLoading = false;
+    entry.proc.send({ t: "loaded" });
+    return joined(who, entry);
 }
 
 /** A client's localStorage, `{ key: raw text }`: read now while it is connected, else as it closed. */
@@ -851,7 +941,7 @@ async function main() {
        kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
        got a client whose handle the function then replaced. */
     const api = {
-        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, storageOf, bootInfo, IDS,
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, finishLoading, storageOf, bootInfo, IDS,
         environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.

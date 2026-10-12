@@ -44,7 +44,8 @@
 
 import { MODULE_ID, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, error, isPrimaryGm, plural, whisperToGms, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
+import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
+import { ROOM_FLAG, ROOMS_MARKED_FLAG, hasBehaviours, playerRegionIds, roomDecided } from "./rooms.mjs";
 
 /**
  * The chime the messenger played from a hard-coded path until E2, and which
@@ -967,8 +968,75 @@ const CLAUSES = [
             ui.notifications?.info(plural("DRPG.Project.sweptOld", { n: removed }));
             return { removed };
         }
+    },
+    {
+        key: "markRooms",
+        since: "1.2.74",
+        /*
+         * THE ROOMS A WORLD ALREADY HAD (E12 C1, 1.2.74; plan-E12 3.1, audit S07-06). From 1.2.74 a
+         * region is a room only when it carries the room flag (rooms.mjs `isRoom`), and a world made
+         * before it carries none - every map would lose every room at the first load. So once, on
+         * the primary, over every scene not stamped yet: every named region with no behaviour at all,
+         * not drawn by a player and never decided by a GM is marked a room (`markRoomsOn`), and the
+         * scene is stamped with this version, so a region drawn later is the GM's to mark and a
+         * room unticked later stays unticked. A region with behaviours is left for the GM even when
+         * none of them is a passage: which of Foundry's other behaviours a room may carry was not
+         * read off a table (LIVE-E12-02). The GM is told once, in one report to the primary, what
+         * was marked and what was left and why; a world with nothing to mark is stamped and says
+         * nothing.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };
+            const rows = await markRoomsOn(Array.from(game.scenes ?? []));
+            if (!rows) return null;
+            await gmReport(game.i18n.localize("DRPG.Rooms.reportTitle"), roomsReportHtml(rows));
+            return { scenes: rows.length, marked: rows.reduce((n, row) => n + row.marked.length, 0) };
+        }
     }
 ];
+
+/**
+ * The room-marking pass of the clause `markRooms` over `scenes` (E12 C1). Exported for the suite,
+ * which runs it on a scene of its own rather than the clause over a table's world. Per scene not
+ * stamped yet, one update of its regions and the stamp. Returns a row per scene that marked or
+ * left something - `{ scene, sceneId, marked, unnamed, behaviours, players }`, names - or null.
+ */
+export async function markRoomsOn(scenes, { version = moduleVersion() } = {}) {
+    if (!game.user?.isGM) return null;
+    const players = playerRegionIds();
+    const rows = [];
+    for (const scene of scenes) {
+        if (scene.getFlag(MODULE_ID, ROOMS_MARKED_FLAG)) continue;
+        const row = { scene: scene.name, sceneId: scene.id, marked: [], unnamed: 0, behaviours: [], players: [] };
+        const marking = [];
+        for (const region of scene.regions ?? []) {
+            if (!region.name) row.unnamed++;
+            else if (players.has(region.id)) row.players.push(region.name);
+            else if (hasBehaviours(region)) row.behaviours.push(region.name);
+            else if (!roomDecided(region)) marking.push(region);
+        }
+        if (marking.length) {
+            await scene.updateEmbeddedDocuments("Region", marking.map(region => ({ _id: region.id, [`flags.${MODULE_ID}.${ROOM_FLAG}`]: true })));
+        }
+        await scene.setFlag(MODULE_ID, ROOMS_MARKED_FLAG, version);
+        row.marked = [...new Set(marking.map(region => region.name))];
+        if (row.marked.length || row.unnamed || row.behaviours.length || row.players.length) rows.push(row);
+    }
+    return rows.length ? rows : null;
+}
+
+/** The report of `markRooms`: per scene what was marked and what was left, and why. */
+function roomsReportHtml(rows) {
+    const names = list => [...new Set(list)].join(", ");
+    const lines = row => [
+        row.marked.length ? plural("DRPG.Rooms.migrated", { n: row.marked.length, names: names(row.marked) }) : null,
+        row.behaviours.length ? game.i18n.format("DRPG.Rooms.skippedBehaviours", { names: names(row.behaviours) }) : null,
+        row.players.length ? game.i18n.format("DRPG.Rooms.skippedPlayer", { names: names(row.players) }) : null,
+        row.unnamed ? plural("DRPG.Rooms.skippedNoName", { n: row.unnamed }) : null
+    ].filter(Boolean).map(line => `<li>${esc(line)}</li>`).join("");
+    return `<p>${esc(game.i18n.localize("DRPG.Rooms.reportNote"))}</p>`
+        + rows.map(row => `<p><strong>${esc(row.scene)}</strong></p><ul>${lines(row)}</ul>`).join("");
+}
 
 /**
  * The first line of a report 1.2.64 and earlier whispered with its words as the content:

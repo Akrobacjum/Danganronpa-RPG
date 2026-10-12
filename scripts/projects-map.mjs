@@ -35,6 +35,7 @@ import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProje
     from "./projects.mjs";
 import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
 import { boundsOf } from "./movement.mjs";
+import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
@@ -144,15 +145,16 @@ async function ensureProjectActor() {
  */
 function centreOfRoom(scene, room) {
     if (!scene || !room) return null;
-    for (const region of scene.regions ?? []) {
-        if (region.name !== room) continue;
-        const box = boundsOf(region);
-        if (!box) return null;
-        const grid = scene.grid?.size ?? canvas?.grid?.size ?? 100;
-        const half = (PROJECT_TOKEN.size * grid) / 2;
-        return { x: Math.round(box.x + box.w / 2 - half), y: Math.round(box.y + box.h / 2 - half) };
-    }
-    return null;
+    /* THE ROOM'S LARGEST PIECE (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This took the first
+       region of the name, a Teleport's or a player's as readily as the room's, and of a room in
+       pieces the first drawn, however small. The pieces are the room's (rooms.mjs), and the
+       largest box is the one a two-square token most likely fits. */
+    const boxes = roomRegions(scene, room).map(boundsOf).filter(Boolean);
+    const box = boxes.reduce((best, b) => (!best || b.w * b.h > best.w * best.h ? b : best), null);
+    if (!box) return null;
+    const grid = scene.grid?.size ?? canvas?.grid?.size ?? 100;
+    const half = (PROJECT_TOKEN.size * grid) / 2;
+    return { x: Math.round(box.x + box.w / 2 - half), y: Math.round(box.y + box.h / 2 - half) };
 }
 
 /**
@@ -207,7 +209,12 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
     const room = roomOf(countdownId);
     if (!room) return null;
 
-    const target = scene ?? canvas?.scene ?? game.scenes?.current ?? null;
+    /* ON THE ROOM'S SCENE (E12 C5, 1.2.74; plan-E12 C5). This placed the token on the scene the GM's
+       camera showed, else the one the GM's own client had drawn, so a project whose room is on another
+       scene had no token until the primary GM looked there (read in the code; no reading of a table).
+       The room's scene is the school's when it has the room, else the first place scene that does
+       (rooms.mjs `sceneOfRoom`). */
+    const target = scene ?? sceneOfRoom(room);
     if (!target) return null;
 
     const spot = centreOfRoom(target, room);
@@ -450,7 +457,8 @@ export async function refreshProjectToken(countdownId) {
  */
 async function onProjectTokenMoved(tokenDoc, changes) {
     if (!isPrimaryGm()) return;
-    if (changes?.x === undefined && changes?.y === undefined) return;
+    // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+    if (!isMoveChange(changes)) return;
     const id = projectOwning(tokenDoc);
     if (!id) return;
 
@@ -521,8 +529,7 @@ function onProjectTokenDeleted(tokenDoc, options) {
 export async function showProjectOnMap(countdownId) {
     if (!game.user.isGM || !rawCountdown(countdownId)) return null;
     await setProjectMeta(countdownId, { mapHidden: false });
-    /* On this GM's scene when its room is there; otherwise the primary's next draw of the
-       scene that holds the room places it, as for any project the map has not met yet. */
+    /* On the scene that holds its room, whatever this GM is looking at (E12 C5). */
     return placeProjectToken(countdownId);
 }
 
@@ -558,8 +565,9 @@ export async function syncProjectTokens() {
        so a GM other than the primary placed the tokens of projects the map was missing
        (scenario 65 G3 at 80ba2a5, 10.10.2026: the second GM's draw placed one), and two
        GMs drawing at once could each place one - a duplicate the map then keeps. That race
-       is read, not measured. */
-    if (!isPrimaryGm() || !canvas?.scene) return 0;
+       is read, not measured. Whether a scene is drawn on the primary no longer matters (E12 C5):
+       each project is placed on its room's scene, not on the drawn one (read in the code). */
+    if (!isPrimaryGm()) return 0;
     /* AFTER THE LOAD'S MIGRATION (E11 fix r2-H5, 1.2.73; the round-2 review's COR2-5). At the
        first ready after the upgrade the migration's clause `sweepOldProjectTokens` is the sweep
        that tells the GM how many tokens of gone projects it removed; this sync, deferred from the

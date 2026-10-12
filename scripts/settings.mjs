@@ -8,11 +8,10 @@
 
 import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
+import { forgetSceneRoles } from "./rooms.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
-    /** This browser has been told which recommended modules are missing (M-1). */
-    recommendsSilenced: "recommendsSilenced",
     /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
     systemWarningSilenced: "systemWarningSilenced",
     /** Which relay warning this GM last had, and for which Daggerheart version (E03, relay-guard.mjs). */
@@ -452,6 +451,11 @@ export const SETTINGS = {
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
     /**
+     * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
+     * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
+     */
+    gmTrialCast: "gmTrialCast",
+    /**
      * THE PRE-SESSION NOTES (E05, 1.2.64; audit S11-03, S01-08): a GM store
      * (gm-stores.mjs `noteStore`), a row per user -> { text, updatedAt, byGm },
      * and each player's copy of their own (`noteCopy`). Until 1.2.64 the note was
@@ -519,6 +523,26 @@ export const SETTINGS = {
      * reset's `bodyFound` group.
      */
     bodiesFound: "bodiesFound",
+    /**
+     * THE REGIONS A PLAYER DREW (E12 C1, 1.2.74; plan-E12 3.1, audit S07-06): region ids, in
+     * the order the primary GM saw them created. A region in this list is never a room
+     * (rooms.mjs `canBeRoom`), whatever its flag says. One writer, movement.mjs
+     * `noteRegionCreated`, on the primary GM, from the `createRegion` hook's user id: that id
+     * is Foundry's, not a packet's claim. A region deleted later stays listed; an id is not
+     * reused, so a stale one costs a few bytes and answers nothing.
+     */
+    playerRegions: "playerRegions",
+    /**
+     * THE SCENES THE TABLE MOVES BETWEEN (E13 C1, 1.2.74; plan-E13 3.1, audit S07-47, decision
+     * D7): `{ school, trial }`, scene ids - the school the season is played in and the fixed hall
+     * the Class Trial is held in. An object with named fields, never a list: a later field sits
+     * beside these two without a migration (`zones`, plan page 11.10), so a writer merges into
+     * what is stored and a reader takes its own field by name. An id whose scene is gone reads as
+     * unlinked. Read through rooms.mjs `sceneRoles`, which holds it until `onChange` below lets
+     * go. World-scoped and public: which map is the school is on every player's screen. Only a
+     * GM writes a world setting; whether an Assistant GM may is not measured.
+     */
+    sceneRoles: "sceneRoles",
     /**
      * The murder currently in progress - its WORLD HALF - or `{}`.
      *
@@ -687,7 +711,7 @@ export const SETTINGS = {
      * the only thing about the Mastermind that ever reaches a player's client
      * at all - see mastermind.mjs's `notifyDoorAccess`.
      *
-     * Exists because `canCross()` in movement.mjs runs synchronously inside a
+     * Exists because `crossingVerdict()` in movement.mjs runs synchronously inside a
      * `preUpdateToken` veto, on the client dragging the token - there is no
      * chance to ask a GM mid-hook, and `isMastermind()` itself always answers
      * `false` off a GM client by construction. A GM setting the Mastermind
@@ -938,20 +962,14 @@ export function registerSettings() {
        below reads it only under Monokuma Legacy. Legacy therefore keeps Press
        Start 2P as its default face with nothing to turn on, and Stained Glass
        is VT323 and Special Elite for everybody. */
-    /* THE ADVICE IS PER BROWSER, AND CAN BE TURNED OFF (M-1, 17.09).
-       Isometric Perspective and LiveKit are recommended rather than required, so
-       the module says once what is missing and what it does. `config: false`: it
-       is not a dial anybody sets on purpose, it is the checkbox in that window. */
-    game.settings.register(MODULE_ID, SETTINGS.recommendsSilenced, {
-        scope: "client",
-        config: false,
-        type: Boolean,
-        default: false
-    });
     /* A VERSION, NOT A SWITCH (E01, 24.09.2026; audit S01-09). The warning about a
        Daggerheart newer than the one this module was measured on is silenced for
        THAT version only: the next Daggerheart release is a new unknown and the GM
-       hears about it again. Same shape and scope as the switch above. */
+       hears about it again. Per browser (`scope: "client"`), and `config: false`:
+       it is the checkbox in that window, not a dial anybody sets on purpose. The
+       switch that silenced the recommended-modules window (`recommendsSilenced`,
+       M-1) went with that window in E13 C10; a browser that stored it keeps a
+       value no code reads any more (git grep, 12.10.2026). */
     game.settings.register(MODULE_ID, SETTINGS.systemWarningSilenced, {
         scope: "client",
         config: false,
@@ -1545,6 +1563,15 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // Which of the trial hall's tokens the trial shows: a GM store since it exists (E13 C2,
+    // `trialCastStore`), a row per token. No `onChange`: it is read when the trial opens and
+    // closes (trial-scene.mjs `applyTrialCast`), and nothing draws it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTrialCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // The world key before 1.2.64: read once by `liftKeyPlan`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {
         scope: "world",
@@ -1635,6 +1662,26 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    // The regions a player drew (E12 C1; the key's note). Read by rooms.mjs when it decides
+    // what is a room; nothing redraws on it.
+    game.settings.register(MODULE_ID, SETTINGS.playerRegions, {
+        scope: "world",
+        config: false,
+        type: Array,
+        default: []
+    });
+
+    // The scene roles (E13 C1; the key's note). rooms.mjs holds what it read until a change -
+    // Foundry calls `onChange` on every client when the setting's document is created or
+    // updated (as recalled of Foundry's `Setting`, not read in v14; the harness calls it on both).
+    game.settings.register(MODULE_ID, SETTINGS.sceneRoles, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => forgetSceneRoles()
     });
 
     game.settings.register(MODULE_ID, SETTINGS.murderState, {
@@ -2533,7 +2580,7 @@ export function eclipseId(clock = null) {
  * The crossings a character has used in the running Eclipse: the GMs' store on a
  * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
  * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
- * import eclipse.mjs (the cycle is noted at `canCross`).
+ * import eclipse.mjs (the cycle is noted at `crossingVerdict`).
  */
 export function eclipseMovesUsed(actorId, clock = null) {
     try {
@@ -2676,6 +2723,31 @@ export async function recordBodyFound({ chapter, epoch, ...row } = {}) {
     return stamp;
 }
 
+/*
+ * A FOUND BODY'S ROOM RENAMED (E12 fix k3-K2, 12.10.2026; open road O-b of r2-H4). The stamps and the
+ * hold name the room a body was found in, and the Event card names the room from them (events.mjs);
+ * a GM's rename of that room left them on a name no room had. fog.mjs `carryRoomInWorld` hands the
+ * rename here on the primary: each stamp of the renamed room's scene moves to the new name, and a stamp
+ * or hold written with no scene (the hold never has one) when `firstHere` - the scene a reader would
+ * give the room by its name was this one. Only the room changes: the stamp's chapter, season and
+ * bodies are `recordBodyFound`'s alone (tier 0 R349). Answers how many records moved.
+ */
+export async function carryBodyRooms(sceneId, from, to, firstHere = false) {
+    if (!game.user.isGM || !sceneId || !from || !to || from === to) return 0;
+    const here = row => row?.room === from && (row.sceneId ? row.sceneId === sceneId : firstHere);
+    let moved = 0;
+    const all = bodiesFoundAll();
+    const next = Object.fromEntries(Object.entries(all).map(([key, rows]) => [key,
+        Array.isArray(rows) ? rows.map(row => (here(row) ? (moved++, { ...row, room: to }) : row)) : rows]));
+    if (moved) await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, next);
+    const hold = bodyDiscovery();
+    if (hold && here(hold)) {
+        await game.settings.set(MODULE_ID, SETTINGS.bodyFound, { ...hold, room: to });
+        moved++;
+    }
+    return moved;
+}
+
 /** The GM has answered. Safe to call when there is nothing to clear. */
 export async function clearBodyDiscovery() {
     if (!game.user.isGM || !bodyDiscovery()) return null;
@@ -2729,7 +2801,7 @@ export function setSetting(key, value) {
  * looks innocent.
  *
  * Nothing about this predicate needed mastermind.mjs. It reads a copy, and the
- * copy exists precisely so `canCross()` can ask synchronously inside a
+ * copy exists precisely so `crossingVerdict()` can ask synchronously inside a
  * `preUpdateToken` veto - which is the note already written above the key
  * itself. Moving the reader next to what it reads is what removes the edge, and
  * with it both cycles; the GM-side Mastermind machinery stays where it is. The

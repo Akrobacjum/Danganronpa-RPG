@@ -4,6 +4,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, moduleLanguage } from "./settings.mjs";
+import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -251,21 +252,39 @@ export function plural(key, data = {}, countOn = "n") {
 }
 
 /**
- * The scene the GM is actually working on.
+ * The scene a GM's WINDOW means by "this scene" - Room Setup, Season setup, the dashboards -
+ * and nothing else (E12 C6, 11.10.2026; plan-E12 3.3): the camera (rooms.mjs `viewedScene`)
+ * when there is one, the world's active scene for code running with no canvas at all.
  *
- * `game.scenes.active` is a world flag - whichever scene was last marked
- * "active" for player navigation, which a GM building next chapter's map
- * leaves pointed at the CURRENT one while they work on the NEXT. Season setup
- * used to read `game.scenes.active` for its "rooms" step and told the GM their
- * freshly-drawn regions did not exist, because the scene showing on their own
- * canvas was not the one the flag named.
- *
- * `canvas?.scene` - what is actually rendered - is what a GM configuring rooms
- * means by "this scene", so it wins whenever there is one. The world flag is
- * only the fallback for code running with no canvas at all.
+ * `game.scenes.active` alone is wrong for a window: it is whichever scene was last marked for
+ * player navigation, which a GM building next chapter's map leaves on the current one, and
+ * Season setup told that GM their freshly drawn regions did not exist. The camera is wrong for
+ * a rule: until 1.2.74 the readers of rooms, stashes, Search tokens and traces defaulted to
+ * this function, so a GM's browser judged a player's Search on whatever scene that GM had on
+ * screen. They take the scene of what they judge now, and this function may be called only
+ * from a function rooms.mjs `CAMERA_READERS` lists as a window (R382).
  */
 export function workingScene() {
-    return canvas?.scene ?? game.scenes.active ?? null;
+    return viewedScene() ?? game.scenes.active ?? null;
+}
+
+/**
+ * A GM's room select that a write follows (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C5-1,
+ * CR1-2): every room of every place scene, grouped under its scene's name when there is more than
+ * one (the school first, rooms.mjs `placeScenes`), each option carrying its scene in `data-scene`,
+ * and the one of `room` on `sceneId` chosen. The Case dashboard's Final Truth and the Trap plant
+ * listed the rooms of the scene on screen and wrote elsewhere - the Final Truth on the school's room
+ * of the name (`sceneOfRoom`), the plant on the camera's while a Search takes it on the searcher's -
+ * so the list and the write took two scenes whenever the GM viewed another map. The window reads
+ * the chosen option's `data-scene` and hands that scene to its write.
+ */
+export function placeRoomOptions({ room = null, sceneId = null } = {}) {
+    const places = placeScenes().map(scene => ({ scene, rooms: roomNames(scene) })).filter(p => p.rooms.length);
+    const option = (scene, r) => `<option value="${esc(r)}" data-scene="${esc(scene.id)}"${
+        r === room && scene.id === sceneId ? " selected" : ""}>${esc(r)}</option>`;
+    if (places.length === 1) return places[0].rooms.map(r => option(places[0].scene, r)).join("");
+    return places.map(({ scene, rooms }) => `<optgroup label="${esc(scene.name ?? scene.id)}">${
+        rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");
 }
 
 export function ownerOf(actor) {
@@ -1023,9 +1042,9 @@ export function windowWidthFor(root, content, widest) {
 /**
  * One size for a tabbed window, taken from its biggest tab.
  *
- * Room Setup holds a table behind each of its seven tabs (`ROOM_SETUP_TABS` in
+ * Room Setup holds a table behind each of its eight tabs (`ROOM_SETUP_TABS` in
  * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
- * was added) and they are nothing like each
+ * was added; the eighth, Scenes, is E13 C5's and holds no table) and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
  * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on

@@ -37,11 +37,12 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
+import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
@@ -70,7 +71,8 @@ const HEARTBEAT_MS = 60000;
 export function registerVoice() {
     Hooks.on("updateToken", (doc, changes) => {
         if (!followsVoice(doc)) return;
-        if (changes.x !== undefined || changes.y !== undefined) scheduleReconcile();
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (isMoveChange(changes)) scheduleReconcile();
     });
     // A token dragged onto the map from the sidebar is a `createToken`, not an
     // `updateToken`, and placing one during an Eclipse is the single most common
@@ -223,7 +225,10 @@ function suppressBreakoutToasts() {
  * nothing to do, having walked every actor and located every token to get there.
  */
 function followsVoice(tokenDoc) {
-    return tokenDoc?.actor?.type === "character";
+    // Nor is a token in the trial hall (E13 C1): nobody stands there (rooms.mjs), so no move of
+    // one changes a voice room, and the students shown and hidden there at the trial's start
+    // would each schedule a pass that finds nothing to do.
+    return tokenDoc?.actor?.type === "character" && !isTrialScene(tokenDoc.parent);
 }
 
 /* ==========================================================================
@@ -442,19 +447,23 @@ const CLAIM = {
     none: 0,      // nobody is holding this character
     dead: 1,      // silenced - the main room, but a live character outranks it
     nowhere: 2,   // alive, no token, or standing outside every region
-    inRoom: 3     // alive and standing somewhere: the only claim with an answer
+    inRoom: 3,    // alive and standing somewhere: the only claim with a room of its own
+    trial: 4      // the Class Trial: the main room for everybody (D8); in a trial every connected account makes it
 };
 
 /**
- * @returns {Promise<{rows: Array, byUser: Map<string, object>, contested: Map<string, Array>}>}
+ * @returns {Promise<{rows: Array, byUser: Map<string, object>, contested: Map<string, Array>, eclipse: boolean, trial: boolean}>}
  *   `rows` is every character and what it wants, in actor order - for reporting.
  *   `byUser` is the decision: one entry per connected account.
  *   `contested` is the accounts whose characters disagreed, for the warning.
+ *   `eclipse` and `trial` say which of the two rules that place nobody by their
+ *   token is in force (`voiceClaim`).
  */
 export async function voiceTargets() {
     const { locateActor } = await import("./movement.mjs");
     const { isEclipse } = await import("./eclipse.mjs");
     const eclipse = isEclipse();
+    const trial = getClock().phase === "classTrial";
 
     const rows = [];
     for (const actor of game.actors.filter(a => a.type === "character")) {
@@ -463,68 +472,14 @@ export async function voiceTargets() {
         // whichever GM its Despair pool is pointed at - the same relationship,
         // read from the same setting, not a second one.
         const user = monokuma ? poolUserFor(actor) : activeOwnerOf(actor);
-        const row = {
+        rows.push({
             actor, monokuma, user: user ?? null,
-            scene: null, room: null, target: null,
-            claim: CLAIM.none, why: ""
-        };
-
-        // Every reason for NOT placing somebody, said out loud - "nobody is in
-        // the Kitchen" looks the same on screen whether the module decided that
-        // or simply never looked.
-        if (!user) {
-            row.why = monokuma
-                ? "no GM holds this Monokuma's Despair pool"
-                : "no owner is connected";
-        } else if (!user.active) {
-            row.why = `${user.name} is not connected`;
-        } else if (eclipse) {
-            // NOBODY TALKS DURING AN ECLIPSE, and nothing here even asks where
-            // anybody is standing.
-            //
-            // The Eclipse is the placement window: the lights go out and every
-            // student moves in secret. A voice channel that still followed the
-            // rooms would be the one thing in the building that could see in the
-            // dark - you would hear who walked in with you, and hear the room go
-            // quiet when somebody left. Freezing the assignments instead (which
-            // is what this used to do) is not much better: everyone simply keeps
-            // the room they were in when the lights went out, so the group that
-            // was together stays on an open channel through the whole thing.
-            //
-            // So each player is put in a room of their own, which is what "voice
-            // is unavailable" means when the transport has no mute of its own.
-            // GMs share one, because the Eclipse is exactly when they need to
-            // talk to each other.
-            row.target = eclipseRoomFor(user);
-            row.claim = CLAIM.inRoom;
-            row.why = user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - alone, hearing nobody";
-        } else if (!monokuma && silencedByDeath(actor)) {
-            // The dead do not talk. A murdered student's player stays at the
-            // table and keeps watching, but their voice leaves the room with
-            // them - a body that can still be heard from the crime scene it is
-            // lying in gives away everything an investigation is meant to
-            // uncover. They get it back the moment they opt in as a Monocub,
-            // which is the guide's own re-entry point (p. 16).
-            row.claim = CLAIM.dead;
-            row.why = "dead, and not back as a Monocub - the main room";
-        } else {
-            // Located without the canvas, per actor. Reading `canvas.scene`
-            // instead only ever sees the scene the GM is LOOKING AT, so a GM
-            // reviewing a different map made every player read as "in no room at
-            // all" and sent the whole table back to the main room. The scene has
-            // to come from the actor for the second reason too: two players on
-            // two maps must not be handed the same room name for two different
-            // "Kitchen"s.
-            const where = locateActor(actor);
-            row.scene = where?.scene ?? null;
-            row.room = where?.room ?? null;
-            row.target = liveKitRoomFor(row.scene?.id ?? null, row.room);
-            row.claim = row.room ? CLAIM.inRoom : CLAIM.nowhere;
-            row.why = row.room
-                ? `${row.scene?.name ?? "?"} · ${row.room}`
-                : "no room - token outside every region, or no token";
-        }
-        rows.push(row);
+            ...voiceClaim({
+                user, monokuma, eclipse, trial,
+                silenced: () => !monokuma && silencedByDeath(actor),
+                locate: () => locateActor(actor)
+            })
+        });
     }
 
     const byUser = new Map();
@@ -548,15 +503,14 @@ export async function voiceTargets() {
     // An Eclipse silences PEOPLE, not characters. Everyone else in this file is
     // reached through the character they own, so an account with no character -
     // a spectator, a player between chapters, a GM holding no Monokuma pool -
-    // would otherwise be the one person left on an open channel.
-    if (eclipse) {
+    // would otherwise be the one person left on an open channel. The Class Trial
+    // gathers people the same way (E13 C4): such an account still standing in a
+    // breakout room from before the trial would miss the trial, and outside these
+    // two nobody is moved who owns no character.
+    if (eclipse || trial) {
         for (const user of game.users.filter(u => u.active)) {
             if (byUser.has(user.id)) continue;
-            byUser.set(user.id, {
-                actor: null, monokuma: false, user, scene: null, room: null,
-                target: eclipseRoomFor(user), claim: CLAIM.inRoom,
-                why: user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - alone, hearing nobody"
-            });
+            byUser.set(user.id, { actor: null, monokuma: false, user, ...voiceClaim({ user, eclipse, trial }) });
         }
     }
 
@@ -568,7 +522,101 @@ export async function voiceTargets() {
         if (new Set(list.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
     }
 
-    return { rows, byUser, contested, eclipse };
+    return { rows, byUser, contested, eclipse, trial };
+}
+
+/**
+ * One person's claim on their account's voice: the room, the strength of the
+ * claim and why, decided from what the caller hands in (E13 C4, 12.10.2026).
+ * `voiceTargets` asks it once per character and, during an Eclipse or the Class
+ * Trial, once per connected account that has no character. It reads no document
+ * itself, so R117 asks it the trial's question for each kind of person a trial
+ * holds - the living in two rooms, the dead, a Monocub, Monokuma, an account with
+ * no character - without a world to write. `silenced` and `locate` are asked only
+ * by the branch that needs them: nothing here asks where anybody stands, or who
+ * is dead, during an Eclipse or the trial.
+ */
+export function voiceClaim({ user, monokuma = false, eclipse = false, trial = false,
+    silenced = () => false, locate = () => null }) {
+    const row = { scene: null, room: null, target: null, claim: CLAIM.none, why: "" };
+
+    // Every reason for NOT placing somebody, said out loud - "nobody is in
+    // the Kitchen" looks the same on screen whether the module decided that
+    // or simply never looked.
+    if (!user) {
+        row.why = monokuma
+            ? "no GM holds this Monokuma's Despair pool"
+            : "no owner is connected";
+    } else if (!user.active) {
+        row.why = `${user.name} is not connected`;
+    } else if (eclipse) {
+        // NOBODY TALKS DURING AN ECLIPSE, and nothing here even asks where
+        // anybody is standing.
+        //
+        // The Eclipse is the placement window: the lights go out and every
+        // student moves in secret. A voice channel that still followed the
+        // rooms would be the one thing in the building that could see in the
+        // dark - you would hear who walked in with you, and hear the room go
+        // quiet when somebody left. Freezing the assignments instead (which
+        // is what this used to do) is not much better: everyone simply keeps
+        // the room they were in when the lights went out, so the group that
+        // was together stays on an open channel through the whole thing.
+        //
+        // So each player is put in a room of their own, which is what "voice
+        // is unavailable" means when the transport has no mute of its own.
+        // GMs share one, because the Eclipse is exactly when they need to
+        // talk to each other.
+        row.target = eclipseRoomFor(user);
+        row.claim = CLAIM.inRoom;
+        row.why = user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - alone, hearing nobody";
+    } else if (trial) {
+        // ONE ROOM FOR THE CLASS TRIAL (D8, the owner's decision; S11-10). The
+        // trial is the one scene everybody is meant to hear: the living argue,
+        // Monokuma presides, the GMs run it, and the dead are at the table too.
+        // So nobody is placed by their token - not in the trial hall, which is a
+        // place for nobody (E13 C1), nor in the school room a token was left in
+        // when the table moved (the living would otherwise sit in their old
+        // breakouts and hear only their roommates) - and everybody gets the main
+        // room. The main room is LiveKit's own, so nothing has to be named or
+        // made for the trial: a client that connects mid-trial starts there
+        // anyway (`userConnected` above). The dead keep their seat but not their
+        // voice: "the dead listen but do not speak" is the table's rule, not
+        // this file's - D8 puts it in the handbooks and beside Start the Class
+        // Trial (E13 C6, C9).
+        //
+        // After the Eclipse, not before it, though neither road meets the other
+        // any more: `startEclipse` refuses in a trial (E13 fix r1-F3) and
+        // `setClock` refuses to open a trial in an Eclipse (E10 fix r2-G5). A
+        // clock written by hand with both still takes every voice off.
+        row.claim = CLAIM.trial;
+        row.why = game.i18n.localize("DRPG.Voice.claimTrial");
+    } else if (silenced()) {
+        // The dead do not talk. A murdered student's player stays at the
+        // table and keeps watching, but their voice leaves the room with
+        // them - a body that can still be heard from the crime scene it is
+        // lying in gives away everything an investigation is meant to
+        // uncover. They get it back the moment they opt in as a Monocub,
+        // which is the guide's own re-entry point (p. 16).
+        row.claim = CLAIM.dead;
+        row.why = "dead, and not back as a Monocub - the main room";
+    } else {
+        // Located without the canvas, per actor. Reading `canvas.scene`
+        // instead only ever sees the scene the GM is LOOKING AT, so a GM
+        // reviewing a different map made every player read as "in no room at
+        // all" and sent the whole table back to the main room. The scene has
+        // to come from the actor for the second reason too: two players on
+        // two maps must not be handed the same room name for two different
+        // "Kitchen"s.
+        const where = locate();
+        row.scene = where?.scene ?? null;
+        row.room = where?.room ?? null;
+        row.target = liveKitRoomFor(row.scene?.id ?? null, row.room);
+        row.claim = row.room ? CLAIM.inRoom : CLAIM.nowhere;
+        row.why = row.room
+            ? `${row.scene?.name ?? "?"} · ${row.room}`
+            : "no room - token outside every region, or no token";
+    }
+    return row;
 }
 
 /* ==========================================================================
@@ -827,11 +875,16 @@ function sceneRoomWarnings() {
     for (const scene of game.scenes) {
         const peopled = scene.tokens.some(t => t.actor?.type === "character");
         if (!peopled) continue;
+        // The trial hall holds no rooms on purpose (rooms.mjs, E13 C1): its students are not
+        // split by room there, and the warning below would tell the GM to name its regions.
+        if (isTrialScene(scene)) continue;
 
-        const names = Array.from(scene.regions ?? []).map(r => r.name).filter(Boolean);
+        // Rooms only (E12 C2a): a named region with a Teleport, or one a GM marked as not a
+        // room, splits nobody's voice.
+        const names = roomPieces(scene).map(r => r.name);
         if (!names.length) {
             lines.push("");
-            lines.push(`"${scene.name}" has characters on it and no named regions - everybody`);
+            lines.push(`"${scene.name}" has characters on it and no rooms - everybody`);
             lines.push("   standing there shares the main room. Name the regions to split them up.");
             continue;
         }

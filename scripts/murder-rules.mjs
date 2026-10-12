@@ -69,6 +69,7 @@ import {
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeadForGm } from "./settings.mjs";
+import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
@@ -1343,7 +1344,10 @@ function swungWeapon(held, def, id, recorded = false) {
  * from. `breakOnDespair` posts its notice as before; while the incident runs the card is
  * veiled whoever posts it (secret.mjs `incidentVeils`), its words to the actor's player.
  * A roll-less take (a free one, the third's choices) wears nothing. Answers what a Reroll
- * needs to give the wear back (`undoLastCrisis`), or null when nothing wore.
+ * needs to give the wear back (`undoLastCrisis`), or null when nothing wore. A tier 0 weapon
+ * is spent by any swing that rolled, with Hope or critical too (E13 C8, use-items.mjs
+ * `rollSpends`, its tier read off `weapon` as the GMs hold it); the break is answered here as
+ * a wear is, so a Reroll gives it back and the replay spends it again.
  */
 async function wearSwing(actor, weapon, { withHope, isCritical, rolled }) {
     if (!weapon || !rolled || isBroken(weapon)) return null;
@@ -2984,7 +2988,8 @@ export function registerMurder() {
     });
 
     Hooks.on("updateToken", (tokenDoc, changes) => {
-        if (changes.x === undefined && changes.y === undefined) return;
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (!isMoveChange(changes)) return;
         // One client decides, or several GMs would each write the same
         // participant in - the same rule movement.mjs applies to who pays.
         if (!isPrimaryGm()) return;
@@ -3084,13 +3089,16 @@ async function maybeThirdParty(tokenDoc) {
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
 
-    const { roomOfToken, locateActor } = await import("./movement.mjs");
+    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
     const scene = locateActor(game.actors.get(state.victimId));
     if (!scene?.room) return;
     // Same scene, same room. Two rooms of the same name on two maps are not
-    // one room - `sameRoom` makes the same distinction for a handover.
+    // one room - `sameRoom` makes the same distinction for a handover. And
+    // the room the witness judge lets them count in (E12 C12, the owner's
+    // Q3 a): a player's console that put the token there past the rules
+    // walks nobody in, until it stands somewhere lawful.
     if (tokenDoc.parent?.id !== scene.scene?.id) return;
-    if (roomOfToken(tokenDoc) !== scene.room) return;
+    if (lawfulRoomOf(tokenDoc) !== scene.room) return;
 
     // The guide gives the scene one third party. The second one to walk in is
     // the fourth person in the room, and at four this stops being a murder

@@ -15,6 +15,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
 import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
+import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
 
 /**
  * Region flags this file owns.
@@ -55,18 +56,13 @@ export class SearchTokens {
      * been in. Old plain-name keys are still read, so counters saved before
      * this change are not lost mid-session.
      */
-    static key(roomName, scene = canvas?.scene) {
+    static key(roomName, scene) {
         if (!roomName) return null;
         // Accept a bare scene id as well as a Scene: the id is what travels over
         // the socket, and the GM answering a player's request must key the
         // counter to the *player's* scene, not to whatever they are looking at.
         const id = typeof scene === "string" ? scene : scene?.id;
         return id ? `${id}::${roomName}` : roomName;
-    }
-
-    /** The scene a request should be judged against, when none was supplied. */
-    static get currentSceneId() {
-        return canvas?.scene?.id ?? null;
     }
 
     /** Raw counter store. Rooms absent from the store are untouched (= full). */
@@ -105,7 +101,7 @@ export class SearchTokens {
      *
      * @returns {Promise<object|null>}
      */
-    static async takePlant(roomName, sceneId = this.currentSceneId, { actorId = null, rollId = null, by = null } = {}) {
+    static async takePlant(roomName, sceneId, { actorId = null, rollId = null, by = null } = {}) {
         if (!roomName) return null;
         if (!game.user.isGM) {
             const res = await requestPlantCheck(roomName, sceneId, actorId, rollId);
@@ -150,8 +146,14 @@ export class SearchTokens {
         this.#freshCounts.clear();
     }
 
-    /** How many search tokens remain in a room on the current scene. */
-    static left(roomName, scene = canvas?.scene) {
+    /**
+     * How many search tokens remain in a room on the scene named. Every method here takes the
+     * scene of the room it counts, with no default (E12 C6, 11.10.2026; plan-E12 3.3): until
+     * 1.2.74 it was the scene on screen (`canvas.scene`, and `currentSceneId` for a spend), so
+     * a Search counted, sealed and spent the room of that name on whatever scene the browser
+     * running it was showing.
+     */
+    static left(roomName, scene) {
         if (!roomName) return 0;
         const scoped = this.key(roomName, scene);
 
@@ -183,22 +185,19 @@ export class SearchTokens {
      *   what travels over the socket, and a player's spend has to be judged
      *   against THEIR scene rather than whatever the GM is looking at.
      */
-    static sealed(roomName, scene = canvas?.scene) {
+    static sealed(roomName, scene) {
         if (!roomName) return false;
         const where = typeof scene === "string" ? game.scenes?.get(scene) : scene;
-        for (const region of (where ?? canvas?.scene)?.regions ?? []) {
-            if (region.name === roomName) {
-                return Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
-            }
-        }
-        return false;
+        // Every piece of the room, and only regions that are rooms (E12 C2a): the first
+        // region of that name used to answer, and Room Setup wrote the last one.
+        return Boolean(roomFlag(where ?? null, roomName, SEARCH_FLAGS.sealed));
     }
 
     /**
      * Spend one token. Returns true when it was spent, false when the room is
      * exhausted. Safe to call from a player client - it forwards to the GM.
      */
-    static async spend(roomName, sceneId = this.currentSceneId, { actorId = null } = {}) {
+    static async spend(roomName, sceneId, { actorId = null } = {}) {
         if (!roomName) return false;
         if (!game.user.isGM) {
             // The searching character travels with the request: the GM spends a
@@ -218,7 +217,7 @@ export class SearchTokens {
         return this.#spendAsGm(roomName, sceneId);
     }
 
-    static async #spendAsGm(roomName, sceneId = this.currentSceneId) {
+    static async #spendAsGm(roomName, sceneId) {
         // THE LAST WORD, and deliberately down here rather than only in front
         // of the action. Every route to a search ends at this method - the
         // sheet's tile, a player's socket request, `game.drpg.useToken` from a
@@ -245,10 +244,10 @@ export class SearchTokens {
     }
 
     /** Zero out a single room for the rest of the day (project "Tidy the room"). */
-    static async exhaust(roomName) {
+    static async exhaust(roomName, scene) {
         if (!game.user.isGM || !roomName) return false;
         const store = foundry.utils.duplicate(this.store);
-        const key = this.key(roomName);
+        const key = this.key(roomName, scene);
         store[key] = 0;
         if (key !== roomName) delete store[roomName];   // same reasoning as above
         await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
@@ -269,7 +268,7 @@ export class SearchTokens {
      *
      * @returns {Promise<number|null>}  The value actually stored.
      */
-    static async setFor(roomName, value, scene = canvas?.scene) {
+    static async setFor(roomName, value, scene) {
         if (!game.user.isGM || !roomName) return null;
         const max = this.max;
         const n = Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
@@ -294,18 +293,14 @@ export class SearchTokens {
     }
 
     /**
-     * GM-only chat readout. Lists every room on the current scene, so a full
+     * GM-only chat readout. Lists every room on the scene it is given, so a full
      * room is as visible as a spent one - "which rooms are still worth
      * searching" is the question actually being asked.
      */
-    static async report() {
+    static async report(scene) {
         const max = this.max;
-        const scene = canvas?.scene;
 
-        const rooms = Array.from(scene?.regions ?? [])
-            .map(r => r.name)
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
+        const rooms = roomNames(scene);
 
         const rows = rooms.length
             ? rooms.map(room => {
@@ -327,6 +322,11 @@ export class SearchTokens {
 
         return whisperToGms(`<h3>${game.i18n.localize("DRPG.SearchTokens.title")}</h3>${content}`);
     }
+}
+
+/** `game.drpg.showTokens()`: the readout for the scene on this GM's screen, the scene a GM asking means. */
+export function showSearchTokens() {
+    return SearchTokens.report(viewedScene());
 }
 
 /* ==========================================================================
@@ -625,7 +625,7 @@ function askSearch(action, payload, opts = {}) {
  * cannot grant a free search: the answer is not ok, and the one message has said
  * why.
  */
-function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId = null) {
+function requestSpend(roomName, sceneId, actorId = null) {
     return askSearch(ACTION_SPEND, { roomName, sceneId, actorId });
 }
 
@@ -637,7 +637,7 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId =
  * arrives after the clock goes back to its room (`late`), while the GM's client
  * still takes one back.
  */
-function requestPlantCheck(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, rollId = null) {
+function requestPlantCheck(roomName, sceneId, actorId = null, rollId = null) {
     return askSearch(ACTION_TAKE_PLANT, { roomName, sceneId, actorId, rollId }, {
         quiet: true,
         lateMs: PLANT_WINDOW_MS,

@@ -23,14 +23,16 @@
  * names between them - which is why they are exported now; fog.mjs exported none
  * of them before and re-exports none, so the module's API is the one it was.
  * Nothing here imports any of the three back (R161 would see the cycle). Below it
- * are utils.mjs (`debug`) and fog-geometry.mjs. `ADRIFT_WARN_RUN` is read only by
+ * are utils.mjs (`debug`), fog-geometry.mjs and the rooms.mjs leaf (`roomPieces`,
+ * E12 C2b). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
+import { roomPieces, onLevel } from "./rooms.mjs";
 import {
-    regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline
+    regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
 
 /**
@@ -475,10 +477,30 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * corners - and it left the real defects, which were in how the patches were
  * composited, exactly where they were. `addDoorwayGlow` handles the staircase
  * now, on this same honest geometry.
+ *
+ * WHAT COUNTS AS ANOTHER ROOM (E12 C2b, 11.10.2026; plan-E12 3.1, audit S07-05/06). A room's
+ * pieces beyond, through rooms.mjs, on the region's own scene (the viewed one when a region
+ * names none). Until 1.2.74 every named region but this one was "another room": a Teleport or
+ * a player's area drawn against a wall opened a doorway into it, and a room drawn in two
+ * pieces opened one into itself. `region` may be a room of several pieces handed as one
+ * (fog-geometry.mjs `piecesAsOne`); none of its pieces is another room.
+ *
+ * ON ONE FLOOR (E12 C10, 11.10.2026; plan-E12 C10, audit S07-45). `level` is the floor the
+ * caller draws or checks: only a room with a piece on it (rooms.mjs `onLevel`) is beyond, so the
+ * Lab's border does not open onto the Attic drawn above it. Null is every floor, as before
+ * 1.2.74. `region` is the caller's to cut to that floor (fog.mjs `roomShapeOn`). Which doorway
+ * edges open is not measured headless (the harness's polygons contain no point - E12 C2b).
+ * The walls likewise (E12 fix r2-S2, 11.10.2026; review EARLY-C10-3): only those on that floor
+ * close a border (`onLevel`, which v14's typings give a wall as they give a region: `levels`,
+ * `includedInLevel` - read in the typings, not at a table, LIVE-E12-02), so a wall of the Attic
+ * drawn along the Lab's border below no longer shuts the Lab's doorway. A wall that names no floor
+ * stands on every floor, as every wall did before. Not measured here: a doorway is opened or shut only
+ * where a room lies beyond, and the harness's polygons contain no point; scenario 66 X1 reads the
+ * same filter in the map check (fog-diagnostics.mjs `checkRegions`, `adriftCheck`).
  */
-export function doorwayEdges(region) {
+export function doorwayEdges(region, level = null) {
     try {
-        const scene = canvas?.scene;
+        const scene = region?.parent ?? canvas?.scene;
         if (!scene) return [];
 
         const grid = canvas?.grid?.size ?? 100;
@@ -490,18 +512,19 @@ export function doorwayEdges(region) {
         const inset = grid * DOORWAY_OVERLAP_INSET;
         const near = grid * DOORWAY_WALL_NEAR;
 
-        const own = regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f));
+        const rings = regionShapes(region, { x: 0, y: 0 });
+        const own = rings.map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
         const others = [];
-        for (const other of scene.regions ?? []) {
-            if (!other.name || other === region) continue;
+        for (const other of roomPieces(scene)) {
+            if (other.name === region.name || !onLevel(other, level)) continue;
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
         }
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
-        const walls = Array.from(scene.walls ?? []);
+        const walls = Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level));
 
         const edges = [];
         for (let ring = 0; ring < own.length; ring++) {
@@ -518,11 +541,19 @@ export function doorwayEdges(region) {
                 const length = Math.hypot(dx, dy);
                 if (length < 1) continue;
 
+                // The stretches with the room on both sides: a line two pieces share, or
+                // a piece's edge across another's floor (fog-geometry `innerStretches`).
+                // Neither drawn nor opened; [] for a room of one shape.
+                const inner = innerStretches(rings, ax, ay, dx, dy);
+                const inInner = t => inner.some(([a, b]) => t >= a && t <= b);
+
                 // The normal pointing OUT of the room, chosen by trying one and
-                // seeing whether it lands back inside.
+                // seeing whether it lands back inside - at the middle of the
+                // longest stretch that is a border, where the inside is one side.
+                const probe = outerMiddle(inner);
                 let nx = -dy / length;
                 let ny = dx / length;
-                if (inPolygons(own, ax + dx / 2 + nx * 2, ay + dy / 2 + ny * 2)) {
+                if (inPolygons(own, ax + dx * probe + nx * 2, ay + dy * probe + ny * 2)) {
                     nx = -nx;
                     ny = -ny;
                 }
@@ -540,7 +571,8 @@ export function doorwayEdges(region) {
                         const t = k / samples;
                         let isOpen = false;
 
-                        if (k < samples) {
+                        // A sample on an inner stretch is closed: the floor beyond is this room's.
+                        if (k < samples && !inInner((k + 0.5) / samples)) {
                             const mid = (k + 0.5) / samples;
                             const mx = ax + dx * mid;
                             const my = ay + dy * mid;
@@ -611,7 +643,7 @@ export function doorwayEdges(region) {
                     }
                 }
 
-                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, trend });
+                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, inner, trend });
             }
         }
 
@@ -620,6 +652,17 @@ export function doorwayEdges(region) {
         debug("Fog: could not work out where the doorways are", err);
         return [];
     }
+}
+
+/** The middle of the longest stretch of an edge outside its inner ones, as a fraction of the edge. */
+function outerMiddle(inner) {
+    if (!inner.length) return 0.5;
+    let best = [0.5, -1], cursor = 0;
+    for (const [a, b] of [...inner, [1, 1]]) {
+        if (a - cursor > best[1]) best = [(cursor + a) / 2, a - cursor];
+        cursor = Math.max(cursor, b);
+    }
+    return best[0];
 }
 
 /**
@@ -1180,8 +1223,10 @@ export function traceOutlineGapped(graphics, edges, rect, pad = null, minRun = n
         for (let index = 0; index < ring.length; index++) {
             const edge = ring[index];
             const margin = edge.length ? pad / edge.length : 0;
-            const gaps = (edge.open ?? [])
-                .map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)])
+            // An inner stretch (`doorwayEdges`) is no border at all: left out to the point,
+            // with no margin, so the line meets the other piece's border where it starts.
+            const gaps = [...(edge.open ?? []).map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)]),
+                ...(edge.inner ?? [])]
                 .sort((p, q) => p[0] - q[0]);
 
             let cursor = 0;

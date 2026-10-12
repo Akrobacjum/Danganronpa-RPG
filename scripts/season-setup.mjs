@@ -43,6 +43,8 @@ import { carriableCategories } from "./inventory.mjs";
 // synchronous - a `done` that had to await could not answer at all.
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
+// A leaf: which named regions no GM has decided yet (E12 C1).
+import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
@@ -128,11 +130,11 @@ async function fixCursorPermission() {
     return before.length - after.length;
 }
 
-/** The shared-rooms-per-player line under the room count step. */
-function roomCountLine(roster) {
+/** The shared-rooms-per-player line under the room count step, for the scene the step counts. */
+function roomCountLine(roster, scene) {
     return `<div class="notes">${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Season.roomCountLine", {
-            rooms: sharedRooms().length,
+            rooms: sharedRooms(scene).length,
             players: roster.length,
             want: roomsWantedFor(roster.length)
         }))}</div>`;
@@ -148,9 +150,30 @@ function roomGuideHtml() {
     </div>`;
 }
 
-function steps() {
+/**
+ * Every named region of every scene nobody has decided, once per name, as the Pre-season row
+ * names them: "Scene: Region" when they lie on more than one scene (E12 fix r1-G2, 11.10.2026;
+ * review round 1 CR1-4). The row read the scene on screen, so a GM viewing another floor saw it
+ * done while regions drawn on the school since the migration were nobody's rooms. Every scene
+ * rather than every place scene: a place scene is one that holds a room (rooms.mjs
+ * `isPlaceScene`), and a floor drawn since the migration with nothing marked holds none, so it
+ * would be the one left out.
+ */
+function undecidedRegionNames() {
+    const found = Array.from(game.scenes ?? []).flatMap(scene => unmarkedRegions(scene).map(region => ({ scene, region })));
+    const several = new Set(found.map(({ scene }) => scene)).size > 1;
+    return [...new Set(found.map(({ scene, region }) => several ? `${scene.name}: ${region.name}` : region.name))];
+}
+
+export function steps() {
     const roster = studentActors();
     const clock = getClock();
+    /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
+       11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
+       where every GM is taken for the trial since E13 C3, and which holds no room since C1 - was
+       told the season had no rooms. On a scene that is no place they read the school (`homeScene`). */
+    const viewed = workingScene();
+    const roomScene = isPlaceScene(viewed) ? viewed : homeScene();
 
     return [
         {
@@ -308,13 +331,16 @@ function steps() {
              * two answers Room Setup's own line prints, so the two screens can
              * no longer disagree about one map.
              */
-            done: sharedRooms().length >= roomsWantedFor(roster.length),
+            done: sharedRooms(roomScene).length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => roomCountLine(roster)
+            extra: () => roomCountLine(roster, roomScene)
         },
         {
             key: "rooms",
-            done: (workingScene()?.regions?.size ?? 0) > 0,
+            /* A ROOM, NOT A REGION (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This was done
+               on `regions.size`, so a scene holding only a Teleport, or a player's region, passed
+               it; it asks rooms.mjs now, the question the row's words ask. */
+            done: sceneHoldsRooms(roomScene),
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
             /*
@@ -331,6 +357,32 @@ function steps() {
              * half stops happening.
              */
             extra: () => roomGuideHtml()
+        },
+        {
+            /*
+             * EVERY NAMED REGION DECIDED (E12 C1, 11.10.2026; rooms.mjs). From 1.2.74 a region is
+             * a room only when a GM marked it; the migration marked what a world had once
+             * (`markRooms`), so a region drawn since is nobody's decision until a GM makes it.
+             * This row names them; the button opens Room Setup on the tab with the column.
+             */
+            key: "roomsMarked",
+            done: undecidedRegionNames().length === 0,
+            missing: undecidedRegionNames,
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
+        },
+        {
+            /*
+             * THE SCHOOL AND THE TRIAL HALL LINKED (E13 C5; plan-E13 C5, D7). With both linked
+             * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
+             * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
+             * `optional: true` for that reason - a table that holds its trial on the school's map
+             * has decided something. The button opens Room Setup on the Scenes tab.
+             */
+            key: "scenes",
+            optional: true,
+            done: Boolean(schoolScene() && trialScene()),
+            missing: () => [],
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
         },
         {
             /*
@@ -868,11 +920,14 @@ function tickedIn(root) {
  */
 const CAST_TO = Object.freeze(["stay", "bedroom", "point"]);
 
-/** Every named room on every map, by scene and region id - the GM's camera is no part of the answer (ITEM-16). */
+/**
+ * Every room on every map, by scene and the id of its first piece - the GM's camera is no part of the
+ * answer (ITEM-16). Until E12 fix r1-G5 (review goal-r1 N1) every named region was offered, a
+ * Teleport's and a player's among them, and a room of two pieces twice.
+ */
 function castPoints() {
-    return game.scenes.contents.flatMap(scene => [...(scene.regions ?? [])]
-        .filter(region => region.name?.trim())
-        .map(region => ({ value: `${scene.id}.${region.id}`, label: `${scene.name}: ${region.name}` })));
+    return game.scenes.contents.flatMap(scene => [...piecesByName(scene)]
+        .map(([name, pieces]) => ({ value: `${scene.id}.${pieces[0].id}`, label: `${scene.name}: ${name}` })));
 }
 
 /** The cast's choice in the window's words, for the reset's report: the bedrooms' label, or the room's as its list drew it. */
@@ -1236,7 +1291,8 @@ export async function placeCast(choice, actors = studentActors()) {
 
     const bedrooms = to === "bedroom" ? allBedroomsAnywhere() : [];
     const pointScene = to === "point" ? game.scenes.get(choice.scene) : null;
-    const pointRegion = [...(pointScene?.regions ?? [])].find(region => region.id === choice.region);
+    // A room's piece only (E12 fix r1-G5): the window offers no other, and a choice naming one is no point.
+    const pointRegion = pointScene ? roomPieces(pointScene).find(region => region.id === choice.region) : null;
     const point = pointRegion ? { scene: pointScene, region: pointRegion } : null;
     const tokensOf = (actor, scene) => [...(scene?.tokens ?? [])].filter(token => token.actorId === actor.id);
     const batches = new Map();
@@ -1247,7 +1303,7 @@ export async function placeCast(choice, actors = studentActors()) {
         if (to === "bedroom") {
             const mine = bedrooms.filter(entry => entry.owner?.id === actor.id);
             const bedroom = mine.find(entry => tokensOf(actor, entry.scene).length) ?? mine[0];
-            const region = bedroom ? [...(bedroom.scene?.regions ?? [])].find(r => r.name === bedroom.room) : null;
+            const region = bedroom ? roomRegions(bedroom.scene, bedroom.room)[0] ?? null : null;
             target = region ? { scene: bedroom.scene, region } : null;
         }
         const tokens = target ? tokensOf(actor, target.scene) : [];
@@ -1526,8 +1582,8 @@ async function wipeSeason(plan) {
             const { ROOM_FLAGS } = await import("./movement.mjs");
             const { startLocked } = await import("./vault.mjs");
             for (const scene of game.scenes) {
-                // A room is a region with a name; the rest are shapes somebody drew.
-                for (const region of Array.from(scene.regions ?? []).filter(r => r.name)) {
+                // Every piece of every room (rooms.mjs); a region that is no room keeps whatever it carries.
+                for (const region of roomPieces(scene)) {
                     const shouldBe = startLocked(region);
                     if (Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked)) !== shouldBe) {
                         await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, shouldBe);

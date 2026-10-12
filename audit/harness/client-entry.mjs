@@ -452,6 +452,8 @@ const versions = readVersions(REPO);
 const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspective": "Isometric Perspective", "avclient-livekit": "LiveKit AV Client" };
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
 for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
+// A companion this browser finds switched off (cluster.mjs `connect`'s `modulesOff`; E13 fix r1-F3).
+for (const id of String(process.env.DRPG_MODULES_OFF ?? "").split(",").filter(Boolean)) if (modulesMap.has(id)) modulesMap.get(id).active = false;
 
 /* A face the harness was told to show, as the `randomUniform` that draws it: Foundry maps u to
    `ceil((1 - u) * faces)`, so the middle of the face's band, u = 1 - (f - 0.5) / faces, lands on f
@@ -930,6 +932,8 @@ classes.ChatMessage.prototype.renderHTML = async function renderHTML() {
 const tokenWrappers = new Map();
 const canvas = {
     ready: false,
+    /* True until this client's first `canvasReady` (E13 C0): the boot below clears it as its draw ends. */
+    loading: true,
     scene: null,
     initialized: true,
     stage: new PIXI.Container(),
@@ -1001,9 +1005,57 @@ canvas.rendered = new PIXI.Container();
 canvas.rendered.addChild(canvas.primary, canvas.interface);
 canvas.stage.addChild(canvas.rendered);
 
+/* A DOOR CONTROL, AS FAR AS WHETHER IT IS DRAWN (E12 C13, 11.10.2026; audit S07-04). Foundry makes each
+   door's control from `CONFIG.Canvas.doorControlClass` and keeps them in `canvas.controls.doors`; the audit
+   read in its door-control.mjs that `isVisible` answers true at once while the scene's token vision is off,
+   as the room fog leaves every scene with rooms. That answer is the one modelled, on every scene: Foundry's
+   sight test with vision on is not (the harness has no vision), and true is the least this could hide. A
+   scenario adds the controls it asks about itself; no seeded scene has a wall. What a real canvas draws is
+   LIVE-E12-05. */
+class DoorControl extends PIXI.Container {
+    constructor(wall) {
+        super();
+        this.wall = wall;
+        this.visible = false;
+    }
+    get isVisible() { return true; }
+}
+canvas.controls = { doors: new PIXI.Container() };
+
+/* THE FLOOR ON SCREEN AND THE WAY A SCENE IS VIEWED (E12 C0, 11.10.2026; plan-E12 2.1 and 1.x item 7).
+   `canvas.level` is the floor this client looks at: the one a view named, while it is a floor of the viewed
+   scene, else that scene's lowest (by elevation, the order the owner's item 5 gives the floors), else null - every
+   seeded scene, which has none. Which floor v14 opens a scene on was not read (LIVE-E12-02). `_viewScene` is what
+   `Scene#view` and `#activate` call (lib/shim.mjs): it puts the scene on this canvas and fires `canvasReady`, as a
+   draw ends; a scenario that only assigns `canvas.scene` fires nothing, as before. */
+let viewedLevelId = null;
+Object.defineProperty(canvas, "level", {
+    configurable: true, enumerable: true,
+    get() {
+        const levels = canvas.scene?.levels ?? [];
+        return levels.find(level => level.id === viewedLevelId) ?? [...levels].sort((a, b) => a.elevation - b.elevation)[0] ?? null;
+    },
+    set(level) { viewedLevelId = level?.id ?? level ?? null; }
+});
+game._viewScene = (scene, { level = null } = {}) => {
+    canvas.scene = scene ?? null;
+    viewedLevelId = level?.id ?? level ?? null;
+    hooks.callAll("canvasReady", canvas);
+    return canvas;
+};
+
 // Foundry's WorldCollection getters the mock's plain Collection lacks.
 Object.defineProperty(game.scenes, "active", { get: () => game.scenes.find(s => s._source.active) });
 Object.defineProperty(game.scenes, "viewed", { get: () => canvas.scene });
+/* `Scenes#preload(sceneId, push)` (E13 C0, 11.10.2026; plan-E13 2.1 item 3): loads a scene's textures ahead
+   of its draw, and with `push` asks every connected client to. The harness loads no texture, so the stub
+   only keeps each call, on the client that made it, in `__scenePreloads`; whether a pushed preload reaches
+   the other clients is not modelled. Nothing in scripts/ called it at 48efd99 (git grep). */
+globalThis.__scenePreloads = [];
+game.scenes.preload = async (sceneId, push = false) => {
+    globalThis.__scenePreloads.push({ sceneId, push: Boolean(push) });
+    return [];
+};
 
 /* -------------------------------- ui ------------------------------------- */
 
@@ -1061,7 +1113,7 @@ const MESSAGE_MODES = {
 globalThis.CONFIG = {
     debug: { hooks: false },
     // Foundry's own selection colours (CONTROLLED is its orange).
-    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
+    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl },
     DH: {
         id: "daggerheart",
         // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,
@@ -1113,7 +1165,8 @@ const CONST = {
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },
     CHAT_MESSAGE_STYLES: { OTHER: 0, OOC: 1, IC: 2, EMOTE: 3 },
     REGION_EVENTS: { TOKEN_ENTER: "tokenEnter", TOKEN_EXIT: "tokenExit", TOKEN_MOVE_IN: "tokenMoveIn", TOKEN_MOVE_OUT: "tokenMoveOut" },
-    KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 }
+    KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 },
+    WALL_DOOR_TYPES: { NONE: 0, DOOR: 1, SECRET: 2 }
 };
 globalThis.CONST = CONST;
 /* v13's roll-mode constant as v14 has it (E33 C11, 07.10.2026): a deprecation. Daggerheart 2.10.5 reads
@@ -1194,7 +1247,10 @@ globalThis.foundry = {
             return fs.existsSync(file) ? new PIXI.Texture(p) : null;
         }
     },
-    documents: {},
+    /* The fields whose change is a move (E12 C0): plan-E12 3.2's list, which C9's `MOVE_FIELDS` falls back to. v13's
+       BaseToken names x, y, elevation, width, height and shape, as recalled, not read; v14's `level` and `depth` are
+       the plan's reading - LIVE-E12-02. */
+    documents: { BaseToken: { MOVEMENT_FIELDS: Object.freeze(["x", "y", "elevation", "width", "height", "depth", "shape", "level"]) } },
     dice: { Roll: RollImpl, terms: { Die, NumericTerm, OperatorTerm } },
     abstract: { DataModel: class {}, TypeDataModel: class {} },
     // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.
@@ -1285,12 +1341,20 @@ function applySnapshot(snap) {
 }
 
 function findEmbKey(parentName, embName) {
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" } };
+    // A region's behaviours as cluster.mjs `embKey` has them (E12 fix r2-S2, 11.10.2026; scenario 66 X3 and X4).
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     return map[parentName]?.[embName];
 }
 
+/* What this client has been sent created and deleted, by document name - `createToken`, `deleteScene` - for a
+   scenario that asks whether anything was (E13 C0, 11.10.2026; plan-E13 2.1 item 4). */
+globalThis.__documentCounts = {};
+const counted = (kind, name, n = 1) => { const key = `${kind}${name}`; globalThis.__documentCounts[key] = (globalThis.__documentCounts[key] ?? 0) + n; };
+
 function applyRemote(msg) {
     const { action, collName, userId, options = {} } = msg;
+    if (action === "create" || action === "delete") counted(action, collName, action === "create" ? msg.docs.length : 1);
+    if (action === "embedded-create" || action === "embedded-delete") counted(action.slice("embedded-".length), msg.embeddedName, (msg.docs ?? msg.ids).length);
     if (action === "create") {
         const c = coll(collName);
         const docs = msg.docs.map(d => instantiate(collName, d));
@@ -1305,9 +1369,27 @@ function applyRemote(msg) {
         const doc = coll(collName).get(msg.docId);
         if (!doc) return;
         U.applyDocChanges(collName, doc._source, msg.changes);
+        /* A FIELD AN UPDATE BRINGS IS READ AS A PROPERTY (E13 fix n1-N1, 12.10.2026). The shim put a document's
+           fields on it at construction only (lib/shim.mjs `_exposeSource`; `updateSource` already re-ran it), so a
+           field the create had not written read `undefined` after the update that wrote it: 66 X7's
+           `behavior.update({ disabled: true })` read `disabled` null, and a scene made without `fog` never read the
+           fog the room fog wrote, so `prepareScenes` counted every scene with rooms again at each call (three for
+           one, the tier-2 test "one scene put into room-based vision is said as one scene and two as two"). In v14
+           every field of the schema is on the document from its creation and follows each update (fvtt-types
+           14.366.0-beta: common/abstract/data.d.mts `_initialize` copies the source to the instance, and
+           common/documents/region-behavior.d.mts:328 has `disabled` a BooleanField) - read in the typings, not
+           at a table. The shim still holds no defaults: a field nobody wrote reads `undefined`, as before. */
+        doc._exposeSource?.();
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
         if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
+        /* A SCENE MADE ACTIVE IS VIEWED BY EVERY CLIENT (E13 C0, 11.10.2026; plan-E13 2.1 item 1, A5's reading
+           of Foundry: `Scene#_onUpdate` calls `view()` when `active` turns true, on every client that hears the
+           update, the GM who made it included). Until C0 only `Scene#activate`'s caller moved its own canvas
+           (lib/shim.mjs), and no other client followed. After the hook, because Foundry's draw that ends in
+           `canvasReady` is awaited after `_onUpdate` returns and the hook has fired. A client still loading
+           only warns (`Scene#view`). `active: false` moves nobody's canvas, here as in what A5 read. */
+        if (collName === "Scene" && msg.changes?.active === true) doc.view();
         return;
     }
     if (action === "delete") {
@@ -1347,6 +1429,7 @@ function applyRemote(msg) {
                 for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
                 if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
+                doc._exposeSource?.();   // the field the update brought, as for a world document above
                 rebuildEmbedded(doc);
                 hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
@@ -1373,7 +1456,7 @@ function rebuildEmbedded(doc) {
         for (const d of raw) {
             seen.add(d._id);
             const existing = c.get(d._id);
-            if (existing) existing._source = d;
+            if (existing) { existing._source = d; existing._exposeSource?.(); }
             else c.set(d._id, new cls(d, { parent: doc }));
         }
         for (const id of [...c.keys()]) if (!seen.has(id)) c.delete(id);
@@ -1383,6 +1466,8 @@ function rebuildEmbedded(doc) {
 /* --------------------------- message loop --------------------------------- */
 
 let booted = false;
+/* Held at the end of the canvas's load until the cluster says "loaded" (cluster.mjs `connect`, `holdLoading`). */
+let holdLoading = false, releaseLoading = null;
 
 process.on("message", async msg => {
     try {
@@ -1393,6 +1478,7 @@ process.on("message", async msg => {
                     // A browser that has been here before (cluster.mjs `connect`, E04): its
                     // localStorage as it was, before the module reads a setting.
                     for (const [key, raw] of Object.entries(msg.storage ?? {})) globalThis.localStorage.setItem(key, String(raw));
+                    holdLoading = Boolean(msg.holdLoading);
                     booted = true;
                     await boot();
                 }
@@ -1405,6 +1491,10 @@ process.on("message", async msg => {
             }
             case "apply": {
                 applyRemote(msg);
+                break;
+            }
+            case "loaded": {
+                releaseLoading?.();
                 break;
             }
             case "settingApplied": {
@@ -1560,6 +1650,11 @@ async function boot() {
         hooks.callAll("setup");
         game.ready = true;
         hooks.callAll("ready");
+        if (holdLoading) {
+            send({ t: "loading" });
+            await new Promise(resolve => { releaseLoading = resolve; });
+        }
+        canvas.loading = false;
         canvas.ready = true;
         hooks.callAll("canvasReady", canvas);
         // give not-awaited ready tasks a beat

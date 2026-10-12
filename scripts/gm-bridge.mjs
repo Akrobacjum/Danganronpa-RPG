@@ -1260,7 +1260,9 @@ async function handleSendback(payload, sender, ctx, prepared) {
     const to = { x: Number(asked.x), y: Number(asked.y) };
     if (asked.elevation !== undefined) to.elevation = Number(asked.elevation);
     if (asked.level !== undefined) to.level = asked.level;
-    await token.update(to, { animate: false, [prepared.REVERT]: true });
+    // Marked as the bridge's (E12 C12): the witness judge reads a send-back as the player's own
+    // revert, though this GM writes it - honoured only back to where the judge left the token.
+    await token.update(to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: !sender.isGM });
 }
 
 async function handleLoot(payload, sender, ctx) {

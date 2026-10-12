@@ -21,6 +21,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt } from "./movement.mjs";
+import { isMoveChange } from "./rooms.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
@@ -52,7 +53,8 @@ export function registerVisibility() {
         // `hidden` as well as a move: that is the write `revealRemnantToFinder`
         // makes, and it is the one moment a Remnant's visibility actually needs
         // recomputing for everyone who is not the finder.
-        if (changes.x !== undefined || changes.y !== undefined || changes.hidden !== undefined) applyAll();
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (isMoveChange(changes) || changes.hidden !== undefined) applyAll();
     });
     Hooks.on("createToken", () => applyAll());
     Hooks.on("deleteToken", () => applyAll());
@@ -164,72 +166,11 @@ function applyToToken(token) {
         }
 
         if (!token?.actor || token.actor.type !== "character") return;
-        // The GM sees the whole cast, always. Not a judgement call and never a
-        // setting: they are running the game, not standing in a room.
-        if (game.user.isGM) return;
-
-        /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
-           -------------------------------------------------------------------
-           This branch used to live below the `enforcing()` gate, so a table
-           with room visibility switched off got an Eclipse in which everybody
-           could watch everybody cross the map - confirmed live, and reported
-           as B-F2-3. Dawid settled the design question on 2026-08-26: an
-           Eclipse always hides players' tokens from other players, and the GM
-           always sees them all.
-
-           So the darkness is answered here, before the setting is consulted:
-           `roomVisibility` governs the ROOM rule below, which is about where
-           you are standing. An Eclipse is not about rooms - it is the lights
-           going out, and there is no configuration under which the lights are
-           out for one player and on for another. Your own token still shows,
-           for the same reason it does below: you have to be able to move it. */
-        if (isEclipse()) {
-            if (token.isOwner) show(token);
-            else hide(token);
-            return;
-        }
-
-        // Everything below is the room rule, which is what the setting governs.
-        if (!enforcing()) return;
-
-        // YOUR OWN TOKEN IS ALWAYS VISIBLE TO YOU, unconditionally.
-        //
-        // This used to `return` - leaving the token to whatever Foundry had
-        // decided - which is fine only while Foundry's own vision agrees. It
-        // does not always: with the scene switched to room-based visibility,
-        // an owned token standing in an unexplored corner of a stale
-        // exploration mask was hidden by Foundry itself, and the player was
-        // left looking at a map with their own character missing from it.
-        // There is no rule in this game under which you cannot see yourself,
-        // so this states it rather than assuming it.
-        if (token.isOwner) {
-            show(token);
-            return;
-        }
-
-        /* THE MASTERMIND'S ROOM IS A WATCHTOWER (Dawid, 26.08).
-           -------------------------------------------------------------------
-           A Mastermind whose own token stands in their lair sees the whole
-           cast, the way the GM's branch above does - they built the cameras.
-           Standing anywhere else they are exactly as blind as anyone, which
-           is why this reads their CURRENT rooms rather than remembering
-           anything: walk out, and the next refresh takes it away.
-
-           Deliberately below the Eclipse branch - the lights going out spare
-           nobody - and deliberately only in this function: Remnant tokens go
-           through `applyToRemnantToken`, so the watchtower never shows a
-           trace they have not personally observed. */
-        const lair = myLairRoom();
-        if (lair && myRooms().has(lair)) return;
-
-        const mine = myRooms();
-        const room = roomOfToken(token.document);
-
-        // A scene with no regions at all: leave Foundry's own logic alone
-        // rather than hiding the entire cast.
-        if (!mine.size && !room) return;
-
-        if (room && mine.has(room)) {
+        // The rule is `tokenShownTo`'s (E12 C11); this only carries its answer to the sprite.
+        const verdict = tokenShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
+        if (verdict === "show") show(token);
+        else if (verdict === "hide") hide(token);
+        else if (verdict === "room") {
             /*
              * THE DOCUMENT ARRIVES BEFORE THE SPRITE DOES (MAP-02). A token
              * walking INTO my room is "in my room" the instant its update
@@ -243,14 +184,109 @@ function applyToToken(token) {
             const sliding = token.x !== token.document.x || token.y !== token.document.y;
             if (sliding) {
                 const at = roomAt(token.x, token.y, token.document);
-                if (at && !mine.has(at)) hide(token);
+                if (at && !myRooms().has(at)) hide(token);
             }
-            return;
         }
-        hide(token);
     } catch {
         // Never break the canvas over this.
     }
+}
+
+/**
+ * Whether a character's token is shown to `viewer`: "show" (forced on), "hide", "room" (it stands
+ * in a room of the viewer's - Foundry's own visibility stands, `applyToToken` holds a sliding
+ * sprite back), or null (left to Foundry). `viewer` is `{ gm, eclipse, enforcing, rooms, lair,
+ * owns(tokenDoc) }` - `viewerHere()` for this browser - so the rule reads no canvas and no user
+ * of its own.
+ *
+ * ANOTHER FLOOR IS SHOWN BY THE SAME RULE (E12 C11, 11.10.2026; plan-E12 3.5, the owner's answer
+ * Q2 (b) of 09.10). A token is placed by the room it stands in (movement.mjs `roomOfToken`, on its
+ * own floor since E12 C9) and the viewer's rooms are where their own tokens stand, by name: on a
+ * floor the viewer looks at and does not stand on, every other player's token is hidden, as it is
+ * in a room of their own floor they are not in - and one in a room the viewer stands in, a
+ * stairwell drawn on both floors, is shown on each - where the viewer's tokens are read at all:
+ * `myRooms` reads `canvas.tokens.placeables`, the whole scene in the harness, and v14's layer may
+ * hold only the floor on screen (LIVE-E12-02; E12 fix r2-S2, review EARLY-C11-1), stricter if so.
+ * Taken out of `applyToToken` so the verdict
+ * can be read without a canvas (tier 2 "a room on another floor looks as it does on yours").
+ */
+export function tokenShownTo(tokenDoc, viewer) {
+    if (tokenDoc?.actor?.type !== "character") return null;
+    // The GM sees the whole cast, always. Not a judgement call and never a
+    // setting: they are running the game, not standing in a room.
+    if (viewer.gm) return null;
+
+    /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
+       -------------------------------------------------------------------
+       This branch used to live below the `enforcing()` gate, so a table
+       with room visibility switched off got an Eclipse in which everybody
+       could watch everybody cross the map - confirmed live, and reported
+       as B-F2-3. Dawid settled the design question on 2026-08-26: an
+       Eclipse always hides players' tokens from other players, and the GM
+       always sees them all.
+
+       So the darkness is answered here, before the setting is consulted:
+       `roomVisibility` governs the ROOM rule below, which is about where
+       you are standing. An Eclipse is not about rooms - it is the lights
+       going out, and there is no configuration under which the lights are
+       out for one player and on for another. Your own token still shows,
+       for the same reason it does below: you have to be able to move it. */
+    if (viewer.eclipse) return viewer.owns(tokenDoc) ? "show" : "hide";
+
+    // Everything below is the room rule, which is what the setting governs.
+    if (!viewer.enforcing) return null;
+
+    // YOUR OWN TOKEN IS ALWAYS VISIBLE TO YOU, unconditionally.
+    //
+    // This used to `return` - leaving the token to whatever Foundry had
+    // decided - which is fine only while Foundry's own vision agrees. It
+    // does not always: with the scene switched to room-based visibility,
+    // an owned token standing in an unexplored corner of a stale
+    // exploration mask was hidden by Foundry itself, and the player was
+    // left looking at a map with their own character missing from it.
+    // There is no rule in this game under which you cannot see yourself,
+    // so this states it rather than assuming it.
+    if (viewer.owns(tokenDoc)) return "show";
+
+    /* THE MASTERMIND'S ROOM IS A WATCHTOWER (Dawid, 26.08).
+       -------------------------------------------------------------------
+       A Mastermind whose own token stands in their lair sees the whole
+       cast, the way the GM's branch above does - they built the cameras.
+       Standing anywhere else they are exactly as blind as anyone, which
+       is why this reads their CURRENT rooms rather than remembering
+       anything: walk out, and the next refresh takes it away.
+
+       Deliberately below the Eclipse branch - the lights going out spare
+       nobody - and deliberately only in this function: Remnant tokens go
+       through `applyToRemnantToken`, so the watchtower never shows a
+       trace they have not personally observed. */
+    if (viewer.lair && viewer.rooms.has(viewer.lair)) return null;
+
+    const room = roomOfToken(tokenDoc);
+    // A scene with no regions at all: leave Foundry's own logic alone
+    // rather than hiding the entire cast.
+    if (!viewer.rooms.size && !room) return null;
+    return room && viewer.rooms.has(room) ? "room" : "hide";
+}
+
+/**
+ * This browser as `tokenShownTo`'s viewer; `owns` reads a token document's own `isOwner` unless
+ * the caller hands another (`applyToToken` hands the sprite's). The rooms, the lair and the
+ * setting are getters, read only when the rule gets to them, as `applyToToken` read them before
+ * E12 C11: a GM's refresh asks for none of the three, and `refreshToken` fires on every frame of
+ * a drag.
+ */
+export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
+    return {
+        gm: Boolean(game.user?.isGM),
+        eclipse: isEclipse(),
+        get enforcing() { return enforcing(); },
+        get rooms() { return myRooms(); },
+        // Written with a computed key: R22 reads `get lair()` as a call to a function `lair` that
+        // this file does not declare (11.10.2026, the first fast run of E12 C11).
+        get ["lair"]() { return myLairRoom(); },
+        owns
+    };
 }
 
 /**

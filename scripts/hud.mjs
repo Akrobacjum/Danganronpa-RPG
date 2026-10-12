@@ -37,7 +37,9 @@ import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTIN
 // would be a load-order problem rather than a lint complaint. None of these
 // four reach hud.mjs, directly or through anything they import - eighteen
 // modules were walked to confirm it.
-import { roomOfActor, roomOfToken } from "./movement.mjs";
+import { roomOfToken, locateActor } from "./movement.mjs";
+// A leaf (config.mjs alone), so it reaches nothing that reaches hud.mjs.
+import { isMoveChange } from "./rooms.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
@@ -175,7 +177,8 @@ export function registerHud() {
     // GM that student's room instead of their Monokuma's. Comparing the room
     // before and after is the same trick movement.mjs plays with `lastRoom`.
     Hooks.on("updateToken", (doc, changes) => {
-        if (changes.x === undefined && changes.y === undefined) return;
+        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
+        if (!isMoveChange(changes)) return;
         const mine = hudActor();
         if (!mine || doc.actorId !== mine.id) return;
 
@@ -1361,7 +1364,8 @@ function buildRoom() {
         const actor = hudActor();
         if (!actor) return null;
 
-        const room = roomOfActor(actor);
+        const place = locateActor(actor);
+        const room = place?.room ?? null;
 
         const box = document.createElement("div");
         box.className = "drpg-hud-room";
@@ -1378,11 +1382,11 @@ function buildRoom() {
         // The NAME is never rendered, for either of them: this widget is on
         // screen while people share a screen, and a project's name is exactly
         // the thing the guide keeps between its owner and the GM.
-        const projects = projectsAvailableIn(room, game.user);
+        const projects = projectsAvailableIn(place, game.user);
         box.append(line("drpg-hud-room-project", game.i18n.localize(projects.length
             ? "DRPG.Hud.roomProject" : "DRPG.Hud.roomNoProject")));
 
-        box.append(buildSearchPips(room));
+        box.append(buildSearchPips(room, place.scene));
         return box;
     } catch (err) {
         // The HUD is the frame around the game; a room that cannot be resolved
@@ -1400,13 +1404,13 @@ function buildRoom() {
  * that mixes them staggers. A screen reader gets the number instead: three
  * dots are not a readout.
  */
-function buildSearchPips(room, { idle = false } = {}) {
+function buildSearchPips(room, scene, { idle = false } = {}) {
     const max = SearchTokens.max;
     // A sealed room has its three tokens sitting untouched in the store and
     // none of them can be spent, so drawing them would be the widget promising
     // something the sheet then refuses. Shown empty and struck through instead.
-    const sealed = SearchTokens.sealed(room);
-    const left = sealed ? 0 : SearchTokens.left(room);
+    const sealed = SearchTokens.sealed(room, scene);
+    const left = sealed ? 0 : SearchTokens.left(room, scene);
 
     const row = document.createElement("div");
     row.className = `drpg-hud-room-tokens${idle ? " is-idle" : ""}${sealed ? " is-sealed" : ""}`;

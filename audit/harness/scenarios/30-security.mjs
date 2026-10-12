@@ -1405,7 +1405,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const M = await import("${repoUrl}/scripts/movement.mjs");
         const aiko = game.actors.get("${ids.aiko}");
         const room = M.roomOfActor(aiko);
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (!region) return { room, err: "no region" };
         const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
         globalThis.__c14Stash = { room, keys, before: keys.map(k => foundry.utils.deepClone(region.getFlag("${MOD}", k))),
@@ -1414,7 +1414,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             ["flags.${MOD}." + V.VAULT_FLAGS.hinders]: [], ["flags.${MOD}." + V.VAULT_FLAGS.favours]: [] });
         return { room, threshold: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.analyze?.stashThreshold ?? 16 };`, { timeout: 30000 });
     const stashFound = `const V = await import("${repoUrl}/scripts/vault.mjs");
-        return V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(consoleStash.room ?? "")}, "${ids.daichi}");`;
+        return V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(consoleStash.room ?? "")}, "${ids.daichi}", canvas?.scene);`;
     await clearFailures();
     await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true });
     await settle(1200);
@@ -1428,7 +1428,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const { forcedDeletion } = await import("${repoUrl}/scripts/utils.mjs");
         const { room, keys, before, found } = globalThis.__c14Stash ?? {};
         delete globalThis.__c14Stash;
-        const region = room ? V.regionsByName().get(room) : null;
+        const region = room ? V.regionsByName(canvas?.scene).get(room) : null;
         if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
         const aiko = game.actors.get("${ids.aiko}");
         if (found === null) await aiko.unsetFlag("${MOD}", V.VAULT_FLAGS.found);
@@ -1849,7 +1849,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         cross.forOwnership && cross.told.some(t => t.what === "eclipse.move"), JSON.stringify({ reasons: cross.reasons, told: cross.told }));
     const where = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const X = await import("${repoUrl}/scripts/eclipse.mjs");
         const here = M.roomOfActor(game.actors.get("${ids.botan}"));
-        return { here, into: M.allRooms().find(r => here && !r.includes(here) && !here.includes(r)) ?? null, allowance: X.eclipseAllowance() };`);
+        return { here, into: M.allRooms(canvas?.scene).find(r => here && !r.includes(here) && !here.includes(r)) ?? null, allowance: X.eclipseAllowance() };`);
     const cardsFrom = await p2.eval(`return game.messages.size;`);
     const crossOk = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}", ${JSON.stringify(where.into)});`, { timeout: 30000 });
     await settle(600);
@@ -2672,12 +2672,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const itemsSet = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const V = await import("${repoUrl}/scripts/vault.mjs"); const M = await import("${repoUrl}/scripts/movement.mjs");
         const aiko = game.actors.get("${ids.aiko}"), here = M.roomOfActor(aiko);
-        const room = M.allRooms().find(name => name !== here && !V.stashIn(name, aiko.id)) ?? null;
-        if (room) await V.setStash(room, aiko.id, { present: true });
+        const room = M.allRooms(canvas?.scene).find(name => name !== here && !V.stashIn(name, aiko.id, canvas?.scene)) ?? null;
+        if (room) await V.setStash(room, aiko.id, { present: true, scene: canvas?.scene });
         const bandage = await INV.grantItem(aiko, { name: "E29 C6 30 bandage", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
         const tool = await INV.grantItem(aiko, { name: "E29 C6 30 tool", category: "tool", tier: 1, override: true, quiet: true });
         await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
-        return { here, hereMine: here ? Boolean(V.stashIn(here, aiko.id)) : null, room, mine: room ? Boolean(V.stashIn(room, aiko.id)) : false, bandage: bandage?.id ?? null, tool: tool?.id ?? null, from: Date.now() };`,
+        return { here, hereMine: here ? Boolean(V.stashIn(here, aiko.id, canvas?.scene)) : null, room, mine: room ? Boolean(V.stashIn(room, aiko.id, canvas?.scene)) : false, bandage: bandage?.id ?? null, tool: tool?.id ?? null, from: Date.now() };`,
         { timeout: 30000 });
     const readItems = `const a = game.actors.get("${ids.aiko}"), b = a?.items.get("${itemsSet.bandage}"), t = a?.items.get("${itemsSet.tool}");
         return b && t ? [b.system.quantity, t.getFlag("${MOD}", "location") ?? "carried", t.getFlag("${MOD}", "stashRoom") ?? null] : null;`;
@@ -2706,7 +2706,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await gm.eval(`const a = game.actors.get("${ids.aiko}");
             await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             for (const id of ["${itemsSet.bandage}", "${itemsSet.tool}"]) await a.items.get(id)?.delete();
-            if (${JSON.stringify(itemsSet.room)}) await (await import("${repoUrl}/scripts/vault.mjs")).setStash(${JSON.stringify(itemsSet.room)}, a.id, { present: false });
+            if (${JSON.stringify(itemsSet.room)}) await (await import("${repoUrl}/scripts/vault.mjs")).setStash(${JSON.stringify(itemsSet.room)}, a.id, { present: false, scene: canvas?.scene });
             return true;`);
     }
     check("SECURITY: a player's console raising a bandage's count, and stashing a Tool from a room with no stash of its student's, is put back on every client, with a row each and the player told",

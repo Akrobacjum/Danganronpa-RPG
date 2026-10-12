@@ -287,6 +287,8 @@ async function runSuite(tier, only = null) {
     const untouched = await worldDump();
     let running = null;
     const writes = watchWrites(() => running);
+    // The world's scene links while tier 2 holds them empty (below), put back in the `finally`.
+    let heldRoles = null;
     try {
         lines.push("TIER 0 - module-wide regression (source is read, not called)");
         for (const entry of pick(REGRESSIONS)) {
@@ -361,6 +363,28 @@ async function runSuite(tier, only = null) {
              * hello, which re-exchanges with the other GMs.
              */
             gmStoreHold(true);
+            /*
+             * THE WORLD'S SCENE LINKS ARE HELD EMPTY FOR THE RUN (E13 fix r2-H3, 12.10.2026; review r2
+             * cor C). Since E13 C3 every write of the classTrial phase takes the table into the linked
+             * hall and out again (trial-scene.mjs `followPhase`): the hall's return flag written, its
+             * cast shown and hidden, the hall and then the school activated on every browser, the GMs
+             * whispered. Thirty-eight lines of tier 2 write that phase (counted by grep, review r2), and
+             * headless the harness world links no hall, so none of them was written for one: at a table
+             * with a hall linked they drove the world's own, and the trial console test failed (scenario
+             * 41 m1 reads both). So the links go empty before the snapshot - every restore below then
+             * puts back the empty links, not the hall - and come back in the `finally` at the end. A test
+             * that needs a hall links one of its own and puts back what it found. A run cut off half
+             * way (the tab closed) leaves the links empty, as it leaves the fixture it was in; the GM
+             * links them again in Room Setup's Scenes tab.
+             */
+            if (game.settings.settings.has(`${MODULE_ID}.sceneRoles`)) {
+                const roles = game.settings.get(MODULE_ID, "sceneRoles") ?? {};
+                if (Object.keys(roles).length) {
+                    await game.settings.set(MODULE_ID, "sceneRoles", {});
+                    heldRoles = roles;
+                    lines.push("The world's scene links (the school, the trial hall) are held empty for this run and put back after it.");
+                }
+            }
             let snap = null;
             try {
                 snap = await snapshot(studentActors());
@@ -440,6 +464,14 @@ async function runSuite(tier, only = null) {
         writes.stop();
         // Released whatever happened above; a hold the suite never took is released as a no-op.
         gmStoreHold(false);
+        if (heldRoles) {
+            try {
+                await game.settings.set(MODULE_ID, "sceneRoles", heldRoles);
+            } catch (err) {
+                record({ tier: 2, name: "tier 2 put the world's scene links back", outcome: "fail", assertions: null,
+                    message: `${err?.message ?? String(err)}\nlink them again in Room Setup's Scenes tab: ${JSON.stringify(heldRoles)}` });
+            }
+        }
     }
 
     // the skipped count is always printed, including as a zero: a run that says

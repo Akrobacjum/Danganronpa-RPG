@@ -71,7 +71,8 @@ import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
-import { locateActor } from "./movement.mjs";
+import { locateActor, sameRoom } from "./movement.mjs";
+import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
@@ -135,13 +136,23 @@ export function isCleaner(actor) {
     return cleanupBlocker(actor) === null;
 }
 
-/** Is the victim's body in the same room as this killer? Read by the sheet. */
+/**
+ * Is the victim's body in the same room as this killer? Read by the sheet, and
+ * asked on the killer's browser before Move the body is paid for and on the GM's
+ * before it is resolved.
+ *
+ * The same room on the same scene and floor (movement.mjs `sameRoom`; E12 fix
+ * r1-G4, 11.10.2026, review round 1 EARLY-C3-3). It compared the two rooms' names
+ * alone, so a killer in the Annex's Kitchen with the body in the school's passed
+ * both checks, paid the step, and `applyMoveBody`, which looks for the body on the
+ * killer's scene, found none: "The body would not move", and the step was gone.
+ * A body that cannot be placed is not here, and the action is refused before it
+ * is paid for.
+ */
 export function bodyIsHere(actor) {
     const victim = game.actors.get(murderState()?.victimId ?? "");
     if (!victim) return false;
-    const mine = locateActor(actor);
-    const theirs = locateActor(victim);
-    return Boolean(mine?.room) && mine.room === theirs?.room;
+    return sameRoom(actor, victim);
 }
 
 /** Say which of the four it is, and refuse. @returns {null} always. */
@@ -2496,7 +2507,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      * where. `def.rooms` stays in the table as the reach - the picker offers the
      * rooms connected to this one - and the random walk is gone.
      */
-    const reachable = await bodyDestinations(here.room);
+    const reachable = await bodyDestinations(here.scene, here.room);
     let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
 
     if (!room) {
@@ -2506,7 +2517,8 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
         return;
     }
 
-    const region = Array.from(here.scene?.regions ?? []).find(r => r.name === room);
+    // The room's first piece (rooms.mjs, E12 C2a): a Teleport named like the room is no room.
+    const region = roomRegions(here.scene, room)[0] ?? null;
     const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id) ?? null;
 
     /*
@@ -2750,7 +2762,7 @@ async function undoLastCleanup(actor, tokenId) {
     // invented name on it - a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
-            const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
+            const { retuneRemnant, setRemnantPublic, sceneOfRemnant } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
             const from = receipt.transformed.from;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
@@ -2761,7 +2773,7 @@ async function undoLastCleanup(actor, tokenId) {
             // empty payload is what `defaultPublic` rebuilds from.
             const back = receipt.transformed.publicFrom;
             const scene = receipt.transformed.sceneId
-                ? game.scenes.get(receipt.transformed.sceneId) : canvas?.scene;
+                ? game.scenes.get(receipt.transformed.sceneId) : sceneOfRemnant(receipt.transformed.id);
             const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
             if (tokenDoc) {
                 // The ledger alone (E09 C9): the reshape left the copies already held as they
@@ -3269,8 +3281,9 @@ export async function openCleanupDialog(actor) {
  * ADJACENCY (Dawid, 29.08). `neighbouringRooms` is the same reach a living
  * character walks by, so dragging a corpse cannot cross a building. Where a map
  * measures badly - bounding boxes overlap where rooms do not - the GM's
- * `drpgNeighbours` flag on the region is the override, and it is the same
- * override ordinary movement reads.
+ * Neighbours in Room Setup (`drpgNeighbours` on the room's pieces, counted from
+ * both sides since E12 C14) is the override, and it is the same override
+ * ordinary movement reads.
  *
  * BEDROOMS ARE NEVER A DESTINATION (Dawid, 29.08, new rule). A bedroom belongs
  * to one student, it locks, and the only people who can open it are its owner
@@ -3287,13 +3300,15 @@ export async function openCleanupDialog(actor) {
  * Every neighbour being a bedroom returns an empty list, which the callers
  * already read as "there is nowhere to take it" - the honest answer.
  */
-async function bodyDestinations(room) {
+async function bodyDestinations(scene, room) {
     if (!room) return [];
     const { neighbouringRooms } = await import("./movement.mjs");
     const { vaultOwnerOf } = await import("./vault.mjs");
-    return neighbouringRooms(room)
+    // The killer's scene, for the neighbours and for whose bedroom each is (E12 C2a): both
+    // read the camera's scene until 1.2.74.
+    return neighbouringRooms(scene, room)
         .filter(r => r !== room)
-        .filter(r => !vaultOwnerOf(r));
+        .filter(r => !vaultOwnerOf(r, scene));
 }
 
 /**
@@ -3312,7 +3327,7 @@ export async function openMoveBodyDialog(actor) {
     }
 
     const here = locateActor(actor);
-    const rooms = await bodyDestinations(here?.room ?? "");
+    const rooms = await bodyDestinations(here?.scene, here?.room ?? "");
 
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));

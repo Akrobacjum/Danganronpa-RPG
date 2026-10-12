@@ -20,7 +20,8 @@
  * because those files read them; fog.mjs exported
  * none of them before and re-exports none, so the module's API is the one it was.
  * `flattenPoints` and `ellipsePoints` are read only by `regionShapes` and stay
- * private.
+ * private. `piecesAsOne` (E12 C2b) hands the drawing code a room of several
+ * regions as one shape; it is handed the pieces, and still imports nothing.
  */
 
 /**
@@ -104,6 +105,95 @@ export function regionShapes(region, rect) {
     return out;
 }
 
+/**
+ * A room of several pieces as one shape for the code that draws it (E12 C2b, 11.10.2026;
+ * plan-E12 3.1, audit S07-05). A room is a name on a scene and may be drawn as any number of
+ * regions (rooms.mjs `roomRegions`); the outline, the reveal, the doorway glow and the map's
+ * checks each read ONE region - its `polygons` through `regionShapes`, its box through
+ * movement.mjs `boundsOf`, its `name`, its scene through `parent` - and until 1.2.74 they were
+ * handed the first region of the name, so a room in two pieces was outlined and revealed round
+ * one of them. The pieces' shapes are read here once, holes left out as `regionShapes` leaves
+ * them, and handed on as a `polygons` list in scene space, the shape both of those readers take
+ * before the raw `shapes`; one piece is handed back as the region it is, so a room of one
+ * piece is drawn exactly as before. The pieces are not merged into one polygon here: where two
+ * of them touch or overlap, each keeps its own border, and the stretches of it that run with the
+ * room on both sides - the line two pieces share, a piece's edge across the other's floor - are
+ * found by `innerStretches` and left undrawn by the outline, its halo and the doorway glow
+ * (fog-doorways.mjs `doorwayEdges`). Until E12 fix r1-G5 (review EARLY-C2b-1) they were drawn,
+ * across the floor, once per piece.
+ */
+export function piecesAsOne(pieces) {
+    if (!pieces?.length) return null;
+    if (pieces.length === 1) return pieces[0];
+    const polygons = pieces.flatMap(piece => regionShapes(piece, { x: 0, y: 0 }));
+    return { name: pieces[0].name, id: pieces[0].id, parent: pieces[0].parent, pieces, polygons };
+}
+
+/**
+ * The piece of a room handed as one (`piecesAsOne`) with the largest area, or the region itself
+ * when it is one piece. The room's name is drawn there (fog-reveal.mjs `labelPoint`): the centre
+ * of every piece's box together can lie in none of them (review EARLY-C2b-2).
+ */
+export function largestPiece(region) {
+    if (!region?.pieces?.length) return region ?? null;
+    const area = piece => regionShapes(piece, { x: 0, y: 0 }).reduce((sum, flat) => sum + polygonArea(flat), 0);
+    return region.pieces.reduce((best, piece) => (area(piece) > area(best) ? piece : best));
+}
+
+/** Whether a point lies inside a flat ring `[x,y,…]`, by the crossings of a ray (even-odd, as PIXI's own test). */
+function inRing(flat, x, y) {
+    let inside = false;
+    for (let i = 0, j = flat.length - 2; i < flat.length; j = i, i += 2) {
+        const xi = flat[i], yi = flat[i + 1], xj = flat[j], yj = flat[j + 1];
+        if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+}
+
+/**
+ * The stretches of the edge from (ax, ay) along (dx, dy) that run with the room on both sides, as
+ * `[from, to]` fractions of the edge, given the room's rings (flat, scene space; `regionShapes`).
+ * The edge is cut wherever any ring's border crosses it or runs along it, and each cut piece is
+ * inner when the points two pixels either side of its middle both lie in some ring. A ring
+ * alone has no such stretch, so a room of one shape is answered `[]` without a look (E12 fix
+ * r1-G5, 11.10.2026; review EARLY-C2b-1). Written without PIXI so it gives the same answer on the
+ * harness, whose `PIXI.Polygon` contains no point.
+ */
+export function innerStretches(rings, ax, ay, dx, dy) {
+    if (!(rings?.length > 1)) return [];
+    const length = Math.hypot(dx, dy);
+    if (length < 1) return [];
+    const nx = -dy / length, ny = dx / length, sq = length * length;
+    const cuts = [0, 1];
+    for (const flat of rings) {
+        for (let i = 0, j = flat.length - 2; i < flat.length; j = i, i += 2) {
+            const px = flat[j], py = flat[j + 1], ex = flat[i] - px, ey = flat[i + 1] - py;
+            const denom = dx * ey - dy * ex;
+            if (Math.abs(denom) < 1e-9) {
+                // Parallel: along this edge's own line, its ends cut it.
+                if (Math.abs((px - ax) * nx + (py - ay) * ny) > 0.5) continue;
+                cuts.push(((px - ax) * dx + (py - ay) * dy) / sq, ((px + ex - ax) * dx + (py + ey - ay) * dy) / sq);
+                continue;
+            }
+            const t = ((px - ax) * ey - (py - ay) * ex) / denom;
+            const u = ((px - ax) * dy - (py - ay) * dx) / denom;
+            if (u >= 0 && u <= 1) cuts.push(t);
+        }
+    }
+    const ts = [...new Set(cuts.filter(t => t >= 0 && t <= 1))].sort((a, b) => a - b);
+    const inside = (x, y) => rings.some(flat => inRing(flat, x, y));
+    const out = [];
+    for (let k = 1; k < ts.length; k++) {
+        const a = ts[k - 1], b = ts[k];
+        if ((b - a) * length < 1) continue;
+        const mx = ax + dx * (a + b) / 2, my = ay + dy * (a + b) / 2;
+        if (!inside(mx + nx * 2, my + ny * 2) || !inside(mx - nx * 2, my - ny * 2)) continue;
+        if (out.length && Math.abs(out.at(-1)[1] - a) * length < 1) out.at(-1)[1] = b;
+        else out.push([a, b]);
+    }
+    return out;
+}
+
 /** `[x,y,…]` or `[{x,y},…]` → a flat, shifted array. `null` if unreadable. */
 function flattenPoints(points, rect) {
     if (!Array.isArray(points) && !ArrayBuffer.isView(points)) return null;
@@ -171,6 +261,24 @@ export function distanceToSegment(px, py, x1, y1, x2, y2) {
 /** Is this point inside that region? Polygons are passed in already built. */
 export function inPolygons(polygons, x, y) {
     for (const poly of polygons) if (poly.contains(x, y)) return true;
+    return false;
+}
+
+/**
+ * The same question of the flat `[x0, y0, x1, y1, ...]` lists `regionShapes` hands back, by the
+ * even-odd rule, so it is asked without PIXI (E12 C13, 11.10.2026: a door control's sides, fog.mjs
+ * `doorShownTo`). The harness's `PIXI.Polygon#contains` answers false for every point, so
+ * `inPolygons` cannot be read there; this can.
+ */
+export function inFlatPolygons(polygons, x, y) {
+    for (const flat of polygons ?? []) {
+        let inside = false;
+        for (let i = 0, j = flat.length - 2; i < flat.length; j = i, i += 2) {
+            const xi = flat[i], yi = flat[i + 1], xj = flat[j], yj = flat[j + 1];
+            if ((yi > y) !== (yj > y) && x < xi + ((y - yi) * (xj - xi)) / (yj - yi)) inside = !inside;
+        }
+        if (inside) return true;
+    }
     return false;
 }
 

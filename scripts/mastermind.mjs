@@ -571,16 +571,26 @@ export async function openMastermindDialog() {
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const hopeBox = () => mastermindHopeBox({ monokumas, donorLabel });
 
-    const { allRooms } = await import("./movement.mjs");
+    const { placeRoomNames } = await import("./rooms.mjs");
 
     // The Final Key Remnant planner that used to sit here lives on the
     // Investigation dashboard now (Dawid, 26.08) - this screen names the one
     // secret the module guards hardest, and planting endgame clues gave a GM
     // reasons to have it open. What is left is the role and the lair.
+    /* EVERY PLACE SCENE'S ROOMS, AND THE STORED LAIR KEPT (E12 fix r1-G2, 11.10.2026; review round
+       1 CR1-5). The list was the rooms of the scene on the GM's screen, and Apply writes the select's
+       value whenever it differs from the store: opened with another map on screen, the lair had no
+       option, the select read "-" and Apply cleared it. The lair is a name, so the list is every
+       place scene's room names
+       (rooms.mjs `placeRoomNames`), and a lair no place scene has is kept as its own chosen
+       option, as the project manager keeps a project's room (projects-ui.mjs `roomSelectOptions`). */
     const lair = readStore().room ?? "";
-    const roomOptions = allRooms().map(r =>
+    const lairRooms = placeRoomNames();
+    const roomOptions = [...lairRooms.map(r =>
         `<option value="${foundry.utils.escapeHTML(r)}"${r === lair ? " selected" : ""}>${
-            foundry.utils.escapeHTML(r)}</option>`).join("");
+            foundry.utils.escapeHTML(r)}</option>`),
+    ...(lair && !lairRooms.includes(lair) ? [`<option value="${foundry.utils.escapeHTML(lair)}" selected>${
+        foundry.utils.escapeHTML(game.i18n.format("DRPG.Project.roomElsewhere", { room: lair }))}</option>`] : [])].join("");
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle") },
@@ -708,12 +718,17 @@ export function finalRemnants() {
  * Lived on the Investigation Dashboard's third tab until now, which meant two
  * windows could write the same record. One entry, one place it is changed.
  */
-export async function placeFinalRemnant({ room, visibility = "evident", note = "",
+export async function placeFinalRemnant({ room, scene: onScene = null, visibility = "evident", note = "",
                                           name = "", text = "", analysis = "" } = {}) {
     if (!game.user.isGM || !room) return null;
 
-    const scene = canvas?.scene;
-    const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
+    /* ON THE ROOM'S SCENE (E12 C5, 1.2.74; plan-E12 C5). The clue went to a room of that name
+       on whichever scene the GM's camera showed, or nowhere ("no such room") with another map on
+       screen. A caller may name the scene; otherwise it is the scene that holds the room, the
+       school first (rooms.mjs `sceneOfRoom`). */
+    const { roomRegions, sceneOfRoom } = await import("./rooms.mjs");
+    const scene = onScene ?? sceneOfRoom(room);
+    const region = roomRegions(scene, room)[0];
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return null;

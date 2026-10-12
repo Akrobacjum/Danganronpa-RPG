@@ -57,8 +57,9 @@ export const ITEM_FLAGS = {
      *
      * A NAME rather than a region id, to match how every other room reference
      * in this module works (`roomOfActor`, the key flag, the fog mirror). The
-     * cost is that renaming a region orphans them, which is the same cost the
-     * bedroom keys already pay and is documented at `KEY_FLAG`.
+     * cost was that renaming a region orphaned them, as it did the bedroom
+     * keys; since E12 C8 (1.2.74) a GM's rename carries both, on the primary
+     * (vault.mjs `carryRoomOnSheets`, from fog.mjs's region listener).
      */
     stashRoom: "stashRoom",
     /**
@@ -185,9 +186,10 @@ export function newItemIdentity() {
  * How many bad rolls this thing has left in it, and how many it has taken.
  *
  * The tier decides the total (`ITEM_DURABILITY`); anything with no tier
- * recorded answers 1, so a hand-made item and a world made before durability
- * existed behave exactly as everything did before it: one Despair and it is
- * done.
+ * recorded answers 1 - a hand-made item, a world made before durability
+ * existed. It is read as tier 0 by `tierOf` as well, so since E13 C8 it is
+ * single use: the first roll it is used in spends it, not only a Despair
+ * (use-items.mjs `rollSpends`, R439).
  */
 export function durabilityOf(item) {
     const tier = Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier));
@@ -671,8 +673,12 @@ export async function grantItem(actor, {
             // exists: an unaddressed item would otherwise be read as living in
             // whichever stash `primaryStashRoom` happens to answer later, and
             // that answer can change when a GM adds or removes one.
+            // On the scene the character stands on, else the school's (E12 C3): the camera's
+            // until then, so the overflow went to whatever stash the granting GM had on screen.
             const { primaryStashRoom } = await import("./vault.mjs");
-            overflowRoom = primaryStashRoom(actor);
+            const { locateActor } = await import("./movement.mjs");
+            const { homeScene } = await import("./rooms.mjs");
+            overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene());
             if (overflowRoom) {
                 location = LOCATIONS.vault;
                 await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {

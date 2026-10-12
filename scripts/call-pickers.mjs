@@ -61,7 +61,7 @@ export async function pickTarget(actor, call, kind) {
             case "player": return await pickPlayer(actor, call, kind);
             case "monocub": return await pickMonocub();
             case "project": return await pickProject(actor, kind, call);
-            case "room": return await pickRoom();
+            case "room": return await pickRoom(actor);
             case "item": return await pickItem();
             default: return {};
         }
@@ -243,7 +243,7 @@ async function pickPlayer(actor, call, kind) {
 
 async function pickProject(actor, kind = "hope", call = null) {
     const { knownProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
-    const { roomOfActor } = await import("./movement.mjs");
+    const { locateActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
     // Monokuma reaches any of them.
@@ -255,8 +255,8 @@ async function pickProject(actor, kind = "hope", call = null) {
     //
     // And the fallback is Monokuma's alone (DESP-14): `kind` used to go unread,
     // so a student in an empty room could Contribute across the map.
-    const room = roomOfActor(actor);
-    const here = projectsAvailableIn(room);
+    // The room on its scene: a project is listed on its own scene only (E12 fix r1-G3).
+    const here = projectsAvailableIn(locateActor(actor));
     // `knownProjects` rather than `visibleProjects` for the same reason the tray
     // uses it: the fallback is a list of NAMES, and a public project nobody has
     // walked into yet is not something this account should be able to read off a
@@ -295,9 +295,14 @@ async function pickProject(actor, kind = "hope", call = null) {
     return { project: id };
 }
 
-async function pickRoom() {
-    const { allRooms } = await import("./movement.mjs");
-    const rooms = allRooms();
+/* THE CALLER'S SCENE, NOT THE ONE ON SCREEN (E12 C5, 1.2.74; audit S16-07). The list, for every Call
+   that names a room, was the rooms of the scene this browser's camera showed. The GM who applies a
+   gather judges its room against the caller's own scene (call-effects.mjs `gatherRefusal`), so the
+   list is that scene's, read the same way from the same documents (call-world.mjs `gatherSceneOf`). */
+async function pickRoom(actor) {
+    const { gatherSceneOf } = await import("./call-world.mjs");
+    const { roomNames } = await import("./rooms.mjs");
+    const rooms = roomNames(await gatherSceneOf(actor));
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Rest.noRegions"));
         return null;

@@ -123,14 +123,16 @@ export const world = {
                 { _id: "TOKDAICHI0000000", name: "Daichi", actorId: IDS.daichi, actorLink: true, x: 1400, y: 1300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 },
                 { _id: "TOKMONOKUMA00000", name: "Monokuma", actorId: "ACTORMONOKUMA000", actorLink: true, x: 2400, y: 300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: -1 }
             ],
+            // The six are marked rooms, as the migration (markRooms, E12 C1) leaves a world whose GM unticked none: since
+            // E12 C2a the rules read marked regions only, and an unmarked seed read no room at all (30 and 60 found it).
             regions: [
-                { _id: "REGDORMA00000000", name: "Dorm A", shapes: [{ type: "rectangle", x: 200, y: 200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGCAFE000000000", name: "Cafeteria", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 800, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGDORMB00000000", name: "Dorm B", shapes: [{ type: "rectangle", x: 200, y: 1200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGGYM0000000000", name: "Gym", shapes: [{ type: "rectangle", x: 1200, y: 1200, width: 800, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGHALL000000000", name: "Hall", shapes: [{ type: "rectangle", x: 2200, y: 200, width: 600, height: 600 }], flags: {}, behaviors: [] },
+                { _id: "REGDORMA00000000", name: "Dorm A", shapes: [{ type: "rectangle", x: 200, y: 200, width: 600, height: 600 }], flags: { "danganronpa-rpg": { room: true } }, behaviors: [] },
+                { _id: "REGCAFE000000000", name: "Cafeteria", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 800, height: 600 }], flags: { "danganronpa-rpg": { room: true } }, behaviors: [] },
+                { _id: "REGDORMB00000000", name: "Dorm B", shapes: [{ type: "rectangle", x: 200, y: 1200, width: 600, height: 600 }], flags: { "danganronpa-rpg": { room: true } }, behaviors: [] },
+                { _id: "REGGYM0000000000", name: "Gym", shapes: [{ type: "rectangle", x: 1200, y: 1200, width: 800, height: 600 }], flags: { "danganronpa-rpg": { room: true } }, behaviors: [] },
+                { _id: "REGHALL000000000", name: "Hall", shapes: [{ type: "rectangle", x: 2200, y: 200, width: 600, height: 600 }], flags: { "danganronpa-rpg": { room: true } }, behaviors: [] },
                 { _id: "REGSTORAGE000000", name: "Storage", shapes: [{ type: "rectangle", x: 2200, y: 1200, width: 600, height: 600 }],
-                    flags: { "danganronpa-rpg": { drpgStashes: [{ actorId: IDS.daichi, concealed: false }] } }, behaviors: [] }
+                    flags: { "danganronpa-rpg": { room: true, drpgStashes: [{ actorId: IDS.daichi, concealed: false }] } }, behaviors: [] }
             ],
             walls: []
         }, {

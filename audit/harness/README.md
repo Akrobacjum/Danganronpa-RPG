@@ -103,7 +103,7 @@ belongs to.
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
 | 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out; a Sabotage of one's own trap leaves a tied trace, of another's an untied one (A14, E09 C5) |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
-| 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
+| 41 | scenarios/41-trial-scene.mjs | ci | exists | E13 | the Class Trial and the scenes as they are today: an activation followed by every browser, one still loading only warning, a token's `hidden` heard everywhere (S), a hall the GM keeps and `setClock` into the trial (a), a move in the hall (b), the voice rooms (h), `closeTrial` (c), Edit campaign in and out (d), a player loading while the hall is activated (f), no second discovery after the trial (g), End the trial's room and the living gathered there (i), the chapter end in the trial (j), the season reset in the trial (e), Start's lines and the console's door (k) - each check today's reading, naming the E13 commit that changes it |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
 | 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |
@@ -111,6 +111,7 @@ belongs to.
 | 62 | scenarios/62-investigation.mjs | ci | exists | E09 | the investigation with a second GM: three traces (A), a focused Observe any GM picks from a card (O), an Analyze read on the player (N), a reshape ruled once on the primary that leaves the copies already held (T), the GMs' verdicts reaching the copies (V), the dashboard's Save under a reshape (D), the Key fee with and without a planner Save and on the primary (K, P), the chapter end's sweep and reveal (E), and the words: a missed Analyze of a Final and the handbooks' labels (L) |
 | 63 | scenarios/63-class-trial.mjs | ci | exists | E10 | the Class Trial with a second GM and a late player: Start on every player (A), the ballots (B), a player who joins after them (C), the GM's reload in the vote (D), the count (E), the verdict's window (F), a wrong verdict while a forged death waits for the audit (G), a second trial in the chapter (H), a correct verdict's Level Ups and a pick through the bridge (I) - each check today's reading, naming the E10 commit that changes it |
 | 65 | scenarios/65-season.mjs | ci | exists | E11 | the chapter, the body's discovery and the season reset as they are today: two scenes with projects, a duplicate and an orphan token (A), a body found by two, the hold, an Eclipse during it, the trial and a wrong verdict (B), the chapter ended twice and the time moved back past a called assembly (C), a death kept past its chapter and announced in the next (Q), a season played (D), the reset (R), a reset whose chat deletion throws (F), the canvas drawn again on a world already reset (G) - each check today's reading, naming the E11 commit that changes it |
+| 66 | scenarios/66-rooms.mjs | ci | exists | E12 | rooms, scenes and floors as they are today: the shim's floors and `Scene#view` (S), a project's manager saved with the GM's camera on the Annex (A), Room Setup applied after the camera moved (B), a Teleport region (C), a room of two pieces locked and walked into (D), what a player knows of a project and the gather with the camera elsewhere (E), an actor on two scenes and a murder judged from the Annex (F), a scene of two floors (G), the room-marking clause (H), a player's jump into a locked room beside a body (I), a region a player draws and a player's untick of a room (J) - each check today's reading, naming the E12 commit that changes it |
 | 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
@@ -299,9 +300,10 @@ makes a critical certain, no rally die), and every roll at a table.
   `disconnect(who)`, which ends that client and tells the others through
   `userConnected` (LIVE-E30-05). An account declared `late: true` (E04) is
   seeded inactive and has no client until `connect(who, { storage, world,
-  clockSkewMs })` starts one - with that localStorage before the module loads,
-  that `game.world.id`, and a machine clock off by that much while
-  `game.time.serverTime` (the server's, here the machine's) is not - and may
+  clockSkewMs, modulesOff })` starts one - with that localStorage before the module loads,
+  that `game.world.id`, a machine clock off by that much while
+  `game.time.serverTime` (the server's, here the machine's) is not, and those
+  companion modules switched off (E13 fix r1-F3: the module stops there) - and may
   connect again after a disconnect; `storageOf(who)` is a client's
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no

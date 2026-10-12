@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.73, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.74, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -107,6 +107,7 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | Moving inside your own room | free, always |
 | First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
+| Up or down the stairs into another room | a crossing like any other; changing floor inside a stairwell is moving inside your own room |
 | A crossing bought with the Sprint Hope Call | free |
 
 Drag your token; the cost is applied when you arrive. A crossing that you cannot pay for is refused and the token goes back.
@@ -116,6 +117,7 @@ You are turned back by:
 | Cause | Details |
 |---|---|
 | a room that is **not connected** to yours | the refusal names only the neighbouring rooms you have already been in |
+| a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
 | being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
@@ -124,16 +126,20 @@ You are turned back by:
 | being in a **murder** while it runs | nobody walks out of an incident |
 | a **Class Trial** in session | nobody leaves the courtroom |
 
+Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
+
 ### What you can see
 
 - The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
+- On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
+- You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Ultimate, Health, Sanity, what they hold ready and how many Experiences they have. Nothing else.
 
 ### Voice
 
-With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. A Monokuma who walks into your room hears you like anyone else, and you see them.
+With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (chapter 4).
@@ -403,12 +409,12 @@ None of these ever takes you below one action or one search token. You see "?" f
 
 | Tier | Usable | Murder Weapon / Cleaning Tool | Durability |
 |---|---|---|---|
-| 0 | a random, seemingly useless item - open to creative use; the GM rules | a random, seemingly useless item | 1 |
+| 0 | a random, seemingly useless item - open to creative use; the GM rules | a random, seemingly useless item | single use |
 | 1 | restores 1 Health (Healing) or 1 Sanity (Sanity Relief) | meant for something else, but usable | 1 |
 | 2 | restores 2 Health or 2 Sanity, by its kind | partly intended for the job | 2 |
 | 3 | restores 2 Health **or** 2 Sanity - your choice - plus 2 Hope | made strictly for the job | 3 |
 
-**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A used usable is Broken too.
+**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
 > [!WARNING]
 > A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**.
@@ -641,6 +647,8 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 ## 12. The Class Trial
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
+
+When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living to a room the GM picks. Your character's token in the hall is the GM's to place, show and hide. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
 
 The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 

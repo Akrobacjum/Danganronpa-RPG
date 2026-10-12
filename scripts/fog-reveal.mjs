@@ -38,7 +38,7 @@
 import { boundsOf } from "./movement.mjs";
 import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
-import { traceRegionPathsAt, regionShapes, clamp01 } from "./fog-geometry.mjs";
+import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour
 } from "./fog-doorways.mjs";
@@ -737,7 +737,7 @@ function outlineWidths(glass, grid) {
    Glass a room's name is exactly what the audit page reserves the title face for - "tam,
    gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
    has. Legacy keeps the pixel face to the letter. */
-function roomLabel(region, { glass, grid, bone, bounds, rect }) {
+function roomLabel(region, { glass, grid, bone, rect }) {
     const label = new PIXI.Text(region.name, {
         fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
         fontSize: Math.max(28, Math.round(grid * 1.1)),
@@ -755,10 +755,20 @@ function roomLabel(region, { glass, grid, bone, bounds, rect }) {
     ensurePixelFont().then(() => {
         if (!label.destroyed) label.dirty = true;
     }).catch(() => { /* the fallback stands */ });
-    if (bounds) {
-        label.position.set(bounds.x - rect.x + bounds.w / 2, bounds.y - rect.y + bounds.h / 2);
-    }
+    const at = labelPoint(region, rect);
+    if (at) label.position.set(at.x, at.y);
     return label;
+}
+
+/**
+ * Where a room's name is drawn, in the outline's space: the middle of its largest piece's box
+ * (fog-geometry `largestPiece`), or null when the room has no box. Until E12 fix r1-G5 it was the
+ * middle of the box round every piece, which for a room drawn in two pieces apart lay in neither
+ * (review EARLY-C2b-2: a Kitchen at x 0-400 and 2000-2400 was named at x 1200).
+ */
+export function labelPoint(region, rect = { x: 0, y: 0 }) {
+    const box = boundsOf(largestPiece(region));
+    return box ? { x: box.x - rect.x + box.w / 2, y: box.y - rect.y + box.h / 2 } : null;
 }
 
 /*
@@ -866,7 +876,9 @@ function fadeLabel(label) {
     watchdog(fading, OUTLINE_MS + 1500, dropLabel);
 }
 
-export function flashOutline(fx, region, rect) {
+/* `level` is the floor drawn (E12 C10): the doorways it glows open onto rooms on that floor only
+   (fog-doorways.mjs `doorwayEdges`), and a redraw for a theme change keeps it. */
+export function flashOutline(fx, region, rect, level = null) {
     if (!fx || fx.destroyed) return;
 
     // Whatever was outlined before, take it down - see `fadeRoomOutline`.
@@ -886,14 +898,13 @@ export function flashOutline(fx, region, rect) {
     const glass = glassOn();
     const bone = outlineColour();
     const grid = canvas?.grid?.size ?? 100;
-    const bounds = boundsOf(region);
 
     const group = new PIXI.Container();
     group.name = OUTLINE_NAME;
     group.eventMode = "none";
 
     // Measured once; the outline skips these and the glow marks them.
-    const edges = doorwayEdges(region);
+    const edges = doorwayEdges(region, level);
 
     const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
@@ -922,16 +933,22 @@ export function flashOutline(fx, region, rect) {
     // MEASURED OFF THE WIDER PASS, like `gapPad`, and for the same reason:
     // if the ink dropped a stretch the bone kept, the bone line would stand
     // there with no keyline under it.
+    /* NO EDGES, ONE SHAPE (E12 fix r2-S2, 11.10.2026; review O5). `doorwayEdges` answers [] for a
+       region with no shape or when it threw; the fallback strokes each shape whole, which for a
+       room of several shapes - pieces handed as one, or one region of overlapping shapes - draws
+       the lines inside it that the edges would have left out. Such a room gets no line then, its
+       name and glow as ever; one shape is its own outline, as before. Not measured: the harness
+       draws no outline for a player (66's header) and nothing there makes `doorwayEdges` throw. */
     const trace = () => {
         if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, stubFloor);
-        else traceRegionPathsAt(outline, region, rect);
+        else if (regionShapes(region, { x: 0, y: 0 }).length === 1) traceRegionPathsAt(outline, region, rect);
     };
 
     if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
     stroke(boneWidth, bone);
     trace();
 
-    const label = roomLabel(region, { glass, grid, bone, bounds, rect });
+    const label = roomLabel(region, { glass, grid, bone, rect });
 
 
     if (glass) group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }));
@@ -952,7 +969,7 @@ export function flashOutline(fx, region, rect) {
            pixel-art stroke stayed. Two different borders, each in the wrong theme, which is
            exactly what Dawid described on 07.09. The three arguments are kept so the outline
            can simply be drawn again. */
-        glass, fx, region, rect,
+        glass, fx, region, rect, level,
         /*
          * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
          *
@@ -1122,7 +1139,7 @@ export function recolourRoomOutline() {
        than re-tinted. Everything else on this path is still one computed-style read. */
     const glassNow = glassOn();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
-        flashOutline(standing.fx, standing.region, standing.rect);
+        flashOutline(standing.fx, standing.region, standing.rect, standing.level);
         return;
     }
 

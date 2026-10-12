@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, neighbouringRooms, placesOf, allRooms, notConnectedText } from "./movement.mjs";
+import { roomOfActor, placesOf, allRooms, crossingRefused } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -170,6 +170,23 @@ export async function startEclipse() {
      */
     if (bodyDiscovery() && getClock().phase !== "investigation") {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyFirst"));
+        return null;
+    }
+
+    /*
+     * NOT IN A CLASS TRIAL (E13 fix r1-F3, 12.10.2026; the orchestrator's default of the same day,
+     * put to the owner beside it). A trial puts everybody in one voice room (D8, voice.mjs
+     * `voiceClaim`), and an Eclipse's branch comes first there, so an Eclipse started in a trial
+     * split the table into a room each; opening a trial in an Eclipse was already refused on every
+     * road (clock.mjs `setClock`, E10 fix r2-G5), and this is the other half. Refused here, the one
+     * writer of `eclipse: true` outside the tests, which the API's `startEclipse`, the GM panel's
+     * "Do it" (`toggleEclipse`) and the HUD's chevron all call; the HUD draws no chevron in a trial
+     * (its trial slot, hud.mjs `trialSlot`). Tier 2 "an Eclipse waits for the Class Trial's end". A
+     * clock written by hand with `eclipse: true` is refused by `setClock` itself with the same words
+     * (E13 fix r1-G1); this check stays first, so the refusal leaves nothing half done here.
+     */
+    if (getClock().phase === "classTrial") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.trialFirst"));
         return null;
     }
 
@@ -689,7 +706,7 @@ async function judgePendingMurders(id, taken = new Map()) {
     if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
 
-    const { othersInRoom, roomOfActor } = await import("./movement.mjs");
+    const { othersInNamedRoom, locateActor, lawfulRoomOf } = await import("./movement.mjs");
     const { openMurder, murderState } = await import("./murder.mjs");
     const { whisperToOwner, whisperToGms } = await import("./utils.mjs");
 
@@ -701,9 +718,18 @@ async function judgePendingMurders(id, taken = new Map()) {
         const killer = game.actors.get(killerId);
         if (!killer) continue;
 
+        /* Where the killer stands and who stands with them, on the killer's own scene (E12 C3,
+           11.10.2026; audit S10-14): `roomOfActor` and `othersInRoom` read the canvas until then,
+           so the primary GM looking at another scene at the end of the Eclipse judged a murder in
+           a room of three as one with nobody there (scenario 66 F2). One placing for both. And each
+           witness counted where the witness judge lets them count (E12 fix r2-H3; goal review N5, the
+           owner's Q3 a): a student a console put in the room past the rules cancels no murder there.
+           Where the primary ends the Eclipse: the judge's record is the primary's alone, so a co-GM who
+           ends it reads every student where they stand, as before (read in the code; not driven). */
         const parked = all[killerId];
-        const room = roomOfActor(killer) ?? parked.room;
-        const present = othersInRoom(killer);
+        const where = locateActor(killer);
+        const room = where?.room ?? parked.room;
+        const present = where?.room ? othersInNamedRoom(where.room, killer, where.scene, lawfulRoomOf) : [];
 
         // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
         // actor and their player at the moment the lights judged them.
@@ -832,7 +858,7 @@ export function placementStatus() {
  * matter in practice:
  *
  *   Monokumas  walk the map freely and are bound by none of the Eclipse's
- *              rules (see `canCross` in movement.mjs), so telling their GM
+ *              rules (see `crossingVerdict` in movement.mjs), so telling their GM
  *              "you have 2 crossings" states a limit that does not apply.
  *   the dead   cannot move at all. They were being counted in the GM's
  *              "who has finished placing" table, which meant the table could
@@ -866,7 +892,7 @@ function placingActors(dead) {
  * rooms actually connected to the one you are leaving - the guide's "2
  * connected rooms", not two arbitrary hops.
  */
-export async function judgeEclipseCrossing(actor, from, to) {
+export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null) {
     if (!isEclipse()) return true;
 
     /*
@@ -894,16 +920,14 @@ export async function judgeEclipseCrossing(actor, from, to) {
             return false;
         }
 
-        // Must be a connected room.
-        if (from && to) {
-            const connected = neighbouringRooms(from);
-            if (connected.length && !connected.includes(to)) {
-                // The same sentence the veto uses, and it names only rooms the
-                // viewer has been in, the destination included (E06 C11) -
-                // `notConnectedText` in movement.mjs.
-                ui.notifications.warn(notConnectedText(from, to, connected));
-                return false;
-            }
+        // Must be a connected room - and up or down only by the stairs (E12 fix r2-H1, early
+        // review EARLY-C9-1): the veto's own rule, movement.mjs `crossingRefused`, on the scene the
+        // token crossed on and the floor of each end (`settleRoute` hands both in, E12 C2a). Its
+        // sentence names only rooms the viewer has been in, the destination included (E06 C11).
+        const refused = crossingRefused(scene, from, to, floors);
+        if (refused) {
+            ui.notifications.warn(refused);
+            return false;
         }
     }
 

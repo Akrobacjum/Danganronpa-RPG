@@ -781,6 +781,9 @@
       "alsoServes": "Działa też jako {role}.",
       "woreOnDespair": "„{item}” przyjął na siebie najgorsze - zostało {left} z {total}, zanim się zepsuje.",
       "brokeOnDespair": "„{item}” tego nie przetrwał. Zostaje w plecaku, bezużyteczny - Despair psuje narzędzie niezależnie od tego, czy praca się udała.",
+      "singleUseSpent": "„{item}” się zużył. Rzecz z Tier 0 wytrzymuje jeden rzut, jakkolwiek by wypadł - zostaje w plecaku, bezużyteczna.",
+      "singleUse": "Jednorazowy",
+      "singleUseTooltip": "Tier 0: psuje się po pierwszym rzucie, w którym go użyto, jakkolwiek by wypadł.",
       "brokenUseless": "{item} jest zepsuty.",
       "discardTooltip": "Wyrzuć. Zostawia ślad.",
       "discardTitle": "Wyrzuć: {item}",
@@ -915,6 +918,14 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+      "endTrialScene": "Żyjący uczniowie idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Tokeny sali rozpraw zostają ukryte.",
+      "endTrialRoom": "Pokój",
+      "endTrialMoves": {
+        "one": "{n} uczeń idzie do: {room}.",
+        "few": "{n} uczniowie idą do: {room}.",
+        "many": "{n} uczniów idzie do: {room}.",
+        "other": "{n} ucznia idzie do: {room}."
+      },
       "trialEnded": "Class Trial się skończył; rozdział jeszcze nie.",
       "lead": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial: faza się zmienia, stół dostaje ogłoszenie, a Class Trial otwiera się dyskusją.",
@@ -955,6 +966,14 @@
       "startTrialStepDiscussion": "Class Trial otwiera się dyskusją. Debatę otwierasz, kiedy chcesz.",
       "gateVote": "Werdykt otwiera się po policzeniu głosów.",
       "startTrialNote": "Zegar rusza od nowa: licznik czasu kampanii startuje z Class Trial i ponownie, gdy się kończy.",
+      "startTrialHall": {
+        "one": "Stół przenosi się do sali rozpraw {hall}, a odkryty zostaje {n} token.",
+        "few": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostają {n} tokeny.",
+        "many": "Stół przenosi się do sali rozpraw {hall}, a odkrytych zostaje {n} tokenów.",
+        "other": "Stół przenosi się do sali rozpraw {hall}, a odkryte zostaje {n} tokenu."
+      },
+      "startTrialNoHall": "Żadna sala rozpraw nie jest podpięta, więc stół zostaje na scenie, na której jest. Podepnij ją w zakładce Sceny okna Ustawienia pokoi.",
+      "tableRuleDead": "Zasada stołu: umarli słuchają, ale nie mówią w rozprawie.",
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba.",
       "trialBudget": {
         "one": "{n} uczeń ma na Class Trial akcje tej pory dnia.",
@@ -1720,9 +1739,13 @@
       "stole": "Wyjmujesz {item} ze skrytki ({who}).",
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były.",
       "tabStashes": "Skrytki",
-      "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - zacieniona kolumna - i tutaj możesz mu ją odebrać.",
+      "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - jej komórka jest zacieniona - i tutaj możesz mu ją odebrać.",
       "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo. Ukrytą trzeba najpierw znaleźć, przez Search z karą. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
+      "stashNone": "Brak skrytki",
+      "stashOpen": "Otwarta",
+      "stashHidden": "Ukryta",
+      "stashOwnBedroom": "Sypialnia właściciela",
       "stashNotEmpty": {
         "one": "{name} ma jedną rzecz w skrytce w: {room} - wyjmij ją, zanim usuniesz skrytkę.",
         "few": "{name} ma {n} rzeczy w skrytce w: {room} - wyjmij je, zanim usuniesz skrytkę.",
@@ -1730,6 +1753,7 @@
         "other": "{name} ma {n} rzeczy w skrytce w: {room} - wyjmij je, zanim usuniesz skrytkę."
       },
       "manageTitle": "Ustawienia pokoi",
+      "manageTitleOn": "Ustawienia pokoi - {scene}",
       "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
       "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej jest ukryta. Jeden uczeń, jedna sypialnia.",
@@ -1743,16 +1767,20 @@
       "table": "Losuje z",
       "favours": "Dobre miejsce, by szukać",
       "hinders": "Złe miejsce, by szukać",
+      "placeColumn": "Dobre lub złe miejsce, by szukać",
+      "placeNeither": "Obojętne",
+      "placeCycle": "Kliknij, by przełączać: obojętne / dobre miejsce / złe miejsce",
       "lockedColumn": "Zamknięte",
       "globalPool": "Pula globalna",
       "noRooms": "Ta scena nie ma jeszcze regionów pokoi.",
       "noneSet": "Nie przypisano jeszcze żadnych sypialni.",
+      "noStashesOnScene": "Na tej scenie nie ma skrytek.",
       "twoRooms": "{name} nie może mieć dwóch sypialni ({a} i {b}). Wybierz jedną.",
-      "saved": {
-        "one": "Zaktualizowano {n} pokój.",
-        "few": "Zaktualizowano {n} pokoje.",
-        "many": "Zaktualizowano {n} pokoi.",
-        "other": "Zaktualizowano {n} pokoi."
+      "appliedOn": {
+        "one": "Zmieniono {count} pokój na scenie {scene}.",
+        "few": "Zmieniono {count} pokoje na scenie {scene}.",
+        "many": "Zmieniono {count} pokoi na scenie {scene}.",
+        "other": "Zmieniono {count} pokoi na scenie {scene}."
       },
       "tabBedrooms": "Sypialnie",
       "tabDoors": "Drzwi",
@@ -1764,6 +1792,7 @@
       "descriptionIntro": "Jak wygląda każdy pokój, twoimi słowami. Każdy stojący w pokoju może przeczytać jego opis, klikając zegar u góry ekranu.",
       "descriptionNote": "Zwykły tekst - gracze widzą go dokładnie tak, jak wpisano. Zostaw puste, a pokój po prostu nie ma nic napisanego.",
       "tabFog": "Mgła",
+      "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",
       "fogUncovered": "{pct}% powierzchni tej sceny nie należy do żadnego regionu pokoju - będzie widoczne jako stała mgła, nie jako luka w ścianie, co zwykle znaczy, że jakiś pokój trzeba jeszcze narysować.",
       "fogNote": "Odkryj wszystko / Ukryj wszystko zastępują każde pole powyżej dla każdej postaci naraz. Pojedyncze pola to jeden pokój, jedna postać.",
@@ -1796,9 +1825,15 @@
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
       "lockedAtStartHint": "Czy te drzwi są zamknięte na początku sezonu. Reset sezonu przywraca każde drzwi do tego stanu.",
-      "notSharedColumn": "To nie pokój",
+      "isRoomColumn": "To jest pokój",
+      "isRoomHint": "Czy ten region jest pokojem. Region z zachowaniem teleportu albo zmiany poziomu, albo narysowany przez gracza, nie może nim być.",
+      "notSharedColumn": "Bez prywatności",
       "notSharedHint": "Nie licz tego regionu do liczby pokoi na gracza. Nie zmienia żadnej zasady.",
-      "notSharedNote": "„To nie pokój” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
+      "notSharedNote": "„Bez prywatności” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela.",
+      "neighboursColumn": "Sąsiedzi",
+      "neighboursHint": "Pokoje, do których ten pokój ma drzwi, rozdzielone przecinkami. Puste: decydują ściany (wyszarzone nazwy).",
+      "neighboursNote": "„Sąsiedzi” to miejsce, w którym drzwi mają pierwszeństwo przed mapą: wpisz pokoje, do których ten pokój prowadzi, rozdzielone przecinkami. Dwa pokoje są połączone, gdy którykolwiek z nich wpisał drugi, w obie strony. Pokój z listą nie łączy się z niczym innym, a pokój obok niego nie wejdzie do środka, dopóki jeden z nich nie wpisze drugiego. Gdy pole jest puste, sąsiedzi pokoju to pokoje bez listy, których ściany mają z jego ścianami wspólną krawędź (sam narożnik nie wystarczy), i każdy pokój, który go wpisał. Pokój, któremu listy i ściany nie dały żadnego sąsiada, nie ma żadnych drzwi. Pokój bez listy, którego nie wpisał żaden inny i który nie styka się z żadnym pokojem, nawet narożnikiem, nie jest sprawdzany: można z niego przejść do dowolnego pokoju.",
+      "neighboursUnknown": "{room}: żaden pokój tej sceny nie nazywa się {names}. Zostaje w Sąsiadach, ale niczego nie łączy."
     },
     "Chapter": {
       "deathTitle": "Postać umiera",
@@ -1932,6 +1967,68 @@
         "hold": "zamykanie odkrycia ciała"
       }
     },
+    "TrialScene": {
+      "castUnavailable": "Class Trial się zaczął, a w sali rozpraw nikogo nie odkryto: wybór jej tokenów dokonany przez GM-ów nie dotarł jeszcze do tego klienta. Odkryj je ręcznie na scenie sali.",
+      "duplicateToken": "Ta sama postać ma w sali rozpraw więcej niż jeden token i odkryto tylko pierwszy. Ukryte zostały: {names}.",
+      "playerTokenCreated": "Konto {user} utworzyło token w sali rozpraw: {name}. Jest ukryty - odkrywanie tokenów sali należy do GM-a - i zostaje na miejscu; następny Class Trial potraktuje go jak każdy token sali.",
+      "playerTokenDeleted": "Konto {user} usunęło token z sali rozpraw: {name}. Moduł nie tworzy tokenów w sali, więc token nie wróci - jeśli rozprawa go potrzebuje, dodaj go ręcznie.",
+      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono go do stanu, w jakim zostawili go GM-owie.",
+      "noSchool": "Class Trial się zakończył, ale żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw, a jej tokeny bez zmian. Aktywuj scenę ręcznie.",
+      "missingTokens": {
+        "one": "Sala rozpraw nie ma tokenu dla {n} postaci prowadzonej przez gracza, więc rozprawa nie może jej pokazać: {names}. Postaw token na scenie sali.",
+        "few": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
+        "many": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
+        "other": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali."
+      },
+      "notMoved": {
+        "one": "{n} żyjącego ucznia nie dało się przenieść i zostaje tam, gdzie stał: {names}. Przenieś go ręcznie.",
+        "few": "{n} żyjących uczniów nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie.",
+        "many": "{n} żyjących uczniów nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie.",
+        "other": "{n} żyjącego ucznia nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie."
+      },
+      "carryUnfinished": {
+        "one": "{n} uczeń przeniesiony z Class Trial stoi podwójnie - kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń ten, którego nie chcesz.",
+        "few": "{n} uczniowie przeniesieni z Class Trial stoją podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz.",
+        "many": "{n} uczniów przeniesionych z Class Trial stoi podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz.",
+        "other": "{n} ucznia przeniesionego z Class Trial stoi podwójnie - każdy jako kopia i token, z którego powstała, a którego nie usunięto: {names}. Usuń te, których nie chcesz."
+      },
+      "hiddenHere": {
+        "one": "{n} żyjący uczeń ma w pokoju ukryty token, a jego widoczny token zostaje na innej scenie: {names}.",
+        "few": "{n} żyjący uczniowie mają w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}.",
+        "many": "{n} żyjących uczniów ma w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}.",
+        "other": "{n} żyjącego ucznia ma w pokoju ukryte tokeny, a ich widoczne tokeny zostają na innych scenach: {names}."
+      },
+      "tokensStay": {
+        "one": "{n} żyjący uczeń w pokoju ma jeszcze token na innej scenie; ten został tam, gdzie stał: {names}.",
+        "few": "{n} żyjący uczniowie w pokoju mają jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}.",
+        "many": "{n} żyjących uczniów w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}.",
+        "other": "{n} żyjącego ucznia w pokoju ma jeszcze tokeny na innej scenie; te zostały tam, gdzie stały: {names}."
+      },
+      "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i pokazuje tokeny zaznaczone niżej; koniec je ukrywa i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami z każdej sceny z pokojami, każda inna droga do szkoły. W sali moduł tylko pokazuje i ukrywa tokeny - żadnego tam nie tworzy, nie przesuwa ani nie usuwa.",
+      "school": "Szkoła",
+      "hall": "Sala rozpraw",
+      "noScene": "- brak -",
+      "castHeading": "Obsada sali",
+      "reveal": "Zaznaczony: pokazywany, gdy zaczyna się Class Trial. Token bez zaznaczenia zostaje ukryty - token testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
+      "noCast": "W sali nie ma jeszcze tokenu żadnego ucznia ani Monokumy.",
+      "sameScene": "Szkoła i sala rozpraw to ta sama scena. Wybierz dwie różne - do tego czasu Zastosuj czeka.",
+      "hallInTrial": "W podpiętej sali rozpraw trwa Class Trial. Zakończ rozprawę, zanim podepniesz inną salę albo odepniesz tę - do tego czasu Zastosuj czeka.",
+      "hallFirstInTrial": "Class Trial trwa bez sali rozpraw. Podepnij ją po zakończeniu rozprawy - do tego czasu Zastosuj czeka.",
+      "noSchoolLinked": "Żadna scena nie jest podpięta jako szkoła: koniec rozprawy wraca do sceny, która była aktywna, gdy rozprawa się zaczęła.",
+      "hallHasRooms": "Ta scena ma regiony oznaczone jako pokoje: {names}. W sali rozpraw nie są pokojami - czy to nie mapa szkoły? Regiony nieoznaczone jako pokoje mogą tu zostać.",
+      "duplicateInHall": "Ta sama postać ma w sali więcej niż jeden token, a rozprawa pokazuje tylko pierwszy. Pozostałe: {names}.",
+      "unlinkedToken": "Tokeny w sali niepowiązane ze swoją postacią: {names}. Nakładka śmierci i kontrola gracza są czytane z postaci, więc powiąż każdy token z jego postacią.",
+      "hallDark": "Sala rozpraw nadal ma włączone widzenie tokenów Foundry, wyłączone światło globalne albo włączoną mgłę eksploracji. Żeby każdy widział całą salę, zaznacz „Przygotuj salę” w Ustawieniach pokoi na karcie Sceny i naciśnij Zastosuj.",
+      "prepare": "Przygotuj salę przy Zastosuj: mgła eksploracji Foundry wyłączona, widzenie tokenów wyłączone, światło globalne włączone - wszyscy widzą całą salę.",
+      "preparePlaylist": "Wyczyść też playlistę sali",
+      "prepareVoice": "Wyłącz też Proximity Voice Chat w sali (w rozprawie wszyscy są w jednym pokoju głosowym)",
+      "prepareDone": "Sala rozpraw {scene} jest przygotowana.",
+      "tableOn": "Stół jest na scenie {scene}.",
+      "showHall": "Pokaż salę rozpraw",
+      "backToSchool": "Wróć do szkoły",
+      "noWayBack": "Żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw. Podepnij szkołę w zakładce Sceny okna Ustawienia pokoi.",
+      "phaseSwitchesScene": "Przenosi też każdą przeglądarkę do sali rozpraw {hall} i odkrywa wybrane dla niej tokeny."
+    },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",
       "presentTitle": "Przedstaw - {name}",
@@ -2062,10 +2159,11 @@
       "takeAway": "Zabierz Truth Bullet",
       "noneToTake": "{actor} nie nosi żadnych Truth Bullets.",
       "tabFromRemnant": "Z Remnantu",
+      "onScene": "Na scenie {scene}",
       "tabWriteNew": "Napisz nowy",
-      "pickRemnant": "Który ślad na tej scenie",
+      "pickRemnant": "Który ślad",
       "remnantNote": "Bullet kopiuje ślad: typ, trudność, pokój, akcję, która go zostawiła, i to, czy jest powiązany z morderstwem. Znacznik staje się widoczny dla posiadacza i dla nikogo więcej. Zmiana nazwy tutaj zmienia nazwę śladu.",
-      "remnantEmpty": "Brak Remnantów na tej scenie. Postaw jakiś na mapie albo napisz bullet ręcznie w drugiej zakładce.",
+      "remnantEmpty": "Brak Remnantów na żadnej scenie. Postaw jakiś na mapie albo napisz bullet ręcznie w drugiej zakładce.",
       "remnantGone": "Tego Remnantu nie ma już na mapie.",
       "alreadyHeld": "ma już kopię",
       "needsName": "Truth Bullet potrzebuje nazwy.",
@@ -2310,6 +2408,7 @@
       "newRuleNote": "{cost} Despair kupuje trwałą zmianę gry. Niech się liczy.",
       "newRuleAnnounced": "Nowa zasada została ogłoszona wszystkim.",
       "noSuchRoom": "Na tej scenie nie ma regionu o nazwie „{room}”.",
+      "gatherNoRoom": "Na scenie {scene} nie ma pokoju o nazwie „{room}”. Nic nie zostało wydane.",
       "progressedTo": "{name} jest teraz na {current}/{target}.",
       "progressSent": "{name}: {n} postępu wysłano do GM-a.",
       "overflowFed": "{n} Despair wlane do overflow.",
@@ -2413,6 +2512,7 @@
     "Eclipse": {
       "already": "Eclipse już trwa.",
       "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
+      "trialFirst": "Trwa Class Trial, więc Eclipse nie został rozpoczęty: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
       "announce": {
         "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
         "few": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
@@ -2450,6 +2550,11 @@
       "panelLocked": "Zablokowane, dopóki trwa Eclipse - nikt jeszcze nie skończył się ustawiać.",
       "murderWindowLocked": "Eclipse to okno ustawiania - nikt jeszcze nie skończył się ruszać. Otwórz incydent, gdy zapali się światło; karta pułapki czeka w wątku, dopóki tego nie zrobisz."
     },
+    "Movement": {
+      "unlawfulArrival": "Postać {name} weszła do: {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z: {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch MG czyni miejsce, w którym stoi, dozwolonym.",
+      "outsideRooms": "poza pokojami",
+      "droppedFromNowhere": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
+    },
     "Move": {
       "notConnectedShort": "{to} nie łączy się z {from}.",
       "cannotReach": "Stąd ({from}) nie da się tam dojść.",
@@ -2470,6 +2575,7 @@
       "notConnected": "{to} nie łączy się z: {from}. Stąd dojdziesz do: {rooms}",
       "noBudgetLong": "Brak Free Move i brak akcji - to przejście nie zostało opłacone. Token wraca; zapytaj GM-a.",
       "locked": "Drzwi są zamknięte.",
+      "noStairs": "Stąd ({from}) nie prowadzą na to piętro żadne schody.",
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
@@ -2503,6 +2609,8 @@
       "toolRelief": "{item} to Tier {tier}, więc każdy próg tego rzutu spada o {tier}.",
       "room": "Pokój",
       "anyRoom": "- dowolny pokój -",
+      "roomElsewhere": "{room} (obecnie na żadnej scenie)",
+      "roomOnNoScene": "Nie utworzono projektu: pokoju {room} nie ma teraz na żadnej scenie. Podaj pokój, który leży na jakiejś scenie, albo żaden.",
       "indirect": "Morderstwo pośrednie",
       "secret": "Tajny",
       "createTitle": "Utwórz projekt",
@@ -2922,6 +3030,7 @@
       "title": "Danganronpa - panel GM-a",
       "launcher": "GM",
       "gmOnly": "Tylko GM może otworzyć panel.",
+      "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
       "nextLabel": "Dalej",
       "nextGo": "Zrób to",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
@@ -3158,10 +3267,6 @@
       "how": "Zainstaluj albo włącz je w Zarządzaj modułami - na Forge w liście modułów gry - i przeładuj świat. Nic tu nie zmieniono, więc to cała naprawa.",
       "understood": "Rozumiem",
       "playerNotice": "Danganronpa RPG nie działa: wymaga {modules}. Poproś GM-a o włączenie brakujących.",
-      "recommendTitle": "Danganronpa RPG działa bez dwóch rzeczy, o które prosi",
-      "recommendIntro": "Wszystko działa i bez nich, ale to z nimi ta gra została pomyślana. Oto, co robi każda z nich:",
-      "recommendSilence": "Nie przypominaj o tym więcej na tym komputerze",
-      "recommendNotice": "Danganronpa RPG działa lepiej z: {modules}. Bez nich nic nie jest zepsute.",
       "newerSystemTitle": "{system} jest nowszy niż wersja, na której ten moduł był mierzony",
       "newerSystemIntro": "Ten świat działa na {system} {found}. Danganronpa RPG był zweryfikowany na {verified}. Ładuje się mimo to i większość modułu tego nie zauważy - ale okno rzutu, karta postaci, Hope i Despair oraz zasady, które moduł nakłada na system, opierają się na tym, jak {system} jest zbudowany w środku, a nowsza wersja może to zmienić bez słowa. Jeśli coś działa źle, wspomnij o tym najpierw, zgłaszając problem.",
       "newerSystemPatches": "Tych miejsc, które moduł zmienia w systemie, nie znaleziono tam, gdzie były, więc to, co robią, się nie dzieje:",
@@ -3391,6 +3496,7 @@
     "Voice": {
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
+      "claimTrial": "Class Trial - wszyscy w jednym pokoju",
       "notActive": "LiveKit AVClient nie jest zainstalowany, włączony ani połączony.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
@@ -3590,6 +3696,8 @@
         "liveKitSecret": "Sekretu serwera głosu nie ma w świecie",
         "sound": "Pliki dźwiękowe",
         "rooms": "Mapa ma pokoje",
+        "roomsMarked": "Każdy nazwany region rozstrzygnięty: pokój albo nie",
+        "scenes": "Szkoła i sala rozpraw są podpięte",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
         "mastermind": "Mastermind (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
@@ -3606,7 +3714,9 @@
         "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
         "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
-        "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
+        "rooms": "Pokoje to regiony sceny, przy których GM zaznaczył „To jest pokój” w Ustawieniach pokoi. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
+        "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (karta Drzwi). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
+        "scenes": "Karta Sceny w Ustawieniach pokoi podpina scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
@@ -3676,7 +3786,7 @@
       "resetButton": "Zresetuj sezon",
       "resetMistyped": "Nie zresetowano - musisz wpisać dokładnie {word}.",
       "resetDone": "Sezon zresetowany. Obsada i mapy nietknięte.",
-      "roomGuide": "Najpierw ściany, potem jeden nazwany region na pokój, rysowany do nich z włączonym przyciąganiem. Region bez nazwy nie jest pokojem i nigdy nie liczy się jako sąsiad. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
+      "roomGuide": "Najpierw ściany, potem region na każdy pokój, rysowany do nich z włączonym przyciąganiem; pokój można narysować jako kilka regionów o jednej nazwie. Region jest pokojem dopiero wtedy, gdy GM zaznaczy przy nim „To jest pokój” w Ustawieniach pokoi (karta Drzwi): region, którego nikt nie zaznaczył, przejście (region, który teleportuje żeton albo zmienia jego poziom) i region narysowany przez gracza nie są pokojami i nigdy nie liczą się jako sąsiedzi. Sąsiedzi stykają się wspólną krawędzią i nigdy się nie nakładają. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola poniżej zgłasza nałożenia, granice odrysowane od ścian i rogi poza siatką; nigdy nie edytuje mapy.",
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "roomCountLine": "Pokoje: {rooms}. Gracze: {players}. Podręcznik sugeruje około {want}.",
@@ -3843,8 +3953,47 @@
         "other": "Widoczność oparta na pokojach włączona dla {count} scen."
       },
       "scenesFailed": "Nie udało się przełączyć tych scen na widoczność opartą na pokojach: {scenes}",
-      "noRoomScenes": "Żadna scena nie ma nazwanych regionów, więc żadna nie używa widoczności opartej na pokojach.",
-      "checksScenes": "Sceny i pokoje"
+      "noRoomScenes": "Żadna scena nie ma pokoi (nazwanych regionów, które GM oznaczył jako pokoje), więc żadna nie używa widoczności opartej na pokojach.",
+      "checksScenes": "Sceny i pokoje",
+      "floors": "Piętra",
+      "floorUnnamed": "Piętro {n}",
+      "floorsHint": "Piętra, które możesz oglądać: te, na których stoi twoja postać, i te, na których jest odkryty przez ciebie pokój. Pokój, w którym twoja postać nigdy nie była, na każdym piętrze pozostaje pod mgłą.",
+      "notRooms": {
+        "one": "{n} nazwany region nie jest pokojem",
+        "few": "{n} nazwane regiony nie są pokojami",
+        "many": "{n} nazwanych regionów nie jest pokojami",
+        "other": "{n} nazwanego regionu nie jest pokojem"
+      },
+      "notRoom": {
+        "problem": "Ma nazwę, ale nie jest pokojem",
+        "passage": "Ma zachowanie {type}, więc jest przejściem, nie pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
+        "player": "Narysował go gracz, więc nigdy nie jest pokojem: mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi.",
+        "unmarked": "Nie jest oznaczony jako pokój (Ustawienia pokoi, karta Drzwi, „To jest pokój”), więc mgła nie rysuje dla niego obrysu ani odsłonięcia i nie prowadzą do niego żadne drzwi."
+      }
+    },
+    "Rooms": {
+      "reportTitle": "Oznaczone pokoje",
+      "reportNote": "Od tej wersji region jest pokojem tylko wtedy, gdy GM go tak oznaczy: kolumna „To jest pokój” na karcie Drzwi w Ustawieniach pokoi. Nazwane regiony poniżej oznaczono raz, żeby mapa zachowała pokoje; odznacz te, które pokojami nie są. Region narysowany od teraz oznaczasz sam.",
+      "migrated": {
+        "one": "Oznaczono {n} pokój: {names}.",
+        "few": "Oznaczono {n} pokoje: {names}.",
+        "many": "Oznaczono {n} pokoi: {names}.",
+        "other": "Oznaczono {n} pokoju: {names}."
+      },
+      "skippedBehaviours": "Do Twojej decyzji w Ustawieniach pokoi, bo mają zachowania: {names}.",
+      "skippedPlayer": "Nigdy nie są pokojami, bo narysował je gracz: {names}.",
+      "skippedNoName": {
+        "one": "Pominięto {n} region bez nazwy: pokój musi mieć nazwę.",
+        "few": "Pominięto {n} regiony bez nazwy: pokój musi mieć nazwę.",
+        "many": "Pominięto {n} regionów bez nazwy: pokój musi mieć nazwę.",
+        "other": "Pominięto {n} regionu bez nazwy: pokój musi mieć nazwę."
+      },
+      "flagKept": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem. Pokój to to, co oznaczy GM, więc oznaczenie zostaje takie, jakie zostawił GM.",
+      "renamed": "„{from}” na scenie {scene} nazywa się teraz „{to}”, a to, co wskazywało pokój starą nazwą, wskazuje nową - klucze: {keys}, schowane przedmioty: {items}, notatki o znalezionej skrytce: {found}, postacie, które go odkryły: {cells}, projekty: {projects}, rzeczy zostawione dla pułapki: {plants}, listy Sąsiadów innych pokoi: {lists}, pokój Masterminda: {lair}, zwołane zebranie: {gather}, pieczęć z Despair Call: {sealed}, znalezione tam ciała: {bodies}.",
+      "flagUnjudged": "Konto {user} zmieniło, czy „{region}” na scenie {scene} jest pokojem, a ten GM nie miał zapisu oznaczenia sprzed zmiany, więc niczego nie przywrócono. Sprawdź region w Ustawieniach pokoi (karta Drzwi).",
+      "renameJoined": "„{room}” na scenie {scene} dostał nazwę „{name}”, którą nosi pokój, który już tam był, więc jest teraz jeszcze jednym kawałkiem tego pokoju. Nic, co wskazywało „{room}”, nie zostało przeniesione: klucze, schowane przedmioty, notatki o znalezionej skrytce i odkrycia nadal wskazują „{room}”. Zdjęte z regionu, by nie dodał niczego do „{name}”: {carried}.",
+      "carriedNothing": "nic",
+      "pieceSplit": "Region „{name}” na scenie {scene} był jednym z kilku kawałków pokoju {room}, dopóki nie zmieniono mu nazwy. To, co niósł dla tego pokoju ({carried}), zostało z niego zdjęte: zatrzymują to pozostałe kawałki pokoju {room}, a „{name}” zaczyna bez niczego z tego."
     },
     "Migrate": {
       "gmOnly": "Tylko GM może uruchomić migrację danych.",
@@ -3901,7 +4050,7 @@
       "armedTitle": "Pułapka czuwa",
       "armedBody": "Jest ukończona i uzbrojona. Moduł pilnuje: {trigger} - {room}. Dostaniesz kartę, gdy to zobaczy.",
       "alertTitle": "{name} - coś ją odpaliło",
-      "alertReading": "{who}, w: {room}, {when}.",
+      "alertReading": "{who}, w: {room} ({scene}), {when}.",
       "rearm": "Pilnuj dalej",
       "rearmed": "Pułapka znów czuwa.",
       "plantTitle": "Zostaw coś po sobie",
@@ -5060,6 +5209,7 @@
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
         "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
+        "trialCast": "Które tokeny sali rozpraw pokazuje Class Trial",
         "notes": "Notatki graczy przed sesją",
         "deaths": "Śmierci, których nikt jeszcze nie odkrył",
         "deferredOffers": "Reinforced Level Upy czekające na klasę",

@@ -34,9 +34,10 @@ function recipientOptions(students, selectedId) {
         .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
         .join("");
 }
-import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
+import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs,
     log, error, plural, cardHead, esc} from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
+import { homeScene } from "./rooms.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -825,7 +826,7 @@ function visibilityOptions(selected = "evident") {
 /** The traces on the scene as options, marking the ones this student already holds a copy of. */
 function bulletTraceOptions(traces, who, traceContextLine) {
         const copied = copiedRemnants(who);
-        return traces.map(({ token, data }) => {
+        const option = ({ token, data }) => {
             const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
             const context = traceContextLine(data);
             // Said rather than hidden. A second copy is a legitimate thing to
@@ -833,9 +834,14 @@ function bulletTraceOptions(traces, who, traceContextLine) {
             // missing row would read as a missing trace.
             const held = copied.has(token.id)
                 ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
-            return `<option value="${token.id}" data-name="${esc(name)}">${
+            return `<option value="${token.id}" data-scene="${token.parent?.id ?? ""}" data-name="${esc(name)}">${
                 esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
-        }).join("");
+        };
+        // Grouped under their scene when the traces lie on more than one (E12 C5): the group is the scene select.
+        const scenes = [...new Set(traces.map(entry => entry.token.parent))];
+        if (scenes.length <= 1) return traces.map(option).join("");
+        return scenes.map(scene => `<optgroup label="${esc(game.i18n.format("DRPG.TruthBullet.onScene", { scene: scene?.name ?? "" }))}">${
+            traces.filter(entry => entry.token.parent === scene).map(option).join("")}</optgroup>`).join("");
 }
 
 /** The "shown as" select: let the rules decide, Neutral, or the real type. */
@@ -939,6 +945,7 @@ function readBulletForm(d) {
     if (active === "existing" && f.elements.remnant) {
         return { ...common, mode: "existing",
                  remnantId: f.elements.remnant.value,
+                 sceneId: f.elements.remnant.selectedOptions?.[0]?.dataset.scene || null,
                  name: f.elements.exName.value.trim(),
                  shown: f.elements.exShown.value };
     }
@@ -969,13 +976,15 @@ function readBulletForm(d) {
  * first, so the next copy of it carries the same name. Answers null when the
  * trace is gone.
  */
-async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById, tieForCopy }) {
-    const entry = traces.find(t => t.token.id === result.remnantId);
+async function bulletFromRemnant(result, traces, { setRemnantPublicById, markRemnantEditedById, tieForCopy }) {
+    const entry = traces.find(t => t.token.id === result.remnantId && (!result.sceneId || t.token.parent?.id === result.sceneId));
     if (!entry) {
         ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
         return null;
     }
     const { token, data } = entry;
+    // The trace's own scene, wherever the GM's camera is (E12 C5).
+    const scene = token.parent ?? null;
     const pub = data.public ?? null;
 
     // A rename is written back to the trace, the way Observe writes back the
@@ -1022,8 +1031,8 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
         gmNote: data.note ?? "",
         remnantId: token.id,
         sceneId: scene?.id ?? null,
-        // Passed explicitly for the reason Observe passes it: the room
-        // lookup is canvas-bound, and this may not be the scene on screen.
+        // Passed explicitly, as Observe passes it: without it the bullet
+        // takes the room its holder stands in (truth-bullets.mjs `roomOfActor`).
         room: data.room ?? null,
         // Both into the bullet's secret; public on the item only once it is
         // identified, like every other tie.
@@ -1088,11 +1097,16 @@ async function giveTruthBulletDialog(actor) {
         markRemnantEditedById, tieForCopy } =
         await import("./remnants.mjs");
 
-    // The scene the GM is looking at. `remnantData` is GM-side by construction -
-    // a player's client holds these tokens but has never held what they mean -
-    // and this whole window is GM-only, so there is nothing to gate here.
-    const scene = workingScene();
-    const traces = remnantsOn(scene)
+    /* EVERY SCENE'S TRACES, NOT THE ONE ON SCREEN (E12 C5, 1.2.74; audit S08-43). The list was
+       the traces of the scene the GM was looking at, so a trace on another map could not be given
+       as a bullet without moving the camera there first. The school's come first (rooms.mjs
+       `homeScene`), each scene's grouped under its name (`bulletTraceOptions`), and the bullet is
+       written against the picked trace's own scene. `remnantData` is GM-side by construction - a
+       player's client holds these tokens but has never held what they mean - and this whole
+       window is GM-only, so there is nothing to gate here. */
+    const home = homeScene();
+    const scenes = [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
+    const traces = scenes.flatMap(scene => remnantsOn(scene))
         .map(token => ({ token, data: remnantData(token) }))
         .filter(entry => entry.data);
 
@@ -1134,7 +1148,7 @@ async function giveTruthBulletDialog(actor) {
     }
 
     const payload = result.mode === "existing"
-        ? await bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById, tieForCopy })
+        ? await bulletFromRemnant(result, traces, { setRemnantPublicById, markRemnantEditedById, tieForCopy })
         : bulletFromForm(result);
     if (!payload) return false;
 
@@ -1251,7 +1265,7 @@ export async function issueAutopsyDialog() {
  */
 async function takeItemDialog(actor, { only = null } = {}) {
     // A key is a room fact, and the room's owner is asked below.
-    const { keyRoomOf, vaultOwnerOf } = await import("./vault.mjs");
+    const { keyRoomOf, bedroomOwnerAnywhere } = await import("./vault.mjs");
 
     /*
      * A FILTERED WINDOW SAYS WHAT IT IS FILTERED TO. The title and the
@@ -1288,7 +1302,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
         // the next load. Offering it here would be a removal that quietly
         // undoes itself.
         .filter(({ item, category }) =>
-            category !== "bedroomKey" || vaultOwnerOf(keyRoomOf(item)) !== who.id);
+            category !== "bedroomKey" || bedroomOwnerAnywhere(keyRoomOf(item)) !== who.id);
 
     const optionsFor = who => {
         const owned = ownedFor(who);
