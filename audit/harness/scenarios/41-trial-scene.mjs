@@ -209,8 +209,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         return { read, closed, linked: roles.school === academy.id && roles.trial === hall.id, stored: names };`, { timeout: 60000 });
     Object.assign(built, { linked: tab.linked, chose: tab.linked && J(tab.stored) === J({ Chie: false, Ghost: true }) });
     await settle(400);
-    check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms, draws the hall's cast as `defaultReveal` has it, and stores Chie unticked and the dead student ticked (E13 C5)",
-        tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms"]) && tab.read.rooms === true && tab.read.held === false
+    /* Since E13 fix r1-F3 the tab also names a hall nobody prepared (token vision, global light or exploration fog as
+       Foundry leaves them; "Prepare the hall" is not ticked here): "hallDark". */
+    check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms and that it is unprepared, draws the hall's cast as `defaultReveal` has it, and stores Chie unticked and the dead student ticked (E13 C5)",
+        tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms", "hallDark"]) && tab.read.rooms === true && tab.read.held === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
         J(tab), { flow: "trial-scene" });
     const before = await readAll();
@@ -246,6 +248,17 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         putBack === true && Object.values(afterPut).every(r => r.hidden.Aiko === false && J(shown(r)) === J([...CHOICE, "Decor"].sort()))
             && toldPut.length === 1 && J(toldPut[0]) === J([IDS.gm]),
         J({ putBack, afterPut: Object.fromEntries(Object.entries(afterPut).map(([who, r]) => [who, shown(r)])), toldPut }), { flow: "trial-scene" });
+    /* The dark hall on entering (E13 fix r1-F3, 12.10.2026; goal S07-47): the hall was linked without "Prepare the hall",
+       and until the fix entering the trial whispered the GMs only the students the hall has no token for (none here). */
+    const toldDark = await gm.eval(`${HALL} const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const T = await import("${repoUrl}/scripts/trial-scene.mjs");
+        const text = "<p>" + game.i18n.localize("DRPG.TrialScene.hallDark") + "</p>";
+        const told = [];
+        for (const m of game.messages) if (await wordsOf(m, 2000) === text) told.push((m.whisper ?? []).slice().sort());
+        return { unprepared: Object.keys(T.hallPreparePatch(hall)).sort(), told };`, { timeout: 60000 });
+    check("a4: entering the trial with an unprepared hall whispers the GMs to prepare it, once (E13 fix r1-F3)",
+        toldDark.unprepared.length > 0 && toldDark.told.length === 1 && J(toldDark.told[0]) === J([IDS.gm]),
+        J(toldDark), { flow: "trial-scene" });
     const handA = await byHand();
     await settle(400);
     note(`a: by hand ${J(handA)} (since E13 C2 the module has shown the choice and since C3 activated the hall: nothing left to do)`);
@@ -600,7 +613,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     const kHall = await readAll();
     check("k3: a player's showCourtroom changes nothing; the GM's takes every browser back to the hall with the GM's choice shown, the phase kept, and trialSceneReport names the school, the hall, the table and the four tokens (E13 C6)",
         playerDoor === null && views(kPlayer).every(v => v === "school") && J(apiK.door) === J({ hall: true, activated: true }) && apiK.phase === "classTrial"
-            && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), warnings: ["hallHasRooms"] })
+            && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), warnings: ["hallHasRooms", "hallDark"] })
             && views(kHall).every(v => v === "hall") && Object.values(kHall).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
         J({ playerDoor, kPlayer: views(kPlayer), apiK, kHall }), { flow: "trial-scene" });
     await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 60000 });

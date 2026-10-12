@@ -43,12 +43,29 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export function registerGmPanel() {
     Hooks.once("ready", injectLauncher);
     Hooks.on("renderSceneControls", injectLauncher);
+}
+
+/**
+ * The GM's chrome (GM_CHROME below), registered by module.mjs BEFORE its requirements check and
+ * apart from the panel (E13 fix r1-F3, 12.10.2026; S12-18). The stylesheet hides the Scenes tab, the
+ * scene navigation and the hotbar unless the element carries the class this puts on it, and a
+ * Foundry that links the module's stylesheet links it whether or not the module's script went on
+ * to start - so while this sat in `registerGmPanel`, after the check, a world missing Dice So Nice,
+ * Isometric Perspective or LiveKit (C10) stopped the module and took those three from the GM as
+ * well, the directory to enable the missing module in included. Measured headless on 12.10.2026: a
+ * GM's client booted with LiveKit off (00-boot, "the GM's chrome when the module stops") computed
+ * all three `display: none` before this moved, shown after. Whether Foundry v14 links the sheet of a
+ * module whose requirements are missing is LIVE-E13-11. Nothing here reads a setting: none is
+ * registered on that road.
+ */
+export function registerGmChrome() {
     /* The sidebar, the scene navigation and the hotbar are applications of their own, and an
-     * element one of them draws anew carries no class; the hook above is the scene controls'
-     * render only. The three names are Foundry's `render` + the application's class name, read
-     * from memory and not measured on v14: headless, 00-boot's "GM's chrome" fires them itself
-     * (LIVE-E13-09 looks at the table). */
-    for (const hook of ["renderSidebar", "renderSceneNavigation", "renderHotbar"]) Hooks.on(hook, markGmChrome);
+     * element one of them draws anew carries no class; `ready` stamps what is drawn by then. The
+     * three render names are Foundry's `render` + the application's class name, read from memory
+     * and not measured on v14: headless, 00-boot's "GM's chrome" fires them itself (LIVE-E13-09
+     * looks at the table). The scene controls' render stamps the rail as the launcher did. */
+    Hooks.once("ready", markGmChrome);
+    for (const hook of ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"]) Hooks.on(hook, markGmChrome);
 }
 
 /**
@@ -74,9 +91,10 @@ const GM_CHROME = [
  * everywhere. What GM_CHROME names is hidden by default in the
  * stylesheet and only a GM's client ever runs this to show it, so a
  * player needs no selector gymnastics at all - and a client where the
- * module never ran shows nobody any of it, the GM included (S12-18's
- * other half, left as it was: the stylesheet cannot tell a GM without
- * this script). */
+ * module never ran shows nobody any of it. A module that stopped at
+ * its requirements check still runs this for the GM (`registerGmChrome`,
+ * E13 fix r1-F3); a client that never loaded the script shows the GM none
+ * of it, as the stylesheet cannot tell a GM without it. */
 function markGmChrome() {
     if (!game.user?.isGM) return;
     for (const [selector, mark] of GM_CHROME) {

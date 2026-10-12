@@ -452,6 +452,8 @@ const versions = readVersions(REPO);
 const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspective": "Isometric Perspective", "avclient-livekit": "LiveKit AV Client" };
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
 for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
+// A companion this browser finds switched off (cluster.mjs `connect`'s `modulesOff`; E13 fix r1-F3).
+for (const id of String(process.env.DRPG_MODULES_OFF ?? "").split(",").filter(Boolean)) if (modulesMap.has(id)) modulesMap.get(id).active = false;
 
 /* A face the harness was told to show, as the `randomUniform` that draws it: Foundry maps u to
    `ceil((1 - u) * faces)`, so the middle of the face's band, u = 1 - (f - 0.5) / faces, lands on f

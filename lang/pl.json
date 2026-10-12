@@ -1997,6 +1997,7 @@
       "hallHasRooms": "Ta scena ma regiony oznaczone jako pokoje: {names}. W sali rozpraw nie są pokojami - czy to nie mapa szkoły? Regiony nieoznaczone jako pokoje mogą tu zostać.",
       "duplicateInHall": "Ta sama postać ma w sali więcej niż jeden token, a rozprawa pokazuje tylko pierwszy. Pozostałe: {names}.",
       "unlinkedToken": "Tokeny w sali niepowiązane ze swoją postacią: {names}. Nakładka śmierci i kontrola gracza są czytane z postaci, więc powiąż każdy token z jego postacią.",
+      "hallDark": "Sala rozpraw nadal ma włączone widzenie tokenów Foundry, wyłączone światło globalne albo włączoną mgłę eksploracji. Żeby każdy widział całą salę, zaznacz „Przygotuj salę” w Ustawieniach pokoi na karcie Sceny i naciśnij Zastosuj.",
       "prepare": "Przygotuj salę przy Zastosuj: mgła eksploracji Foundry wyłączona, widzenie tokenów wyłączone, światło globalne włączone - wszyscy widzą całą salę.",
       "preparePlaylist": "Wyczyść też playlistę sali",
       "prepareVoice": "Wyłącz też Proximity Voice Chat w sali (w rozprawie wszyscy są w jednym pokoju głosowym)",
@@ -2490,6 +2491,7 @@
     "Eclipse": {
       "already": "Eclipse już trwa.",
       "bodyFirst": "Znaleziono ciało - najpierw rozpocznij Investigation.",
+      "trialFirst": "Trwa Class Trial, więc Eclipse nie został rozpoczęty: na rozprawie wszyscy są w jednym pokoju głosowym. Najpierw zakończ rozprawę.",
       "announce": {
         "one": "Gasną światła. Ustaw swój token - jeden połączony pokój, nie więcej. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",
         "few": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy.",

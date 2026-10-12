@@ -584,10 +584,10 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // this file's - D8 puts it in the handbooks and beside Start the Class
         // Trial (E13 C6, C9).
         //
-        // After the Eclipse, not before it: an Eclipse the GM starts during a
-        // trial still takes every voice off (`startEclipse` refuses no phase,
-        // read in eclipse.mjs on 12.10.2026, and the clock refuses only to OPEN
-        // a trial in an Eclipse). Whether a table ever does that is not known.
+        // After the Eclipse, not before it, though neither road meets the other
+        // any more: `startEclipse` refuses in a trial (E13 fix r1-F3) and
+        // `setClock` refuses to open a trial in an Eclipse (E10 fix r2-G5). A
+        // clock written by hand with both still takes every voice off.
         row.claim = CLAIM.trial;
         row.why = game.i18n.localize("DRPG.Voice.claimTrial");
     } else if (silenced()) {

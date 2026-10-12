@@ -186,9 +186,10 @@ export function newItemIdentity() {
  * How many bad rolls this thing has left in it, and how many it has taken.
  *
  * The tier decides the total (`ITEM_DURABILITY`); anything with no tier
- * recorded answers 1, so a hand-made item and a world made before durability
- * existed behave exactly as everything did before it: one Despair and it is
- * done.
+ * recorded answers 1 - a hand-made item, a world made before durability
+ * existed. It is read as tier 0 by `tierOf` as well, so since E13 C8 it is
+ * single use: the first roll it is used in spends it, not only a Despair
+ * (use-items.mjs `rollSpends`, R439).
  */
 export function durabilityOf(item) {
     const tier = Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier));

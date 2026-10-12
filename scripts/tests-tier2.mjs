@@ -29120,6 +29120,52 @@ const SCENARIOS = [
             + "after it: no trial, the same accounts in rooms, nobody placed who was not before]");
     }],
 
+    ["an Eclipse waits for the Class Trial's end: the API is refused with the reason and the trial keeps its one voice room", async () => {
+        /*
+         * E13 fix r1-F3, 12.10.2026 (the orchestrator's default, put to the owner beside it; C4's handoff, goal S11-10's
+         * note). In a trial everybody is in one voice room (D8), and `voiceClaim` asks the Eclipse first - so an Eclipse
+         * started during a trial put every account in a room of its own. Opening a trial in an Eclipse was already refused
+         * (clock.mjs, E10 fix r2-G5); starting one in a trial was not. The roads that start one all call `startEclipse`:
+         * the API's, read here; the HUD's chevron, which the HUD does not draw in a trial (its trial slot takes the clock's
+         * place, hud.mjs `trialSlot`) - read here as drawn; the GM panel's "Do it" (`toggleEclipse`; in a trial its next
+         * line takes the trial's branch - read in the code, not driven). The phase set to the trial by the clock's one writer. Read: what
+         * the API answered, whether an Eclipse ran, the GM told the reason, the HUD's chevron, and every voice target after
+         * it - the main room (null) for all.
+         */
+        const E = await import("./eclipse.mjs");
+        const { renderHud } = await import("./hud.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const { voiceTargets } = await import("./voice.mjs");
+        const reason = game.i18n.localize("DRPG.Eclipse.trialFirst");
+        const was = getClock().phase;
+        must(!isEclipse() && was !== "classTrial", "an Eclipse or a trial was already running before the test began");
+        const warn = ui.notifications.warn, told = [];
+        try {
+            await setClock({ phase: "classTrial" });
+            await settle();
+            must(getClock().phase === "classTrial", "the trial did not open - this would measure nothing");
+            ui.notifications.warn = function (message, ...rest) {
+                told.push(String(message));
+                return warn.call(this, message, ...rest);
+            };
+            const answered = await game.drpg.startEclipse();
+            await settle();
+            const api = [answered === null, isEclipse(), told.filter(m => m === reason).length];
+            renderHud();
+            const chevron = Boolean(document.querySelector("#drpg-hud .fa-chevron-right"));
+            const during = await voiceTargets();
+            const targets = [...new Set([...during.byUser.values(), ...during.rows].map(r => r.target ?? null))];
+            equal(stableJson([api, chevron, targets]), stableJson([[true, false, 1], false, [null]]),
+                "an Eclipse started in the Class Trial, or the GM was not told why, or the HUD offered the chevron, or a voice left the "
+                + "trial's one room ([the API: answered null, an Eclipse running, told], [the chevron drawn], [the voice targets])");
+        } finally {
+            ui.notifications.warn = warn;
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock({ phase: was });
+            await settle();
+        }
+    }],
+
     ["a trial whose verdict is in does not open another", async () => {
         /*
          * F2, reproduced on 16.09: with the verdict applied the console kept The verdict live,
@@ -50366,6 +50412,7 @@ const SCENARIOS = [
          * hidden; the prop is not cast); what Prepare left to do and the isometric flag; the warning of the clash and the
          * writes of the role setting in the last two; and Season setup's room rows and the Scenes row with the school, then
          * the hall, on screen. Scenario 41 a drives the drawn window on four browsers. Red before C5: no Scenes tab.
+         * Since E13 fix r1-F3 the hall's warnings include "hallDark": it is made dark here before the first Apply.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
@@ -50490,7 +50537,7 @@ const SCENARIOS = [
                 const onHall = rows();
                 read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
                     onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
-                    ["duplicateInHall", "hallHasRooms", ...(absent ? ["missingTokens"] : []), "unlinkedToken"]];
+                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["missingTokens"] : []), "unlinkedToken"]];
             } finally {
                 game.settings.set = set;
                 ui.notifications.warn = warn;

@@ -7113,6 +7113,36 @@ const INVARIANTS = [
             JSON.stringify([true, true, true]),
             "[init returns on the check before it registers a setting; setup returns on it first; ready announces and returns first]");
     }],
+    ["R470 - a GM keeps the Scenes tab, the scene navigation and the hotbar when the module stops at its requirements check", async () => {
+        /*
+         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hides the three unless the element carries
+         * the class a GM's client puts on it (GM_CHROME, R438), and that was registered in `registerGmPanel`, after the
+         * requirements check `init` returns on (R442) - so a world missing a required module, which C10 made likelier,
+         * took the three from its GM too. Read in module.mjs with comments blanked: `init` registers the GM's chrome
+         * after the relay guard and before the check; and in gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on
+         * `ready` and on the four renders (the scene controls', the sidebar's, the navigation's and the hotbar's), and
+         * neither function reads a setting - none is registered on that road. What a GM's client then computes is
+         * 00-boot's "the GM's chrome when the module stops" (a GM booted with LiveKit off); whether Foundry v14 links
+         * the sheet of a module that stopped is LIVE-E13-11 (not run).
+         */
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("module.mjs") ?? "");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const init = bodyOf(src, 'Hooks.once("init"', { until: 'Hooks.once("setup"' });
+        const at = needle => init.indexOf(needle);
+        const chrome = at(", registerGmChrome)");
+        // Read as empty where there is no such function (before the fix), so the answer is a wrong reading, not a stop.
+        const register = panel.includes("export function registerGmChrome")
+            ? bodyOf(panel, "export function registerGmChrome", { until: "\nfunction markGmChrome" }) : "";
+        const mark = bodyOf(panel, "function markGmChrome", { length: 400 });
+        const hooked = ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
+        equal(JSON.stringify([at("registerRelayGuard") >= 0 && chrome > at("registerRelayGuard"), chrome >= 0 && chrome < at("if (!requirementsMet())"),
+            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
+            /game\.settings|getSetting|SETTINGS\./.test(register + mark)]),
+            JSON.stringify([true, true, true, 4, true, false]),
+            "[the GM's chrome after the relay guard; before the requirements check; stamped at ready; the renders hooked; "
+            + "each to markGmChrome; a setting read on that road]");
+    }],
 ];
 
 /**

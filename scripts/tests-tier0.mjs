@@ -10507,7 +10507,7 @@ const REGRESSIONS = [
         equal(JSON.stringify({
             stamped: TARGETS.map(([element, cls]) => chrome.some(line => line.includes(`"${cls}"`) && line.includes(element))),
             gmOnly: /^\s*if \(!game\.user\?\.isGM\) return;/m.test(mark) && mark.indexOf("isGM") < mark.indexOf("classList.add"),
-            hooks: ["renderSidebar", "renderSceneNavigation", "renderHotbar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmPanel"))),
+            hooks: ["renderSidebar", "renderSceneNavigation", "renderHotbar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
             launcher: /markGmChrome\(\)/.test(fnSource(panel, "injectLauncher"))
         }), JSON.stringify({ stamped: [true, true, true], gmOnly: true, hooks: [true, true, true], launcher: true }),
             "a GM's client no longer puts the class on one of the three, puts it on a player's, or stops doing it when the sidebar, the navigation or the hotbar draws again");
