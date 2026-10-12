@@ -8497,6 +8497,10 @@ const REGRESSIONS = [
          * E81 C6 (12.10.2026) added the history's `drpgStorageFull` hook, by which it gives way to the module's other
          * stores: 50 against 50 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 7 HOOK, 5 STORE, none either
          * side - on the harness (this test by name, once, its own log line), and 50 sources in the parse-only census.
+         * E81 C7 (12.10.2026) added notice-history-app.mjs, the window, which the crawl reaches through the dynamic imports
+         * of api.mjs and the keybinding: its four sinks, 54 against 54 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG,
+         * 3 DELETE, 7 HOOK, 5 STORE, 4 WINDOW, none either side - on the harness (this test by name, once, its own log
+         * line), and 54 sources and 128 pairs, 0 unclassified and 0 stale, in the parse-only census.
          * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
          * under a top-level hook, a `sayNotDone` definition calling itself beside a call, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
@@ -8552,7 +8556,11 @@ const REGRESSIONS = [
             ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],
             ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); cleared with every section of this world by the season's reset (R297)"],
             ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
-            ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"]
+            ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"],
+            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security)"],
+            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half)"],
+            ["WINDOW notice-history-app.mjs#window#search", "the query folded and matched on text; the highlight built of text nodes and `<mark>` elements whose only content is text (R296)"],
+            ["WINDOW notice-history-app.mjs#window#conversation", "\"Open conversation\" calls `openMessenger` once with the entry's `link.messenger`, which the read held to an existing user; a player asking for another's thread is refused there (messenger-app.mjs `openMessenger`, R296)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const NOTICE_FILES = /^(?:popup|notice-history)\.mjs$/;

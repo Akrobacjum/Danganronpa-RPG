@@ -21,7 +21,10 @@
  * closed is marked deleted when the page is back (the log read at `ready`); and the GM's Clear chat
  * (`deleteDocuments([], { deleteAll: true })`, the option taken out before the hook as Foundry 14.365 does by
  * the design's reading - the harness's shim mirrors it, LIVE-E81-11 at a table) leaves every entry on two
- * players, each of a chat card marked deleted. C7 and C8 add the window and the corner badge.
+ * players, each of a chat card marked deleted. C (C7): the same player opens the history's window - the
+ * unread banner counts what the history holds unread, the entries stand newest first, and expanding every
+ * one draws no card, starts no sound, sends no chat message and moves no messenger badge; closed, the
+ * window has read them all, in memory and as stored. C8 adds the corner badge.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -34,7 +37,9 @@ export const layers = ["ci"];
    7.3 s of it (A5 waits to 4.5 s after the cards were posted, for the veiled card's words p2 never gets). A fifth of
    run-all's shared five minutes, stated so that C5, C7 and C8, which add phases here, raise it with a reading of their own.
    C5's phase B (12.10.2026, alone, once): 22.4 s from start to end by the results file, the checks 16.4 s of it (phases N
-   and S came between, so the rise is not B's alone and was not split by phase). Still well inside 60 s, so it stays. */
+   and S came between, so the rise is not B's alone and was not split by phase). Still well inside 60 s, so it stays.
+   C7's phase C (12.10.2026, alone, once): 21.9 s from start to end by the results file, the checks 17.5 s of it - no
+   more than C5's reading, so a run's spread is larger than phase C, which was not timed apart. It stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -229,4 +234,54 @@ export async function run({ gm, p2, p4, check, phase, settle, connect, disconnec
         && options.length > 0 && !options.some(keys => keys.split(",").includes("deleteAll")),
         J({ cleared, count: ["p4", "p2"].map(who => [before[who].entries.length, after[who].entries.length]), unmarked: ["p4", "p2"].map(unmarked),
             stored: ["p4", "p2"].map(storedUnmarked), options: [...new Set(options)] }));
+
+    phase("C: the player opens the history - the unread banner, newest first, and nothing shown again");
+    const opened = await p4.eval(`${UNTIL}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const U = await import("${repoUrl}/scripts/utils.mjs");
+        const page = () => ({ cards: document.querySelectorAll(".drpg-popup").length,
+            badges: [...document.querySelectorAll(".drpg-messenger-badge")].map(b => b.textContent).join() });
+        const before = page(), plays = [], undo = [];
+        for (const [owner, name] of [[foundry.audio?.AudioHelper, "play"], [foundry.audio?.Sound?.prototype, "play"], [globalThis.HTMLMediaElement?.prototype, "play"]]) {
+            if (typeof owner?.[name] !== "function") continue;
+            const own = Object.hasOwn(owner, name), original = owner[name];
+            owner[name] = function (...args) { plays.push(name); return original.apply(this, args); };
+            undo.push(() => { if (own) owner[name] = original; else delete owner[name]; });
+        }
+        let created = 0;
+        const hook = Hooks.on("preCreateChatMessage", () => { created++; });
+        try {
+            const entries = NH.noticeEntries();
+            const unread = entries.filter(e => e.state === "unread").length;
+            // Without the window (HEAD) every check below fails rather than the scenario throwing.
+            const win = await game.drpg.openNotices?.();
+            const root = win?.element;
+            const banner = root?.querySelector(".drpg-notices-banner");
+            const listed = [...(root?.querySelectorAll("details.drpg-notice-entry") ?? [])];
+            for (const details of listed) details.open = true;
+            const expanded = await until(() => listed.every(d => d.querySelector(".drpg-notice-more")), 3000);
+            const out = {
+                unread, banner: [banner?.hidden ?? null, banner?.querySelector("span")?.textContent === U.plural("DRPG.Notices.unreadBanner", { n: unread })],
+                newestFirst: JSON.stringify(listed.map(d => d.dataset.drpgKey)) === JSON.stringify(entries.map(e => e.id).reverse()),
+                count: [entries.length, listed.length], expanded, inWindow: root?.querySelectorAll(".drpg-popup").length ?? -1
+            };
+            await win?.close();
+            return { ...out, page: [before, page()], plays, created, unreadAfter: NH.noticeEntries().filter(e => e.state === "unread").length };
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+            for (const put of undo) put();
+        }`);
+    check("C1: the player opens the history - the banner counts the history's unread notices, every entry listed, newest first",
+        opened.unread > 0 && J(opened.banner) === J([false, true]) && opened.newestFirst && opened.count[0] === opened.count[1] && opened.count[0] > 0,
+        J({ unread: opened.unread, banner: opened.banner, newestFirst: opened.newestFirst, count: opened.count }));
+    check("C2: expanding every entry shows nothing again - no card drawn, on the page or in the window, no sound, no chat message, the messenger's badges as they were",
+        opened.expanded && opened.inWindow === 0 && J(opened.page[0]) === J(opened.page[1]) && opened.plays.length === 0 && opened.created === 0,
+        J({ expanded: opened.expanded, inWindow: opened.inWindow, page: opened.page, plays: opened.plays, created: opened.created }));
+    // Past the history's 400 ms write.
+    await settle(800);
+    const read = await storageOf("p4");
+    const storedUnread = storedEntries(read, `${gmBefore.world}.${P4}`).filter(e => e.state === "unread").length;
+    check("C3: closed, the window has read every notice - none unread in memory or as stored",
+        opened.unreadAfter === 0 && storedUnread === 0 && storedEntries(read, `${gmBefore.world}.${P4}`).length === opened.count[0],
+        J({ unreadAfter: opened.unreadAfter, storedUnread }));
 }

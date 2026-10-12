@@ -5396,6 +5396,49 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`, { timeout: 60000 });
     await settle(300);
 
+    /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
+       console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
+       The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the
+       window drew of p1's words holds no attribute a handler, a tooltip or a screen reader would read, and nothing in it
+       ran. R294 says the same of the recorder and the snapshot in the suite; this is the road a player has, end to end.
+       The control: the card's document on the GM still carries every attribute p1 wrote, and the snapshot its words. */
+    phase("notice history window");
+    const NOTICE_MARK = "SEC notice keeps this";
+    const noticeCard = await p1.eval(`
+        const doc = await ChatMessage.create({ content: ${JSON.stringify(`<p>${"SEC notice keeps this"}</p>`
+            + `<img src="sec-missing.png" onerror="globalThis.__drpgSecNotice = 1">`
+            + `<span data-tooltip-html="&lt;img src=x onerror=globalThis.__drpgSecNotice=2&gt;" aria-label="SEC aria" onmouseover="globalThis.__drpgSecNotice = 3">SEC hover</span>`
+            + `<a href="javascript:globalThis.__drpgSecNotice = 4" data-action="sec">SEC link</a>`
+            + `<svg onload="globalThis.__drpgSecNotice = 5"><circle r="1"></circle></svg>`)},
+            flags: { "${MOD}": { drpgMessage: true } } });
+        return doc?.id ?? null;`);
+    await settle(1200);
+    const noticeSeen = await gm.eval(`await game.drpg.openNotices();
+        await new Promise(r => setTimeout(r, 300));
+        const root = document.querySelector(".drpg-window-notices");
+        for (const d of root?.querySelectorAll("details") ?? []) d.open = true;
+        await new Promise(r => setTimeout(r, 300));
+        for (const el of root?.querySelectorAll("*") ?? []) for (const type of ["mouseover", "mouseenter", "pointerover", "focusin"])
+            el.dispatchEvent(new MouseEvent(type, { bubbles: type !== "mouseenter" }));
+        await new Promise(r => setTimeout(r, 300));
+        const snaps = [...(root?.querySelectorAll(".drpg-notice-snapshot") ?? [])].filter(s => s.textContent.includes("${NOTICE_MARK}"));
+        const attrs = snaps.flatMap(s => [...s.querySelectorAll("*")].flatMap(el => [...el.attributes].map(a => a.name)))
+            .filter(name => /^(data-|aria-|on)/i.test(name));
+        // The positive control: the card's document on the GM still carries what p1 wrote, and the snapshot its words.
+        const raw = game.messages.get("${noticeCard ?? "none"}")?.content ?? "";
+        const out = { open: Boolean(root), snapshots: snaps.length, attrs, ran: globalThis.__drpgSecNotice ?? null,
+            carried: ["onerror", "data-tooltip-html", "aria-label", "onmouseover", "javascript:", "onload"].filter(word => raw.includes(word)),
+            words: ["SEC hover", "SEC link"].filter(word => snaps.some(s => s.textContent.includes(word))),
+            hrefs: snaps.flatMap(s => [...s.querySelectorAll("[href]")].map(a => a.getAttribute("href"))).filter(h => /javascript:/i.test(h)) };
+        await foundry.applications.instances?.get("drpg-notices")?.close();
+        return out;`, { timeout: 60000 });
+    check("SECURITY: p1's card in the GM's notice history window, opened and hovered, carries no data-, aria- or on- attribute and nothing in it ran (E81 C7)",
+        noticeSeen.open && noticeSeen.snapshots >= 1 && noticeSeen.attrs.length === 0 && noticeSeen.ran === null && noticeSeen.hrefs.length === 0
+            && noticeSeen.carried.length === 6 && noticeSeen.words.length === 2,
+        JSON.stringify({ noticeCard, ...noticeSeen }));
+    if (noticeCard) await gm.eval(`await game.messages.get("${noticeCard}")?.delete(); return true;`);
+    await settle(300);
+
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
 }

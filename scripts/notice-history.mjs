@@ -20,7 +20,9 @@
  * THE STORE (E81 C1), THE CLEANING (C2) AND THE RECORDER (C3). Every card `showPopup` draws
  * is recorded here as it is drawn (popup.mjs, `record` and its siblings), its snapshot kept
  * up while the card is on screen and its state moved when it is closed (`updateNotice`); the
- * direct calls and `sayNotDone` are C4, giving way to the other stores C6 and the window C7.
+ * direct calls and `sayNotDone` are C4, giving way to the other stores C6. The window that
+ * reads it back is notice-history-app.mjs (C7), opened by the keybinding registered here and
+ * by `game.drpg.openNotices()`.
  * What is here:
  * - the entry's shape and its budgets (a JSON length, never a byte count: the engine
  *   cannot read what a browser's quota counts);
@@ -42,12 +44,13 @@
  * WHAT ANOTHER LOGIN CAN READ. Every account's section is in one value of this browser's
  * storage, so anybody at this browser's console reads every section in it, a GM's and a
  * killer's included. The owner accepted that on 11.10.2026 (Q9); the GM's handbook is to
- * say so (E81 C15), and the window (E81 C7) is to draw only this login's section.
+ * say so (E81 C15). The window (E81 C7) draws only this login's section: `noticeEntries` is
+ * the engine's `mine`, and nothing here hands out another key's entries.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
-import { debug, warn } from "./utils.mjs";
+import { debug, warn, error } from "./utils.mjs";
 import { cleanCardHtml, cardFlag } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 
@@ -858,6 +861,25 @@ export function createNoticeEngine(env) {
             return Promise.resolve();
         },
         status: () => ({ saving, note: saving ? null : NOTICE_TEXTS.notSaved }),
+        /**
+         * Every unread entry read (E81 C7: the window's "Mark as read", and the window closing): an entry still on
+         * screen stays `open`, a read one stays read. Answers how many moved; none is no write.
+         */
+        markRead() {
+            const list = mine?.entries ?? pending;
+            let moved = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i].state !== "unread") continue;
+                list[i] = { ...list[i], state: "read" };
+                moved++;
+            }
+            if (!moved) return 0;
+            if (mine) schedule();
+            changed();
+            return moved;
+        },
+        /** Whether an entry was recorded with `persist: "session"`: kept in this page's memory and never written (the window's tag, E81 C7). */
+        sessionOnly: id => sessionOnly.has(id),
         onChange(fn) {
             listeners.add(fn);
             return () => listeners.delete(fn);
@@ -905,6 +927,12 @@ export const noticeEntries = () => engine.entries();
 export const noticeHistoryStatus = () => engine.status();
 /** Run `fn` whenever this login's history changes here or in another tab (the window and the badge, E81 C7 and C8). */
 export const onNoticeHistoryChange = fn => engine.onChange(fn);
+/** Read every unread notice (the window, E81 C7); answers how many moved. */
+export const markNoticesRead = () => engine.markRead();
+/** Clear this login's history (the window's Clear, after its question, E81 C7). */
+export const clearNoticeHistory = () => engine.clear();
+/** Whether a notice is kept for this page only, never written (the window's tag, E81 C7). */
+export const noticeSessionOnly = id => engine.sessionOnly(id);
 /** Suite only (tests.mjs, beside `gmStoreHold`): while held the history is kept in memory and the setting is not written; awaited, the hold has written what was waiting. */
 export const holdNoticeHistory = on => engine.hold(on);
 
@@ -970,9 +998,18 @@ export function noticeTime(at) {
  * was shown (E81 C5), gives way to the module's other stores (E81 C6), and writes what waits at once when the page hides - a reload right after a card
  * would otherwise lose it to the debounce. Whether Foundry 14's client setting reaches localStorage
  * before `pagehide` returns is the design's reading of Foundry's client-settings.mjs, not measured
- * here (LIVE-E81-03).
+ * here (LIVE-E81-03). The window's keybinding (E81 C7) has no default key, as the safeword's has none
+ * (safeword.mjs): a key the module chose would be one a table already uses for something else. The
+ * window is imported when the key is pressed, so this file imports nothing that draws.
  */
 export function registerNoticeHistory() {
+    try {
+        game.keybindings.register(MODULE_ID, "noticeHistory", {
+            name: "DRPG.Notices.title", hint: "DRPG.Notices.keybindingHint", editable: [],
+            onDown: () => { void import("./notice-history-app.mjs").then(m => m.openNotices()); return true; },
+            restricted: false, precedence: CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 1
+        });
+    } catch (err) { error("Could not register the notice history's keybinding", err); }
     Hooks.once("ready", () => engine.open());
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) engine.checkEpoch();

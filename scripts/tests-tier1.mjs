@@ -7661,7 +7661,7 @@ const INVARIANTS = [
     }],
     ["R294 - a kept notice holds only what a past card may show: what another user's markup carried in is gone through the recorder, from a value written raw into the setting and from a GM's trusted words, and the card's own text stays", async () => {
         /*
-         * E81 C2, 12.10.2026; the A7 design's A7-3 (T2), without the window (E81 C7 expands it there). The harm: a
+         * E81 C2, 12.10.2026; the A7 design's A7-3 (T2); the window's half is C7's, at the end. The harm: a
          * card's body holds what another user wrote - a plain card's `message.content`, which the popup draws uncleaned,
          * a GM's `trusted` private words (secret.mjs returns those as written), a trial's evidence, a day summary's
          * names - and a history keeps it to the season's reset and draws it again. One card body carries every vector
@@ -7825,6 +7825,42 @@ const INVARIANTS = [
         "[secret.mjs keeps a cleaner of another name; exports cleanCardHtml; a private card's words go through it; it is Foundry's "
             + "cleanHTML as before; the history keeps inertCopy(cleanCardHtml(html)); draws through both again by importNode; "
             + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
+
+        /*
+         * THE WINDOW (E81 C7, 12.10.2026). The same card recorded on this client (held), opened in the history's
+         * window and expanded there: what `.drpg-notice-snapshot` holds is measured as above - the card's words in it
+         * (the positive control: a window that drew nothing would pass every count of what is gone) and no `data-*`,
+         * `aria-*`, `style` or `on*` under it. The title and the text carry markup of their own and are drawn as the
+         * characters they are: text nodes, no element parsed out of them, the characters all there.
+         */
+        const TITLE = `R294 <img src="r294-title.png" onerror="globalThis.__drpgR294 = 5"> title`;
+        const windows = () => [...foundry.applications.instances.values()].filter(app => app.options?.classes?.includes("drpg-window-notices"));
+        must(windows().length === 0, "the notice history window is open - close it: the suite measures a window it opened itself");
+        // No window is the module's harm, not the environment's: an assertion, so that red first reads it as one.
+        const { openNotices } = await import("./notice-history-app.mjs").catch(() => ({}));
+        ok(typeof openNotices === "function", "there is no notice history window (notice-history-app.mjs) to draw a kept card in");
+        let win = null, seen = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: TITLE, text: `${TITLE} text`, html: CARD });
+            win = await openNotices();
+            const details = win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(details !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
+            details.open = true;
+            await until(() => details.querySelector(".drpg-notice-snapshot"), 1000);
+            const snapshot = details.querySelector(".drpg-notice-snapshot");
+            const part = name => details.querySelector(`summary > .drpg-notice-${name}`);
+            seen = {
+                snapshot: snapshot ? measure(snapshot, isGM) : null,
+                title: [part("title")?.textContent === TITLE, part("title")?.querySelectorAll("*").length ?? -1],
+                text: [part("text")?.textContent === `${TITLE} text`, part("text")?.querySelectorAll("*").length ?? -1]
+            };
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(seen), stableJson({ snapshot: expected(isGM), title: [true, 0], text: [true, 0] }),
+            "expanded in the window, a kept card showed what another user's markup carried in or lost its own words, or a title or text was parsed as markup");
     }],
     ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card", async () => {
         /*
@@ -8217,6 +8253,193 @@ const INVARIANTS = [
         const status = S.gmStoreStatus(client);
         equal(J([status.total, status.notices]), J([items[0][0].length + 100, items[1][0].length + 1000]),
             "[what the module keeps without its notice history; the history] in a stand-in storage");
+    }],
+    ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
+        /*
+         * E81 C7, 12.10.2026; the A7 design's A7-5 (P10-3). The harm: a history that re-issued what it keeps - a
+         * sound replayed, a card drawn over the table again, a chat message sent again - would make reading an old
+         * notice a new one. Measured on this client, held as R473 holds the history (nothing reaches the setting):
+         * three entries recorded (a card body, a messenger message with its thread, an announcement with a title to
+         * search for) and opened through `game.drpg.openNotices()`, every entry expanded, the search typed and emptied
+         * with Esc, the unread banner's "Mark as read" pressed, Clear asked and refused, then asked and answered.
+         * Across all of it the sounds started (`AudioHelper.play`, `Sound#play`, any media element's `play`), the
+         * `.drpg-popup` cards on the page, the messenger's unread badges and the chat messages about to be created
+         * are counted, and none may move. "Open conversation" is pressed with the messenger window's render held, so
+         * no thread is drawn or marked read on this client: it asks for the entry's own thread, once. Last, the
+         * window's file is read for the roads it must not take, and the keybinding and the API for being there.
+         */
+        const NH = await import("./notice-history.mjs");
+        const { DrpgMessengerApp } = await import("./messenger-app.mjs");
+        const isGM = Boolean(game.user?.isGM);
+        if (isGM) needs(world.atLeast("playerAccounts", 1), "the conversation button needs a player's thread to name");
+        const thread = isGM ? game.users.find(user => !user.isGM)?.id : game.user.id;
+        ok(typeof game.drpg?.openNotices === "function", "game.drpg.openNotices is not there - there is no notice history window to open");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        must(!DrpgMessengerApp.instances.has(thread), "the thread the suite names is open - close it, or the button would raise it rather than ask for it");
+
+        const plays = [], undo = [];
+        const watchCall = (owner, name, label) => {
+            if (typeof owner?.[name] !== "function") return;
+            const own = Object.hasOwn(owner, name), original = owner[name];
+            owner[name] = function (...args) {
+                plays.push(label);
+                return original.apply(this, args);
+            };
+            undo.push(() => { if (own) owner[name] = original; else delete owner[name]; });
+        };
+        watchCall(foundry.audio?.AudioHelper, "play", "AudioHelper.play");
+        watchCall(foundry.audio?.Sound?.prototype, "play", "Sound#play");
+        watchCall(globalThis.HTMLMediaElement?.prototype, "play", "HTMLMediaElement#play");
+        let created = 0;
+        const createHook = Hooks.on("preCreateChatMessage", () => { created++; });
+        /* Cards are counted by the ones that were not on the page when the test began: an earlier test's card that
+         * times out during the test is not a card the window took back (12.10.2026, A2: counting all `.drpg-popup`
+         * read 3 before and 2 after in the tier 0/1 run, and passed when R296 ran by name). */
+        const cardsBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const page = () => ({
+            cards: [...document.querySelectorAll(".drpg-popup")].filter(card => !cardsBefore.has(card)).length,
+            badges: [...document.querySelectorAll(".drpg-messenger-badge")].map(badge => badge.textContent).join()
+        });
+        const before = page();
+        const proto = DrpgMessengerApp.prototype, ownRender = Object.hasOwn(proto, "render"), realRender = proto.render;
+        const putRenderBack = () => { if (ownRender) proto.render = realRender; else delete proto.render; };
+        const { plural } = await import("./utils.mjs");
+        const asked = [];
+        let win = null, seen = null, dialog = null, ids = [], unreadAt = -1;
+        await NH.holdNoticeHistory(true);
+        try {
+            must(undo.length > 0, "no audio road of Foundry's to watch here - a sound would go uncounted");
+            ids = [
+                NH.recordNotice({ source: "mine", kind: "info", tone: "hope", title: "R296 kept card", text: "R296 kept", html: `<p class="notes">R296 kept body</p>`, state: "unread" }),
+                NH.recordNotice({ source: "messenger", kind: "info", title: "R296 message", text: "R296 message", html: "<p>R296 message body</p>", link: { messenger: thread } }),
+                NH.recordNotice({ source: "public", kind: "info", title: "R296 Gęślą <b>found</b>", text: "R296 announced", html: "", state: "unread" })
+            ];
+            must(ids.every(Boolean), "the history refused one of the suite's notices - the window would be measured on less");
+            unreadAt = NH.noticeEntries().filter(e => e.state === "unread").length;
+            win = await game.drpg.openNotices();
+            const root = win?.element ?? null;
+            ok(root !== null, "game.drpg.openNotices() opened no window");
+            const entry = id => root.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
+            const banner = root.querySelector(".drpg-notices-banner");
+            const bannerAt = { hidden: banner?.hidden ?? null, text: banner?.querySelector("span")?.textContent ?? "" };
+            for (const details of root.querySelectorAll("details.drpg-notice-entry")) details.open = true;
+            const expanded = await until(() => ids.every(id => entry(id)?.querySelector(".drpg-notice-more")), 1000);
+            const snapshots = ids.map(id => entry(id)?.querySelectorAll(".drpg-notice-snapshot").length ?? -1);
+            const inWindow = root.querySelectorAll(".drpg-popup").length;
+
+            /* The search: folded, highlighted by text nodes, and emptied by Esc. */
+            const input = root.querySelector(".drpg-notices-search input");
+            input.value = "gesla";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            const narrowed = await until(() => root.querySelectorAll("details.drpg-notice-entry").length === 1, 1500);
+            const marks = [...root.querySelectorAll(".drpg-notice-title mark")];
+            const found = {
+                narrowed, listed: [...root.querySelectorAll("details.drpg-notice-entry")].map(d => d.dataset.drpgKey),
+                marks: marks.map(mark => mark.textContent), markup: root.querySelectorAll(".drpg-notice-title b, .drpg-notice-title mark *").length
+            };
+            input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+            found.emptied = [input.value, await until(() => root.querySelectorAll("details.drpg-notice-entry").length >= 3, 1000)];
+
+            /* "Open conversation", once, with the thread's window held from drawing. */
+            proto.render = function () { asked.push(this.playerUserId); return Promise.resolve(this); };
+            for (const details of root.querySelectorAll("details.drpg-notice-entry")) details.open = true;
+            await until(() => entry(ids[1])?.querySelector(".drpg-notice-conversation"), 1000);
+            entry(ids[1])?.querySelector(".drpg-notice-conversation")?.click();
+            putRenderBack();
+
+            /* Mark as read, then Clear: refused, then answered. */
+            root.querySelector('[data-drpg-do="markRead"]')?.click();
+            const unreadAfter = NH.noticeEntries().filter(e => ids.includes(e.id) && e.state === "unread").length;
+            const realWait = foundry.applications.api.DialogV2.wait;
+            const answers = ["cancel", "clear"];
+            foundry.applications.api.DialogV2.wait = async config => {
+                dialog = (config.buttons ?? []).filter(button => button.default).map(button => button.action);
+                return answers.shift();
+            };
+            try {
+                root.querySelector('[data-drpg-do="clear"]')?.click();
+                await until(() => answers.length === 1, 1000);
+                const keptAfterCancel = NH.noticeEntries().filter(e => ids.includes(e.id)).length;
+                root.querySelector('[data-drpg-do="clear"]')?.click();
+                await until(() => NH.noticeEntries().length === 0, 1000);
+                found.clear = [dialog, keptAfterCancel, NH.noticeEntries().length];
+            } finally {
+                foundry.applications.api.DialogV2.wait = realWait;
+            }
+            seen = { banner: bannerAt, expanded, snapshots, inWindow, found, unreadAfter };
+        } finally {
+            putRenderBack();
+            DrpgMessengerApp.instances.delete(thread);
+            await win?.close();
+            NH.holdNoticeHistory(false);
+            Hooks.off("preCreateChatMessage", createHook);
+            for (const put of undo) put();
+        }
+        equal(stableJson(seen), stableJson({
+            banner: { hidden: false, text: plural("DRPG.Notices.unreadBanner", { n: unreadAt }) }, expanded: true, snapshots: [1, 1, 0],
+            inWindow: 0, found: { narrowed: true, listed: [ids[2]], marks: ["Gęślą"], markup: 0, emptied: ["", true], clear: [["cancel"], 3, 0] },
+            unreadAfter: 0
+        }), "[the unread banner; every entry expanded; a snapshot for each with a body; no card in the window; the search for 'gesla' "
+            + "(one entry, highlighted from text, emptied by Esc); Clear (Cancel the default; refused keeps all three; answered empties); Mark as read]");
+        equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
+            "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
+
+        const sources = await moduleSources();
+        const app = stripComments(sources.get("notice-history-app.mjs") ?? "");
+        must(app.length > 0, "notice-history-app.mjs was not read - its roads would be measured on nothing");
+        const register = fnSource(stripComments(sources.get("notice-history.mjs") ?? ""), "registerNoticeHistory");
+        equal(JSON.stringify([
+            /\bshowPopup\b|\bplaySfx\b|\bChatMessage\b|\.play\(|AudioHelper|innerHTML|outerHTML|insertAdjacentHTML|setHTMLUnsafe|createContextualFragment/.test(app),
+            /\bnoticeSnapshot\(entry\.html\)/.test(app), (app.match(/\bopenMessenger\(/g) ?? []).length,
+            /game\.keybindings\.register\(MODULE_ID, "noticeHistory", \{[^}]*editable: \[\][^}]*m\.openNotices\(\)/.test(register),
+            /openNotices: \(\) => import\("\.\/notice-history-app\.mjs"\)\.then\(m => m\.openNotices\(\)\)/.test(stripComments(sources.get("api.mjs") ?? ""))
+        ]), JSON.stringify([false, true, 1, true, true]),
+        "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
+            + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
+    }],
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px", async () => {
+        /*
+         * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
+         * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
+         * screen; the design's figures are a 393 px phone and a 1366x768 desk with 250 entries. MEASURED AT THE SIZE
+         * OF THE BROWSER THAT RUNS THE SUITE, which this test cannot change: at 393 px or at 1366x768 only when that is
+         * the browser's size. A full history is recorded (held: nothing reaches the setting; a GM's section keeps 150 of
+         * the 250, its budget), the window opened, and read: its box within the screen less 8 px a side and no wider
+         * than 420 px, its foot wholly on screen while the list scrolls, and every element that draws text at 11 px or
+         * more (the module's floor, `--drpg-text-xs`). Headless there is no layout: skipped, with a row in
+         * skip-baseline.json (the plan's D6).
+         */
+        needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, seen = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            for (let i = 0; i < 250; i++) {
+                NH.recordNotice({ source: i % 2 ? "mine" : "public", kind: "info", title: `R299 notice ${i}`, text: "R299 kept words ".repeat(12), html: "", state: i % 3 ? "read" : "unread" });
+            }
+            win = await openNotices();
+            const root = win?.element ?? null;
+            must(root !== null, "the window did not open");
+            const box = root.getBoundingClientRect(), foot = root.querySelector(".drpg-notices-foot")?.getBoundingClientRect();
+            const list = root.querySelector(".drpg-notices-list");
+            const small = [...root.querySelectorAll("*")]
+                .filter(el => el.offsetWidth > 0 && [...el.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()))
+                .filter(el => Number.parseFloat(getComputedStyle(el).fontSize) < 11)
+                .map(el => `${el.localName}.${[...el.classList].join(".")} ${getComputedStyle(el).fontSize}`);
+            seen = {
+                width: box.width <= Math.min(420, window.innerWidth - 16) + 0.5, sides: box.left >= 7.5 && box.right <= window.innerWidth - 7.5,
+                foot: Boolean(foot) && foot.top >= 0 && foot.bottom <= window.innerHeight + 0.5, scrolls: list.scrollHeight > list.clientHeight,
+                small: [...new Set(small)]
+            };
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(seen), stableJson({ width: true, sides: true, foot: true, scrolls: true, small: [] }),
+            `the notice history window at ${window.innerWidth}x${window.innerHeight} [no wider than 420 px or the screen less 16; 8 px clear of each side; `
+            + "its foot on screen; the list scrolls; text under 11 px]");
     }],
 ];
 

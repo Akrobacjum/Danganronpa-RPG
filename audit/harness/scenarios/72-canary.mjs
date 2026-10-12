@@ -693,4 +693,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     });
     check("p1: the notice history the canary scanned is in p1's dump and holds the cards p1 was shown (E81 C4)",
         history.entries > 0, JSON.stringify(history));
+
+    /* THE WINDOW'S TEXT IS IN THE DUMP (E81 C7, 12.10.2026). The history window draws what the setting holds - each
+       entry's title and words, and once an entry is opened, its card's markup as a snapshot - into the page, and the
+       page is the dump's `dom` surface. p1 opens the window and every entry in it, the canary scans with the window up,
+       and then this says that the window was there with entries and snapshots, so that the scan's silence measured it. */
+    const shown = await p1.eval(`await game.drpg.openNotices();
+        await new Promise(r => setTimeout(r, 300));
+        const root = document.querySelector(".drpg-window-notices");
+        for (const d of root?.querySelectorAll("details") ?? []) d.open = true;
+        await new Promise(r => setTimeout(r, 300));
+        return { open: Boolean(root), entries: root?.querySelectorAll(".drpg-notice-entry").length ?? 0,
+            snapshots: root?.querySelectorAll(".drpg-notice-snapshot").length ?? 0 };`);
+    await scanned("notice window", { ...KILLER_CHAT, who: ["p1"] });
+    check("p1: the notice history window the canary scanned was open, with entries and their snapshots (E81 C7)",
+        shown.open && shown.entries > 0 && shown.snapshots > 0, JSON.stringify(shown));
+    await p1.eval(`await foundry.applications.instances?.get("drpg-notices")?.close(); return true;`);
 }

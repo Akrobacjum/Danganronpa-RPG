@@ -814,6 +814,10 @@ export const DrpgApi = {
      *  The same confirmation the sheet's button opens (COMM-11). */
     safeword: () => import("./safeword.mjs").then(m => m.safewordDialog()),
 
+    /** The notice history: every card this browser showed this login, to read again (E81 C7).
+     *  The same window as the keybinding's; there is no default key. */
+    openNotices: () => import("./notice-history-app.mjs").then(m => m.openNotices()),
+
     /** Promote the traces, call everyone in, and hold the game there. */
     discoverBody,
 

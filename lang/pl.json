@@ -5165,6 +5165,42 @@
       "notOpen": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie."
     },
     "Notices": {
+      "title": "Historia powiadomień",
+      "keybindingHint": "Otwiera powiadomienia, które pokazała ci ta przeglądarka, żeby przeczytać zamknięte jeszcze raz.",
+      "filter": {
+        "all": "Wszystkie",
+        "forYou": "Dla ciebie",
+        "announcements": "Ogłoszenia",
+        "players": "Od graczy",
+        "notDone": "Niewykonane",
+        "evidence": "Dowody",
+        "messenger": "Komunikator"
+      },
+      "search": "Szukaj w powiadomieniach",
+      "searchLabel": "Szukaj powiadomień po tytule i treści",
+      "state": {
+        "shown": "Na ekranie",
+        "unread": "Nieprzeczytane"
+      },
+      "sessionOnly": "Niezapisane: zostaje do zamknięcia tej strony",
+      "unreadBanner": {
+        "one": "{n} nieprzeczytane powiadomienie",
+        "few": "{n} nieprzeczytane powiadomienia",
+        "many": "{n} nieprzeczytanych powiadomień",
+        "other": "{n} nieprzeczytanego powiadomienia"
+      },
+      "newPill": "Nowe powiadomienia - pokaż je",
+      "chapterFold": "Rozdział {chapter} ({n})",
+      "openConversation": "Otwórz rozmowę",
+      "empty": "Jeszcze nic. Każde powiadomienie, które zobaczysz na ekranie, zostaje tutaj, także te zamknięte bez czytania.",
+      "noMatch": "Żadne powiadomienie nie pasuje.",
+      "kept": "Zapisane w tej przeglądarce do resetu sezonu.",
+      "gmNote": "Twoja własna historia: to, co pokazał ci ten klient. Gracze mają swoje. Na wspólnym komputerze zostaje do resetu sezonu, a inne konto zalogowane w tej przeglądarce może ją przeczytać; wyczyść ją, zanim oddasz komputer.",
+      "markRead": "Oznacz jako przeczytane",
+      "clear": "Wyczyść",
+      "clearTitle": "Wyczyścić historię powiadomień?",
+      "clearBody": "Znikną wszystkie powiadomienia, które ta przeglądarka zachowała dla ciebie, także karty o morderstwie. Nie wrócą.",
+      "clearYes": "Wyczyść historię",
       "notSaved": "Ta przeglądarka nie mogła zapisać historii powiadomień: powiadomienia pokazane od teraz zostaną tylko do zamknięcia lub przeładowania tej strony.",
       "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",
       "mark": {

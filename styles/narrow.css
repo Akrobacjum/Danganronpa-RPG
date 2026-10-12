@@ -213,3 +213,13 @@ body.drpg-stacked .application {
    comes back onto a phone by itself; pinning it here would have taken dragging
    with it and answered a question Foundry had already answered. Worth a look on a
    real phone, since that clamp is the one part of this not measured here. */
+
+/* The notice history on a stacked screen (E81 C7; E44 removes this with the window's block in
+   danganronpa.css): the screen less 8 px a side at most, the chips in one row that scrolls
+   sideways, the time under the title. Its place is left to Foundry's clamp, as above. */
+body.drpg-stacked .application.drpg-window-notices { width: min(420px, calc(100vw - 16px)) !important; }
+body.drpg-stacked .drpg-notices-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.drpg-stacked .drpg-notices-chips button { flex: 0 0 auto; }
+body.drpg-stacked details.drpg-notice-entry > summary { grid-template-columns: 14px 1fr; }
+body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
+body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }

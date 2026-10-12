@@ -16704,3 +16704,137 @@ body .application.sheet.actor.character .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > .drpg-resource-bar {
     height: calc(0.62rem * var(--drpg-slider-scale, 1)) !important;
 }
+
+/* ---- The notice history window (E81 C7) -------------------------------------------------
+   E44 REMOVES THIS BLOCK in the commit that moves the window onto its window kit, which takes
+   over the chips, the empty state and the scroll signal (the A7 design, P10-0; E81's risk
+   RISK-f), and with it the two smaller blocks marked the same way in stained-glass.css and
+   narrow.css. Only the list scrolls: the chips, the search, the banner and the foot keep their
+   height, so the foot stays in view however long the history is - R299 (e) measures it, in a
+   browser only. An entry is never a `.drpg-popup` (the scenarios count cards by that class),
+   so a kept card's body is drawn in `.drpg-notice-snapshot` with a few rules of its own. */
+.application.drpg-window-notices:not(.minimized) {
+    max-height: calc(100vh - 16px);
+    display: flex;
+    flex-direction: column;
+}
+.drpg-window-notices .window-content { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 10px 12px; }
+.drpg-notices-body { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; }
+.drpg-notices-body > :is(.drpg-notices-chips, .drpg-notices-search, .drpg-notices-banner, .drpg-notices-new, .drpg-notices-foot) { flex: 0 0 auto; }
+.drpg-notices-body [hidden] { display: none !important; }
+.drpg-notices-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.drpg-notices-chips button {
+    height: 24px !important;
+    padding: 0 8px !important;
+    border-radius: 12px;
+    font-size: var(--drpg-text-xs);
+    border: 1px solid var(--drpg-line-strong);
+    background: transparent;
+    color: inherit;
+    white-space: nowrap;
+}
+.drpg-notices-chips button b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }
+.drpg-notices-chips button[aria-pressed="true"] { background: var(--drpg-bone); color: var(--drpg-ink) !important; border-color: var(--drpg-bone); }
+.drpg-notices-chips button:disabled { opacity: 0.4; }
+.drpg-notices-search { display: flex; }
+.drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; font-size: var(--drpg-text-sm); color: inherit; }
+.drpg-notices-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border-left: 3px solid var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    font-size: var(--drpg-text-sm);
+}
+.drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation {
+    flex: 0 0 auto;
+    height: 24px !important;
+    padding: 0 8px !important;
+    font-size: var(--drpg-text-xs);
+}
+.drpg-notices-new { align-self: center; height: 22px !important; padding: 0 10px !important; border-radius: 11px; font-size: var(--drpg-text-xs); }
+.drpg-notices-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+.drpg-notices-group { margin: 6px 0 1px; border: 0; font-size: var(--drpg-text-xs); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
+details.drpg-notices-fold > summary { cursor: pointer; font-size: var(--drpg-text-xs); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; padding: 4px 0; }
+details.drpg-notice-entry { --seam: var(--drpg-bone); border-left: 3px solid var(--seam); background: rgba(var(--drpg-bone-rgb), 0.035); padding: 5px 8px; }
+details.drpg-notice-entry > summary { list-style: none; display: grid; grid-template-columns: 14px 1fr auto; gap: 1px 7px; align-items: start; cursor: pointer; }
+details.drpg-notice-entry > summary::-webkit-details-marker { display: none; }
+.drpg-notice-glyph {
+    width: 12px;
+    height: 12px;
+    margin-top: 2px;
+    background: currentColor;
+    opacity: 0.85;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    --drpg-px-mask: var(--drpg-px-note);
+}
+.drpg-src-public .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+.drpg-src-player .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-team); }
+.drpg-src-messenger .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-chat); }
+.drpg-src-evidence .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bullet); }
+.drpg-src-summary .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-calendar); }
+.drpg-src-safeword .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-shield); }
+.drpg-src-notDone .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-checklist); }
+.drpg-notice-title { font-weight: 700; font-size: var(--drpg-text-sm); line-height: 1.3; overflow-wrap: anywhere; }
+.drpg-notice-time { font-size: var(--drpg-text-xs); opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.drpg-notice-text {
+    grid-column: 2 / 4;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
+.drpg-notice-tags { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--drpg-text-xs); opacity: 0.8; }
+.drpg-notice-tags span { border: 1px solid var(--drpg-line-strong); padding: 0 5px; }
+.drpg-notice-entry.is-unread .drpg-notice-title::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--drpg-bone);
+    vertical-align: 1px;
+}
+.drpg-notice-entry.is-deleted :is(.drpg-notice-title, .drpg-notice-text) { text-decoration: line-through; opacity: 0.6; }
+.drpg-notice-entry.drpg-tone-hope { --seam: var(--drpg-gold); }
+.drpg-notice-entry.drpg-tone-fear { --seam: var(--drpg-crimson); }
+.drpg-notice-entry.drpg-tone-critical { --seam: var(--drpg-crimson-light); }
+.drpg-notice-entry.drpg-src-evidence { --seam: var(--drpg-evidence); }
+.drpg-notice-entry:is(.drpg-src-notDone, .drpg-src-safeword) { --seam: var(--drpg-crimson-deep); }
+.drpg-notice-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.drpg-notice-snapshot {
+    align-self: stretch;
+    margin: 6px 0 2px;
+    padding: 6px 8px;
+    border: 1px dashed var(--drpg-line-strong);
+    font-size: var(--drpg-text-sm);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.drpg-notice-snapshot :is(p, ul, ol, dl, blockquote, table) { margin: 0 0 4px; }
+.drpg-notice-snapshot img { max-width: 100%; height: auto; }
+.drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-line-strong); }
+.drpg-notice-clipped { margin: 0; font-size: var(--drpg-text-xs); opacity: 0.8; }
+.drpg-notices-empty { padding: 28px 12px; text-align: center; opacity: 0.8; font-size: var(--drpg-text-sm); line-height: 1.5; }
+.drpg-notices-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--drpg-line-strong);
+    font-size: var(--drpg-text-xs);
+}
+.drpg-notices-foot p { margin: 0; text-align: right; opacity: 0.8; }
+@media (pointer: coarse) {
+    .drpg-notices-chips button, .drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation { min-height: 44px; }
+}
