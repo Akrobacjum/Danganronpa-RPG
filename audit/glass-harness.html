@@ -8,11 +8,17 @@
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
      `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
-     computes it); `?theme=legacy` the other theme. -->
+     computes it); `?theme=legacy` the other theme; `?card=1` one notice card in the tile;
+     `?scheme=light` a light-theme client. -->
 <!doctype html><html><head><meta charset="utf-8">
-<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/narrow.css">
+<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
+  /* Foundry's dark theme, which the page did not stand in for until E81 C14: the settings and
+     handbooks buttons paint `light-dark(paper, ink)` with !important (danganronpa.css), and
+     danganronpa.css's own `color-scheme: dark` list names the chat button but not those two, so
+     without this they came out paper-white on the glass. `?scheme=light` shows that client. */
+  :root{color-scheme:dark}
   body{background-image:linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),radial-gradient(circle at 30% 60%,rgba(127,228,255,.35),transparent 30%),radial-gradient(circle at 70% 40%,rgba(255,61,139,.3),transparent 30%);background-size:52px 52px,52px 52px,auto,auto}
   /* Foundry's own stacking, which the harness used to leave out and which is why the curtain's
      layering was reasoned about wrongly for two releases. `#interface` is `position: relative`
@@ -36,8 +42,13 @@
   #sidebar-tabs{width:48px;display:flex;flex-direction:column;gap:6px;padding:4px;margin:0}
   #sidebar-tabs button,#scene-controls button{width:36px;height:36px;display:block}
   #players{padding:6px 10px;font-size:12px;color:#ddd}
-  #drpg-messenger-launcher,#drpg-sound-launcher{position:fixed;right:22px;width:52px;height:52px;border-radius:50%}
-  #drpg-sound-launcher{bottom:22px}#drpg-messenger-launcher{bottom:82px;width:66px;height:66px}
+  /* THE CORNER'S BUTTONS AND THE NOTICE TILE ARE PLACED BY THE MODULE'S OWN SHEETS (E81 C14),
+     loaded above in the manifest's order, messenger.css among them (it places the chat button).
+     From 1.2.50 to 1.2.74 the harness pinned the chat and settings buttons here itself (66 and
+     52 px round, 22 px off the wall, bottoms 82 and 22) and drew no handbooks button, so after
+     C12 put the three on the owner's grid it was measuring a corner the module no longer draws.
+     Same lesson as the tile below: a page that places what it measures is testing its own rule.
+     No Font Awesome is loaded here, so the chat button's glyph is not drawn; the shapes are. */
   /* the notice tile is placed by the module's own sheets (and by narrow.mjs on a
      stacked screen); the harness used to pin it here and was testing its own rule */
   /* a module dialog where Foundry would put one */
@@ -80,18 +91,94 @@
   </div>
   <div id="sidebar"><div id="sidebar-content"></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
 </div>
-<div id="drpg-popups"><div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div></div>
 </div>
 <!-- Foundry's board: a sibling AFTER #interface, at z-index 0. Core puts it here by replacing a
      `<template id="board">` that sits after the interface, so the board paints ABOVE #interface
      and the curtain has to be layered between the two by index, not by promoting anything. The
      harness used to place it BEFORE #interface, which made the promotion look necessary. -->
 <canvas id="board" width="400" height="300" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-<button id="drpg-messenger-launcher"></button><button id="drpg-sound-launcher"></button>
+<!-- The module's corner as `ready` leaves it (E81 C14): the three launchers as messenger-app.mjs,
+     sfx.mjs and handbooks.mjs build them, appended to the body, and after them the notice tile
+     as popup.mjs's `ensureNoticeTile` builds it - empty, with the history's button in its
+     corner. `?card=1` puts back the one card the page used to carry, in front of the button
+     as `showPopup` would. -->
+<button type="button" id="drpg-messenger-launcher"><i class="fa-solid fa-comments" inert></i></button><button type="button" id="drpg-sound-launcher"><i inert></i></button><button type="button" id="drpg-book-launcher"><i inert></i></button>
+<div id="drpg-popups"><button type="button" id="drpg-notices-corner" class="drpg-notices-corner" aria-live="off"><span class="drpg-notices-shape" inert><i></i></span></button></div>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
+<script id="drpg-launch-check">
+  /* LAUNCHOUTSIDE: EVERY CORNER BUTTON WHOLLY ON ITS OWN PIECE OF GLASS (E81 C14, the owner's AM-21
+     of 12.10.2026). The self-check's three numbers test the BOX the `launch` block was cut for, at the
+     moment it was cut. On the E81 mockup's player screen with E77's slots (1920x1080 and 1366x768,
+     12.10.2026) six corners of two buttons lay off every `launch` pane while those three read
+     0/0/0, so this counts what is drawn instead: each button's clip-path
+     corners, put through the transform it wears now, against the polygons of the panes toned
+     `launch` (LAST.panes, the curtain's own coordinates). A corner more than half a pixel outside
+     every one of them is one count - the half pixel is the slack the self-check's fitFails gives a
+     block's box. A button with an individual rotate/translate/scale, or a clip-path that is not a polygon,
+     is not guessed at: it is listed in `unmeasured`. Returns null where no glass is drawn.
+     `sel` defaults to glass.mjs's own list; a page whose glass.mjs does not export it passes one. */
+  window.drpgLaunchOutside = (sel = window.__glass?.LAUNCHERS) => {
+    const panes = (window.__glass?.LAST?.panes ?? []).filter(p => p.tone === "launch");
+    const cur = document.getElementById("drpg-curtain");
+    if (!cur || !panes.length || !sel) return null;
+    const at = cur.getBoundingClientRect();
+    const near = (poly, x, y) => {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i], [xj, yj] = poly[j];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        const ex = xj - xi, ey = yj - yi, t = Math.max(0, Math.min(1, ((x - xi) * ex + (y - yi) * ey) / ((ex * ex + ey * ey) || 1)));
+        if (Math.hypot(x - xi - t * ex, y - yi - t * ey) <= 0.5) return true;
+      }
+      return inside;
+    };
+    const corners = (clip, w, h) => {
+      if (!clip || clip === "none") return [[0, 0], [w, 0], [w, h], [0, h]];
+      const body = /^polygon\((.*)\)$/.exec(clip.trim())?.[1];
+      if (!body) return null;
+      const len = (v, of) => v.endsWith("%") ? parseFloat(v) / 100 * of : parseFloat(v);
+      return body.split(",").map(s => s.trim().split(/\s+/)).filter(xy => xy.length === 2).map(([x, y]) => [len(x, w), len(y, h)]);
+    };
+    const out = { launchOutside: 0, buttons: 0, corners: 0, unmeasured: [], where: [], gaps: [] };
+    const hexes = [];
+    for (const e of document.querySelectorAll(sel)) {
+      if (!e.offsetWidth || !e.offsetHeight) continue;
+      const cs = getComputedStyle(e);
+      const m = new DOMMatrix(cs.transform === "none" ? undefined : cs.transform);
+      const A = Math.abs(m.a), B = Math.abs(m.b), C = Math.abs(m.c), D = Math.abs(m.d), det = A * D - B * C;
+      const r = e.getBoundingClientRect();
+      // the untransformed size from the turned bounds: width = |a| w + |c| h, height = |b| w + |d| h
+      const w = (r.width * D - r.height * C) / det, h = (A * r.height - B * r.width) / det;
+      const pts = corners(cs.clipPath, w, h);
+      if ([cs.rotate, cs.translate, cs.scale].some(v => v && v !== "none") || Math.abs(det) < 1e-6 || !pts) { out.unmeasured.push(e.id || e.className); continue; }
+      out.buttons++;
+      const cx = r.left + r.width / 2 - at.left, cy = r.top + r.height / 2 - at.top;
+      const hex = [];
+      hexes.push({ id: e.id || e.className, hex });
+      for (const [x, y] of pts) {
+        const dx = x - w / 2, dy = y - h / 2, X = cx + m.a * dx + m.c * dy, Y = cy + m.b * dx + m.d * dy;
+        hex.push([X, Y]);
+        out.corners++;
+        if (!panes.some(p => near(p.poly, X, Y))) { out.launchOutside++; out.where.push((e.id || e.className) + "@" + X.toFixed(1) + "," + Y.toFixed(1)); }
+      }
+    }
+    /* The gap between two neighbours as drawn: the shortest distance from a corner of one to a side
+       of the other, both ways (the shapes are convex and apart). The owner's picture (AM-21) has
+       6.00 between every pair; a pair more than 20 px apart is not a pair of neighbours. */
+    const toSide = (p, a, b) => { const ex = b[0] - a[0], ey = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / ((ex * ex + ey * ey) || 1))); return Math.hypot(p[0] - a[0] - t * ex, p[1] - a[1] - t * ey); };
+    const apart = (P, Q) => Math.min(...[[P, Q], [Q, P]].flatMap(([U, V]) => U.map(p => Math.min(...V.map((a, i) => toSide(p, a, V[(i + 1) % V.length]))))));
+    for (let i = 0; i < hexes.length; i++) for (let j = i + 1; j < hexes.length; j++) {
+      const d = apart(hexes[i].hex, hexes[j].hex);
+      if (d < 20) out.gaps.push({ pair: hexes[i].id + "/" + hexes[j].id, gap: +d.toFixed(2) });
+    }
+    return out;
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
+  if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
+  if (q.get("card")) document.getElementById("drpg-popups").insertAdjacentHTML("afterbegin", '<div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div>');
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }

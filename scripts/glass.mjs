@@ -32,8 +32,10 @@ export const LAST = { frame: null, blocks: [] };
    button that is in the pane but not moved off the tab rail - or the other way round - is
    the fault `clearLaunchers` exists to prevent. An attribute rather than a `drpg-` class,
    because pixel-icons.css repaints the Font Awesome glyph of any `[class*="drpg-"] i.fa-*`,
-   and Foundry's own tools button would match those rules (read in the sheet, not tried). */
-const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
+   and Foundry's own tools button would match those rules (read in the sheet, not tried).
+   Exported for audit/glass-harness.html's `launchOutside` (E81 C14), which counts the corners
+   of exactly these buttons. */
+export const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
 
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
@@ -1652,6 +1654,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          family - it is one upper quad, and the tiles' shard is cut from that. The same
          applies to the skip above: a strip is dropped only when even the tiles cannot stand
          in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen).
+
+         WHAT THE SKIP LEAVES BARE (E81 C14, Chromium, audit/glass-harness.html, 12.10.2026).
+         Nothing else is cut over that stretch of wall, and the self-check counts it. At 1280x720
+         the clock's pane meets the left wall at 311 and the notice tile's at 440 - 129 px, under
+         the 160 - so the left strip is not cut and `edgeGaps` reads 16 (the wall's samples from
+         316 to 436, every 8 px). It read 16 on the harness before C14 as well, and the E81
+         mockup's notes give 16 on 1.2.74's harness and on every layout they tried. The tile's
+         pane met the wall at 440, 488 and 520 at 720, 768 and 800 px of height - the height less
+         280 - so with this harness's clock the strip should be cut again from about 751 px (worked
+         out from those three, not measured there). Covering that stretch is a change to the
+         partition, and it is not made here.
 
          WHY THE RAIL USED TO STRADDLE, AND THE THREE CUTS THAT STOPPED IT (10.09).
 
