@@ -484,6 +484,14 @@ export function buildDocumentClasses(ctx) {
         get prototypeToken() { return this._source.prototypeToken ?? { name: this.name, texture: { src: this.img } }; }
         get token() { return null; }
         get isToken() { return false; }
+        /* E81 DZ6: `stageHall` builds a made token from this (trial-scene.mjs). Foundry's own merges the
+           prototype token with the data asked for and answers an unsaved TokenDocument; this is the shim's
+           model of that - the prototype, the actor's id, the data on top, and a `toObject` - not a measurement
+           of Foundry's (LIVE-E81-DZ6-1, a check for a real table). */
+        async getTokenDocument(data = {}) {
+            const src = { ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
+            return { toObject: () => U.deepClone(src) };
+        }
         getActiveTokens(linked = false, document = false) {
             const g = ctx.gameRef();
             const out = [];

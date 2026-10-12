@@ -931,7 +931,7 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
-      "endTrialScene": "The living students go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. The trial hall's tokens stay hidden.",
+      "endTrialScene": "The living students who took part go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. A student left unticked is not moved. The tokens the module made in the trial hall are deleted, yours hidden.",
       "endTrialRoom": "Room",
       "endTrialMoves": {
         "one": "{n} student goes to {room}.",
@@ -978,10 +978,7 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
-      "startTrialHall": {
-        "one": "The table moves to the trial hall, {hall}, and {n} token there is shown.",
-        "other": "The table moves to the trial hall, {hall}, and {n} tokens there are shown."
-      },
+      "startTrialHall": "Every browser goes to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
@@ -1897,13 +1894,9 @@
       "castUnavailable": "The trial opened and nobody in the trial hall was shown: the GMs' choice of its tokens had not reached this client yet. Show them by hand on the hall's scene.",
       "duplicateToken": "More than one token in the trial hall stands for the same character, and only the first was shown. Kept hidden: {names}.",
       "playerTokenCreated": "{user} made a token in the trial hall: {name}. It is hidden - showing the hall's tokens is the GM's - and stays where it is; the next trial treats it as any token of the hall.",
-      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. The module makes no tokens in the hall, so it stays gone - put it back by hand if the trial needs it.",
+      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. If the module made it, it makes it again the next time the trial opens; if a GM placed it, put it back by hand if the trial needs it.",
       "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as the GMs left it.",
       "noSchool": "The Class Trial ended, but no school scene is linked and the scene the trial opened from is gone, so the table stays in the trial hall and its tokens stay as they are. Activate a scene by hand.",
-      "missingTokens": {
-        "one": "The trial hall has no token for {n} student a player plays, so the trial cannot show them: {names}. Place one on the hall's scene.",
-        "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
-      },
       "notMoved": {
         "one": "{n} living student could not be moved and stays where they stood: {names}. Move them by hand.",
         "other": "{n} living students could not be moved and stay where they stood: {names}. Move them by hand."
@@ -1920,13 +1913,13 @@
         "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
         "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
       },
-      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it hides them and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
       "noScene": "- none -",
-      "castHeading": "The hall's cast",
-      "reveal": "Ticked: shown when the Class Trial opens. A token left unticked stays hidden - a test token, or a player nobody should see yet.",
-      "noCast": "The hall holds no token of a student or of Monokuma yet.",
+      "castHeading": "Who takes part",
+      "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",
+      "noCast": "The world has no student or Monokuma yet.",
       "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
       "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",
       "hallFirstInTrial": "A Class Trial is running without a trial hall. Link one after the trial ends - Apply waits until then.",
@@ -1943,7 +1936,14 @@
       "showHall": "Show the hall",
       "backToSchool": "Back to school",
       "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
-      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it."
+      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and places the tokens of the students chosen for it.",
+      "castPickHeading": "Who takes part in this trial",
+      "notPlaced": {
+        "one": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one on the hall's scene by hand.",
+        "other": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one for each on the hall's scene by hand."
+      },
+      "handPlaced": "{names}: no token in the trial hall, and the module makes none for Monokuma - place one by hand if the trial needs it.",
+      "placedByGm": "your token in the hall: shown or hidden, never deleted"
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

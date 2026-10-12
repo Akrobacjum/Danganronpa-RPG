@@ -1015,8 +1015,9 @@ export const keyPlanStore = defineGmStore({
 
 /**
  * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
- * S06-57). A row per token of the linked trial hall the GMs chose for, keyed `sceneId.tokenId` as the
- * traces' are: `{ reveal, epoch }` - shown in the trial or not, and the season it was chosen in
+ * S06-57). A row per actor of the linked trial hall's cast the GMs chose for, keyed `sceneId.actorId`
+ * since E81 DZ6 (12.10.2026; `sceneId.tokenId` until then, moved by trial-scene.mjs `tidyTrialHall`,
+ * and its `exists` answers by the scene and a "character" actor): `{ reveal, epoch }` - shown in the trial or not, and the season it was chosen in
  * (`seasonEpoch`). A row of another season reads as no row (trial-scene.mjs `castRow`), and the
  * primary drops it (`compactGmStores`). The audit's fix named a flag on the token; a token's flags are
  * written by whoever owns it, and the choice is the GMs' (plan-E13 1.x 2). A token with no row is
@@ -1027,8 +1028,8 @@ export const trialCastStore = defineGmStore({
     name: "trialCast", key: SETTINGS.gmTrialCast,
     kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true,
     exists: key => {
-        const [sceneId, tokenId] = String(key).split(".");
-        return Boolean(game.scenes?.get(sceneId)?.tokens?.get(tokenId));
+        const [sceneId, actorId] = String(key).split(".");
+        return Boolean(game.scenes?.get(sceneId)) && game.actors?.get(actorId)?.type === "character";
     }
 });
 
