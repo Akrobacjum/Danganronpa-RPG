@@ -3028,6 +3028,25 @@ async function offListDraw(edit, kind) {
     }
 }
 
+/*
+ * THE FENCE HELD (E13 fix r2-H3, 12.10.2026; review r2 sec S2-3). End the trial carries every living student it finds
+ * on another scene with rooms (trial-scene.mjs `returnTheLiving`), so the four tests that drive it on scenes of their
+ * own fence the world's students first: a hidden token each on the chosen place, where the return finds them and
+ * carries none. Past the fence a real student's token is deleted and its copy goes with the suite's scene in the
+ * test's `finally`. Nobody checked the fence until this fix: a token another module refused at its create, or a
+ * student made after it, stood outside it and was carried (scenario 41 m2 and m3). So each test reads it before it
+ * chooses the trial's exit - a fence that did not hold stops the test with nothing carried and no exit held - through
+ * `leftBehind`, the return's own list of whom it would carry or name: a student on it who is not the test's own is
+ * one the fence missed.
+ */
+async function fenceHeld(place, hall, ours) {
+    const { leftBehind } = await import("./trial-scene.mjs");
+    const own = new Set(ours.map(actor => actor.id));
+    const outside = (await leftBehind(place, hall)).filter(actor => !own.has(actor.id));
+    must(!outside.length, `the fence around the world's students did not hold - ${outside.map(actor => actor.name).join(", ")} stood outside it `
+        + "(a module refused the token, or the student was made after it); stopped before End the trial could carry a student of the world's");
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -31571,7 +31590,17 @@ const SCENARIOS = [
            own `DialogV2.wait` (answered null, so nothing is drawn): the defaults, The vote (absent, closed or
            open), the lead line, how many sections, and how many lines the last section holds. Then End the
            trial's question with the verdict in and without one (answered no). The clock, the floor and the
-           trial's record are put back here. */
+           trial's record are put back here.
+
+           E13 fix r2-H3 (12.10.2026; review r2 cor C): since E13 C3b End the trial asks through `DialogV2.wait`
+           when a trial hall is linked and a scene with rooms exists, and only `confirm` was read here - at a table
+           with a hall linked both readings came out null (cor C's probe, red), and the trial this test opens drove
+           the world's hall. The runner now holds the world's links empty for tier 2 (tests.mjs), and this test
+           checks that no hall is linked before it opens a trial; then it reads End the trial's question on both
+           branches: through `confirm` with no hall, and through the `wait` titled End the trial with a hall and
+           a place of its own linked for that one call (linking moves nothing in a trial - read in the code: the
+           setting's `onChange` lets go of the held links, and live.mjs and hud.mjs redraw what is open). Scenario
+           41 m1 runs this test with the world's hall linked. */
         const UI = await import("./trial-floor-ui.mjs");
         const floorMod = await import("./trial-floor.mjs");
         const { closeOpen } = await import("./live.mjs");
@@ -31585,14 +31614,24 @@ const SCENARIOS = [
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const R = await import("./rooms.mjs");
+        must(!R.trialScene(), "a trial hall is linked - the trial this test opens would take the table into it (tests.mjs holds the links empty for tier 2)");
+        const KEY = "sceneRoles", rolesBefore = game.settings.get(MODULE_ID, KEY) ?? {};
+        const scenes = [];
         let opened = null, asked = null;
+        // End the trial's question, by the window that asked it: its text, an element's or a string's.
+        const ask = (via, config) => {
+            const content = config?.content;
+            asked = { via, text: typeof content === "string" ? content : content?.textContent ?? String(content ?? "") };
+        };
         D.wait = async config => {
             if (config?.window?.title === consoleTitle) opened = config;
+            if (config?.window?.title === endTitle) ask("wait", config);
             return null;
         };
         // Any other question (a Key charge on entering the phase) is answered no, and only End the trial's is kept.
         D.confirm = async config => {
-            if (config?.window?.title === endTitle) asked = String(config?.content ?? "");
+            if (config?.window?.title === endTitle) ask("confirm", config);
             return false;
         };
         const phase = async name => {
@@ -31616,13 +31655,28 @@ const SCENARIOS = [
             return [buttons.filter(b => b.default).map(b => b.action), !voteButton ? "absent" : voteButton.disabled ? "closed" : "open",
                 content?.querySelector?.(".drpg-trial-lead")?.textContent?.trim() ?? null, sections.length, lines];
         };
-        const endAsks = async () => {
+        /* `withHall` links the suite's own hall for this one call, beside a place scene of its own, so the question
+           has a room to offer in any world; the links are put back before the trial goes on. */
+        let hall = null;
+        const endAsks = async (withHall = false) => {
             asked = null;
-            await UI.endClassTrial();
-            return asked === null ? null : asked.includes(notChapter);
+            if (withHall) await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, trial: hall.id });
+            try {
+                await UI.endClassTrial();
+            } finally {
+                if (withHall) await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            }
+            return asked === null ? null : [asked.via, asked.text.includes(notChapter)];
         };
         const readings = {};
         try {
+            const P = "SUITE E13 r2-H3";
+            for (const name of ["the hall", "a place"]) {
+                scenes.push(await Scene.create({ name: `${P} ${name}`, width: 2000, height: 2000, grid: { size: 100 }, active: false, navigation: false }));
+            }
+            [hall] = scenes;
+            await scenes[1].createEmbeddedDocuments("Region", [{ name: `${P} the yard`, shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
             await phase("dailyLife");
             await record({});
             readings.noTrial = await read();
@@ -31630,6 +31684,7 @@ const SCENARIOS = [
             await record({});
             readings.discussion = await read();
             readings.endWithoutVerdict = await endAsks();
+            readings.hallWithoutVerdict = await endAsks(true);
             await floorMod.startFloor({ seconds: 180 });
             await settle();
             readings.debate = await read();
@@ -31642,6 +31697,7 @@ const SCENARIOS = [
             await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
             readings.verdictIn = await read();
             readings.endAfterVerdict = await endAsks();
+            readings.hallAfterVerdict = await endAsks(true);
             await phase("dailyLife");
             await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
             readings.ended = await read();
@@ -31652,22 +31708,27 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await setClock(clock);
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+            if (stableJson(game.settings.get(MODULE_ID, KEY) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            for (const made of scenes) await made.delete();
             await settle();
         }
         const lead = step => game.i18n.localize(`DRPG.Floor.lead.${step}`);
         equal(stableJson(readings), stableJson({
             noTrial: [["start"], "absent", lead("start"), 0, null],
             discussion: [["openDebate"], "open", lead("openDebate"), 3, 2],
-            endWithoutVerdict: false,
+            endWithoutVerdict: ["confirm", false],
+            hallWithoutVerdict: ["wait", false],
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
             verdictIn: [["chapterEnd"], "open", lead("chapterEnd"), 3, 0],
-            endAfterVerdict: true,
+            endAfterVerdict: ["confirm", true],
+            hallAfterVerdict: ["wait", true],
             ended: [["chapterEnd"], "closed", `${game.i18n.localize("DRPG.Floor.trialEnded")} ${lead("chapterEnd")}`, 0, null]
         }), "the console's default, The vote, its lead line or its sections are not the trial's next step in some state, or End the trial "
             + "after a verdict does not say the chapter is not ended (read per state: the defaults, The vote absent/closed/open, the lead, "
-            + "the sections, the lines under the last one; End the trial's question naming the chapter)");
+            + "the sections, the lines under the last one; End the trial's question - the window that asked it and whether it names the chapter - "
+            + "with no hall linked and with the suite's own)");
     }],
 
     ["the vote window opens once and its count waits for ballots", async () => {
@@ -50416,6 +50477,7 @@ const SCENARIOS = [
             const kept = () => [...hall.tokens, ...other.tokens, ...map.tokens].map(t => `${t.name}@${t.x},${t.y}`);
             const keptBefore = kept();
             const rooms = () => Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name, Mv.roomOfToken(t)]));
+            await fenceHeld(place, hall, actors);
             const refused = [T.setTrialExit({ sceneId: place.id, room: `${P} nowhere` }), T.setTrialExit({ sceneId: hall.id, room: GYM })];
             const held = T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
@@ -50539,6 +50601,7 @@ const SCENARIOS = [
             const asked = [];
             game.combats = [{ combatants: [{ id: "suiteCombatant", tokenId: oldId, sceneId: other.id }],
                 async updateEmbeddedDocuments(name, rows) { asked.push([name, rows]); return []; } }];
+            await fenceHeld(place, hall, actors);
             T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
             await settle();
@@ -50649,6 +50712,7 @@ const SCENARIOS = [
             await setClock({ phase: "classTrial" });
             await settle();
             must(getClock().phase === "classTrial", "the trial did not open - End the trial would measure nothing");
+            await fenceHeld(place, hall, actors);
             ended = await UI.closeTrial({ sceneId: place.id, room: YARD });
             await settle();
             const after = {};
@@ -50771,6 +50835,7 @@ const SCENARIOS = [
             const asked = [];
             game.combats = [{ combatants: [{ id: "suiteH1Combatant", tokenId: lostToken.id, sceneId: throws.id }],
                 async updateEmbeddedDocuments(name, rows) { asked.push([name, rows]); return []; } }];
+            await fenceHeld(place, hall, actors);
             T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
             await settle();

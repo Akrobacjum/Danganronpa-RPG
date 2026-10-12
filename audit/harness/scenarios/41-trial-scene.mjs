@@ -56,6 +56,9 @@
  *      with `trialSceneReport`: where every browser looks, the hall's tokens, the phase; and after End the
  *      trial, both doors refused to the GM.
  *   e  the season reset during the trial: the active scene, where every browser looks, the hall's tokens.
+ *   m  (fix r2-H3) the tier-2 suite run by name at this table, the hall linked: the trial console test and the hall
+ *      it must leave alone, and the four End the trial carry tests with a fence token refused by a module, and with a
+ *      student made after the fence.
  * Since E13 C3 the module takes the table: entering the trial activates the hall and leaving it the school
  * (trial-scene.mjs `followPhase`), so `byHand` and `handBack` find nothing left to do.
  *
@@ -77,6 +80,8 @@
  * 12.10.2026 (`--verbose`; no other run of this worktree beside it, whether one of another was on the machine not checked).
  * E13 fix r1-F2's a4, a5 and l1: 28 checks in 66.7 s, one run on 12.10.2026 (`--verbose`, lane A; whether a run of another
  * worktree was on the machine at the time not checked).
+ * E13 fix r2-H3's m1-m3 (six suite runs by name): 32 checks in 86.6 s, one run on 12.10.2026 (`--verbose`, lane A; m3
+ *   then failed on a reading of its own, fixed since; whether a run of another worktree was on the machine not checked).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -755,4 +760,87 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         handE.activated === false && reset.done && reset.phase === "dailyLife" && views(afterReset).every(v => v === "school")
             && Object.values(afterReset).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
         J({ handE, reset, afterReset }), { flow: "trial-scene" });
+
+    /* ------------------------------ m. the tier-2 suite at a table with the hall linked ------------------------------ */
+    /* E13 fix r2-H3 (12.10.2026; review r2 cor C and sec S2-3). This world is a table's: the Academy linked as the school
+       and the hall as the trial hall, the cast chosen. The suite's tests are run here by name through `runTests`, as a GM
+       at a table runs them, with the GM's reading taken around each run. */
+    phase("m: the tier-2 suite at a table with the hall linked", { flow: "trial-scene" });
+    const SUITE = only => `const r = await game.drpg.runTests({ tier: 2, only: ${J(only)}, confirmed: game.world.id });
+        const mine = (r?.results ?? []).filter(x => x.tier === 2 && x.name.startsWith(${J(only)}))
+            .map(x => ({ name: x.name.slice(0, 48), outcome: x.outcome, message: String(x.message ?? "").slice(0, 400) }));
+        const runner = (r?.results ?? []).filter(x => x.outcome === "fail" && !x.name.startsWith(${J(only)})).map(x => x.name.slice(0, 80));`;
+    /* What the GM holds of the world's hall and links: the links, the hall's module flags, its tokens' hidden by name, the
+       active scene, and every scene activated on the GM since `__m1active` was set. */
+    const HALLNOW = `${HALL} return { roles: game.settings.get("${MOD}", "sceneRoles"), flags: hall.flags?.["${MOD}"] ?? {},
+        hidden: Object.fromEntries(hall.tokens.contents.map(t => [t.name, t.hidden])), active: game.scenes.active?.id ?? null,
+        activated: [...(globalThis.__m1active ?? [])] };`;
+    const hallBefore = await gm.eval(`globalThis.__m1active = [];
+        if (!globalThis.__m1hook) globalThis.__m1hook = Hooks.on("updateScene", (scene, changes) => { if (changes?.active === true) globalThis.__m1active.push(scene.name); });
+        ${HALLNOW}`, { timeout: 30000 });
+    const consoleRun = await gm.eval(`${SUITE("the trial console names the next step in every state of the trial")}
+        return { passed: r?.passed, failed: r?.failed, mine, runner };`, { timeout: 200000 });
+    await settle(400);
+    const hallAfter = await gm.eval(HALLNOW, { timeout: 30000 });
+    const mViews = await readAll();
+    /* Read 12.10.2026 at d08652d with this file kept (e12run/e13r2h3red; cor C's probe on 5b2b2ed read the same failure):
+       the console test failed - End the trial asked through the window it did not read - and the trial it opened
+       activated this hall and then the Academy on the GM. */
+    check("m1: with the hall linked, the tier-2 trial console test passes and leaves the world's hall alone - no scene activated, the hall's flags and tokens as they were, the links put back, every browser on the school (E13 fix r2-H3)",
+        consoleRun.failed === 0 && consoleRun.mine.length === 1 && consoleRun.mine[0].outcome === "pass" && hallBefore.roles?.trial
+            && hallAfter.activated.length === 0 && J(hallAfter) === J(hallBefore) && views(mViews).every(v => v === "school"),
+        J({ consoleRun, hallBefore, hallAfter, views: views(mViews) }), { flow: "trial-scene" });
+
+    /* The four tests that drive End the trial's carry, each with a fence around the world's students. A module that refuses
+       one token of that fence - Aiko's, hidden, where the fence stands - leaves her outside it; her own tokens are read
+       before and after each run. */
+    const CARRY = ["End the trial moves the living to the GM's room", "End the trial carries a living student from another scene with rooms",
+        "End the trial carries a student's token across scenes whole", "End the trial never leaves a living student without a token"];
+    const TOKENS = id => `return game.scenes.contents.flatMap(s => s.tokens.contents.filter(t => t.actorId === "${id}").map(t => s.name + ":" + t.id)).sort();`;
+    const aikoBefore = await gm.eval(TOKENS(IDS.aiko), { timeout: 30000 });
+    await gm.eval(`globalThis.__m2refuse = Hooks.on("preCreateToken", (doc, data) => doc.parent?.name?.startsWith("SUITE E13")
+        && data.actorId === "${IDS.aiko}" && data.hidden === true && data.y === 1500 ? false : undefined); return true;`, { timeout: 30000 });
+    const fenceRuns = [];
+    try {
+        for (const only of CARRY) fenceRuns.push(await gm.eval(`${SUITE(only)} return { mine, runner };`, { timeout: 200000 }));
+    } finally {
+        await gm.eval(`Hooks.off("preCreateToken", globalThis.__m2refuse); return true;`, { timeout: 30000 });
+    }
+    const aikoAfter = await gm.eval(TOKENS(IDS.aiko), { timeout: 30000 });
+    const FENCE = "the fence around the world's students did not hold";
+    const stopped = runs => runs.length > 0 && runs.every(({ mine }) => mine.length === 1 && mine[0].outcome === "fail" && mine[0].message.includes(FENCE));
+    /* Read 12.10.2026 at d08652d with this file kept (e12run/e13r2h3red): with the fence unread, three of the four tests
+       failed on their own readings, one passed, and after the four Aiko had no token on any scene - her Academy token
+       and her hall token both gone (which test took which not read). */
+    check("m2: a fence token another module refuses stops each of the four carry tests with a failure that says so, and Aiko keeps every token she had (E13 fix r2-H3)",
+        stopped(fenceRuns) && fenceRuns.every(run => run.mine[0].message.includes("Aiko") && !run.runner.length) && aikoBefore.length > 0
+            && J(aikoAfter) === J(aikoBefore),
+        J({ fenceRuns, aikoBefore, aikoAfter }), { flow: "trial-scene" });
+
+    /* The other road: a student made after the fence - by a module, once the fence's first token lands - played by p1 and
+       standing on the Academy. The runner's restore after the test takes the new actor away and leaves its token, and says
+       so ("could not restore the world after"): that line is the world changing under the run, as it would at a table. */
+    await gm.eval(`globalThis.__m3late = null;
+        globalThis.__m3make = Hooks.on("preCreateToken", (doc, data) => {
+            if (globalThis.__m3late || !doc.parent?.name?.startsWith("SUITE E13") || data.hidden !== true || data.y !== 1500) return;
+            globalThis.__m3late = Actor.create({ name: "M3 Late", type: "character", ownership: { default: 0, "${IDS.p1}": 3 } })
+                .then(actor => game.scenes.get("${IDS.scene}").createEmbeddedDocuments("Token", [{ name: "M3 Late", actorId: actor.id, actorLink: true,
+                    x: 300, y: 500, width: 1, height: 1, hidden: false }]).then(() => actor.id));
+        }); return true;`, { timeout: 30000 });
+    let lateRun = null, made = null;
+    try {
+        lateRun = await gm.eval(`${SUITE(CARRY[0])} return { mine, runner };`, { timeout: 200000 });
+    } finally {
+        made = await gm.eval(`Hooks.off("preCreateToken", globalThis.__m3make);
+            const id = await globalThis.__m3late; const actor = game.actors.get(id);
+            const tokens = game.scenes.contents.flatMap(s => s.tokens.contents.filter(t => t.actorId === id).map(t => s.id === "${IDS.scene}" ? "academy" : s.name));
+            for (const s of game.scenes.contents) { const ids = s.tokens.contents.filter(t => t.actorId === id).map(t => t.id); if (ids.length) await s.deleteEmbeddedDocuments("Token", ids); }
+            await actor?.delete();
+            return { made: typeof id === "string", tokens };`, { timeout: 60000 });
+    }
+    /* Read 12.10.2026 at d08652d with this file kept: the test failed on its own readings and the late student's
+       Academy token was gone. */
+    check("m3: a student made after the fence stops the carry test too, by name, and keeps the token on the Academy (E13 fix r2-H3)",
+        stopped([lateRun]) && lateRun.mine[0].message.includes("M3 Late") && made.made && J(made.tokens) === J(["academy"]),
+        J({ lateRun, made }), { flow: "trial-scene" });
 }
