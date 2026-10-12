@@ -159,5 +159,36 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         && booted.system === environment.system.version && environment.modules.every(m => booted.modules[m.id] === m.version),
         JSON.stringify({ environment, booted }));
 
+    /* The GM's chrome (E13 C7, 12.10.2026; S12-18; R438 reads the sheets). The Scenes tab, the
+       scene navigation and the hotbar are hidden unless the element carries the class a GM's
+       client puts on it (GM_CHROME, gm-panel.mjs). The harness draws only `#hotbar`
+       (client-entry.mjs); the other two are drawn here after the module's `ready`, their render
+       hooks fired as Foundry fires them on a render, and taken away again. Read through jsdom's
+       cascade in both themes: the one each client booted with, then the other (the theme is
+       the client's own setting), and the first put back. */
+    const chrome = c => c.eval(`const drawn = [];
+        const draw = (id, html) => { if (document.getElementById(id)) return; const t = document.createElement("template");
+            t.innerHTML = html; drawn.push(t.content.firstElementChild); document.body.append(t.content.firstElementChild); };
+        draw("scene-navigation", '<nav id="scene-navigation"></nav>');
+        draw("sidebar-tabs", '<nav id="sidebar-tabs"><button type="button" class="ui-control" data-tab="scenes"></button></nav>');
+        Hooks.callAll("renderSceneNavigation"); Hooks.callAll("renderSidebar");
+        const shown = sel => getComputedStyle(document.querySelector(sel)).display !== "none";
+        const read = () => ({ theme: [...document.body.classList].filter(c => c.startsWith("drpg-theme")).join(" "),
+            hotbar: shown("#hotbar"), nav: shown("#scene-navigation"), scenes: shown('#sidebar-tabs button[data-tab="scenes"]') });
+        const was = game.settings.get("danganronpa-rpg", "theme");
+        const seen = [read()];
+        await game.settings.set("danganronpa-rpg", "theme", was === "stainedGlass" ? "monokumaLegacy" : "stainedGlass");
+        seen.push(read());
+        await game.settings.set("danganronpa-rpg", "theme", was);
+        drawn.forEach(el => el.remove());
+        return { seen, back: game.settings.get("danganronpa-rpg", "theme") === was };`);
+    const gmChrome = await chrome(gm), playerChrome = await chrome(p1);
+    const themes = r => r.seen.map(s => s.theme).sort().join(",");
+    check("the GM's chrome: in both themes a GM's client shows the Scenes tab, the scene navigation and the hotbar, and a player's hides all three",
+        [gmChrome, playerChrome].every(r => r.back && themes(r) === "drpg-theme-monokuma-legacy,drpg-theme-stained-glass")
+        && gmChrome.seen.every(s => s.hotbar && s.nav && s.scenes)
+        && playerChrome.seen.every(s => !s.hotbar && !s.nav && !s.scenes),
+        JSON.stringify({ gm: gmChrome, p1: playerChrome }));
+
     await settle(300);
 }

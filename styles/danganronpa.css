@@ -7730,9 +7730,15 @@ html body {
 
 /* --- surfaces this game does not use ------------------------------------ */
 
-/* No macros: every action in this game is a button on the sheet or a tile in
-   the GM panel, and the bar was 60px of screen explaining nothing. */
-#hotbar {
+/* No macros for a player: every action in this game is a button on the sheet
+   or a tile in the GM panel, and the bar was 60px of screen explaining
+   nothing. The GM keeps it (E13 C7, 12.10.2026; S12-18): the repository
+   carries five macro scripts (macros/) and a GM's own macros need the bar,
+   which had gone for the GM as well. `drpg-gm-hotbar` is the element class
+   the GM's client puts on it (GM_CHROME in gm-panel.mjs), the scene
+   navigation's pattern below - hidden unless the class is there, so a client
+   the module never ran on hides it. */
+#hotbar:not(.drpg-gm-hotbar) {
     display: none !important;
 }
 
@@ -7795,7 +7801,7 @@ html body {
    translucency stays where it belongs, on the background; the glyph is ink.
 
    `.drpg-gm-rail` is put on the RAIL ITSELF by the GM's client (see
-   injectLauncher in gm-panel.mjs) rather than read off `body.drpg-gm`: an
+   GM_CHROME in gm-panel.mjs) rather than read off `body.drpg-gm`: an
    ancestor-class selector was measured on a long-lived client matching the
    button and still not applying - in the sheet, `matches()` true, computed
    style ignoring it - while a same-element class held everywhere. */
@@ -7851,12 +7857,16 @@ html body {
     color: var(--drpg-eye-light) !important;
 }
 
-/* The Scenes tile goes, for the GM as well (Dawid, 29.08).
-   The scene list is on the left rail, under the clock, with the names written
-   out; this tile is a second door to the same room, one icon wide and with no
-   names on it. A player has no tiles at all, so this is the GM's copy. */
-#sidebar-tabs button.ui-control[data-tab="scenes"],
-#sidebar .tabs button.ui-control[data-tab="scenes"] {
+/* The Scenes tile went for the GM as well (Dawid, 29.08): the scene list on the
+   left rail, under the clock, names the scenes, and this tile was a second door
+   to the same room, one icon wide. It is also the door to the scene DIRECTORY,
+   though - creating, importing and configuring a scene - and the trial hall is a
+   scene the GM builds and links in Room Setup > Scenes (D7), so the GM keeps it
+   in every theme (E13 C7, 12.10.2026; S12-18: until then only Stained Glass gave
+   it back). A player has no tiles at all; the class is put on the button by the
+   GM's client (GM_CHROME in gm-panel.mjs), as on the scene navigation below. */
+#sidebar-tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes),
+#sidebar .tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes) {
     display: none !important;
 }
 
@@ -13772,7 +13782,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* The scene navigation is the GM's - a player has one scene and no business
    being reminded of the others. Hidden by DEFAULT and shown by the class the
-   GM's own client puts on it (injectLauncher, gm-panel.mjs) - the fail-safe
+   GM's own client puts on it (GM_CHROME, gm-panel.mjs) - the fail-safe
    direction: a client where the module never ran shows a player nothing
    extra, and the ancestor-class trap documented on the rail above cannot
    reopen it. */

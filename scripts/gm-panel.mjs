@@ -43,22 +43,51 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export function registerGmPanel() {
     Hooks.once("ready", injectLauncher);
     Hooks.on("renderSceneControls", injectLauncher);
+    /* The sidebar, the scene navigation and the hotbar are applications of their own, and an
+     * element one of them draws anew carries no class; the hook above is the scene controls'
+     * render only. The three names are Foundry's `render` + the application's class name, read
+     * from memory and not measured on v14: headless, 00-boot's "GM's chrome" fires them itself
+     * (LIVE-E13-09 looks at the table). */
+    for (const hook of ["renderSidebar", "renderSceneNavigation", "renderHotbar"]) Hooks.on(hook, markGmChrome);
+}
+
+/**
+ * The parts of Foundry's interface the stylesheet hides unless the element carries the class
+ * a GM's client puts on it (E13 C7, 12.10.2026; S12-18). The scene navigation was the first
+ * (`drpg-gm-nav`); the Scenes tab and the hotbar were hidden for the GM as well, the tab
+ * shown again by Stained Glass alone - so under Legacy a GM had no scene directory to build
+ * the trial hall in (D7: the hall is a scene the GM makes and links in Room Setup > Scenes),
+ * and nobody had the hotbar - a GM's macros included (the repository carries five, macros/).
+ */
+const GM_CHROME = [
+    ["#scene-controls", "drpg-gm-rail"],
+    ["#scene-navigation", "drpg-gm-nav"],
+    ['#sidebar-tabs button[data-tab="scenes"], #sidebar .tabs button[data-tab="scenes"]', "drpg-gm-scenes"],
+    ["#hotbar", "drpg-gm-hotbar"]
+];
+
+/* The GM-only styling is keyed on classes THIS function puts on the
+ * elements themselves, not on `body.drpg-gm`: on a long-lived client
+ * an ancestor-class selector was measured matching the element and
+ * still not applying - present in the sheet, `matches()` true,
+ * computed style ignoring it - while a same-element class works
+ * everywhere. What GM_CHROME names is hidden by default in the
+ * stylesheet and only a GM's client ever runs this to show it, so a
+ * player needs no selector gymnastics at all - and a client where the
+ * module never ran shows nobody any of it, the GM included (S12-18's
+ * other half, left as it was: the stylesheet cannot tell a GM without
+ * this script). */
+function markGmChrome() {
+    if (!game.user?.isGM) return;
+    for (const [selector, mark] of GM_CHROME) {
+        for (const element of document.querySelectorAll(selector)) element.classList.add(mark);
+    }
 }
 
 function injectLauncher() {
     try {
         if (!game.user?.isGM) return;
-
-        /* The GM-only styling is keyed on classes THIS function puts on the
-         * elements themselves, not on `body.drpg-gm`: on a long-lived client
-         * an ancestor-class selector was measured matching the element and
-         * still not applying - present in the sheet, `matches()` true,
-         * computed style ignoring it - while a same-element class works
-         * everywhere. The scene navigation is hidden by default in the
-         * stylesheet and only a GM's client ever runs this line to show it,
-         * so a player needs no selector gymnastics at all. */
-        document.getElementById("scene-controls")?.classList.add("drpg-gm-rail");
-        document.getElementById("scene-navigation")?.classList.add("drpg-gm-nav");
+        markGmChrome();
 
         if (document.getElementById("drpg-gm-launcher")) return;
         const column = document.getElementById("ui-left-column-1");
