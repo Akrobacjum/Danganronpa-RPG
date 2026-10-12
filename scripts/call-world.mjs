@@ -485,6 +485,61 @@ export async function teleportInto(scene, region, tokens) {
 }
 
 /**
+ * A student's token carried from another scene into a room of `scene`, on a GM (E13 fix r1-F1, 12.10.2026; the
+ * owner's item 1 of 10.10, "moved too, if it can be done"; review r1 goal Af-1, sec and cor open item 1): a copy
+ * of its data without `_id` - an unlinked token's delta, every module's flags and `hidden` with it - made at the
+ * centre of the room's box on the room's floor, the combatants that stood for the old token pointed at the copy,
+ * then the old token deleted. Answers the copy, or null when it could not be done: the create or the delete
+ * refused or throwing, and then nothing is left changed - the copy deleted again and the combatants pointed back,
+ * so a student never ends with two tokens of the module's making. The caller places the copy in the room with the
+ * rest (trial-scene.mjs `returnTheLiving`, the gather after it), so the centre is only where it is made.
+ *
+ * NOT FOUNDRY'S `teleportTokens` ACROSS SCENES: it is not in the headless harness and its v14 behaviour across
+ * scenes was not read (LIVE-E13-10 keeps that, and the camera and selection a player has on the copy). A copy has
+ * a new id, so every record kept by token id starts again: on this GM movement.mjs's are dropped for the old id
+ * (`forgetToken`) and the copy's position is noted as a GM's create (`noteGmCreated`); another client's
+ * `lastRoom` keeps an entry nobody reads again, as Foundry does not reuse a document's id. Foundry's own handling
+ * of a combatant whose token is deleted is not read either: pointing it at the copy before the delete is the one
+ * order that leaves it standing whatever Foundry does there; the harness has no combats (tier 2 hands a stand-in).
+ */
+export async function carryAcross(tokenDoc, scene, region) {
+    const from = tokenDoc?.parent ?? null;
+    if (!game.user?.isGM || !from || !scene || from.id === scene.id) return null;
+    const { boundsOf, forgetToken } = await import("./movement.mjs");
+    const box = boundsOf(region);
+    const data = tokenDoc.toObject();
+    delete data._id;
+    const levels = [...(region?.levels ?? [])];
+    if (levels.length) data.level = levels[0];
+    else delete data.level;
+    if (box) Object.assign(data, { x: Math.round(box.x + box.w / 2), y: Math.round(box.y + box.h / 2) });
+    const pointed = [];
+    let copy = null;
+    try {
+        [copy] = await scene.createEmbeddedDocuments("Token", [data]);
+        if (!copy) return null;
+        for (const combat of game.combats ?? []) {
+            const ids = [...(combat.combatants ?? [])].filter(c => c.tokenId === tokenDoc.id && c.sceneId === from.id).map(c => c.id);
+            if (!ids.length) continue;
+            await combat.updateEmbeddedDocuments("Combatant", ids.map(_id => ({ _id, sceneId: scene.id, tokenId: copy.id })));
+            pointed.push([combat, ids]);
+        }
+        await from.deleteEmbeddedDocuments("Token", [tokenDoc.id]);
+        if (from.tokens?.get?.(tokenDoc.id)) throw new Error("the old token was not deleted");
+    } catch (err) {
+        error(`Could not carry ${tokenDoc.name} from "${from.name}" to "${scene.name}"; it stays where it stood`, err);
+        for (const [combat, ids] of pointed) {
+            await combat.updateEmbeddedDocuments("Combatant", ids.map(_id => ({ _id, sceneId: from.id, tokenId: tokenDoc.id })))
+                .catch(back => error("Could not point a combatant back at the token it stood for", back));
+        }
+        if (copy) await scene.deleteEmbeddedDocuments("Token", [copy.id]).catch(back => error("Could not delete a carried token's copy", back));
+        return null;
+    }
+    forgetToken(tokenDoc.id);
+    return copy;
+}
+
+/**
  * Pan this client's camera to its own token among the ones a gather moved (`SYNC.gather`,
  * sync.mjs; E11 C3, 1.2.73). Answers the token's id, or null when there is nothing to pan to:
  * no drawn canvas, another scene on screen, or none of the tokens this user's own student

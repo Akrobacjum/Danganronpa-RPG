@@ -344,6 +344,17 @@ export function noteGmCreated(tokenDoc, userId) {
     gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
 }
 
+/**
+ * Drop every record this client keeps under a token's id (E13 fix r1-F1, 12.10.2026): a token the module carried to
+ * another scene (call-world.mjs `carryAcross`) was deleted there and lives on as a copy with an id of its own, which
+ * `noteGmCreated` notes. The seven maps keyed by token id (review r1, sec and cor open item 1): `lastRoom`,
+ * `lastPosition`, `gmSeen`, `gmHistory`, `standings`, `standingHistory`, `pathRooms`. A student's standing on a scene
+ * (`studentStandings`) is keyed by scene and actor and is kept: it is what a later drop there is judged from.
+ */
+export function forgetToken(tokenId) {
+    for (const kept of [lastRoom, lastPosition, gmSeen, gmHistory, standings, standingHistory, pathRooms]) kept.delete(tokenId);
+}
+
 /** The places this token was moved from lately, as the primary GM saw them. */
 export function recentPositions(tokenId) {
     return [...(gmHistory.get(tokenId) ?? [])];

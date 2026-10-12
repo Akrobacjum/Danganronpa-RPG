@@ -918,7 +918,7 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
-      "endTrialScene": "Żyjący uczniowie idą do pokoju, który tu wybierzesz; tokeny sali rozpraw zostają ukryte.",
+      "endTrialScene": "Żyjący uczniowie idą do pokoju, który tu wybierzesz, z każdej sceny z pokojami, na której stoją; uczeń, którego nie da się przenieść, zostaje tam, gdzie stał, a ty dowiadujesz się, kto. Tokeny sali rozpraw zostają ukryte.",
       "endTrialRoom": "Pokój",
       "endTrialMoves": {
         "one": "{n} uczeń idzie do: {room}.",
@@ -1980,12 +1980,18 @@
         "other": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali."
       },
       "notMoved": {
-        "one": "{n} żyjący uczeń stoi na innej scenie i nie został przeniesiony: {names}. Przenieś go ręcznie.",
-        "few": "{n} żyjący uczniowie stoją na innej scenie i nie zostali przeniesieni: {names}. Przenieś ich ręcznie.",
-        "many": "{n} żyjących uczniów stoi na innej scenie i nie zostało przeniesionych: {names}. Przenieś ich ręcznie.",
-        "other": "{n} żyjącego ucznia stoi na innej scenie i nie zostało przeniesionych: {names}. Przenieś ich ręcznie."
+        "one": "{n} żyjącego ucznia nie dało się przenieść i zostaje tam, gdzie stał: {names}. Przenieś go ręcznie.",
+        "few": "{n} żyjących uczniów nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie.",
+        "many": "{n} żyjących uczniów nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie.",
+        "other": "{n} żyjącego ucznia nie dało się przenieść i zostają tam, gdzie stali: {names}. Przenieś ich ręcznie."
       },
-      "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i pokazuje tokeny zaznaczone niżej; koniec zabiera wszystkich z powrotem do szkoły i je ukrywa. W sali moduł tylko pokazuje i ukrywa tokeny - żadnego tam nie tworzy, nie przesuwa ani nie usuwa.",
+      "tokensStay": {
+        "one": "{n} uczeń przeniesiony tu z innej sceny ma jeszcze token gdzie indziej; ten został tam, gdzie stał: {names}.",
+        "few": "{n} uczniowie przeniesieni tu z innej sceny mają jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}.",
+        "many": "{n} uczniów przeniesionych tu z innej sceny ma jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}.",
+        "other": "{n} ucznia przeniesionego tu z innej sceny ma jeszcze tokeny gdzie indziej; te zostały tam, gdzie stały: {names}."
+      },
+      "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i pokazuje tokeny zaznaczone niżej; koniec je ukrywa i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami z każdej sceny z pokojami, każda inna droga do szkoły. W sali moduł tylko pokazuje i ukrywa tokeny - żadnego tam nie tworzy, nie przesuwa ani nie usuwa.",
       "school": "Szkoła",
       "hall": "Sala rozpraw",
       "noScene": "- brak -",

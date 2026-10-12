@@ -50215,7 +50215,7 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify([true, [false, false], true, true, [told, told, told]]),
             "[the roles can be linked, hidden after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide; what the GMs were whispered]");
     }],
-    ["End the trial moves the living to the GM's room by the gather's own rule read as the GMs hold it; the hall's tokens stay hidden where they stand; a student on another scene is left and named", async () => {
+    ["End the trial moves the living to the GM's room by the gather's own rule read as the GMs hold it; the hall's tokens stay hidden where they stand; a student on a scene with no rooms is left and named", async () => {
         /*
          * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 1, 3 and 6 of 10.10, plan-E13 3.2, the ledger's Af,
          * O1, O6 and D5's headless half. Until this commit leaving the trial took the table back to a scene (C3) and moved
@@ -50232,6 +50232,11 @@ const SCENARIOS = [
          * teleport, so the room's box is the fallback's (call-world.mjs `teleportInto`'s note); Foundry's teleport is
          * LIVE-E13-10. Scenario 41 i drives End the trial's window on four browsers. Red before C3b: there was no
          * `setTrialExit`.
+         *
+         * E13 fix r1-F1 (12.10.2026; review r1 cor A): the living student away stood on another place scene until this
+         * fix, and since it is carried over (the next test) it stands on a map with no rooms, which the return cannot
+         * move it from. At 45e6bcf it was then neither moved nor named - `leftBehind` read only scenes with rooms - and
+         * this test read it as not named (red first); it is named now.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.setTrialExit === "function", "trial-scene.mjs holds no room for the end of the trial - End the trial moves nobody (the owner's f)");
@@ -50267,36 +50272,46 @@ const SCENARIOS = [
             const dead = await make("dead", { [FLAGS.deceased]: true }), away = await make("away"), awayDead = await make("away and dead", { [FLAGS.deceased]: true });
             const other = await scene("another place", 2000);
             await other.createEmbeddedDocuments("Region", [room(GYM, 0)]);
-            await other.createEmbeddedDocuments("Token", [token(away, 1300, 1300), token(awayDead, 1500, 1300)]);
+            await other.createEmbeddedDocuments("Token", [token(awayDead, 1500, 1300)]);
+            const map = await scene("a map with no rooms", 2000);
+            await map.createEmbeddedDocuments("Token", [token(away, 1300, 1300)]);
             const place = await scene("the chosen place", 3600);
             await place.createEmbeddedDocuments("Region", [room(SQUARE, 0), room(GYM, 1200), room(STORE, 2400)]);
             await place.createEmbeddedDocuments("Token", [token(living, 300, 300), token(cub, 500, 300), token(monokuma, 700, 300), token(dead, 2700, 300)]);
             const hall = await scene("the trial hall", 2000);
             await hall.createEmbeddedDocuments("Token", [token(living, 300, 300)]);
+            /* E13 fix r1-F1: the world's own students stand on its school, a scene with rooms, and the return now carries
+               every living student it finds elsewhere - here, and the cleanup would delete them with this scene, at a
+               table too. Each gets a hidden token on the chosen scene outside its rooms first, so the return finds them
+               here and carries none; the gather takes the living among them into the room, and they are counted apart. */
+            const fence = await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a)
+                && ![...place.tokens].some(t => t.actorId === a.id)).map(a => token(a, 50, 1500)).map(t => ({ ...t, hidden: true })));
+            const fenced = name => fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === name).length;
+            const fenceIds = new Set(fence.map(t => t.id));
             if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
             let activated = 0;
             place.activate = async () => { activated++; return place; };
             await settle();
-            const kept = () => [...hall.tokens, ...other.tokens].map(t => `${t.name}@${t.x},${t.y}`);
+            const kept = () => [...hall.tokens, ...other.tokens, ...map.tokens].map(t => `${t.name}@${t.x},${t.y}`);
             const keptBefore = kept();
-            const rooms = () => Object.fromEntries([...place.tokens].map(t => [t.name, Mv.roomOfToken(t)]));
+            const rooms = () => Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name, Mv.roomOfToken(t)]));
             const refused = [T.setTrialExit({ sceneId: place.id, room: `${P} nowhere` }), T.setTrialExit({ sceneId: hall.id, room: GYM })];
             const held = T.setTrialExit({ sceneId: place.id, room: GYM });
             const left = await T.leaveTrialScene(hall);
             await settle();
-            const after = rooms();
+            const after = rooms(), fencedIn = fenced(GYM);
             const leftIds = left?.gathered?.left ?? [];
             const names = leftIds.map(id => game.actors.get(id)?.name ?? id).join(", ");
             const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
             const holdsLiving = actor => actor?.id === living.id
                 ? { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => (key === FLAGS.monokuma ? true : actor.getFlag(scope, key)) }
                 : flagsHeldNow(actor);
-            const again = await gatherEveryone(SQUARE, place, { held: holdsLiving, box: true });
+            const again = await gatherEveryone(SQUARE, place, { held: holdsLiving, box: true }) - fenced(SQUARE);
             await settle();
             read = [linkable, refused, held && held.sceneId === place.id && held.room === GYM, left?.destination === place.id, left?.activated, activated,
-                left?.gathered?.moved ?? null, T.trialExitHeld(), after, stableJson(kept()) === stableJson(keptBefore), hall.tokens.contents.map(t => t.hidden),
+                (left?.gathered?.moved ?? NaN) - fencedIn, T.trialExitHeld(), after, stableJson(kept()) === stableJson(keptBefore), hall.tokens.contents.map(t => t.hidden),
                 [away, awayDead, living, cub, dead, monokuma].map(actor => leftIds.includes(actor.id)),
-                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 2, room: GYM })}</p>`
+                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 2 + fencedIn, room: GYM })}</p>`
                     + `<p>${plural("DRPG.TrialScene.notMoved", { n: leftIds.length, names })}</p>`]),
                 again, rooms()];
         } finally {
@@ -50316,6 +50331,122 @@ const SCENARIOS = [
             + "activates it, how often; how many the return moved; what is held after; the room each token of the chosen scene stands in; the hall's and the other "
             + "scene's tokens where they were; the hall's token hidden; whom the return names, of the living and the dead away, the moved, the dead and Monokuma; "
             + "the GMs' whisper; a gather reading the living student held as Monokuma: how many it moves and where each token stands]");
+    }],
+
+    ["End the trial carries a living student from another scene with rooms into the GM's room under a new token id and names the rest", async () => {
+        /*
+         * E13 fix r1-F1, 12.10.2026; the owner's item 1 of 10.10 ("a student whose token stands on another scene is moved
+         * too, if it can be done"), review r1 goal Af-1, sec and cor open item 1, cor A. At 45e6bcf the return moved only the
+         * living already on the chosen scene: a living student on another scene with rooms stayed there and was named, and
+         * this test read every one of them where they stood (red first). Here, on scenes of the suite's own: the chosen place
+         * (two rooms) holds a living student; another place holds the living student away - an unlinked token with a delta,
+         * another module's flag and hidden, moved once by the GM so movement.mjs holds a record under its id - a dead
+         * student, and one of the two tokens of a student who has another, hidden, on a third place; a fourth place refuses
+         * every delete (its `deleteEmbeddedDocuments` does nothing, as a refused delete leaves the token); the hall holds
+         * the first living student, a player's student who has no other token and a student nobody plays. A stand-in for
+         * Foundry's combats (the harness has none) holds a combatant for away's token. Read: what the return answers, the
+         * room each token of the chosen scene stands in and its id, what stands on every other scene after, away's copy
+         * (its delta, the other module's flag, hidden), what the stand-in was asked, the GM's records under away's old id
+         * before and after, the copy's standing, and the whisper. The order of the return - carry, then the gather of
+         * everybody on the scene - is `returnTheLiving`'s; Foundry's own teleport across scenes is LIVE-E13-10.
+         */
+        const T = await import("./trial-scene.mjs");
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM);
+        must(player, "the world has no player to play the student who stands only in the hall");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the trial hall cannot be linked - the return would read no hall");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 r1-F1", [SQUARE, GYM, SHED, BARN, PIT] = ["square", "gym", "shed", "barn", "pit"].map(name => `${P} the ${name}`);
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y, more = {}) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false, ...more });
+        const actors = [], scenes = [];
+        const make = async (name, more = {}) => {
+            const actor = await Actor.create({ name: `${P} ${name}`, type: "character", ...more });
+            actors.push(actor);
+            return actor;
+        };
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            return made;
+        };
+        const hadCombats = Object.prototype.hasOwnProperty.call(game, "combats"), combatsBefore = game.combats;
+        let read = null;
+        try {
+            const here = await make("here"), away = await make("away"), dead = await make("dead", { flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } });
+            const twice = await make("twice"), stuck = await make("stuck");
+            const played = await make("played", { ownership: { default: 0, [player.id]: 3 } }), unplayed = await make("unplayed");
+            const place = await scene("the chosen place", 2400);
+            await place.createEmbeddedDocuments("Region", [room(SQUARE, 0), room(GYM, 1200)]);
+            await place.createEmbeddedDocuments("Token", [token(here, 300, 300)]);
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(SHED, 0)]);
+            const DELTA = { flags: { [MODULE_ID]: { suiteKept: 1 } } }, OTHER = { "suite-other-module": { mark: 7 } };
+            const [awayToken] = await other.createEmbeddedDocuments("Token", [token(away, 300, 300, { actorLink: false, delta: DELTA, flags: OTHER, hidden: true }),
+                token(dead, 500, 300), token(twice, 700, 300)]);
+            const third = await scene("a third place", 2000);
+            await third.createEmbeddedDocuments("Region", [room(BARN, 0)]);
+            await third.createEmbeddedDocuments("Token", [token(twice, 300, 300, { hidden: true })]);
+            const fourth = await scene("a place that keeps its tokens", 2000);
+            await fourth.createEmbeddedDocuments("Region", [room(PIT, 0)]);
+            await fourth.createEmbeddedDocuments("Token", [token(stuck, 300, 300)]);
+            fourth.deleteEmbeddedDocuments = async () => [];
+            const hall = await scene("the trial hall", 2000);
+            await hall.createEmbeddedDocuments("Token", [token(here, 300, 300), token(played, 500, 300), token(unplayed, 700, 300)]);
+            /* The world's own students would be carried here and deleted with this scene (the test above says why): each
+               gets a hidden token on the chosen scene outside its rooms, and those are counted apart. */
+            const fence = await place.createEmbeddedDocuments("Token", game.actors.filter(a => a.type === "character" && !actors.includes(a))
+                .map(a => token(a, 50, 1500, { hidden: true })));
+            const fenceIds = new Set(fence.map(t => t.id));
+            await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            place.activate = async () => place;
+            await awayToken.update({ x: 400 });
+            await settle();
+            const oldId = awayToken.id, before = Mv.recentPositions(oldId).length;
+            const asked = [];
+            game.combats = [{ combatants: [{ id: "suiteCombatant", tokenId: oldId, sceneId: other.id }],
+                async updateEmbeddedDocuments(name, rows) { asked.push([name, rows]); return []; } }];
+            T.setTrialExit({ sceneId: place.id, room: GYM });
+            const left = await T.leaveTrialScene(hall);
+            await settle();
+            const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
+            const copy = [...place.tokens].find(t => t.actorId === away.id) ?? null;
+            const fencedIn = fence.filter(t => Mv.roomOfToken(place.tokens.get(t.id)) === GYM).length;
+            const byName = s => [...s.tokens].map(t => t.name.slice(P.length + 1)).sort();
+            const g = left?.gathered ?? {};
+            const ids = list => (list ?? null) && list.map(id => game.actors.get(id)?.name.slice(P.length + 1) ?? id);
+            read = [ids(g.carried), ids(g.left), ids(g.others), (g.moved ?? NaN) - fencedIn,
+                Object.fromEntries([...place.tokens].filter(t => !fenceIds.has(t.id)).map(t => [t.name.slice(P.length + 1), Mv.roomOfToken(t)])),
+                [byName(other), byName(third), byName(fourth), byName(hall)],
+                copy && [copy.id !== oldId, stableJson(copy.toObject().delta) === stableJson(DELTA), copy.toObject().flags?.["suite-other-module"]?.mark ?? null, copy.hidden],
+                stableJson(asked) === stableJson([["Combatant", [{ _id: "suiteCombatant", sceneId: place.id, tokenId: copy?.id }]]]),
+                before > 0, Mv.recentPositions(oldId).length, copy ? Mv.standingOf(copy)?.lawful ?? null : null,
+                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 3 + fencedIn, room: GYM })}</p>`
+                    + `<p>${plural("DRPG.TrialScene.notMoved", { n: 2, names: [stuck.name, played.name].join(", ") })}</p>`
+                    + `<p>${plural("DRPG.TrialScene.tokensStay", { n: 1, names: twice.name })}</p>`]) || whispered];
+        } finally {
+            T.setTrialExit(null);
+            if (hadCombats) game.combats = combatsBefore;
+            else delete game.combats;
+            await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["away", "twice"], ["stuck", "played"], ["twice"], 3,
+            { here: GYM, away: GYM, twice: GYM },
+            [["dead"], ["twice"], ["stuck"], ["here", "played", "unplayed"]],
+            [true, true, 7, true], true, true, 0, true, true]),
+            "[whom the return carried, could not move, and carried with a token left elsewhere; how many it moved; the room each token of the chosen scene "
+            + "stands in; what stands on the other place, the third, the place that keeps its tokens and the hall after; away's copy: a new id, the delta, "
+            + "the other module's flag, hidden; the combatant pointed at the copy; the GM held a record under the old id before, and how many after; "
+            + "the copy stands lawfully; the GMs' whisper]");
     }],
 
     ["the verdict does not end the trial: the clock is not written and no card says the trial is over", async () => {

@@ -931,7 +931,7 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
-      "endTrialScene": "The living students go to the room you choose here; the trial hall's tokens stay hidden.",
+      "endTrialScene": "The living students go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. The trial hall's tokens stay hidden.",
       "endTrialRoom": "Room",
       "endTrialMoves": {
         "one": "{n} student goes to {room}.",
@@ -1904,10 +1904,14 @@
         "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
       },
       "notMoved": {
-        "one": "{n} living student stands on another scene and was not moved: {names}. Move them by hand.",
-        "other": "{n} living students stand on another scene and were not moved: {names}. Move them by hand."
+        "one": "{n} living student could not be moved and stays where they stood: {names}. Move them by hand.",
+        "other": "{n} living students could not be moved and stay where they stood: {names}. Move them by hand."
       },
-      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it takes everybody back to the school and hides them. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
+      "tokensStay": {
+        "one": "{n} student brought here from another scene still has a token elsewhere, left where it stood: {names}.",
+        "other": "{n} students brought here from another scene still have a token elsewhere, left where it stood: {names}."
+      },
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it hides them and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
       "school": "School",
       "hall": "Trial hall",
       "noScene": "- none -",

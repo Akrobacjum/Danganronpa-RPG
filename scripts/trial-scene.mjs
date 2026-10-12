@@ -66,14 +66,25 @@
  * `endClassTrial`, with no way to skip it), and `closeTrial` hands the choice here (`setTrialExit`)
  * right before it writes the phase; `leaveTrialScene` takes it once, activates that scene in place
  * of the school, hides the hall's cast as before, and gathers into the room the living students
- * whose tokens stand on that scene (`returnTheLiving`): the body's gather's own rule, read as the
- * GMs hold each actor - a Monocub walks, the dead and Monokuma stay. Nothing in the hall moves. A
- * living student whose token stands on another place scene stays where it is and is named to the
- * GMs: whether Foundry's `teleportTokens` takes a token from another scene, and what id it keeps,
- * is not measured (no Foundry source on the machine this was written on; LIVE-E13-10), and a move
- * by create and delete would strand every record kept by token id (movement.mjs `gmSeen`, the last
- * lawful positions, the standings) and cross D7's line in this file - left to a commit of its own.
- * The chapter end and every other road hand no choice and move nobody, as before this commit.
+ * (`returnTheLiving`): the body's gather's own rule, read as the GMs hold each actor - a Monocub
+ * walks, the dead and Monokuma stay. Nothing in the hall moves. The chapter end and every other road
+ * hand no choice and move nobody, as before this commit.
+ *
+ * FROM EVERY SCENE WITH ROOMS (E13 fix r1-F1, 12.10.2026; the owner's item 1 of 10.10, "moved too, if
+ * it can be done"; review r1 goal Af-1). C3b moved only the living already on the chosen scene and
+ * named the rest, calling a move across scenes unmeasured. It is built now and measured headless: a
+ * living student with no token on the chosen scene has the token the module reads as where they stand
+ * (movement.mjs `locateActor`: place scenes only, so never the hall) carried over - a copy made there
+ * and the old token deleted, by call-world.mjs `carryAcross`, so this file still creates and deletes
+ * nothing (D7's line, R432) - and then gathered into the room with the rest. Which token, for a
+ * student with tokens on two scenes with rooms: `locateActor`'s, the one every rule already reads as
+ * theirs; the fix list asked for "the one on the scene they last stood on lawfully", and no record
+ * says when a student stood on which scene (`studentStandings` holds no time, and only on the
+ * primary). Their other tokens stay and are named to the GMs. A living student the return cannot move
+ * - standing only on a scene with no rooms, a player's student standing only in the hall or nowhere,
+ * or one whose copy or delete failed - stays where they stood and is named (`leftBehind`; review r1
+ * cor A). Foundry's own `teleportTokens` across scenes, and the camera and selection a player has on
+ * the copy, are LIVE-E13-10.
  *
  * A browser still loading when the hall is activated only warns and stays where it was (A5's
  * reading of Foundry, not read in v14: LIVE-E13-02). So a player's browser puts its own view
@@ -93,10 +104,10 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
-import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames, isRoom, sceneRoles, forgetSceneRoles } from "./rooms.mjs";
+import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames, roomRegions, isRoom, sceneRoles, forgetSceneRoles } from "./rooms.mjs";
 import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { gatherEveryone } from "./call-world.mjs";
+import { gatherEveryone, carryAcross } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
@@ -372,43 +383,74 @@ export async function leaveTrialScene(hall = trialScene()) {
     const activated = !destination.active;
     if (activated) await destination.activate();
     const cast = await hideTrialTokens(hall);
-    const gathered = chosen ? await returnTheLiving(chosen, exit.room) : null;
+    const gathered = chosen ? await returnTheLiving(chosen, exit.room, hall) : null;
     return { destination: destination.id, cast, activated, gathered };
 }
 
 /**
- * The living students on `scene` into its room `room`, after the trial (the owner's f, 09.10): the
- * body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in the room, as a
- * body's gather places them - with each actor read as the GMs hold it (`flagsHeldNow`, once the
- * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box
- * for the fallback. Called from `leaveTrialScene` alone, after the hall's cast is hidden, so a
- * hall token is never among the moved (R436). Then one whisper to the GMs: how many went, and the
- * living left on another place scene (`leftBehind`). Answers `{ room, moved, left }`.
+ * The living students into the room `room` of `scene`, after the trial (the owner's f, 09.10, and item 1 of
+ * 10.10): first the living with no token there carried over from the scene with rooms they stand on
+ * (`carryTheLiving`), then the body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in
+ * the room, as a body's gather places them - with each actor read as the GMs hold it (`flagsHeldNow`, once the
+ * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box for the
+ * fallback. Called from `leaveTrialScene` alone, after the hall's cast is hidden, so a hall token is never among
+ * the moved (R436). Then one whisper to the GMs: how many went, the living the return could not move
+ * (`leftBehind`), and the carried who still have a token on another scene. Answers
+ * `{ room, moved, carried, left, others }`, the last three by actor id.
  */
-export async function returnTheLiving(scene, room) {
+export async function returnTheLiving(scene, room, hall = trialScene()) {
     await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
+    const carried = await carryTheLiving(scene, room, hall);
     const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true });
-    const left = await leftBehind(scene);
+    const left = await leftBehind(scene, hall);
+    const others = carried.filter(actor => game.scenes.some(other => ![scene.id, hall?.id].includes(other.id)
+        && [...(other.tokens ?? [])].some(token => token.actorId === actor.id)));
+    const names = actors => actors.map(actor => esc(actor.name)).join(", ");
     const lines = [plural("DRPG.Floor.endTrialMoves", { n: moved, room: esc(room) })];
-    if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: left.map(actor => esc(actor.name)).join(", ") }));
+    if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: names(left) }));
+    if (others.length) lines.push(plural("DRPG.TrialScene.tokensStay", { n: others.length, names: names(others) }));
     await whisperToGms(lines.map(line => `<p>${line}</p>`).join(""));
-    return { room, moved, left: left.map(actor => actor.id) };
+    const ids = actors => actors.map(actor => actor.id);
+    return { room, moved, carried: ids(carried), left: ids(left), others: ids(others) };
 }
 
 /**
- * The students the return could not move (the owner's item 1 of 10.10, its fallback): living by
- * the gather's own rule as the GMs hold them - not Monokuma, not dead unless a Monocub - with no
- * token on `destination` and a token on another place scene. The hall is no place, so a student
- * standing only there is not named: hiding the cast is what the hall gets. In the world's order.
+ * The living with no token on `scene` whose place is another scene with rooms, each carried into `room` there
+ * (call-world.mjs `carryAcross`): the token `locateActor` reads as where they stand, which is never the hall's
+ * (no rooms) nor one on a scene with no rooms. Answers the carried, in the world's order; a student whose carry
+ * failed is not among them and `leftBehind` names them after.
  */
-export async function leftBehind(destination) {
+async function carryTheLiving(scene, room, hall) {
+    const region = roomRegions(scene, room)[0];
+    if (!region) return [];
+    const { locateActor } = await import("./movement.mjs");
+    const carried = [];
+    for (const actor of await leftBehind(scene, hall)) {
+        const place = locateActor(actor);
+        if (!place || place.scene.id === scene.id || place.scene.id === hall?.id) continue;
+        if (await carryAcross(place.tokenDoc, scene, region)) carried.push(actor);
+    }
+    return carried;
+}
+
+/**
+ * The living students with no token on `destination` the return owes an answer to (the owner's item 1 of 10.10):
+ * living by the gather's own rule as the GMs hold them - not Monokuma, not dead unless a Monocub - with a token on
+ * any scene but the destination and the hall, or played by a player (`ownerIdsOf`, as `studentsWithoutHallToken`
+ * reads it) with none there. Before the return carries them these are whom it tries; after, whom it could not
+ * move. A student standing only on a scene with no rooms was neither moved nor named until review r1 (cor A):
+ * the scenes were read through `isPlaceScene`. A student nobody plays whose only token is in the hall is not
+ * named: hiding the cast is what the hall gets. In the world's order.
+ */
+export async function leftBehind(destination, hall = trialScene()) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     const actorsOn = scene => [...(scene?.tokens ?? [])].map(token => token.actorId);
     const here = new Set(actorsOn(destination));
-    const elsewhere = new Set(game.scenes.filter(scene => scene.id !== destination.id && isPlaceScene(scene)).flatMap(actorsOn));
+    const elsewhere = new Set(game.scenes.filter(scene => scene.id !== destination.id && scene.id !== hall?.id).flatMap(actorsOn));
     return game.actors.filter(actor => {
-        if (actor.type !== "character" || here.has(actor.id) || !elsewhere.has(actor.id)) return false;
+        if (actor.type !== "character" || here.has(actor.id)) return false;
+        if (!elsewhere.has(actor.id) && !ownerIdsOf(actor).length) return false;
         const held = flagsHeldNow(actor);
         return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
     });
