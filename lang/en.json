@@ -1881,7 +1881,12 @@
       "castUnavailable": "The trial opened and nobody in the trial hall was shown: the GMs' choice of its tokens had not reached this client yet. Show them by hand on the hall's scene.",
       "duplicateToken": "More than one token in the trial hall stands for the same character, and only the first was shown. Kept hidden: {names}.",
       "playerTokenCreated": "{user} made a token in the trial hall: {name}. It stays where it is, and the next trial treats it as any token of the hall.",
-      "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as it was."
+      "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as it was.",
+      "noSchool": "The Class Trial ended, but no school scene is linked and the scene the trial opened from is gone, so the table stays in the trial hall and its tokens stay as they are. Activate a scene by hand.",
+      "missingTokens": {
+        "one": "The trial hall has no token for {n} student a player plays, so the trial cannot show them: {names}. Place one on the hall's scene.",
+        "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
+      }
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

@@ -595,15 +595,20 @@ async function reconcilePhase(from, to) {
         }
     }
 
-    /* THE HALL'S CAST (E13 C2): into the trial shows the tokens the GMs chose in the linked hall,
-       out of it hides them - trial-scene.mjs `followCast`, one scene update on this GM's client.
-       Last, after every rule step above: it is a draw, and a hall that cannot be updated must
-       not hold up the budget or the reset. No hall linked, it does nothing. */
-    try {
-        const { followCast } = await import("./trial-scene.mjs");
-        await followCast(from, to);
-    } catch (err) {
-        error("Could not show or hide the trial hall's tokens after the phase changed", err);
+    /* THE TABLE AND THE HALL'S CAST (E13 C2, C3): into the trial the hall's cast the GMs chose is
+       shown and the hall activated, so every browser is taken there; out of it the school is
+       activated and the cast hidden - trial-scene.mjs `followPhase`, on this GM's client. Every road
+       into and out of the trial reaches it here and only here (R113): it is why no door activates a
+       scene itself. Last, after every rule step above: it is a draw, and a hall that cannot be
+       updated or activated must not hold up the budget or the reset. No hall linked, it does
+       nothing. */
+    if (from === "classTrial" || to === "classTrial") {
+        try {
+            const { followPhase } = await import("./trial-scene.mjs");
+            await followPhase(from, to);
+        } catch (err) {
+            error("Could not move the table to or from the trial hall after the phase changed", err);
+        }
     }
 }
 

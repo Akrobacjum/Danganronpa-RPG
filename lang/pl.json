@@ -1951,7 +1951,14 @@
       "castUnavailable": "Class Trial się zaczął, a w sali rozpraw nikogo nie odkryto: wybór jej tokenów dokonany przez GM-ów nie dotarł jeszcze do tego klienta. Odkryj je ręcznie na scenie sali.",
       "duplicateToken": "Ta sama postać ma w sali rozpraw więcej niż jeden token i odkryto tylko pierwszy. Ukryte zostały: {names}.",
       "playerTokenCreated": "Konto {user} utworzyło token w sali rozpraw: {name}. Zostaje na miejscu, a następny Class Trial potraktuje go jak każdy token sali.",
-      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono to, co było."
+      "hiddenPutBack": "Konto {user} zmieniło, czy {name} jest ukryty w sali rozpraw. Odkrywanie i ukrywanie tokenów sali należy do GM-a, więc przywrócono to, co było.",
+      "noSchool": "Class Trial się zakończył, ale żadna scena nie jest podpięta jako szkoła, a scena, z której zaczęto rozprawę, już nie istnieje, więc stół zostaje w sali rozpraw, a jej tokeny bez zmian. Aktywuj scenę ręcznie.",
+      "missingTokens": {
+        "one": "Sala rozpraw nie ma tokenu dla {n} postaci prowadzonej przez gracza, więc rozprawa nie może jej pokazać: {names}. Postaw token na scenie sali.",
+        "few": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
+        "many": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
+        "other": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali."
+      }
     },
     "Trial": {
       "presentTooltip": "Przedstaw - połóż to na stole, by wszyscy zobaczyli.",

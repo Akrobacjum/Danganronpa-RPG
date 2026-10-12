@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the trial hall's cast: which of its tokens the trial shows.
+ * Danganronpa RPG - the trial hall: the table taken to it and back, and which of its tokens the trial shows.
  * ---------------------------------------------------------------------------
  * THE HALL IS SET ONCE, AND THE MODULE ONLY SHOWS AND HIDES IN IT (E13 C2,
  * 12.10.2026; plan-E13 3.3, decision D7, audit S06-57). The GM builds the hall
@@ -42,14 +42,42 @@
  * 12.10.2026 against C1's code, failed a2, a3, c1, d1, d2 and e1 (9/15) - entering the trial showed
  * nobody, leaving it hid nobody the GM had shown by hand, and p1's hide stood. Those are the rows
  * this file turns.
+ *
+ * THE TABLE FOLLOWS THE PHASE (E13 C3, 12.10.2026; plan-E13 3.2 and 3.4, audit S06-57, doneWhen 1).
+ * Every road into and out of the Class Trial - Start the Class Trial, `closeTrial` and so End the
+ * trial, the chapter end and the API, `setPhase` and so `startFloor`, the console's phase select,
+ * Edit campaign, the season reset's clock step - writes the phase through clock.mjs `setClock`,
+ * and `setClock` runs `reconcilePhase` when the phase really moved. Its last step is `followPhase`
+ * here, and nothing else in the module activates a scene (R113 reads that in the source): into
+ * the trial the hall is activated, so Foundry moves every connected browser to it, GMs included;
+ * out of it the school is. Until this commit the trial opened and closed on whatever scene each
+ * browser showed - scenario 41 a1, c1, d1, d2, e1, f1, g1 and j1 read the table left where it was, on
+ * 12.10.2026 at C2's tree, and the GM activated the hall by hand. A second debate in one trial and
+ * the Final Trial do not move the phase, so they move nobody: the Final Trial is held in the same
+ * hall (D7).
+ *
+ * Out of the trial the table goes to the linked school; with none linked, or its scene gone, to
+ * the scene that was active when the trial opened (`trialReturnTo`, a flag on the hall written on
+ * the way in); with neither, nowhere - the GMs are told and nothing changes, the hall's cast
+ * included (the owner's answer Q-E13-1 b, 09.10.2026).
+ *
+ * A browser still loading when the hall is activated only warns and stays where it was (A5's
+ * reading of Foundry, not read in v14: LIVE-E13-02). So a player's browser puts its own view
+ * right once, on its first `canvasReady` after a load (`selfRepair`; the owner's answer Q-E13-1 c,
+ * 09.10.2026): the hall in the trial, the school out of it, and only when the scene it shows is
+ * not the one a GM made active. Once, so a GM's later pull of one player to another scene stands;
+ * never on a GM's browser. The view decides no rule (rooms.mjs `CAMERA_READERS`).
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { seasonEpoch } from "./settings.mjs";
+import { seasonEpoch, getClock } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
-import { trialScene } from "./rooms.mjs";
+import { trialScene, schoolScene, viewedScene } from "./rooms.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
-import { isPrimaryGm, whisperToGms, ownerIdsOf, esc, log, error } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
+
+/** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
+export const TRIAL_RETURN_FLAG = "trialReturnTo";
 
 /** The options every write of this file carries: a mark to read in a log, never a pass (see `castPutBack`). */
 function castWrite() {
@@ -196,16 +224,104 @@ export const revealTrialTokens = (scene = trialScene()) => applyTrialCast(scene,
 export const hideTrialTokens = (scene = trialScene()) => applyTrialCast(scene, { reveal: false });
 
 /**
- * The phase's step for the hall, called last by clock.mjs `reconcilePhase` on the GM who moved the
- * phase: into the trial shows the cast, out of it hides it. No hall linked, nothing.
+ * The phase's step for the table, called last by clock.mjs `reconcilePhase` on the GM whose
+ * `setClock` moved the phase: into the trial `enterTrialScene`, out of it `leaveTrialScene`. The
+ * one caller of either (R113).
  */
-export async function followCast(from, to) {
+export async function followPhase(from, to) {
     if (from === to) return null;
-    const hall = trialScene();
-    if (!hall) return null;
-    if (to === "classTrial") return revealTrialTokens(hall);
-    if (from === "classTrial") return hideTrialTokens(hall);
+    if (to === "classTrial") return enterTrialScene();
+    if (from === "classTrial") return leaveTrialScene();
     return null;
+}
+
+/**
+ * The scene the table left for the trial, or null: the hall's `trialReturnTo` flag, when it names
+ * a scene that still exists and is not the hall.
+ */
+export function trialReturnTo(hall = trialScene()) {
+    const id = hall?.getFlag?.(MODULE_ID, TRIAL_RETURN_FLAG);
+    const scene = typeof id === "string" && id ? game.scenes?.get?.(id) ?? null : null;
+    return scene && scene.id !== hall.id ? scene : null;
+}
+
+/**
+ * Where leaving the trial takes the table (Q-E13-1 b): the linked school, else the scene the trial
+ * was opened from, else null - and never the hall. Plain arguments (R115 asks it of plain objects).
+ */
+export function leaveDestination({ school = null, returnTo = null, hall = null } = {}) {
+    for (const scene of [school, returnTo]) if (scene?.id && scene.id !== hall?.id) return scene;
+    return null;
+}
+
+/**
+ * The students a player plays who have no token in the hall, so the trial cannot show them: the
+ * students `defaultReveal` shows, the dead among them (Q-E13-1 a). By name, in the world's order.
+ */
+export function studentsWithoutHallToken(hall) {
+    const here = new Set((hall?.tokens?.contents ?? []).map(token => token.actorId));
+    return game.actors.filter(actor => actor.type === "character" && !here.has(actor.id) && ownerIdsOf(actor).length > 0);
+}
+
+/**
+ * Into the trial, on a GM: note the scene the table leaves (the hall's `trialReturnTo`), show the
+ * cast, tell the GMs whom the hall has no token for, then activate the hall - the cast is shown
+ * before anybody arrives. No hall linked, nothing. Answers what it did, or null.
+ */
+export async function enterTrialScene(hall = trialScene()) {
+    if (!game.user?.isGM || !hall) return null;
+    const left = game.scenes?.active ?? null;
+    if (left && left.id !== hall.id) await hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG, left.id);
+    const cast = await revealTrialTokens(hall);
+    const missing = studentsWithoutHallToken(hall);
+    if (missing.length) {
+        const names = missing.map(actor => esc(actor.name)).join(", ");
+        await whisperToGms(`<p>${plural("DRPG.TrialScene.missingTokens", { n: missing.length, names })}</p>`);
+    }
+    const activated = !hall.active;
+    if (activated) await hall.activate();
+    return { hall: hall.id, left: left?.id ?? null, cast, missing: missing.map(actor => actor.id), activated };
+}
+
+/**
+ * Out of the trial, on a GM: activate the scene `leaveDestination` names, then hide the hall's
+ * cast. With nowhere to go the GMs are told and nothing changes - the table stays in the hall with
+ * its cast shown, as the trial left it (Q-E13-1 b). No hall linked, nothing.
+ */
+export async function leaveTrialScene(hall = trialScene()) {
+    if (!game.user?.isGM || !hall) return null;
+    const destination = leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+    if (!destination) {
+        await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.noSchool")}</p>`);
+        return null;
+    }
+    const activated = !destination.active;
+    if (activated) await destination.activate();
+    const cast = await hideTrialTokens(hall);
+    return { destination: destination.id, cast, activated };
+}
+
+/**
+ * The scene a browser should switch its own view to on its first `canvasReady`, or null (Q-E13-1 c):
+ * a player's only; in the trial the hall when the hall is the active scene and another is on screen;
+ * out of it the school when the hall is on screen and the school is the active scene. Plain
+ * arguments (R435 asks it of plain objects).
+ */
+export function viewRepair({ isGM = false, phase = null, hall = null, school = null, active = null, viewed = null } = {}) {
+    if (isGM || !hall?.id) return null;
+    if (phase === "classTrial") return active?.id === hall.id && viewed?.id !== hall.id ? hall : null;
+    return school?.id && active?.id === school.id && viewed?.id === hall.id ? school : null;
+}
+
+/** A player's browser, on its first `canvasReady` after a load: its own view put right once (`viewRepair`). */
+async function selfRepair() {
+    try {
+        const scene = viewRepair({ isGM: Boolean(game.user?.isGM), phase: getClock().phase, hall: trialScene(),
+            school: schoolScene(), active: game.scenes?.active ?? null, viewed: viewedScene() });
+        if (scene) await scene.view();
+    } catch (err) {
+        error("Could not put this browser's view of the trial hall right", err);
+    }
 }
 
 /**
@@ -264,4 +380,5 @@ async function watchCastCreated(tokenDoc, options, userId) {
 export function registerTrialScene() {
     Hooks.on("updateToken", watchCast);
     Hooks.on("createToken", watchCastCreated);
+    Hooks.once("canvasReady", selfRepair);
 }

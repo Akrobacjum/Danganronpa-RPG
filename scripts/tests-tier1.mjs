@@ -6628,6 +6628,26 @@ const INVARIANTS = [
         const school = R.homeScene();
         equal(JSON.stringify([R.isTrialScene(school), !R.schoolScene() || school === R.schoolScene()]), JSON.stringify([false, true]),
             `[home (${school?.name ?? "none"}) is the trial hall, home is the linked school when one is linked]`);
+
+        /* And the way back (E13 C3, 12.10.2026; plan-E13 2.3's R115 rows, the owner's answer Q-E13-1 b): leaving the trial
+           takes the table to the linked school, else to the scene the trial opened from (`trialReturnTo`), never to the
+           hall, and with neither the GMs are told and nothing changes. Asked of plain scenes, and in the source of
+           `leaveTrialScene`: it whispers `noSchool` and returns before it activates or hides anything. Red before C3:
+           there was no `leaveDestination`. Scenario 41 c, d, e and j read the return on four browsers. */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.leaveDestination === "function", "trial-scene.mjs has no `leaveDestination` - leaving the trial takes the table nowhere");
+        if (typeof T.leaveDestination !== "function") return;
+        const [linked, from, hall] = [{ id: "school" }, { id: "from" }, { id: "hall" }];
+        const to = args => T.leaveDestination(args)?.id ?? null;
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const leave = fnSource(stripComments(sources.get("trial-scene.mjs")), "leaveTrialScene");
+        const [told, activates, hides] = ['"DRPG.TrialScene.noSchool"', ".activate(", "hideTrialTokens("].map(text => leave.indexOf(text));
+        const back = told >= 0 ? leave.indexOf("return null;", told) : -1;
+        equal(JSON.stringify([to({ school: linked, returnTo: from, hall }), to({ returnTo: from, hall }), to({ school: hall, returnTo: hall, hall }), to({ hall }),
+            leave.includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })"), told >= 0 && told < back && back < activates && activates < hides]),
+            JSON.stringify(["school", "from", null, null, true, true]),
+            "[the way back with a school and a scene the trial opened from, with that scene only, with only the hall named, with nothing; "
+            + "leaveTrialScene asks the school and the flag; it tells the GMs and returns before it activates, and activates before it hides]");
     }],
     ["R116 - the trial shows the GMs' choice of the hall's cast and hides it again: only `hidden` changes, and a second run changes nothing", async () => {
         /*
@@ -6679,8 +6699,10 @@ const INVARIANTS = [
         /*
          * E13 C2, 12.10.2026; plan-E13 2.3 (A5's R121, which tools/registry.mjs reserves for A4) and 1.x 2, decisions D7
          * and D12. The audit's fix for S06-57 named a flag on the hall token, and a token's flags are written by whoever
-         * owns it - the student's own player. Read in the source with comments blanked: trial-scene.mjs writes no flag and
-         * no setting, and writes the choice only through `trialCastStore`; `applyTrialCast` waits for the store to open
+         * owns it - the student's own player. Read in the source with comments blanked: trial-scene.mjs writes no setting and
+         * one flag only (E13 C3: `trialReturnTo`, on the hall SCENE, which `enterTrialScene` writes and a GM's client
+         * reads - the owner's answer 1b; the count was 0 at C2 and R433 failed at C3 on the 1 until it was said here),
+         * and writes the choice only through `trialCastStore`; `applyTrialCast` waits for the store to open
          * before it reads the cast, so a store that did not open shows nobody (the tier-2 "entering the trial ..." drives
          * that branch). Of the store: its spec (a ledger, cut with the trial floor's group, backed up and synced among the
          * GMs) and its setting, this browser's own storage. Of the rule on plain rows: a row of this season reads, a row of
@@ -6694,7 +6716,7 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("trial-scene.mjs"));
-        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany("]
+        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,"]
             .map(text => code.split(text).length - 1);
         const apply = fnSource(code, "applyTrialCast");
         const [waits, reads] = ["await open()", "readCast(scene)"].map(text => apply.indexOf(text));
@@ -6704,9 +6726,9 @@ const INVARIANTS = [
         const at = (row, epoch) => T.castRow({ [K]: row }, H, "TOKEN", epoch);
         const seasons = [at({ reveal: false, epoch: 5 }, 5), at({ reveal: true, epoch: 4 }, 5), at({ reveal: true, epoch: 6 }, 5), at({ epoch: 5 }, 5), at(undefined, 5)];
         equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
-            JSON.stringify([[0, 0, 0, 0, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+            JSON.stringify([[1, 0, 0, 0, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
                 "client", [{ reveal: false }, null, null, null, null]]),
-            "[trial-scene.mjs's setFlag, unsetFlag, settings.set and store writes (patch, patchMany, dropMany); `applyTrialCast` waits for the store before it reads the cast; "
+            "[trial-scene.mjs's setFlag (the one, on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag; `applyTrialCast` waits for the store before it reads the cast; "
             + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
     }],
 
@@ -6741,6 +6763,38 @@ const INVARIANTS = [
         equal(JSON.stringify(asks), JSON.stringify([{ hidden: false }, { hidden: true }, { hidden: false }, null, null, null, null, null, null]),
             "[put back: a player's hide, a player's show, a player's hide with the module's option; stands: a GM's hide, a player's move, "
             + "a token of no actor, a token of another scene, no hall linked, a writer nobody knows]");
+    }],
+    ["R435 - a player's browser puts its own view right once after a load: the hall in the trial, the school after it, never a GM's", async () => {
+        /*
+         * E13 C3, 12.10.2026; plan-E13 3.4, the owner's answer Q-E13-1 c (players only, once per load), LIVE-E13-02. When
+         * the trial opens the hall is activated and Foundry moves every connected browser there; a browser still loading
+         * then only warns and stays (A5's reading of Foundry, not read in v14) - scenario 41 f read p4 left on the school
+         * after its first draw (12.10.2026, C2's tree). trial-scene.mjs `viewRepair` names the scene a browser switches to
+         * on its first `canvasReady`, asked here of plain scenes: a player in the trial viewing the school while the hall
+         * is active goes to the hall; after the trial, viewing the hall while the school is active, to the school; a
+         * player already where the GM made active, a GM, a trial whose active scene is not the hall (the GM took the
+         * table elsewhere), and no hall linked, nowhere. And in the source with comments blanked: `registerTrialScene`
+         * listens to `canvasReady` once (a GM's later pull stands) and through `selfRepair`. Scenario 41 f reads it on a
+         * late browser, the pull included. Red before C3: there was no `viewRepair`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.viewRepair === "function", "trial-scene.mjs has no `viewRepair` - a browser that missed the activation stays where it was");
+        if (typeof T.viewRepair !== "function") return;
+        const [hall, school] = [{ id: "hall" }, { id: "school" }];
+        const goes = args => T.viewRepair({ hall, school, ...args })?.id ?? null;
+        const trial = "classTrial", daily = "dailyLife";
+        const sources = await moduleSources();
+        must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(stripComments(sources.get("trial-scene.mjs")), "registerTrialScene");
+        equal(JSON.stringify([
+            goes({ phase: trial, active: hall, viewed: school }), goes({ phase: daily, active: school, viewed: hall }),
+            goes({ phase: trial, active: hall, viewed: hall }), goes({ phase: daily, active: hall, viewed: hall }),
+            goes({ phase: trial, active: school, viewed: school }), goes({ phase: trial, active: hall, viewed: school, isGM: true }),
+            goes({ phase: daily, active: school, viewed: hall, isGM: true }), T.viewRepair({ phase: trial, active: hall, viewed: school, school }),
+            register.includes('Hooks.once("canvasReady", selfRepair)'), /Hooks\.on\(\s*["']canvasReady["']/.test(register)]),
+            JSON.stringify(["hall", "school", null, null, null, null, null, null, true, false]),
+            "[a player in the trial off the hall, after it on the hall; a player already where the GM put the table (twice), in a trial the GM took "
+            + "elsewhere; a GM (twice); no hall linked; registerTrialScene listens to canvasReady once through selfRepair, and never on every one]");
     }],
 ];
 

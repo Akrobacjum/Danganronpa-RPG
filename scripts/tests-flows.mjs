@@ -87,6 +87,8 @@ export const FLOWS = Object.freeze([
     // over the bridge is 33's (an Assistant GM's), the charge 62 P's (gm2 opens the trial; 62 tags it through its
     // `begin` helper, so it is not listed here). No scenario sends `vote.run` from a second GM: partial until E40.
     // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
+    // E13 C3 (12.10.2026): every road into and out of the trial moves the table - the linked hall activated on the way in,
+    // the school on the way out (trial-scene.mjs `followPhase`, R113); 41-trial-scene reads it on four browsers and a late one.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now"],
             sockets: ["vote.mjs"] },

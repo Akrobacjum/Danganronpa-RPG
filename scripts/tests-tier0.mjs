@@ -8225,7 +8225,9 @@ const REGRESSIONS = [
          * verdict says what judges the place today; a row ending "(E13 C<n>)" names the commit that changes it, and that
          * commit rewrites the row with the code. It reads names and text, not data flow. The rows are the parse-only
          * census kept with the E13 plan outside the repository, with its keys: on 12.10.2026, in Node on the working tree
-         * of C2, it read 74 places - 3 PACKET, 5 SOCKET, 21 SHEET, 40 HOOK, 5 STORE - and none without a verdict. R379
+         * of C2, it read 74 places - 3 PACKET, 5 SOCKET, 21 SHEET, 40 HOOK, 5 STORE - and none without a verdict. E13 C3
+         * added two - the self-repair's `canvasReady` listener and the hall's `trialReturnTo` flag - and the census read
+         * 76 on its working tree (12.10.2026). R379
          * reads the token listeners of the room roads too, keyed its own way; a commit that changes one rewrites both.
          * And D7's line, in the source with comments blanked: trial-scene.mjs creates and deletes no document.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
@@ -8256,7 +8258,7 @@ const REGRESSIONS = [
             ["SHEET trial-scene.mjs#readCast", "held: `flagsHeldNow(actor)` once per cast token, the whole cast in one synchronous pass before the diff (H3); under Q-E13-1 (a) only `monokuma` decides; a player owner is `ownerIdsOf` (the actor's ownership: whether a player can write it is Foundry's rule, not measured here) [1b.2]; R116"],
             ["SHEET murder-rules.mjs#wearSwing", "judged: on the GM in the incident; reads the held `weapon` (fix r2-H18) and writes through `breakOnDespair(actor, tool, roll, weapon)`; `actor.items.get` only finds the document to write. C8 changes the tier-0 rule inside `breakOnDespair`, not this road (E13 C8)"],
             ["SHEET murder-rules.mjs#undoLastCrisis", "held: `itemAsHeld` + `gmMeansWrite` (E29); a Reroll gives back C8's single use exactly as it gives back a wear (2.3's R-new) (E13 C8)"],
-            ["SHEET murder-rules.mjs#registerMurder", "judged: its `updateToken` hook runs on the primary (`maybeBodyFound`); a return from the trial announces no body (41 g, 41 i: 0 new body cards). E12 C12 adds the witness standing (E13 C3)"],
+            ["SHEET murder-rules.mjs#registerMurder", "judged: its `updateToken` hook runs on the primary (`maybeBodyFound`); the return from the trial announces no body: 41 g reads 0 new body cards and the stamps unchanged after End the trial takes the table back to the school (E13 C3; 41 i, the gather's half, is C3b's). E12 C12 adds the witness standing"],
             ["SHEET inventory.mjs#wearItem", "judged on a GM through `held` (the swing's); on a player's own item class 1. C8 changes the durability for tier 0 (E13 C8)"],
             ["SHEET inventory.mjs#breakItem", "held: `itemsHeldNow`; C8's spent tier-0 item breaks through it (E13 C8)"],
             ["SHEET movement.mjs#onUpdateToken", "out of scope: `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
@@ -8291,6 +8293,7 @@ const REGRESSIONS = [
             ["HOOK remnants.mjs#deleteToken#arrow1", "out of scope: a Remnant token's deletion on the primary (E31); E13 deletes nothing in the hall"],
             ["HOOK selection.mjs#canvasReady#applySelectionColour", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sfx.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK trial-scene.mjs#canvasReady#selfRepair", "out of scope as a judgement: a player's own view, put right once on its first `canvasReady` after a load (`viewRepair`, R435; Q-E13-1 c): a `CAMERA_READERS` draw row, decides no rule; a GM's browser is never moved (41 f) [1b.1 which scene a client views]"],
             ["HOOK trial-floor.mjs#canvasReady#renderTrialFloor", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#updateToken#watchCast", "put back: on the primary, a non-GM `userId`'s change to a hall cast token's `hidden` is undone to the state before it and told to the GMs; the `trialCast` option exempts nothing (a writer's claim); a GM's change stands (R434; LIVE-E13-08)"],
             ["HOOK trial-scene.mjs#createToken#watchCastCreated", "out of scope: told, not refused - on the primary, a cast token a non-GM `userId` creates in the hall is whispered to the GMs and left (D7: the module deletes nothing in the hall); it joins the cast, and the next entry names a second token of one actor"],
@@ -8302,10 +8305,11 @@ const REGRESSIONS = [
             ["HOOK voice.mjs#createToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#deleteToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#canvasReady#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
-            ["STORE settings.mjs#clock", "not a source: a world setting written only by `setClock` (clock.mjs:159); C3's `followPhase` in `reconcilePhase` (called at clock.mjs:175) is the one road in and out (R113) (E13 C3)"],
-            ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return (E13 C3)"],
+            ["STORE settings.mjs#clock", "not a source: a world setting written only by `setClock` (clock.mjs:159); C3's `followPhase` in `reconcilePhase` (called at clock.mjs:175) is the one road in and out: every door writes the phase there and only `followPhase` activates a scene (R113)"],
+            ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return to the school (E13 C3's switch)"],
             ["STORE settings.mjs#sceneRoles", "not a source: a world setting (`config: false`, settings.mjs, E13 C1) read by name in rooms.mjs (`sceneRoles`, cached, dropped by its `onChange`); no writer in C1 but the GM's console and the tier-2 tests, the Scenes tab (a GM window) is C5's; whether an Assistant GM may write it is not measured (1b.1)"],
             ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.tokenId`; a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); R433"],
+            ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
             ["STORE module.json#relationships", "not a source: the manifest; C10 moves isometric-perspective and avclient-livekit into `requires` (installed and enabled only, d2) (E13 C10)"]
         ];
         const ROADS = /^token\.sendBack$/;
@@ -8325,6 +8329,7 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["STORE settings.mjs#clock", "settings.mjs", "clock"], ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"],
             ["STORE settings.mjs#sceneRoles", "settings.mjs", "sceneRoles"], ["STORE gm-stores.mjs#trialCast", "gm-stores.mjs", "trialCast"],
+            ["STORE scene-flag#trialReturnTo", "trial-scene.mjs", "trialReturnTo"],
             ["STORE module.json#relationships", "module.json", "relationships"]];
         const censusOf = (bridge, sources) => {
             const found = [];
@@ -8424,6 +8429,67 @@ const REGRESSIONS = [
             JSON.stringify([{ unclassified: [], stale: [] }, []]),
             "[a trial-room road without a census row, or a row whose road is gone - give the new one a verdict (what judges it, or the E13 commit that will) and strike the gone one; "
             + "what trial-scene.mjs creates or deletes (D7: nothing)]");
+    }],
+
+    ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table", async () => {
+        /*
+         * E13 C3, 12.10.2026; plan-E13 2.3 and 3.2 (V1, doneWhen 1), audit S06-57, the A5 project's reserved R113. The
+         * roads into and out of the trial are many - Start the Class Trial, `closeTrial` and so End the trial, the chapter
+         * end and the API, `setPhase` and so `startFloor`, the console's phase select, Edit campaign, the season reset's
+         * clock step - and 1.2.47 made them one door for what the phase itself starts (R43): each writes the phase
+         * through clock.mjs `setClock`, which runs `reconcilePhase` when the phase really moved. Until 1.2.74 none of
+         * them moved the table: scenario 41 a1, c1, d1, d2, e1, f1, g1 and j1 read every browser left where it was (12.10.2026,
+         * C2's tree), and a door taught to switch scenes itself would have left the others as they were. Read in the
+         * source with comments blanked: `reconcilePhase` calls `followPhase(from, to)` inside a block opened by a guard
+         * naming the trial on either side, after its every other step; trial-scene.mjs's `followPhase` is the one caller of
+         * `enterTrialScene` and `leaveTrialScene`, and those two are its only activators; no other file names either or
+         * calls `.activate(` (a scene made active by `update({ active: true })` is a road this does not read); and
+         * only `setClock` writes the clock setting, by its key or by name. The reader is run first on a fixture: a door
+         * that names `enterTrialScene` and activates a scene itself, a second clock writer by name, and an activation
+         * only in a comment.
+         */
+        const code = raw => stripComments(String(raw ?? ""));
+        const doors = files => {
+            const out = { activate: [], named: [], clockWrites: [] };
+            for (const [file, raw] of files) {
+                const text = code(raw), bare = stripStrings(text);
+                if (file !== "trial-scene.mjs" && /\.activate\(/.test(bare)) out.activate.push(file);
+                if (file !== "trial-scene.mjs" && /\b(?:enterTrialScene|leaveTrialScene)\b/.test(bare)) out.named.push(file);
+                if (/\bsettings\.set\(\s*MODULE_ID\s*,\s*(?:SETTINGS\.clock\b|["']clock["'])/.test(text)) out.clockWrites.push(file);
+            }
+            return out;
+        };
+        equal(JSON.stringify(doors([
+            ["trial-floor-ui.mjs", "// hall.activate() in a comment\nexport async function startClassTrial() {\n    const { enterTrialScene } = await import(\"./trial-scene.mjs\");\n"
+                + "    await enterTrialScene();\n    await game.scenes.get(id).activate();\n}\n"],
+            ["clock.mjs", "export async function setClock(next) {\n    await game.settings.set(MODULE_ID, SETTINGS.clock, next);\n}\n"],
+            ["gm-panel.mjs", "function edit(next) {\n    return game.settings.set(MODULE_ID, \"clock\", next);\n}\n"],
+            ["trial-scene.mjs", "export async function enterTrialScene(hall) {\n    await hall.activate();\n}\n"]])),
+            JSON.stringify({ activate: ["trial-floor-ui.mjs"], named: ["trial-floor-ui.mjs"], clockWrites: ["clock.mjs", "gm-panel.mjs"] }),
+            "the door reader does not find exactly the door, the activation and the second clock writer planted in its fixture");
+
+        const sources = await otherSources();
+        const files = new Map(sources);
+        must(sources.length > 100 && ["clock.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "gm-panel.mjs", "chapter.mjs", "season-setup.mjs"].every(file => files.has(file)),
+            "the module's files are not served, or a file the roads run through is missing - this would measure nothing");
+        const clock = code(files.get("clock.mjs")), scene = code(files.get("trial-scene.mjs"));
+        const reconcile = fnSource(clock, "reconcilePhase");
+        const GUARD = 'if (from === "classTrial" || to === "classTrial")';
+        const at = reconcile.indexOf("followPhase(from, to)"), opened = reconcile.indexOf(GUARD);
+        const between = opened >= 0 && at > opened ? bodyOf(reconcile, GUARD, { until: "followPhase(from, to)" }) : "";
+        const guarded = between.split("{").length - between.split("}").length > 0;
+        const before = ["endFloor(", "openTrialBudget(", "resetTrialProgress(", "askToChargeForUnfoundKeys(", "tellUnfoundDeaths("].map(call => reconcile.indexOf(call));
+        const names = [...scene.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]);
+        const whoCalls = name => names.filter(fn => fn !== name && new RegExp(`\\b${name}\\(`).test(topLevelFunction(scene, fn) ?? "")).sort();
+        const activators = names.filter(fn => /\.activate\(/.test(topLevelFunction(scene, fn) ?? "")).sort();
+        const setClockWrites = /\bsettings\.set\(\s*MODULE_ID\s*,\s*SETTINGS\.clock\b/.test(fnSource(clock, "setClock"));
+        equal(JSON.stringify([guarded, reconcile.split("followPhase(").length - 1,
+            before.every(i => i >= 0 && i < at), doors(sources), setClockWrites,
+            whoCalls("enterTrialScene"), whoCalls("leaveTrialScene"), activators]),
+            JSON.stringify([true, 1, true, { activate: [], named: [], clockWrites: ["clock.mjs"] }, true,
+                ["followPhase"], ["followPhase"], ["enterTrialScene", "leaveTrialScene"]]),
+            "[reconcilePhase calls followPhase under the trial's guard, how often, after its every other step; the files that activate a scene, "
+            + "name enterTrialScene or leaveTrialScene, or write the clock; setClock writes it; who calls enterTrialScene and leaveTrialScene; who activates a scene in trial-scene.mjs]");
     }],
 
     ["R347 - the bodies to discover are this chapter's and season's unannounced dead, never an execution", async () => {

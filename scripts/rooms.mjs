@@ -504,6 +504,9 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#announceRoom": "draw",
     "fog.mjs#playDiscoveryAnimation": "draw",
     "fog.mjs#floorSwitcher": "draw",
+    /* A player's own view switched once after a load (E13 C3, Q-E13-1 c): it moves this browser's
+       canvas and decides nothing - the plan named it a window row, but no GM window reads it. */
+    "trial-scene.mjs#selfRepair": "draw",
 
     "utils.mjs#workingScene": "window",
     "gm-panel.mjs#nextStep": "window",
