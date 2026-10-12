@@ -915,6 +915,14 @@
       "endTrial": "Zakończ Class Trial",
       "endTrialConfirm": "To zamyka debatę, kończy Class Trial i przywraca kampanię do Daily Life.",
       "endTrialNotChapter": "Rozdział nie jest zakończony - użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału.",
+      "endTrialScene": "Żyjący uczniowie idą do pokoju, który tu wybierzesz; tokeny sali rozpraw zostają ukryte.",
+      "endTrialRoom": "Pokój",
+      "endTrialMoves": {
+        "one": "{n} uczeń idzie do: {room}.",
+        "few": "{n} uczniowie idą do: {room}.",
+        "many": "{n} uczniów idzie do: {room}.",
+        "other": "{n} ucznia idzie do: {room}."
+      },
       "trialEnded": "Class Trial się skończył; rozdział jeszcze nie.",
       "lead": {
         "start": "Żaden Class Trial nie trwa. Zacznij Class Trial: faza się zmienia, stół dostaje ogłoszenie, a Class Trial otwiera się dyskusją.",
@@ -1958,6 +1966,12 @@
         "few": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
         "many": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali.",
         "other": "Sala rozpraw nie ma tokenów dla {n} postaci prowadzonych przez graczy, więc rozprawa nie może ich pokazać: {names}. Postaw każdej token na scenie sali."
+      },
+      "notMoved": {
+        "one": "{n} żyjący uczeń stoi na innej scenie i nie został przeniesiony: {names}. Przenieś go ręcznie.",
+        "few": "{n} żyjący uczniowie stoją na innej scenie i nie zostali przeniesieni: {names}. Przenieś ich ręcznie.",
+        "many": "{n} żyjących uczniów stoi na innej scenie i nie zostało przeniesionych: {names}. Przenieś ich ręcznie.",
+        "other": "{n} żyjącego ucznia stoi na innej scenie i nie zostało przeniesionych: {names}. Przenieś ich ręcznie."
       }
     },
     "Trial": {

@@ -928,6 +928,12 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
+      "endTrialScene": "The living students go to the room you choose here; the trial hall's tokens stay hidden.",
+      "endTrialRoom": "Room",
+      "endTrialMoves": {
+        "one": "{n} student goes to {room}.",
+        "other": "{n} students go to {room}."
+      },
       "trialEnded": "The Class Trial has ended; the chapter has not.",
       "lead": {
         "start": "No Class Trial is running. Start the Class Trial: the phase moves, the table is told, and the trial opens in discussion.",
@@ -1886,6 +1892,10 @@
       "missingTokens": {
         "one": "The trial hall has no token for {n} student a player plays, so the trial cannot show them: {names}. Place one on the hall's scene.",
         "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
+      },
+      "notMoved": {
+        "one": "{n} living student stands on another scene and was not moved: {names}. Move them by hand.",
+        "other": "{n} living students stand on another scene and were not moved: {names}. Move them by hand."
       }
     },
     "Trial": {

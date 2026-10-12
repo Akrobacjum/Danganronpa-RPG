@@ -34,12 +34,18 @@
  *      looks after its first `canvasReady`, and (C3) after a GM's later pull to the school.
  *   g  a body found before the trial, a wrong verdict executing Botan, End the trial, and two living
  *      students walking out of and back into the room where the body and the executed lie: the body
- *      cards, what every browser is told, and the chapter's discovery stamps, before and after.
+ *      cards, what every browser is told, and the chapter's discovery stamps, before and after. Since
+ *      E13 C3b End the trial asks for a room (the window answered here with the Academy's room the
+ *      walks start from), and the living are gathered there first.
+ *   i  (C3b) End the trial's scene and room, through its window drawn on the GM: a living student whose
+ *      only token stands on another place scene, and a Monocub on the school; Aiko and Chie walked out of
+ *      the room of the body and the executed, the trial opened, and that room chosen. Its buttons and
+ *      rooms; where every browser looks; which tokens moved and where to; whom the GMs were told of; and
+ *      the body cards and discovery stamps, before and after (the ledger's V12).
  *   j  (C3) the chapter end during the trial (`applyChapterEnd({ endTrial: true })`, the screen's "End the
  *      trial" ticked; the owner's 10.10 item 2: it offers no scene or room): where every browser looks, the
  *      hall's tokens, and whether any token of the school moved.
  *   e  the season reset during the trial: the active scene, where every browser looks, the hall's tokens.
- * Phase i (End the trial's school scene and room) is C3b's first step, not this file's.
  * Since E13 C3 the module takes the table: entering the trial activates the hall and leaving it the school
  * (trial-scene.mjs `followPhase`), so `byHand` and `handBack` find nothing left to do.
  *
@@ -52,6 +58,7 @@
  * working tree of 48efd99 and C0) - an eighth of run-all.mjs's five minutes, so it states no `timeoutMs`. With
  * E13 C1's b2: 14 checks in 36.6 s, one run on 12.10.2026 (alone, `--verbose`).
  * E13 C2's a3: 15 checks in 36.5 s, 41 s from the command to its exit, one run on 12.10.2026 (alone, `--verbose`).
+ * E13 C3b's i: 20 checks in 47.1 s, one run on 12.10.2026 (alone, `--verbose`; C3's j and e were in it already).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -341,6 +348,9 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     const discovered = await gm.eval(`${UNTIL} ${CARDS} const { bodyDiscovery, bodiesFoundIn, getClock } = await import("${repoUrl}/scripts/settings.mjs");
         await until(() => bodyDiscovery(), 6000); await new Promise(r => setTimeout(r, 800));
         return { cards: cards(), hold: bodyDiscovery()?.room ?? null, stamps: game.settings.get("${MOD}", "bodiesFound") };`, { timeout: 30000 });
+    /* The room the walks start from - and, since E13 C3b, the one End the trial sends the living to (C3's tree read the
+       answer as a yes: its question was a confirm). */
+    const away = found.room === "Cafeteria" ? "Storage" : "Cafeteria";
     const tried = await gm.eval(`${HALL} const { setPhase } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         await setPhase("investigation");
         globalThis.__dialogAnswers.push("ok");
@@ -350,7 +360,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         const inHall = game.scenes.active?.id === hall.id && canvas.scene?.id === hall.id;
         await game.drpg.applyVerdict({ correct: false, executedIds: ["${IDS.botan}"], blackenedIds: ["${IDS.chie}"] });
         await new Promise(r => setTimeout(r, 800));
-        globalThis.__dialogAnswers.push(true);
+        globalThis.__dialogAnswers.push({ sceneId: "${IDS.scene}", room: ${J(away)} });
         const ended = await UI.endClassTrial();
         await new Promise(r => setTimeout(r, 1000));
         return { started, inHall, ended, phase: getClock().phase, botan: game.drpg.isDeadForGm(game.actors.get("${IDS.botan}")),
@@ -360,7 +370,6 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
        which make the body or the executed findable again, stayed green). And what every browser was told: with
        m10 the walk reaches a discovery and chapter.mjs's second guard (`announcedAlready`) refuses it with a
        warning on the GM and no card, so the cards and stamps alone cannot see it; today nobody is told anything. */
-    const away = found.room === "Cafeteria" ? "Storage" : "Cafeteria";
     const told0 = {};
     for (const c of clients) told0[c.who] = await c.eval(`return globalThis.__notifications.length;`);
     const left = [await walk(IDS.chie, away), await walk(IDS.aiko, away)];
@@ -378,6 +387,73 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         found.kept && discovered.cards === found.before + 1 && tried.started === true && tried.inHall === true && tried.ended === true && tried.phase === "dailyLife" && tried.botan === true && tried.back === true
             && left.every(r => r === away) && laid === found.room && walked.every(r => r === found.room) && Object.values(toldG).every(t => !t.length) && afterG.cards === discovered.cards && J(afterG.stamps) === J(discovered.stamps),
         J({ found, discovered, tried, left, laid, walked, toldG, afterG }), { flow: "class-trial" });
+
+    /* ------------------------------ i. End the trial's scene and room (E13 C3b) ------------------------------ */
+    phase("i: End the trial sends the living to the room the GM picks", { flow: "class-trial" });
+    /* The owner's answer f of 09.10 and items 1 and 3 of 10.10. A living student the module cannot move - its only token on
+       another place scene - and a Monocub on the school (dead, and walks), made here and gone at the end of the phase; Aiko
+       and Chie walked out of the room of the body and the executed, so the gather is a living token entering it. Every
+       token of every scene by position and room, before and after; End the trial pressed in its window drawn on the GM, the
+       body's room on the Academy chosen in it. */
+    const fixI = await gm.eval(`const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const awayStudent = await Actor.create({ name: "S41 Away", type: "character" });
+        const cub = await Actor.create({ name: "S41 Cub", type: "character", flags: { "${MOD}": { deceased: true, monocub: true } } });
+        const place = await Scene.create({ name: "41 Away Place", width: 2000, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+        await place.createEmbeddedDocuments("Region", [{ name: "Shed", shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+            flags: { "${MOD}": { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+        await place.createEmbeddedDocuments("Token", [{ name: awayStudent.name, actorId: awayStudent.id, actorLink: true, x: 1200, y: 1200, width: 1, height: 1 }]);
+        const [cubToken] = await game.scenes.get("${IDS.scene}").createEmbeddedDocuments("Token", [{ name: cub.name, actorId: cub.id, actorLink: true,
+            x: 600, y: 600, width: 1, height: 1 }]);
+        return { place: place.id, actors: [awayStudent.id, cub.id], cubToken: cubToken.id };`, { timeout: 30000 });
+    const outI = [await walk(IDS.aiko, away), await walk(IDS.chie, away)];
+    const PLACES = `const M = await import("${repoUrl}/scripts/movement.mjs"); const where = {};
+        for (const s of game.scenes) for (const t of s.tokens) where[s.name + "/" + t.name] = { at: [t.x, t.y], room: M.roomOfToken(t) };`;
+    const i0 = await gm.eval(`${PLACES} ${CARDS} return { where, cards: cards(), stamps: game.settings.get("${MOD}", "bodiesFound"), said: game.messages.map(m => m.id) };`);
+    await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); await setClock({ phase: "classTrial" });
+        await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 60000 });
+    await settle(400);
+    const endI = await gm.eval(`${UNTIL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const title = game.i18n.localize("DRPG.Floor.endTrial");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        let read = null, ended = "hung";
+        try {
+            const pending = UI.endClassTrial();
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const select = el?.querySelector('select[name="room"]'), options = [...(select?.options ?? [])];
+            read = { buttons: [...(el?.querySelectorAll("footer button[data-action]") ?? [])].map(b => b.dataset.action),
+                options: options.map(o => (game.scenes.get(o.dataset.scene)?.name ?? o.dataset.scene) + "/" + o.value), first: select?.selectedOptions?.[0]?.value ?? null };
+            const pick = options.find(o => o.dataset.scene === "${IDS.scene}" && o.value === ${J(found.room)});
+            if (pick) pick.selected = true;
+            el?.querySelector('footer button[data-action="ok"]')?.click();
+            ended = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 8000))]);
+        } finally { globalThis.__dialogWindows = was; }
+        await new Promise(r => setTimeout(r, 1500));
+        return { read, ended, phase: getClock().phase };`, { timeout: 60000 });
+    await settle(400);
+    const viewsI = await readAll();
+    /* A whisper's words are read as the GM's browser reads them (secret.mjs `wordsOf`): its `content` is a placeholder. */
+    const i1 = await gm.eval(`${PLACES} ${CARDS} const said = new Set(${J(i0.said)}); const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return { where, cards: cards(), stamps: game.settings.get("${MOD}", "bodiesFound"),
+            told: await Promise.all(game.messages.filter(m => !said.has(m.id) && (m.whisper?.length ?? 0) > 0).map(m => wordsOf(m, 2000))) };`);
+    await gm.eval(`await game.scenes.get(${J(fixI.place)})?.delete(); await game.scenes.get("${IDS.scene}").tokens.get(${J(fixI.cubToken)})?.delete();
+        for (const id of ${J(fixI.actors)}) await game.actors.get(id)?.delete(); return true;`, { timeout: 30000 });
+    const academyName = Object.keys(i0.where).find(key => key.endsWith("/Aiko") && i0.where[key].room !== null)?.split("/")[0] ?? null;
+    const MOVERS = ["Aiko", "Chie", "S41 Cub"].map(name => `${academyName}/${name}`);
+    const movedI = Object.keys(i0.where).filter(key => J(i0.where[key].at) !== J(i1.where[key]?.at)).sort();
+    check("i1: End the trial's window offers End the trial and Cancel only and every room of each place scene, the school's first room chosen; ended there, every browser is on the school with the hall's cast hidden (E13 C3b; the owner's items 3 of 10.10)",
+        J(endI.read?.buttons) === J(["ok", "cancel"]) && endI.read.options[0]?.startsWith(`${academyName}/`) && endI.read.options.includes(`${academyName}/${found.room}`)
+            && endI.read.options.includes("41 Away Place/Shed") && endI.read.first === endI.read.options[0].split("/").slice(1).join("/")
+            && endI.ended === true && endI.phase === "dailyLife" && views(viewsI).every(v => v === "school") && Object.values(viewsI).every(r => J(shown(r)) === J(["Decor"])),
+        J({ fixI, outI, endI, viewsI: views(viewsI) }), { flow: "class-trial" });
+    check("i2: the living on the school and the Monocub go to the chosen room; the dead, Monokuma, the hall's tokens and the student on another scene stay where they stood (E13 C3b; the owner's f)",
+        academyName && outI.every(r => r === away) && J(movedI) === J([...MOVERS].sort()) && MOVERS.every(key => i1.where[key]?.room === found.room),
+        J({ academyName, movedI, before: i0.where, after: i1.where }), { flow: "class-trial" });
+    check("i3: the GMs are told once how many went and that the student on another scene was not moved, by name (E13 C3b; the owner's item 1 of 10.10)",
+        i1.told.filter(text => text.includes("S41 Away")).length === 1 && i1.told.some(text => text.includes("S41 Away") && text.includes(found.room)),
+        J(i1.told), { flow: "class-trial" });
+    check("i4: the living entering the room of the body and the executed post no body card and leave the stamps as they were (E13 C3b; the ledger's V12)",
+        i1.cards === i0.cards && J(i1.stamps) === J(i0.stamps), J({ before: [i0.cards, i0.stamps], after: [i1.cards, i1.stamps] }), { flow: "class-trial" });
 
     /* ------------------------------ j. the chapter end during the trial ------------------------------ */
     phase("j: the chapter end ends the trial", { flow: "class-trial" });

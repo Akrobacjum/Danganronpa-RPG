@@ -375,7 +375,7 @@ export async function runPendingGather() {
  * inside the region with no path to block, which is exactly what Monokuma's
  * announcement does to the cast.
  */
-export async function gatherEveryone(room, onScene = null) {
+export async function gatherEveryone(room, onScene = null, { held = null, box = false } = {}) {
     /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09). A DEFERRED assembly passes its
        order's (`runPendingGather`), a body discovery the body's (chapter.mjs
        `runDiscovery`, since E05 fix r2-G3), and the immediate branch of a Call its
@@ -398,9 +398,19 @@ export async function gatherEveryone(room, onScene = null) {
     /* FROM THE SCENE'S DOCUMENTS, NOT FROM THE CANVAS (CALL-18). `canvas.tokens`
        only holds the scene this client is LOOKING at, which is the whole defect one
        level up; `scene.tokens` is the same cast whether or not anybody is looking. */
-    const tokens = [...scene.tokens]
-        .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
-            && !(isDeadForGm(t.actor) && !isMonocub(t.actor)));
+    /* AS THE GMS HOLD THEM, WHEN THE CALLER SAYS SO (E13 C3b, 12.10.2026; the owner's answer of
+       10.10, item 6). `isMonokuma` and `isMonocub` read actor flags a player's browser can write
+       between two judgements; the return from the trial (trial-scene.mjs `returnTheLiving`) hands
+       `flagsHeldNow` in, and each token's actor is read through it once, in this one synchronous
+       pass (H3) - so a `monocub` flag a player wrote since the last judgement does not walk a body
+       out of its room. Every other caller hands nothing and reads the documents, as before:
+       the body's gather is unchanged. */
+    const read = held ?? (actor => actor);
+    const tokens = [...scene.tokens].filter(t => {
+        if (t.actor?.type !== "character") return false;
+        const actor = read(t.actor);
+        return !isMonokuma(actor) && !(isDeadForGm(actor) && !isMonocub(actor));
+    });
 
     if (!tokens.length) return 0;
 
@@ -412,8 +422,12 @@ export async function gatherEveryone(room, onScene = null) {
         moved = tokens.length;
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);
-        const { REVERT } = await import("./movement.mjs");
-        moved = await fallbackGather(scene, region, tokens, REVERT);
+        /* The room's box only when the caller asks (E13 C3b, 12.10.2026): the return from the trial
+           lands the cast in the room as the season reset's `teleportInto` does, for the reason its
+           note measured - with no box, a region the canvas does not draw puts the ring round the
+           scene's centre, outside the room. The body's gather hands none, as its scenarios read. */
+        const { REVERT, boundsOf } = await import("./movement.mjs");
+        moved = await fallbackGather(scene, region, tokens, REVERT, box ? boundsOf(region) : null);
     }
 
     /* AND EVERY CAMERA GOES WITH ITS TOKEN (E11 C3, 1.2.73; audit S06-07). The tokens were moved

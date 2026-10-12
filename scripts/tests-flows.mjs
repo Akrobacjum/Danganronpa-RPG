@@ -89,6 +89,8 @@ export const FLOWS = Object.freeze([
     // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
     // E13 C3 (12.10.2026): every road into and out of the trial moves the table - the linked hall activated on the way in,
     // the school on the way out (trial-scene.mjs `followPhase`, R113); 41-trial-scene reads it on four browsers and a late one.
+    // E13 C3b (12.10.2026): End the trial asks for a room of a place scene and the living go there (`returnTheLiving`, R436);
+    // 41-trial-scene i drives its window on the GM.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now"],
             sockets: ["vote.mjs"] },

@@ -11,7 +11,7 @@ import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     extendFloor, returnToDebate, advanceFloorNow, FLOOR_MODES
 } from "./trial-floor.mjs";
-import { dialogContent, plural, error, esc, serverNow } from "./utils.mjs";
+import { dialogContent, placeRoomOptions, plural, error, esc, serverNow } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -365,6 +365,22 @@ export async function endClassTrial() {
     const { trialProgress } = await import("./vote.mjs");
     const notChapter = trialProgress().verdictApplied
         ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Floor.endTrialNotChapter")}</p>` : "";
+
+    /* AND IT SAYS WHERE THE TABLE GOES (E13 C3b, 12.10.2026; the owner's answer f of 09.10). With a
+       trial hall linked, leaving the trial takes the table out of the hall, and the students' tokens
+       on the school still stand where the incident left them - the GM moved them by hand at every
+       return. So this question asks for a room of a place scene (`placeRoomOptions`, the house's
+       room select: the school first, every option carrying its scene), and the living go there once
+       the phase has moved (trial-scene.mjs `returnTheLiving`). Its buttons are End the trial and
+       Cancel only: the owner's item 3 of 10.10 is that the move cannot be skipped. With no hall
+       linked, or no room anywhere, the table never left the school and the question is the one it
+       was. */
+    const { trialScene, placeScenes } = await import("./rooms.mjs");
+    if (trialScene() && placeScenes().length) {
+        const exit = await askTrialExit(notChapter);
+        if (!exit || typeof exit !== "object") return null;
+        return closeTrial(exit);
+    }
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
@@ -374,6 +390,36 @@ export async function endClassTrial() {
     if (!confirmed) return null;
 
     return closeTrial();
+}
+
+/**
+ * End the trial's question when a hall is linked: the same words, and one select of every room of
+ * every place scene, the school's first room chosen. Answers `{ sceneId, room }` from the chosen
+ * option, or what the window answered otherwise (Cancel, a close) - which `endClassTrial` reads as
+ * no.
+ */
+async function askTrialExit(notChapter) {
+    return DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Floor.endTrial") },
+        content: dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Floor.endTrialConfirm")}</p>${notChapter}
+            <p>${game.i18n.localize("DRPG.Floor.endTrialScene")}</p>
+            <label>${game.i18n.localize("DRPG.Floor.endTrialRoom")}
+                <select name="room">${placeRoomOptions()}</select></label>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Floor.endTrial"), default: true,
+                callback: (e, b, d) => {
+                    const option = d.element.querySelector("form select[name=room]")?.selectedOptions?.[0];
+                    return option ? { sceneId: option.dataset.scene, room: option.value } : null;
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
 }
 
 /**
@@ -393,8 +439,20 @@ export async function endClassTrial() {
  * other caller anywhere in the module - and it was reachable from exactly one
  * button, below the one that ends the chapter.
  */
-export async function closeTrial() {
+export async function closeTrial({ sceneId = null, room = null } = {}) {
     if (!game.user.isGM) return null;
+
+    /* WHERE THE LIVING GO, HELD FOR THIS ONE WRITE (E13 C3b, 12.10.2026). End the trial's room, or
+       the API's: held on this client (trial-scene.mjs `setTrialExit`) before the phase write, whose
+       `reconcilePhase` takes it in `leaveTrialScene` on this same client, and dropped after it
+       whatever the write did. A room that is no room of a place scene ends nothing - the GM asked
+       for a move the module cannot make, and ending the trial without it would be the skip the
+       owner ruled out (item 3 of 10.10). The chapter end hands nothing and moves nobody. */
+    const { setTrialExit } = await import("./trial-scene.mjs");
+    if ((sceneId || room) && !setTrialExit({ sceneId, room })) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: room ?? "" }));
+        return false;
+    }
 
     try {
         // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
@@ -414,6 +472,8 @@ export async function closeTrial() {
             error("Could not close the debate floor after the trial failed to end", floorErr);
         }
         return false;
+    } finally {
+        setTrialExit(null);
     }
 
     const { announce } = await import("./utils.mjs");

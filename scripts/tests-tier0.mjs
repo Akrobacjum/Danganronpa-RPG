@@ -4011,7 +4011,7 @@ const REGRESSIONS = [
             "the scene is worked out and then not passed on");
 
         const gather = fnSource(world, "gatherEveryone");
-        ok(/gatherEveryone\(room, onScene = null\)/.test(gather),
+        ok(/gatherEveryone\(room, onScene = null[,)]/.test(gather),
             "the scene cannot be handed to it, so a deferred assembly has no way to say where");
         ok(/\[\.\.\.scene\.tokens\]/.test(gather),
             "the cast is read off the canvas, which only holds the scene somebody is looking at");
@@ -4584,7 +4584,7 @@ const REGRESSIONS = [
         ok(/async function fallbackGather\(scene,/.test(body), "the fallback is not handed a scene");
         ok(!/canvas\.scene|canvas\.grid/.test(body),
             "the fallback reads the scene on this GM's screen instead of the assembly's");
-        ok(/fallbackGather\(scene, region, tokens, REVERT\)/.test(src),
+        ok(/fallbackGather\(scene, region, tokens, REVERT[,)]/.test(src),
             "the assembly does not pass its own scene to the fallback");
     }],
 
@@ -7801,7 +7801,7 @@ const REGRESSIONS = [
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary only (E04), E33 C1a's GM-side rows; document reads of the items it deletes (the Truth Bullets). C9 runs it as `RESET_STEPS` (the incident first); since E11 C10 every cast group's part on a student's sheet is `wipeStudent`'s, called for each student. C10b adds the cast's tokens' step (E11 C10b)"],
             ["SHEET season-setup.mjs#wipeStudent", "out of scope: a GM gate, reached from the reset on the primary (`wipeSeason`) and from tier 2's sandbox; its document reads (`isDeceased`, `monocub`, `pendingCall`, the rests' and betrayal stamps, the season's items) decide only whether to write. Health and Sanity 0 in `deaths` and Hope `STARTING.hope` in `despair` (D12, `trustedWrite`, `setup`) are constants with no read: the reset's value supersedes a pending put-back [1b.2]. Since E11 C11 its `advancement` part hands the reset what the restore kept and could not tell apart (`left`, the report's line); the reads are the restore's, row above (E11 C11)"],
             ["SHEET season-setup.mjs#placeCast", "judged (E11 C10b): the reset's step on the primary only (`isPrimaryGm`; on a second GM it moves nobody, 65 P3); who is dead is read off the primary's mark (`flagsHeldNow`, then `isDeadForGm` and `isMonocub`) in the one synchronous pass that decides every move before the first is made (H3) [1b.2]; the bedrooms through `allBedroomsAnywhere`, every scene and never the GM's camera (ITEM-16, R354); the moves are a GM's token updates, no player road. E11 fix r2-H4: its null off the primary is a failed step the reset's report names (65 U2), the reset asks for the primary again when its window closes (65 U1), and each room's moves are followed by the gather's pan, `SYNC.gather` (65 U0)"],
-            ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere"],
+            ["SHEET call-world.mjs#gatherEveryone", "out of scope: GM gate; `isDeadForGm` picks whose token moves (the dead stay). since E11 C3 it ends with the gather's camera packet after the moves (SOCKET sync.mjs#registerSync); C1's witnesses are read elsewhere. Since E13 C3b a caller may hand a held reader, and the return from the trial does: R432's row of this key judges it"],
             ["SHEET projects-map.mjs#findProjectActor", "not a source: the project actor (PROJECT_ACTOR, OBSERVER for players) - a player cannot update it (plan 1b.1, read in projects-map.mjs); C7's `projectTokenPlan` reads tokens by their project id, not this actor's items (E11 C7)"],
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
@@ -8227,7 +8227,8 @@ const REGRESSIONS = [
          * census kept with the E13 plan outside the repository, with its keys: on 12.10.2026, in Node on the working tree
          * of C2, it read 74 places - 3 PACKET, 5 SOCKET, 21 SHEET, 40 HOOK, 5 STORE - and none without a verdict. E13 C3
          * added two - the self-repair's `canvasReady` listener and the hall's `trialReturnTo` flag - and the census read
-         * 76 on its working tree (12.10.2026). R379
+         * 76 on its working tree (12.10.2026); E13 C3b two more - `leftBehind`'s held read and the GM's `trialExit`, held in
+         * memory - and it read 78 (3 PACKET, 5 SOCKET, 22 SHEET, 41 HOOK, 7 STORE) on its working tree (12.10.2026). R379
          * reads the token listeners of the room roads too, keyed its own way; a commit that changes one rewrites both.
          * And D7's line, in the source with comments blanked: trial-scene.mjs creates and deletes no document.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
@@ -8241,11 +8242,12 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: applied on the primary only for the sender's own voice (voice.mjs:329-332); C4 changes the room `voiceTargets` answers in the trial, not this road (no new claim) [1b.1 the hall's voice room] (E13 C4)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: as the `room` row (the sender's own voice, on the primary) (E13 C4)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: a `whoAmI` answer keyed by the asker's request id; the answer is about the sender only (voice.mjs:321-326)"],
-            ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137); E11 C3's gather pan rides it, and so does C3b's gather (no new claim) (E13 C3b)"],
-            ["SOCKET sync.mjs#registerSync#data", "judged: as the `kind` row; the pan's `tokenIds` only find this client's own token (E13 C3b)"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137); E11 C3's gather pan rides it, and since E13 C3b so does the return from the trial's gather (`returnTheLiving`, the same `SYNC.gather` packet - no new claim)"],
+            ["SOCKET sync.mjs#registerSync#data", "judged: as the `kind` row; the pan's `tokenIds` only find this client's own token, the return from the trial's as the body's"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. C6 adds the cast line and the table rule, read through C2's store and held flags (H3), never a player's claim (E13 C6)"],
             ["SHEET trial-floor-ui.mjs#readTrial", "not a source: the console's read model over GM records (`isDeadForGm` and `deathRecordFor` read the GM's death record)"],
-            ["SHEET call-world.mjs#gatherEveryone", "OPEN (C3b): the filter (call-world.mjs:369-371) reads `isMonokuma` and `isMonocub` from the document - actor flags a player can write in the window - and `isDeadForGm` from the GM's record. C3b hands the filter an optional held reader (`actorHeldNow`, sheet-audit.mjs:835) for its own call, once per token (H3) [1b.2]. E11's R346 table (SEASON_CENSUS, tests-tier0.mjs:7665) already holds this key: C3b updates that row or points at it, one key judged one way. E12 C5 makes it `gatherEveryone(room, scene)` (E13 C3b)"],
+            ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
+            ["SHEET trial-scene.mjs#leftBehind", "held: names to the GMs the living left on another place scene after the return from the trial - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; R436, scenario 41 i"],
             ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8263,7 +8265,7 @@ const REGRESSIONS = [
             ["SHEET inventory.mjs#breakItem", "held: `itemsHeldNow`; C8's spent tier-0 item breaks through it (E13 C8)"],
             ["SHEET movement.mjs#onUpdateToken", "out of scope: `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs:2459), not a player's flag"],
-            ["SHEET monocub.mjs#isMonocub", "OPEN (C3b): reads the actor's `monocub` flag from the document; C3b's gather reads it held (`actorHeldNow`) instead [1b.2]. C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) (E13 C3b)"],
+            ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
@@ -8278,9 +8280,9 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#updateToken#onUpdateToken", "judged: a GM's move is free (`userId`), a player's is charged on the primary through rooms; the hall has none after C1, so nothing is charged (41 b)"],
             ["HOOK movement.mjs#canvasReady#primeRoomCache", "out of scope: primes this client's room cache for the viewed scene; on the hall it finds no rooms once C1 lands"],
             ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). E13 creates nothing: a dropped token of a student joins the cast as any hall token does, and C2's entry report names a second token of one actor"],
-            ["HOOK movement.mjs#updateToken#noteGmPosition", "judged: records a GM's placement as lawful (`gmSeen`, primary gate); C2's reveal and hide write no position; C3b's gather is a GM write and lands lawful (E12 C12) (E13 C3b)"],
-            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); C3b's cross-scene move, if it is built as create + delete, rides it (prep-C3b's census of per-token records first) (E13 C3b)"],
-            ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return and the gather announce nothing new (41 g, 41 i) (E13 C3b)"],
+            ["HOOK movement.mjs#updateToken#noteGmPosition", "judged: records a GM's placement as lawful (`gmSeen`, primary gate); C2's reveal and hide write no position; the return from the trial's gather (E13 C3b) is a GM write and lands lawful (E12 C12)"],
+            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); E13 C3b moves no token across scenes (whether Foundry's `teleportTokens` takes one is not measured, LIVE-E13-10), so the return creates none - a cross-scene move by create and delete would ride this, and needs the census of the records kept by token id first"],
+            ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK own-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK player-status.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8310,6 +8312,7 @@ const REGRESSIONS = [
             ["STORE settings.mjs#sceneRoles", "not a source: a world setting (`config: false`, settings.mjs, E13 C1) read by name in rooms.mjs (`sceneRoles`, cached, dropped by its `onChange`); no writer in C1 but the GM's console and the tier-2 tests, the Scenes tab (a GM window) is C5's; whether an Assistant GM may write it is not measured (1b.1)"],
             ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.tokenId`; a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); R433"],
             ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
+            ["STORE trial-scene.mjs#trialExit", "not a source: the scene and room End the trial chose, in the memory of the GM's client that pressed it - `setTrialExit` holds only a room of a place scene and only on a GM, `closeTrial` sets it right before its phase write and drops it in a `finally`, `leaveTrialScene` takes it once; written to no document [1b.1 the return's scene and room]; R436"],
             ["STORE module.json#relationships", "not a source: the manifest; C10 moves isometric-perspective and avclient-livekit into `requires` (installed and enabled only, d2) (E13 C10)"]
         ];
         const ROADS = /^token\.sendBack$/;
@@ -8329,7 +8332,7 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["STORE settings.mjs#clock", "settings.mjs", "clock"], ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"],
             ["STORE settings.mjs#sceneRoles", "settings.mjs", "sceneRoles"], ["STORE gm-stores.mjs#trialCast", "gm-stores.mjs", "trialCast"],
-            ["STORE scene-flag#trialReturnTo", "trial-scene.mjs", "trialReturnTo"],
+            ["STORE scene-flag#trialReturnTo", "trial-scene.mjs", "trialReturnTo"], ["STORE trial-scene.mjs#trialExit", "trial-scene.mjs", "trialExit"],
             ["STORE module.json#relationships", "module.json", "relationships"]];
         const censusOf = (bridge, sources) => {
             const found = [];
@@ -8490,6 +8493,74 @@ const REGRESSIONS = [
                 ["followPhase"], ["followPhase"], ["enterTrialScene", "leaveTrialScene"]]),
             "[reconcilePhase calls followPhase under the trial's guard, how often, after its every other step; the files that activate a scene, "
             + "name enterTrialScene or leaveTrialScene, or write the clock; setClock writes it; who calls enterTrialScene and leaveTrialScene; who activates a scene in trial-scene.mjs]");
+    }],
+    ["R436 - the gather after the trial has one door: End the trial asks for a room and cannot skip it, closeTrial holds the choice for its one write, and only leaveTrialScene gathers, after the hall is hidden, reading held", async () => {
+        /*
+         * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 3 and 6 of 10.10, plan-E13 3.2 and the ledger's
+         * Af, O3 and O6. Until this commit End the trial moved no token: the table went back to the school (C3) with
+         * every student standing where the incident left them, and the GM moved them by hand. The move is the body's
+         * gather (call-world.mjs `gatherEveryone`), and a second road into it from the trial, or one that read a sheet a
+         * player can write, would be the harm: read in the source with comments blanked, `gatherEveryone` is called from
+         * four places - a Call's effect and its deferred assembly and the body's discovery, each with two arguments as
+         * before, and trial-scene.mjs's `returnTheLiving`, the one that hands a third: `flagsHeldNow` and the room's box (a
+         * fifth caller is a new road, and joins this list knowingly);
+         * `returnTheLiving` is called by `leaveTrialScene` alone, after the hall's cast is hidden, and no other file
+         * names it; `leaveTrialScene` takes the held choice before anything else, so a close that returns early leaves
+         * none; `closeTrial` holds the choice before its phase write and drops it in a `finally` after it, and is the
+         * only file to name `setTrialExit`; End the trial's window (`askTrialExit`) offers End the trial and Cancel and
+         * nothing else (item 3: the move cannot be skipped), and its answer goes to `closeTrial`. The reader is run first
+         * on a fixture: a declaration, a call of two, a call of three, and a third argument only in a comment. Tier 2's
+         * "End the trial moves the living to the GM's room" moves the tokens; scenario 41 i drives the window on four
+         * browsers. Red before C3b: no call of `gatherEveryone` handed a third argument, and there was no `returnTheLiving`.
+         */
+        const code = raw => stripComments(String(raw ?? ""));
+        const gathers = files => {
+            const out = [];
+            for (const [file, raw] of files) {
+                if (!file.endsWith(".mjs")) continue;
+                const text = blankComments(String(raw ?? "")), blank = blankLiterals(text);
+                for (const m of blank.matchAll(/\bgatherEveryone\(/g)) {
+                    if (/function\s*$/.test(blank.slice(Math.max(0, m.index - 20), m.index))) continue;
+                    const owner = [...blank.slice(0, m.index).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].pop()?.[1] ?? "(top)";
+                    const args = callArgs(blank, m.index + m[0].length - 1).args.map(a => text.slice(a.start, a.end).trim().replace(/\s+/g, " "));
+                    out.push([`${file}#${owner}`, args.length, args[2] ?? null]);
+                }
+            }
+            return out;
+        };
+        equal(JSON.stringify(gathers([["call-world.mjs", "export async function gatherEveryone(room, onScene = null, { held = null } = {}) {\n    return 0;\n}\n"
+            + "async function runPendingGather(order) {\n    await gatherEveryone(order.room, scene /* , { held } */);\n}\n"],
+            ["trial-scene.mjs", "export async function returnTheLiving(scene, room) {\n    return gatherEveryone(room, scene, { held: flagsHeldNow });\n}\n"]])),
+            JSON.stringify([["call-world.mjs#runPendingGather", 2, null], ["trial-scene.mjs#returnTheLiving", 3, "{ held: flagsHeldNow }"]]),
+            "the gather reader does not find exactly the two calls planted in its fixture, with their arguments, and skips the declaration and the comment");
+
+        const sources = await otherSources();
+        const files = new Map(sources);
+        must(sources.length > 100 && ["call-world.mjs", "trial-scene.mjs", "trial-floor-ui.mjs", "chapter.mjs", "api.mjs"].every(file => files.has(file)),
+            "the module's files are not served, or a file the return runs through is missing - this would measure nothing");
+        const calls = gathers(sources);
+        must(calls.length >= 3, `the reader found ${calls.length} call(s) of gatherEveryone - the body's gather and a Call's are two, so it measured nothing`);
+        const scene = code(files.get("trial-scene.mjs")), ui = code(files.get("trial-floor-ui.mjs"));
+        const names = [...scene.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]);
+        const whoCalls = name => names.filter(fn => fn !== name && new RegExp(`\\b${name}\\(`).test(topLevelFunction(scene, fn) ?? "")).sort();
+        const elsewhere = name => sources.filter(([file, raw]) => file !== "trial-scene.mjs" && file.endsWith(".mjs") && new RegExp(`\\b${name}\\b`).test(stripStrings(code(raw)))).map(([file]) => file);
+        const leave = fnSource(scene, "leaveTrialScene");
+        const opening = leave.split("\n").slice(1, 4).map(line => line.trim());
+        const close = fnSource(ui, "closeTrial");
+        const order = ["setTrialExit({ sceneId, room })", "setClock(", "} finally {", "setTrialExit(null);"].map(text => close.indexOf(text));
+        const ask = fnSource(ui, "askTrialExit"), end = fnSource(ui, "endClassTrial");
+        equal(JSON.stringify([calls.map(([at, n]) => `${at}/${n}`).sort(), calls.find(([at]) => at === "trial-scene.mjs#returnTheLiving")?.[2] ?? null,
+            whoCalls("returnTheLiving"), elsewhere("returnTheLiving"),
+            leave.indexOf("hideTrialTokens(") >= 0 && leave.indexOf("hideTrialTokens(") < leave.indexOf("returnTheLiving("), opening,
+            order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), elsewhere("setTrialExit"),
+            [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]), /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
+            JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
+                "{ held: flagsHeldNow, box: true }",
+                ["leaveTrialScene"], [], true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
+                true, ["trial-floor-ui.mjs"], ["ok", "cancel"], true]),
+            "[every call of gatherEveryone, by its file and function, with how many arguments it hands; what returnTheLiving hands as the third; who calls returnTheLiving there, and which other file names it; "
+            + "leaveTrialScene hides the hall before it gathers; its first three lines; closeTrial holds the choice, writes the phase, and drops it in a finally, in that order; "
+            + "the files besides trial-scene.mjs naming setTrialExit; End the trial's buttons; endClassTrial hands the window's answer to closeTrial]");
     }],
 
     ["R347 - the bodies to discover are this chapter's and season's unannounced dead, never an execution", async () => {

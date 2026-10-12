@@ -50046,6 +50046,141 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify([true, [false, false], true, true, [told, told, told]]),
             "[the roles can be linked, hidden after a player's hide and after one carrying the module's option, after a player's show, after a GM's hide; what the GMs were whispered]");
     }],
+    ["End the trial moves the living to the GM's room by the gather's own rule read as the GMs hold it; the hall's tokens stay hidden where they stand; a student on another scene is left and named", async () => {
+        /*
+         * E13 C3b, 12.10.2026; the owner's answer f of 09.10 and items 1, 3 and 6 of 10.10, plan-E13 3.2, the ledger's Af,
+         * O1, O6 and D5's headless half. Until this commit leaving the trial took the table back to a scene (C3) and moved
+         * no token: every student stood where the incident had left them and the GM moved them by hand. Here, on scenes
+         * of the suite's own: a place scene with three rooms holds a living student, a Monocub and Monokuma in its first
+         * room and a dead student in its third; another place scene, made first, holds a room of the same name as the
+         * chosen one, a living student and a dead one, outside it; a hall linked as the trial hall (the setting put back)
+         * holds the living student's token, shown. The chosen scene's `activate` is this document's own counter, so the
+         * world's active scene is not changed. Read: what `setTrialExit` holds for a room of no scene's, for the hall, and
+         * for the chosen room; what `leaveTrialScene` answers and holds after; the room each token of the chosen scene
+         * stands in; whether the hall's and the other scene's tokens kept their places, and the hall's is hidden; whom the
+         * return names, and what the GMs were whispered. Then the other road of the held read: the gather handed a reader
+         * that holds the living student as Monokuma, which a document read would not see. The headless regions cannot
+         * teleport, so the room's box is the fallback's (call-world.mjs `teleportInto`'s note); Foundry's teleport is
+         * LIVE-E13-10. Scenario 41 i drives End the trial's window on four browsers. Red before C3b: there was no
+         * `setTrialExit`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.setTrialExit === "function", "trial-scene.mjs holds no room for the end of the trial - End the trial moves nobody (the owner's f)");
+        if (typeof T.setTrialExit !== "function") return;
+        const R = await import("./rooms.mjs");
+        const Mv = await import("./movement.mjs");
+        const { gatherEveryone } = await import("./call-world.mjs");
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(monokuma, "the world has no Monokuma to stand in the chosen room");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        const rolesBefore = linkable ? game.settings.get(MODULE_ID, KEY) : null;
+        const said = new Set(game.messages.map(m => m.id));
+        const P = "SUITE E13 C3b", [SQUARE, GYM, STORE] = [`${P} the square`, `${P} the gym`, `${P} the store`];
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 1000, height: 1000 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const token = (actor, x, y) => ({ name: actor.name, actorId: actor.id, actorLink: true, x, y, width: 1, height: 1, hidden: false });
+        const actors = [], scenes = [];
+        const make = async (name, flags = {}) => {
+            const actor = await Actor.create({ name: `${P} ${name}`, type: "character", flags: { [MODULE_ID]: flags } });
+            actors.push(actor);
+            return actor;
+        };
+        const scene = async (name, width) => {
+            const made = await Scene.create({ name: `${P} ${name}`, width, height: 2000, grid: { size: 100 }, active: false, navigation: false });
+            scenes.push(made);
+            return made;
+        };
+        let read = null;
+        try {
+            const living = await make("living"), cub = await make("cub", { [FLAGS.deceased]: true, [FLAGS.monocub]: true });
+            const dead = await make("dead", { [FLAGS.deceased]: true }), away = await make("away"), awayDead = await make("away and dead", { [FLAGS.deceased]: true });
+            const other = await scene("another place", 2000);
+            await other.createEmbeddedDocuments("Region", [room(GYM, 0)]);
+            await other.createEmbeddedDocuments("Token", [token(away, 1300, 1300), token(awayDead, 1500, 1300)]);
+            const place = await scene("the chosen place", 3600);
+            await place.createEmbeddedDocuments("Region", [room(SQUARE, 0), room(GYM, 1200), room(STORE, 2400)]);
+            await place.createEmbeddedDocuments("Token", [token(living, 300, 300), token(cub, 500, 300), token(monokuma, 700, 300), token(dead, 2700, 300)]);
+            const hall = await scene("the trial hall", 2000);
+            await hall.createEmbeddedDocuments("Token", [token(living, 300, 300)]);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, { ...(rolesBefore ?? {}), trial: hall.id });
+            let activated = 0;
+            place.activate = async () => { activated++; return place; };
+            await settle();
+            const kept = () => [...hall.tokens, ...other.tokens].map(t => `${t.name}@${t.x},${t.y}`);
+            const keptBefore = kept();
+            const rooms = () => Object.fromEntries([...place.tokens].map(t => [t.name, Mv.roomOfToken(t)]));
+            const refused = [T.setTrialExit({ sceneId: place.id, room: `${P} nowhere` }), T.setTrialExit({ sceneId: hall.id, room: GYM })];
+            const held = T.setTrialExit({ sceneId: place.id, room: GYM });
+            const left = await T.leaveTrialScene(hall);
+            await settle();
+            const after = rooms();
+            const leftIds = left?.gathered?.left ?? [];
+            const names = leftIds.map(id => game.actors.get(id)?.name ?? id).join(", ");
+            const whispered = await Promise.all(game.messages.filter(m => !said.has(m.id)).map(m => wordsOf(m, 2000)));
+            const holdsLiving = actor => actor?.id === living.id
+                ? { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => (key === FLAGS.monokuma ? true : actor.getFlag(scope, key)) }
+                : flagsHeldNow(actor);
+            const again = await gatherEveryone(SQUARE, place, { held: holdsLiving, box: true });
+            await settle();
+            read = [linkable, refused, held && held.sceneId === place.id && held.room === GYM, left?.destination === place.id, left?.activated, activated,
+                left?.gathered?.moved ?? null, T.trialExitHeld(), after, stableJson(kept()) === stableJson(keptBefore), hall.tokens.contents.map(t => t.hidden),
+                [away, awayDead, living, cub, dead, monokuma].map(actor => leftIds.includes(actor.id)),
+                stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 2, room: GYM })}</p>`
+                    + `<p>${plural("DRPG.TrialScene.notMoved", { n: leftIds.length, names })}</p>`]),
+                again, rooms()];
+        } finally {
+            T.setTrialExit(null);
+            if (linkable) await game.settings.set(MODULE_ID, KEY, rolesBefore ?? {});
+            for (const made of scenes) await made.delete();
+            for (const actor of actors) await actor.delete();
+            for (const message of game.messages.filter(m => !said.has(m.id))) await message.delete();
+            await settle();
+        }
+        const [living, cub, dead] = ["living", "cub", "dead"].map(name => `${P} ${name}`);
+        equal(stableJson(read), stableJson([true, [null, null], true, true, true, 1, 2, null,
+            { [living]: GYM, [cub]: GYM, [monokuma.name]: SQUARE, [dead]: STORE }, true, [true],
+            [true, false, false, false, false, false], true,
+            1, { [living]: GYM, [cub]: SQUARE, [monokuma.name]: SQUARE, [dead]: STORE }]),
+            "[the roles can be linked; what is held for a room of no scene's and for the hall, and whether the chosen room is held; leaving goes to the chosen scene, "
+            + "activates it, how often; how many the return moved; what is held after; the room each token of the chosen scene stands in; the hall's and the other "
+            + "scene's tokens where they were; the hall's token hidden; whom the return names, of the living and the dead away, the moved, the dead and Monokuma; "
+            + "the GMs' whisper; a gather reading the living student held as Monokuma: how many it moves and where each token stands]");
+    }],
+
+    ["the verdict does not end the trial: the clock is not written and no card says the trial is over", async () => {
+        /*
+         * E13 C3b, 12.10.2026; the owner's answer f of 09.10 ("the trial ends only when the GM decides, never right after
+         * the vote"), the ledger's D5. The trial is ended by `closeTrial` alone - End the trial, the chapter end and the API
+         * - and C3b put the move of every living student behind it: a verdict that ended the trial would send the table
+         * back to the school and gather it before the GM said so. Here a wrong verdict naming one Blackened, with the
+         * verdict not yet given (`withVerdictOpen`) and every Level Up window closed: read how often the clock setting was
+         * written, whether the phase moved, and whether a new card says the trial is over. Green at C3's tree (recorded
+         * for C3b, 12.10.2026): vote.mjs names neither `setClock` nor `closeTrial`.
+         */
+        const [killer] = cast(1);
+        const { applyVerdict } = await import("./vote.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const CLOCK = `${MODULE_ID}.${SETTINGS.clock}`, phase = getClock().phase;
+        const over = game.i18n.localize("DRPG.Floor.trialOver");
+        const from = new Set(game.messages.map(m => m.id));
+        let writes = 0, read = null;
+        const hook = Hooks.on("updateSetting", setting => { if (setting?.key === CLOCK) writes++; });
+        try {
+            await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
+            await settle();
+            const cards = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 2000)));
+            read = [writes, getClock().phase === phase, cards.length > 0, cards.some(text => String(text).includes(over))];
+        } finally {
+            Hooks.off("updateSetting", hook);
+            if (deferredOfferStore.has(killer.id)) await deferredOfferStore.drop(killer.id);
+        }
+        equal(stableJson(read), stableJson([0, true, true, false]),
+            "[how often the verdict wrote the clock, the phase as it was, the verdict posted a card at all, a card says the trial is over]");
+    }],
     ...GRID
 ];
 

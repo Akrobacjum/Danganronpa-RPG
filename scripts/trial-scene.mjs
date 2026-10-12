@@ -61,6 +61,20 @@
  * the way in); with neither, nowhere - the GMs are told and nothing changes, the hall's cast
  * included (the owner's answer Q-E13-1 b, 09.10.2026).
  *
+ * THE LIVING GO WHERE THE GM SENDS THEM (E13 C3b, 12.10.2026; the owner's answer f of 09.10 and
+ * items 1, 3 and 6 of 10.10). End the trial asks for a room of a place scene (trial-floor-ui.mjs
+ * `endClassTrial`, with no way to skip it), and `closeTrial` hands the choice here (`setTrialExit`)
+ * right before it writes the phase; `leaveTrialScene` takes it once, activates that scene in place
+ * of the school, hides the hall's cast as before, and gathers into the room the living students
+ * whose tokens stand on that scene (`returnTheLiving`): the body's gather's own rule, read as the
+ * GMs hold each actor - a Monocub walks, the dead and Monokuma stay. Nothing in the hall moves. A
+ * living student whose token stands on another place scene stays where it is and is named to the
+ * GMs: whether Foundry's `teleportTokens` takes a token from another scene, and what id it keeps,
+ * is not measured (no Foundry source on the machine this was written on; LIVE-E13-10), and a move
+ * by create and delete would strand every record kept by token id (movement.mjs `gmSeen`, the last
+ * lawful positions, the standings) and cross D7's line in this file - left to a commit of its own.
+ * The chapter end and every other road hand no choice and move nobody, as before this commit.
+ *
  * A browser still loading when the hall is activated only warns and stays where it was (A5's
  * reading of Foundry, not read in v14: LIVE-E13-02). So a player's browser puts its own view
  * right once, on its first `canvasReady` after a load (`selfRepair`; the owner's answer Q-E13-1 c,
@@ -70,14 +84,42 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { seasonEpoch, getClock } from "./settings.mjs";
+import { seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
-import { trialScene, schoolScene, viewedScene } from "./rooms.mjs";
-import { flagsHeldNow } from "./sheet-audit.mjs";
+import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames } from "./rooms.mjs";
+import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
+import { gatherEveryone } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";
+
+/*
+ * Where the GM sent the table at End the trial, `{ sceneId, room }`, for ONE close (E13 C3b). In
+ * this client's memory only, written to no document: `closeTrial` sets it on the GM who pressed
+ * the button, right before the phase write whose `reconcilePhase` runs `leaveTrialScene` on that
+ * same client, and drops it after the write whatever happened - so the chapter end, the console's
+ * phase select or a reload later finds none and moves nobody.
+ */
+let trialExit = null;
+
+/**
+ * Hold `{ sceneId, room }` for the next `leaveTrialScene` on this client, or with anything else
+ * drop what is held. Only on a GM, and only a room of a place scene (`roomNames`; the hall holds
+ * none) - E12 C5's rule for the gather, asked before the phase moves rather than after. Answers
+ * what is held now, or null.
+ */
+export function setTrialExit(exit = null) {
+    const scene = exit && game.user?.isGM ? game.scenes?.get?.(exit.sceneId) ?? null : null;
+    const held = Boolean(scene) && isPlaceScene(scene) && roomNames(scene).includes(exit.room);
+    trialExit = held ? { sceneId: scene.id, room: exit.room } : null;
+    return trialExitHeld();
+}
+
+/** What `setTrialExit` holds on this client, as a copy, or null. */
+export function trialExitHeld() {
+    return trialExit ? { ...trialExit } : null;
+}
 
 /** The options every write of this file carries: a mark to read in a log, never a pass (see `castPutBack`). */
 function castWrite() {
@@ -284,13 +326,18 @@ export async function enterTrialScene(hall = trialScene()) {
 }
 
 /**
- * Out of the trial, on a GM: activate the scene `leaveDestination` names, then hide the hall's
- * cast. With nowhere to go the GMs are told and nothing changes - the table stays in the hall with
- * its cast shown, as the trial left it (Q-E13-1 b). No hall linked, nothing.
+ * Out of the trial, on a GM: activate the scene the GM chose at End the trial (`setTrialExit`,
+ * taken once - on the first line, so a close that returns early leaves nothing held either), else
+ * the one `leaveDestination` names, then hide the hall's cast, then gather the living into the
+ * chosen room. With nowhere to go the GMs are told and nothing changes - the table stays in the
+ * hall with its cast shown, as the trial left it (Q-E13-1 b). No hall linked, nothing.
  */
 export async function leaveTrialScene(hall = trialScene()) {
+    const exit = trialExit;
+    trialExit = null;
     if (!game.user?.isGM || !hall) return null;
-    const destination = leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
+    const chosen = exit && exit.sceneId !== hall.id ? game.scenes?.get?.(exit.sceneId) ?? null : null;
+    const destination = chosen ?? leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall });
     if (!destination) {
         await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.noSchool")}</p>`);
         return null;
@@ -298,7 +345,46 @@ export async function leaveTrialScene(hall = trialScene()) {
     const activated = !destination.active;
     if (activated) await destination.activate();
     const cast = await hideTrialTokens(hall);
-    return { destination: destination.id, cast, activated };
+    const gathered = chosen ? await returnTheLiving(chosen, exit.room) : null;
+    return { destination: destination.id, cast, activated, gathered };
+}
+
+/**
+ * The living students on `scene` into its room `room`, after the trial (the owner's f, 09.10): the
+ * body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in the room, as a
+ * body's gather places them - with each actor read as the GMs hold it (`flagsHeldNow`, once the
+ * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box
+ * for the fallback. Called from `leaveTrialScene` alone, after the hall's cast is hidden, so a
+ * hall token is never among the moved (R436). Then one whisper to the GMs: how many went, and the
+ * living left on another place scene (`leftBehind`). Answers `{ room, moved, left }`.
+ */
+export async function returnTheLiving(scene, room) {
+    await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
+    const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true });
+    const left = await leftBehind(scene);
+    const lines = [plural("DRPG.Floor.endTrialMoves", { n: moved, room: esc(room) })];
+    if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: left.map(actor => esc(actor.name)).join(", ") }));
+    await whisperToGms(lines.map(line => `<p>${line}</p>`).join(""));
+    return { room, moved, left: left.map(actor => actor.id) };
+}
+
+/**
+ * The students the return could not move (the owner's item 1 of 10.10, its fallback): living by
+ * the gather's own rule as the GMs hold them - not Monokuma, not dead unless a Monocub - with no
+ * token on `destination` and a token on another place scene. The hall is no place, so a student
+ * standing only there is not named: hiding the cast is what the hall gets. In the world's order.
+ */
+export async function leftBehind(destination) {
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    const actorsOn = scene => [...(scene?.tokens ?? [])].map(token => token.actorId);
+    const here = new Set(actorsOn(destination));
+    const elsewhere = new Set(game.scenes.filter(scene => scene.id !== destination.id && isPlaceScene(scene)).flatMap(actorsOn));
+    return game.actors.filter(actor => {
+        if (actor.type !== "character" || here.has(actor.id) || !elsewhere.has(actor.id)) return false;
+        const held = flagsHeldNow(actor);
+        return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
+    });
 }
 
 /**
