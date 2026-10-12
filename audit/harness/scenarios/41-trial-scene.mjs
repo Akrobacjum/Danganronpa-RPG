@@ -113,7 +113,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         return true;`, { timeout: 30000 });
 
     /* ------------------------------ S. the shim ------------------------------ */
-    phase("S: an activation reaches every browser", { flow: "class-trial" });
+    phase("S: an activation reaches every browser", { flow: "trial-scene" });
     /* Each browser's canvasReady count, and the scenes active in its copy as it fires (cluster.mjs sends the
        old scene's `active: false` before the new one's `true`, so the view finds one). */
     const COUNT = `globalThis.__s41ready = 0; globalThis.__s41atReady = null; if (!globalThis.__s41hook) globalThis.__s41hook = Hooks.on("canvasReady", () => {
@@ -127,7 +127,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     for (const c of clients) onAnnex[c.who] = await c.eval(SEEN);
     check("S1: activating the Annex on the GM moves all four browsers to it, one canvasReady each, and every world copy holds the Annex alone active, already as it draws",
         Object.values(onAnnex).every(r => r.view === IDS.annex && r.ready === 1 && J(r.active) === J([IDS.annex]) && J(r.atReady) === J([IDS.annex])),
-        J(onAnnex), { flow: "class-trial" });
+        J(onAnnex), { flow: "trial-scene" });
     /* p3 loading: the GM activates the Academy again; p3 warns and stays on the Annex, the rest move. */
     await p3.eval(`canvas.loading = true; globalThis.__s41told = globalThis.__notifications.length; return true;`);
     for (const c of clients) await c.eval(COUNT);
@@ -140,7 +140,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("S2: a browser whose canvas is loading only warns and stays where it was; the others follow the activation",
         [gm, p1, p2].every(c => loading[c.who].view === IDS.scene && loading[c.who].ready === 1) && loading.p3.view === IDS.annex && loading.p3.ready === 0
             && J(loading.p3.active) === J([IDS.scene]) && warned.length === 1 && warned[0].startsWith("warn:"),
-        J({ loading, warned }), { flow: "class-trial" });
+        J({ loading, warned }), { flow: "trial-scene" });
     const HEARD = `globalThis.__s41heard = []; if (!globalThis.__s41tok) globalThis.__s41tok = Hooks.on("updateToken", (t, changed, options, userId) => {
         if ("hidden" in changed) globalThis.__s41heard.push({ id: t.id, hidden: changed.hidden, mark: options?.s41 ?? null, userId }); }); return true;`;
     for (const c of clients) await c.eval(HEARD);
@@ -154,10 +154,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     const want = [{ id: IDS.trace, hidden: false, mark: "shown", userId: IDS.gm }, { id: IDS.trace, hidden: true, mark: "hidden", userId: IDS.gm }];
     check("S3: a token's hidden written by the GM reaches every browser's updateToken hook with its options and the GM's id; preload keeps its call",
         Object.values(heard).every(h => J(h) === J(want)) && J(traceHidden.preloads) === J([{ sceneId: IDS.annex, push: true }]),
-        J({ heard, traceHidden }), { flow: "class-trial" });
+        J({ heard, traceHidden }), { flow: "trial-scene" });
 
     /* ------------------------------ a. the hall, and setClock ------------------------------ */
-    phase("a: the hall built, and setClock opens the Class Trial", { flow: "class-trial" });
+    phase("a: the hall built, and setClock opens the Class Trial", { flow: "trial-scene" });
     const built = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"); const academy = game.scenes.get("${IDS.scene}");
         const ghost = await Actor.create({ name: "S41 Ghost", type: "character" });
         const test = await Actor.create({ name: "S41 Test", type: "character" });
@@ -212,7 +212,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms, draws the hall's cast as `defaultReveal` has it, and stores Chie unticked and the dead student ticked (E13 C5)",
         tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms"]) && tab.read.rooms === true && tab.read.held === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
-        J(tab), { flow: "class-trial" });
+        J(tab), { flow: "trial-scene" });
     const before = await readAll();
     const opened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         await setClock({ phase: "classTrial" }); await new Promise(r => setTimeout(r, 800)); return getClock().phase;`, { timeout: 60000 });
@@ -224,12 +224,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("a1: setClock opens the Class Trial and every browser shows the hall, the hall active (E13 C3)",
         built.tokens === 7 && built.dead === true && opened === "classTrial" && views(inTrial).every(v => v === "hall")
             && Object.values(inTrial).every(r => r.active === "hall"),
-        J({ built, opened, views: views(inTrial) }), { flow: "class-trial" });
+        J({ built, opened, views: views(inTrial) }), { flow: "trial-scene" });
     /* Read 12.10.2026 at C1's tree: no hall token shown. Since E13 C2 the module shows the GMs' choice on entering the trial. */
     check("a2: the GM's choice is shown on every browser - Aiko, Botan, the dead student and Monokuma, the decoration as it was - none created or deleted, the ids as before (E13 C2)",
         built.chose === true && Object.entries(inTrial).every(([who, r]) => before[who].made === 7 && J(shown(before[who])) === J(["Decor"])
             && J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before[who].ids) && r.made === before[who].made && r.gone === before[who].gone),
-        J({ chose: built.chose, before, after: inTrial }), { flow: "class-trial" });
+        J({ chose: built.chose, before, after: inTrial }), { flow: "trial-scene" });
     /* A player hides their own hall token from their browser (whether Foundry v14 lets an owner do it is LIVE-E13-08; the
        harness lets the write through): the primary puts it back and tells the GMs. */
     const putBack = await p1.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Aiko"); let wrote = true;
@@ -245,13 +245,13 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("a3: p1 hiding Aiko's hall token from its own browser is put back by the primary - shown on every browser - and the GMs are told (E13 C2)",
         putBack === true && Object.values(afterPut).every(r => r.hidden.Aiko === false && J(shown(r)) === J([...CHOICE, "Decor"].sort()))
             && toldPut.length === 1 && J(toldPut[0]) === J([IDS.gm]),
-        J({ putBack, afterPut: Object.fromEntries(Object.entries(afterPut).map(([who, r]) => [who, shown(r)])), toldPut }), { flow: "class-trial" });
+        J({ putBack, afterPut: Object.fromEntries(Object.entries(afterPut).map(([who, r]) => [who, shown(r)])), toldPut }), { flow: "trial-scene" });
     const handA = await byHand();
     await settle(400);
     note(`a: by hand ${J(handA)} (since E13 C2 the module has shown the choice and since C3 activated the hall: nothing left to do)`);
 
     /* ------------------------------ b. a move in the hall ------------------------------ */
-    phase("b: a player moves in the hall during the trial", { flow: "class-trial" });
+    phase("b: a player moves in the hall during the trial", { flow: "trial-scene" });
     const ops0 = opLog.length, settings0 = settingLog.length;
     const moved = await p1.eval(`${HALL} const M = await import("${repoUrl}/scripts/movement.mjs"); const veto = game.i18n.localize("DRPG.Trial.moveLocked");
         const aiko = game.actors.get("${IDS.aiko}"), t = hall.tokens.find(x => x.name === "Aiko");
@@ -279,13 +279,13 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("b1: Aiko's move across the hall's two marked regions is no crossing: it stands, nobody is told anything, nothing is charged or posted, and the one write is the token's (E13 C1)",
         built.linked === true && moved.from === null && moved.to === null && J(moved.at) === J([1500, 400]) && !moved.told.length
             && moved.chat === 0 && J(moved.actions) === J([2, 2]) && J(writes.ops) === J(["p1 embedded-update Scene.Token"]) && !writes.settings.length,
-        J({ linked: built.linked, moved, writes }), { flow: "class-trial" });
+        J({ linked: built.linked, moved, writes }), { flow: "trial-scene" });
     check("b2: with the hall active and on every screen, every browser finds the school linked as the school and the hall a place for nobody (E13 C1, R115)",
         Object.values(homes).every(r => r.view && r.active && r.home && r.role === "trial" && r.place === false && r.pieces === 0),
-        J(homes), { flow: "class-trial" });
+        J(homes), { flow: "trial-scene" });
 
     /* ------------------------------ h. the voice in the trial ------------------------------ */
-    phase("h: the voice rooms in the trial", { flow: "class-trial" });
+    phase("h: the voice rooms in the trial", { flow: "trial-scene" });
     const voices = {};
     const accounts = {};
     for (const c of clients) {
@@ -307,10 +307,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         Object.values(voices).every(v => J(v) === J(voices.gm)) && Object.values(accounts).every(v => J(v) === J(accounts.gm))
             && voices.gm.length === 7 && voices.gm.every(([, target]) => target === null)
             && J(accounts.gm.map(([name]) => name)) === J(["GM", "PlayerOne", "PlayerThree", "PlayerTwo"]) && accounts.gm.every(([, target]) => target === null),
-        J({ voices, accounts }), { flow: "class-trial" });
+        J({ voices, accounts }), { flow: "trial-scene" });
 
     /* ------------------------------ c. closeTrial ------------------------------ */
-    phase("c: closeTrial", { flow: "class-trial" });
+    phase("c: closeTrial", { flow: "trial-scene" });
     const closed = await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const done = await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return { done, phase: getClock().phase };`, { timeout: 60000 });
     await settle(400);
@@ -319,12 +319,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("c1: closeTrial ends the trial and takes every browser to the school, the school active (E13 C3), the cast hidden, none deleted (E13 C2)",
         closed.done === true && closed.phase === "dailyLife" && views(afterClose).every(v => v === "school")
             && Object.values(afterClose).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
-        J({ closed, afterClose }), { flow: "class-trial" });
+        J({ closed, afterClose }), { flow: "trial-scene" });
     await handBack();
     await settle(400);
 
     /* ------------------------------ d. Edit campaign ------------------------------ */
-    phase("d: into the trial and out of it through Edit campaign", { flow: "class-trial" });
+    phase("d: into the trial and out of it through Edit campaign", { flow: "trial-scene" });
     /* Two windows going in (Edit campaign, then E11 C6's "Open the Class Trial"), one coming out (12.10.2026). */
     const EDIT = target => `const G = await import("${repoUrl}/scripts/gm-panel.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const c = getClock(), from = globalThis.__dialogLog.length;
@@ -342,7 +342,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("d1: Edit campaign, asked and answered yes, opens the trial: its question says the table goes to the hall (E13 C6), every browser shows the hall (as a1: E13 C3), the GM's choice shown (as a2: E13 C2)",
         editIn.phase === "classTrial" && editIn.asked.length === 2 && editIn.said === true && views(dIn).every(v => v === "hall")
             && Object.values(dIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort()) && J(r.ids) === J(before.gm.ids)),
-        J({ editIn, dIn }), { flow: "class-trial" });
+        J({ editIn, dIn }), { flow: "trial-scene" });
     await byHand();
     await settle(400);
     const editOut = await gm.eval(EDIT("dailyLife"), { timeout: 60000 });
@@ -351,12 +351,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("d2: Edit campaign back to Daily Life ends the trial: every browser is taken to the school (as c1: E13 C3), the cast hidden (as c1: E13 C2)",
         editOut.phase === "dailyLife" && editOut.asked.length === 1 && views(dOut).every(v => v === "school")
             && Object.values(dOut).every(r => J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
-        J({ editOut, dOut }), { flow: "class-trial" });
+        J({ editOut, dOut }), { flow: "trial-scene" });
     await handBack();
     await settle(400);
 
     /* ------------------------------ f. a browser loading while the trial opens ------------------------------ */
-    phase("f: a player's browser loading while the trial opens", { flow: "class-trial" });
+    phase("f: a player's browser loading while the trial opens", { flow: "trial-scene" });
     await connect("p4", { holdLoading: true });
     const fOpened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         await setClock({ phase: "classTrial" }); await new Promise(r => setTimeout(r, 800)); return getClock().phase;`, { timeout: 60000 });
@@ -377,13 +377,13 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("f1: p4, loading when the trial activates the hall, warns and stays, shows the hall after its first canvasReady (E13 C3's self-repair), and a later pull to the school stands",
         fOpened === "classTrial" && handF.activated === false && held.loading === true && held.view === "school" && held.told.length === 1
             && late.view === "hall" && late.active === "hall" && pulled === "school",
-        J({ fOpened, handF, held, late, pulled }), { flow: "class-trial" });
+        J({ fOpened, handF, held, late, pulled }), { flow: "trial-scene" });
     await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); await UI.closeTrial(); return true;`, { timeout: 60000 });
     await handBack();
     await settle(400);
 
     /* ------------------------------ g. no second discovery after the trial ------------------------------ */
-    phase("g: a body found before the trial is not found again after it", { flow: "class-trial" });
+    phase("g: a body found before the trial is not found again after it", { flow: "trial-scene" });
     const walk = (actorId, room) => gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = game.scenes.get("${IDS.scene}").tokens.find(x => x.actorId === "${actorId}");
         const spot = M.positionIn(${J(room)}, t);
@@ -440,10 +440,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("g1: Start the Class Trial takes the table to the hall (E13 C3) and, after End the trial takes it back to the school, Chie and Aiko walking into the room of the body found before it and of the executed Botan post no body card, tell nobody anything and leave the stamps as they were (held at 48efd99; E13 C3 keeps it)",
         found.kept && discovered.cards === found.before + 1 && tried.started === true && tried.inHall === true && tried.ended === true && tried.phase === "dailyLife" && tried.botan === true && tried.back === true
             && left.every(r => r === away) && laid === found.room && walked.every(r => r === found.room) && Object.values(toldG).every(t => !t.length) && afterG.cards === discovered.cards && J(afterG.stamps) === J(discovered.stamps),
-        J({ found, discovered, tried, left, laid, walked, toldG, afterG }), { flow: "class-trial" });
+        J({ found, discovered, tried, left, laid, walked, toldG, afterG }), { flow: "trial-scene" });
 
     /* ------------------------------ i. End the trial's scene and room (E13 C3b) ------------------------------ */
-    phase("i: End the trial sends the living to the room the GM picks", { flow: "class-trial" });
+    phase("i: End the trial sends the living to the room the GM picks", { flow: "trial-scene" });
     /* The owner's answer f of 09.10 and items 1 and 3 of 10.10. A living student the module cannot move - its only token on
        another place scene - and a Monocub on the school (dead, and walks), made here and gone at the end of the phase; Aiko
        and Chie walked out of the room of the body and the executed, so the gather is a living token entering it. Every
@@ -499,18 +499,18 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         J(endI.read?.buttons) === J(["ok", "cancel"]) && endI.read.options[0]?.startsWith(`${academyName}/`) && endI.read.options.includes(`${academyName}/${found.room}`)
             && endI.read.options.includes("41 Away Place/Shed") && endI.read.first === endI.read.options[0].split("/").slice(1).join("/")
             && endI.ended === true && endI.phase === "dailyLife" && views(viewsI).every(v => v === "school") && Object.values(viewsI).every(r => J(shown(r)) === J(["Decor"])),
-        J({ fixI, outI, endI, viewsI: views(viewsI) }), { flow: "class-trial" });
+        J({ fixI, outI, endI, viewsI: views(viewsI) }), { flow: "trial-scene" });
     check("i2: the living on the school and the Monocub go to the chosen room; the dead, Monokuma, the hall's tokens and the student on another scene stay where they stood (E13 C3b; the owner's f)",
         academyName && outI.every(r => r === away) && J(movedI) === J([...MOVERS].sort()) && MOVERS.every(key => i1.where[key]?.room === found.room),
-        J({ academyName, movedI, before: i0.where, after: i1.where }), { flow: "class-trial" });
+        J({ academyName, movedI, before: i0.where, after: i1.where }), { flow: "trial-scene" });
     check("i3: the GMs are told once how many went and that the student on another scene was not moved, by name (E13 C3b; the owner's item 1 of 10.10)",
         i1.told.filter(text => text.includes("S41 Away")).length === 1 && i1.told.some(text => text.includes("S41 Away") && text.includes(found.room)),
-        J(i1.told), { flow: "class-trial" });
+        J(i1.told), { flow: "trial-scene" });
     check("i4: the living entering the room of the body and the executed post no body card and leave the stamps as they were (E13 C3b; the ledger's V12)",
-        i1.cards === i0.cards && J(i1.stamps) === J(i0.stamps), J({ before: [i0.cards, i0.stamps], after: [i1.cards, i1.stamps] }), { flow: "class-trial" });
+        i1.cards === i0.cards && J(i1.stamps) === J(i0.stamps), J({ before: [i0.cards, i0.stamps], after: [i1.cards, i1.stamps] }), { flow: "trial-scene" });
 
     /* ------------------------------ j. the chapter end during the trial ------------------------------ */
-    phase("j: the chapter end ends the trial", { flow: "class-trial" });
+    phase("j: the chapter end ends the trial", { flow: "trial-scene" });
     /* The owner's 10.10 item 2: the chapter-end screen offers no scene or room; it switches to the school and moves nobody.
        Every token of the school by id and position, before the trial and after the chapter end. */
     const SPOTS = `return Object.fromEntries(game.scenes.get("${IDS.scene}").tokens.map(t => [t.id, [t.x, t.y, t.elevation ?? 0]]));`;
@@ -528,10 +528,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("j1: the chapter end with End the trial ticked takes every browser from the hall to the school, the cast hidden, and moves no token of the school (E13 C3; the owner's 10.10 item 2)",
         views(jIn).every(v => v === "hall") && ended.phase === "dailyLife" && views(jOut).every(v => v === "school")
             && Object.values(jOut).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)) && J(spots1) === J(spots0),
-        J({ jIn: views(jIn), ended, jOut, spots0, spots1 }), { flow: "class-trial" });
+        J({ jIn: views(jIn), ended, jOut, spots0, spots1 }), { flow: "trial-scene" });
 
     /* ------------------------------ k. Start the Class Trial's window, and the doors inside the trial ------------------------------ */
-    phase("k: Start the Class Trial says where the table goes, and the table moves inside the trial", { flow: "class-trial" });
+    phase("k: Start the Class Trial says where the table goes, and the table moves inside the trial", { flow: "trial-scene" });
     /* Read 12.10.2026 at C5's tree: the window named neither the hall nor the rule and preloaded nothing; the console
        had no door and game.drpg no showCourtroom. Four tokens: Aiko and Botan (played - Botan executed in g, the dead
        shown, Q-E13-1 a), the dead student ticked in a0, Monokuma; Chie unticked, the test student nobody plays. */
@@ -558,7 +558,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("k1: Start the Class Trial's window names the hall and the four tokens it will show and states the table's rule; the hall is preloaded on every client before the click, and the trial opens there (E13 C6)",
         startK.started === true && startK.phase === "classTrial" && startK.hallLine && startK.rule && J(startK.preloads) === J([{ sceneId: startK.hall, push: true }])
             && views(kIn).every(v => v === "hall") && Object.values(kIn).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
-        J({ startK, kIn: views(kIn) }), { flow: "class-trial" });
+        J({ startK, kIn: views(kIn) }), { flow: "trial-scene" });
     /* The console drawn on the GM: its line and door, Back to school pressed, then the console it reopens on. */
     const consoleK = await gm.eval(`${UNTIL} ${HALL} const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         const title = game.i18n.localize("DRPG.Floor.manageTrial");
@@ -584,7 +584,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("k2: inside the trial the console says the table is on the hall and offers Back to school; pressed, every browser shows the school, the cast hidden, the phase kept, and the console says the table is on the school and offers Show the hall (E13 C6)",
         consoleK.done === "closed" && consoleK.phase === "classTrial" && J(consoleK.seen) === J([{ line: [consoleK.lines[0]], doors: ["backToSchool"] }, { line: [consoleK.lines[1]], doors: ["showHall"] }])
             && views(kBack).every(v => v === "school") && Object.values(kBack).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
-        J({ consoleK, kBack }), { flow: "class-trial" });
+        J({ consoleK, kBack }), { flow: "trial-scene" });
     const playerDoor = await p1.eval(`return typeof game.drpg.showCourtroom === "function" ? await game.drpg.showCourtroom() : "absent";`, { timeout: 30000 });
     await settle(400);
     const kPlayer = await readAll();
@@ -602,7 +602,7 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
         playerDoor === null && views(kPlayer).every(v => v === "school") && J(apiK.door) === J({ hall: true, activated: true }) && apiK.phase === "classTrial"
             && J(apiK.report) === J({ school: true, hall: true, table: true, shown: [...CHOICE].sort(), warnings: ["hallHasRooms"] })
             && views(kHall).every(v => v === "hall") && Object.values(kHall).every(r => J(shown(r)) === J([...CHOICE, "Decor"].sort())),
-        J({ playerDoor, kPlayer: views(kPlayer), apiK, kHall }), { flow: "class-trial" });
+        J({ playerDoor, kPlayer: views(kPlayer), apiK, kHall }), { flow: "trial-scene" });
     await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); await UI.closeTrial(); await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 60000 });
     await settle(400);
     /* Outside the trial both doors are shut, for a GM too: the hall is never shown away from the trial (C5's tab hides
@@ -618,10 +618,10 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("k4: after End the trial the GM's showCourtroom and showSchool each warn that no trial runs and change nothing - every browser on the school, the cast hidden (E13 C6)",
         J(outK) === J({ doors: [null, null], phase: "dailyLife", warned: 2 })
             && views(kOut).every(v => v === "school") && Object.values(kOut).every(r => r.active === "school" && J(shown(r)) === J(["Decor"])),
-        J({ outK, kOut: views(kOut) }), { flow: "class-trial" });
+        J({ outK, kOut: views(kOut) }), { flow: "trial-scene" });
 
     /* ------------------------------ e. the season reset during the trial ------------------------------ */
-    phase("e: the season reset during the trial", { flow: "class-trial" });
+    phase("e: the season reset during the trial", { flow: "trial-scene" });
     await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); await setClock({ phase: "classTrial" }); return true;`, { timeout: 60000 });
     const handE = await byHand();
     await settle(400);
@@ -641,5 +641,5 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
     check("e1: the season reset during the trial takes every browser to the school, the school active (E13 C3), the cast hidden (E13 C2)",
         handE.activated === false && reset.done && reset.phase === "dailyLife" && views(afterReset).every(v => v === "school")
             && Object.values(afterReset).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids)),
-        J({ handE, reset, afterReset }), { flow: "class-trial" });
+        J({ handE, reset, afterReset }), { flow: "trial-scene" });
 }

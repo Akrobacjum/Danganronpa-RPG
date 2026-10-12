@@ -87,15 +87,10 @@ export const FLOWS = Object.freeze([
     // over the bridge is 33's (an Assistant GM's), the charge 62 P's (gm2 opens the trial; 62 tags it through its
     // `begin` helper, so it is not listed here). No scenario sends `vote.run` from a second GM: partial until E40.
     // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
-    // E13 C3 (12.10.2026): every road into and out of the trial moves the table - the linked hall activated on the way in,
-    // the school on the way out (trial-scene.mjs `followPhase`, R113); 41-trial-scene reads it on four browsers and a late one.
-    // E13 C3b (12.10.2026): End the trial asks for a room of a place scene and the living go there (`returnTheLiving`, R436);
-    // 41-trial-scene i drives its window on the GM.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "41-trial-scene", "61-gmstore-case",
-            "63-class-trial"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
@@ -268,6 +263,18 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow", "61-gmstore-case"], status: "covered", stage: "1.2.66" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
+    // E13 C3 (12.10.2026): every road into and out of the trial moves the table - the linked hall activated on the way in,
+    // the school on the way out (trial-scene.mjs `followPhase`, R113); 41-trial-scene reads it on four browsers and a late one.
+    // E13 C3b (12.10.2026): End the trial asks for a room of a place scene and the living go there (`returnTheLiving`, R436);
+    // 41-trial-scene i drives its window on the GM.
+    // E13 C9 (12.10.2026): the trial hall is a flow of its own, out of class-trial (whose vote and offers 41 never drove):
+    // 41's checks were tagged class-trial until now. Covered at 1.2.74 on what a harness can read - the activation, the
+    // cast's `hidden`, the late browser, the return, the doors; what it cannot (where a loading browser lands, whether a
+    // player may change their own token's `hidden`, the hall's draw) is LIVE-E13-01..11 in AUDIT section 9.
+    { id: "trial-scene", what: "The trial hall: every road into and out of the trial moves the table, the GMs' cast shown and hidden, the living taken to the GM's room",
+        entry: { api: ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"],
+            calls: ["trial-scene.mjs#followPhase", "trial-scene.mjs#selfRepair", "trial-scene.mjs#watchCast"] },
+        scenarios: ["41-trial-scene"], status: "covered", stage: "1.2.74" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",
         entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",

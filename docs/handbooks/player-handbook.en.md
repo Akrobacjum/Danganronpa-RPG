@@ -139,7 +139,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 
 ### Voice
 
-With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. A Monokuma who walks into your room hears you like anyone else, and you see them.
+With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them.
 
 > [!TIP]
 > To find out who is next door without walking in, use **Listen** (chapter 4).
@@ -647,6 +647,8 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 ## 12. The Class Trial
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
+
+When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living to a room the GM picks. Your character's token in the hall is the GM's to place, show and hide. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
 
 The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 

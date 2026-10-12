@@ -10474,6 +10474,52 @@ const REGRESSIONS = [
             launcher: /markGmChrome\(\)/.test(fnSource(panel, "injectLauncher"))
         }), JSON.stringify({ stamped: [true, true, true], gmOnly: true, hooks: [true, true, true], launcher: true }),
             "a GM's client no longer puts the class on one of the three, puts it on a player's, or stops doing it when the sidebar, the navigation or the hotbar draws again");
+    }],
+    ["R440 - the handbooks state the table's rule beside Start the Class Trial and in the player's trial, and name the trial hall's tab, doors and calls as the module does, in English and in Polish", async () => {
+        /*
+         * E13 C9, 12.10.2026; plan-E13 D4 (doneWhen: the handbooks carry the table's rule, one sentence of it
+         * beside Start the Class Trial), the guard the ledger asks C9 to leave. The rule is the module's own
+         * sentence (DRPG.Floor.tableRuleDead, what Start's window says beside its button, R437), so it is read
+         * from the lang file of each book's language - the words after the colon, without the full stop - and
+         * looked for in bold on the GM's step 1 (the line that opens with the bold Start label, the
+         * DRPG.Floor.startTrial key, and nowhere else: the rule written into step 2 fails) and in the player's
+         * chapter 12, cut from its heading to the next. Section 15.1 names the Scenes tab (a row of section 9.1
+         * that opens with the tab's label, DRPG.Vault.tabScenes), the console's two doors in bold (the
+         * DRPG.TrialScene keys) and four game.drpg calls, each of which must be a function on game.drpg. Each
+         * book and lang file is asserted to have loaded, so nothing passes on an empty read. Whether the dead
+         * keep the rule at a table the module cannot measure: it mutes nobody (R117).
+         */
+        const CALLS = ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"];
+        const measured = { calls: CALLS.map(name => typeof game.drpg?.[name] === "function") };
+        const expected = { calls: CALLS.map(() => true) };
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG);
+            const rule = (keys?.Floor?.tableRuleDead ?? "").split(": ").slice(1).join(": ").replace(/\.$/, "");
+            const start = keys?.Floor?.startTrial ?? "", tab = keys?.Vault?.tabScenes ?? "";
+            const doors = [keys?.TrialScene?.showHall, keys?.TrialScene?.backToSchool];
+            ok(rule.length > 20 && start.length > 0 && tab.length > 0 && doors.every(Boolean),
+                `lang/${lang}.json has no table's rule, Start label, Scenes tab or door labels - this test measured nothing`);
+            const text = {};
+            for (const book of ["gm", "player"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
+            }
+            const gm = text.gm.split("\n");
+            const step = gm.filter(line => line.startsWith(`1. **${start}.**`));
+            const trial = text.player.split(/^## /m).find(part => part.startsWith("12. ")) ?? "";
+            measured[lang] = {
+                beside: step.length === 1 && step[0].includes(`**${rule}**`),
+                player: trial.includes(`**${rule}**`),
+                tab: gm.some(line => line.startsWith(`| ${tab} | `)),
+                doors: doors.map(label => text.gm.includes(`**${label}**`)),
+                calls: CALLS.map(name => text.gm.includes(`game.drpg.${name}()`))
+            };
+            expected[lang] = { beside: true, player: true, tab: true, doors: [true, true], calls: CALLS.map(() => true) };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "a handbook no longer states the table's rule on Start the Class Trial or in the player's trial, or names the Scenes tab, a door or a call the module does not have, in one of the two languages");
     }]
 ];
 

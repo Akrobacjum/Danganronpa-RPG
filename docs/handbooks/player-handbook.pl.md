@@ -139,7 +139,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 
 ### Głos
 
-Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
+Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4).
@@ -647,6 +647,8 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 ## 12. Class Trial
 
 Wszyscy w jednej sali i nikt jej nie opuszcza. Class Trial zaczynasz ze świeżym kompletem akcji na porę dnia (Sprint albo Burst w zapasie zostaje w zapasie), a na arkuszu otwarte jest tylko Analyze, do tego Hope Calle i twoje przedmioty; w Class Trialu Analyze kosztuje **1 akcję**, a gdy akcji zabraknie - **1 Hope**, a gdy nie ma i tego - **1 Sanity**.
+
+Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, a jej koniec zabiera cię z powrotem do szkoły - żyjących do pokoju, który wybierze GM. Token twojej postaci w sali ustawia, pokazuje i ukrywa GM. Na czas rozprawy wszyscy są w jednym pokoju głosowym, także zmarli, a zasada stołu brzmi: **umarli słuchają, ale nie mówią w rozprawie**.
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 
