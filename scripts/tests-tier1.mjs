@@ -8838,7 +8838,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -8882,6 +8882,15 @@ const INVARIANTS = [
          * screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
          * browser's size; R474 works that one out headless. The two clauses' Chromium readings of 12.10 were taken on
          * the grid mockup's page with this commit's sheets, not by this test: NEVER RUN in a browser either.
+         * (d), E81 C13: on a stacked screen, the notice stack in both themes (the classes turned as in (b) and back), filled
+         * with the suite's own cards, unrecorded, until one waits parked or eight are shown: its box's foot 8 px over the
+         * corner's highest button, or on a short screen on the bottom line (the edge and the dock's lift) with its right
+         * edge 24 px past the widest button; its sides at the insets narrow.mjs wrote (the sheet's 8 px without them); its
+         * top at least 8 px under the blocks' stack as drawn; and the cards it shows fitting in it. Under Monokuma Legacy
+         * the inline `top` popup.mjs writes under the clock is on the tile while this reads, so a top in force shows as a
+         * box hanging from it, its foot or its top off its place. The buttons' boxes come from their insets and sizes, the tile's and the stack's from
+         * `offset*`: under Stained Glass the corner turns with its pane. Only at the browser's size; R476 works out the
+         * A7 design's four headless. NEVER RUN: E81 C13 had no browser.
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -9113,6 +9122,55 @@ const INVARIANTS = [
             `the card at the bottom of the tile (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, room ${room} px) [lines of its text under `
             + "the button, per shape of its end; its height grown by no more than the room less a line and its own padding, and a line; two one-line cards on "
             + "the tile together, or parked only where they would not fit without the floor's room]");
+        /* (d) The notice stack on a stacked screen (E81 C13), in both themes, with the suite's own cards. */
+        if (stacked) {
+            const column = document.getElementById("drpg-column");
+            must(column, "the screen is stacked and the blocks' stack is not on it - there is nothing to measure the notices against");
+            const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+            const short = document.body.classList.contains("drpg-short");
+            const rootPx = name => px(getComputedStyle(document.body).getPropertyValue(name));
+            const offsetTop = el => { let y = 0; for (let at = el; at; at = at.offsetParent) y += at.offsetTop; return y; };
+            const stackRead = {}, stackWant = {};
+            const closers = [];
+            try {
+                for (const toGlass of [true, false]) {
+                    document.body.classList.toggle(THEMES[0], toGlass);
+                    document.body.classList.toggle(THEMES[1], !toGlass);
+                    Hooks.callAll("drpgThemeApplied");
+                    for (let i = 0; i < 8 && !tile.querySelector(".drpg-popup-parked:not(.leaving)"); i++) {
+                        closers.push(P.showPopup(`<p>${"R299 stack words ".repeat(8)}</p>`, { title: `R299 stack ${i}`, record: false }));
+                    }
+                    const edge = rootPx("--drpg-edge"), lift = rootPx("--drpg-av-lift");
+                    /* The buttons' boxes from their own insets: under Stained Glass the corner turns with its pane. */
+                    const buttons = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id)).map(el => {
+                        const style = getComputedStyle(el);
+                        return { top: innerHeight - px(style.bottom) - el.offsetHeight, reach: px(style.right) + el.offsetWidth };
+                    });
+                    const cornerTop = Math.min(...buttons.map(b => b.top)), reach = Math.max(...buttons.map(b => b.reach));
+                    const box = { top: tile.offsetTop, bottom: tile.offsetTop + tile.offsetHeight, left: tile.offsetLeft, right: innerWidth - tile.offsetLeft - tile.offsetWidth };
+                    const inset = name => px(tile.style.getPropertyValue(name)) || 8;
+                    const shown = [...tile.querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+                    const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                    stackRead[label] = {
+                        foot: short ? Math.abs(innerHeight - box.bottom - (edge + lift)) <= 0.5 : box.bottom <= cornerTop - 8 + 0.5,
+                        beside: short ? box.right >= Math.max(inset("--drpg-notices-right"), reach + 24) - 0.5 : null,
+                        sides: Math.abs(box.left - inset("--drpg-notices-left")) <= 0.5 && (short || Math.abs(box.right - inset("--drpg-notices-right")) <= 0.5),
+                        underColumn: box.top >= offsetTop(column) + column.offsetHeight + 8 - 0.5,
+                        fits: shown.length > 0 && shown.reduce((sum, el) => sum + el.offsetHeight, px(getComputedStyle(tile).rowGap) * (shown.length - 1)) <= tile.clientHeight + 1
+                    };
+                    stackWant[label] = { foot: true, beside: short ? true : null, sides: true, underColumn: true, fits: true };
+                    while (closers.length) closers.pop()({ instant: true });
+                }
+            } finally {
+                for (const close of closers) { try { close({ instant: true }); } catch { /* already gone */ } }
+                THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+                Hooks.callAll("drpgThemeApplied");
+            }
+            equal(stableJson(stackRead), stableJson(stackWant),
+                `the notice stack at ${innerWidth}x${innerHeight}${short ? ", short" : ""} [per theme, with the suite's cards until one waits parked: its foot 8 px over the `
+                + "corner's highest button, or on the bottom line on a short screen; beside the buttons there, 24 px past the widest; its sides at narrow.mjs's insets; "
+                + "its top 8 px under the blocks' stack at least; the cards shown fitting in it]");
+        }
         /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
            whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
         if (stacked) return;
@@ -9232,6 +9290,119 @@ const INVARIANTS = [
             `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
             + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the chat, "
             + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
+    }],
+    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line, 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
+        /*
+         * E81 C13, 12.10.2026: the A7 design's P8-7 (S12-40), read from the cascade so it runs headless - R299 (d)
+         * reads the drawn boxes with the module's own cards, but only in a browser. Through 1.2.74 each theme beat
+         * the stack's plain `bottom: 96px` (narrow.css says how) and it stood on the corner's buttons. Every
+         * expectation comes from the tokens and the buttons' own insets, never from a figure: the foot over the
+         * highest button's top, the right edge past the widest button's reach, the ceiling against the blocks'
+         * stack's `top` and `max-height`. Headless the values come back unresolved and are worked out at the A7
+         * design's four stacked sizes - 393 x 852 and 820 x 1180, and 844 x 390 and 640 x 360 with `drpg-short` -
+         * and in a browser they come back in px for the window that runs the suite, read with `drpg-short` off and
+         * on. Both themes, each read twice: with no insets on the tile (the sheet's 8 px gutter) and the body as the
+         * table has it, and with the tool and tab rails' insets narrow.mjs writes (61 and 56 px), the tab rail's
+         * clearance (37 px, glass.mjs) and a camera dock's lift (100 px) - so a rule that forgets one of them is read
+         * moving away from the others. An inline `top` such as popup.mjs
+         * writes under the clock is on the tile for every reading; what the cascade makes of it is read headless
+         * only, since a browser resolves `top` to the box. The classes, the body's and the tile's inline values are
+         * put back synchronously, no hook fired; the blocks' stack is the page's when the screen is stacked,
+         * otherwise one made for the reading, and the card is one of the test's, parked, removed after.
+         * ONE READING IS LEFT TO THE BROWSER: the tile's `left` under Stained Glass. jsdom 30.0.1 drops the priority
+         * of a declaration whose value holds a var() (a rule's `left: var(--a, 8px) !important` reads back with
+         * priority "", `top: 4px !important` with "important"; probed 12.10.2026), so headless the theme's plain
+         * `left: 16px !important` beats this sheet's and the reading says 16 where a browser draws the inset. The
+         * same loss is harmless elsewhere here: the theme's own var() values lose theirs too, and the plain
+         * `top: auto` and `height: auto` keep it. Under Monokuma Legacy `left` is read.
+         */
+        const host = document.getElementById("drpg-popups");
+        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+        must(host && ids.every(id => document.getElementById(id)), "the notice tile or a corner button is not on the page - there is nothing to read");
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const BODY = ["--drpg-av-lift", "--drpg-launch-clear"], bodyWas = BODY.map(name => body.style.getPropertyValue(name));
+        const HOST = ["--drpg-notices-left", "--drpg-notices-right", "top"], hostWas = HOST.map(name => [host.style.getPropertyValue(name), host.style.getPropertyPriority(name)]);
+        const putBack = () => {
+            BODY.forEach((name, i) => bodyWas[i] ? body.style.setProperty(name, bodyWas[i]) : body.style.removeProperty(name));
+            HOST.forEach((name, i) => hostWas[i][0] ? host.style.setProperty(name, ...hostWas[i]) : host.style.removeProperty(name));
+        };
+        let column = document.getElementById("drpg-column");
+        const madeColumn = !column;
+        if (madeColumn) {
+            column = document.createElement("div");
+            column.id = "drpg-column";
+            (document.getElementById("interface") ?? body).prepend(column);
+        }
+        const card = document.createElement("div");
+        card.className = "drpg-popup drpg-popup-parked";
+        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(document.getElementById(ids[0])).right.trim());
+        const views = resolved
+            ? [false, true].map(short => ({ w: innerWidth, h: innerHeight, short }))
+            : [[393, 852, false], [820, 1180, false], [844, 390, true], [640, 360, true]].map(([w, h, short]) => ({ w, h, short }));
+        const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+        const seen = {}, want = {};
+        try {
+            host.prepend(card);
+            host.style.setProperty("top", "123px");
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                body.classList.add(CLASSES[2]);
+                for (const view of views) {
+                    body.classList.toggle(CLASSES[3], view.short);
+                    for (const [label, insets, clear, lift] of [["no insets", null, null, null], ["the rails' insets, cleared 37, lifted 100", [61, 56], "37px", "100px"]]) {
+                        host.style.removeProperty(HOST[0]);
+                        host.style.removeProperty(HOST[1]);
+                        if (insets) {
+                            host.style.setProperty(HOST[0], `${insets[0]}px`);
+                            host.style.setProperty(HOST[1], `${insets[1]}px`);
+                            body.style.setProperty(BODY[0], lift);
+                            body.style.setProperty(BODY[1], clear);
+                        }
+                        const px = (el, prop) => cascadePx(el, prop, view);
+                        const edge = px(body, "--drpg-edge"), up = px(body, "--drpg-av-lift") || 0;
+                        const buttons = ids.map(id => document.getElementById(id)).map(el => ({ right: px(el, "right"), bottom: px(el, "bottom"), w: px(el, "width"), h: px(el, "height") }));
+                        const top = Math.max(...buttons.map(b => b.bottom + b.h)), reach = Math.max(...buttons.map(b => b.right + b.w));
+                        const bottom = px(host, "bottom"), ceiling = px(host, "max-height");
+                        const [left, right] = insets ?? [8, 8];
+                        const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${view.w}x${view.h}${view.short ? " short" : ""}, ${label}`;
+                        seen[key] = {
+                            top: resolved ? null : getComputedStyle(host).top,
+                            foot: round(view.short ? bottom - (edge + up) : bottom - top),
+                            left: glass && !resolved ? null : round(px(host, "left")),
+                            right: round(px(host, "right")),
+                            under: round(view.h - bottom - ceiling - (px(column, "top") + px(column, "max-height"))),
+                            height: resolved ? null : getComputedStyle(host).height,
+                            card: [round(px(card, "max-height")), getComputedStyle(card).overflowY]
+                        };
+                        want[key] = {
+                            top: resolved ? null : "auto",
+                            foot: round(view.short ? 0 : 8),
+                            left: glass && !resolved ? null : round(left),
+                            right: round(view.short ? Math.max(right, reach + 24) : right),
+                            under: round(8),
+                            height: resolved ? null : "auto",
+                            card: [round(ceiling), "auto"]
+                        };
+                        putBack();
+                        host.style.setProperty("top", "123px");
+                    }
+                }
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            card.remove();
+            putBack();
+            if (madeColumn) column.remove();
+        }
+        /* Both sides are read through the same parser, so a value it could not read would be "NaN" on both and equal. */
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length of the notice stack could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the notice stack on a stacked screen${resolved ? ` at ${innerWidth}x${innerHeight}` : " at 393x852, 820x1180, 844x390 and 640x360"} [per theme, size and reading: `
+            + "the inline top not in force; the foot 8 px over the highest button, or on the bottom line beside them on a short screen; the left and right insets, "
+            + "the right on a short screen 24 px past the widest button at least; the ceiling 8 px under the blocks' stack at its tallest; the height left to "
+            + "the cards; a card's ceiling the stack's, and it scrolls]");
     }],
 ];
 

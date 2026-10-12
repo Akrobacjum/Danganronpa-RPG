@@ -392,9 +392,16 @@ function trimStack(host = container()) {
  * arrival read as an overflow, and two cards that fitted were parked down to one.
  * The cards do not shrink (`flex: 1 0 auto`), so their heights and the gaps between
  * them add up to more than the tile exactly when they do not fit.
+ *
+ * ON A STACKED SCREEN TOO, in both themes (E81 C13, the A7 design's P8-7). There the
+ * stack stands over the corner buttons with a ceiling under the blocks' stack and
+ * `overflow: hidden` (narrow.css), so it is a box of a stated most height like the
+ * tile, and what does not fit under it waits in the same way. Under Monokuma Legacy
+ * on a desk the stack has no ceiling and nothing overflows it.
  */
 function overflowsGlass(host) {
-    if (host.id === EVIDENCE_ID || !document.body.classList.contains("drpg-theme-stained-glass")) return false;
+    const classes = document.body.classList;
+    if (host.id === EVIDENCE_ID || !(classes.contains("drpg-theme-stained-glass") || classes.contains("drpg-stacked"))) return false;
     const shown = host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`);
     if (shown.length < 2) return false;
     const gap = parseFloat(getComputedStyle(host).rowGap) || 0;

@@ -10845,6 +10845,47 @@ const REGRESSIONS = [
         ok(clear.length > 0, "glass.mjs no longer declares clearLaunchers() - this test reads nothing until it is pointed at the code again");
         equal(JSON.stringify([...clear.matchAll(/querySelectorAll\(([^)]*)\)/g)].map(m => m[1].trim()).filter(arg => /launcher|cluster|LAUNCHERS/.test(arg))), JSON.stringify(["LAUNCHERS"]),
             "[what clearLaunchers moves off the rail]");
+    }],
+
+    ["R477 - on a stacked screen the notices' insets reach the sheet as two variables, which narrow.mjs takes away off the narrow layout, and what does not fit under the stack's ceiling waits parked in both themes", async () => {
+        /*
+         * E81 C13, 12.10.2026 (the A7 design's P8-7; S12-40). Two things the cascade cannot show headless. narrow.mjs
+         * measures how far in the tool rail and the tab rail reach, and through 1.2.74 wrote them inline as `left` and
+         * `right` with `important`: that beat the Stained Glass tile's own `!important`, and every sheet with it, so
+         * narrow.css could not take the larger of the tab rail's inset and the corner buttons' width on a short
+         * screen (R476 reads that rule). Now they are `--drpg-notices-left/right`, written plain and removed off the
+         * narrow layout and when the desk comes back. And `overflowsGlass` in popup.mjs, which parks the oldest card
+         * while the shown ones overflow their box, answered only under Stained Glass: a stacked screen under Monokuma
+         * Legacy has the same ceiling and `overflow: hidden` since E81 C13 and needs the same answer. Headless no box
+         * has a height, so whether a card fits cannot be measured here (R299 (d) does, in a browser); read in the
+         * source, with the comments out.
+         */
+        const sources = await moduleSources();
+        const narrow = stripComments(sources.get("narrow.mjs") ?? ""), popup = stripComments(sources.get("popup.mjs") ?? "");
+        ok(narrow.length > 0 && popup.length > 0, "narrow.mjs or popup.mjs was not read - this test measured nothing");
+        const fn = (src, name) => topLevelFunction(src, name) ?? "";
+        const calls = (src, method) => [...src.matchAll(new RegExp(`\\.style\\.${method}\\(([^)]*)\\)`, "g"))].map(m => m[1].split(",").map(arg => arg.trim()).filter(arg => !arg.startsWith("`")).join(" "));
+        const clear = fn(narrow, "noticesClearOfTheTools"), forget = fn(narrow, "forgetNoticeInsets"), overflows = fn(popup, "overflowsGlass");
+        const seen = {
+            names: /\bconst NOTICES_LEFT = "([^"]*)", NOTICES_RIGHT = "([^"]*)";/.exec(narrow)?.slice(1) ?? null,
+            written: calls(clear, "setProperty"),
+            offNarrow: /if \(!narrowLayout\(\)\) \{ forgetNoticeInsets\(notices\); return; \}/.test(clear),
+            removed: calls(forget, "removeProperty"),
+            onDesk: /\bforgetNoticeInsets\(notices\)/.test(fn(narrow, "restoreDesk")),
+            important: /important/.test(narrow),
+            parks: ["drpg-theme-stained-glass", "drpg-stacked"].map(name => overflows.includes(`contains("${name}")`))
+        };
+        equal(JSON.stringify(seen), JSON.stringify({
+            names: ["--drpg-notices-left", "--drpg-notices-right"],
+            written: ["NOTICES_LEFT", "NOTICES_RIGHT"],
+            offNarrow: true,
+            removed: ["NOTICES_LEFT", "NOTICES_RIGHT"],
+            onDesk: true,
+            important: false,
+            parks: [true, true]
+        }), "[narrow.mjs: the two variables' names; what noticesClearOfTheTools writes, with no priority; that it takes them away off the narrow layout; "
+            + "what forgetNoticeInsets removes; that restoreDesk calls it; no `important` left in the file - popup.mjs: overflowsGlass answers under Stained Glass "
+            + "and on a stacked screen]");
     }]
 ];
 

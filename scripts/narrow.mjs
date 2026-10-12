@@ -44,6 +44,8 @@ const COLUMN_ID = "drpg-column";
 export const COLUMN_SEL = "#" + COLUMN_ID;
 /** The gutter the stack keeps off every wall it stands near. */
 const EDGE = 8;
+/* Where the notices start and end on a stacked screen, read by narrow.css (`noticesClearOfTheTools`). */
+const NOTICES_LEFT = "--drpg-notices-left", NOTICES_RIGHT = "--drpg-notices-right";
 /** The blocks that stack, in the order they stack in. */
 const STACKED = ["#drpg-hud", "#drpg-despair", "#ui-right-column-1"];
 
@@ -145,32 +147,44 @@ function reserveRoom() {
 /**
  * And the notices keep off the tools, which the stack moved under them.
  *
- * The notice stack stands at the foot of the screen across its width
- * (styles/narrow.css). On a desk the scene controls are at the top left and the
- * two never meet; stacked, the controls have been pushed down to make room and
- * they end up exactly where the cards are - 80 px of a 393 px screen, measured.
- * Nothing becomes unclickable, because the notices take no clicks at all
+ * The notice stack stands at the foot of the screen across its width, over the
+ * corner buttons (styles/narrow.css). On a desk the scene controls are at the top
+ * left and the two never meet; stacked, the controls have been pushed down to make
+ * room and they end up exactly where the cards are - 80 px of a 393 px screen,
+ * measured. Nothing becomes unclickable, because the notices take no clicks at all
  * (`pointer-events: none`, stated twice), but a card standing on the tool rail
  * reads as a card that has landed on top of something.
  *
  * Indented past the rail rather than shortened: a notice is prose and wants its
  * width, and the rail is the narrower of the two. The right-hand side takes the
  * same inset the stack does, so a card ends where the stack above it ends.
+ *
+ * TWO VARIABLES, NOT TWO INLINE INSETS (E81 C13, the A7 design's P8-7). Until then
+ * this wrote `left` and `right` inline with `important`, because Stained Glass pins
+ * the tile's corner with one (stained-glass.css) and a plain inline value lost to
+ * it - which is what the first version of this measured. But an inline `important`
+ * beats every sheet, narrow.css included, and sideways on a phone the notices'
+ * right edge is the larger of this inset and the corner buttons' width: a `max()`
+ * the sheet can write only if the inset reaches it as a value. So narrow.css now
+ * states the insets with its own `!important` and reads them from here, and off
+ * the narrow layout the two are taken away, as the insets were.
  */
 function noticesClearOfTheTools() {
     const notices = document.getElementById("drpg-popups");
     if (!notices) return;
-    if (!narrowLayout()) { notices.style.removeProperty("left"); notices.style.removeProperty("right"); return; }
+    if (!narrowLayout()) { forgetNoticeInsets(notices); return; }
     const rail = document.querySelector("#scene-controls");
     const r = rail?.offsetWidth ? rail.getBoundingClientRect() : null;
     const want = r ? Math.round(r.right) + EDGE : EDGE;
     const left = Math.min(Math.max(EDGE, want), Math.round(innerWidth * 0.4));
-    /* `important`, because the theme states this tile's corner with one: the notice
-       tile is a fixed box on the glass and it is pinned at "the audit page's place"
-       (stained-glass.css). A plain inline value loses to it and the card stays on
-       the tools - which is what the first version of this measured. */
-    notices.style.setProperty("left", `${left}px`, "important");
-    notices.style.setProperty("right", `${railInset(notices)}px`, "important");
+    notices.style.setProperty(NOTICES_LEFT, `${left}px`);
+    notices.style.setProperty(NOTICES_RIGHT, `${railInset(notices)}px`);
+}
+
+/** The notices' two insets gone, so a desk's sheets place the tile as they did. */
+function forgetNoticeInsets(notices) {
+    notices.style.removeProperty(NOTICES_LEFT);
+    notices.style.removeProperty(NOTICES_RIGHT);
 }
 
 /** How far short of the right wall a block stops, so the tab rail keeps its own strip. */
@@ -216,7 +230,7 @@ function restoreDesk() {
     const left = document.getElementById("ui-left-column-1");
     if (left) left.style.marginTop = "";
     const notices = document.getElementById("drpg-popups");
-    if (notices) { notices.style.removeProperty("left"); notices.style.removeProperty("right"); }
+    if (notices) forgetNoticeInsets(notices);
 }
 
 /** Called once at ready. The resize itself is watched in settings.mjs, with the scale. */
