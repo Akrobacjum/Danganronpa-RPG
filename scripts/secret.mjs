@@ -365,7 +365,7 @@ function sendWords(readers, packet, { clean = false } = {}) {
     const html = String(packet.html ?? "");
     const byWords = new Map();
     for (const id of readers) {
-        const words = clean ? sanitize(wordsFor(id, html)) : wordsFor(id, html);
+        const words = clean ? cleanCardHtml(wordsFor(id, html)) : wordsFor(id, html);
         byWords.set(words, [...(byWords.get(words) ?? []), id]);
     }
     for (const [words, recipients] of byWords) {
@@ -382,8 +382,20 @@ function sendWords(readers, packet, { clean = false } = {}) {
  */
 const KEEP_PINNED = 2000;
 
-/** HTML a browser will not run, from HTML somebody else wrote. */
-function sanitize(html) {
+/**
+ * HTML a browser will not run, from HTML somebody else wrote.
+ *
+ * AN INTERFACE (E81 C2, 12.10.2026). This was `sanitize`, private to this file;
+ * it is exported under this name, with its body as it was, because the notice
+ * history (notice-history.mjs) cleans every snapshot it keeps through the same
+ * function a private card's words go through - including a plain card's
+ * `message.content`, which the popup draws uncleaned. E83's fixes of the
+ * cleaning (the E02 verification's D01 and D13) are to change only this body:
+ * every caller here and the history keep the call. What a snapshot may hold
+ * beyond what this lets through is the history's own allowlist (`inertCopy`),
+ * which does not wait for them.
+ */
+export function cleanCardHtml(html) {
     const text = String(html ?? "");
     try {
         if (typeof foundry.utils.cleanHTML === "function") return foundry.utils.cleanHTML(text);
@@ -459,7 +471,7 @@ export function secretHtml(message) {
     if (!entry || typeof entry.html !== "string") return null;
     if (entry.user && entry.user !== game.user?.id) return null;
     if (entry.trusted) return entry.html;
-    if (!cleaned.has(message.id)) cleaned.set(message.id, sanitize(entry.html));
+    if (!cleaned.has(message.id)) cleaned.set(message.id, cleanCardHtml(entry.html));
     return cleaned.get(message.id);
 }
 
@@ -565,7 +577,7 @@ export function contentOf(message) {
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
 async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined) {
-    const words = trusted ? html : sanitize(html);
+    const words = trusted ? html : cleanCardHtml(html);
 
     cleaned.delete(id);
     // New words for a card keep the facts it was posted with (`updateSecret` sends none).
@@ -697,7 +709,7 @@ export async function postSecret(data = {}) {
 
 /**
  * `postSecret`, and `postAsked`'s card with `clean`: each reader's copy of the words is
- * cleaned as it is cut (`sanitize`), since its readers keep a GM's words as written.
+ * cleaned as it is cut (`cleanCardHtml`), since its readers keep a GM's words as written.
  */
 async function post(data, { clean = false } = {}) {
     const { veiled: asked = false, summary: rawSummary = null, ...rest } = data ?? {};
@@ -739,7 +751,7 @@ async function post(data, { clean = false } = {}) {
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
         const own = wordsFor(game.user.id, html);
-        await remember(message.id, clean ? sanitize(own) : own, at, pin, game.user.isGM, summary, meta);
+        await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 

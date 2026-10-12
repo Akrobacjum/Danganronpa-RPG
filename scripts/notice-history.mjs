@@ -17,9 +17,9 @@
  * document. A registered setting rather than a raw localStorage key, so the suite's world
  * dump reads it (R159); the runner holds it for the length of tier 2 (R473).
  *
- * THIS COMMIT (E81 C1) IS THE STORE. Nothing records into it yet: `showPopup`'s recorder
- * is C3, the direct calls and `sayNotDone` C4, the marks C5, giving way to the other
- * stores C6, the cleaning of a snapshot C2 and the window C7. What is here:
+ * THE STORE (E81 C1) AND THE CLEANING (C2). Nothing records into it yet: `showPopup`'s
+ * recorder is C3, the direct calls and `sayNotDone` C4, the marks C5, giving way to the
+ * other stores C6 and the window C7. What is here:
  * - the entry's shape and its budgets (a JSON length, never a byte count: the engine
  *   cannot read what a browser's quota counts);
  * - the epoch: a section written before the season's last reset is cleared when it is
@@ -27,7 +27,9 @@
  *   absent account's history goes);
  * - the merge with another tab's write, with tombstones and an upsert by message and
  *   source, and the debounced write that flushes at once when the page hides;
- * - the suite's hold, under which nothing reaches the setting (`holdNoticeHistory`).
+ * - the suite's hold, under which nothing reaches the setting (`holdNoticeHistory`);
+ * - the cleaning: what a card showed is kept as `inertCopy(cleanCardHtml(html))`, and drawn
+ *   again only through `noticeSnapshot`, which cleans the stored string a second time.
  *
  * WHAT ANOTHER LOGIN CAN READ. Every account's section is in one value of this browser's
  * storage, so anybody at this browser's console reads every section in it, a GM's and a
@@ -38,14 +40,20 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
 import { debug, warn } from "./utils.mjs";
+import { cleanCardHtml } from "./secret.mjs";
 
 const FORMAT = 1;
 
 /** A document id as Foundry makes them (`randomID()`): the shape an entry's `id`, `messageId` and `author` must have. */
 const ID = /^[A-Za-z0-9]{16}$/;
-/* A card's kind and tone, as a word. The closed lists are popup.mjs's (`KINDS`, `TONES`), and checking an entry
-   read back against them is C2's, with the cleaning (census: the console's road). */
-const WORD = /^[A-Za-z][\w-]{0,31}$/;
+/*
+ * A card's kind and tone: popup.mjs's `KINDS` and `TONES`, the closed lists a card is drawn with, and an entry
+ * read back with anything else is refused (E81 C2; a value a console wrote raw is a source like any other). Written
+ * twice rather than imported, because popup.mjs is to import this file for its recorder (E81 C3) and an import
+ * cycle is what R161 fails; R294 holds the two copies equal.
+ */
+export const NOTICE_KINDS = Object.freeze(["info", "error", "evidence", "objection"]);
+export const NOTICE_TONES = Object.freeze(["hope", "fear", "critical"]);
 
 /** Where an entry came from (the A7 design, P1-1). `author` is kept only for "player". */
 export const NOTICE_SOURCES = Object.freeze(["mine", "public", "player", "messenger", "evidence", "summary", "safeword", "notDone"]);
@@ -102,12 +110,204 @@ export function noticeEpoch(clock) {
     return JSON.stringify([num(clock?.seasonStartedAt), ...EPOCH_GROUPS.map(group => num(cuts[group]))]);
 }
 
+/* ------------------------------------------------------------------------ *
+ * The cleaning (E81 C2; the A7 design's step 2).
+ * ------------------------------------------------------------------------ */
+
+/*
+ * WHY TWO STEPS. A snapshot is what a card's body showed, and a body holds what
+ * another user wrote: a plain card's `message.content`, which the popup draws as it
+ * came, a private card's words (a GM's `trusted` ones uncleaned, secret.mjs), the
+ * messenger's preview, a trial's evidence, a day summary's names. `cleanCardHtml`
+ * is the cleaning a private card's words get today, Foundry's `cleanHTML`; what
+ * that lets through is not what a list of past cards should draw - an iframe's
+ * `srcdoc` and a `data-tooltip-html` were the A7 design's two readings of it
+ * (CB-27), and E83's fixes of it (E02-D01, D13) are not in this build. So the
+ * history adds its own allowlist, `inertCopy`, which owes nothing to that
+ * cleaner's thoroughness, and runs both at the write and again at every draw, so
+ * a value written raw into the setting (another tab, a console) is drawn through
+ * the same two steps as one this engine wrote.
+ *
+ * WHAT IS KEPT (the design's P2-2 to P2-5): the tags below and nothing else - any
+ * other element goes with everything in it, a custom element, an `<svg>`, a form
+ * control or an `<audio>` alike; `href` only http(s), opened apart from the game
+ * (`rel` and `target` set here); an image's `src` only from this origin or a png,
+ * webp or jpeg `data:` address, else the image goes; `alt`, a table cell's spans,
+ * `class` only from `NOTICE_CLASSES`, and `title`, which is also where a
+ * `data-tooltip`'s words go, as text. Every other attribute goes - `data-*`,
+ * `aria-*`, `style`, `srcset`, `on*`, `id`, `name`, `for`, ... A roll's or a
+ * document's link (`a.inline-roll`, `a.content-link`) becomes its words, and the
+ * GMs' half of a card (`.drpg-gm-only`) is kept for a GM only.
+ *
+ * PARSED WHERE NOTHING RUNS. The string is read by a `DOMParser` into a document
+ * with no browsing context and its body moved into a `<template>`'s content, a
+ * document of the same kind: there an `<img onerror>` neither loads nor fires, as
+ * it does in a detached `<div>` (`cardPreview` in messenger-app.mjs) - the HTML
+ * standard's reading, which the A7 design (P2-1) took; not measured here, since
+ * the harness's jsdom loads no image either way. Not a `template.innerHTML` write,
+ * so that neither file of the history writes a stored value through innerHTML (the
+ * design's P2-7: a grep for it is E02's criterion); the one `innerHTML` here reads
+ * the cleaned tree out. What R294 measures, in the harness's jsdom, is what the
+ * allowlist keeps; a browser's own parser, and Foundry's real `cleanHTML` before
+ * it, are LIVE-E81-01.
+ */
+const SNAPSHOT_TAGS = new Set(["p", "br", "hr", "span", "div", "strong", "b", "em", "i", "u", "s", "small", "sub", "sup",
+    "blockquote", "ul", "ol", "li", "dl", "dt", "dd", "table", "thead", "tbody", "tr", "th", "td",
+    "h1", "h2", "h3", "h4", "h5", "h6", "img", "a"]);
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+const GM_ONLY = "drpg-gm-only";
+const IMAGE_DATA = /^data:image\/(?:png|webp|jpeg)[;,]/i;
+const CELL_SPAN = /^[1-9]\d{0,2}$/;
+
+/**
+ * The classes a snapshot keeps: every class a `class="..."` of the files that build card bodies
+ * writes - day-summary.mjs, popup.mjs, secret.mjs, messenger-app.mjs, trial.mjs, safeword.mjs and
+ * action-rolls.mjs, the words inside a `${...}` of the attribute included - but the module's own
+ * frames and Foundry's (`drpg-popup*`, `drpg-notices-*`, `drpg-corner-tail*`, `application`,
+ * `window-*`, `inline-roll`, `content-link`, `fa-*`), which would dress a snapshot as a live card
+ * or a window. 62 at E81 C2 (12.10.2026); R294 runs the same grep and fails on a difference, so a
+ * class a card body gains is either added here or drawn bare in the window.
+ */
+export const NOTICE_CLASSES = Object.freeze([
+    "chapter", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-checkbox",
+    "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary",
+    "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
+    "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",
+    "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
+    "drpg-evidence-text", "drpg-evidence-who", "drpg-gm-reference", "drpg-gm-route", "drpg-item-effect",
+    "drpg-objection-banner", "drpg-objection-block", "drpg-objection-live", "drpg-objection-log",
+    "drpg-safeword-heading", "drpg-specific-note",
+    "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
+    "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",
+    "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges", "drpg-trait-field", "drpg-warning",
+    "faint", "is-complete", "is-despair", "is-hope", "notes", "objection", "room", "type", "unavailable",
+    "visibility"
+]);
+const KEEP_CLASS = new Set(NOTICE_CLASSES);
+
+/** An address as the page would resolve it, or null. */
+function addressOf(value) {
+    try {
+        return new URL(String(value ?? "").trim(), document.baseURI);
+    } catch {
+        return null;
+    }
+}
+
+function imageAllowed(src) {
+    const text = String(src ?? "").trim();
+    if (!text) return false;
+    if (IMAGE_DATA.test(text)) return true;
+    const url = addressOf(text);
+    return Boolean(url) && /^https?:$/.test(url.protocol) && url.origin === addressOf("")?.origin;
+}
+
+function linkAllowed(a) {
+    if (!a.hasAttribute("href") || a.classList.contains("inline-roll") || a.classList.contains("content-link")) return false;
+    return /^https?:$/.test(addressOf(a.getAttribute("href"))?.protocol ?? "");
+}
+
+/** A `data-tooltip` as the words Foundry's tooltip would show: a translation key translated, markup read as text. */
+function tooltipWords(value) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    if (game.i18n?.has?.(raw)) return game.i18n.localize(raw);
+    return new window.DOMParser().parseFromString(raw, "text/html").body.textContent.trim();
+}
+
+function keepAttributes(el, tag, gm) {
+    const kept = [];
+    if (tag === "a") kept.push(["href", el.getAttribute("href")], ["rel", "noopener noreferrer"], ["target", "_blank"]);
+    if (tag === "img") {
+        kept.push(["src", el.getAttribute("src")]);
+        if (el.hasAttribute("alt")) kept.push(["alt", el.getAttribute("alt")]);
+    }
+    if (tag === "td" || tag === "th") {
+        for (const name of ["colspan", "rowspan"]) if (CELL_SPAN.test(el.getAttribute(name) ?? "")) kept.push([name, el.getAttribute(name)]);
+    }
+    const hint = el.getAttribute("title") || tooltipWords(el.getAttribute("data-tooltip"));
+    if (hint) kept.push(["title", hint]);
+    const classes = [...el.classList].filter(name => KEEP_CLASS.has(name) || (gm && name === GM_ONLY));
+    if (classes.length) kept.push(["class", classes.join(" ")]);
+    for (const attr of [...el.attributes]) el.removeAttribute(attr.name);
+    for (const [name, value] of kept) el.setAttribute(name, value);
+}
+
+function cleanChildren(parent, gm) {
+    for (const node of [...parent.childNodes]) {
+        if (node.nodeType === Node.TEXT_NODE) continue;
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            node.remove();
+            continue;
+        }
+        const tag = node.namespaceURI === HTML_NS ? node.localName : null;
+        if (!SNAPSHOT_TAGS.has(tag) || (!gm && node.classList.contains(GM_ONLY)) || (tag === "img" && !imageAllowed(node.getAttribute("src")))) {
+            node.remove();
+            continue;
+        }
+        if (tag === "a" && !linkAllowed(node)) {
+            node.replaceWith(node.ownerDocument.createTextNode(node.textContent));
+            continue;
+        }
+        let el = node;
+        /* An element parsed with `is` keeps it past `removeAttribute`: the serializer writes the element's own
+           "is value" back out, and R294's first run (12.10.2026, the harness's jsdom) read `is="r294-div"` in a
+           stored snapshot. The HTML standard's serializer says the same of a browser; not measured in one. A
+           fresh element of the tag has no is value. */
+        if (el.hasAttribute("is")) {
+            el = node.ownerDocument.createElement(tag);
+            for (const attr of node.attributes) if (attr.name !== "is") el.setAttribute(attr.name, attr.value);
+            el.append(...node.childNodes);
+            node.replaceWith(el);
+        }
+        keepAttributes(el, tag, gm);
+        cleanChildren(el, gm);
+    }
+}
+
+/** The allowlist's tree of `html`, in a `<template>` (see "PARSED WHERE NOTHING RUNS" above). */
+function inertTree(html, gm) {
+    const parsed = new window.DOMParser().parseFromString(String(html ?? ""), "text/html");
+    const template = document.createElement("template");
+    template.content.append(...parsed.body.childNodes);
+    cleanChildren(template.content, gm);
+    return template;
+}
+
+/** The allowlist alone: `html` as a snapshot may hold it, for a GM or not (this user, by default). */
+export function inertCopy(html, { gm = Boolean(game.user?.isGM) } = {}) {
+    return inertTree(html, gm).innerHTML;
+}
+
+/** Both steps: what the history keeps of a card's body (the module's engine cleans every `record` with it). */
+export function cleanNoticeHtml(html, options = {}) {
+    return inertCopy(cleanCardHtml(html), options);
+}
+
+/**
+ * A kept snapshot drawn: the stored string through both steps again, whoever wrote it, and into a
+ * `div.drpg-notice-snapshot` by `importNode` - never by innerHTML or `setHTMLUnsafe`. The one road
+ * from the setting to the screen: the window (E81 C7) draws every snapshot with it. A snapshot that
+ * cannot be cleaned is drawn empty.
+ */
+export function noticeSnapshot(html, { gm = Boolean(game.user?.isGM) } = {}) {
+    const wrap = document.createElement("div");
+    wrap.className = "drpg-notice-snapshot";
+    try {
+        wrap.append(document.importNode(inertTree(cleanCardHtml(html), gm).content, true));
+    } catch (err) {
+        debug("A kept notice could not be cleaned; it is drawn empty", err);
+    }
+    return wrap;
+}
+
 /**
  * One engine over one environment, as `createGmStoreEngine` is (gm-store.mjs), so R292 runs it on a
  * value in memory.
  *
  * env: worldId(), userId(), isGM(), now(), randomId(), clock() -> the campaign clock,
- * userExists(id), storage { read() -> the stored value as JSON text or null, write(value) -> Promise },
+ * userExists(id), clean(html) -> the html as it may be kept (the module's engine: `cleanNoticeHtml`),
+ * storage { read() -> the stored value as JSON text or null, write(value) -> Promise },
  * timers { set(fn, ms), clear(handle) }, log { warn, debug }.
  */
 export function createNoticeEngine(env) {
@@ -132,7 +332,7 @@ export function createNoticeEngine(env) {
         const mark = raw.mark ?? null, messageId = raw.messageId ?? null, tone = raw.tone ?? null;
         if (!NOTICE_SOURCES.includes(raw.source) || !STATES.includes(raw.state) || !MARKS.includes(mark)) return null;
         if (messageId !== null && !ID.test(messageId)) return null;
-        if (!WORD.test(raw.kind) || (tone !== null && !WORD.test(tone))) return null;
+        if (!NOTICE_KINDS.includes(raw.kind) || (tone !== null && !NOTICE_TONES.includes(tone))) return null;
         const clock = isPlain(raw.clock) ? raw.clock : {};
         const entry = {
             id: raw.id, at: raw.at, messageId, kind: raw.kind, tone, source: raw.source, state: raw.state, mark,
@@ -386,13 +586,21 @@ export function createNoticeEngine(env) {
     /**
      * Keep one notice (E81 C3 and C4 call it; the entry's shape is the A7 design's P1-1). `id`, `at` and
      * `clock` are this client's: `at` is `Date.now()` here whatever the caller passes, never a packet's
-     * (the lesson of E02-D08). Answers the entry's id, or null for an entry the shape refuses.
+     * (the lesson of E02-D08). The html is kept as `env.clean` hands it back (E81 C2), and a cleaner that
+     * throws keeps the notice without it: a history error never stops a card. Answers the entry's id, or
+     * null for an entry the shape refuses.
      */
     function record(input = {}) {
         const clock = env.clock() ?? {};
+        let html = "";
+        try {
+            html = env.clean(str(input.html));
+        } catch (err) {
+            env.log.debug("A notice's html could not be cleaned; it is kept without it", err);
+        }
         const entry = normalizeEntry({
             id: env.randomId(), at: env.now(), messageId: input.messageId ?? null, kind: input.kind ?? "info", tone: input.tone ?? null,
-            source: input.source, state: input.state ?? "open", mark: null, title: input.title, text: input.text, html: input.html,
+            source: input.source, state: input.state ?? "open", mark: null, title: input.title, text: input.text, html,
             clipped: false, author: input.author, link: input.link,
             clock: { chapter: clock.chapter, day: clock.day, session: clock.session, timeOfDay: clock.timeOfDay, eclipse: clock.eclipse }
         });
@@ -483,6 +691,7 @@ const engine = createNoticeEngine({
     randomId: () => foundry.utils.randomID(16),
     clock: () => getClock(),
     userExists: id => Boolean(game.users?.get(id)),
+    clean: html => cleanNoticeHtml(html),
     storage: {
         read: () => game.settings?.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.${SETTINGS.noticeHistory}`) ?? null,
         write: value => game.settings.set(MODULE_ID, SETTINGS.noticeHistory, value)

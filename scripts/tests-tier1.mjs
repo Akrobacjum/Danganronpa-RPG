@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, topLevelFunction, STANDING, watchLog
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -7508,6 +7508,173 @@ const INVARIANTS = [
             "[held, the notice in memory; the stored history unchanged past the debounce; forgotten at the release; "
             + "the runner holds it beside the GM store and reads it; releases it beside the GM store; fails the run on a difference]");
     }],
+    ["R294 - a kept notice holds only what a past card may show: what another user's markup carried in is gone through the recorder, from a value written raw into the setting and from a GM's trusted words, and the card's own text stays", async () => {
+        /*
+         * E81 C2, 12.10.2026; the A7 design's A7-3 (T2), without the window (E81 C7 expands it there). The harm: a
+         * card's body holds what another user wrote - a plain card's `message.content`, which the popup draws uncleaned,
+         * a GM's `trusted` private words (secret.mjs returns those as written), a trial's evidence, a day summary's
+         * names - and a history keeps it to the season's reset and draws it again. One card body carries every vector
+         * of the design's T2 beside its own text, a link, an image, a hint, a roll, a document link, a table cell and
+         * the GMs' half of a card, and it is measured on three roads: recorded by the module's own engine on this GM
+         * (held, as R473 holds it: the setting is not written), cleaned for a player, and written raw into a value
+         * that never passed the recorder (`noticeBench`'s storage, read at `open`) and drawn by `noticeSnapshot`, the
+         * window's one road. On each: the card's words kept, and no iframe, script, audio, video, svg, form control or
+         * custom element, no `data-*`, `aria-*`, `style`, `srcset`, `for`, `name`, `id` or `on*`, no foreign or
+         * `javascript:` address, no class outside `NOTICE_CLASSES`. Then the read's validation (a tone and a kind
+         * outside popup.mjs's lists, an id with a quote), `NOTICE_CLASSES` against the `class=` grep it states, and
+         * `cleanCardHtml` as secret.mjs's one cleaner, the history's first step. THE CLEANER HERE IS THE HARNESS'S
+         * STAND-IN (audit/harness/lib/futil.mjs `cleanHTML`), which keeps `data-*`, classes and buttons: what this
+         * measures is the history's own allowlist, which owes nothing to it. Foundry's real `cleanHTML` and a
+         * browser's parser are LIVE-E81-01, at a table (the plan's D5: no skip here).
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        const secret = await import("./secret.mjs");
+        must(typeof NH?.recordNotice === "function", "there is no notice history to keep a card in - nothing here would be measured");
+        const KEEP = "Suite R294 keeps this text";
+        const PNG = "data:image/png;base64,iVBORw0KGgo=";
+        const CARD = [
+            `<p class="notes">${KEEP}</p>`,
+            `<a href="https://example.com/r294">R294 link</a>`,
+            `<img src="${PNG}" alt="R294 image">`,
+            `<span data-tooltip="R294 &lt;b&gt;hint&lt;/b&gt;">R294 tip</span>`,
+            `<a class="inline-roll roll" data-formula="1d20" data-tooltip="1d20"><i class="fas fa-dice-d20"></i>R294 roll</a>`,
+            `<a class="content-link" data-link data-uuid="Actor.R294" draggable="true">R294 document</a>`,
+            `<table><tbody><tr><td colspan="2" style="color:red">R294 cell</td></tr></tbody></table>`,
+            `<div class="drpg-gm-only"><p>R294 GM prose</p></div>`,
+            `<iframe srcdoc="&lt;p&gt;R294 framed&lt;/p&gt;" src="https://www.youtube.com/embed/r294"></iframe>`,
+            `<span data-tooltip-html="&lt;img src=x onerror=alert(1)&gt;">R294 tooltip html</span>`,
+            `<span data-tooltip="" aria-label="&lt;img src=x onerror=alert(2)&gt;">R294 aria</span>`,
+            `<audio autoplay src="https://example.com/r294.mp3"></audio>`,
+            `<video autoplay poster="https://evil.example/r294.png" src="https://example.com/r294.mp4"></video>`,
+            `<p style="position:fixed;inset:0;z-index:99999" id="r294">R294 styled</p>`,
+            `<img srcset="https://evil.example/r294-set.png 1x" src="${PNG}">`,
+            `<img src="https://evil.example/r294-track.png">`,
+            `<img src="r294-missing.png" onerror="globalThis.__drpgR294 = 1">`,
+            `<svg onload="globalThis.__drpgR294 = 2"><circle r="1"></circle></svg>`,
+            `<a href="javascript:globalThis.__drpgR294 = 3">R294 js link</a>`,
+            `<document-embed uuid="JournalEntry.R294"><p>R294 embedded</p></document-embed>`,
+            `<label for="r294">R294 label</label>`,
+            `<button type="button" data-drpg-call="r294">R294 button</button>`,
+            `<form><input name="r294"></form>`,
+            `<div data-action="r294" is="r294-div" popover contenteditable="true" autofocus>R294 action</div>`,
+            `<p class="drpg-popup application fa-solid notes window-content">R294 classed</p>`,
+            `<script>globalThis.__drpgR294 = 4</script><object data="r294"></object><embed src="r294">`
+        ].join("");
+        const GONE_TAGS = /^(iframe|script|audio|video|svg|object|embed|form|input|label|button|template|style|link|meta)$/;
+        const measure = (root, gm) => {
+            const all = [...root.querySelectorAll("*")];
+            const foreign = el => ["src", "href", "poster"].some(name => /evil\.example|youtube|^\s*javascript:/i.test(el.getAttribute(name) ?? ""));
+            return {
+                kept: [KEEP, "R294 link", "R294 tip", "R294 roll", "R294 document", "R294 cell", "R294 action", "R294 classed", "R294 js link"]
+                    .filter(words => !root.textContent.includes(words)),
+                notes: root.querySelectorAll("p.notes").length,
+                link: root.querySelector('a[href="https://example.com/r294"]')?.getAttribute("rel") ?? null,
+                images: root.querySelectorAll(`img[src="${PNG}"]`).length,
+                hint: root.querySelector('[title="R294 hint"]') !== null,
+                cell: root.querySelector('td[colspan="2"]') !== null,
+                gm: root.textContent.includes("R294 GM prose"),
+                tags: all.map(el => el.localName).filter(tag => GONE_TAGS.test(tag) || tag.includes("-")),
+                attrs: all.flatMap(el => [...el.attributes].map(attr => attr.name))
+                    .filter(name => /^(data-|aria-|on)|^(style|srcset|poster|for|name|id|is|popover|contenteditable|autofocus|draggable)$/.test(name)),
+                addresses: all.filter(foreign).length,
+                classes: all.flatMap(el => [...el.classList]).filter(name => !(NH.NOTICE_CLASSES ?? []).includes(name) && !(gm && name === "drpg-gm-only")),
+                words: ["R294 framed", "R294 embedded", "R294 label", "R294 button"].filter(words => root.textContent.includes(words))
+            };
+        };
+        const expected = gm => ({ kept: [], notes: 2, link: "noopener noreferrer", images: 2, hint: true, cell: true, gm,
+            tags: [], attrs: [], addresses: 0, classes: [], words: [] });
+        const parsed = html => {
+            const template = document.createElement("template");
+            template.innerHTML = String(html ?? "");
+            return template.content;
+        };
+
+        /* The recorder: the module's engine on this GM, held, with the body as a GM's trusted card hands it over. */
+        const isGM = Boolean(game.user?.isGM);
+        let recorded = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: "R294", text: "R294", html: CARD });
+            recorded = NH.noticeEntries().find(entry => entry.id === id) ?? null;
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        must(recorded !== null, "the history refused the suite's card - the recorder's road would be measured on nothing");
+        equal(stableJson(measure(parsed(recorded.html), isGM)), stableJson(expected(isGM)),
+            "recorded by the module's engine, a card body kept what another user's markup carried in, or lost its own words");
+        ok(typeof NH.noticeSnapshot === "function" && typeof NH.cleanNoticeHtml === "function" && Array.isArray(NH.NOTICE_CLASSES),
+            "the history has no cleaning of its own to draw a kept card with");
+        equal(stableJson(measure(parsed(NH.cleanNoticeHtml(CARD, { gm: false })), false)), stableJson(expected(false)),
+            "cleaned for a player, a card body kept what another user's markup carried in, or the GMs' half of it");
+
+        /* A value written raw into the setting, as another tab or a console can: read through the shape, drawn by the window's road. */
+        const W = "suite-world", U = "SuitePlayerR29401", at = { now: 2_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const entry = (id, more = {}) => ({ id, at: 1_000_000, messageId: null, kind: "info", tone: null, source: "public", state: "read",
+            mark: null, title: "R294", text: "R294", html: CARD, clipped: false, clock: {}, ...more });
+        const store = { raw: JSON.stringify({ v: 1, sections: { [`${W}.${U}`]: { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: [
+            entry("SuiteNoticeR2941"), entry("SuiteNoticeR2942", { tone: "evil" }), entry('SuiteNotice"2943'),
+            entry("SuiteNoticeR2944", { kind: "drpg-popup" }), entry("SuiteNoticeR2945", { tone: "hope", kind: "evidence" })
+        ] } } }), writes: 0, fail: 0 };
+        const bench = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        bench.open();
+        const read = bench.entries();
+        equal(JSON.stringify(read.map(e => e.id)), JSON.stringify(["SuiteNoticeR2941", "SuiteNoticeR2945"]),
+            "read back, the raw value's entries [a plain one, a hope-toned evidence] beside a tone and a kind outside popup.mjs's lists and an id with a quote");
+        const drawn = NH.noticeSnapshot(read[0]?.html ?? "", { gm: false });
+        const drawnGm = NH.noticeSnapshot(read[0]?.html ?? "", { gm: true });
+        equal(stableJson([drawn.localName, drawn.className, measure(drawn, false), measure(drawnGm, true)]),
+            stableJson(["div", "drpg-notice-snapshot", expected(false), expected(true)]),
+            "a raw value in the setting, drawn by the window's road, showed what another user's markup carried in");
+
+        /* The lists the read holds an entry to, and the class allowlist against the grep it states. */
+        const sources = await moduleSources();
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const list = name => JSON.parse(bodyOf(popup, `const ${name} = `, { until: ";" }).replace(`const ${name} = `, ""));
+        const FORBIDDEN = /^(drpg-popup|drpg-notices-|drpg-corner-tail|application$|window-|inline-roll$|content-link$|fa-)/;
+        const grep = new Set();
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "action-rolls.mjs"]) {
+            const src = stripComments(sources.get(file) ?? "");
+            must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
+            for (const m of src.matchAll(/class=(["'])/g)) {
+                let words = "", depth = 0, quote = null;
+                for (const c of src.slice(m.index + m[0].length)) {
+                    if (depth === 0 && c === m[1]) break;
+                    if (quote) {
+                        if (c === quote) { quote = null; words += " "; } else words += c;
+                    } else if (depth === 0) {
+                        if (c === "{" && words.endsWith("$")) { depth = 1; words = `${words.replace(/\$$/, "")} `; } else words += c;
+                    } else if (`"'\``.includes(c)) {
+                        quote = c;
+                        words += " ";
+                    } else if (c === "{") depth++;
+                    else if (c === "}") depth--;
+                }
+                for (const word of words.split(/\s+/)) if (/^[A-Za-z][\w-]*$/.test(word) && !FORBIDDEN.test(word)) grep.add(word);
+            }
+        }
+        equal(stableJson([list("KINDS"), list("TONES")]), stableJson([NH.NOTICE_KINDS, NH.NOTICE_TONES]),
+            "the history's closed lists of a card's kind and tone are not popup.mjs's");
+        equal(stableJson([[...NH.NOTICE_CLASSES].sort(), NH.NOTICE_CLASSES.filter(name => FORBIDDEN.test(name) || name === "drpg-gm-only")]),
+            stableJson([[...grep].sort(), []]),
+            "NOTICE_CLASSES [the class= grep over the files that build card bodies; no frame of a card, a window or an icon]");
+
+        /* One cleaner: secret.mjs's, the history's first step at the write and at the draw, and no innerHTML write in the history. */
+        const secretSrc = stripComments(sources.get("secret.mjs") ?? "");
+        const history = stripComments(sources.get("notice-history.mjs") ?? "");
+        equal(JSON.stringify([
+            /\bsanitize\s*\(/.test(secretSrc), /^export function cleanCardHtml\(/m.test(secretSrc),
+            /cleaned\.set\(message\.id, cleanCardHtml\(entry\.html\)\)/.test(fnSource(secretSrc, "secretHtml")),
+            secret.cleanCardHtml(CARD) === (typeof foundry.utils.cleanHTML === "function" ? foundry.utils.cleanHTML(CARD) : foundry.utils.escapeHTML(CARD)),
+            /return inertCopy\(cleanCardHtml\(html\), options\)/.test(fnSource(history, "cleanNoticeHtml")),
+            /importNode\(inertTree\(cleanCardHtml\(html\), gm\)\.content, true\)/.test(fnSource(history, "noticeSnapshot")),
+            /clean: html => cleanNoticeHtml\(html\)/.test(history),
+            /\.innerHTML\s*=(?!=)|\.outerHTML\s*=(?!=)|setHTMLUnsafe|insertAdjacentHTML|createContextualFragment/.test(history)
+        ]), JSON.stringify([false, true, true, true, true, true, true, false]),
+        "[secret.mjs keeps a cleaner of another name; exports cleanCardHtml; a private card's words go through it; it is Foundry's "
+            + "cleanHTML as before; the history keeps inertCopy(cleanCardHtml(html)); draws through both again by importNode; "
+            + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
+    }],
 ];
 
 /**
@@ -7564,14 +7731,16 @@ const LITERAL_KEYS = [
  * The notice history's engine over a value in memory (R292, R297; E81 C1): `store.raw` is the stored text as
  * localStorage would hold it, `store.writes` counts the writes and `store.fail` makes that many writes throw.
  * Nothing is debounced - a test flushes - and the time and the clock are the caller's objects to move. Ids are
- * numbered across every engine made here, so two tabs never draw the same one.
+ * numbered across every engine made here, so two tabs never draw the same one. The html is kept as given unless
+ * the caller hands the bench a cleaner (E81 C2): the store's tests weigh lengths, and R294 measures the cleaning
+ * on the module's own engine.
  */
 let noticeIds = 0;
-function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock }) {
+function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock, clean = html => html }) {
     return createNoticeEngine({
         worldId: () => world, userId: () => user, isGM: () => gm, now: () => at.now,
         randomId: () => `SuiteNotice${String(++noticeIds).padStart(5, "0")}`,
-        clock: () => clock.value, userExists: () => true,
+        clock: () => clock.value, userExists: () => true, clean,
         storage: {
             read: () => store.raw,
             write: async value => {
