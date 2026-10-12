@@ -44,7 +44,7 @@ import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
-    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom, isTrialScene, homeScene } from "./rooms.mjs";
+    roomRegions, flagOver, listOver, piecesByName, writablePieces, isRoom, joinsAnotherRoom, isTrialScene, homeScene, sceneHoldsRooms } from "./rooms.mjs";
 // Statically since E12 fix r1-G1 (11.10.2026), for `clearSplitPiece`'s list of a room's flags: rest.mjs read
 // its rooms through `regionsByName` here until then, which made the import a cycle; it reads rooms.mjs now.
 import { REST_FLAGS } from "./rest.mjs";
@@ -2304,15 +2304,28 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
     });
 }
 
-const ROOM_SETUP_TABS = [
+/* The Scenes tab last (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026): it is set once a season,
+   the others every session. Its panel is trial-scene.mjs's (`scenesTabHtml`). */
+export const ROOM_SETUP_TABS = Object.freeze([
     ["bedrooms", "DRPG.Vault.tabBedrooms"],
     ["doors", "DRPG.Vault.tabDoors"],
     ["search", "DRPG.Vault.tabSearching"],
     ["rest", "DRPG.Vault.tabRest"],
     ["stashes", "DRPG.Vault.tabStashes"],
     ["description", "DRPG.Vault.tabDescription"],
-    ["fog", "DRPG.Vault.tabFog"]
-];
+    ["fog", "DRPG.Vault.tabFog"],
+    ["scenes", "DRPG.Vault.tabScenes"]
+]);
+
+/**
+ * The tab Room Setup opens on: the one asked for when it is a tab, else Bedrooms on a scene that
+ * holds a room and Scenes on one that holds none (Q-E13-1 e) - a GM who opens Room Setup on a new
+ * map, or before any room is marked, has nothing to set on the room tabs yet.
+ */
+export function roomSetupTab(tab, holdsRooms) {
+    if (ROOM_SETUP_TABS.some(([key]) => key === tab)) return tab;
+    return holdsRooms ? "bedrooms" : "scenes";
+}
 
 /*
  * FIXED COLUMNS, ONE WIDTH A KIND OF CELL (E12 C15, audit S08-26 and S12-23).
@@ -2337,7 +2350,7 @@ function roomSetupColumns(kinds) {
 }
 
 /** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
-function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens }) {
+function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, scenesPanel }) {
     const th = key => `<th>${game.i18n.localize(key)}</th>`;
     const TABLE = "drpg-vault-table drpg-room-setup-table";
     const tableFor = (heads, cols) => `<table class="${TABLE}">${
@@ -2359,6 +2372,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
     return dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
+            ${cells.length ? "" : `<p class="drpg-warning">${game.i18n.localize("DRPG.Vault.noRooms")}</p>`}
             <nav class="drpg-dashboard-tabs">${nav}</nav>
 
             ${panel("bedrooms", `
@@ -2422,6 +2436,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                 ${matrix(fogRows)}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
             `)}
+
+            ${panel("scenes", scenesPanel)}
         </form>`);
 }
 
@@ -2660,7 +2676,6 @@ function wireFogButtons(root) {
  * below is the backstop for a form that got past this.
  */
 function wireTwoRoomsCheck(root, rooms) {
-    const apply = root.querySelector('footer button[data-action="ok"]');
     const twoRoomsNote = root.querySelector("[data-drpg-two-rooms]");
     const checkBedrooms = () => {
         const seen = new Map();
@@ -2675,16 +2690,7 @@ function wireTwoRoomsCheck(root, rooms) {
             seen.set(owner, room);
         }
         const text = clash ? game.i18n.format("DRPG.Vault.twoRooms", clash) : "";
-        if (apply) {
-            apply.disabled = Boolean(clash);
-            if (clash) {
-                apply.setAttribute("data-tooltip", "");
-                apply.setAttribute("aria-label", text);
-            } else {
-                apply.removeAttribute("data-tooltip");
-                apply.removeAttribute("aria-label");
-            }
-        }
+        setApplyBlock(root, "bedrooms", text || null);
         if (twoRoomsNote) {
             twoRoomsNote.textContent = text;
             twoRoomsNote.style.display = clash ? "" : "none";
@@ -2694,6 +2700,33 @@ function wireTwoRoomsCheck(root, rooms) {
         if (String(ev.target?.name ?? "").startsWith("owner:")) checkBedrooms();
     });
     checkBedrooms();
+}
+
+/*
+ * TWO REASONS TO HOLD APPLY, ONE BUTTON (E13 C5; the A5 design's step 16). One student in two
+ * bedrooms held Apply by writing `disabled` itself, and the Scenes tab holds it while both its
+ * selects name one scene: two checks writing the same field would each free the button the other
+ * held. So each sets or clears its own reason here, and Apply is free only when none is left; its
+ * label is the first reason still standing.
+ */
+const applyBlocks = new WeakMap();
+
+export function setApplyBlock(root, key, reason) {
+    const apply = root?.querySelector?.('footer button[data-action="ok"]');
+    if (!apply) return;
+    const reasons = applyBlocks.get(apply) ?? new Map();
+    applyBlocks.set(apply, reasons);
+    if (reason) reasons.set(key, reason);
+    else reasons.delete(key);
+    const text = reasons.values().next().value ?? null;
+    apply.disabled = Boolean(text);
+    if (text) {
+        apply.setAttribute("data-tooltip", "");
+        apply.setAttribute("aria-label", text);
+    } else {
+        apply.removeAttribute("data-tooltip");
+        apply.removeAttribute("aria-label");
+    }
 }
 
 // One owner, one room. Two bedrooms pointing at the same student would make
@@ -2973,7 +3006,7 @@ async function seedOwnerStashes(ownerMoved, scene) {
     return changed;
 }
 
-export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
+export async function openRoomSetupDialog({ tab = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -3003,11 +3036,18 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     // regions say (rooms.mjs), so a GM viewing it during a trial is shown the school's table.
     let scene = workingScene();
     if (isTrialScene(scene)) scene = homeScene();
-    const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
-    if (!rooms.length) {
+    /* NO ROOM IS NO REFUSAL (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026). This refused a
+       scene with no named region, so the GM of a world with no rooms yet could not reach the
+       Scenes tab, and over a scene whose only named region was a Teleport (no room) it opened on
+       Bedrooms (read in the code, 12.10). It opens on the Scenes tab whenever its scene holds no room
+       (`roomSetupTab`), the room tabs empty or listing the regions still to be marked; only
+       with no scene at all is there nothing to open. */
+    if (!scene) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;
     }
+    const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
+    const scenesTab = await import("./trial-scene.mjs");
 
     const { studentActors } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
@@ -3048,7 +3088,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const stashRows = stashMatrixRows(rooms, students, scene);
     const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
 
-    const initial = ROOM_SETUP_TABS.some(([key]) => key === tab) ? tab : "bedrooms";
+    const initial = roomSetupTab(tab, sceneHoldsRooms(scene));
 
     const result = await tableDialog({
         window: { title: game.i18n.format("DRPG.Vault.manageTitleOn", { scene: scene?.name ?? "" }) },
@@ -3058,15 +3098,17 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One size for all seven tabs, taken from the biggest of them - see
+        // One size for all eight tabs, taken from the biggest of them - see
         // `fitWindowToTabs`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fitTabs: true,
-        content: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens }),
+        content: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
+            scenesPanel: scenesTab.scenesTabHtml() }),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => readRoomSetupForm(d, { rooms, students, categories })
+                callback: (e, b, d) => ({ ...readRoomSetupForm(d, { rooms, students, categories }),
+                    scenes: scenesTab.readScenesTab(d.element) })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -3089,6 +3131,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
             });
             wireTwoRoomsCheck(root, rooms);
+            scenesTab.wireScenesTab(root, reason => setApplyBlock(root, "scenes", reason));
 
             const recount = where => recountTokenCells(where, scene);
 
@@ -3125,6 +3168,11 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     if (!Array.isArray(rowResults)) return null;
 
     if (bedroomClaimedTwice(rowResults)) return null;
+    // The Scenes tab's backstop, as `bedroomClaimedTwice` is the Bedrooms tab's: nothing is written.
+    if (scenesTab.scenesClash(result.scenes)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TrialScene.sameScene"));
+        return null;
+    }
 
     await applyDiscoveryChanges(scene, result.fogChanges ?? []);
 
@@ -3148,6 +3196,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     // assigned before keys existed are all of those. Not silent: a key arriving
     // on your sheet is news, and the sweep only writes when one was missing.
     await reconcileBedroomKeys({ silent: false });
+
+    await scenesTab.applyScenesTab(result.scenes);
 
     ui.notifications.info(plural("DRPG.Vault.appliedOn", { count: changed.size, scene: scene?.name ?? "" }, "count"));
     return changed.size;

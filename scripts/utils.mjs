@@ -1042,9 +1042,9 @@ export function windowWidthFor(root, content, widest) {
 /**
  * One size for a tabbed window, taken from its biggest tab.
  *
- * Room Setup holds a table behind each of its seven tabs (`ROOM_SETUP_TABS` in
+ * Room Setup holds a table behind each of its eight tabs (`ROOM_SETUP_TABS` in
  * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
- * was added) and they are nothing like each
+ * was added; the eighth, Scenes, is E13 C5's and holds no table) and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
  * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on

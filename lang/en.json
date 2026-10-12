@@ -1734,6 +1734,7 @@
       "descriptionIntro": "What each room looks like, in your own words. Anyone standing in a room can read its description by clicking the clock at the top of the screen.",
       "descriptionNote": "Plain text - it is shown to players exactly as typed. Leave one blank and the room simply has nothing written about it.",
       "tabFog": "Fog",
+      "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all - it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
       "fogNote": "Discover all / Hide all tick or clear every checkbox above for every character at once. Nothing changes until you press Apply. The individual checkboxes are for one room, one character.",
@@ -1896,7 +1897,23 @@
       "notMoved": {
         "one": "{n} living student stands on another scene and was not moved: {names}. Move them by hand.",
         "other": "{n} living students stand on another scene and were not moved: {names}. Move them by hand."
-      }
+      },
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it takes everybody back to the school and hides them. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
+      "school": "School",
+      "hall": "Trial hall",
+      "noScene": "- none -",
+      "castHeading": "The hall's cast",
+      "reveal": "Ticked: shown when the Class Trial opens. A token left unticked stays hidden - a test token, or a player nobody should see yet.",
+      "noCast": "The hall holds no token of a student or of Monokuma yet.",
+      "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
+      "noSchoolLinked": "No school is linked: ending the trial goes back to the scene that was active when it opened.",
+      "hallHasRooms": "This scene has regions marked as rooms: {names}. In the trial hall they are not rooms - is this the school's map? Regions not marked as rooms are fine here.",
+      "duplicateInHall": "More than one token in the hall stands for the same character, and a trial shows only the first. The others: {names}.",
+      "unlinkedToken": "Tokens in the hall not linked to their character: {names}. The dead overlay and the player's control are read off the character, so link each to its character.",
+      "prepare": "Prepare the hall on Apply: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
+      "preparePlaylist": "Also clear the hall's playlist",
+      "prepareVoice": "Also switch Proximity Voice Chat off in the hall (in the trial everybody is in one voice room)",
+      "prepareDone": "The trial hall {scene} is prepared."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -3508,6 +3525,8 @@
       "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room Setup. Movement, Search, Listen and every incident are answered in terms of them.",
       "step.roomsMarked": "Every named region is decided: a room or not",
       "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room Setup (the Doors tab). These named regions have not been decided yet.",
+      "step.scenes": "The school and the trial hall are linked",
+      "hint.scenes": "Room Setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
       "step.mastermind": "The Mastermind (optional)",

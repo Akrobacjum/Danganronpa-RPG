@@ -44,7 +44,7 @@ import { carriableCategories } from "./inventory.mjs";
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound, reconcileBedroomKeys, unconcealStashes, allBedroomsAnywhere } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 // A leaf: which named regions no GM has decided yet (E12 C1).
-import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms } from "./rooms.mjs";
+import { unmarkedRegions, roomRegions, roomPieces, piecesByName, sceneHoldsRooms, isPlaceScene, homeScene, schoolScene, trialScene } from "./rooms.mjs";
 import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag, serverNow, whisperToGms } from "./utils.mjs";
@@ -165,9 +165,15 @@ function undecidedRegionNames() {
     return [...new Set(found.map(({ scene, region }) => several ? `${scene.name}: ${region.name}` : region.name))];
 }
 
-function steps() {
+export function steps() {
     const roster = studentActors();
     const clock = getClock();
+    /* THE ROOM ROWS READ A PLACE (E13 C5, 12.10.2026; the orchestrator's re-anchor decision 6 of
+       11.10, rule A). They read the scene on the GM's screen, and a GM viewing the trial hall -
+       where every GM is taken for the trial since E13 C3, and which holds no room since C1 - was
+       told the season had no rooms. On a scene that is no place they read the school (`homeScene`). */
+    const viewed = workingScene();
+    const roomScene = isPlaceScene(viewed) ? viewed : homeScene();
 
     return [
         {
@@ -325,16 +331,16 @@ function steps() {
              * two answers Room Setup's own line prints, so the two screens can
              * no longer disagree about one map.
              */
-            done: sharedRooms(workingScene()).length >= roomsWantedFor(roster.length),
+            done: sharedRooms(roomScene).length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => roomCountLine(roster, workingScene())
+            extra: () => roomCountLine(roster, roomScene)
         },
         {
             key: "rooms",
             /* A ROOM, NOT A REGION (E12 fix r1-G5, 11.10.2026; review goal-r1 N1). This was done
                on `regions.size`, so a scene holding only a Teleport, or a player's region, passed
                it; it asks rooms.mjs now, the question the row's words ask. */
-            done: sceneHoldsRooms(workingScene()),
+            done: sceneHoldsRooms(roomScene),
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
             /*
@@ -363,6 +369,20 @@ function steps() {
             done: undecidedRegionNames().length === 0,
             missing: undecidedRegionNames,
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "doors" })
+        },
+        {
+            /*
+             * THE SCHOOL AND THE TRIAL HALL LINKED (E13 C5; plan-E13 C5, D7). With both linked
+             * every road into the Class Trial takes the table to the hall and back (trial-scene.mjs
+             * `followPhase`); with neither the trial opens wherever the table is, as before 1.2.74.
+             * `optional: true` for that reason - a table that holds its trial on the school's map
+             * has decided something. The button opens Room Setup on the Scenes tab.
+             */
+            key: "scenes",
+            optional: true,
+            done: Boolean(schoolScene() && trialScene()),
+            missing: () => [],
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog({ tab: "scenes" })
         },
         {
             /*

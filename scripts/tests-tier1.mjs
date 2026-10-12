@@ -6701,7 +6701,10 @@ const INVARIANTS = [
          * and D12. The audit's fix for S06-57 named a flag on the hall token, and a token's flags are written by whoever
          * owns it - the student's own player. Read in the source with comments blanked: trial-scene.mjs writes no setting and
          * one flag only (E13 C3: `trialReturnTo`, on the hall SCENE, which `enterTrialScene` writes and a GM's client
-         * reads - the owner's answer 1b; the count was 0 at C2 and R433 failed at C3 on the 1 until it was said here),
+         * reads - the owner's answer 1b; the count was 0 at C2 and R433 failed at C3 on the 1 until it was said here), and
+         * one setting (E13 C5, 12.10.2026: Room Setup's Scenes tab stores the school and hall roles in `sceneRoles`; R433
+         * failed on that 1 at C5 until it was named here, and the count of that exact write is the second 1 below, so a
+         * second setting write, or the cast going into this one, still moves it),
          * and writes the choice only through `trialCastStore`; `applyTrialCast` waits for the store to open
          * before it reads the cast, so a store that did not open shows nobody (the tier-2 "entering the trial ..." drives
          * that branch). Of the store: its spec (a ledger, cut with the trial floor's group, backed up and synced among the
@@ -6716,7 +6719,7 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("trial-scene.mjs"));
-        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,"]
+        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,", "settings.set(MODULE_ID, SETTINGS.sceneRoles,"]
             .map(text => code.split(text).length - 1);
         const apply = fnSource(code, "applyTrialCast");
         const [waits, reads] = ["await open()", "readCast(scene)"].map(text => apply.indexOf(text));
@@ -6726,9 +6729,9 @@ const INVARIANTS = [
         const at = (row, epoch) => T.castRow({ [K]: row }, H, "TOKEN", epoch);
         const seasons = [at({ reveal: false, epoch: 5 }, 5), at({ reveal: true, epoch: 4 }, 5), at({ reveal: true, epoch: 6 }, 5), at({ epoch: 5 }, 5), at(undefined, 5)];
         equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
-            JSON.stringify([[1, 0, 0, 0, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+            JSON.stringify([[1, 0, 1, 0, 1, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
                 "client", [{ reveal: false }, null, null, null, null]]),
-            "[trial-scene.mjs's setFlag (the one, on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag; `applyTrialCast` waits for the store before it reads the cast; "
+            "[trial-scene.mjs's setFlag (the one, on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles); `applyTrialCast` waits for the store before it reads the cast; "
             + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
     }],
 
@@ -6850,6 +6853,109 @@ const INVARIANTS = [
             + "trial the same six; voiceTargets reads the trial from the clock and places accounts with no character only in an Eclipse or the trial; "
             + "a browser's own question is answered from voiceTargets, not from its token]");
     }],
+
+    ["R120 - the Scenes tab: one scene cannot hold both roles, the hall's rooms and missing students are named, and an Apply that changed nothing writes nothing", async () => {
+        /*
+         * E13 C5, 12.10.2026; plan-E13 2.3 (V6, R120), doneWhen 3, amend 28.09, the owner's answers Q-E13-1 d and e
+         * (09.10), the A5 project's reserved R120. Until C5 no window linked the school and the hall or kept the
+         * cast's choice: a GM typed the setting into a console (scenario 41 a did, and the suite), and nothing said
+         * that the hall was the school's map, that a student had no token there, or that both roles named one
+         * scene. Asked of plain objects, so it reads no document and writes nothing (tier 1): Room Setup's tabs and
+         * the tab it opens on; `hallRoomNames` of a hall holding a region marked as a room, one marked "not a room"
+         * and an unmarked zone (amend 28.09: only the first is named); `sceneReport`'s rows for one scene in both
+         * roles, for a hall with a room, a second token of one actor, an unlinked token and one or two students
+         * without a token (the plural), for a hall with no school, and for a pair with nothing wrong;
+         * `scenesTabWrites` for an untouched form, a changed school (a stored field the tab does not show kept), a
+         * clash, a stored role whose scene is gone, a cast list of another hall, and "Prepare"; and
+         * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one. Then the
+         * window's own wiring, on a form drawn from the world's roles and never attached to the page: both
+         * selects set to one scene hold Apply, show the warning and decide no write; the Bedrooms tab's hold
+         * outlives the Scenes tab's (`setApplyBlock`); and the untouched form's Apply, with `game.settings.set`
+         * counted, sets nothing. The tier-2 "the Scenes tab links ..." and scenario 41 a apply it to documents.
+         * Red before C5: there was no `sceneReport`.
+         */
+        const T = await import("./trial-scene.mjs");
+        const V = await import("./vault.mjs");
+        const { plural } = await import("./utils.mjs");
+        ok(typeof T.sceneReport === "function" && typeof V.roomSetupTab === "function", "there is no Scenes tab - trial-scene.mjs has no `sceneReport`");
+        if (typeof T.sceneReport !== "function" || typeof V.roomSetupTab !== "function") return;
+        const tabs = [V.ROOM_SETUP_TABS.map(([key]) => key).at(-1), V.ROOM_SETUP_TABS.length,
+            V.roomSetupTab(null, true), V.roomSetupTab(null, false), V.roomSetupTab("doors", false), V.roomSetupTab("nonsense", true)];
+        const region = (name, room) => ({ id: `R120${name}`, name, behaviors: [], getFlag: (scope, key) => (scope === MODULE_ID && key === "room" ? room : undefined) });
+        const rooms = T.hallRoomNames({ regions: [region("Stand", true), region("Gallery", false), region("Zone", undefined)] });
+        const keys = report => report.map(row => `${row.key}${row.block ? "!" : ""}`);
+        const [A, B] = [{ id: "R120SCENEA" }, { id: "R120SCENEB" }];
+        const cast = [{ name: "Aiko", second: false, linked: true }, { name: "Aiko again", second: true, linked: true }, { name: "Prop", second: false, linked: false }];
+        const full = T.sceneReport({ school: A, hall: B, rooms: ["Stand"], cast, missing: ["Botan"] });
+        const two = T.sceneReport({ school: A, hall: B, missing: ["Botan", "Chie"] });
+        const reports = [keys(T.sceneReport({ school: A, hall: A })), keys(full), keys(T.sceneReport({ hall: B })), keys(T.sceneReport({ school: A, hall: B })),
+            full.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 1, names: "Botan" }),
+            two.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 2, names: "Botan, Chie" })];
+        const stored = { school: "R120SCENEA", trial: "R120SCENEB", zones: ["R120ZONE"] };
+        const read = (over = {}) => ({ school: "R120SCENEA", trial: "R120SCENEB", drawn: { school: "R120SCENEA", trial: "R120SCENEB" },
+            cast: { sceneId: "R120SCENEB", changes: {} }, prepare: null, ...over });
+        const writes = [T.scenesTabWrites(read(), stored), T.scenesTabWrites(read({ school: "R120SCENEC" }), stored),
+            T.scenesTabWrites(read({ school: "R120SCENEB" }), stored),
+            T.scenesTabWrites(read({ school: "", drawn: { school: "", trial: "R120SCENEB" } }), { ...stored, school: "R120GONE" }),
+            T.scenesTabWrites(read({ cast: { sceneId: "R120OTHER", changes: { t1: false } } }), stored),
+            T.scenesTabWrites(read({ cast: { sceneId: "R120SCENEB", changes: { t1: false } }, prepare: { playlist: true, voice: false } }), stored)];
+        const bare = { fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } }, playlist: "R120LIST", playlistSound: null,
+            flags: { "isometric-perspective": { isometricEnabled: true } }, getFlag: () => false };
+        const done = { fog: { exploration: false }, tokenVision: false, environment: { globalLight: { enabled: true } }, playlist: null, getFlag: () => true };
+        const patches = [[false, false, true], [true, false, true], [false, true, true], [false, true, false]]
+            .map(([playlist, voice, voiceActive]) => Object.keys(T.hallPreparePatch(bare, { playlist, voice, voiceActive })).sort());
+        patches.push(Object.keys(T.hallPreparePatch(done, { playlist: true, voice: true, voiceActive: true })));
+
+        must(game.scenes?.size >= 1, "the world has no scene to draw the Scenes tab's selects with - this would measure nothing");
+        const draw = () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<form>${T.scenesTabHtml()}</form><footer><button type="button" data-action="ok"></button></footer>`;
+            T.wireScenesTab(root, reason => V.setApplyBlock(root, "scenes", reason));
+            return root;
+        };
+        const root = draw();
+        const apply = root.querySelector('footer button[data-action="ok"]');
+        const [school, trial] = ["school", "trial"].map(role => root.querySelector(`[name="scenes:${role}"]`));
+        const one = game.scenes.contents[0].id;
+        school.value = one;
+        trial.value = one;
+        trial.dispatchEvent(new Event("change"));
+        const clash = [apply.disabled, Boolean(root.querySelector('[data-drpg-scene-warning="sameScene"]')),
+            JSON.stringify(T.scenesTabWrites(T.readScenesTab(root), (await import("./rooms.mjs")).sceneRoles()))];
+        V.setApplyBlock(root, "bedrooms", "R120 two bedrooms");
+        trial.value = "";
+        trial.dispatchEvent(new Event("change"));
+        const held = apply.disabled;
+        V.setApplyBlock(root, "bedrooms", null);
+        clash.push(held, apply.disabled);
+        const set = game.settings.set;
+        let sets = 0, applied = null;
+        try {
+            game.settings.set = async (...args) => { sets++; return null; };
+            applied = await T.applyScenesTab(T.readScenesTab(draw()));
+        } finally {
+            game.settings.set = set;
+        }
+
+        equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied]), JSON.stringify([
+            ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
+            [["sameScene!"], ["hallHasRooms", "missingTokens", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true],
+            [{ roles: null, cast: null, prepare: null },
+                { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
+                { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null },
+                { roles: null, cast: { sceneId: "R120SCENEB", changes: { t1: false } }, prepare: { sceneId: "R120SCENEB", playlist: true, voice: false } }],
+            [["environment.globalLight.enabled", "fog.exploration", "tokenVision"],
+                ["environment.globalLight.enabled", "fog.exploration", "playlist", "playlistSound", "tokenVision"],
+                ["environment.globalLight.enabled", "flags.proximity-voice-chat.disabled", "fog.exploration", "tokenVision"],
+                ["environment.globalLight.enabled", "fog.exploration", "tokenVision"], []],
+            [true, true, JSON.stringify({ roles: null, cast: null, prepare: null }), true, false],
+            0, { roles: false, cast: false, shown: null, prepared: null }]),
+            "[Room Setup's last tab, its count, the tab it opens on (a scene with rooms, one without, Doors asked, a tab that is none); the hall's room names; "
+            + "the report's rows for one scene twice, a hall with everything wrong, no school, nothing wrong, and its one and two missing students; what Apply "
+            + "would write for an untouched form, a changed school, a clash, a gone role untouched, another hall's cast, a tick and Prepare; Prepare's fields "
+            + "bare, with the playlist, with the voice, with the voice ticked and its module off, and on a prepared scene; the drawn tab with one scene twice: "
+            + "Apply held, the warning, no write; Apply still held by the Bedrooms tab, then free; settings.set calls and the answer of an untouched Apply]");
+    }],
 ];
 
 /**
@@ -6883,6 +6989,8 @@ const LITERAL_KEYS = [
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     // E12 C1: the row that names the regions no GM has decided.
     "DRPG.Season.step.roomsMarked", "DRPG.Season.hint.roomsMarked",
+    // E13 C5: the row that says whether the school and the trial hall are linked.
+    "DRPG.Season.step.scenes", "DRPG.Season.hint.scenes",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
     "DRPG.Monocub.help", "DRPG.Monocub.hinder",

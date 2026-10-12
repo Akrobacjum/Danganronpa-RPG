@@ -22,8 +22,9 @@
  *      Monokuma; Chie is unticked, the test student stays hidden, the decoration is never touched. Since
  *      E13 C1 the GM links the Academy as the school and the hall as the trial hall once it is built, and
  *      since C2 stores that choice (trial-scene.mjs `saveTrialCast`: Chie unticked, the dead student
- *      ticked - nobody plays him - and the rest as `defaultReveal` has them) and the module shows it; and
- *      (a3) p1 hides Aiko's hall token from its own browser and the primary puts it back.
+ *      ticked - nobody plays him - and the rest as `defaultReveal` has them) and the module shows it; since
+ *      C5 (a0) both through Room Setup's Scenes tab, its window drawn on the GM; and (a3) p1 hides Aiko's
+ *      hall token from its own browser and the primary puts it back.
  *   b  p1 moves Aiko's hall token from one of the hall's rooms to the other during the trial: vetoes,
  *      Aiko's actions, the chat, and every other write the move caused; and (C1) what every browser, the
  *      hall active and on its screen, takes for the school and makes of the hall.
@@ -61,6 +62,8 @@
  * E13 C3b's i: 20 checks in 47.1 s, one run on 12.10.2026 (alone, `--verbose`; C3's j and e were in it already).
  * E13 C4's h1 (rewritten, no check added): 20 checks in 52.1 s, and 49.8 s with HEAD's voice.mjs, one run each on
  * 12.10.2026 (`--verbose`, lane A; other harness runs were on the machine at the time, so not alone).
+ * E13 C5's a0: 21 checks in 49.2 s, 53 s from the command to its exit, one run on 12.10.2026 (`--verbose`; no other
+ * run of this worktree beside it, whether one of another was on the machine not checked).
  */
 export const layers = ["ci"];
 /* f's player, seeded inactive and brought to the table held at the end of its load (cluster.mjs `connect`). */
@@ -160,16 +163,48 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, conn
             texture: { src: "icons/svg/mystery-man.svg" } });
         await hall.createEmbeddedDocuments("Token", [token("Aiko", "${IDS.aiko}", 300), token("Botan", "${IDS.botan}", 400), token("Chie", "${IDS.chie}", 500),
             token("Ghost", ghost.id, 600), token("Monokuma", "ACTORMONOKUMA000", 700), token("Test", test.id, 800), token("Decor", decor.id, 1500, false)]);
-        /* The scenes linked as a GM links them once (E13 C1; the Scenes tab of Room Setup is C5): the Academy the school, this the hall. */
-        const linked = game.settings.settings.has("${MOD}.sceneRoles");
-        if (linked) await game.settings.set("${MOD}", "sceneRoles", { ...(game.settings.get("${MOD}", "sceneRoles") ?? {}), school: academy.id, trial: hall.id });
-        /* The choice stored as a GM stores it (E13 C2; the Scenes tab is C5): Chie unticked, the dead student ticked (nobody
-           plays him, so he is hidden by default); Aiko, Botan and Monokuma as \`defaultReveal\` has them, the test student hidden. */
-        const T = await import("${repoUrl}/scripts/trial-scene.mjs").catch(() => null);
+        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size };`, { timeout: 60000 });
+    /* The scenes linked and the cast chosen as a GM does it since E13 C5: in Room Setup's Scenes tab, its window drawn on the
+       GM (over the Academy, the scene the GM views), the Academy picked as the school and the hall as the trial hall, the
+       hall's cast list drawn for it, Chie unticked and the dead student ticked (nobody plays him, so he is hidden by default);
+       Aiko, Botan and Monokuma as \`defaultReveal\` has them, the test student hidden. Until C5 this phase wrote the setting
+       and \`saveTrialCast\` from the console. */
+    const tab = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const T = await import("${repoUrl}/scripts/trial-scene.mjs");
+        const title = game.i18n.format("DRPG.Vault.manageTitleOn", { scene: academy.name });
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
         const byName = name => hall.tokens.find(t => t.name === name).id;
-        const chose = T ? await T.saveTrialCast(hall, { [byName("Chie")]: false, [byName("Ghost")]: true }) : null;
-        return { hall: hall.id, died, dead: game.drpg.isDeadForGm(ghost), tokens: hall.tokens.size, linked, chose };`, { timeout: 60000 });
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        let read = null, closed = "hung";
+        try {
+            const pending = V.openRoomSetupDialog();
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const field = name => el?.querySelector(\`[name="\${name}"]\`) ?? null;
+            const pick = (role, id) => { const select = field("scenes:" + role); if (select) { select.value = id; select.dispatchEvent(new Event("change")); } };
+            pick("school", academy.id);
+            pick("trial", hall.id);
+            const box = name => field("cast:" + byName(name));
+            read = { last: [...(el?.querySelectorAll("[data-drpg-tab]") ?? [])].at(-1)?.dataset.drpgTab ?? null,
+                warnings: [...(el?.querySelectorAll("[data-drpg-scene-warning]") ?? [])].map(p => p.dataset.drpgSceneWarning),
+                rooms: el?.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
+                    === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Gallery, Stand" }),
+                ticks: Object.fromEntries(["Aiko", "Botan", "Chie", "Ghost", "Monokuma", "Test"].map(name => [name, box(name)?.checked ?? null])),
+                held: Boolean(el?.querySelector('footer button[data-action="ok"]')?.disabled) };
+            if (box("Chie")) box("Chie").checked = false;
+            if (box("Ghost")) box("Ghost").checked = true;
+            el?.querySelector('footer button[data-action="ok"]')?.click();
+            closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
+        } finally { globalThis.__dialogWindows = was; }
+        await new Promise(r => setTimeout(r, 800));
+        const roles = R.sceneRoles(), stored = T.readTrialCast(hall);
+        const names = Object.fromEntries(Object.entries(stored).map(([id, reveal]) => [hall.tokens.get(id)?.name ?? id, reveal]));
+        return { read, closed, linked: roles.school === academy.id && roles.trial === hall.id, stored: names };`, { timeout: 60000 });
+    Object.assign(built, { linked: tab.linked, chose: tab.linked && J(tab.stored) === J({ Chie: false, Ghost: true }) });
     await settle(400);
+    check("a0: Room Setup's last tab, Scenes, links the Academy and the hall, names the hall's two rooms, draws the hall's cast as `defaultReveal` has it, and stores Chie unticked and the dead student ticked (E13 C5)",
+        tab.closed === "closed" && tab.read?.last === "scenes" && J(tab.read.warnings) === J(["hallHasRooms"]) && tab.read.rooms === true && tab.read.held === false
+            && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
+        J(tab), { flow: "class-trial" });
     const before = await readAll();
     const opened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
         await setClock({ phase: "classTrial" }); await new Promise(r => setTimeout(r, 800)); return getClock().phase;`, { timeout: 60000 });

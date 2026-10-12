@@ -50214,6 +50214,170 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([0, true, true, false]),
             "[how often the verdict wrote the clock, the phase as it was, the verdict posted a card at all, a card says the trial is over]");
     }],
+    ["the Scenes tab links the school and the hall and stores the GMs' choice of the cast hidden outside the trial; one scene in both roles writes nothing; the room rows read the school while the hall is on screen", async () => {
+        /*
+         * E13 C5, 12.10.2026; plan-E13 C5 (V6, doneWhen 3; R120 asks the same functions of plain objects), the owner's
+         * answers Q-E13-1 d and e (09.10), decision D7. Until C5 the school and the hall were linked, and the cast chosen,
+         * from a console. Here, in a GM-store world of the suite's own, a scene with no region is viewed and Room Setup
+         * opened over it (answered at once); then a school (one room) and a hall (a region marked as a room, an unmarked
+         * zone; a token of each of two students players play, a second token of the first, Monokuma's, an unlinked token of
+         * a student nobody plays (made here), and a prop; isometric-perspective's flag set) are made, a stored field the tab
+         * does not show is written beside the roles, and the GM views the school. Room Setup is answered three times by a
+         * stand-in for DialogV2.wait that wires the Scenes tab as the window's render does and presses Apply: the school
+         * and the hall picked, the second student unticked and "Prepare the hall" ticked; then both roles on the hall; then
+         * nothing touched. Read: the tab the bare scene opened on; the warnings the hall drew; the roles stored and the
+         * field kept; the choice stored; the hall's tokens shown after the first Apply (outside the trial the cast is
+         * hidden; the prop is not cast); what Prepare left to do and the isometric flag; the warning of the clash and the
+         * writes of the role setting in the last two; and Season setup's room rows and the Scenes row with the school, then
+         * the hall, on screen. Scenario 41 a drives the drawn window on four browsers. Red before C5: no Scenes tab.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.wireScenesTab === "function", "there is no Scenes tab - trial-scene.mjs has no `wireScenesTab`");
+        if (typeof T.wireScenesTab !== "function") return;
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const SS = await import("./season-setup.mjs");
+        const { trialCastStore } = await import("./gm-stores.mjs");
+        const { getClock } = await import("./settings.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const played = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma) && ownerIdsOf(a).length);
+        const monokuma = game.actors.find(a => a.type === "character" && a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(played.length >= 2 && monokuma, "the world has fewer than two students players play, or no Monokuma, to stand in the hall");
+        must(getClock().phase !== "classTrial", "the world is in a Class Trial - the hall's cast would be shown, not hidden");
+        const [first, second] = played;
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the scene roles are not a setting - nothing could be linked");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY);
+        const viewing = canvas?.scene ?? null;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const set = game.settings.set, warn = ui.notifications.warn;
+        const ZONE = "SUITE-E13C5-ZONE";
+        const region = (name, x, room) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 800, height: 800 }],
+            flags: room ? { [MODULE_ID]: { [R.ROOM_FLAG]: true } } : {}, behaviors: [] });
+        let read = null;
+        await G.withGmStoreWorld(`suite-e13c5-${foundry.utils.randomID(8)}`, async () => {
+            let bare = null, school = null, hall = null, nobody = null, absent = false;
+            const warned = [];
+            let writes = 0;
+            try {
+                game.settings.set = async (...args) => { if (args[0] === MODULE_ID && args[1] === KEY) writes++; return set.apply(game.settings, args); };
+                ui.notifications.warn = message => { warned.push(String(message)); return warn.call(ui.notifications, message); };
+                const scene = name => Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                bare = await scene("SUITE E13 C5 a map with no region");
+                await bare.view();
+                await settle();
+                must(canvas?.scene === bare, "the camera did not move to the suite's bare scene - Room Setup would open on another");
+                let opened = null;
+                D.wait = async cfg => {
+                    const box = document.createElement("div");
+                    if (typeof cfg?.content === "string") box.innerHTML = cfg.content;
+                    else if (cfg?.content) box.append(cfg.content.cloneNode(true));
+                    opened = box.querySelector(".drpg-dashboard-tab.active")?.dataset.drpgTab ?? null;
+                    return null;
+                };
+                await V.openRoomSetupDialog();
+                school = await scene("SUITE E13 C5 the school");
+                await school.createEmbeddedDocuments("Region", [region("SUITE E13 C5 a classroom", 0, true)]);
+                hall = await Scene.create({ name: "SUITE E13 C5 the hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+                    fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } },
+                    flags: { "isometric-perspective": { isometricEnabled: true } } });
+                await hall.createEmbeddedDocuments("Region", [region("Stand", 0, true), region("Zone", 1000, false)]);
+                nobody = await Actor.create({ name: "SUITE E13 C5 nobody plays", type: "character" });
+                const token = (name, actorId, x, hidden, actorLink = Boolean(actorId)) => ({ name, actorId, actorLink, x, y: 300, width: 1, height: 1, hidden });
+                await hall.createEmbeddedDocuments("Token", [token("first", first.id, 100, false), token("second", second.id, 200, false),
+                    token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
+                    token("prop", null, 600, false)]);
+                const id = name => hall.tokens.find(t => t.name === name)?.id;
+                absent = T.studentsWithoutHallToken(hall).length > 0;
+                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
+                await school.view();
+                await settle();
+                must(canvas?.scene === school, "the camera did not move to the suite's school - Room Setup would open on another");
+                /* The room fog took Foundry's vision off the hall when its Stand was drawn, before it was linked
+                   (fog.mjs `applySceneVisionMode`; the harness logs it), so the three fields are put back here for
+                   Prepare to find. `fog` is given at creation: the harness's documents expose only the fields they
+                   were made with, and an update of one they lacked is not read back (measured 12.10: Prepare's
+                   `fog.exploration` stayed due). */
+                await hall.update({ fog: { exploration: true }, tokenVision: true, environment: { globalLight: { enabled: false } } });
+                const prepareBefore = Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })).sort();
+                let drawn = null;
+                const answer = fill => async cfg => {
+                    const element = document.createElement("div"), form = document.createElement("form");
+                    if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                    else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                    element.append(form);
+                    T.wireScenesTab(element);
+                    const field = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+                    must(field("scenes:school") && field("scenes:trial"), "Room Setup drew no Scenes tab - this would measure nothing");
+                    fill(field, element);
+                    const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                    return apply.callback(new Event("click"), apply, { element });
+                };
+                const pick = (field, role, value) => { field(`scenes:${role}`).value = value; field(`scenes:${role}`).dispatchEvent(new Event("change")); };
+                D.wait = answer((field, element) => {
+                    pick(field, "school", school.id);
+                    pick(field, "trial", hall.id);
+                    drawn = [[...element.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).sort(),
+                        element.querySelector('[data-drpg-scene-warning="hallHasRooms"]')?.textContent
+                            === game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: "Stand" }),
+                        element.querySelector("[data-drpg-cast]")?.dataset.drpgCast === hall.id, Boolean(field(`cast:${id("first again")}`)?.disabled)];
+                    must(field(`cast:${id("second")}`)?.checked, "the second student's box was not ticked - unticking it would change nothing");
+                    field(`cast:${id("second")}`).checked = false;
+                    field("scenes:prepare").checked = true;
+                });
+                await V.openRoomSetupDialog();
+                await settle();
+                const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
+                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().zones ?? null), writes];
+                const stored = [trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, id("first")))];
+                const prepared = [prepareBefore, Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })),
+                    hall.flags?.["isometric-perspective"]?.isometricEnabled ?? null];
+                writes = 0;
+                warned.length = 0;
+                D.wait = answer(field => { pick(field, "school", hall.id); pick(field, "trial", hall.id); });
+                const refused = await V.openRoomSetupDialog();
+                await settle();
+                const clash = [refused, warned.includes(game.i18n.localize("DRPG.TrialScene.sameScene")), writes, R.schoolScene() === school];
+                writes = 0;
+                D.wait = answer(() => {});
+                await V.openRoomSetupDialog();
+                await settle();
+                const untouched = [writes, trialCastStore.get(T.castKey(hall.id, id("second")))?.reveal ?? null];
+                const rows = () => SS.steps().filter(row => ["roomCount", "rooms", "scenes"].includes(row.key))
+                    .map(row => [row.key, row.done, row.extra?.() ?? null]);
+                const onSchool = rows();
+                await hall.view();
+                await settle();
+                must(canvas?.scene === hall, "the camera did not move to the suite's hall");
+                const onHall = rows();
+                read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
+                    onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
+                    ["duplicateInHall", "hallHasRooms", ...(absent ? ["missingTokens"] : []), "unlinkedToken"]];
+            } finally {
+                game.settings.set = set;
+                ui.notifications.warn = warn;
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                await set.call(game.settings, MODULE_ID, KEY, rolesBefore ?? {});
+                await viewing?.view();
+                for (const doc of [bare, school, hall, nobody]) await doc?.delete();
+                await settle();
+            }
+        });
+        const warnings = read?.at(-1) ?? [];
+        equal(JSON.stringify(read), JSON.stringify(["scenes", [warnings, true, true, true],
+            [true, true, stableJson([ZONE]), 1], [false, false], ["prop"],
+            [["environment.globalLight.enabled", "fog.exploration", "tokenVision"], [], true],
+            [null, true, 0, true], [0, false],
+            [["rooms", true], ["scenes", true]], true, warnings]),
+            "[the tab Room Setup opened on over a scene with no region; the hall's warnings, the Stand alone named, the cast list the hall's and its second token "
+            + "off; the school and the hall linked, the field the tab does not show kept, the role setting's writes; the second student's untick stored, "
+            + "a row for the first; the hall's tokens shown after Apply; what Prepare had to do and has left, and the isometric flag; the clash's answer, its "
+            + "warning, its writes, the school still linked; an untouched Apply's writes and the untick kept; the Rooms and Scenes rows with the school "
+            + "on screen, and the room rows (the count's line too) the same with the hall on screen; the warnings expected]");
+    }],
     ...GRID
 ];
 

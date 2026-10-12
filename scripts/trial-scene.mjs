@@ -81,12 +81,16 @@
  * 09.10.2026): the hall in the trial, the school out of it, and only when the scene it shows is
  * not the one a GM made active. Once, so a GM's later pull of one player to another scene stands;
  * never on a GM's browser. The view decides no rule (rooms.mjs `CAMERA_READERS`).
+ *
+ * THE GM LINKS THE SCENES AND CHOOSES THE CAST IN A WINDOW (E13 C5): Room Setup's last tab, drawn,
+ * read and applied by the functions under "THE SCENES TAB" below.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
-import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames } from "./rooms.mjs";
+import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames, isRoom, sceneRoles, forgetSceneRoles } from "./rooms.mjs";
+import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
@@ -461,6 +465,261 @@ async function watchCastCreated(tokenDoc, options, userId) {
     } catch (err) {
         error("Could not tell the GMs of a token a player made in the trial hall", err);
     }
+}
+
+/*
+ * THE SCENES TAB (E13 C5, 12.10.2026; plan-E13 C5, doneWhen 3, R120; the owner's answers Q-E13-1 d
+ * and e of 09.10). Until this commit no window linked the two scenes or kept the cast's choice:
+ * scenario 41 a and the suite wrote the setting and `saveTrialCast` from a console. Room Setup's
+ * last tab (vault.mjs `ROOM_SETUP_TABS`) does it now: a select for the school and one for the
+ * hall, the hall's cast with a tick each, what is wrong with the pair (`sceneReport`), and
+ * "Prepare the hall". It warns and places nothing (D7): a student with no token in the hall is
+ * named, never given one. Room Setup opens on it when its scene holds no room (Q-E13-1 e).
+ *
+ * WHAT THE GM CHANGED, NOT WHAT THE FORM SAYS. A select or a tick counts only when it differs from
+ * what the window drew (`data-drawn`, `defaultChecked`), as the Fog tab's boxes do (vault.mjs
+ * `readRoomSetupForm`): an Apply that changed nothing here writes nothing here - Room Setup is
+ * applied for its other tabs far more often than for this one - and a role whose scene was
+ * deleted is not cleared by a GM who only opened the window. The roles are merged into what is
+ * stored (plan page 11.10), so a field this tab does not show (a later `zones`) survives its save.
+ */
+
+/** The scene id stored for a role when its scene still exists, else "" - what the tab's select draws. */
+function drawnRole(roles, role) {
+    const id = roles?.[role];
+    return typeof id === "string" && id && game.scenes?.get?.(id) ? id : "";
+}
+
+/** The names of the hall's regions a GM marked as rooms; a region nobody marked is a zone and is not named (amend 28.09). */
+export function hallRoomNames(hall) {
+    return [...new Set(Array.from(hall?.regions ?? []).filter(isRoom).map(region => region.name))]
+        .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * What the Scenes tab warns of, as rows `{ key, text, block }` - `block` holds Apply. Handed the
+ * school and the hall (a scene, or anything with an `id`) and what the hall holds: `rooms`, the
+ * names of its room regions; `cast`, `readCast`'s rows with `linked`; `missing`, the names of the
+ * students a player plays with no token in it. Reads nothing else (R120 asks it of plain objects).
+ */
+export function sceneReport({ school = null, hall = null, rooms = [], cast = [], missing = [] } = {}) {
+    const rows = [];
+    const row = (key, text, block = false) => rows.push({ key, text, block });
+    const names = list => list.map(name => esc(name)).join(", ");
+    if (school?.id && school.id === hall?.id) row("sameScene", game.i18n.localize("DRPG.TrialScene.sameScene"), true);
+    if (!school?.id) row("noSchoolLinked", game.i18n.localize("DRPG.TrialScene.noSchoolLinked"));
+    if (!hall?.id) return rows;
+    if (rooms.length) row("hallHasRooms", game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: names(rooms) }));
+    if (missing.length) row("missingTokens", plural("DRPG.TrialScene.missingTokens", { n: missing.length, names: names(missing) }));
+    const seconds = cast.filter(token => token.second).map(token => token.name);
+    if (seconds.length) row("duplicateInHall", game.i18n.format("DRPG.TrialScene.duplicateInHall", { names: names(seconds) }));
+    const unlinked = cast.filter(token => token.linked === false).map(token => token.name);
+    if (unlinked.length) row("unlinkedToken", game.i18n.format("DRPG.TrialScene.unlinkedToken", { names: names(unlinked) }));
+    return rows;
+}
+
+/**
+ * `sceneReport` of two scenes as they are: the hall's room names, its cast as the GMs hold it
+ * (`readCast`) with whether each token is linked to its actor - the dead overlay and a player's
+ * ownership are read off the actor, so an unlinked token shows neither - and the students a player
+ * plays with no token there (`studentsWithoutHallToken`, the entry whisper's list).
+ */
+export function scenesReportOf(school, hall) {
+    const cast = hall ? readCast(hall).map(token => ({ ...token, linked: Boolean(hall.tokens.get(token.id)?.actorLink) })) : [];
+    return sceneReport({ school, hall, rooms: hallRoomNames(hall), cast,
+        missing: hall ? studentsWithoutHallToken(hall).map(actor => actor.name) : [] });
+}
+
+function reportHtml(school, hall) {
+    return scenesReportOf(school, hall).map(row =>
+        `<p class="drpg-warning" data-drpg-scene-warning="${row.key}">${row.text}</p>`).join("");
+}
+
+/**
+ * The hall's cast with a "reveal in the trial" tick each: ticked as the GMs' stored choice has it,
+ * else as `defaultReveal` does; a second token of one actor drawn off, as a trial never shows it.
+ * The box carries the hall's id, so a list drawn for another hall is not read as this one's.
+ */
+export function castPickerHtml(hall) {
+    if (!hall?.tokens) return "";
+    const stored = readTrialCast(hall);
+    const rows = readCast(hall).map(token => {
+        const reveal = token.second ? false : token.id in stored ? stored[token.id] : defaultReveal(token);
+        return `<li><label><input type="checkbox" name="cast:${esc(token.id)}"${reveal ? " checked" : ""}${
+            token.second ? " disabled" : ""} /> ${esc(token.name)}</label></li>`;
+    });
+    return `<div data-drpg-cast="${esc(hall.id)}">
+        <h4>${game.i18n.localize("DRPG.TrialScene.castHeading")}</h4>
+        <p class="notes">${game.i18n.localize("DRPG.TrialScene.reveal")}</p>
+        ${rows.length ? `<ul class="drpg-cast-list">${rows.join("")}</ul>`
+            : `<p class="notes">${game.i18n.localize("DRPG.TrialScene.noCast")}</p>`}
+    </div>`;
+}
+
+/** The ticks the GM changed in a cast list, `{ sceneId, changes: { tokenId: reveal } }`, or null when none is drawn. */
+export function readCastPicker(root) {
+    const box = root?.querySelector?.("[data-drpg-cast]");
+    if (!box) return null;
+    const changes = {};
+    for (const input of box.querySelectorAll('input[type="checkbox"][name^="cast:"]')) {
+        if (input.disabled || input.checked === input.defaultChecked) continue;
+        changes[input.name.slice("cast:".length)] = input.checked;
+    }
+    return { sceneId: box.dataset.drpgCast, changes };
+}
+
+/** proximity-voice-chat's id: its `disabled` scene flag is the one this module's voice check reads (voice.mjs `competingModuleWarnings`). */
+const PROXIMITY_VOICE = "proximity-voice-chat";
+
+/** The Scenes tab's panel: the two selects, the warnings and the cast of the hall linked now, and "Prepare the hall". */
+export function scenesTabHtml(roles = sceneRoles()) {
+    const drawn = { school: drawnRole(roles, "school"), trial: drawnRole(roles, "trial") };
+    const scenes = Array.from(game.scenes ?? []).sort((a, b) => a.name.localeCompare(b.name));
+    const select = role => `<select name="scenes:${role}" data-drawn="${esc(drawn[role])}">
+        <option value="">${game.i18n.localize("DRPG.TrialScene.noScene")}</option>
+        ${scenes.map(scene => `<option value="${esc(scene.id)}"${scene.id === drawn[role] ? " selected" : ""}>${esc(scene.name)}</option>`).join("")}
+    </select>`;
+    const [school, hall] = [drawn.school, drawn.trial].map(id => (id ? game.scenes.get(id) : null) ?? null);
+    const voice = game.modules?.get?.(PROXIMITY_VOICE)?.active
+        ? `<label><input type="checkbox" name="scenes:prepareVoice" /> ${game.i18n.localize("DRPG.TrialScene.prepareVoice")}</label>` : "";
+    return `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>
+        <div class="drpg-scene-roles">
+            <label>${game.i18n.localize("DRPG.TrialScene.school")} ${select("school")}</label>
+            <label>${game.i18n.localize("DRPG.TrialScene.hall")} ${select("trial")}</label>
+        </div>
+        <div data-drpg-scenes-report>${reportHtml(school, hall)}</div>
+        <div data-drpg-cast-box>${castPickerHtml(hall)}</div>
+        <fieldset class="drpg-scene-prepare">
+            <label><input type="checkbox" name="scenes:prepare" /> ${game.i18n.localize("DRPG.TrialScene.prepare")}</label>
+            <label><input type="checkbox" name="scenes:preparePlaylist" /> ${game.i18n.localize("DRPG.TrialScene.preparePlaylist")}</label>
+            ${voice}
+        </fieldset>`;
+}
+
+/**
+ * The tab's live half, in a drawn window: the warnings follow both selects, the cast list follows
+ * the hall's (a GM linking a hall picks its cast in the same Apply), and `block(reason | null)`
+ * holds Apply while both name one scene (vault.mjs `setApplyBlock`).
+ */
+export function wireScenesTab(root, block = () => {}) {
+    const [school, trial] = ["school", "trial"].map(role => root?.querySelector?.(`[name="scenes:${role}"]`));
+    const report = root?.querySelector?.("[data-drpg-scenes-report]");
+    const castBox = root?.querySelector?.("[data-drpg-cast-box]");
+    if (!school || !trial || !report || !castBox) return;
+    const scene = select => (select.value ? game.scenes.get(select.value) : null) ?? null;
+    const redraw = () => {
+        report.innerHTML = reportHtml(scene(school), scene(trial));
+        block(scenesClash({ school: school.value, trial: trial.value }) ? game.i18n.localize("DRPG.TrialScene.sameScene") : null);
+    };
+    school.addEventListener("change", redraw);
+    trial.addEventListener("change", () => {
+        castBox.innerHTML = castPickerHtml(scene(trial));
+        redraw();
+    });
+    redraw();
+}
+
+/**
+ * What the Scenes tab hands Apply: each select's value and what it drew, the cast list's changed
+ * ticks, and whether (and how) to prepare the hall. Null when the tab is not in the form.
+ */
+export function readScenesTab(root) {
+    const pick = name => root?.querySelector?.(`[name="scenes:${name}"]`) ?? null;
+    const [school, trial] = [pick("school"), pick("trial")];
+    if (!school || !trial) return null;
+    return {
+        school: school.value, trial: trial.value,
+        drawn: { school: school.dataset.drawn ?? "", trial: trial.dataset.drawn ?? "" },
+        cast: readCastPicker(root),
+        prepare: pick("prepare")?.checked
+            ? { playlist: Boolean(pick("preparePlaylist")?.checked), voice: Boolean(pick("prepareVoice")?.checked) } : null
+    };
+}
+
+/** Whether a reading of the tab names one scene for both roles - Apply is refused before anything is written. */
+export function scenesClash(read) {
+    return Boolean(read?.school) && read.school === read.trial;
+}
+
+/**
+ * What an Apply of the tab writes, decided before it writes: `roles`, the whole object to store or
+ * null when no select the GM changed differs from what is stored (merged into `stored`); `cast`,
+ * the changed ticks when they belong to the hall the Apply leaves linked; `prepare`, the hall and
+ * the two ticks. All null for a clash. Pure (R120 asks it of plain objects).
+ */
+export function scenesTabWrites(read, stored = {}) {
+    const none = { roles: null, cast: null, prepare: null };
+    if (!read || scenesClash(read)) return none;
+    const patch = {};
+    for (const role of ["school", "trial"]) if (read[role] !== read.drawn?.[role]) patch[role] = read[role] || null;
+    const moved = Object.keys(patch).some(role => (stored?.[role] ?? null) !== patch[role]);
+    const hall = read.trial || null;
+    const changes = read.cast?.sceneId === hall ? read.cast.changes ?? {} : {};
+    return {
+        roles: moved ? { ...(stored ?? {}), ...patch } : null,
+        cast: hall && Object.keys(changes).length ? { sceneId: hall, changes } : null,
+        prepare: hall && read.prepare ? { sceneId: hall, playlist: Boolean(read.prepare.playlist), voice: Boolean(read.prepare.voice) } : null
+    };
+}
+
+/**
+ * The fields "Prepare the hall" writes, for one update (the owner's answer Q-E13-1 d, 09.10.2026):
+ * Foundry's own always - its exploration fog off (fog.mjs `fogOffPatch`), token vision off, the
+ * global light on, so every browser sees the hall whole and lit as a player with no token in it
+ * would otherwise not; the scene's playlist cleared only when `playlist` is ticked; the
+ * proximity-voice-chat module's `disabled` flag only when `voice` is ticked and that module is
+ * active (its `getFlag` would throw otherwise) - whether that module honours the flag is read in
+ * this module's own voice check, not measured with that module; and never another module's flag,
+ * isometric-perspective's above all: a hall may be isometric on purpose. Only what differs.
+ */
+export function hallPreparePatch(scene, { playlist = false, voice = false,
+    voiceActive = Boolean(game.modules?.get?.(PROXIMITY_VOICE)?.active) } = {}) {
+    if (!scene) return {};
+    const update = { ...fogOffPatch(scene) };
+    if (scene.tokenVision !== false) update.tokenVision = false;
+    if (scene.environment?.globalLight?.enabled !== true) update["environment.globalLight.enabled"] = true;
+    if (playlist && (scene.playlist || scene.playlistSound)) Object.assign(update, { playlist: null, playlistSound: null });
+    if (voice && voiceActive && scene.getFlag?.(PROXIMITY_VOICE, "disabled") !== true) update[`flags.${PROXIMITY_VOICE}.disabled`] = true;
+    return update;
+}
+
+/** "Prepare the hall" on a GM: one update of `hallPreparePatch`'s fields, told to this GM. Answers the fields written. */
+export async function prepareTrialScene(scene, { playlist = false, voice = false } = {}) {
+    if (!game.user?.isGM || !scene) return null;
+    const update = hallPreparePatch(scene, { playlist, voice });
+    if (Object.keys(update).length) await scene.update(update);
+    ui.notifications?.info?.(game.i18n.format("DRPG.TrialScene.prepareDone", { scene: scene.name }));
+    return update;
+}
+
+/**
+ * Apply the Scenes tab on a GM, after Room Setup's own checks passed: the roles when they moved,
+ * the cast's changed ticks (`saveTrialCast`), then - when the linked hall or its choice changed -
+ * the hall's tokens as the phase wants them: out of the trial the whole cast hidden, so the hall
+ * rests until a trial opens; in the trial with the hall active the new choice, one diff
+ * (`applyTrialCast`); in the trial with another scene active nothing - relinking switches no scene.
+ * Then "Prepare the hall". Answers what it did, or null off a GM.
+ */
+export async function applyScenesTab(read) {
+    if (!game.user?.isGM || !read) return null;
+    const stored = sceneRoles();
+    const writes = scenesTabWrites(read, stored);
+    const done = { roles: false, cast: false, shown: null, prepared: null };
+    if (writes.roles) {
+        await game.settings.set(MODULE_ID, SETTINGS.sceneRoles, writes.roles);
+        forgetSceneRoles();
+        done.roles = true;
+    }
+    const hall = read.trial ? game.scenes?.get?.(read.trial) ?? null : null;
+    if (writes.cast && hall) done.cast = await saveTrialCast(hall, writes.cast.changes);
+    const relinked = done.roles && (stored.trial ?? null) !== (writes.roles.trial ?? null);
+    if (hall && (relinked || done.cast)) {
+        const trial = getClock().phase === "classTrial";
+        if (!trial) done.shown = await hideTrialTokens(hall);
+        else if (hall.active) done.shown = await revealTrialTokens(hall);
+    }
+    if (writes.prepare && hall) done.prepared = await prepareTrialScene(hall, writes.prepare);
+    return done;
 }
 
 export function registerTrialScene() {

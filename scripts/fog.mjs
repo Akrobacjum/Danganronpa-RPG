@@ -865,8 +865,13 @@ export function diagnoseScenes() {
  * spelling of "disabled" is how this class of bug repeats - so the constant
  * table is searched for the member that means "off", and only if there is no
  * table at all does it fall back to a plain string.
+ *
+ * Exported for the trial hall's "Prepare the hall" (E13 C5, trial-scene.mjs `hallPreparePatch`):
+ * the hall holds no room once it is linked (rooms.mjs `roomPieces`), so `applySceneVisionMode`
+ * refuses it, and the hall wants the same three fields off for another reason - it is lit and
+ * seen whole, with no region fog to stand in for Foundry's.
  */
-function fogOffPatch(scene) {
+export function fogOffPatch(scene) {
     const fog = scene.fog ?? {};
 
     // v14+: `fog.mode`. Read `mode` FIRST - touching `fog.exploration` on v14
