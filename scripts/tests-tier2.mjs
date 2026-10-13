@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, watchLog, cast, systemSheetsAvailable
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -59,6 +59,9 @@ async function snapshot(cast) {
          * comments on them are the record of why each one matters.
          */
         settings: moduleSettingValues(),
+        // Which of this module's client settings this browser held a stored copy of (E77 fix r2-H5: the dump
+        // reads that too, tests-kit.mjs `clientStored`); `restore` puts it back after the values.
+        stored: clientStored(),
         clock: foundry.utils.deepClone(getClock()),
         despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
         overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
@@ -297,6 +300,10 @@ async function restore(snap) {
         try { await game.settings.set(MODULE_ID, key, recorded.get(key)); }
         catch (err) { stuck.push(`${key} (${err?.message ?? err})`); }
     }
+    /* A client setting the scenario wrote where this browser stored nothing reads back as its default once the
+       loop above has written that default - and is stored now, which the dump reads (E77 fix r2-H5). Last, after
+       every write of a value. */
+    putBackStored(snap.stored);
 
     await settle();
     /* Read back, not assumed - by the runner now (E30): after every restore it reads

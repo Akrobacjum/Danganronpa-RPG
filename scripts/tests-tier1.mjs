@@ -21,7 +21,8 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson,
+    worldDump, dumpDiff
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2505,7 +2506,12 @@ const INVARIANTS = [
          * THE DRAG, on the real Foundry tools window: a pointerdown, a move and a pointerup on its title, 50 px right
          * and 30 px down, leave the frame and the setting at its place plus that (clamped as the drop clamps it); a
          * pointerdown on the close button drags nothing; a cancelled drag goes back and writes nothing. The setting,
-         * the windows and the frame's place are put back as they were found.
+         * the windows and the frame's place are put back as they were found - the setting AS IT WAS STORED (E77 fix
+         * r2-H5, 13.10.2026; checkpoint k2's F1): `set(key, was)` alone stored `{}` on a GM's browser that had stored
+         * nothing, which scenario 01's A1 read as a world tier 1 had moved (e77run/k2/01a.log:142) and the suite's own
+         * dump could not see until it read stored copies (tests-kit.mjs `clientStored`, R532). So a copy this browser
+         * did not have is taken out of its client store after the value is written back, once the drop's write has
+         * had a settle to land, and the stored text is read against what was found.
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
         const FW = await import("./foundry-windows.mjs");
@@ -2532,6 +2538,7 @@ const INVARIANTS = [
         const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), close = head?.querySelector("button");
         must(frame && head && close, "no Foundry tools window with a title bar - this would measure nothing");
         const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+        const store = game.settings.storage?.get?.("client"), stored = () => store?.getItem?.(key) ?? null, stored0 = stored();
         const open0 = FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key)?.hidden === false), style0 = [frame.style.left, frame.style.top];
         const Ev = typeof globalThis.PointerEvent === "function" ? globalThis.PointerEvent : MouseEvent;
         const fire = (el, type, x, y) => el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1 }));
@@ -2563,10 +2570,13 @@ const INVARIANTS = [
                 JSON.stringify([[[want.x, want.y], want], [[want.x, want.y], want, false], true, [want.x, want.y], want]),
                 `[dragged from ${from.x},${from.y}: the frame and the setting; after a pointerdown on the close button: both, still open; the cancelled drag moved; after it, the frame and the setting] (setting ${key})`);
         } finally {
+            await settle();
             await game.settings.set(MODULE_ID, SETTINGS.foundryWindows, was);
+            if (stored0 === null) store?.removeItem?.(key);
             FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
             [frame.style.left, frame.style.top] = style0;
         }
+        equal(stored(), stored0, `this browser's stored ${key} after the test, against what it stored before (null: nothing)`);
     }],
 
     ["R517 - Escape is Foundry's first: with a framed window rendered, a text field focused, Foundry's menu or a context menu open, a tour running or a token selected it leaves a GM's open Foundry windows open and the key to Foundry; with none of those it closes both before any listener of Foundry's; with both closed it takes nothing", async () => {
@@ -11477,6 +11487,54 @@ const INVARIANTS = [
         equal(JSON.stringify([on, off, control]), JSON.stringify([[true, true, true, true], [true, false, false], true]),
             "[on: both frames, the body class, #sidebar in Foundry tools, the launcher; off, registered again: #sidebar where it was put, the body class, a launcher; "
             + "the control: adoptFoundryNodes brings #sidebar back]");
+    }],
+    ["R532 - the suite's reading of the world tells a client setting this browser stored from one it never stored: `foundryWindows` read the same with nothing stored and with its value stored is two worlds to worldDump, and tier 2's put-back takes out a copy this browser did not have and writes back one it lost", async () => {
+        /*
+         * E77 fix r2-H5, 13.10.2026 (checkpoint k2's F1). R516 put `foundryWindows` back with the value it had read,
+         * which stored `{}` on a GM's browser that had stored nothing; scenario 01's A1 (the harness's own reading of
+         * localStorage) failed on it at ceb70a4 (e77run/k2/01a.log:142) while "tier 0/1 changed nothing in the world"
+         * passed beside it, because worldDump read each client setting by value and the two states read alike. THE
+         * DUMP: the key's stored copy taken out (the value then reads as its default) and the same value stored as
+         * Foundry stores it (its JSON): the value read is the same both times - the control that only the stored copy
+         * differs - and dumpDiff names the key. THE PUT-BACK tier 2's restore runs (tests-kit.mjs `putBackStored`):
+         * from a reading with the key not stored, a stored copy is taken out; from one with it stored, a lost copy is
+         * written back as its text; and tier 2 uses it, read in its source (comments stripped): `snapshot` records
+         * `clientStored()` and `restore` hands that reading to `putBackStored`. Whether any tier-2 test changes a
+         * stored copy alone was not measured; the whole tier's reading is scenario 01's C run, whose "put back what it
+         * found" now reads stored copies too. Only this browser's localStorage is written, never through `game.settings.set`,
+         * so no onChange runs, and the key is left as it was found (its stored text, or nothing).
+         */
+        const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, store = game.settings.storage?.get?.("client");
+        must(typeof store?.getItem === "function", "no client store under game.settings.storage - the dump would read nothing stored");
+        const raw0 = store.getItem(key), read = () => stableJson(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+        const moved = (a, b) => dumpDiff(a, b).filter(d => d.unit.endsWith(key)).length > 0;
+        let putBack = null;
+        try {
+            store.removeItem(key);
+            const bare = await worldDump(), readBare = read(), text = JSON.stringify(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+            store.setItem(key, text);
+            const kept = await worldDump(), readKept = read();
+            equal(JSON.stringify([readBare === readKept, moved(bare, kept)]), JSON.stringify([true, true]),
+                `[${key} read alike with nothing stored and with ${text} stored; the dump moved for the key]`);
+            const { clientStored, putBackStored } = await import("./tests-kit.mjs");
+            must(typeof clientStored === "function" && typeof putBackStored === "function", "tests-kit.mjs has no clientStored or putBackStored - tier 2 cannot put a stored copy back");
+            const asStored = clientStored();
+            store.removeItem(key);
+            putBackStored(asStored);
+            const written = store.getItem(key);
+            store.removeItem(key);
+            const asBare = clientStored();
+            store.setItem(key, "{}");
+            putBackStored(asBare);
+            putBack = [asStored.get(key) === text, written === text, asBare.get(key), store.getItem(key)];
+        } finally {
+            if (raw0 === null) store.removeItem(key); else store.setItem(key, raw0);
+        }
+        const tier2 = stripComments(new Map(await moduleSources()).get("tests-tier2.mjs") ?? "");
+        const uses = [/\bstored:\s*clientStored\(\)/.test(fnSource(tier2, "snapshot")), /\bputBackStored\(\s*snap\.stored\s*\)/.test(fnSource(tier2, "restore"))];
+        equal(JSON.stringify([putBack, store.getItem(key) === raw0, uses]), JSON.stringify([[true, true, null, null], true, [true, true]]),
+            "[put back from a stored reading: recorded as its text, the lost copy written back as it; from a bare reading: "
+            + "recorded as nothing, the copy taken out; the store as it was found; tier 2's snapshot records it, its restore puts it back]");
     }],
 ];
 
