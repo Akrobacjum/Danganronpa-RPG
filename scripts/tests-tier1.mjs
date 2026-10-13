@@ -10648,6 +10648,130 @@ const INVARIANTS = [
             G.refreshGlass();
         }
     }],
+    ["R530 - the room tile looks as P11 draws it, by the sheets' own cascade: the toggle in the tile's top-right corner over the picture's button in both themes, the name and the project line in capitals under Stained Glass, and an old move card's description still set apart", async () => {
+        /*
+         * E77 fix r1-G4, 13.10.2026 (round 1's cor F2, goal 1, goal 2, O4). The toggle stood in the flow under the
+         * project line in both themes: the lift `.drpg-room-tile > :not(...)` is 0,2,0 and set `position: relative`
+         * over the toggle's own `absolute` at 0,1,0. Nothing read it - the sweep, R508 and scenario 74 read no
+         * toggle - and jsdom has no layout, so this reads the cascade itself: every stylesheet of module.json, in
+         * order, parsed into a sheet that is adopted by nothing (it styles nothing on this screen), and for each
+         * element of a tile and of a chat card built on a body of their own (connected to nothing on this page) the winning
+         * declaration - `!important`, then specificity, then order - among the style rules whose selector the
+         * element matches by its own `matches`. Inherited properties are looked for up the element's parents.
+         * Rules under @media, @container and @supports are not read: the desk's cascade, not a stacked screen's
+         * (the narrow row is E77 C8's). Read at fa2fd7d, this fix's parent: the toggle `relative` at 0,2,0,
+         * no `text-transform` on the name or the project line, no rule for `.drpg-room-prose`.
+         * The capitals are the Stained Glass theme's, where P11's shots draw them and where the clock drew this
+         * block before E77 C3 (its `#drpg-hud` rule is uppercase); Legacy's clock drew the room as typed and P11
+         * has no Legacy shot, so Legacy keeps it. `text-transform` changes the drawing only: the stored name and
+         * the node's text are the GM's (R505 reads them literal). What a screen reader is handed is not read here: in
+         * Chromium's accessibility tree the heading is "DORM" for a node whose text is "Dorm" (the glass harness under
+         * Stained Glass, 13.10.2026), as the clock's room row was drawn by the same theme's uppercase `#drpg-hud` rule
+         * until E77 C3 (read in f6822d7's sheet, not measured).
+         */
+        const css = await moduleStyles();
+        // the page's own constructor: the harness's module scope is Node's, whose globalThis has none
+        const sheet = new document.defaultView.CSSStyleSheet();
+        sheet.replaceSync(css);
+        const rules = [...sheet.cssRules].filter(rule => typeof rule.selectorText === "string" && rule.style);
+        ok(rules.length > 1000, `only ${rules.length} style rules were read - the stylesheets did not load`);
+        const split = text => {
+            const out = [];
+            let depth = 0, part = "";
+            for (const ch of text) {
+                if (ch === "(") depth++;
+                if (ch === ")") depth--;
+                if (ch === "," && !depth) { out.push(part); part = ""; } else part += ch;
+            }
+            return [...out, part].map(each => each.trim()).filter(Boolean);
+        };
+        const more = (x, y) => {
+            const at = x.findIndex((v, i) => v !== y[i]);
+            return at >= 0 && x[at] > y[at];
+        };
+        const specificity = selector => {
+            const sum = [0, 0, 0];
+            const add = part => part.forEach((v, i) => { sum[i] += v; });
+            let i = 0;
+            const word = () => { while (i < selector.length && /[\w-]/.test(selector[i])) i++; };
+            while (i < selector.length) {
+                const ch = selector[i];
+                if (ch === "#") { sum[0]++; i++; word(); } else if (ch === ".") { sum[1]++; i++; word(); } else if (ch === "[") {
+                    sum[1]++;
+                    while (i < selector.length && selector[i] !== "]") i++;
+                    i++;
+                } else if (ch === ":") {
+                    const element = selector[i + 1] === ":";
+                    i += element ? 2 : 1;
+                    const start = i;
+                    word();
+                    const name = selector.slice(start, i);
+                    let args = null;
+                    if (selector[i] === "(") {
+                        let depth = 0;
+                        const open = i;
+                        do { depth += selector[i] === "(" ? 1 : selector[i] === ")" ? -1 : 0; i++; } while (depth && i < selector.length);
+                        args = selector.slice(open + 1, i - 1);
+                    }
+                    if (element) sum[2]++;
+                    else if (["is", "not", "has"].includes(name)) add(split(args).map(specificity).reduce((top, s) => more(s, top) ? s : top, [0, 0, 0]));
+                    else if (name !== "where") sum[1]++;
+                } else if (/[a-z]/i.test(ch)) { sum[2]++; word(); } else i++;
+            }
+            return sum;
+        };
+        const INHERITED = new Set(["text-transform", "font-style"]);
+        const cascaded = (el, property) => {
+            let best = null;
+            rules.forEach((rule, order) => {
+                const value = rule.style.getPropertyValue(property);
+                if (!value) return;
+                for (const selector of split(rule.selectorText)) {
+                    let hit = false;
+                    try { hit = el.matches(selector); } catch { continue; }
+                    if (!hit) continue;
+                    const rank = [rule.style.getPropertyPriority(property) === "important" ? 1 : 0, ...specificity(selector), order];
+                    if (!best || more(rank, best.rank)) best = { rank, value: value.trim() };
+                }
+            });
+            if ((!best || best.value === "inherit") && INHERITED.has(property) && el.parentElement) return cascaded(el.parentElement, property);
+            return best?.value ?? null;
+        };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), column = document.createElement("div");
+            body.className = `drpg-theme-${theme} drpg-curtain-on`;
+            column.id = "ui-left-column-1";
+            html.append(body);
+            body.append(column);
+            const tile = document.createElement("section");
+            tile.id = "drpg-room-tile";
+            tile.className = "drpg-room-tile";
+            tile.dataset.place = "clock";
+            column.append(tile);
+            const part = (tag, className) => {
+                const el = document.createElement(tag);
+                el.className = className;
+                return el;
+            };
+            const [show, name, project, toggle] = [part("button", "drpg-room-tile-open"), part("h3", "drpg-room-tile-name"),
+                part("div", "drpg-hud-room-project"), part("button", "drpg-room-tile-more")];
+            tile.append(part("div", "drpg-room-tile-art"), show, name, project, toggle, part("p", "drpg-room-tile-prose"));
+            const card = part("li", "chat-message message");
+            const content = part("div", "message-content"), words = part("p", "drpg-room-prose");
+            content.append(words);
+            card.append(content);
+            body.append(card);
+            const z = el => Number.parseInt(cascaded(el, "z-index") ?? "auto", 10);
+            return [theme, cascaded(toggle, "position"), cascaded(toggle, "top") !== null && cascaded(toggle, "right") !== null,
+                z(toggle) > z(show), cascaded(name, "text-transform") ?? "none", cascaded(project, "text-transform") ?? "none",
+                cascaded(words, "font-style"), cascaded(words, "border-left") !== null];
+        };
+        equal(JSON.stringify([read("stained-glass"), read("monokuma-legacy")]),
+            JSON.stringify([["stained-glass", "absolute", true, true, "uppercase", "uppercase", "italic", true],
+                ["monokuma-legacy", "absolute", true, true, "none", "none", "italic", true]]),
+            "[theme, the toggle's position, a top and a right for it, the toggle over the picture's button, the name's "
+            + "text-transform, the project line's, an old move card's description's font-style, a rule on its left edge]");
+    }],
 ];
 
 /**

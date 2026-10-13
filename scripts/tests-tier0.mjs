@@ -489,8 +489,21 @@ const REGRESSIONS = [
         const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
             .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
 
+        /*
+         * A CLASS THE WORLD STILL CARRIES IS NOT DEAD. A chat card is stored as HTML, so a class
+         * a card once wore outlives its last emitter in every world that kept the card. Each row
+         * names the cards and the change that stopped writing it; a row whose rule is gone from
+         * the sheet is a stale row and fails (E77 fix r1-G4, round 1's O4: C2 removed the move
+         * card's description, and with it the only rule its old cards had).
+         */
+        const STORED = {
+            "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
+        };
+        const stale = Object.keys(STORED).filter(c => !styled.has(c) || named.has(c));
+        ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
+
         const orphans = [...inSheet].filter(c =>
-            styled.has(c) && !switches.has(c)
+            styled.has(c) && !switches.has(c) && !(c in STORED)
             && !named.has(c) && ![...families].some(f => c.startsWith(f)));
         ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
     }],

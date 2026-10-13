@@ -1119,7 +1119,11 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed {
    the toggle's edge. The stroke is a copy of the brush's declarations above rather than a member
    of that list, whose `--brush-on` is 0 until a hover: the name's stroke is always on. Where the
    curtain has cut no pane for the tile (a stacked screen until E77 C8) it carries its own dark
-   glass; where it has (`data-place`, E77 C4), the plate comes off with the other blocks' above. */
+   glass; where it has (`data-place`, E77 C4), the plate comes off with the other blocks' above.
+   The name and the project line are in capitals, as P11's shots draw them and as this theme's
+   uppercase `#drpg-hud` drew them on the clock until C3 (E77 fix r1-G4, R530): only the drawing -
+   the GM's text is as typed, though Chromium's accessibility tree hands the capitals on (13.10.2026,
+   the glass harness: a heading "DORM" for "Dorm"). */
 body.drpg-theme-stained-glass #drpg-room-tile {
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
     border-radius: 0;
@@ -1150,6 +1154,7 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     letter-spacing: 0.1em;
     color: var(--drpg-sg-ink);
     text-shadow: none;
+    text-transform: uppercase;
     --brush: var(--drpg-glass-accent);
     --brush-on: 1;
 }
@@ -1169,6 +1174,7 @@ body.drpg-theme-stained-glass #drpg-room-tile:is([data-state="nowhere"], [data-s
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
+    text-transform: uppercase;
 }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-more {
     border: 1px solid var(--drpg-glass-accent);
