@@ -10290,7 +10290,9 @@ const INVARIANTS = [
          * page's own origin (answered as its path), an upper-case extension; refused - `javascript:`, `data:`,
          * `blob:` (of this origin too: a blob's origin is the page's), `file:`, `//host`, another host, a query, a
          * fragment, a `..` (plain or `%2e`), a backslash, a quote (the path ends up in a CSS `url("...")`), a gif and
-         * an apng (an animation `prefers-reduced-motion` does not stop), a page with no extension, not a string,
+         * an apng by name (an animation `prefers-reduced-motion` does not stop; only the extension is read, so an
+         * animated PNG, WebP or AVIF under a still name is kept - E77 round 1's sec F2, not detected), an svg (E77
+         * fix r1-G1: the module draws a picture as more than an `<img>`), a page with no extension, not a string,
          * empty. Pure: it reads `document.baseURI` and writes nothing. What a server answers to
          * a kept path - a redirect elsewhere - is no reading of the string: LIVE-E77-03.
          */
@@ -10301,16 +10303,37 @@ const INVARIANTS = [
         const KEPT = [
             ["  worlds/suite/rooms/hall.webp  ", "worlds/suite/rooms/hall.webp"], ["/route/worlds/suite/hall.png", "/route/worlds/suite/hall.png"],
             [`${origin}/worlds/suite/hall.jpg`, "/worlds/suite/hall.jpg"], ["worlds/suite/HALL.JPEG", "worlds/suite/HALL.JPEG"],
-            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"], ["worlds/suite/plan.svg", "worlds/suite/plan.svg"]
+            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"]
         ];
         const REFUSED = [
             "javascript:alert(1)//x.png", "data:image/png;base64,AAAA", `blob:${origin}/x.png`, "file:///etc/x.png",
             "//evil.example/x.png", "https://evil.example/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
-            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/x", "", null, 7
+            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/plan.svg", "worlds/x", "", null, 7
         ];
         equal(JSON.stringify([KEPT.map(([path]) => V.safeRoomImage(path)), REFUSED.map(path => V.safeRoomImage(path))]),
             JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
             `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
+
+        /*
+         * E77 fix r1-G1, 13.10.2026 (round 1's sec F1): ONE JUDGEMENT, AND IT IS FINAL. An absolute URL of this
+         * origin whose path starts with an empty segment answered its pathname, `//evil.example/x.png`, which a
+         * browser reads as another host; a second pass refused it, so the tile (which judges twice) was safe and
+         * Room Setup's thumbnail (once) was not (measured 13.10.2026 in Node at 81d0f0c: once
+         * `//other.example/x.png`, twice null). Refused here: that URL, its `/.//` and scheme-only `.//` forms,
+         * the empty segment written as `%2F` (either case) or `%5C`, and as a backslash. Then over every row of
+         * both tables and these: each answer is a fixed point, `safeRoomImage(safeRoomImage(p)) === safeRoomImage(p)`,
+         * and each answer kept resolves to this page's origin. The thumbnail's own `src` is read by the tier-2 test
+         * "Room Setup writes a room's picture: ...".
+         */
+        const scheme = new URL(document.baseURI).protocol;
+        const EMPTY = [`${origin}//evil.example/x.png`, `${origin}/.//evil.example/x.png`, `${scheme}.//evil.example/x.png`,
+            `${origin}/%2F%2Fevil.example/x.png`, "/%2f/evil.example/x.png", `${origin}/%5C%5Cevil.example/x.png`, `${origin}/\\evil.example/x.png`];
+        const every = [...KEPT.map(([path]) => path), ...REFUSED, ...EMPTY];
+        const moved = every.filter(path => V.safeRoomImage(V.safeRoomImage(path)) !== V.safeRoomImage(path));
+        const away = every.map(path => V.safeRoomImage(path)).filter(Boolean).filter(kept => new URL(kept, document.baseURI).origin !== origin);
+        equal(JSON.stringify([EMPTY.map(path => V.safeRoomImage(path)), moved, away]), JSON.stringify([EMPTY.map(() => null), [], []]),
+            "[each path with an empty first segment, plain, encoded or a backslash: null], [the paths whose answer is not its own answer], "
+            + "[the answers kept that resolve to another origin]");
 
         /*
          * E77 C3, 13.10.2026: the tile's clauses (the A8 design's R380, ledger V3, V17, L2). `paintRoomTile` is handed
@@ -10321,7 +10344,8 @@ const INVARIANTS = [
          * same view with a `javascript:` picture paints no picture and no button to open one. Then `openRoomImage`
          * against stand-ins for Foundry's ImagePopout (the harness has none), for the probe's Image (so no file is
          * fetched, here or at a table) and for the warning, all three put back in `finally`: the probe is handed
-         * the checked path and the window gets it, the room as its title, empty controls and no `uuid`; a refused
+         * the checked path and the window gets it, the tile's label as its title (E77 fix r1-G1: the room's name, markup
+         * and all, is then the text of the window's heading, and nothing in it runs), empty controls and no `uuid`; a refused
          * path probes and opens nothing; a picture whose probe fails to decode opens nothing and warns once; and
          * `stripImageControls` empties the tile's window's header controls and leaves another ImagePopout's alone.
          */
@@ -10353,25 +10377,28 @@ const INVARIANTS = [
         // went unread there and the paths probed came back empty (13.10.2026).
         const RealImage = globalThis.Image, ownWarn = ui.notifications && Object.getOwnPropertyDescriptor(ui.notifications, "warn");
         const opened = [], probed = [], warned = [];
+        // E77 fix r1-G1 (round 1's sec F4): the room's name is the GM's words, and the window's title is drawn from it.
+        const NAMED = "R505 <img src=x onerror=\"window.__drpgR505 = 3\">Hall";
         let decodes = true, got;
         try {
             Object.defineProperty(apps, "ImagePopout", { configurable: true, writable: true, value: class {
                 constructor(options) { this.options = options; opened.push(options); }
-                async render() { return this; }
+                async render() { this.window = { title: document.createElement("h1") }; return this; }
             } });
             globalThis.Image = class {
                 set src(path) { probed.push(path); }
                 async decode() { if (!decodes) throw new Error("R505: the stand-in does not decode"); }
             };
             if (ui.notifications) ui.notifications.warn = text => { warned.push(text); };
-            const win = await T.openRoomImage("worlds/suite/hall.png", "R505 Hall");
+            const win = await T.openRoomImage("worlds/suite/hall.png", NAMED);
             const refused = await T.openRoomImage("javascript:alert(1)//x.png", "R505 Hall");
             decodes = false;
             const missing = await T.openRoomImage("worlds/suite/gone.png", "R505 Hall");
             const mine = [{ action: "shareImage" }, { action: "another" }], theirs = [{ action: "shareImage" }];
             T.stripImageControls(win, mine);
             T.stripImageControls({ options: { classes: ["image-popout"] } }, theirs);
-            got = [probed, opened, refused, missing, warned, mine.length, theirs.length];
+            got = [probed, opened, refused, missing, warned, mine.length, theirs.length,
+                [win?.window?.title?.textContent === NAMED, win?.window?.title?.childElementCount ?? null, window.__drpgR505 ?? null]];
         } finally {
             if (before) Object.defineProperty(apps, "ImagePopout", before);
             else delete apps.ImagePopout;
@@ -10380,10 +10407,11 @@ const INVARIANTS = [
             else if (ui.notifications) delete ui.notifications.warn;
         }
         equal(JSON.stringify(got), JSON.stringify([["worlds/suite/hall.png", "worlds/suite/gone.png"], [{ src: "worlds/suite/hall.png",
-            classes: ["drpg-room-image"], window: { title: "R505 Hall", controls: [] }, showTitle: true }], null, null,
-            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1]),
+            classes: ["drpg-room-image"], window: { title: game.i18n.localize("DRPG.Room.tileLabel"), controls: [] }, showTitle: true }], null, null,
+            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1, [true, 0, null]]),
             "[the paths probed, the windows asked for, a refused path's answer, an undecodable picture's answer, the warnings, "
-            + "the tile's window's header controls left, another ImagePopout's left]");
+            + "the tile's window's header controls left, another ImagePopout's left, [the window's heading reads the room's name, "
+            + "elements in it, what the name's markup ran]]");
     }],
     ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*

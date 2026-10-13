@@ -8717,8 +8717,11 @@ const REGRESSIONS = [
          * `updateActor`, `renderSceneControls`) in hud.mjs, explain.mjs, room-tile.mjs and narrow.mjs, and every
          * `Hooks.callAll("drpgRouteSettled"` anywhere; SRC - in room-tile.mjs, narrow.mjs and foundry-windows.mjs every
          * assignment to `.src` or `.backgroundImage` and every `setProperty(` whose value is a template with `url(`,
-         * and every `new ...ImagePopout(` anywhere; MARKUP - every `innerHTML` assignment, `insertAdjacentHTML(`,
-         * `enrichHTML(` and `data-tooltip` in a literal, in room-tile.mjs, which has no row and fails by design (the tile
+         * and every `new ...ImagePopout(` anywhere (its picture, src, and its window's title, text); MARKUP - every
+         * `innerHTML` or `outerHTML` assignment, `insertAdjacentHTML(`, `enrichHTML(`, `setHTMLUnsafe(`, `setHTML(`,
+         * `createContextualFragment(`, `parseFromString(`, `parseHTMLUnsafe(`, `renderTemplate(`, `.html(`,
+         * `new DOMParser`, `createElement("template")` and `data-tooltip` in a literal, in room-tile.mjs, which has
+         * no row and fails by design (the tile
          * sets text only; R509 is the whole rule); STORE - the setting's three sources (this browser's own value, a
          * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
          * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
@@ -8744,7 +8747,8 @@ const REGRESSIONS = [
          * census planned none for - the probe that decodes the picture before the popout opens (`.src =`). On C3's
          * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
          * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
-         * (compared key by key).
+         * (compared key by key). E77 fix r1-G1 (13.10.2026, round 1's sec F4) reads the popout's window title as a
+         * road of its own (one more row, 43) and widens MARKUP from three sinks to every one R509 names.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8797,6 +8801,7 @@ const REGRESSIONS = [
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
+            ["SRC room-tile.mjs#openRoomImage#ImagePopout -> text", "the window's title: asked for under the tile's own label, then the room's name written as `textContent` of the heading at `window.title` (R505, a stand-in: the harness has no ImagePopout); how Foundry draws an option's title is not read here (LIVE-E77-04)"],
             ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -8804,9 +8809,12 @@ const REGRESSIONS = [
         const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
         const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
         const STORE_SOURCES = ["self", "console", "stale"];
+        // E77 fix r1-G1 (round 1's sec F4): every sink that parses a string as markup, not only the first three - R509's net.
+        const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
         const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
             : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
             : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
+            : kind === "SRC" && field === "ImagePopout" ? ["src", "text"]
             : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
         const censusOf = (sources, settings) => {
             const found = [], sites = new Map();
@@ -8855,7 +8863,8 @@ const REGRESSIONS = [
                 }
                 for (const m of blank.matchAll(/\bnew\s+[\w$.]*ImagePopout\b/g)) add("SRC", file, declAt(m.index), "ImagePopout");
                 if (file === "room-tile.mjs") {
-                    for (const m of blank.matchAll(/\.\s*innerHTML\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML)\s*\(/g)) add("MARKUP", file, declAt(m.index), m[1] ?? "innerHTML");
+                    for (const m of blank.matchAll(MARKUP_SINKS)) add("MARKUP", file, declAt(m.index), m[1] ?? m[2] ?? m[3] ?? m[4]);
+                    for (const m of code.matchAll(/\bcreateElement\s*\(\s*["'`]template["'`]/g)) if (blank[m.index] === "c") add("MARKUP", file, declAt(m.index), "template");
                     for (const m of code.matchAll(/data-tooltip/g)) if (blank[m.index] === " ") add("MARKUP", file, declAt(m.index), "data-tooltip");
                 }
             }
@@ -8889,7 +8898,7 @@ const REGRESSIONS = [
             "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
             "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
             "HOOK movement.mjs#settleRoute#callAll -> which",
-            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src",
+            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> text",
             "MARKUP room-tile.mjs#paintRoomTile#innerHTML -> text", "MARKUP room-tile.mjs#paintRoomTile#data-tooltip -> text",
             ...STORE_SOURCES.map(source => `STORE settings.mjs#foundryWindows#${source} -> place`)]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
@@ -9068,6 +9077,11 @@ const REGRESSIONS = [
          * tooltip takes an empty one's `aria-label` through the client's `cleanHTML`, the E02-D01 hole; the tile's
          * tooltips are `dataset.tooltipText`); and hud.mjs names `buildRoom` and `buildSearchPips` no more (the
          * clock's room rows moved to the tile). The fixture is read again with each of the five planted.
+         * E77 fix r1-G1 (13.10.2026, round 1's sec F4) widens the markup net to every sink that parses a string:
+         * an `outerHTML` write, `setHTMLUnsafe(` (and `setHTML(`), `createContextualFragment(`, `DOMParser` and
+         * `parseFromString(` (and `parseHTMLUnsafe(`), jQuery's `.html(`, a `<template>` made by `createElement`
+         * and `renderTemplate(`; room-tile.mjs used none of them at 81d0f0c (read in full), so this changes no
+         * verdict on the code and the fixture is read once more with each of the seven forms planted.
          * E77 C4 (13.10.2026) adds the one formula: the tile's place and box are glass.mjs `roomPlacement`'s, from the
          * measured F, the clock's width and the type scale, and glass.mjs is the one source that writes the variables
          * the sheets size the tile by (`--drpg-room-h`, -w, -x, -y, -min-h, -max-h). Read with comments blanked: glass.mjs
@@ -9078,6 +9092,9 @@ const REGRESSIONS = [
          * is read again with the export gone, a second writer in room-tile.mjs and a sheet declaring the height.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
+            /\b(?:insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(/]
+            .map(part => part.source).join("|"));
         const shape = files => {
             const hud = files.get("hud.mjs") ?? "", explain = files.get("explain.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
             const viewer = topLevelFunction(hud, "viewerActor") ?? "", subject = topLevelFunction(explain, "subjectActor") ?? "";
@@ -9089,7 +9106,7 @@ const REGRESSIONS = [
                     && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
                 /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
                 rest,
-                !/\.\s*innerHTML\s*[+]?=(?![=>])|\b(?:insertAdjacentHTML|enrichHTML)\s*\(|data-tooltip/.test(tile),
+                !MARKUP.test(tile),
                 !/\b(?:buildRoom|buildSearchPips)\b/.test(hud)
             ];
         };
@@ -9107,13 +9124,19 @@ const REGRESSIONS = [
         equal(JSON.stringify([shape(FIXTURE), shape(planted("explain.mjs", "game.user.isGM ? canvas", "true ? canvas")),
             shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();")),
             ...["tile.innerHTML = view.description;", "tile.insertAdjacentHTML(\"beforeend\", view.description);",
-                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");"]
+                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");",
+                "tile.firstChild.outerHTML = view.description;", "tile.setHTMLUnsafe(view.description);",
+                "tile.append(document.createRange().createContextualFragment(view.description));",
+                "tile.append(...new DOMParser().parseFromString(view.description, \"text/html\").body.childNodes);",
+                "$(tile).html(view.description);",
+                "tile.append(Object.assign(document.createElement(\"template\"), { innerHTML: view.description }).content);",
+                "tile.append(await foundry.applications.handlebars.renderTemplate(\"room.hbs\", view));"]
                 .map(markup => shape(planted("room-tile.mjs", PROSE, markup))),
             shape(planted("hud.mjs", "function buildClock() {", "function buildRoom() {"))]),
         JSON.stringify([[true, true, true, [], true, true], [true, false, true, [], true, true], [true, true, true, ["hud.mjs"], true, true],
-            ...Array(4).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
+            ...Array(11).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
         "the reader does not read its fixture whole, or does not miss the GM's gate taken off, a second reader of the student, the GM's words "
-            + "drawn as markup four ways, or the clock's room rows put back");
+            + "drawn as markup eleven ways, or the clock's room rows put back");
         const VARS = /--drpg-room-(?:h|w|x|y|min-h|max-h)\b/;
         const formula = (scripts, sheets) => [
             /\bexport function roomPlacement\(/.test(scripts.get("glass.mjs") ?? "") && /"--drpg-room-h"/.test(scripts.get("glass.mjs") ?? ""),

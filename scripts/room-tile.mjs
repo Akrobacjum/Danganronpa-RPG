@@ -321,6 +321,16 @@ function buildSearchPips({ max, left, sealed }) {
  * 'Show to players' would send one room's picture to players standing in others. `stripImageControls`
  * empties the controls another module adds to it.
  *
+ * THE ROOM'S NAME IS THE TITLE, AS TEXT (E77 fix r1-G1, round 1's sec F4). The name is the GM's words, and
+ * how Foundry draws an option's `window.title` into its frame is in Foundry's code, which is not in this
+ * repository and was not read; the headless harness has no ImagePopout at all (its `foundry.applications.apps`
+ * holds a FilePicker alone, client-entry.mjs, read 13.10.2026), so nothing here measures it. The window is
+ * therefore asked for under the tile's own label, and once it is drawn the name is written as `textContent`
+ * of the heading kept as `window.title` (`HTMLHeadingElement | undefined` in fvtt-types 14.366.0-beta, the
+ * community's type definitions, not Foundry's code; the harness's own ApplicationV2 answers a string there,
+ * hence the element test). R505 reads it against a
+ * stand-in; what a real Foundry v14 shows there is LIVE-E77-04.
+ *
  * @param {string} path
  * @param {string} room
  * @returns {Promise<object|null>} the window, or null when nothing opened
@@ -339,9 +349,10 @@ export async function openRoomImage(path, room) {
         return null;
     }
     const popout = new foundry.applications.apps.ImagePopout({
-        src, classes: [POPOUT_CLASS], window: { title: room, controls: [] }, showTitle: true
+        src, classes: [POPOUT_CLASS], window: { title: game.i18n.localize("DRPG.Room.tileLabel"), controls: [] }, showTitle: true
     });
     await popout.render({ force: true });
+    if (popout.window?.title?.nodeType === 1) popout.window.title.textContent = room;
     return popout;
 }
 
