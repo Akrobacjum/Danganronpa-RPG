@@ -11573,6 +11573,78 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per interface: its nearest comment ends at most 200 characters above it, and the stages that comment does not name]");
+    }],
+
+    ["R518 - the handbooks say where a room went and where Foundry's tools went: the player's chapter 3 names the room tile by its buttons and the GM's Description tab by its two columns, the GM's book quotes the tab's note on what every browser holds, its move card names no description, its GM panel is no longer under the clock, its section 18 names Foundry tools, Map tools, Shift+C and Escape, and the player's section 16 the tools a player lost, in English and in Polish", async () => {
+        /*
+         * E77 C9, 13.10.2026 (the E77 plan's C9 and 5.1; the owner's Q4 and Q12 of 11.10; the stage's doneWhen D8 and
+         * risk RISK-c). Through 1.2.75 the books said what E77 made untrue: the player's HUD carried the room, its
+         * search tokens and its project; the GM's Description tab was "shown on the move card ... and behind the
+         * clock"; the move card "names the room, the price, and the room's description"; the GM panel opened "under
+         * the clock"; Foundry's sidebar "stays on a GM's screen". And they said nothing of what it added: the room
+         * tile and its narrow row, the picture column, the two windows a GM's Foundry tools live in, and what a
+         * player loses with Foundry's buttons (Q4: 'ginie rysowanie, notatki na mapie i przycisk celowania - zdanie w
+         * podreczniku gracza'). Q12 kept the descriptions and pictures public, as the map is, on the condition that
+         * the GM is told so in the book and in the tab's note. So this reads the books as the table is served them,
+         * by section (`## n. `): what the screen calls a thing is quoted from the lang files, so a renamed button
+         * fails this until the books follow - the tile's Read more, Description and Available project; the tab's
+         * two columns; the note's last sentence, quoted whole in the GM's section 1 beside what every browser
+         * holds; the tools' launcher's and the two windows' names. Two clauses are the old sentences coming back:
+         * a sentence of the GM's section 9 that names the move card and the word Description (the tab's own name,
+         * lower case: "description", "opis"), and the GM's section 3's first paragraph or section 1's Starting a
+         * world saying the panel is under the clock. Shift+C and Escape are Foundry's names and stay literal; so do
+         * the three words for what a player lost, which have no lang key (`LOST`), and the HUD's paragraph, which
+         * named the room's search tokens as the clock's (`HUD`). What a player's keys do on a real
+         * canvas is LIVE-E77-11, and whether Shift+C reaches the window beside other modules LIVE-E77-10, not this.
+         */
+        const LOST = { en: ["drawing", "map notes", "target button"], pl: ["rysowanie", "notatki na mapie", "przycisk celowania"] };
+        const CLOCK = { en: "under the clock", pl: "pod zegarem" };
+        const MOVE_CARD = { en: "move card", pl: "karta ruchu" };
+        const HUD = { en: ["**The HUD**", "search tokens"], pl: ["**HUD**", "Search Tokens"] };
+        const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
+        const paragraph = (text, start) => text.split(/\n\s*\n/).find(part => part.trimStart().startsWith(start)) ?? "";
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const D = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG ?? {});
+            const words = {
+                readMore: D.Room?.readMore, describe: D.Room?.describe, project: D.Hud?.roomProject, tab: D.Vault?.tabDescription,
+                looks: D.Vault?.descriptionColumn, picture: D.Vault?.imageColumn, panel: D.Panel?.launcher,
+                tools: D.FoundryTools?.title, map: D.FoundryTools?.mapTitle, toggle: D.FoundryTools?.toggle,
+                note: /([^.]*[^.\s][^.]*\.)$/.exec(D.Vault?.descriptionNote ?? "")?.[1]?.trim()
+            };
+            ok(Object.values(words).every(w => typeof w === "string" && w.length > 2) && words.note.length > 40,
+                `lang/${lang}.json lacks a word this test quotes (${JSON.stringify(words)}) - it measured nothing`);
+            const text = {};
+            for (const book of ["player-handbook", "gm-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 100, `docs/handbooks/${book}.${lang}.md is nearly empty - this test measured nothing`);
+            }
+            const seeing = section(text["player-handbook"], 3), tips = section(text["player-handbook"], 16);
+            const start = section(text["gm-handbook"], 1), panel = section(text["gm-handbook"], 3), rooms = section(text["gm-handbook"], 9);
+            const look = section(text["gm-handbook"], 18), opening = paragraph(panel, "`scripts/gm-panel.mjs`");
+            const row = rooms.split("\n").find(line => line.startsWith(`| ${words.tab} |`)) ?? "";
+            const cardSentences = rooms.split(/(?<=[.;])\s+|\n/).filter(s => s.toLowerCase().includes(MOVE_CARD[lang]));
+            const lostAt = tips.split(/\n\s*\n/).find(part => LOST[lang].every(w => part.includes(w))) ?? "";
+            measured[lang] = {
+                tile: [`**${words.readMore}**`, `**${words.describe}**`, `**${words.project}**`].map(w => seeing.includes(w)),
+                tab: [row.includes(`**${words.looks}**`), row.includes(`**${words.picture}**`)],
+                publicNote: start.includes(`"${words.note}"`),
+                card: [cardSentences.length > 0, cardSentences.filter(s => s.toLowerCase().includes(words.tab.toLowerCase())).length],
+                panel: [opening.includes(`**${words.panel}**`), opening.includes(CLOCK[lang]),
+                    start.split("\n").filter(line => /\bpanel\b/i.test(line) && line.includes(CLOCK[lang])).length],
+                windows: [`**${words.tools}**`, `**${words.map}**`, `**${words.toggle}**`, "**Shift+C**", "**Escape**"].map(w => look.includes(w)),
+                lost: lostAt.length > 0,
+                hud: [paragraph(tips, HUD[lang][0]).length > 0, paragraph(tips, HUD[lang][0]).includes(HUD[lang][1])]
+            };
+            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true], lost: true, hud: [true, false] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the player's chapter 3: Read more, Description and Available project in bold; the GM's section 9: the Description row names its two columns in bold; "
+            + "the GM's section 1 quotes the tab note's last sentence; section 9 has a move card sentence, and how many of them name the tab's word; "
+            + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
+            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C and Escape in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens]");
     }]
 ];
 

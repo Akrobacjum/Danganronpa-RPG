@@ -82,6 +82,9 @@
  *             so a locator chain and a call split over lines count. A detector
  *             fixture runs first, as in `contract`, and the part is red when the
  *             gate's writer or the live runner is not there to be read.
+ *   live      every live check the code, the harness, the tools, the language
+ *             files and the handbooks cite as LIVE-E<stage>-<n> is an item of
+ *             audit/AUDIT-1.2.42.md section 9.2, written once.
  */
 
 import fs from "node:fs";
@@ -565,7 +568,44 @@ function gatecode() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode };
+/* ---------------------------------- live ---------------------------------- */
+
+/* A CITED LIVE CHECK IS A WRITTEN ONE (E77 C9, 13.10.2026). A comment that says "what a real Foundry does
+   is LIVE-E77-11" hands a question to the table, and the table reads AUDIT 9.2, not the comment. Through E77
+   C8 four of the stage's ids (03, 09, 10, 11) were cited in scripts/, styles/ and the harness and written
+   nowhere (git grep over C8's tree, 13.10.2026: every other id of the E<stage> form cited outside AUDIT was
+   an item); C9 wrote items 205-217, and this part then read 193 items and 335 citations in 247 files, all
+   written. LIVE-REOPEN-01, a reading of 20.09 older than the numbered list, is not of that form and not
+   asked here. audit/AUDIT-1.2.42.md does not
+   ship (.gitattributes), so this is the repository's check and not the suite's. */
+function live() {
+    const problems = [];
+    const audit = exists("audit/AUDIT-1.2.42.md") ? read("audit/AUDIT-1.2.42.md") : "";
+    const from = audit.search(/^### 9\.2 /m);
+    if (from < 0) return ["audit/AUDIT-1.2.42.md has no section 9.2 - nothing was read"];
+    const rest = audit.slice(audit.indexOf("\n", from) + 1), next = rest.search(/^#{2,3} /m);
+    const items = new Map();
+    for (const m of (next < 0 ? rest : rest.slice(0, next)).matchAll(/^(\d+)\. \*\*(LIVE-E\d+-\d+) - /gm)) {
+        if (items.has(m[2])) problems.push(`AUDIT 9.2 writes ${m[2]} twice: items ${items.get(m[2])} and ${m[1]}`);
+        items.set(m[2], m[1]);
+    }
+    const files = (gitFiles("scripts", "styles", "tools", "lang", "docs/handbooks", "audit/harness", "audit/gate", "audit/live", "audit/glass-harness.html", "audit/glass-sweep.mjs", "audit/pack-harness.html") ?? [])
+        .filter(f => /\.(mjs|js|css|html|md|json)$/.test(f));
+    let cites = 0;
+    for (const f of files) {
+        read(f).split("\n").forEach((line, i) => {
+            for (const [id] of line.matchAll(/\bLIVE-E\d+-\d+\b/g)) {
+                cites++;
+                if (!items.has(id)) problems.push(`${f}:${i + 1}: ${id} is cited, and AUDIT 9.2 has no item of it`);
+            }
+        });
+    }
+    if (!items.size || !cites) problems.push(`read ${items.size} item(s) and ${cites} citation(s) - nothing was compared`);
+    console.log(`live: ${items.size} item(s) in AUDIT 9.2, ${cites} citation(s) in ${files.length} file(s); ${problems.length} problem(s)`);
+    return problems;
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {

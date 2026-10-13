@@ -102,8 +102,9 @@ let followingUnread = false;
  * `aria-atomic="false"` (a11y.mjs `liveRegions`), and whether a screen reader then reads a new card without
  * the button's name is a table's question (LIVE-E81-08).
  *
- * An interface later stages take as it is: E18, E23, E49 and E55 use the tile it makes, and E77 and E78
- * take it over (the A7 design's P0-8). Answers the tile.
+ * An interface later stages take as it is: E18, E23, E49 and E55 use the tile it makes; E77 (1.2.76) placed
+ * its room tile by this tile's floor and beside it without rewriting it (glass.mjs `roomPlacement`), and E78
+ * takes it over (the A7 design's P0-8). Answers the tile.
  */
 export function ensureNoticeTile() {
     let host = document.getElementById(CONTAINER_ID);
@@ -542,7 +543,8 @@ function closeLoose(host) {
  * leaves the card as it was rather than stopping it.
  *
  * An interface later stages take as it is, with the `--drpg-corner*` tokens: E18, E23, E49 and E55 use it
- * and do not rewrite it, and E77 and E78 take it over (the A7 design's P0-8). Answers the floor card, or null.
+ * and do not rewrite it, E77 (1.2.76) left it as it was, and E78 takes it over (the A7 design's P0-8). Answers
+ * the floor card, or null.
  */
 const FLOOR = "drpg-popup-floor";
 const TAIL = "drpg-corner-tail";

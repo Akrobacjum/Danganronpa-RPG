@@ -324,8 +324,9 @@
        8 px on a touch screen, which makes the 44 px target the design asks for out of
        the same 28 px shape (the media rule with the button's block). Tokens later stages
        take as they are, with `ensureNoticeTile` and `setFloor` (popup.mjs; the A7 design's
-       P0-8): E18, E23, E49 and E55 use them and do not rewrite them, and E77 and E78 take
-       them over with the corner. */
+       P0-8): E18, E23, E49 and E55 use them and do not rewrite them; E77 (1.2.76) left
+       them as they were (no line of its diff from 1.2.75 touches them, read 13.10.2026),
+       and E78 takes them over with the corner. */
     --drpg-corner: 28px;
     --drpg-corner-inset: 6px;
     --drpg-corner-reach: 0px;
@@ -635,9 +636,13 @@ body {
        under Monokuma Legacy - and where anything that stands over the corner starts: the
        edge, that height, 8 px, and the camera dock's lift. The GM's roster sits on the foot
        here (messenger.css). The A7 design has the narrow layout's notice stack take the
-       foot in C13, E18, E23, E49 and E55 read both without rewriting them, and E77 and E78,
-       which add the GM's and Foundry tools' buttons in the cells over settings and the
-       handbooks, take them over. */
+       foot in C13, E18, E23, E49 and E55 read both without rewriting them. E77 (1.2.76, its
+       C6) put the GM's and Foundry tools' buttons in the cells over settings and the
+       handbooks on a row of their own (`--drpg-launch-u-bottom`, above) and left these two
+       as they were, so on a GM's screen the corner now stands taller than this height: by
+       the tokens' sum the upper row's top is 2 x 47.88 + 44 = 139.76 px over the edge under
+       Stained Glass (not read on a screen). E78 takes them over, and with them the question
+       whether the foot counts that row. */
     --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
     --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
 }

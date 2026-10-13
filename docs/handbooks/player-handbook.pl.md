@@ -134,6 +134,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
+- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens, **Dostępny projekt**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, który **Czytaj dalej** rozwija nad zdjęciem, a **Zwiń opis** zwija z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek nie pokazuje pokoju. Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
@@ -756,7 +757,9 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut trwa już ta pora dnia, pokój, w którym stoisz, czy jest w nim projekt, nad którym możesz pracować, jego Search Tokens i tytuł utworu, który słyszysz. Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut i pokój znikają, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut trwa już ta pora dnia i tytuł utworu, który słyszysz; pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+
+**Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
 **Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy.
 
