@@ -392,6 +392,8 @@ export const SETTINGS = {
     readableRolls: "readableRolls",
     /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
     noticeHistory: "noticeHistory",
+    /** Where this browser's GM last dragged Foundry tools and Map tools, `{ ftools: { x, y }, maptools: { x, y } }` (E77 C7, foundry-windows.mjs). */
+    foundryWindows: "foundryWindows",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1516,6 +1518,17 @@ export function registerSettings() {
        here, by world and user, within its budgets to the season's reset. Written only by this client's engine; a registered
        setting, so the suite's world dump reads it (R159), and held for the length of tier 2 (R473). */
     game.settings.register(MODULE_ID, SETTINGS.noticeHistory, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    /* The places of the GM's two Foundry windows (E77 C7, foundry-windows.mjs): this browser's, as the owner's Q9 of
+       11.10 has it (a place remembered in this browser), so a reload keeps them and another screen keeps its own. A
+       console can write anything here, so foundry-windows.mjs reads it through `readPlaces` (two finite numbers per
+       window, anything else is no place) and clamps every place to the screen it is shown on. */
+    game.settings.register(MODULE_ID, SETTINGS.foundryWindows, {
         scope: "client",
         config: false,
         type: Object,

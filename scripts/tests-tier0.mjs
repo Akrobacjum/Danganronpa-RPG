@@ -8745,7 +8745,7 @@ const REGRESSIONS = [
          * census planned none for - the probe that decodes the picture before the popout opens (`.src =`). On C3's
          * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
          * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
-         * (compared key by key).
+         * (compared key by key). E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8798,7 +8798,11 @@ const REGRESSIONS = [
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
-            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"]
+            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"],
+            // ---- where Foundry's two windows stand (a client setting, E77 C7)
+            ["STORE settings.mjs#foundryWindows#self -> place", "validated on read (`readPlaces`): two finite numbers, rounded, under a known key, or no place; then clamped wholly on screen and off the corner cluster (`clampPlace`, R516)"],
+            ["STORE settings.mjs#foundryWindows#console -> place", "numbers only, clamped: a bad value is no place and the window stands at its home; the value is this browser's and moves only its own windows (R516)"],
+            ["STORE settings.mjs#foundryWindows#stale -> place", "clamped on every opening, drop, window resize and frame-size change (`placeFoundryWindow`); the clamp never writes the setting, so a place saved on a larger screen comes back there (R516, scenario 74 F)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VIEW_FILES = /^(?:hud|explain|room-tile|narrow)\.mjs$/, PAINT_FILES = /^(?:room-tile|narrow|foundry-windows)\.mjs$/;

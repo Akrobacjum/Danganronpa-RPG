@@ -7548,11 +7548,14 @@ body.drpg-player #sidebar {
    or anything in one, `clip-path`, `overflow: hidden` or `display: none` (R509):
    the first two would cut off a directory's context menu at the frame's edge, and
    a closed frame is the `hidden` attribute's, which is why the frame's own
-   display is stated only for `:not([hidden])`. The places below are the design's
-   (P8 and P10 at 1920x1080, not measured here); E77 C7 replaces them with a
-   remembered place clamped to the screen. Rules of Foundry's that hang off
-   `#ui-right` or `#ui-left-column-1` no longer reach the nodes, so the sidebar's
-   height (the design's P9 reading) and the rail's margin are stated here. */
+   display is stated only for `:not([hidden])`. Where a frame stands is not stated
+   here: foundry-windows.mjs writes `left` and `top` on every opening - a place
+   remembered in this browser or the frame's home, clamped to the screen and off
+   the corner cluster (E77 C7) - and the title bar is what drags it, so a finger
+   on it moves the window rather than the page (`touch-action`). Rules of
+   Foundry's that hang off `#ui-right` or `#ui-left-column-1` no longer reach the
+   nodes, so the sidebar's height (the design's P9 reading) and the rail's margin
+   are stated here. */
 body.drpg-player #scene-controls {
     display: none !important;
 }
@@ -7568,14 +7571,14 @@ body.drpg-player #scene-controls {
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
     color: #ece6f0;
 }
-#drpg-win-ftools { top: 72px; right: 420px; }
-#drpg-win-maptools { top: 187px; left: 379px; }
 .drpg-foundry-window-header {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 3px 6px 3px 10px;
-    cursor: default;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
 }
 .drpg-foundry-window-title {
     flex: 1;

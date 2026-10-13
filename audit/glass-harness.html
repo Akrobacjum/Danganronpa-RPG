@@ -17,7 +17,8 @@
      rail keeps the button's slot - and `drpgRoomCheck()` reads where the curtain put the tile (E77 C4). Since E77 C5
      the page boots foundry-windows.mjs as the module does: on the GM's page the scene controls and the sidebar stand
      in its two closed windows, on a player's the body carries `drpg-player` and the stylesheet hides both rails, and
-     `drpgFoundryCut()` reads that opening the windows recuts nothing. -->
+     `drpgFoundryCut()` reads that opening the windows recuts nothing; since E77 C7 `drpgWindowsCheck()` reads a drag,
+     the clamp of places saved at 1920x1080 and a focused field through a recut. -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -566,6 +567,88 @@ A second paragraph.</p></section>
     return done();
   };
 </script>
+<script id="drpg-windows-check">
+  /* THE WINDOWS STAND ON THE SCREEN, MEASURED IN A BROWSER (E77 C7, 13.10.2026; the A8 design's R386 clamp, the E77
+     plan's 2.3). R516 reads `clampPlace` with numbers and the drag on jsdom; this reads them on the page as the sweep
+     loads it at one size. Answers { ok, why, ... } as the checks above do:
+       expect   "windows" on the GM's page, "none" on a player's (nothing more is read there).
+       drag     Foundry tools opened and dragged by its title 60 px left and 40 px down with pointer events: the frame
+                stands where `clampPlace` puts that point (the cluster's box as below) and the setting holds the same.
+       clamp    the places P11 saved at 1920x1080 (Foundry tools 939,130; Map tools 520,260, the design's T7) written
+                to the setting and both windows opened: each wholly on the screen 8 px in, its box with 8 px around it
+                off the cluster's (the union of LAUNCHERS' boxes), the centre of every cluster button answering
+                `elementFromPoint` with that button, and the setting as written (the clamp writes nothing).
+       raw      THE CONTROL: the same places put on the frames' sizes with no clamp - true when that would stand off
+                the screen or on the cluster. The sweep fails unless some size reads it true.
+       focus    a text field put into the open Foundry tools (the page has no `#chat-message`), focused and typed in,
+                then the clock 40 px taller and a pass of the glass: the same field focused with its text and caret;
+                `cuts` counts that pass's `drpgGlassCut`s, so a reading where nothing was cut says so.
+     The page is put back before it answers: windows closed, the setting emptied, the field and the row removed. */
+  window.drpgWindowsCheck = async () => {
+    const g = window.__glass, fw = window.__windows, M = 8, W = innerWidth, H = innerHeight;
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id));
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    if (out.expect === "none") return done();
+    if (frames.some(f => !f) || !fw?.clampPlace) { out.why.push("a window or clampPlace is missing"); return done(); }
+    const buttons = [...document.querySelectorAll(g.LAUNCHERS)].filter(b => b.offsetWidth > 0 && b.offsetHeight > 0);
+    const box = (() => { let b = null; for (const el of buttons) { const r = el.getBoundingClientRect();
+      b = b ? { x0: Math.min(b.x0, r.left), y0: Math.min(b.y0, r.top), x1: Math.max(b.x1, r.right), y1: Math.max(b.y1, r.bottom) } : { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }; }
+      return b && { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 }; })();
+    /* Read unrounded: a frame's height is fractional, and a rounded box once read a window as 0.4 px on the cluster. */
+    const rectOf = f => { const r = f.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const shown = r => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
+    const onScreen = r => r.x >= M && r.y >= M && r.x + r.w <= W - M && r.y + r.h <= H - M;
+    const offCluster = r => !box || !(r.x - M < box.x + box.w && r.x + r.w + M > box.x && r.y - M < box.y + box.h && r.y + r.h + M > box.y);
+    const setting = () => game.settings.get("danganronpa-rpg", "foundryWindows") ?? {};
+    const row = document.createElement("div"), field = document.createElement("textarea");
+    let n = 0; const count = () => { n++; };
+    try {
+      fw.setFoundryWindow("ftools", true);
+      await frame();
+      const head = frames[0].querySelector(":scope > header"), h0 = head.getBoundingClientRect(), from = rectOf(frames[0]);
+      const at = { clientX: Math.round(h0.left + 30), clientY: Math.round(h0.top + h0.height / 2), pointerId: 1, button: 0, bubbles: true };
+      head.dispatchEvent(new PointerEvent("pointerdown", at));
+      head.dispatchEvent(new PointerEvent("pointermove", { ...at, clientX: at.clientX - 30, clientY: at.clientY + 20 }));
+      head.dispatchEvent(new PointerEvent("pointerup", { ...at, clientX: at.clientX - 60, clientY: at.clientY + 40 }));
+      await frame();
+      const want = fw.clampPlace({ x: from.x - 60, y: from.y + 40 }, { w: from.w, h: from.h }, { W, H }, box), to = rectOf(frames[0]);
+      out.drag = { from: [Math.round(from.x), Math.round(from.y)], to: [Math.round(to.x), Math.round(to.y)], want: [want.x, want.y], kept: setting().ftools ?? null };
+      if (out.drag.to[0] !== want.x || out.drag.to[1] !== want.y) out.why.push(`the drag left Foundry tools at ${out.drag.to}, not ${want.x},${want.y}`);
+      if (out.drag.kept?.x !== out.drag.to[0] || out.drag.kept?.y !== out.drag.to[1]) out.why.push("the drag's place is not the setting's");
+      fw.toggleFoundryTools(false);
+      const p11 = { ftools: { x: 939, y: 130 }, maptools: { x: 520, y: 260 } };
+      await game.settings.set("danganronpa-rpg", "foundryWindows", p11);
+      fw.toggleFoundryTools(true);
+      await frame();
+      const rects = frames.map(rectOf);
+      const covered = buttons.filter(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(e && b.contains(e)); }).map(b => b.id || "cluster");
+      out.clamp = { ftools: shown(rects[0]), maptools: shown(rects[1]), cluster: box && [Math.round(box.x), Math.round(box.y), Math.round(box.w), Math.round(box.h)], covered };
+      rects.forEach((r, i) => {
+        if (!onScreen(r)) out.why.push(`${["Foundry tools", "Map tools"][i]} stands off the screen at ${JSON.stringify(r)}`);
+        if (!offCluster(r)) out.why.push(`${["Foundry tools", "Map tools"][i]} stands on the corner cluster at ${JSON.stringify(r)}, the cluster ${JSON.stringify(box)}`);
+      });
+      if (covered.length) out.why.push("a cluster button is covered: " + covered.join(","));
+      if (JSON.stringify(setting()) !== JSON.stringify(p11)) out.why.push("the clamp wrote the setting");
+      out.raw = ["ftools", "maptools"].some((key, i) => { const r = { ...p11[key], w: rects[i].w, h: rects[i].h }; return !onScreen(r) || !offCluster(r); });
+      frames[0].querySelector(":scope > .drpg-foundry-window-body")?.prepend(field);
+      field.focus(); field.value = "S77 typed"; field.setSelectionRange(3, 3);
+      Hooks.on("drpgGlassCut", count);
+      row.style.height = "40px"; document.getElementById("drpg-hud")?.append(row);
+      g.refreshGlass(); await frame(); await new Promise(r => setTimeout(r, 450));
+      out.focus = { kept: document.activeElement === field, text: field.value, caret: field.selectionStart, cuts: n };
+      if (!out.focus.kept || out.focus.text !== "S77 typed" || out.focus.caret !== 3) out.why.push("a recut took the focus, the text or the caret from a field in Foundry tools");
+    } finally {
+      Hooks.off("drpgGlassCut", count);
+      row.remove(); field.remove();
+      fw.toggleFoundryTools(false);
+      await game.settings.set("danganronpa-rpg", "foundryWindows", {});
+      g.refreshGlass(); await frame();
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
@@ -581,7 +664,7 @@ A second paragraph.</p></section>
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
-  globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], settings: new Map() }, user: { isGM: !player } };
+  globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], set: async (m, k, v) => { defaults[k] = v; return v; }, settings: new Map() }, user: { isGM: !player } };
   globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
   /* Before the glass, as module.mjs registers it (E77 C5): the GM's two rails into their closed windows. */
   const fw = await import("/scripts/foundry-windows.mjs");

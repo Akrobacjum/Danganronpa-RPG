@@ -23,6 +23,9 @@
  *   E (the corner's upper row, E77 C6): on the GM's page the red GM button and Foundry tools are children of the body
  *     in the cluster (`data-drpg-cluster`) with no `drpg-` class on them or above them, and a click on Foundry tools
  *     opens both windows (`aria-pressed` "true") and a second closes both; p1 and p2 have neither button.
+ *   F (the windows' places and Escape, E77 C7): opening both windows fires no `drpgGlassCut` (beside a taller clock's
+ *     control); Foundry tools dragged by its title stands where it was dropped and the place is in the GM's client
+ *     storage, in no player's; with a framed DialogV2 open Escape is Foundry's, and only the next one closes both.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -292,6 +295,71 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
     check("E2: a click on Foundry tools opens both windows and says so in aria-pressed, and a second closes both",
         J(gmE.clicks) === J([[[false, false], "false"], [[true, true], "true"], [[false, false], "false"]]), J(gmE));
     check("E3: a player's page has neither the GM's button nor Foundry tools", J(playersE) === J([[false, false], [false, false]]), J(playersE));
+
+    /* ------------------------------ F. the windows' places and Escape (E77 C7) ------------------------------ */
+    phase("F: the GM's windows open without a recut, Foundry tools dragged to a place this browser keeps, and Escape a Foundry window's first");
+    /* On the GM's page as E left it. F1: both windows opened through Foundry tools' own button with a counter on
+       `drpgGlassCut` and a pass of the glass - no cut; THE CONTROL, the clock 40 px taller and a pass, is read beside it
+       (jsdom lays nothing out: where that control reads 0 the glass cut nothing here at all, and the check says what it
+       could see - `drpgFoundryCut` reads the same in Chromium at the sweep's sizes, R514 at a table). F2: Foundry tools
+       dragged by its title with pointer events (MouseEvents of those types where jsdom has no PointerEvent) 40 px right
+       and 20 px down: the frame there, and the place in this browser's client storage under `foundryWindows`; no
+       player's storage has the key. F3: a DialogV2 drawn as a real window (`__dialogWindows`) and an Escape on the
+       body - the windows stay open and the key is not taken; the dialog closed, as Foundry's `core.dismiss` would close
+       it, the next Escape closes both and is taken. Put back: windows closed, the setting and `__dialogWindows` as found. */
+    const gmF = await gm.eval(`const FW = await import("${repoUrl}/scripts/foundry-windows.mjs"), G = await import("${repoUrl}/scripts/glass.mjs");
+        const KEY = "${MOD}.foundryWindows", store = game.settings.storage.get("client"), out = {};
+        // Read only where it is registered: on a tree without the setting the checks below say so rather than the eval throwing.
+        const registered = game.settings.settings.has(KEY), was = registered ? game.settings.get("${MOD}", "foundryWindows") : null, dialogs = globalThis.__dialogWindows;
+        const pause = ms => new Promise(r => setTimeout(r, ms));
+        let cuts = 0; const count = () => { cuts++; };
+        const hook = Hooks.on("drpgGlassCut", count);
+        const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), row = document.createElement("div");
+        const Ev = typeof PointerEvent === "function" ? PointerEvent : MouseEvent;
+        const fire = (type, x, y) => head?.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+        const open = () => FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key)?.hidden === false);
+        const press = () => { const e = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }); document.body.dispatchEvent(e); return [e.defaultPrevented, open()]; };
+        let app = null, waiting = null;
+        try {
+            G.refreshGlass(); await pause(300); cuts = 0;
+            document.getElementById("drpg-foundry-tools")?.click();
+            G.refreshGlass(); await pause(300);
+            out.open = [open(), cuts];
+            row.style.height = "40px"; document.getElementById("drpg-hud")?.append(row);
+            G.refreshGlass(); await pause(300);
+            out.control = cuts - out.open[1];
+            row.remove();
+            const from = FW.placeFoundryWindow?.("ftools") ?? null;
+            fire("pointerdown", 200, 50); fire("pointermove", 220, 60); fire("pointerup", 240, 70);
+            const end = Date.now() + 3000;
+            while (store.getItem(KEY) === null && Date.now() < end) await pause(50);
+            let stored = store.getItem(KEY); try { stored = JSON.parse(stored); } catch { /* the raw string, as found */ }
+            out.drag = { from, to: [parseFloat(frame?.style.left), parseFloat(frame?.style.top)], stored };
+            globalThis.__dialogWindows = true;
+            waiting = foundry.applications.api.DialogV2.wait({ window: { title: "S74 F3" }, content: "<p>S74 F3</p>", buttons: [{ action: "ok", label: "OK" }] });
+            await pause(100);
+            app = [...foundry.applications.instances.values()].find(a => a.title === "S74 F3") ?? null;
+            FW.toggleFoundryTools(true);
+            out.escape = [[Boolean(app?.rendered), app?.hasFrame ?? null], press()];
+            await app?.close(); await waiting; await pause(50);
+            out.escape.push(press());
+        } finally {
+            row.remove(); Hooks.off("drpgGlassCut", hook);
+            if (app?.rendered) await app.close();
+            globalThis.__dialogWindows = dialogs;
+            FW.toggleFoundryTools(false);
+            if (registered) await game.settings.set("${MOD}", "foundryWindows", was);
+        }
+        return out;`, { timeout: 20000 });
+    const playersF = await Promise.all([p1, p2].map(page => page.eval(`return game.settings.storage.get("client").getItem("${MOD}.foundryWindows");`)));
+    const glassCut = gmF.control > 0;
+    check(`F1: opening both windows fires no drpgGlassCut${glassCut ? "" : " (the control's taller clock cut nothing either: jsdom lays nothing out, so this reads the page's count and not the curtain - drpgFoundryCut in Chromium does)"}`,
+        J(gmF.open) === J([[true, true], 0]), J(gmF));
+    const want = gmF.drag && { x: gmF.drag.from?.x + 40, y: gmF.drag.from?.y + 20 };
+    check("F2: Foundry tools dragged by its title stands 40 px right and 20 px down and that place is in this browser's client storage under foundryWindows; no player's storage has the key",
+        Boolean(want) && J(gmF.drag.to) === J([want.x, want.y]) && J(gmF.drag.stored?.ftools ?? null) === J(want) && J(playersF) === J([null, null]), J({ gmF, playersF }));
+    check("F3: with a framed DialogV2 rendered Escape leaves both windows open and the key to Foundry; with the dialog closed the next Escape closes both and is taken",
+        J(gmF.escape) === J([[true, true], [false, [true, true]], [true, [false, false]]]), J(gmF.escape));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

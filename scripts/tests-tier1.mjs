@@ -2459,6 +2459,153 @@ const INVARIANTS = [
         }
     }],
 
+    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, and a drag by the title writes where it ends", async () => {
+        /*
+         * E77 C7, 13.10.2026; the place, drag and clamp clauses of the A8 design's R386 (R511 holds its DOM clauses,
+         * R514 its layout one), numbered apart as R514 was. Headless, where jsdom gives every box 0x0, so the clamp is
+         * read as the pure function it is: P11's places at 1920x1080 (Foundry tools 939,130, Map tools 520,260; the
+         * design's T7) with frame sizes standing in for a browser's (360x690 and 120x520 - not measured: the glass
+         * harness's `drpgWindowsCheck` reads the real frames at the sweep's 22 sizes), and for the cluster glass.mjs's
+         * own fallback for the `launch` block at 1366x768 (W - 22 - 114, H - 22 - 134, 114x134). THE SETTING: this
+         * browser's, not in the settings window; `readPlaces` keeps two finite numbers, rounded, and drops a string, a
+         * NaN, an Infinity, a null, an array and a key that is no window's. THE CLAMP: both P11 places end wholly in
+         * [8, W - 8] x [8, H - 8] with their boxes and 8 px around them off the cluster's - THE CONTROL: both unclamped
+         * run off the bottom; a place on the cluster goes left (78 px) when that is shorter, up (26 px) when that is,
+         * and up when going left would leave the screen; a console's -500,1e9 stands at the corner it is nearest.
+         * THE DRAG, on the real Foundry tools window: a pointerdown, a move and a pointerup on its title, 50 px right
+         * and 30 px down, leave the frame and the setting at its place plus that (clamped as the drop clamps it); a
+         * pointerdown on the close button drags nothing; a cancelled drag goes back and writes nothing. The setting,
+         * the windows and the frame's place are put back as they were found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        ok(typeof FW.clampPlace === "function" && typeof FW.readPlaces === "function", "foundry-windows.mjs has no clampPlace or readPlaces: a window's place is not kept on the screen");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.foundryWindows}`);
+        equal(JSON.stringify([SETTINGS.foundryWindows ?? null, reg?.scope ?? null, reg?.config ?? null]), JSON.stringify(["foundryWindows", "client", false]),
+            "[the key, its scope, shown in the settings window]");
+        equal(JSON.stringify([FW.readPlaces({ ftools: { x: 939.4, y: 130 }, maptools: { x: "520", y: 260 }, other: { x: 1, y: 2 } }),
+            FW.readPlaces(null), FW.readPlaces("ftools"), FW.readPlaces([{ x: 1, y: 2 }]), FW.readPlaces({ ftools: { x: NaN, y: 1 }, maptools: { x: Infinity, y: 1 } }),
+            FW.readPlaces({ ftools: null, maptools: [1, 2] })]), JSON.stringify([{ ftools: { x: 939, y: 130 } }, {}, {}, {}, {}, {}]),
+            "[a good place and a string, null, a string, an array, NaN and Infinity, null and an array - read]");
+        const S = { W: 1366, H: 768 }, B = { x: 1366 - 22 - 114, y: 768 - 22 - 134, w: 114, h: 134 }, M = 8;
+        const P11 = [[{ x: 939, y: 130 }, { w: 360, h: 690 }], [{ x: 520, y: 260 }, { w: 120, h: 520 }]];
+        const clamped = P11.map(([at, size]) => FW.clampPlace(at, size, S, B));
+        const onScreen = (at, size) => at.x >= M && at.y >= M && at.x + size.w <= S.W - M && at.y + size.h <= S.H - M;
+        const offCluster = (at, size) => !(at.x - M < B.x + B.w && at.x + size.w + M > B.x && at.y - M < B.y + B.h && at.y + size.h + M > B.y);
+        equal(JSON.stringify([clamped, clamped.map((at, i) => [onScreen(at, P11[i][1]), offCluster(at, P11[i][1])]), P11.map(([at, size]) => onScreen(at, size))]),
+            JSON.stringify([[{ x: 862, y: 70 }, { x: 520, y: 240 }], [[true, true], [true, true]], [false, false]]),
+            "[P11's places at 1366x768 clamped; each on the screen and off the cluster; the control - each unclamped on the screen]");
+        equal(JSON.stringify([FW.clampPlace({ x: 1200, y: 600 }, { w: 100, h: 100 }, S, B), FW.clampPlace({ x: 1150, y: 530 }, { w: 100, h: 100 }, S, B),
+            FW.clampPlace({ x: 400, y: 600 }, { w: 1300, h: 100 }, S, B), FW.clampPlace({ x: -500, y: 1e9 }, { w: 360, h: 690 }, S, null)]),
+            JSON.stringify([{ x: 1122, y: 600 }, { x: 1150, y: 504 }, { x: 58, y: 504 }, { x: 8, y: 70 }]),
+            "[on the cluster, left shorter; up shorter; too wide to go left; a console's far-off place]");
+        const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), close = head?.querySelector("button");
+        must(frame && head && close, "no Foundry tools window with a title bar - this would measure nothing");
+        const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+        const open0 = FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key)?.hidden === false), style0 = [frame.style.left, frame.style.top];
+        const Ev = typeof globalThis.PointerEvent === "function" ? globalThis.PointerEvent : MouseEvent;
+        const fire = (el, type, x, y) => el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1 }));
+        const saved = () => game.settings.get(MODULE_ID, SETTINGS.foundryWindows)?.ftools ?? null;
+        const at = () => [parseFloat(frame.style.left), parseFloat(frame.style.top)];
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryWindows, {});
+            FW.setFoundryWindow("ftools", true);
+            const from = FW.placeFoundryWindow("ftools");
+            must(from, "the open Foundry tools window has no place - this would measure nothing");
+            const r = frame.getBoundingClientRect();
+            const want = FW.clampPlace({ x: from.x + 50, y: from.y + 30 }, { w: r.width, h: r.height }, { W: window.innerWidth, H: window.innerHeight });
+            fire(head, "pointerdown", 100, 100);
+            fire(head, "pointermove", 130, 115);
+            fire(head, "pointerup", 150, 130);
+            await until(() => saved()?.x === want.x && saved()?.y === want.y, 2000);
+            const dragged = [at(), saved()];
+            fire(close, "pointerdown", 100, 100);
+            fire(head, "pointermove", 300, 300);
+            fire(head, "pointerup", 300, 300);
+            await settle();
+            const closeButton = [at(), saved(), FW.foundryWindow("ftools").hidden];
+            fire(head, "pointerdown", 100, 100);
+            fire(head, "pointermove", 140, 100);
+            const midway = at();
+            fire(head, "pointercancel", 140, 100);
+            await settle();
+            equal(JSON.stringify([dragged, closeButton, midway[0] !== want.x, at(), saved()]),
+                JSON.stringify([[[want.x, want.y], want], [[want.x, want.y], want, false], true, [want.x, want.y], want]),
+                `[dragged from ${from.x},${from.y}: the frame and the setting; after a pointerdown on the close button: both, still open; the cancelled drag moved; after it, the frame and the setting] (setting ${key})`);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryWindows, was);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            [frame.style.left, frame.style.top] = style0;
+        }
+    }],
+
+    ["R517 - Escape is Foundry's first: with a framed window rendered, a text field focused, Foundry's menu or a context menu open, a tour running or a token selected it leaves a GM's open Foundry windows open and the key to Foundry; with none of those it closes both before any listener of Foundry's; with both closed it takes nothing", async () => {
+        /*
+         * E77 C7, 13.10.2026; the Escape clause of the A8 design's R386 (the owner's Q5: Foundry's keys as before). Foundry's
+         * `core.dismiss` (read by the design in 14.365's client-keybindings.mjs, not here) dismisses a drag, its main menu, a
+         * context menu, a tour, every framed window, then releases the selection, and only then opens the main menu;
+         * foundry-windows.mjs takes Escape in place of that last step alone. Each case: both windows open, one stand-in put
+         * where Foundry keeps that thing (a framed rendered app in `foundry.applications.instances`, a rendered one in
+         * `ui.windows`, a textarea focused in Foundry tools where the chat's field stands while the window is open (the chat
+         * focus: typing there, Escape is Foundry's), `ui.menu.rendered`, `ui.context.element`,
+         * `foundry.nue.Tour.tourInProgress`, `canvas.activeLayer.controlled`) and taken away after, and an Escape keydown
+         * dispatched on the focused element: whether its default was prevented, whether a bubbling listener on `window` -
+         * where Foundry's KeyboardManager listens in v13, not read on v14 here - still saw it, and whether both windows are
+         * open. THE CONTROL: with no stand-in Escape closes both, prevented and unseen by that listener; with both closed it
+         * is neither. Another module's Escape on an empty screen is LIVE-E77-10. Whatever held the focus is blurred first, or
+         * a field the run left focused would read as every case; the windows and that focus are put back as they were found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        must(FW.FOUNDRY_WINDOWS.every(r => FW.foundryWindow(r.key)), "the GM has no Foundry windows - this would measure nothing");
+        const open0 = FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key).hidden === false);
+        let seen = 0;
+        const later = event => { if (event.key === "Escape") seen++; };
+        const press = () => {
+            const before = seen, event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+            (document.activeElement ?? document.body).dispatchEvent(event);
+            return [event.defaultPrevented, seen > before, FW.FOUNDRY_WINDOWS.every(r => FW.foundryWindow(r.key).hidden === false)];
+        };
+        const stand = (owner, name, value) => {
+            const had = Object.getOwnPropertyDescriptor(owner, name);
+            Object.defineProperty(owner, name, { configurable: true, enumerable: true, writable: true, value });
+            return () => { if (had) Object.defineProperty(owner, name, had); else delete owner[name]; };
+        };
+        const field = document.createElement("textarea");
+        const CASES = [
+            ["a framed window", () => { foundry.applications.instances.set("r517-probe", { hasFrame: true, rendered: true }); return () => foundry.applications.instances.delete("r517-probe"); }],
+            ["an old window", () => stand(ui.windows, "r517-probe", { rendered: true })],
+            ["a text field", () => { FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body").append(field); field.focus(); return () => { field.blur(); field.remove(); }; }],
+            ["the main menu", () => stand(ui, "menu", { rendered: true })],
+            ["a context menu", () => stand(ui, "context", { element: document.createElement("nav") })],
+            ["a tour", () => foundry.nue?.Tour ? stand(foundry.nue.Tour, "tourInProgress", true) : stand(foundry, "nue", { Tour: { tourInProgress: true } })],
+            ["a selected token", () => stand(canvas, "activeLayer", { controlled: [{ id: "r517-probe" }] })]
+        ];
+        const focus0 = document.activeElement;
+        must(FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body"), "Foundry tools has no body to hold the text field - this would measure nothing");
+        window.addEventListener("keydown", later);
+        const read = {};
+        try {
+            focus0?.blur?.();
+            for (const [name, put] of CASES) {
+                FW.toggleFoundryTools(true);
+                const away = put();
+                try { read[name] = press(); } finally { away(); }
+            }
+            FW.toggleFoundryTools(true);
+            read.nothing = press();
+            FW.toggleFoundryTools(false);
+            read.closed = press();
+        } finally {
+            window.removeEventListener("keydown", later);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            if (focus0 && focus0 !== document.body && focus0.isConnected) focus0.focus?.();
+        }
+        const left = [false, true, true];
+        equal(JSON.stringify(read), JSON.stringify({ ...Object.fromEntries(CASES.map(([name]) => [name, left])), nothing: [true, false, false], closed: [false, true, false] }),
+            "[each case: prevented, seen by a later listener on window, both windows open] - with a stand-in, with none, with both closed");
+    }],
+
     ["R512 - the corner's upper row: a GM's red button and Foundry tools are children of the body in the cluster through data-drpg-cluster, with no drpg- class on them or above them, named for a screen reader, the eye and Foundry's own logo their faces; Foundry tools opens both windows and closes them, saying so in aria-pressed; and in both themes each stands on its cell two rows over settings and the handbooks, the size its token gives, the gap from the chat and from each other, with the camera dock's lift and the tab rail's clearance as well", async () => {
         /*
          * E77 C6, 13.10.2026; the A8 design's R387 (the E77 plan's D2 gave it this number), the owner's AM-21 variant B

@@ -1240,6 +1240,9 @@ export function buildApplications(ctx) {
         static DEFAULT_OPTIONS = {};
         static PARTS = {};
         get rendered() { return this._rendered; }
+        /* Foundry's: a window is framed unless its options say `window: { frame: false }` (v13's ApplicationV2, from
+           memory; not read on v14). foundry-windows.mjs reads it for Escape's order (E77 C7, scenario 74 F). */
+        get hasFrame() { return this.options.window?.frame !== false; }
         get title() { return this.options.window?.title ?? this.constructor.name; }
         get window() { return { title: this.title, controls: [] }; }
         // EventEmitterMixin: DialogV2.wait listens for "render" and "close".

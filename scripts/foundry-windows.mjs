@@ -31,8 +31,30 @@
  * Opening it shows the frame and expands the sidebar. Foundry's own ways in - `ui.sidebar.changeTab`, and
  * `toggleExpanded` when it expands, which `expand()` and a tab's `activate()` go through - are wrapped to show the
  * frame first, synchronously, so Shift+C and any module that opens a tab open the window. Collapsing with
- * Foundry's own button inside an open window only narrows it. Escape, dragging, a remembered place and the clamp
- * to the screen are E77 C7's.
+ * Foundry's own button inside an open window only narrows it.
+ *
+ * A PLACE OF ITS OWN, ON THE SCREEN (E77 C7; the owner's Q9, the design's step 12). A window is dragged by its
+ * title bar (pointer events with the pointer captured, so a mouse and a finger both work; no resizing - 'Okna
+ * przyciskow Foundry moga pozostac proste'). Where it is dropped is this browser's client setting
+ * `foundryWindows`, `{ ftools: { x, y }, maptools: { x, y } }`; with nothing remembered each window has the
+ * design's home (FOUNDRY_WINDOWS `home`, read at 1920x1080 in P8 and P10, not measured here). A console can write
+ * the setting raw, so it is read through `readPlaces` every time: two finite numbers or no place. Every place is
+ * then clamped (`clampPlace`): wholly on the screen 8 px in, and off the corner cluster's box with 8 px around it,
+ * moved left or up whichever is shorter. The clamp runs on every opening, at the drop, on the browser's `resize`
+ * and on every change of the frame's own size (a ResizeObserver: the Regions palette, the chat expanding, the
+ * sidebar collapsing). P10 and P11 measured the frame before it had its size and their clamp failed at 1366x768,
+ * windows down to y 788 and 818 (the design's K6); here the frame is shown, put at 0,0 and measured with
+ * `getBoundingClientRect` in the same task that places it, so no paint sees the unclamped place and the width is
+ * the frame's own rather than what the screen's edge left it. The clamp never writes the setting: a place
+ * remembered on a big screen comes back when the screen is big again.
+ *
+ * ESCAPE IS FOUNDRY'S FIRST. Foundry's `core.dismiss` (read by the design in 14.365's client-keybindings.mjs, not
+ * by this file) closes, in order, a drag, the main menu, a context menu, a tour, every framed window, then releases
+ * the active layer's selection, and only then opens the main menu. A capture listener on `window` takes Escape in
+ * place of that last step alone: while either window is open and nothing above it is there to dismiss
+ * (`escapeFallsToWindows`) it closes both and stops the event; in every other case Escape is Foundry's as before,
+ * and the next one closes the windows. What another module listening for Escape on an empty screen meets is
+ * LIVE-E77-10.
  *
  * THE LAUNCHER (E77 C6). `#drpg-foundry-tools` is the corner cluster's fifth button, over the book (the AM-21
  * variant B grid): one click opens both windows, the next closes both (`toggleFoundryTools`), and `aria-pressed`
@@ -50,20 +72,30 @@
  * Foundry's columns (`inFoundryWindow`), the frames are no block and stand outside `#interface`, whose changes are
  * what the curtain watches. So opening, closing and the sidebar's own growing recut nothing (R514 in a browser).
  *
- * No imports: glass.mjs and narrow.mjs import `inFoundryWindow` from here (R161 counts static imports).
+ * Imports config.mjs and settings.mjs alone: glass.mjs and narrow.mjs import `inFoundryWindow` from here, and
+ * neither of those two reaches them (R161 counts static imports). The corner's selector, glass.mjs's LAUNCHERS, is
+ * read through a dynamic import once the windows are built, since a static one would close that cycle.
  */
+
+import { MODULE_ID } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 
 const FRAME_CLASS = "drpg-foundry-window";
 const BODY_CLASS = "drpg-foundry-windows";
 const LAUNCHER_ID = "drpg-foundry-tools";
-/** The two frames and the node of Foundry's each one holds. */
+/** The two frames, the node of Foundry's each one holds, and its home: Foundry tools with its right edge 420 px in
+    from the screen's (left of the module's right column), Map tools right of the clock's column (see A PLACE). */
 export const FOUNDRY_WINDOWS = [
-    { key: "ftools", id: "drpg-win-ftools", node: "sidebar", title: "DRPG.FoundryTools.title" },
-    { key: "maptools", id: "drpg-win-maptools", node: "scene-controls", title: "DRPG.FoundryTools.mapTitle" }
+    { key: "ftools", id: "drpg-win-ftools", node: "sidebar", title: "DRPG.FoundryTools.title", home: { right: 420, y: 72 } },
+    { key: "maptools", id: "drpg-win-maptools", node: "scene-controls", title: "DRPG.FoundryTools.mapTitle", home: { x: 379, y: 187 } }
 ];
+/** How far in from the screen's edges, and out from the corner cluster's box, a window stands. */
+export const WINDOW_MARGIN = 8;
 /** Foundry's `ui.sidebar.toggleExpanded` as it was before the wrapper, so closing the window collapses through Foundry's own. */
 const ORIGINAL = { toggleExpanded: null };
-let guard = null, themeWatch = null;
+let guard = null, themeWatch = null, cluster = null;
+/** The place each window was last put at: where a drag starts from (jsdom gives every box 0,0). */
+const placed = new Map();
 
 /** Whether an element stands in one of the GM's two windows rather than in Foundry's columns. */
 export function inFoundryWindow(el) {
@@ -90,6 +122,9 @@ export function registerFoundryWindows() {
     wrapSidebar();
     collapseSidebar();
     for (const hook of ["renderSidebar", "renderSceneControls"]) Hooks.on(hook, adoptFoundryNodes);
+    window.addEventListener("keydown", onEscape, { capture: true });
+    window.addEventListener("resize", () => { for (const row of FOUNDRY_WINDOWS) placeFoundryWindow(row.key); });
+    import("./glass.mjs").then(g => { cluster = g.LAUNCHERS ?? null; }).catch(() => null);
     const ui = document.getElementById("interface");
     if (ui && !guard) {
         guard = new MutationObserver(adoptFoundryNodes);
@@ -154,6 +189,131 @@ function buildFrame(row) {
     frame.toggleAttribute("hidden", true);
     frame.toggleAttribute("inert", true);
     document.body.append(frame);
+    dragByTitle(frame, head, row.key);
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => placeFoundryWindow(row.key)).observe(frame);
+}
+
+/** The window follows a pointer pressed on its title bar (not on its close button), clamped to the screen while it
+    moves; at the drop it is clamped off the cluster too and that place is remembered. A cancelled drag remembers
+    nothing and the window goes back to its place. */
+function dragByTitle(frame, head, key) {
+    head.addEventListener("pointerdown", event => {
+        if (event.button !== 0 || event.target?.closest?.("button")) return;
+        const from = placed.get(key) ?? { x: frame.offsetLeft, y: frame.offsetTop }, x0 = event.clientX, y0 = event.clientY;
+        event.preventDefault();
+        try { head.setPointerCapture(event.pointerId); } catch { /* a pointer that is not down has nothing to capture */ }
+        const to = (e, block) => {
+            const r = frame.getBoundingClientRect();
+            const at = clampPlace({ x: from.x + e.clientX - x0, y: from.y + e.clientY - y0 }, { w: r.width, h: r.height },
+                { W: window.innerWidth, H: window.innerHeight }, block);
+            frame.style.left = `${at.x}px`;
+            frame.style.top = `${at.y}px`;
+            placed.set(key, at);
+            return at;
+        };
+        const move = e => { to(e, null); };
+        const end = e => {
+            head.removeEventListener("pointermove", move);
+            head.removeEventListener("pointerup", end);
+            head.removeEventListener("pointercancel", end);
+            if (e.type === "pointerup") rememberPlace(key, to(e, clusterBox()));
+            else placeFoundryWindow(key);
+        };
+        head.addEventListener("pointermove", move);
+        head.addEventListener("pointerup", end);
+        head.addEventListener("pointercancel", end);
+    });
+}
+
+/** The setting as places: for each window two finite numbers, rounded, or no place at all. */
+export function readPlaces(raw) {
+    const out = {};
+    for (const row of FOUNDRY_WINDOWS) {
+        const at = raw && typeof raw === "object" ? raw[row.key] : null;
+        if (at && typeof at === "object" && Number.isFinite(at.x) && Number.isFinite(at.y)) out[row.key] = { x: Math.round(at.x), y: Math.round(at.y) };
+    }
+    return out;
+}
+
+function savedPlaces() {
+    try { return readPlaces(game.settings.get(MODULE_ID, SETTINGS.foundryWindows)); } catch { return {}; }
+}
+
+function rememberPlace(key, at) {
+    try {
+        return Promise.resolve(game.settings.set(MODULE_ID, SETTINGS.foundryWindows, { ...savedPlaces(), [key]: at })).catch(() => null);
+    } catch { return Promise.resolve(null); }
+}
+
+/**
+ * Where a window of `size` { w, h } wanting `place` { x, y } stands on a screen { W, H }: x in [8, W - w - 8] and y
+ * in [8, H - h - 8] (8 when it is wider or taller than that), then, when its box with 8 px around it meets `block`
+ * { x, y, w, h } (the corner cluster's), moved left or up by the shorter of the two that keeps it on the screen -
+ * up when neither does. Rounded down, not to the nearest: a frame's size is fractional, and on 13.10.2026 at 768x1024
+ * under Legacy rounding to the nearest left Foundry tools 0.4 px inside the cluster's margin, which the sweep's
+ * `drpgWindowsCheck` read as standing on it. Pure: R516 reads it with numbers.
+ */
+export function clampPlace(place, size, screen, block = null) {
+    const M = WINDOW_MARGIN, w = Math.max(0, size.w || 0), h = Math.max(0, size.h || 0);
+    const fit = (v, extent, room) => Math.max(M, Math.min(Number.isFinite(v) ? v : M, room - extent - M));
+    let x = fit(place.x, w, screen.W), y = fit(place.y, h, screen.H);
+    if (block && x - M < block.x + block.w && x + w + M > block.x && y - M < block.y + block.h && y + h + M > block.y) {
+        const left = x + w + M - block.x, up = y + h + M - block.y;
+        const canLeft = x - left >= M, canUp = y - up >= M;
+        if (canLeft && (!canUp || left <= up)) x -= left;
+        else y = Math.max(M, y - up);
+    }
+    return { x: Math.floor(x), y: Math.floor(y) };
+}
+
+/** The corner cluster's box on this screen: the union of its buttons' boxes, or null before glass.mjs's selector is read. */
+function clusterBox() {
+    if (!cluster) return null;
+    let box = null;
+    for (const el of document.querySelectorAll(cluster)) {
+        const r = el.getBoundingClientRect();
+        if (!(r.width > 0 && r.height > 0)) continue;
+        box = box ? { x0: Math.min(box.x0, r.left), y0: Math.min(box.y0, r.top), x1: Math.max(box.x1, r.right), y1: Math.max(box.y1, r.bottom) }
+            : { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+    }
+    return box && { x: box.x0, y: box.y0, w: box.x1 - box.x0, h: box.y1 - box.y0 };
+}
+
+/** An open window to its place - remembered, else its home - clamped (see A PLACE). Returns the place, or null for
+    a closed window or a screen without one. */
+export function placeFoundryWindow(key) {
+    const row = FOUNDRY_WINDOWS.find(f => f.key === key), frame = foundryWindow(key);
+    if (!row || !frame || frame.hidden) return null;
+    frame.style.left = "0px";
+    frame.style.top = "0px";
+    const r = frame.getBoundingClientRect(), size = { w: r.width, h: r.height }, screen = { W: window.innerWidth, H: window.innerHeight };
+    const want = savedPlaces()[key] ?? { x: row.home.x ?? screen.W - row.home.right - size.w, y: row.home.y };
+    const at = clampPlace(want, size, screen, clusterBox());
+    frame.style.left = `${at.x}px`;
+    frame.style.top = `${at.y}px`;
+    placed.set(key, at);
+    return at;
+}
+
+/** Whether nothing Foundry's Escape would dismiss stands above the open windows (see ESCAPE IS FOUNDRY'S FIRST). */
+export function escapeFallsToWindows() {
+    if (!FOUNDRY_WINDOWS.some(f => foundryWindow(f.key)?.hidden === false)) return false;
+    const focus = document.activeElement;
+    if (focus?.isContentEditable || focus?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])")) return false;
+    const shell = globalThis.ui;
+    if (shell?.menu?.rendered || shell?.context?.element) return false;
+    if (globalThis.foundry?.nue?.Tour?.tourInProgress) return false;
+    if (Object.values(shell?.windows ?? {}).some(app => app?.rendered)) return false;
+    const apps = globalThis.foundry?.applications?.instances;
+    for (const app of apps?.values?.() ?? []) if (app?.hasFrame && app.rendered) return false;
+    return !globalThis.canvas?.activeLayer?.controlled?.length;
+}
+
+function onEscape(event) {
+    if (event.key !== "Escape" || event.defaultPrevented || !escapeFallsToWindows()) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    toggleFoundryTools(false);
 }
 
 /** The corner's Foundry tools button, once (see THE LAUNCHER above). */
@@ -208,14 +368,19 @@ function wrapSidebar() {
     if (typeof toggle === "function") {
         ORIGINAL.toggleExpanded = toggle;
         bar.toggleExpanded = function (expanded, ...rest) {
-            if ((expanded ?? !this.expanded) === true) showFrame("ftools", true);
-            return toggle.call(this, expanded, ...rest);
+            const opening = (expanded ?? !this.expanded) === true;
+            if (opening) showFrame("ftools", true);
+            const out = toggle.call(this, expanded, ...rest);
+            if (opening) placeFoundryWindow("ftools");
+            return out;
         };
     }
     if (typeof change === "function") {
         bar.changeTab = function (...args) {
             showFrame("ftools", true);
-            return change.apply(this, args);
+            const out = change.apply(this, args);
+            placeFoundryWindow("ftools");
+            return out;
         };
     }
 }
@@ -230,6 +395,7 @@ function showFrame(key, open) {
     if (!frame) return;
     frame.toggleAttribute("hidden", !open);
     frame.toggleAttribute("inert", !open);
+    if (open) placeFoundryWindow(key);
     const anyOpen = FOUNDRY_WINDOWS.some(f => foundryWindow(f.key)?.hidden === false);
     document.getElementById(LAUNCHER_ID)?.setAttribute("aria-pressed", String(anyOpen));
 }
@@ -240,7 +406,10 @@ export function setFoundryWindow(key, open) {
     if (key === "ftools" && !open) collapseSidebar();
     showFrame(key, open);
     const bar = globalThis.ui?.sidebar;
-    if (key === "ftools" && open && bar && !bar.expanded && ORIGINAL.toggleExpanded) ORIGINAL.toggleExpanded.call(bar, true);
+    if (key === "ftools" && open && bar && !bar.expanded && ORIGINAL.toggleExpanded) {
+        ORIGINAL.toggleExpanded.call(bar, true);
+        placeFoundryWindow(key);
+    }
     return true;
 }
 

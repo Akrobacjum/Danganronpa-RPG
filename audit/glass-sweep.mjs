@@ -61,7 +61,13 @@
  * count's own control); on a player's page when a frame exists or either rail has a box; on either, a desk with glass
  * whose notice tile was not fitted (no rail in the column leaves the fit to `moduleLayout`'s no-rail branch alone), or
  * fitted to NOTE_MIN under a room tile that stands under the clock (the column's drop at the wall not reserved).
- * `--no-windows` leaves it out.
+ * Then the page's `drpgWindowsCheck` (E77 C7) on the GM's page: Foundry tools dragged by its title lands where
+ * `clampPlace` puts the point and the setting holds it; the places P11 saved at 1920x1080 open wholly on the screen
+ * and off the corner cluster, every cluster button reachable, the setting unwritten by the clamp; a focused field in
+ * Foundry tools keeps its focus, text and caret through a pass of the glass. `raw` is its control: the same places
+ * unclamped would stand off the screen or on the cluster, and the sweep fails if no GM size reads that. The line shows
+ * `places`, the drag's end, both windows' boxes, `raw off|on` and `focus kept|LOST/<cuts>`.
+ * `--no-windows` leaves both out.
  *
  * KNOWN: none since E77 C5. 1280x720 edgeGaps 16 was the reading glass.mjs explains ("WHAT THE
  * SKIP LEAVES BARE", E81 C14) - the strip's 160 px skip left the wall bare there. The sweep before
@@ -220,7 +226,7 @@ async function plantRoom() {
     return res;
 }
 
-let bad = 0, glassSizes = 0, controlled = false, roomControlled = false;
+let bad = 0, glassSizes = 0, controlled = false, roomControlled = false, placesControlled = false, placesRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -316,6 +322,16 @@ try {
                     line += ` | windows ${fc.ok ? "ok" : "NOT ok"} ${fc.expect}` + (fc.cuts ? ` cuts ${fc.cuts.open}/${fc.cuts.control}` : "") + (fc.fit ? ` fit ${fc.fit}` : "");
                     if (!fc.ok) fails.push("windows: " + fc.why);
                 }
+                const wc = await page.evaluate(() => window.drpgWindowsCheck?.() ?? null);
+                if (!wc) fails.push("the page defines no drpgWindowsCheck");
+                else {
+                    const at = r => r ? `${r.x},${r.y} ${r.w}x${r.h}` : "-";
+                    if (wc.expect === "windows") line += ` | places ${wc.ok ? "ok" : "NOT ok"} drag ${wc.drag?.to?.join(",") ?? "-"} ft ${at(wc.clamp?.ftools)} mt ${at(wc.clamp?.maptools)}`
+                        + ` raw ${wc.raw ? "off" : "on"} focus ${wc.focus?.kept ? "kept" : "LOST"}/${wc.focus?.cuts ?? "-"}`;
+                    if (!wc.ok) fails.push("places: " + wc.why);
+                    if (wc.raw) placesControlled = true;
+                    if (wc.expect === "windows") placesRead = true;
+                }
             }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
@@ -331,5 +347,6 @@ try {
 } finally { await browser.close(); srv?.kill(); }
 if (control && !controlled) { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
 if (control && rooms && !roomControlled) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
+if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);
