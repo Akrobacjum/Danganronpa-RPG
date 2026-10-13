@@ -1,9 +1,12 @@
 /**
  * Danganronpa RPG - the handbooks, one click from the corner.
  * ---------------------------------------------------------------------------
- * The third button in the bottom-right corner (Dawid, 22.09): the smallest of
- * the three, at the wall, level with the seam between the chat circle and the
- * settings one. It opens the Student Brochure and the Player Handbook for
+ * The third button in the bottom-right corner (Dawid, 22.09). Until E81 C12 it
+ * was the smallest of the three, level with the seam between the chat circle
+ * and the settings one; on the corner's grid it is 44 px like the settings
+ * button, at the wall on the bottom line beside it, under the chat's right half
+ * (`--drpg-launcher-book` and `--drpg-launch-b-bottom`, danganronpa.css; E81
+ * fix r2-H4 restated this from them). It opens the Student Brochure and the Player Handbook for
  * everybody, and the GM Handbook for a GM, in the language this browser chose
  * for the module.
  *

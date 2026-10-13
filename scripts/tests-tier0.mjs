@@ -8329,7 +8329,7 @@ const REGRESSIONS = [
             ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return to the school (E13 C3's switch)"],
             ["STORE settings.mjs#sceneRoles", "not a source: a world setting (`config: false`, settings.mjs, E13 C1) read by name in rooms.mjs (`sceneRoles`, cached, dropped by its `onChange`); no writer in C1 but the GM's console and the tier-2 tests, the Scenes tab (a GM window) is C5's; whether an Assistant GM may write it is not measured (1b.1)"],
             ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.actorId` since E81 DZ6 (a 1.2.74 `sceneId.tokenId` row read for the actor's first hall token until the primary's `ready` moves it, `tidyTrialHall`, R500); a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); since E81 DZ6 the choice decides whom the stage makes a token for (`stageHall`, ticked and with no token the GMs placed) as well as whom it shows; R433"],
-            ["STORE scene-flag#trialSeats", "not a source: a flag on the hall (a GM document), `{ [actorId]: { x, y, token } }` - the token the module made for that actor and has not deleted, and where it last stood (E81 DZ6). Written only by `stageHall` (`writeSeats`, a GM's client) and read by it and the primary's `ready` tidy (`tidyHallTokens`); it decides which hall tokens the stage may delete - a token whose id it does not name is never deleted, whatever its flags. A player who could write the hall's flags could name a token of the GMs' there; that a player cannot is LIVE-E81-DZ6-2; R501, R436"],
+            ["STORE scene-flag#trialSeats", "not a source: a flag on the hall (a GM document), `{ [actorId]: { x, y, token } }` - the token the module made for that actor and has not deleted, and where it last stood (E81 DZ6). Written only by `stageHall` (`writeSeats`, a GM's client) and read by it and the primary's `ready` tidy (`tidyHallTokens`); it decides which hall tokens the stage may delete - a token whose id it does not name is never deleted, whatever its flags. A player who could write the hall's flags could name a token of the GMs' there; that a player cannot is LIVE-E81-15; R501, R436"],
             ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
             ["STORE trial-scene.mjs#trialExit", "not a source: the scene and room End the trial chose, in the memory of the GM's client that pressed it - `setTrialExit` holds only a room of a place scene and only on a GM, `closeTrial` sets it right before its phase write and drops it in a `finally`, `leaveTrialScene` takes it once; written to no document [1b.1 the return's scene and room]; R436"],
             ["STORE trial-scene.mjs#castHeld", "not a source: the `hidden` a GM last wrote on each hall cast token, in the memory of each GM's client (`watchCast` and `watchCastCreated` note a GM `userId`'s write; the rest of the linked hall is read off it at a GM's `ready` and on every change of the scene roles, `reseedCastHeld`, since E13 fix r2-H2; a hall none of those saw at the first write heard, `seedCastHeld`) - what the put-back writes, from no packet; a player's write is never noted as the GMs' (E13 fix r1-F2)"],
@@ -8537,25 +8537,25 @@ const REGRESSIONS = [
             ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
-            ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser to the season's reset like every other notice, as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
-            ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds; nobody else's words (R297, 73-notice-history S2)"],
+            ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
-            ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293)"],
+            ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
             ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
-            ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
+            ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, or for a refusal it is not waiting on the GM's packet's `what`, named only by a label the language file holds and else as an unnamed request (`requestLabel`, E81 fix r1-G3); the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll (2)", "the request's own refusal (`res.reason`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
-            ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept to the season's reset like the rest (the owner's Q4), as a notDone entry (R297)"],
+            ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -8577,11 +8577,11 @@ const REGRESSIONS = [
             ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
-            ["HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "another of the module's stores found the storage full (`keepRoom`: the private cards, every GM store, the drawn rolls kept readable): the history gives its room back before that store's one more try - every other world's section, then the older half of this login's, the budgets halved for the session - and writes nothing of anybody's text that it did not hold (R298)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "another of the module's stores found the storage full (`keepRoom`: the private cards, every GM store, the drawn rolls kept readable): the history gives its room back before that store's one more try - every other world's section, then the older half of this login's, the budgets halved for the session; when this world's other accounts' sections leave no room for this login's newest entry, what is left is written and this login's history is kept in memory from then on (`crowdedOut`, the window's footer saying so) - and writes nothing of anybody's text that it did not hold (R298)"],
             ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
             ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
             ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],
-            ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); cleared with every section of this world by the season's reset (R297)"],
+            ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); never cut to make room for this login, which is kept in memory instead (`trimValue`, R292 and R298); cleared with every section of this world by a reset that clears one of `EPOCH_GROUPS`, and by no other (R297)"],
             ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
             ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"],
             ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security)"],
@@ -8672,6 +8672,21 @@ const REGRESSIONS = [
             + `against ${NOTICE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a notice road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E81 commit that will) and strike the gone one");
+
+        /*
+         * WHAT A ROW PROMISES (E81 fix r2-H4, 13.10.2026; review round 2's P18 and P29). The rows above said a safeword
+         * card and a murder refusal were "kept to the season's reset", and the safeword's, the recorder's, the give-way's
+         * and the other account's rows named no case where an entry is held only in this page's memory - where the
+         * engine has two (a write that fails twice, and `trimValue` when this world's other accounts fill the value,
+         * R292 and R298). The orchestrator's decision of 13.10: every text that makes the promise says its limits or
+         * stops promising. So no row says "to the season's reset", and each of those five roads names "in memory".
+         */
+        const MEMORY = ["SURFACE safeword.mjs#showGmDetail", "SURFACE safeword.mjs#raiseCard", "RECORD popup.mjs#showPopup",
+            "HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "STORE settings.mjs#noticeHistory#otherAccount"];
+        const textOf = new Map(NOTICE_CENSUS);
+        equal(JSON.stringify({ promise: NOTICE_CENSUS.filter(([, text]) => /to the season's reset/.test(text)).map(([key]) => key),
+            memory: MEMORY.filter(key => !/\bin memory\b/.test(textOf.get(key) ?? "")) }), JSON.stringify({ promise: [], memory: [] }),
+            "[the census rows that still promise a notice is kept \"to the season's reset\"; the rows of the five roads that can end in memory only that do not say \"in memory\"]");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
@@ -10938,7 +10953,7 @@ const REGRESSIONS = [
             + "and on a stacked screen]");
     }],
 
-    ["R478 - the handbooks name the notice history where a player and a GM look for it, and the GM's section 19 says every account's history stays in a shared browser to the season's reset, in English and in Polish", async () => {
+    ["R478 - the handbooks name the notice history where a player and a GM look for it, quote the window's own sentences on how long it keeps a notice, with the budgets notice-history.mjs states, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
         /*
          * E81 C15, 12.10.2026 (the A7 design's P13-0 and P13-1; the stage's doneWhen D8). Through 1.2.74 the player's
          * handbook said of the notice cards "The chat log keeps them." - which a card drawn with no chat message behind
@@ -10953,7 +10968,26 @@ const REGRESSIONS = [
          * sentence on). Quoted from the lang files rather than copied here, so a window that changes its words fails
          * this until the books follow. Each book and lang file is asserted to have loaded, so nothing passes on an
          * empty read. Whether a reader finds the button on a screen is LIVE-E81-02, not this.
+         *
+         * THE LIMITS (E81 fix r2-H4, 13.10.2026; review round 2's P29, P19, P32 and P33). Those sentences said a notice
+         * was kept "until the season resets", and the engine keeps less: the newest 250 in a player's history and 150 in
+         * a GM's, 40 from each other user (`BUDGET`), half of each once the history gave way, a card the module takes
+         * back, and a login kept only in memory when this world's other accounts fill the value; and a reset clears it
+         * only when it clears one of `EPOCH_GROUPS`. This test read only the title and the tail of gmNote, so it held
+         * the books to whatever the window said. Now the window's two sentences must carry the budgets read from
+         * notice-history.mjs as served (the player's kept sentence its own and the per-sender bound, the GM's
+         * shared-computer sentence the GM's and the same bound) - a stable token that follows the code, so a budget
+         * that changes fails this until the window and, through the quotes, the books say the new number - and the
+         * GM's section 16, the season reset, names the history (which reset clears it).
          */
+        const served = new Map(await moduleSources()).get("notice-history.mjs") ?? "";
+        const budget = {
+            player: /\bplayer: Object\.freeze\(\{ entries: (\d+)/.exec(served)?.[1] ?? "",
+            gm: /\bgm: Object\.freeze\(\{ entries: (\d+)/.exec(served)?.[1] ?? "",
+            perAuthor: /\bperAuthor: (\d+)/.exec(served)?.[1] ?? ""
+        };
+        ok(budget.player && budget.gm && budget.perAuthor, `notice-history.mjs states no BUDGET this test can read (${JSON.stringify(budget)}) - its limits clause measured nothing`);
+        const names = (text, ...numbers) => numbers.every(n => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(text));
         const measured = { call: typeof game.drpg?.openNotices === "function" };
         const expected = { call: true };
         const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
@@ -10971,17 +11005,22 @@ const REGRESSIONS = [
                 ok(text[book].split("\n").length > 1, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
             }
             const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
+            const reset = section(text["gm-handbook"], 16);
             measured[lang] = {
                 player: [tips.includes(`**${title}**`), tips.includes(`"${kept}"`)],
                 brochure: text["player-brochure"].includes(`**${title}**`),
                 gm: [look.includes(`**${title}**`), look.includes("`game.drpg.openNotices()`")],
-                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)]
+                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)],
+                limits: [names(kept, budget.player, budget.perAuthor), names(shared, budget.gm, budget.perAuthor)],
+                reset: reset.includes(`**${title}**`)
             };
-            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true] };
+            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold, its kept sentence quoted; the brochure: the title; "
-            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted]");
+            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted; "
+            + `the window's kept sentence names ${budget.player} and ${budget.perAuthor}, its shared-computer sentence ${budget.gm} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
+            + "the GM's section 16: the window's title in bold]");
     }],
 
     ["R479 - each interface E81 hands to later stages says beside it which stages take it, and each CSS block of the history window says E44 removes it", async () => {

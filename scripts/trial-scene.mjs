@@ -418,7 +418,7 @@ export function readSeats(hall) {
 /**
  * One write of the record, `patch` by actor, merged into what the hall holds - no key is ever removed,
  * a token is set to null. That Foundry v14's `setFlag` merges a partial object is not measured here
- * (LIVE-E81-DZ6-3); the harness's update does, and the tier-2 stage test reads the record after. A GM's
+ * (LIVE-E81-16); the harness's update does, and the tier-2 stage test reads the record after. A GM's
  * write, gated here as well as in `stageHall`, its one caller, so R220's census judges it where it stands.
  */
 async function writeSeats(hall, patch) {
@@ -494,7 +494,7 @@ export function seatFor({ seat = null, index = 0, count = 1, rect = null, grid =
  * order: the record notes where each token to go stands, its id still named; ONE delete of `stagePlan`'s
  * `remove` (movement.mjs's memory of each dropped, as `carryAcross` does); ONE record write - the deleted
  * set to null, each create's id (made here) and seat; ONE create, from the actor's prototype
- * (`getTokenDocument`, `actorLink` forced, so what the trial spends stays on the actor - LIVE-E81-DZ6-1),
+ * (`getTokenDocument`, `actorLink` forced, so what the trial spends stays on the actor - LIVE-E81-14),
  * with `keepId`; the record put right for a create whose id was not kept; `applyTrialCast`'s show and
  * hide; and the GMs told by name of anybody in the cast left with no token (Monokuma, whom the module
  * never makes, or a create that failed). Every stop between two steps leaves the record naming at most

@@ -390,7 +390,7 @@ export const SETTINGS = {
     rollDrawWarned: "rollDrawWarned",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
     readableRolls: "readableRolls",
-    /** Every notice this browser showed each of its users, by world and user, to the season's reset (E81 C1, notice-history.mjs). */
+    /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
     noticeHistory: "noticeHistory",
     /**
      * The words of every private card this browser is a recipient of.
@@ -1513,7 +1513,7 @@ export function registerSettings() {
     });
 
     /* The notice history (E81 C1, notice-history.mjs): what this browser showed each user who logged in
-       here, by world and user, to the season's reset. Written only by this client's engine; a registered
+       here, by world and user, within its budgets to the season's reset. Written only by this client's engine; a registered
        setting, so the suite's world dump reads it (R159), and held for the length of tier 2 (R473). */
     game.settings.register(MODULE_ID, SETTINGS.noticeHistory, {
         scope: "client",

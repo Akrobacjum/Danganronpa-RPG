@@ -15,7 +15,7 @@
  *
  * And a card closed can be read again (E81 C3, 12.10.2026; audit S16-08): every
  * card drawn here is kept, as it was drawn, in this browser's notice history
- * (notice-history.mjs) until the season's reset - a GM's diet as much as a
+ * (notice-history.mjs), within its budgets, until the season's reset - a GM's diet as much as a
  * player's (the owner's Q0). Kept on the client that drew it and nowhere else,
  * so it is exactly what this login was shown: the whisper rule below decides
  * what is drawn, and so what is kept.

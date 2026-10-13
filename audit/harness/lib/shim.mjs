@@ -487,7 +487,7 @@ export function buildDocumentClasses(ctx) {
         /* E81 DZ6: `stageHall` builds a made token from this (trial-scene.mjs). Foundry's own merges the
            prototype token with the data asked for and answers an unsaved TokenDocument; this is the shim's
            model of that - the prototype, the actor's id, the data on top, and a `toObject` - not a measurement
-           of Foundry's (LIVE-E81-DZ6-1, a check for a real table). */
+           of Foundry's (LIVE-E81-14, a check for a real table). */
         async getTokenDocument(data = {}) {
             const src = { ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
             return { toObject: () => U.deepClone(src) };

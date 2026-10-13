@@ -75,4 +75,4 @@ W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Saf
 
 **Przycisk z książką**, prawy dolny róg pod komunikatorem, na prawo od zębatki: ta ulotka i Podręcznik gracza, w języku wybranym dla modułu.
 
-**Historia powiadomień**: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień otwiera każde powiadomienie, które pokazała ci ta przeglądarka, zapisane do resetu sezonu. Wyczyść ją, zanim udostępnisz ekran, a na wspólnym komputerze - zanim go oddasz.
+**Historia powiadomień**: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień otwiera powiadomienia, które pokazała ci ta przeglądarka - najwyżej 250 najnowszych, do resetu sezonu, który je wyczyści; jej okno mówi, co jeszcze może je zabrać. Wyczyść ją, zanim udostępnisz ekran, a na wspólnym komputerze - zanim go oddasz.

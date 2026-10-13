@@ -1,11 +1,14 @@
 /**
- * Danganronpa RPG - the notice history: what this browser showed this user, kept to the season's reset.
+ * Danganronpa RPG - the notice history: what this browser showed this user, kept within its budgets to the season's reset.
  * ---------------------------------------------------------------------------
  * WHY (E81, A7; audit S16-08). A card closed was a card gone: a player who clicked a
  * whisper away, or reloaded, could not read again what the module had told them. The
  * owner's answers (07.10 and 11.10.2026): the GM has the same history (Q0), it lasts to
  * the season's reset (Q1), and on a browser several accounts share every account's
- * history stays in the one value until that reset (Q9, "Bierzemy alternatywę").
+ * history stays in the one value until that reset (Q9, "Bierzemy alternatywę"). What bounds
+ * that keeping - the budgets, a withdraw, the give-way, a login kept in memory beside a value
+ * this world's other accounts fill, a reset that clears none of `EPOCH_GROUPS` - is below, and
+ * the window and the GM's handbook (sections 16, 18 and 19) say it (E81 fix r2-H4, 13.10.2026).
  *
  * WHAT IT IS. One client setting, `SETTINGS.noticeHistory`, whose value is
  *

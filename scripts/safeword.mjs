@@ -86,11 +86,11 @@ export const safewordDetails = new Map();
 /**
  * The GM-side card: who, and where. Never rendered on a player's client.
  *
- * Kept in this GM's browser to the season's reset like every other notice (E81 C4): the owner's
+ * Kept in this GM's browser like every other notice, within the history's budgets (E81 C4): the owner's
  * Q7 (07.10.2026), "Nie - safeword w powiadomieniach traktujemy tak samo jak resztę", over the
  * design's advice to keep it for this page only - so no `persist: "session"` here. The caller's
  * name still reaches no player's browser (`callSafeword`); the GM's history is the GM's browser's,
- * readable there by another login from the console (Q9), and the season's reset clears it.
+ * readable there by another login from the console (Q9), and a reset that moves the history's epoch clears it.
  *
  * ONE KEPT DETAIL PER SENDER PER WINDOW (E81 fix r1-G1, 12.10.2026; review round 1's O10). Fifteen
  * packets from one player with a 7 000-character room left a GM 12 safeword entries and none of its

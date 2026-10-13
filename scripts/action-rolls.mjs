@@ -5928,7 +5928,7 @@ export async function report(actor, def, roll, outcome) {
     // carries the header the explicit call used to supply. Since E81 (1.2.75)
     // the card itself is kept as well: popup.mjs's recorder puts it in each
     // reader's notice history as it is drawn, so a closed card can be read
-    // again in that browser to the season's reset, and the chat log is no
+    // again in that browser, within the history's budgets, until the season's reset, and the chat log is no
     // longer the player's only record of it.
     // The same facts the header prints, kept as data beside the card's words.
     //

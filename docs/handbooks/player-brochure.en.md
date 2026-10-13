@@ -75,4 +75,4 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 
 **Book button**, bottom-right under the messenger, right of the gear: this brochure and the Player Handbook, in the language you picked for the module.
 
-**Notice history**: the stack-of-cards button in the bottom-right corner of the notice tile opens every notice this browser showed you, kept until the season resets. Clear it before you share your screen, and on a shared computer before you hand it over.
+**Notice history**: the stack-of-cards button in the bottom-right corner of the notice tile opens the notices this browser showed you - the newest 250 at most, until a season reset clears them; its window says what else can take them. Clear it before you share your screen, and on a shared computer before you hand it over.
