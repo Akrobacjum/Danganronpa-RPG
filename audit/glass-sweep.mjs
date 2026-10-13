@@ -1,5 +1,5 @@
 /*
- * The glass harness at the 22 sizes, in Chromium: the curtain's self-check and the corner's
+ * The glass harness at the 23 sizes, in Chromium: the curtain's self-check and the corner's
  * launchers, one line a size, and a non-zero exit when any size is not right.
  *
  *   cd audit/harness && npm ci        (once: Playwright comes from there; it downloads no browser)
@@ -91,6 +91,25 @@
  * `places`, the drag's end, both windows' boxes, `raw off|on` and `focus kept|LOST/<cuts>`.
  * `--no-windows` leaves both out.
  *
+ * E77 FIX r2-H3 (13.10.2026; review round 2's cor F2, cor F7, goal Rb, Q6, Q9 and fix r1-M1's open lines). 1366x657,
+ * a 768 px screen less a browser's bars, is the one size with a height from 600 to 719; PINS has its place. A Foundry
+ * window over the stack prints `over got/control/first`: `first` is the same point with the open frames moved before
+ * #interface, where only their index keeps them on top - with narrow.css's index rule taken out, `got` still read
+ * `frame` (the frames come after #interface in the body and won the tie by the tree alone), `first` reads the stack;
+ * and each open frame's centre must hit a Foundry window. The row's "more" button is among the desk's parts the row
+ * reading wants undrawn. A GM's Legacy line prints `face text/icon`: the stub sidebar's text in Foundry tools wears
+ * the pixel face over the page's stand-in for Foundry's own, its icon Font Awesome. Legacy's notes place, reached by
+ * the pin control, prints `right` and fails under 16 px before Foundry's right column: at 1920x1080 the control read
+ * the tile 430 wide and 165 px into `#ui-right-column-1` before the fix, 249x389 and right 16 after it. The launchers'
+ * controls answer "not applicable" when every line is Legacy's with no curtain (below, at the end).
+ * Read on the same page by hand on 13.10.2026 and not lines of this sweep: Q6 - the GM's roster on the stack's foot
+ * covered drawn pixels of the GM's button and Foundry tools (danganronpa.css `--drpg-roster-foot` has the numbers;
+ * R474 reads its foot), and the messenger's unread badge ("3" and "99+") covers none of the other buttons' in either
+ * theme at 1920x1080, 1366x768 and 1024x768; Q9 - at 1024x768 under Stained Glass the clock's column ends at 407 and
+ * scrolls (425 over 399), the last project's header at 398-422, past its end, and, scrolled to the end, at 372-396
+ * inside it and answering `elementFromPoint`; under Monokuma Legacy the column ends at 377, the header at 335-348,
+ * with nothing to scroll; a GM and a player alike.
+ *
  * KNOWN: none since E77 C5. 1280x720 edgeGaps 16 was the reading glass.mjs explains ("WHAT THE
  * SKIP LEAVES BARE", E81 C14) - the strip's 160 px skip left the wall bare there. The sweep before
  * C5 (C4's, 13.10.2026) already read 0 at that size for both roles, and since C5 no rail stands at
@@ -127,18 +146,20 @@ const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolea
     return [size + "/" + key, Number(v)];
 }));
 const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,"
-    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,844x390,640x360").split(",");
+    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",");
 /* THE PINS (E77 fix r1-M1, 13.10.2026; review round 1's O9): the place each size reads, as this file read it on
    e77-wip after E77 C9 and the side fix line (ceb70a4) with fix r1-M1 on it, in Chromium, GM and player alike -
    'row' on a stacked screen (E77 C8), 'notes' where Stained Glass's F leaves less than the smallest box (F 194 at
    1366x768, 1224x768 and 1300x768, 226 at 1280x800 and 1264x800 against need 233, 146 at 1280x720), 'clock'
    everywhere else; under Monokuma Legacy every desk size reads 'clock' (F 489 to 1899 against need 310). A
-   reading that moves is a design change: say why in the commit that moves the pin. */
+   reading that moves is a design change: say why in the commit that moves the pin. 1366x657 (fix r2-H3, review
+   round 2's goal Rb), read on fix r2-H3's tree: 'notes' under Stained Glass (F 83, box 301x321) and 'clock' under
+   Monokuma Legacy (F 426, box 430x426), a GM and a player alike. */
 const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
-const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720"], legacy: [] };
+const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657"], legacy: [] };
 const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
-        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,844x390,640x360").split(",").map(size =>
+        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",").map(size =>
         [`${theme} ${role} ${size}`, PIN_ROW.includes(size) ? "row" : PIN_NOTES[theme].includes(size) ? "notes" : "clock"]))));
 if (shots) mkdirSync(shots, { recursive: true });
 
@@ -302,7 +323,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -323,6 +344,7 @@ try {
                          report: g?.glassReport?.() ?? "" };
             }, sel);
             let line = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(10)}` + (r.stacked ? " stacked" : " desk   ");
+            lines++;
             const fails = [];
             if (!r.has) fails.push("the page defines no drpgLaunchOutside");
             else if (!r.c) {
@@ -334,6 +356,7 @@ try {
                    answer, and why, rather than a number (P28: it returned null for three reasons). Under Legacy
                    the three launchers are still drawn, so they are still counted: found and none hidden. */
                 const legacy = theme === "legacy";
+                if (legacy && /theme off/.test(r.report)) themeOff++;
                 if (!legacy && !/^flat:/.test(r.report)) fails.push("no glass");
                 if (!r.lo || r.lo.ok || !/no curtain|no pane toned launch/.test(r.lo.why)) fails.push("drpgLaunchOutside does not say why it is no answer: " + JSON.stringify(r.lo)?.slice(0, 80));
                 else {
@@ -380,9 +403,9 @@ try {
                     line += ` | room ${rc.ok ? "ok" : "NOT ok"} ` + (rc.expect === "placed" || rc.expect === "flat"
                         ? `${rc.expect === "flat" ? "flat " : ""}${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
                         : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
-                            + (rw.over ? ` over ${rw.over.got}/${rw.over.control}` : "") : "unplaced")
+                            + (rw.over ? ` over ${rw.over.got}/${rw.over.control}/${rw.over.first}` : "") : "unplaced")
                         + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
-                        + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top}`) : "")
+                        + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top} right ${rc.flat.right ?? "-"}`) : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
                     if (theme !== "legacy" && r.c && !r.stacked && rc.expect !== "placed") fails.push("room: a desk with glass reads unplaced");
@@ -398,7 +421,7 @@ try {
                         pinControlled.add(theme);
                         const v = await page.evaluate(plantPin, rc.F - rc.need + 40);
                         console.log(`  pin control ${theme.padEnd(8)} ${v.got !== pin ? "sees it" : "MISSES IT"}: a clock ${v.px} px taller reads ${v.got} (F ${v.F}) where PINS has ${pin}`
-                            + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top}` : ""} ${String(v.check.why).slice(0, 110)}`);
+                            + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top} right ${v.check.flat.right ?? "-"}` : ""} ${String(v.check.why).slice(0, 110)}`);
                         if (v.got === pin) fails.push("pin control reads as a pass");
                         if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
                     }
@@ -432,7 +455,8 @@ try {
                 const fc = await page.evaluate(() => window.drpgFoundryCut?.() ?? null);
                 if (!fc) fails.push("the page defines no drpgFoundryCut");
                 else {
-                    line += ` | windows ${fc.ok ? "ok" : "NOT ok"} ${fc.expect}` + (fc.cuts ? ` cuts ${fc.cuts.open}/${fc.cuts.control}` : "") + (fc.fit ? ` fit ${fc.fit}` : "");
+                    line += ` | windows ${fc.ok ? "ok" : "NOT ok"} ${fc.expect}` + (fc.cuts ? ` cuts ${fc.cuts.open}/${fc.cuts.control}` : "") + (fc.fit ? ` fit ${fc.fit}` : "")
+                        + (fc.face ? ` face ${fc.face.text}/${fc.face.icon}` : "");
                     if (!fc.ok) fails.push("windows: " + fc.why);
                 }
                 const wc = await page.evaluate(() => window.drpgWindowsCheck?.() ?? null);
@@ -458,7 +482,14 @@ try {
         }
     }
 } finally { await browser.close(); srv?.kill(); }
-if (control && !controlled) { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
+/* THE LAUNCHERS' CONTROLS UNDER MONOKUMA LEGACY (E77 fix r2-H3, 13.10.2026; fix r1-M1's open line). They plant faults
+   on the launch pane, and under Legacy no curtain is mounted, so there is no pane to plant them on: a Legacy-only sweep
+   ended red here on every run since r1-M1 for a reason nobody was going to fix. Not applicable is now an answer read off
+   the page - every line drew no glass and its page said "theme off" - and anything else that drew no glass still fails. */
+if (control && !controlled) {
+    if (lines && themeOff === lines) console.log(`  launchers' controls: not applicable - ${lines} line(s), every one Monokuma Legacy's with no curtain mounted ("theme off"); each counted its launchers found and none hidden`);
+    else { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
+}
 if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
 if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }

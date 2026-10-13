@@ -314,14 +314,27 @@ function flatPlacement(W, H) {
   const F = Math.round(H - foot - 8 - top);
   const { need, maxH } = roomSizes(hud.width);
   const stack = document.getElementById("drpg-popups"), sb = stack?.offsetWidth > 0 ? stack.getBoundingClientRect() : null;
-  if (F >= need || !sb) return { place: "clock", flat: true, F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH) : need) };
-  const x = Math.round(sb.right + 16), y = Math.round(sb.top), w = Math.round(Math.min(hud.width, W - 16 - x));
-  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y)) };
+  /* BESIDE THE NOTICES, NOT OVER FOUNDRY'S RIGHT COLUMN (E77 fix r2-H3, 13.10.2026). The width was the
+     clock's or what was left to the screen's edge, and the status strip and the Projects tray stand
+     between the two: in the glass harness with the clock made taller until F fell short (Chromium,
+     13.10.2026, a GM and a player alike) the tile stood 1192 to 1622 over `#ui-right-column-1` from
+     1457 at 1920x1080, and 915 to 1345 over it from 903 at 1366x768; at 2560x1440 it ended 155 px
+     short of it. So the free width ends 16 px before the left of what Foundry's right column draws
+     (its status column, and the sidebar where a GM's switch leaves it there), as it ends 16 px
+     before the screen's edge. Where nothing is left there (1366x768 above), the tile keeps the
+     clock's place at the smallest box, as it does with no stack drawn. */
+  const right = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
+    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !inFoundryWindow(e)).map(e => e.getBoundingClientRect().left);
+  const x = sb ? Math.round(sb.right + 16) : 0, free = Math.round(Math.min(W, ...right) - 16 - x);
+  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH) : need) };
+  const y = Math.round(sb.top), w = Math.round(Math.min(hud.width, free));
+  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y)) };
 }
 /* WHO PLACES IT THERE. No curtain watches the page under this theme, so this does, and only this: a
    resize, the clock drawn again (`drpgHudRendered`), the theme applied (`refreshGlass`), and a change
-   of size of the clock, the floor switcher, `#players` or the notice stack (a ResizeObserver, bound
-   again when one of them is a new node). Nothing the room says is among them, and the tile itself is
+   of size of the clock, the floor switcher, `#players`, the notice stack or Foundry's right column (a
+   ResizeObserver, bound again when one of them is a new node; the column since fix r2-H3 bounds the
+   width beside the notices). Nothing the room says is among them, and the tile itself is
    not watched: its content cannot move it. Under Stained Glass each returns at once - the curtain's
    pass places the tile there (`moduleLayout`). */
 let flatWatch = null, flatTimer = 0;
@@ -329,7 +342,7 @@ const flatSoon = () => { clearTimeout(flatTimer); flatTimer = setTimeout(placeFl
 export function placeFlatRoomTile() {
   if (document.body.classList.contains("drpg-theme-stained-glass")) return;
   placeRoomTile(innerWidth, innerHeight);
-  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups"].map(q => document.querySelector(q)).filter(Boolean);
+  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1"].map(q => document.querySelector(q)).filter(Boolean);
   if (typeof ResizeObserver !== "function" || (flatWatch && nodes.length === flatWatch.nodes.length && nodes.every((n, i) => n === flatWatch.nodes[i]))) return;
   flatWatch?.ro.disconnect();
   flatWatch = { nodes, ro: new ResizeObserver(flatSoon) };

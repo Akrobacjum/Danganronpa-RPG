@@ -11640,7 +11640,7 @@ const REGRESSIONS = [
             "[per interface: its nearest comment ends at most 200 characters above it, and the stages that comment does not name]");
     }],
 
-    ["R518 - the handbooks say where a room went and where Foundry's tools went: the player's chapter 3 names the room tile by its buttons and the GM's Description tab by its two columns, the GM's book quotes the tab's note on what every browser holds, its move card names no description, its GM panel is no longer under the clock, its section 18 names Foundry tools, Map tools, Shift+C and Escape, and the player's section 16 the tools a player lost, in English and in Polish", async () => {
+    ["R518 - the handbooks say where a room went and where Foundry's tools went: the player's chapter 3 names the room tile by its buttons and the GM's Description tab by its two columns, the GM's book quotes the tab's note on what every browser holds, its move card names no description, its GM panel is no longer under the clock, its section 18 names Foundry tools, Map tools, Shift+C and Escape, and the player's section 16 the tools a player lost, and neither the player's brochure nor the GM's section 4 puts a room's search tokens, project or description on the HUD or the clock, in English and in Polish", async () => {
         /*
          * E77 C9, 13.10.2026 (the E77 plan's C9 and 5.1; the owner's Q4 and Q12 of 11.10; the stage's doneWhen D8 and
          * risk RISK-c). Through 1.2.75 the books said what E77 made untrue: the player's HUD carried the room, its
@@ -11663,11 +11663,20 @@ const REGRESSIONS = [
          * canvas is LIVE-E77-11, and whether Shift+C reaches the window beside other modules LIVE-E77-10, not this.
          * E77 fix r2-H2 (13.10.2026; review round 2's goal AM2a): section 18 also names the world switch that puts
          * Foundry's rails back where Foundry puts them, by its name in the settings.
+         * E77 fix r2-H3 (13.10.2026; review round 2's Q10): the two places C9 did not read - the player's brochure
+         * and the GM's section 4 (the clock, whose paragraph on the HUD says what every player sees on it). No
+         * sentence of either may name the HUD or the clock together with a room's search tokens, project or
+         * description (`ON`, `ROOM`; the Polish book keeps Search Tokens in English and says "zeton" too). At this
+         * commit both count 0, the brochure naming neither the HUD nor the clock and section 4 nine sentences of
+         * them, none with a room's thing; a sentence like 1.2.75's ("the HUD shows your room's search tokens") is
+         * read as 1.
          */
         const LOST = { en: ["drawing", "map notes", "target button"], pl: ["rysowanie", "notatki na mapie", "przycisk celowania"] };
         const CLOCK = { en: "under the clock", pl: "pod zegarem" };
         const MOVE_CARD = { en: "move card", pl: "karta ruchu" };
         const HUD = { en: ["**The HUD**", "search tokens"], pl: ["**HUD**", "Search Tokens"] };
+        const ON = { en: /\bHUD\b|clock/i, pl: /\bHUD\b|zegar/i }, ROOM = { en: /search token|project|description/i, pl: /search token|\u017ceton|projekt|opis/i };
+        const roomOnClock = (text, lang) => text.split(/(?<=[.;!?])\s+|\n/).filter(s => ON[lang].test(s) && ROOM[lang].test(s)).length;
         const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
         const paragraph = (text, start) => text.split(/\n\s*\n/).find(part => part.trimStart().startsWith(start)) ?? "";
         const measured = {}, expected = {};
@@ -11688,6 +11697,10 @@ const REGRESSIONS = [
                 text[book] = await res.text();
                 ok(text[book].split("\n").length > 100, `docs/handbooks/${book}.${lang}.md is nearly empty - this test measured nothing`);
             }
+            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? r.text() : ""));
+            ok(brochure.split("\n").length > 40, `docs/handbooks/player-brochure.${lang}.md did not load or is nearly empty - this test measured nothing`);
+            const clockSection = section(text["gm-handbook"], 4);
+            ok(clockSection.split("\n").filter(line => ON[lang].test(line)).length > 2, `the GM's section 4 (${lang}) names neither the HUD nor the clock - this test measured nothing`);
             const seeing = section(text["player-handbook"], 3), tips = section(text["player-handbook"], 16);
             const start = section(text["gm-handbook"], 1), panel = section(text["gm-handbook"], 3), rooms = section(text["gm-handbook"], 9);
             const look = section(text["gm-handbook"], 18), opening = paragraph(panel, "`scripts/gm-panel.mjs`");
@@ -11703,15 +11716,17 @@ const REGRESSIONS = [
                     start.split("\n").filter(line => /\bpanel\b/i.test(line) && line.includes(CLOCK[lang])).length],
                 windows: [`**${words.tools}**`, `**${words.map}**`, `**${words.toggle}**`, "**Shift+C**", "**Escape**", `**${words.switch}**`].map(w => look.includes(w)),
                 lost: lostAt.length > 0,
-                hud: [paragraph(tips, HUD[lang][0]).length > 0, paragraph(tips, HUD[lang][0]).includes(HUD[lang][1])]
+                hud: [paragraph(tips, HUD[lang][0]).length > 0, paragraph(tips, HUD[lang][0]).includes(HUD[lang][1])],
+                roomOnClock: [roomOnClock(brochure, lang), roomOnClock(clockSection, lang)]
             };
-            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true, true], lost: true, hud: [true, false] };
+            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true, true], lost: true, hud: [true, false], roomOnClock: [0, 0] };
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the player's chapter 3: Read more, Description and Available project in bold; the GM's section 9: the Description row names its two columns in bold; "
             + "the GM's section 1 quotes the tab note's last sentence; section 9 has a move card sentence, and how many of them name the tab's word; "
             + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
-            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens]");
+            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens; "
+            + "how many sentences of the brochure and of the GM's section 4 put a room's search tokens, project or description on the HUD or the clock]");
     }]
 ];
 

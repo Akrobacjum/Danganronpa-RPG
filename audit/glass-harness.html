@@ -13,7 +13,7 @@
      mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
      Legacy lines read the same with either, 13.10.2026, but only this one measures
      glass.mjs's Legacy observer); `?card=1` one notice card in the tile;
-     `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 22 sizes in
+     `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 23 sizes in
      both themes and fails on any size that is not right (E81 fix r2-H3); `drpgNoticeCheck()` draws
      the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
      The room tile stands under the clock as room-tile.mjs builds it, with a gradient for its picture,
@@ -55,6 +55,14 @@
   #sidebar-tabs{width:48px;display:flex;flex-direction:column;gap:6px;padding:4px;margin:0}
   #sidebar-tabs button,#scene-controls button{width:36px;height:36px;display:block}
   #players{padding:6px 10px;font-size:12px;color:#ddd}
+  /* A STAND-IN FOR FOUNDRY'S OWN FACE ON ITS RAILS (E77 fix r2-H3, 13.10.2026; review round 2's cor F2). Foundry's sheet
+     is not loaded here, so nothing gave the stub sidebar a face of its own and its text inherited the body's: under
+     Monokuma Legacy that reads the pixel face whatever reaches the sidebar or does not. This is one face where Foundry's
+     sheet sets one, so the pixel face has to win over it to be read; which face that sheet really sets on the chat and
+     the directories is not read in this repository (LIVE-E77-18). `drpgFoundryCut`'s `face` reads the sidebar's one
+     text node and one icon against it: the pixel face and Font Awesome at every GM size under Legacy, through
+     danganronpa.css's `[class*="drpg-"] *` (the frame's class) and its Font Awesome rule (Chromium, 13.10.2026). */
+  #sidebar,#scene-controls{font-family:Signika,sans-serif}
   /* THE CORNER'S BUTTONS AND THE NOTICE TILE ARE PLACED BY THE MODULE'S OWN SHEETS (E81 C14),
      loaded above in the manifest's order, messenger.css among them (it places the chat button).
      From 1.2.50 to 1.2.74 the harness pinned the chat and settings buttons here itself (66 and
@@ -104,7 +112,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
       </div></div></div>
   </div>
-  <div id="sidebar"><div id="sidebar-content"></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
+  <div id="sidebar"><div id="sidebar-content"><span class="stub-text">Chat Log</span><i class="fa-solid fa-gear stub-icon" inert></i></div><nav id="sidebar-tabs"><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button><button class="ui-control"></button></nav></div>
 </div>
 </div>
 <!-- Foundry's board: a sibling AFTER #interface, at z-index 0. Core puts it here by replacing a
@@ -398,7 +406,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 and the corner of the history's button (A7) on no part of the room's pane.
        row      on a stacked screen (E77 C8, 13.10.2026): the tile in narrow.mjs's `#drpg-tile-row`, a child of the
                 stack, with no place and no `LAST.room`; the row 44 px high as laid out, the thumbnail 78x44, the
-                words' button 44x44, the desk's picture layer, its button, the toggle and the words not drawn; where
+                words' button 44x44, the desk's picture layer, its button, the toggle and the words not drawn (no box, and
+                  `display: none` computed: fix r2-H3, cor F7 - the toggle's hide is the one narrow.css rule naming it); where
                 the curtain is cut, a measured `tiles-row` block 44 px high and a pane toned for it. `over`, on the
                 GM's page: both Foundry windows opened, a point where a frame stands on a row of the stack must hit
                 the frame, and THE CONTROL - the frame put at z-index 29 - must not; the windows closed again. Where
@@ -413,7 +422,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      The turn and the page are put back before it answers; `{ cuts: false }` leaves the cut alone. */
   /* Foundry's windows over the stack (E77 C8, narrow.css): on the GM's page both opened, a point where a frame stands on
      a row of the stack hit-tested, then with the frame at z-index 29 (the control), and both closed. Null where no frame
-     stands on a row or there are no frames (a player's page). */
+     stands on a row or there are no frames (a player's page).
+     BY ITS INDEX, NOT BY ITS PLACE IN THE TREE (E77 fix r2-H3, 13.10.2026; review round 2's cor F7). The frames are
+     children of the body after #interface, and the stack is prepended into #interface (narrow.mjs): at an equal index
+     the later one paints over, so the reading above held with narrow.css's index rule taken out (Chromium, 1024x768,
+     820x1180 and 393x852, both themes: the frame still hit) and nothing read that rule. `first` reads the same point
+     with both frames moved before #interface for the one reading and put back: there only the index can win, and
+     without the rule the point hit the stack at all six. `centre`: each open frame's centre hits a Foundry window
+     (the two may overlap each other: under Monokuma Legacy at 1024x768 Map tools stands over Foundry tools' centre). */
   async function overTheStack(frame) {
     const fw = window.__windows, frames = [...document.querySelectorAll(".drpg-foundry-window")];
     if (!fw?.toggleFoundryTools || !frames.length) return null;
@@ -433,8 +449,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       const hit = () => { const h = document.elementFromPoint(at.x, at.y); return at.f.contains(h) ? "frame" : at.e.contains(h) ? "stack" : (h?.id || h?.tagName || "nothing"); };
       const z = at.f.style.zIndex, got = hit();
       at.f.style.zIndex = "29"; const control = hit(); at.f.style.zIndex = z;
-      res = { ok: got === "frame" && control !== "frame", got, control, row: at.e.id || at.e.className,
-        why: got !== "frame" ? `a Foundry window opened under the stack's ${at.e.id} (the point hits ${got})` : `control: the frame at 29 still hits ${control} - the reading cannot see a frame under the stack` };
+      const open = frames.filter(f => !f.hidden), homes = open.map(f => [f, f.nextSibling]);
+      document.body.prepend(...open);
+      const first = hit();
+      for (const [f, next] of homes.reverse()) document.body.insertBefore(f, next);
+      const centre = open.every(f => { const r = f.getBoundingClientRect(); return Boolean(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(".drpg-foundry-window")); });
+      const why = [got !== "frame" && `a Foundry window opened under the stack's ${at.e.id} (the point hits ${got})`,
+        control === "frame" && `control: the frame at 29 still hits ${control} - the reading cannot see a frame under the stack`,
+        first !== "frame" && `a Foundry window placed before #interface opens under the stack's ${at.e.id} (the point hits ${first}) - only the tree's order kept it on top`,
+        !centre && "an open Foundry window's centre does not hit a Foundry window"].filter(Boolean);
+      res = { ok: !why.length, got, control, first, centre, row: at.e.id || at.e.className, why: why.join("; ") };
     }
     fw.toggleFoundryTools(false); await frame();
     return res;
@@ -485,8 +509,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     async function readFlat() {
       if (!room || !out.place || !room.flat) { out.why.push(`no place under this theme (stamp ${out.place}, LAST.room ${JSON.stringify(room)})`); return; }
       Object.assign(out, { F: room.F, need: room.need, maxH: room.maxH, box: room.box });
-      const chose = room.F >= room.need ? "clock" : "notes";
-      if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F} and need ${room.need} choose ${chose}`);
+      /* No free width beside the notices (fix r2-H3: the room before Foundry's right column) keeps the clock's place. */
+      const chose = room.F >= room.need || (room.free != null && room.free < 1) ? "clock" : "notes";
+      if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F}, need ${room.need} and free ${room.free} choose ${chose}`);
       const { box: b, ...placed } = room;
       if (JSON.stringify(g.roomPlacement(innerWidth, innerHeight)) !== JSON.stringify(placed)) out.why.push("a second reading of roomPlacement differs from the placement");
       const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
@@ -503,10 +528,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         if (out.flat.players !== null && out.flat.players < 16) out.why.push(`the tile ends ${out.flat.players} px above #players, not 16`);
       } else {
         const sb = document.getElementById("drpg-popups")?.getBoundingClientRect();
-        out.flat = { gap: sb ? Math.round(t.left - sb.right) : null, top: sb ? Math.round(t.top - sb.top) : null };
+        /* and 16 px or more before Foundry's right column (E77 fix r2-H3): the status strip and the Projects tray */
+        const column = [...document.querySelectorAll("#ui-right-column-1, #sidebar")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window"))
+          .map(e => e.getBoundingClientRect().left);
+        out.flat = { gap: sb ? Math.round(t.left - sb.right) : null, top: sb ? Math.round(t.top - sb.top) : null, right: column.length ? Math.round(Math.min(...column) - t.right) : null };
         if (tile.parentElement !== body) out.why.push(`beside the notices in ${tile.parentElement?.id || tile.parentElement?.tagName}, not the body`);
         if (out.flat.gap !== 16 || out.flat.top !== 0) out.why.push(`${out.flat.gap} px right of the notice stack and ${out.flat.top} px below its top, not 16 and 0`);
         if (t.right > innerWidth) out.why.push(`the tile runs ${Math.round(t.right - innerWidth)} px off the screen`);
+        if (out.flat.right !== null && out.flat.right < 15) out.why.push(`the tile ends ${out.flat.right} px before Foundry's right column, not 16 or more`);
       }
       if (!cuts) return;
       const name = tile.querySelector(".drpg-room-tile-name"), prose = tile.querySelector(".drpg-room-tile-prose");
@@ -564,7 +593,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       const block = g?.LAST?.blocks?.find(b => b.cls === "tiles-row") ?? null;
       out.row = { h: row?.offsetHeight ?? null, thumb: size(tile.querySelector(".drpg-room-tile-thumb")), words: size(tile.querySelector(".drpg-room-tile-describe")),
         block: block && { measured: block.measured, h: block.h }, pane: cut ? (g.LAST.panes || []).some(p => p.tone === "tiles-row") : null,
-        desk: [".drpg-room-tile-art", ".drpg-room-tile-open", ".drpg-room-tile-more", ".drpg-room-tile-prose"].filter(s => tile.querySelector(s)?.offsetWidth > 0), over: null };
+        desk: [".drpg-room-tile-art", ".drpg-room-tile-open", ".drpg-room-tile-more", ".drpg-room-tile-prose"].filter(s => { const e = tile.querySelector(s); return e && (e.offsetWidth > 0 || getComputedStyle(e).display !== "none"); }), over: null };
       if (!row || !column || row.parentElement !== column || tile.parentElement !== row) out.why.push(`the tile is not in the stack's row (it is in ${tile.parentElement?.id || tile.parentElement?.tagName})`);
       if (out.place || room) out.why.push(`placed (${out.place}) on a stacked screen`);
       if (out.row.h !== 44) out.why.push(`the row is ${out.row.h} px high, not 44`);
@@ -654,6 +683,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        cuts     where the curtain is cut: both windows opened (`toggleFoundryTools(true)`) and a pass, closed and a
                 pass - no `drpgGlassCut` and the curtain's clip-path the same throughout. THE CONTROL: the clock
                 40 px taller and a pass - at least one `drpgGlassCut`, or the count could not see a cut.
+       face     where the body carries `drpg-pixel-font` (Monokuma Legacy), on the GM's page: the stub sidebar's text
+                node in Foundry tools computes the pixel face (`--drpg-font-pixel`'s first family) over the page's
+                stand-in for Foundry's own, and its icon a Font Awesome face (E77 fix r2-H3, review round 2's cor F2).
+                Neither carries a drpg- class of its own: the first draft's did, and read the pixel face from that
+                class through the sheet's `[class*="drpg-"]`, whatever reached Foundry's nodes - it measured nothing.
      The page is put back before it answers. */
   window.drpgFoundryCut = async () => {
     const g = window.__glass, fw = window.__windows, body = document.body, hud = document.getElementById("drpg-hud");
@@ -663,7 +697,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const [bar, rail] = ["#sidebar", "#scene-controls"].map(q => document.querySelector(q));
     const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
     const cut = Boolean(body.classList.contains("drpg-theme-stained-glass") && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
-    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", closed: null, cuts: null,
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", closed: null, cuts: null, face: null,
       fit: body.style.getPropertyValue("--drpg-note-fit") || null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     if (cut && !body.classList.contains("drpg-stacked") && !out.fit) out.why.push("the notice tile was not fitted on a desk with glass");
@@ -675,6 +709,17 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       return done();
     }
     if (frames.some(f => !f)) { out.why.push("one of the two windows is missing"); return done(); }
+    if (body.classList.contains("drpg-pixel-font")) {
+      const first = v => v.split(",")[0].trim().replace(/^["']|["']$/g, "");
+      const text = frames[0].querySelector(".stub-text"), icon = frames[0].querySelector(".stub-icon");
+      const pixel = first(getComputedStyle(body).getPropertyValue("--drpg-font-pixel"));
+      out.face = { text: text ? first(getComputedStyle(text).fontFamily) : null, icon: icon ? first(getComputedStyle(icon).fontFamily) : null, pixel };
+      if (!text || !icon) out.why.push("the stub sidebar's text or icon is not in Foundry tools - the face was not read");
+      else {
+        if (out.face.text !== pixel) out.why.push(`a text node in Foundry tools wears ${out.face.text}, not the pixel face ${pixel}`);
+        if (!/Font Awesome/.test(out.face.icon)) out.why.push(`an icon in Foundry tools wears ${out.face.icon}, not Font Awesome`);
+      }
+    }
     out.closed = frames.every(f => f.hidden && f.hasAttribute("inert") && !f.offsetWidth);
     if (!out.closed) out.why.push("a window stands open as the page loaded");
     if (bar?.closest(".drpg-foundry-window") !== frames[0] || rail?.closest(".drpg-foundry-window") !== frames[1])

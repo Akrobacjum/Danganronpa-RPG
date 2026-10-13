@@ -2090,6 +2090,12 @@ const INVARIANTS = [
         // The left rail, where one still stands in the column: it starts under the clock (RAIL_SLOT since E77 C6); every control fits its strip.
         const glass = src("glass.mjs");
         ok(/RAIL_SLOT/.test(glass), "a rail still in the column starts on the clock's glass again");
+        /* And its value (E77 fix r2-H3, the round-2 question Q6): the name alone passed with any number behind it.
+           The six terms are the comment's over the constant - the clock's margin, the column's gap, the old GM
+           button's margin and height, the drop off the glass, the gap over the first tile - and their sum 110. */
+        const slot = /const RAIL_SLOT = ([\d\s+]+);/.exec(glass)?.[1].split("+").map(Number) ?? [];
+        equal(stableJson([slot, slot.reduce((a, b) => a + b, 0)]), stableJson([[4, 16, 20, 32, 26, 12], 110]),
+            "RAIL_SLOT's terms and their sum [as glass.mjs states them over it]");
         ok(/railEnd - boxTop/.test(glass), "the tools box is bounded to all the room above the notice tile again");
         ok(/r\.bottom\) - top/.test(glass), "the strip is cut to the tiles on screen, not to the box they can fill");
     }],
@@ -2489,7 +2495,7 @@ const INVARIANTS = [
          * R514 its layout one), numbered apart as R514 was. Headless, where jsdom gives every box 0x0, so the clamp is
          * read as the pure function it is: P11's places at 1920x1080 (Foundry tools 939,130, Map tools 520,260; the
          * design's T7) with frame sizes standing in for a browser's (360x690 and 120x520 - not measured: the glass
-         * harness's `drpgWindowsCheck` reads the real frames at the sweep's 22 sizes), and for the cluster glass.mjs's
+         * harness's `drpgWindowsCheck` reads the real frames at the sweep's 23 sizes), and for the cluster glass.mjs's
          * own fallback for the `launch` block at 1366x768 (W - 22 - 114, H - 22 - 134, 114x134). THE SETTING: this
          * browser's, not in the settings window; `readPlaces` keeps two finite numbers, rounded, and drops a string, a
          * NaN, an Infinity, a null, an array and a key that is no window's. THE CLAMP: both P11 places end wholly in
@@ -10069,7 +10075,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -10109,8 +10115,9 @@ const INVARIANTS = [
          * cuts the badge, which stands out of its top-right corner, to a red sliver with no digits (Chromium 12.10, the
          * same in 1.2.74's corner; not this commit's to change). (c), E81 C12, for a GM: the roster opened by
          * clicking its button, run long with 120 rows of the suite's, read as it is and with a dock of 300 px (or
-         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the
-         * screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
+         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the upper row (the GM's
+         * button and Foundry tools, since E77 fix r2-H3), its right edge with the chat's, its drawn top at least 8 px
+         * inside the screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
          * browser's size; R474 works that one out headless. The two clauses' Chromium readings of 12.10 were taken on
          * the grid mockup's page with this commit's sheets, not by this test: NEVER RUN in a browser either.
          * (d), E81 C13: on a stacked screen, the notice stack in both themes (the classes turned as in (b) and back), filled
@@ -10229,8 +10236,9 @@ const INVARIANTS = [
                 for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
                     if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
                     const chat = launchers[0], foot = cascadePx(panel, "bottom");
+                    const row = ["drpg-gm-launcher", "drpg-foundry-tools"].map(id => document.getElementById(id)).filter(Boolean);
                     roster[label] = {
-                        foot: (foot - cascadePx(chat, "bottom") - chat.offsetHeight).toFixed(2),
+                        foot: (foot - Math.max(...row.map(el => cascadePx(el, "bottom") + el.offsetHeight), row.length ? -Infinity : NaN)).toFixed(2),
                         right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
                         top: insetBox(panel).bottom - foot - panel.offsetHeight >= 8 - 0.5
                     };
@@ -10245,7 +10253,7 @@ const INVARIANTS = [
             }
             const placed = { foot: "8.00", right: "0.00", top: true };
             equal(stableJson(roster), stableJson({ "as it is": placed, lifted: placed, overCards: true }),
-                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
+                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the upper row, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
                 + "with a dock of 300 px or half the screen; over the notice cards on a stacked screen]");
         }
 
@@ -10495,7 +10503,7 @@ const INVARIANTS = [
             + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
             + "clock grew with no card; back on Stained Glass, the top]");
     }],
-    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the chat with its right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
+    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the upper row with the chat's right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
         /*
          * E81 C12, 12.10.2026: the owner's grid (AM-18 of 11.10, variant B accepted in AM-21 of 12.10), read from the
          * cascade so it runs headless - R299 (a) and (c) read the same and the boxes as drawn, but only in a browser.
@@ -10557,7 +10565,7 @@ const INVARIANTS = [
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the corner could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson({ ...seen, overCards }), stableJson({ ...want, overCards: true }),
             `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
-            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the chat, "
+            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the upper row, "
             + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
     }],
     ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line, 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
@@ -11106,7 +11114,7 @@ const INVARIANTS = [
             if (home[0]) home[0].insertBefore(live, home[1]?.parentElement === home[0] ? home[1] : null);
         }
     }],
-    ["R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane; on a stacked screen a row of the stack 44 px high, cut as its own pane, with a 78x44 thumbnail and a 44 px button for the words; and a new description, the description opened or a recolour recuts nothing", async () => {
+    ["R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane; on a stacked screen a row of the stack 44 px high, cut as its own pane, with a 78x44 thumbnail and a 44 px button for the words; and a new description, the description opened or a recolour recuts nothing; under Monokuma Legacy on a desk the same two places from F and the width left before Foundry's right column, the tile at its box, and a description opened moves nothing", async () => {
         /*
          * E77 C4, 13.10.2026; the A8 design's R383 (the E77 plan's D2 gave it this number; ledger V6, V8, V9, D1, D6).
          * The place and the box are chosen once a pass by glass.mjs `placeRoomTile` from `roomPlacement`: F, the
@@ -11135,11 +11143,57 @@ const INVARIANTS = [
          * a GM with no Monokuma) leaves the row undrawn and no block. Then the same three readings of the cut as on a
          * desk. Not run headless (no layout there): audit/glass-sweep.mjs reads the same numbers in Chromium at its
          * seven stacked sizes, through `drpgRoomCheck`'s row reading with a control.
+         * THE LEGACY CLAUSE (E77 fix r2-H3, 13.10.2026; M1 left this test reading Stained Glass only). Under Monokuma
+         * Legacy on a desk no curtain is mounted and glass.mjs `flatPlacement` chooses: under the clock when F leaves
+         * the smallest box, beside the notice stack when it does not and there is width left before Foundry's
+         * right column (`free`), otherwise the clock's place at the smallest box. Read here: the place agrees with F,
+         * need and free, a second reading of roomPlacement agrees with the pass's, the tile laid out at the placed
+         * box within a pixel (no rotations under this theme), under the clock at the clock's width and left edge,
+         * beside the notices 16 px right of the stack and at least 16 px short of what Foundry's right column draws;
+         * then a long description opened and a pass of `refreshGlass` must leave the placement as it was. NEVER RUN
+         * in a browser at this commit: headless it stops at `env.layout` as the Stained clause does, and
+         * audit/glass-sweep.mjs reads the same place and box under `?theme=legacy` (`drpgRoomCheck`'s readFlat).
          */
         const G = await import("./glass.mjs");
-        needs(env.glass(), "this measures Stained Glass");
         needs(env.layout(), "the curtain's canvas has no width outside a browser");
         const tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
+        if (!env.glass().holds && env.desk().holds) {
+            ok(tile && hud, "no room tile or clock on this screen - nothing to measure");
+            G.refreshGlass();
+            await wait(300);
+            const room = G.LAST.room;
+            ok(room?.flat && room.box, `the pass placed no tile under Monokuma Legacy (${JSON.stringify(room)})`);
+            equal(room.place, room.F >= room.need || !(room.free >= 1) ? "clock" : "notes", `F ${room.F}, need ${room.need} and free ${room.free} choose the other place`);
+            const { box, ...placed } = room;
+            equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
+            const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+            const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            const laid = [t.left, t.top, t.width, t.height];
+            ok(laid.every((v, i) => near(v, [box.x, box.y, box.w, box.h][i])), `the tile is laid out at ${laid.map(Math.round)} and placed at ${[box.x, box.y, box.w, box.h]}`);
+            if (room.place === "clock") {
+                ok(near(t.width, h.width) && near(t.left, h.left), `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
+            } else {
+                const stack = document.getElementById("drpg-popups").getBoundingClientRect();
+                const walls = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
+                    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window")).map(e => e.getBoundingClientRect().left);
+                const clear = Math.min(innerWidth, ...walls) - t.right;
+                ok(near(t.left - stack.right, 16) && clear >= 16 - 1, `beside the notices ${Math.round(t.left - stack.right)} px right of the stack, ${Math.round(clear)} px short of Foundry's right column`);
+            }
+            const was = tile.classList.contains("is-open"), prose = document.createElement("p");
+            try {
+                prose.textContent = "Words. ".repeat(400);
+                tile.append(prose);
+                tile.classList.add("is-open");
+                G.refreshGlass();
+                await wait(300);
+                equal(JSON.stringify(G.LAST.room), JSON.stringify(room), "the placement after a long description opened");
+            } finally {
+                prose.remove(); tile.classList.toggle("is-open", was);
+                G.refreshGlass();
+            }
+            return;
+        }
+        needs(env.glass(), "this measures Stained Glass, and Monokuma Legacy on a desk");
         const cur = document.getElementById("drpg-curtain");
         ok(tile && hud && cur, "no room tile, clock or curtain on this screen - nothing to measure");
         G.refreshGlass();
@@ -11611,6 +11665,7 @@ function cornerReading(roster, views) {
     const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
     const { place, clip, k, centre, gap } = cornerGeometry();
     const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
+    const upper = ["drpg-gm-launcher", "drpg-foundry-tools"].filter(id => document.getElementById(id)).map(place);
     const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
     const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
     const seen = {
@@ -11623,7 +11678,10 @@ function cornerReading(roster, views) {
         above: centre(M).y > S.bottom + S.h && centre(M).y > B.bottom + B.h,
         height: round(M.bottom + M.h - S.bottom),
         roster: {
-            foot: round(cascadePx(roster, "bottom") - (M.bottom + M.h)),
+            /* Over the upper row since E77 fix r2-H3 (13.10.2026): on the chat's foot it stood on the GM's red button and
+               Foundry tools. The row's top is the higher of the two on the page (Foundry tools is not there with the
+               windows switched off), read like the rest from the cascade; with neither, NaN, which the caller fails. */
+            foot: round(cascadePx(roster, "bottom") - Math.max(...upper.map(q => q.bottom + q.h), upper.length ? -Infinity : NaN)),
             right: round(cascadePx(roster, "right") - M.right),
             /* A ceiling below zero is none (CSS clamps it); the parser does not, so it is clamped here. */
             top: views.map(view => view.h - cascadePx(roster, "bottom", view) - Math.max(0, cascadePx(roster, "max-height", view)))

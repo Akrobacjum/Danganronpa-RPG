@@ -645,6 +645,15 @@ body {
        whether the foot counts that row. */
     --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
     --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
+    /* THE GM'S ROSTER OVER THE UPPER ROW (E77 fix r2-H3, 13.10.2026; the round-2 question Q6). On the
+       stack's foot the roster opened over the GM's red button and Foundry tools: in the glass harness
+       (Chromium, a roster of 40 rows) it covered 1089 and 1328 of their drawn pixels under Stained
+       Glass and 1417 and 1012 under Monokuma Legacy, at 1920x1080 and 1366x768 alike, and the centre
+       of each answered `elementFromPoint` with the roster. Its foot is 8 px over the upper row's top
+       instead, the camera dock's lift with it: none covered at those sizes and at 640x360, where
+       its top stands 8 px inside the screen in both themes. The stack's foot above stays as it was
+       (E78's question). Only a GM opens the roster, and every GM's corner has the row. */
+    --drpg-roster-foot: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-launcher-small) + 8px + var(--drpg-av-lift, 0px));
 }
 
 /* Shared pixel-sprite plumbing.
@@ -8163,6 +8172,16 @@ html body {
    ========================================================================== */
 
 /* --- the font takes everything ------------------------------------------ */
+/* Foundry's own rails included where E77 put them (fix r2-H3, 13.10.2026; review round 2's
+   cor F2): on a GM's screen #sidebar and #scene-controls stand in the module's windows, children
+   of the body and out of #interface, and they keep the face through the frame's own class
+   (`[class*="drpg-"] *` below), the icons through the Font Awesome rule after it. Read in Chromium
+   on audit/glass-harness.html under Monokuma Legacy, with a stand-in for Foundry's sheet on the stub
+   sidebar: a text node in Foundry tools computes the pixel face and its icon Font Awesome at every
+   GM size of audit/glass-sweep.mjs (`drpgFoundryCut`'s `face`), and read the same at the commit
+   before (1920x1080 and 1366x768): the round's proposal, a rule of its own for
+   `.drpg-foundry-window` with Font Awesome twins, was tried and changed neither reading, so none
+   was added. Which face Foundry's real sheet leaves there is LIVE-E77-18. */
 
 body.drpg-pixel-font,
 body.drpg-pixel-font .application.sheet.actor,
