@@ -28,7 +28,7 @@ import { dialogContent, error, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
 // its static imports do not include this file - api.mjs and module.mjs are its importers.
-import { clockForDisplay } from "./hud.mjs";
+import { clockForDisplay, viewerActor } from "./hud.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -60,11 +60,19 @@ function section(heading, lines) {
         <h4>${esc(heading)}</h4>${rows}</section>`;
 }
 
-/** The actor this user is asking about: their own, or the one they have selected. */
+/**
+ * The actor this user is asking about (E77 C2, 13.10.2026; the A8 design's step 1).
+ *
+ * A player: `viewerActor()` and nothing else - the character the clock and the room tile
+ * are about. It read `game.user.character`, else the first controlled token's actor, until
+ * then: a player with no assigned character who had an owned NPC selected was told that
+ * NPC's room in the window's room section (read in the code). A GM: the token they have
+ * selected first, so the window still answers "where is this student" for whoever the GM
+ * clicked, then their own Monokuma. One call of `viewerActor` (R503's census keys each).
+ */
 function subjectActor() {
-    return game.user.character
-        ?? canvas?.tokens?.controlled?.[0]?.actor
-        ?? null;
+    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;
+    return selected ?? viewerActor();
 }
 
 /* ==========================================================================

@@ -179,7 +179,7 @@ export function registerHud() {
     Hooks.on("updateToken", (doc, changes) => {
         // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
         if (!isMoveChange(changes)) return;
-        const mine = hudActor();
+        const mine = viewerActor();
         if (!mine || doc.actorId !== mine.id) return;
 
         const room = roomOfToken(doc);
@@ -1079,9 +1079,12 @@ function line(className, text) {
  *                         is the defender's two minutes - the objection above
  *                         it already had the objector's name on its own.
  *
+ * Exported since E77 C2: the room tile (room-tile.mjs `viewerRoom`) shows no room
+ * while this answers, as the clock's room block never did.
+ *
  * @returns {{key: string, label: string, speaker: string, versus: string|null}|null}
  */
-function trialSlot() {
+export function trialSlot() {
     try {
         if (getClock().phase !== "classTrial") return null;
 
@@ -1332,8 +1335,17 @@ function centrePauseRaster() {
  * or the single owned student when nobody assigned one - and the same one
  * voice.mjs and camera-view.mjs use for a GM: the Monokuma whose Despair pool
  * is this user's.
+ *
+ * THE ONE VIEWER (E77 C2, 13.10.2026; the A8 design's step 1). Exported as
+ * `viewerActor` with its rule unchanged, so the clock, the 'Where are we' window
+ * (explain.mjs `subjectActor`) and the room tile (room-tile.mjs `viewerRoom`)
+ * ask one function whose room this screen shows. Until then the window took
+ * `game.user.character`, else the first controlled token's actor: a player with
+ * no assigned character who selected an owned NPC read that NPC's room while
+ * the clock named their own (read in the code, 13.10.2026). R509 reads that no
+ * other reader of the viewer is left in the three files.
  */
-function hudActor() {
+export function viewerActor() {
     if (game.user.isGM) {
         return game.actors.find(a =>
             a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === game.user.id) ?? null;
@@ -1351,7 +1363,7 @@ function hudActor() {
  */
 function buildRoom() {
     try {
-        // Checked FIRST, and deliberately before `hudActor()`: the trial block
+        // Checked FIRST, and deliberately before `viewerActor()`: the trial block
         // is about the trial rather than about you, so a GM with no Monokuma of
         // their own - who gets no room block at all the rest of the time - must
         // still see whose floor it is.
@@ -1361,7 +1373,7 @@ function buildRoom() {
         // in any trial, no room block - everybody is in the courtroom.
         if (trial) return null;
 
-        const actor = hudActor();
+        const actor = viewerActor();
         if (!actor) return null;
 
         const place = locateActor(actor);

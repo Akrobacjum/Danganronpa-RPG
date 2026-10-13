@@ -71,6 +71,16 @@ export const ROOM_FLAGS = {
 const lastRoom = new Map();
 /** Last position inside that room, so a refused crossing can be undone - its floor too (`spotOf`). */
 const lastPosition = new Map();
+/**
+ * The tokens whose route this browser is judging, from the update to the `drpgRouteSettled` that
+ * announces it, each with the spot it stood on before the route (`settledSpot`), and those of them whose
+ * put-back is on its way (`sendBack`) - the REVERT announces those when it lands (E77 C2, `onUpdateToken`).
+ * The spot is taken when the route is marked rather than read from `lastPosition` later: a route of two
+ * crossings whose first is paid moves `lastPosition` to the route's end (`chargeForCrossing`) before its
+ * second is refused and put back.
+ */
+const unsettled = new Map();
+const putBack = new Set();
 
 /**
  * Where a token stands, to be put back to: x and y, and its floor when it has one (E12 C9). A
@@ -80,6 +90,21 @@ const lastPosition = new Map();
 function spotOf(tokenDoc) {
     const level = levelOf(tokenDoc);
     return level === null ? { x: tokenDoc.x, y: tokenDoc.y } : { x: tokenDoc.x, y: tokenDoc.y, level };
+}
+
+/**
+ * Where a token stands for a reader that must not see a route before it is settled (E77 C2, 13.10.2026;
+ * room-tile.mjs `settledPosition`): while this browser judges the token's route - from its update to the
+ * `drpgRouteSettled` that announces it, or to its put-back's landing - the spot it stood on before the
+ * route (as `lastPosition` had it when the route was marked), else its own. A route another browser
+ * settles is not judged here, so on that browser this is the token's spot as written; the tile there
+ * waits for quiet (E77 C3). Nor is a step taken while waypoints are pending: it answers the step's own
+ * spot, and nothing is announced for it. A put-back the GM's bridge refuses keeps the spot before the
+ * route until the token's next move.
+ */
+export function settledSpot(tokenDoc) {
+    if (!tokenDoc) return null;
+    return unsettled.get(tokenDoc.id) ?? spotOf(tokenDoc);
 }
 
 export function registerMovement() {
@@ -1311,6 +1336,10 @@ function primeRoomCache() {
 /**
  * Settle a route that crossed at least one border: who pays, the Eclipse's
  * veto, the charge switch, and one charge per crossing.
+ *
+ * @returns {Promise<boolean|undefined>} true when the route stands, false when
+ *   a crossing of it was refused (E77 C2: `onUpdateToken` announces either),
+ *   undefined when another browser settles it.
  */
 async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // Exactly one client applies the cost, or two GMs would both spend the
@@ -1343,11 +1372,11 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
             const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors);
             if (!allowed) {
                 await sendBack(tokenDoc, previous, before);
-                return;
+                return false;
             }
         }
         if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-        return;
+        return true;
     }
 
     // The cost, and only the cost, is what the setting governs. Everything
@@ -1356,7 +1385,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // charge for a crossing that happened while it was off.
     if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) {
         if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-        return;
+        return true;
     }
 
     // One at a time, in the order they were crossed. The first one that
@@ -1375,112 +1404,151 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     let standing = previous;
     for (const [from, to, floors] of crossings) {
         const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
-        if (!paid) return;
+        if (!paid) return false;
         standing = positionIn(to, tokenDoc, floors?.to ?? null) ?? standing;
     }
+    return true;
 }
 
+/**
+ * A token's update, judged (`judgeMove`), and its route announced once the token stands where the route
+ * leaves it (E77 C2, 13.10.2026; the A8 design's step 5).
+ *
+ * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted })` is client-local and fires once per route:
+ * `accepted: true` when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room,
+ * an Eclipse's allowed crossings, the charge switched off, every crossing paid); `accepted: false` when the
+ * module put the token where it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather -
+ * on every browser) or refused a crossing it did not put back (`takeMove` paid nothing). A refusal that
+ * schedules a put-back is not announced: the put-back is, when it lands, so a listener never reads the
+ * token in a room it was refused. Nothing fires for a change that is no move, for a step of a drag still
+ * in flight (`movement.pending.waypoints`), or on a browser that does not settle the route (another one
+ * charges it; the room tile there waits for quiet, E77 C3). Until C2 a reader had only the raw update,
+ * which reaches every browser before the refusal and its put-back (the A8 design's CB-8): a tile drawn on
+ * it names a room the character never entered. Scenario 66 W2-W4 counts the announcements on the mover's
+ * browser and two others; R506 reads that this is the one place that fires it.
+ */
 async function onUpdateToken(tokenDoc, changes, options, userId) {
+    let accepted;
     try {
-        // Our own revert: record where it landed, charge nothing.
-        if (options?.[REVERT]) {
-            lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-            return;
-        }
-
-        // A GM moved it: always free, never reverted.
-        //
-        // Without this, a token whose owner is offline falls through to
-        // "the primary GM pays" below - so a GM tidying the map was charged for
-        // it and had the token teleported back. It only showed on absent
-        // players' tokens, which is why one character misbehaved and another
-        // did not.
-        if (game.users.get(userId)?.isGM) {
-            lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-            return;
-        }
-
-        // Only a move can cross a boundary - and a change of floor is one (E12 C9; the veto's note).
-        if (!isMoveChange(changes)) return;
-
-        /* ONE CHARGE PER CROSSING - AND EVERY CROSSING ALONG THE WAY.
-           -------------------------------------------------------------------
-           Foundry v14 delivers a move as a SERIES of updates along the token's
-           path - the core says as much, deprecating `updateToken` for movement
-           in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
-           those intermediate updates carries new x/y, so charging on each of
-           them told the player "that cost an action" two, three, four times for
-           one drag. Waiting for the last update fixed that and introduced
-           B-F2-1: the settlement then compared only the ENDS of the operation,
-           so a route out through a neighbour and back again cost nothing at all
-           - a free look into the next room - and a two-room route cost one Move
-           instead of two.
-
-           Both are answered by remembering the rooms the token passes through
-           and settling the whole path at the end: still one settlement per
-           drag, but the price is what the route actually cost. The veto in
-           `onPreUpdateToken` already works per segment (it is not gated here),
-           so adjacency and locks were never fooled by a multi-waypoint route -
-           only the price was. */
-        if (tokenDoc.movement?.pending?.waypoints?.length) {
-            notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
-            return;
-        }
-
-        // Taken - not read - so every `return` below leaves nothing behind for
-        // the next drag to inherit.
-        const path = takePath(tokenDoc.id);
-
-        const actor = tokenDoc.actor;
-        if (!actor || actor.type !== "character") return;
-
-        // Monokumas walk where they like. The guide has them moving around the
-        // map freely between interventions; they have no action economy to
-        // spend and no walls to respect.
-        const { isMonokuma } = await import("./monokuma.mjs");
-        if (isMonokuma(actor)) {
-            lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-            return;
-        }
-
-        // "Never seen this token" and "was outside every room" are different
-        // states. Without that distinction the first drag after a token appears
-        // looks like a crossing and wrongly costs a Move.
-        const known = lastRoom.has(tokenDoc.id);
-        const before = lastRoom.get(tokenDoc.id) ?? null;
-        const previous = lastPosition.get(tokenDoc.id) ?? null;
-        const after = roomOfToken(tokenDoc);
-
-        if (!known) {
-            lastRoom.set(tokenDoc.id, after);
-            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-            return;
-        }
-
-        // Every boundary this drag actually crossed, in the order it crossed
-        // them. Ending where you started is no longer the same as going
-        // nowhere: the route is what is charged for.
-        const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
-            { room: after, level: levelOf(tokenDoc) });
-
-        // Nothing crossed - a move inside one room, or a scene with no regions
-        // at all: free. Remember the new spot so a later refused crossing snaps
-        // back to somewhere sensible.
-        if (!crossings.length) {
-            lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
-            lastRoom.set(tokenDoc.id, after);
-            return;
-        }
-
-        lastRoom.set(tokenDoc.id, after);
-
-        await settleRoute(tokenDoc, actor, { before, previous, crossings });
+        accepted = await judgeMove(tokenDoc, changes, options, userId);
     } catch (err) {
         error("Movement charge failed", err);
+    } finally {
+        if (!putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
+    if (accepted === false && putBack.has(tokenDoc.id)) return;
+    if (accepted === true || accepted === false) Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted });
+}
+
+/**
+ * Whether a token's update stands: true, false when it was refused or put back, undefined when there is
+ * no route to announce here (`onUpdateToken`).
+ */
+async function judgeMove(tokenDoc, changes, options, userId) {
+    // Our own revert: record where it landed, charge nothing.
+    if (options?.[REVERT]) {
+        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
+        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        putBack.delete(tokenDoc.id);
+        unsettled.delete(tokenDoc.id);
+        return false;
+    }
+
+    // A GM moved it: always free, never reverted.
+    //
+    // Without this, a token whose owner is offline falls through to
+    // "the primary GM pays" below - so a GM tidying the map was charged for
+    // it and had the token teleported back. It only showed on absent
+    // players' tokens, which is why one character misbehaved and another
+    // did not.
+    if (game.users.get(userId)?.isGM) {
+        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
+        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        return true;
+    }
+
+    // Only a move can cross a boundary - and a change of floor is one (E12 C9; the veto's note).
+    if (!isMoveChange(changes)) return;
+
+    /* ONE CHARGE PER CROSSING - AND EVERY CROSSING ALONG THE WAY.
+       -------------------------------------------------------------------
+       Foundry v14 delivers a move as a SERIES of updates along the token's
+       path - the core says as much, deprecating `updateToken` for movement
+       in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
+       those intermediate updates carries new x/y, so charging on each of
+       them told the player "that cost an action" two, three, four times for
+       one drag. Waiting for the last update fixed that and introduced
+       B-F2-1: the settlement then compared only the ENDS of the operation,
+       so a route out through a neighbour and back again cost nothing at all
+       - a free look into the next room - and a two-room route cost one Move
+       instead of two.
+
+       Both are answered by remembering the rooms the token passes through
+       and settling the whole path at the end: still one settlement per
+       drag, but the price is what the route actually cost. The veto in
+       `onPreUpdateToken` already works per segment (it is not gated here),
+       so adjacency and locks were never fooled by a multi-waypoint route -
+       only the price was. */
+    if (tokenDoc.movement?.pending?.waypoints?.length) {
+        notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
+        return;
+    }
+
+    // Judged on this browser from here, before the first `await`: a hook of the same update that runs after
+    // this one reads the spot before the route (`settledSpot`) until it is announced, or until its put-back
+    // lands - scenario 66 W4 reads it from such a hook at the refused update and at the put-back.
+    putBack.delete(tokenDoc.id);
+    unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id) ?? null);
+
+    // Taken - not read - so every `return` below leaves nothing behind for
+    // the next drag to inherit.
+    const path = takePath(tokenDoc.id);
+
+    const actor = tokenDoc.actor;
+    if (!actor || actor.type !== "character") return true;
+
+    // Monokumas walk where they like. The guide has them moving around the
+    // map freely between interventions; they have no action economy to
+    // spend and no walls to respect.
+    const { isMonokuma } = await import("./monokuma.mjs");
+    if (isMonokuma(actor)) {
+        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
+        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        return true;
+    }
+
+    // "Never seen this token" and "was outside every room" are different
+    // states. Without that distinction the first drag after a token appears
+    // looks like a crossing and wrongly costs a Move.
+    const known = lastRoom.has(tokenDoc.id);
+    const before = lastRoom.get(tokenDoc.id) ?? null;
+    const previous = lastPosition.get(tokenDoc.id) ?? null;
+    const after = roomOfToken(tokenDoc);
+
+    if (!known) {
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        return true;
+    }
+
+    // Every boundary this drag actually crossed, in the order it crossed
+    // them. Ending where you started is no longer the same as going
+    // nowhere: the route is what is charged for.
+    const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
+        { room: after, level: levelOf(tokenDoc) });
+
+    // Nothing crossed - a move inside one room, or a scene with no regions
+    // at all: free. Remember the new spot so a later refused crossing snaps
+    // back to somewhere sensible.
+    if (!crossings.length) {
+        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        return true;
+    }
+
+    lastRoom.set(tokenDoc.id, after);
+
+    return settleRoute(tokenDoc, actor, { before, previous, crossings });
 }
 
 /**
@@ -1641,28 +1709,21 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
 
-    // What the room looks like, when the GM has written it - the Description
-    // tab in Room Setup. Walking in is the moment somebody wants to be told
-    // what they are looking at (Dawid, 26.08), and it saves them opening the
-    // clock to read it. Escaped: it is the GM's own typed prose, and this card
-    // is HTML.
-    let described = "";
-    try {
-        const { roomDescription } = await import("./vault.mjs");
-        const text = to ? roomDescription(to, tokenDoc?.parent ?? sceneOfActor(actor)) : "";
-        if (text) described = `<p class="drpg-room-prose">${foundry.utils.escapeHTML(text)}</p>`;
-    } catch (err) {
-        // A description is a courtesy; the move itself has already been paid
-        // for and must be reported either way.
-        debug(`Could not read the description of "${to}": ${err?.message ?? err}`);
-    }
-
     // The room goes in the header's own slot rather than only inside `where`'s
     // sentence: the header is the line somebody skims a whole time of day by,
     // and "MOVE - Dinner Hall" answers the question the log is being read for.
+    //
+    // WHERE AND THE PRICE, AND NOT WHAT THE ROOM LOOKS LIKE (E77 C2, 13.10.2026).
+    // The card carried the GM's description of the room from 26.08 (Dawid: walking
+    // in is when somebody wants to be told what they see) until the owner's answer
+    // of 11.10 to the A8 design's question 1, "b": the card says where the character
+    // went and what it cost, and the description is read on the room tile, which
+    // shows it while the character stands there rather than once, on a card a player
+    // closes (a card already sent stays as it was sent). Scenario 66 W2 reads
+    // the card of a crossing into a described room; R506 that no description is read here.
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Move.title"), room: to
-    })}<p>${where}<br>${price}</p>${described}`);
+    })}<p>${where}<br>${price}</p>`);
     debug(`${actor.name}: ${from ?? "-"} -> ${to ?? "-"} (${cost})`);
 
     /*
@@ -1689,6 +1750,8 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  */
 async function sendBack(tokenDoc, previous, room) {
     if (!tokenDoc || !previous) return;
+    // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
+    putBack.add(tokenDoc.id);
 
     // The only "error" a player makes regularly, and until now the only signal
     // was the token sliding back. Local, on the client that tried it.

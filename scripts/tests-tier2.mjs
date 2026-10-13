@@ -48290,7 +48290,8 @@ const SCENARIOS = [
          * the elevation, and remembered a token's place as x and y (`lastPosition`), so a send-back after
          * a climb put the token back by x and y and left it upstairs. Here movement.mjs's charge, taken
          * off `Hooks.events` as Foundry would call it (fog.mjs has a listener of the same name; this one
-         * settles a route), is handed a plain token of a plain character no connected player owns - so the
+         * settles a route - its body is `judgeMove` since E77 C2, `settleRoute` before, and fog.mjs's calls
+         * neither, read in the code 13.10.2026), is handed a plain token of a plain character no connected player owns - so the
          * primary GM pays, as for an absent player - with no Free Move, no action and no grant left. Its
          * place is recorded as our own revert records it, then it climbs from the Lab to the Attic above
          * by its level alone, as a player's update. Read: what the send-back wrote to the token, and what
@@ -48302,7 +48303,7 @@ const SCENARIOS = [
         needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
         const player = game.users.find(user => !user.isGM);
         const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
-            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
         must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
         const clock = getClock() ?? {};
         if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
@@ -49751,7 +49752,7 @@ const SCENARIOS = [
         must(game.settings.settings.has(`${MODULE_ID}.${SETTINGS.playerRegions}`), "no record of players' regions is registered - this would measure nothing");
         const player = game.users.find(user => !user.isGM);
         const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
-            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
         must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
         const L1 = "SUITEFLOORONE000", L2 = "SUITEFLOORTWO000";
         const region = (name, x, levels, behaviors = []) => ({ id: `suite-e12-h1-${name}`, name, levels: new Set(levels), behaviors,
@@ -49825,7 +49826,7 @@ const SCENARIOS = [
         needs(world.atLeast("playerAccounts", 1), "the charge is asked of a player's move");
         const player = game.users.find(user => !user.isGM);
         const charge = (Hooks.events?.updateToken ?? []).map(entry => entry.fn)
-            .find(fn => fn?.name === "onUpdateToken" && /settleRoute/.test(String(fn)));
+            .find(fn => fn?.name === "onUpdateToken" && /judgeMove|settleRoute/.test(String(fn)));
         must(typeof charge === "function", "no movement charge registered on updateToken - this would measure nothing");
         const clock = getClock() ?? {};
         if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });

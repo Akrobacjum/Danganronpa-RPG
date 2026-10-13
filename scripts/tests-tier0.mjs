@@ -8280,7 +8280,7 @@ const REGRESSIONS = [
             ["SHEET murder-rules.mjs#registerMurder", "judged: its `updateToken` hook runs on the primary (`maybeBodyFound`); the return from the trial announces no body: 41 g reads 0 new body cards and the stamps unchanged after End the trial takes the table back to the school (E13 C3; 41 i, the gather's half, is C3b's). E12 C12 adds the witness standing"],
             ["SHEET inventory.mjs#wearItem", "judged on a GM through `held` (the swing's); on a player's own item class 1. C8 changes the durability for tier 0 (E13 C8)"],
             ["SHEET inventory.mjs#breakItem", "held: `itemsHeldNow`; C8's spent tier-0 item breaks through it (E13 C8)"],
-            ["SHEET movement.mjs#onUpdateToken", "out of scope: `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
+            ["SHEET movement.mjs#judgeMove", "out of scope (E77 C2 moved the body of `onUpdateToken` here; `onUpdateToken` now only announces its verdict): `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs:2459), not a player's flag"],
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8340,7 +8340,7 @@ const REGRESSIONS = [
         const FILES = ["trial-floor-ui.mjs", "call-world.mjs", "voice.mjs", "use-items.mjs", "clock.mjs", "requirements.mjs", "trial-scene.mjs"];
         const NAMED = { "gm-bridge.mjs": ["requestSendBack"], "murder-rules.mjs": ["wearSwing", "undoLastCrisis", "rateTierZero", "registerMurder"],
             "inventory.mjs": ["wearItem", "breakItem"], "sheet-audit.mjs": ["flagsAsHeld", "flagsHeldNow", "actorHeldNow", "itemAsHeld"],
-            "movement.mjs": ["onPreUpdateToken", "onUpdateToken", "locateActor", "placesOf", "registerMovement"], "chapter.mjs": ["applyChapterEnd"],
+            "movement.mjs": ["onPreUpdateToken", "judgeMove", "locateActor", "placesOf", "registerMovement"], "chapter.mjs": ["applyChapterEnd"],
             "sync.mjs": ["registerSync"], "gm-panel.mjs": ["openClockDialog"], "settings.mjs": ["isDeadForGm"], "monocub.mjs": ["isMonocub"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
@@ -8721,7 +8721,9 @@ const REGRESSIONS = [
          * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
          * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
          * census's 26 PLANNED roads (the picture's, `viewerActor`, the settle hook, the tile, the windows' setting, the
-         * narrow row) come with C1, C2, C3, C7 and C8; C1's nine (the picture's: five FIELD, four FORM) are rows since E77 C1.
+         * narrow row) come with C1, C2, C3, C7 and C8; C1's nine (the picture's: five FIELD, four FORM) are rows since E77 C1,
+         * and C2's eight since E77 C2 (four READ of room-tile.mjs, two WHO, and the two settle-hook roads as one HOOK: the
+         * announcement is made in `onUpdateToken` alone), when the move card's two READ went with its description.
          * It reads names and text, not data flow, as the parse-only census does: a description handed to a helper the
          * kinds do not list is judged at the call, a CSS `url()` written in a stylesheet is not a road here, and what a
          * server answers to a picture path (a redirect elsewhere) is no reading of the source at all (LIVE-E77-03).
@@ -8733,7 +8735,9 @@ const REGRESSIONS = [
          * rows, none either side, the same 24 keys as the parse-only census at f6822d7 (compared key by key). On the
          * harness (13.10.2026, this test alone, once) it read the same 24 against the 24 rows, none either side. On C1's
          * working tree (13.10.2026, in Node) it read 33 - the nine of the picture more, 10 FIELD and 8 FORM - against
-         * the 33 rows, none either side.
+         * the 33 rows, none either side. On C2's working tree (13.10.2026, in Node) it read 38 - 6 READ, 6 WHO, 4 HOOK -
+         * against the 38 rows, none either side, the same 38 keys as the parse-only census (compared key by key); on the
+         * harness (13.10.2026, this test alone, once) it passed.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8752,7 +8756,7 @@ const REGRESSIONS = [
             ["FIELD vault.mjs#pieceData#image -> src", "the list of flags a renamed piece carries, the picture beside the description; nothing is drawn"],
             ["FIELD vault.mjs#roomImage#image -> src", "the reader answers `safeRoomImage` of the stored value, so a console's or an old value is no picture"],
             ["FIELD vault.mjs#applyRoomRows#image -> src", "the before-state Room Setup compares a row against, as stored; not drawn"],
-            ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`, the move card's `escapeHTML`) - E77 C2 and C3 add the tile, which sets it as textContent"],
+            ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`) - the move card no longer reads it (E77 C2), and C3's tile sets it as textContent"],
             ["FIELD vault.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
             // ---- Room Setup (the GM's own form)
             ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`)"],
@@ -8766,15 +8770,20 @@ const REGRESSIONS = [
             ["FORM vault.mjs#readRoomSetupForm#img -> setup", "the hidden field's `.value`, trimmed; judged by `safeRoomImage` in `applyRoomRows` before anything is written"],
             ["FORM vault.mjs#readRoomSetupForm#img -> src", "as on setup: a path, never fetched before `safeRoomImage` accepts it"],
             // ---- the readers
-            ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>; E77 C2 keeps its paragraphs"],
-            ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene; a GM with a token controlled reads that token's room by design (E77 C2: a player's own character only)"],
-            ["READ movement.mjs#chargeForCrossing#roomDescription -> card", "`escapeHTML` in the move card, whispered to the mover's owner and the GMs; E77 C2 takes the description off the card (the owner's answer of 11.10)"],
-            ["READ movement.mjs#chargeForCrossing#roomDescription -> which", "the room the mover entered, on the token's own scene (E77 C2 removes the read)"],
+            ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>, its paragraphs kept by `white-space: pre-line` (E77 C2)"],
+            ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene: a player's own character (`viewerActor`, E77 C2); a GM's selected token by design, else their Monokuma"],
+            ["READ room-tile.mjs#roomFacts#roomDescription -> text", "the GM's raw words, handed on as a string; the tile sets them as text only (E77 C3; R509 forbids markup in room-tile.mjs)"],
+            ["READ room-tile.mjs#roomFacts#roomDescription -> which", "the room and scene `viewerRoom` gives: the viewer's own token's, at the spot its last settled route left it (R504, scenario 66 W1)"],
+            ["READ room-tile.mjs#roomFacts#roomImage -> src", "`roomImage` answers `safeRoomImage` of the stored value on every read, null when refused (R504 reads a refused value as null)"],
+            ["READ room-tile.mjs#roomFacts#roomImage -> which", "as the description: the viewer's own room on its own scene (R504, scenario 66 W1)"],
             // ---- whose room
-            ["WHO explain.mjs#roomBlock#subjectActor -> which", "the user's assigned character, else the first controlled token's actor - for a player one they own, their own or an owned NPC; E77 C2 makes it `viewerActor()` for a player"],
-            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text (E77 C2's `subjectActor` reaches it too)"],
-            ["WHO hud.mjs#registerHud#hudActor -> which", "the HUD repaints for the viewer's own token's move only (E77 C3 moves the hook to the tile)"],
-            ["WHO hud.mjs#buildRoom#hudActor -> which", "the viewer's own student (`ownStudent`), or a GM's Monokuma (E77 C3 moves the room block off the clock)"],
+            ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
+            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
+            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
+            ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
+            ["WHO hud.mjs#registerHud#viewerActor -> which", "the HUD repaints for the viewer's own token's move only (E77 C3 moves the hook to the tile)"],
+            ["WHO hud.mjs#buildRoom#viewerActor -> which", "the viewer's own student (`ownStudent`), or a GM's Monokuma (E77 C3 moves the room block off the clock)"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK hud.mjs#registerHud#updateToken -> which", "the viewer's own token's moves only, painted on the write before the route settles (E77 C3: the tile paints on `drpgRouteSettled`)"],
             ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"]
@@ -8933,6 +8942,119 @@ const REGRESSIONS = [
         equal(JSON.stringify([shape(vault), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
             "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
             + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
+    }],
+    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R381 (the E77 plan's D2 gave it this number; ledger V4, D5, D7), its
+         * C2 clauses, read in movement.mjs with comments blanked. The plan put R506 on tier 1; what it asks - one
+         * announcement per settled route, none while waypoints are pending, nothing of a refused room at 400 and
+         * 1200 ms - needs a token moved by a player and three browsers listening, which is scenario 66's W2-W4
+         * (the behaviour) and no read-only test, so this keeps the shape that makes it, as R507 did for C1: one
+         * `Hooks.callAll("drpgRouteSettled"` in the module's files, in `onUpdateToken`, behind
+         * `if (accepted === false && putBack.has(tokenDoc.id)) return;` (a refusal that schedules a put-back is
+         * announced by the REVERT's own update, on every browser, so no listener reads the refused room between
+         * the two); `onUpdateToken` registered on `updateToken`; `judgeMove`'s REVERT branch clears the put-back
+         * and answers false, the GM's move answers true, a pending waypoint answers nothing, and the route is
+         * marked `unsettled` after the waypoint gate and before the first `await`, with the spot before it (a hook
+         * of the same update that runs after movement's reads `settledSpot` before the judging has yielded once);
+         * `sendBack` marks the put-back; `settledSpot` answers the marked spot while the route is unsettled (not
+         * `lastPosition` itself, which a paid first crossing moves to the route's end before a refused second
+         * one is put back - scenario 66 W4's route); `chargeForCrossing`'s card
+         * is `<p>${where}<br>${price}</p>` and nothing in movement.mjs reads `roomDescription` (the owner's answer
+         * of 11.10, question 1 "b": the description is the room tile's). It reads names, not data flow: a second
+         * announcement through a helper is scenario 66's to count. The reader is run first on a fixture with
+         * every part, and on the same fixture with the gate taken out and with the description put back.
+         */
+        const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
+        const shape = src => {
+            const body = name => topLevelFunction(src, name) ?? "";
+            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
+            const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
+            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
+            const mark = judge.indexOf("unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id)");
+            return [
+                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src),
+                /if \(options\?\.\[REVERT\]\) \{[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
+                    && /\?\.isGM\) \{[^}]*return true;\s*\}/.test(judge) && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
+                mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
+                    && /return unsettled\.get\(tokenDoc\.id\) \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src)
+            ];
+        };
+        const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id) ?? spotOf(tokenDoc);\n}\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    const accepted = await judgeMove(tokenDoc, changes, options, userId);\n"
+            + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
+            + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId) {\n    if (options?.[REVERT]) {\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (game.users.get(userId)?.isGM) {\n        return true;\n    }\n    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
+            + "    unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id) ?? null);\n    const actor = await import(\"./monokuma.mjs\");\n    return settleRoute(tokenDoc);\n}\n"
+            + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
+            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
+            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>"))]),
+        JSON.stringify([[true, true, true, true], [false, true, true, true], [true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not miss the gate taken out or the description put back on the card");
+        const sources = new Map(await otherSources());
+        const movement = stripComments(sources.get("movement.mjs") ?? "");
+        must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
+        const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true], []]),
+            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken; the REVERT answering false, a GM's move "
+            + "true, a pending waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before; the card "
+            + "where and the price, and no description read in movement.mjs] and the other files that announce a route");
+    }],
+
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
+         * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
+         * data-tooltip; hud.mjs without buildRoom), C4 the one placement formula, C5 Foundry's windows, C6
+         * GM_SLOT, GM_DROP and the logo file. Until C2 the clock chose its character in `hudActor` and the
+         * Explain window in `subjectActor`, which for a player fell back to a selected token (a player selects
+         * only what they own, so their own or an owned NPC - E77 census row, read in the code at f6822d7); the
+         * tile is a third reader of the same question and the one that shows another user's words. Read with
+         * comments blanked: `viewerActor` is exported from hud.mjs and is the only place in the three files that
+         * reads `game.user.character`, `ownStudent(`, `poolUserFor(` or a token's `.controlled`, save
+         * `subjectActor`'s one line, which reads the selection only under `game.user.isGM` and otherwise returns
+         * `viewerActor()`; `viewerRoom` asks `viewerActor()`; no file of the module names `hudActor` any more.
+         * `game.actors` is not in the list: hud.mjs reads an actor by id for the trial's speaker (read in the code,
+         * 13.10.2026), which is not the viewer. The reader is run first on a fixture of the three files, and on
+         * the same fixture with the GM's gate taken off the selection and with a second reader of the student.
+         */
+        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const shape = files => {
+            const hud = files.get("hud.mjs") ?? "", explain = files.get("explain.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
+            const viewer = topLevelFunction(hud, "viewerActor") ?? "", subject = topLevelFunction(explain, "subjectActor") ?? "";
+            const rest = [["hud.mjs", hud.replace(viewer, "")], ["explain.mjs", explain.replace(subject, "")], ["room-tile.mjs", tile]]
+                .filter(([, text]) => READS.test(text)).map(([file]) => file);
+            return [
+                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bownStudent\(\)/.test(viewer),
+                /=\s*game\.user\.isGM \? canvas\?\.tokens\?\.controlled\?\.\[0\]\?\.actor \?\? null : null;/.test(subject)
+                    && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
+                /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
+                rest
+            ];
+        };
+        const FIXTURE = new Map([
+            ["hud.mjs", "export function viewerActor() {\n    if (game.user.isGM) return game.actors.find(a => poolUserFor(a)?.id === game.user.id) ?? null;\n"
+                + "    return ownStudent();\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
+            ["explain.mjs", "function subjectActor() {\n    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;\n"
+                + "    return selected ?? viewerActor();\n}\n"],
+            ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"]
+        ]);
+        const planted = (file, from, to) => new Map([...FIXTURE].map(([name, text]) => [name, name === file ? text.replace(from, to) : text]));
+        equal(JSON.stringify([shape(FIXTURE), shape(planted("explain.mjs", "game.user.isGM ? canvas", "true ? canvas")),
+            shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();"))]),
+        JSON.stringify([[true, true, true, []], [true, false, true, []], [true, true, true, ["hud.mjs"]]]),
+        "the reader does not read its fixture whole, or does not miss the GM's gate taken off or a second reader of the student");
+        const sources = new Map(await otherSources());
+        must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
+        const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
+        const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
+        equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, []], []]),
+            "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
+            + "viewerActor(); the three files' other readers of the account's character] and the files that still name hudActor");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {

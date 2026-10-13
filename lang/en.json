@@ -2459,7 +2459,7 @@
       "title": "Move",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
-      "entered": "Entered {room}.",
+      "entered": "You enter {room}.",
       "leftRooms": "Left the room.",
       "wasSprint": {
         "one": "Paid by a Sprint. {n} left.",

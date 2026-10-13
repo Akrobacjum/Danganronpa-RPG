@@ -10294,6 +10294,64 @@ const INVARIANTS = [
             JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
             `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
     }],
+    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
+         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room) and scenario 74 the
+         * states this suite cannot make read-only (a trial, an Eclipse, a death, a Monocub). Two halves, both read,
+         * nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
+         * Kitchen of two room pieces of which only the second carries words and a picture, a region named Kitchen
+         * that is no room (listed first, with words of its own - a reader over every region of the name would
+         * answer them), a Hall, a Pantry whose picture is `javascript:`, a Cellar nobody drew, and a second scene
+         * with a Kitchen of its own (a reader of the camera's scene, or of the first scene of the name, would
+         * answer the other's). THEN viewerRoom on the browser that runs the suite, against what it must be built
+         * from: `trialSlot` first, `viewerActor` (hud.mjs) and nothing else for the actor, `locateActor` for the
+         * token and its scene, and the room that token stands in - no route is being judged while the suite reads,
+         * so the settled spot is the token's own (movement.mjs `settledSpot`). The other browsers' answers, and a
+         * route not yet settled, are scenario 66's phase W (they need a token moved and three clients). On the
+         * harness the GM's viewer is the seeded Monokuma, whose pool is the seeded GM's: scenario 66 W1 read the GM's
+         * answer as the Hall, where it stands (13.10.2026).
+         */
+        const T = await import("./room-tile.mjs").catch(() => null);
+        ok(typeof T?.roomFacts === "function" && typeof T?.viewerRoom === "function",
+            "room-tile.mjs has no `roomFacts` and `viewerRoom` - there is no one answer to which room a screen shows");
+        if (typeof T?.roomFacts !== "function" || typeof T?.viewerRoom !== "function") return;
+        const R = await import("./rooms.mjs"), V = await import("./vault.mjs");
+        const H = await import("./hud.mjs"), M = await import("./movement.mjs");
+        const D = V.VAULT_FLAGS.description, I = V.VAULT_FLAGS.image;
+        const piece = (id, name, flags, room = true) => ({ id, name, behaviors: [],
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? room : flags[key]) });
+        const here = { id: "SUITER504HERE000", name: "R504 here", regions: new Set([
+            piece("R504KX", "Kitchen", { [D]: "Not a room's words.", [I]: "worlds/suite/not-a-room.webp" }, false),
+            piece("R504K1", "Kitchen", {}),
+            piece("R504K2", "Kitchen", { [D]: "Pots on the wall.\nA cold stove.", [I]: "worlds/suite/kitchen.webp" }),
+            piece("R504H1", "Hall", { [D]: "A long hall.", [I]: "worlds/suite/hall.png" }),
+            piece("R504P1", "Pantry", { [D]: "Shelves.", [I]: "javascript:alert(1)//x.png" })
+        ]) };
+        const there = { id: "SUITER504THERE00", name: "R504 there", regions: new Set([
+            piece("R504K9", "Kitchen", { [D]: "The other school's kitchen.", [I]: "worlds/suite/other-kitchen.jpg" })
+        ]) };
+        equal(JSON.stringify([["Kitchen", here], ["Hall", here], ["Pantry", here], ["Cellar", here], ["Kitchen", there]]
+            .map(([room, scene]) => T.roomFacts(room, scene))),
+        JSON.stringify([
+            { room: "Kitchen", description: "Pots on the wall.\nA cold stove.", image: "worlds/suite/kitchen.webp" },
+            { room: "Hall", description: "A long hall.", image: "worlds/suite/hall.png" },
+            { room: "Pantry", description: "Shelves.", image: null },
+            { room: "Cellar", description: "", image: null },
+            { room: "Kitchen", description: "The other school's kitchen.", image: "worlds/suite/other-kitchen.jpg" }
+        ]), "roomFacts of [the Kitchen of two pieces and a non-room namesake, the Hall, the Pantry's `javascript:` picture, a room nobody drew, "
+            + "the other scene's Kitchen]");
+        const viewer = typeof H.viewerActor === "function" ? H.viewerActor() : undefined;
+        ok(viewer !== undefined, "hud.mjs exports no `viewerActor` - the clock and the tile could each choose their own character");
+        const place = viewer ? M.locateActor(viewer) : null;
+        const want = H.trialSlot() ? ["trial", null, null, null]
+            : !viewer ? [game.user.isGM ? "none" : "noActor", null, null, null]
+                : !place ? ["nowhere", null, null, null]
+                    : [place.room ? "room" : "nowhere", place.room, place.scene.id, viewer.id];
+        const got = T.viewerRoom();
+        equal(JSON.stringify([got.state, got.room, got.scene?.id ?? null, got.tokenDoc?.actorId ?? null]), JSON.stringify(want),
+            `viewerRoom on this browser as [state, room, scene, the token's actor]; the viewer is ${viewer?.name ?? "nobody"}`);
+    }],
 ];
 
 /**

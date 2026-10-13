@@ -16248,23 +16248,15 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     opacity: 0.45;
 }
 
-/* The GM's own words about a room, set apart from the module's. */
+/* The GM's own words about a room, set apart from the module's. `pre-line` keeps the
+   paragraphs the GM typed in Room Setup's description panel, a textarea (E77 C2): the
+   text is set escaped, so its newlines are the only breaks it has, and HTML folds them
+   away (read in the code, 13.10.2026). */
 .drpg-explain .drpg-explain-prose {
     display: block;
+    white-space: pre-line;
     padding-left: 0.6rem;
     border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
-    opacity: 0.92;
-}
-
-/* The GM's own words about a room, on the card you get for walking into it -
-   see `chargeForCrossing` in movement.mjs. Set apart from the module's own two
-   lines above it the same way the state window sets it apart: this is the one
-   piece of prose on the card that a person wrote. */
-.drpg-room-prose {
-    margin: 0.4rem 0 0;
-    padding-left: 0.6rem;
-    border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
-    font-style: italic;
     opacity: 0.92;
 }
 
