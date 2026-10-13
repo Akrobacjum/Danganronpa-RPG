@@ -10261,6 +10261,39 @@ const INVARIANTS = [
             "[a seat inside kept; one outside clamped into the rect; with no rect a line along the top; the ring's first two cells by hand; the ring of eight on the grid "
             + "and inside; its distinct cells; a taken cell skipped one further out; every cell of the ray taken, the first anyway; a second run the same]");
     }],
+
+    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type", async () => {
+        /*
+         * E77 C1, 13.10.2026; the A8 design's R380 (the E77 plan's D2 gave it this number; ledger V3), its
+         * `safeRoomImage` clauses - E77 C3 adds the tile's (the GM's words drawn as text, no `data-tooltip`) and C8
+         * the narrow row's. The picture is a path somebody else wrote that every player's browser fetches, at the
+         * write (`setVaultRoom`) and at every read (`roomImage`) through this one function, so its table is the rule:
+         * kept - a relative path as Foundry's file picker gives it (trimmed), one with a route prefix, one of this
+         * page's own origin (answered as its path), an upper-case extension; refused - `javascript:`, `data:`,
+         * `blob:` (of this origin too: a blob's origin is the page's), `file:`, `//host`, another host, a query, a
+         * fragment, a `..` (plain or `%2e`), a backslash, a quote (the path ends up in a CSS `url("...")`), a gif and
+         * an apng (an animation `prefers-reduced-motion` does not stop), a page with no extension, not a string,
+         * empty. Pure: it reads `document.baseURI` and writes nothing. What a server answers to
+         * a kept path - a redirect elsewhere - is no reading of the string: LIVE-E77-03.
+         */
+        const V = await import("./vault.mjs");
+        ok(typeof V.safeRoomImage === "function", "vault.mjs has no `safeRoomImage` - a room's picture would be fetched from wherever it says");
+        if (typeof V.safeRoomImage !== "function") return;
+        const origin = new URL(document.baseURI).origin;
+        const KEPT = [
+            ["  worlds/suite/rooms/hall.webp  ", "worlds/suite/rooms/hall.webp"], ["/route/worlds/suite/hall.png", "/route/worlds/suite/hall.png"],
+            [`${origin}/worlds/suite/hall.jpg`, "/worlds/suite/hall.jpg"], ["worlds/suite/HALL.JPEG", "worlds/suite/HALL.JPEG"],
+            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"], ["worlds/suite/plan.svg", "worlds/suite/plan.svg"]
+        ];
+        const REFUSED = [
+            "javascript:alert(1)//x.png", "data:image/png;base64,AAAA", `blob:${origin}/x.png`, "file:///etc/x.png",
+            "//evil.example/x.png", "https://evil.example/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
+            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/x", "", null, 7
+        ];
+        equal(JSON.stringify([KEPT.map(([path]) => V.safeRoomImage(path)), REFUSED.map(path => V.safeRoomImage(path))]),
+            JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
+            `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
+    }],
 ];
 
 /**

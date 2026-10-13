@@ -40,7 +40,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
@@ -118,6 +118,16 @@ export const VAULT_FLAGS = {
      * tag in. Escaped at every point of display.
      */
     description: "drpgRoomDescription",
+    /**
+     * The room's picture, as a path of this server's files (E77 C1, the owner's A8 of 11.10.2026).
+     *
+     * Written beside the description, by the same writer and on the same pieces, and as public as
+     * it: every browser holds a region's flags, as it holds the map (the owner's answer Q12 of
+     * 11.10). A path, never markup, and a path is only ever one `safeRoomImage` accepts - at the
+     * write in `setVaultRoom` and again at every read in `roomImage`, because whether a player can
+     * write a region's flags by another road in v14 is not measured (LIVE-E12-04).
+     */
+    image: "drpgRoomImage",
     /**
      * ON A CHARACTER, not on a region - the only entry here that is.
      *
@@ -333,6 +343,54 @@ export function roomTable(room, scene) {
  */
 export function roomDescription(room, scene) {
     return roomFlag(scene, room, VAULT_FLAGS.description) ?? "";
+}
+
+/* The picture formats a room may show. No gif and no apng: `prefers-reduced-motion` does not stop an
+   animation in an `<img>` or a CSS `url()` (the A8 design's step 9, 11.10.2026). */
+const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif", "svg"]);
+
+/**
+ * A room picture's path if it is a picture of this server, else `null` (E77 C1; pure, every client).
+ *
+ * The picture is a URL somebody else wrote that every player's browser fetches, so it may only be a file
+ * this server serves: a relative path (Foundry's own, `worlds/<id>/rooms/hall.webp`, with a route prefix or
+ * not) or an absolute URL of this origin. Refused: any other scheme (`javascript:`, `data:`, `blob:`,
+ * `file:`), another host (`//host/x.png`, `https://host/x.png`), a query or a fragment (`/route?x.png`),
+ * a `..` segment (plain or `%2e`), a backslash, a quote, a bracket or a control character (the path ends
+ * up inside a CSS `url("...")` on the tile), and an extension not in ROOM_IMAGE_TYPES. Answers the relative
+ * path as written, or an absolute one's pathname, trimmed.
+ *
+ * What it does not settle: what the server answers to the path - a redirect to elsewhere is no reading of
+ * the string (LIVE-E77-03) - and S3 sources, which are another host and refused (the Description tab's note
+ * says so).
+ */
+export function safeRoomImage(path) {
+    if (typeof path !== "string") return null;
+    const text = path.trim();
+    if (!text || /[\u0000-\u001f\u007f"'()<>\\?#]/.test(text)) return null;
+    if (/(?:^|\/)(?:\.|%2e){2}(?:\/|$)/i.test(text)) return null;
+    let url;
+    try {
+        url = new URL(text, document.baseURI);
+    } catch {
+        return null;
+    }
+    // The protocol as well as the origin: a `blob:` URL's origin is the page's that made it. The page's
+    // origin is the one `document.baseURI` resolves to, as notice-history.mjs's `imageAllowed` reads it:
+    // the headless harness's clients have a `document` and no global `location` (measured 13.10, every
+    // path was refused while this read `globalThis.location`).
+    if (!/^https?:$/.test(url.protocol) || url.origin !== new URL(document.baseURI).origin || url.search || url.hash) return null;
+    const type = url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+    if (!ROOM_IMAGE_TYPES.has(type)) return null;
+    return /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
+}
+
+/**
+ * The room's picture, a path `safeRoomImage` accepts, or `null` (E77 C1). Checked again on every read: a
+ * value written by a console, or by a road nobody has measured, is never handed to a fetch.
+ */
+export function roomImage(room, scene) {
+    return safeRoomImage(roomFlag(scene, room, VAULT_FLAGS.image));
 }
 
 /** Categories this room is a good place to search for. */
@@ -919,7 +977,7 @@ export function allVaults(scene) {
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
     owner = undefined, table = undefined,
-    favours = undefined, hinders = undefined, description = undefined, scene = null
+    favours = undefined, hinders = undefined, description = undefined, image = undefined, scene = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -941,6 +999,14 @@ export async function setVaultRoom(room, {
     }
     if (description !== undefined) {
         update[`flags.${MODULE_ID}.${VAULT_FLAGS.description}`] = String(description ?? "");
+    }
+    // The picture (E77 C1): null or "" clears it; a path `safeRoomImage` refuses is not written and the GM
+    // is told - Room Setup checks its rows first and hands a refused one on as `undefined`, so this warning
+    // is `game.drpg.setVaultRoom`'s.
+    if (image !== undefined) {
+        const path = image ? safeRoomImage(image) : null;
+        if (image && !path) ui.notifications.warn(game.i18n.format("DRPG.Vault.imageRefused", { room }));
+        else update[`flags.${MODULE_ID}.${VAULT_FLAGS.image}`] = path;
     }
     if (!Object.keys(update).length) return null;
 
@@ -971,7 +1037,8 @@ function pieceData() {
         [VAULT_FLAGS.owner, "DRPG.Vault.owner"], [VAULT_FLAGS.stashes, "DRPG.Vault.tabStashes"],
         [VAULT_FLAGS.concealed, "DRPG.Vault.tabStashes"], [VAULT_FLAGS.table, "DRPG.Vault.table"],
         [VAULT_FLAGS.favours, "DRPG.Vault.favours"], [VAULT_FLAGS.hinders, "DRPG.Vault.hinders"],
-        [VAULT_FLAGS.description, "DRPG.Vault.descriptionColumn"], [VAULT_FLAGS.notShared, "DRPG.Vault.notSharedColumn"],
+        [VAULT_FLAGS.description, "DRPG.Vault.descriptionColumn"], [VAULT_FLAGS.image, "DRPG.Vault.imageColumn"],
+        [VAULT_FLAGS.notShared, "DRPG.Vault.notSharedColumn"],
         [REST_FLAGS.short, "DRPG.Rest.shortColumn"], [REST_FLAGS.long, "DRPG.Rest.longColumn"],
         [ROOM_FLAGS.locked, "DRPG.Vault.lockedColumn"], [ROOM_FLAGS.lockedAtStart, "DRPG.Vault.lockedAtStartColumn"],
         [SEARCH_FLAGS.sealed, "DRPG.SearchTokens.sealedColumn"],
@@ -2191,6 +2258,9 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         // escaping FUNCTION, so a local string by the same name here means the
         // next `esc(x)` written inside this block is a TypeError.
         const escRoom = foundry.utils.escapeHTML(room);
+        const picture = safeRoomImage(flagOver(pieces, VAULT_FLAGS.image));
+        const pickLabel = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.imagePick"));
+        const clearLabel = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.imageClear"));
 
         const people = students.map(a =>
             `<option value="${a.id}"${a.id === owner ? " selected" : ""}>${
@@ -2306,7 +2376,17 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // stylesheet - so the prose wraps instead of stretching the window.
             description: `<td><textarea name="desc:${escRoom}" rows="5"${named("desc")}
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
-                >${foundry.utils.escapeHTML(flagOver(pieces, VAULT_FLAGS.description) ?? "")}</textarea></td>`
+                >${foundry.utils.escapeHTML(flagOver(pieces, VAULT_FLAGS.description) ?? "")}</textarea></td>`,
+            /* The picture (E77 C1): `wirePortraitPickers`' thumbnail and hidden field, keyed by the room's name
+               as the description is, and a button that empties both. The thumbnail shows only what
+               `safeRoomImage` accepts of the stored path - a value it refuses is drawn as no picture, and the
+               next Apply of the row writes what the window shows. */
+            image: `<td><img class="drpg-room-picture" data-drpg-portrait="${escRoom}" alt=""${
+                picture ? ` src="${foundry.utils.escapeHTML(picture)}"` : ""}
+                title="${pickLabel}" aria-label="${pickLabel}: ${escRoom}" />
+                <input type="hidden" name="img:${escRoom}" value="${foundry.utils.escapeHTML(picture ?? "")}" />
+                <button type="button" class="drpg-mini-button" data-drpg-picture-clear
+                    title="${clearLabel}" aria-label="${clearLabel}: ${escRoom}">✕</button></td>`
         };
     });
 }
@@ -2348,7 +2428,7 @@ export function roomSetupTab(tab, holdsRooms) {
 const ROOM_SETUP_COLUMN = {
     owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
     neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
-    short: "check", long: "check", description: "prose"
+    short: "check", long: "check", description: "prose", image: "picture"
 };
 
 function roomSetupColumns(kinds) {
@@ -2426,7 +2506,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
             ${panel("description", `
                 <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
-                ${tableFor([th("DRPG.Vault.descriptionColumn")], ["description"])}
+                ${tableFor([th("DRPG.Vault.descriptionColumn"), th("DRPG.Vault.imageColumn")], ["description", "image"])}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.descriptionNote")}</p>
             `)}
 
@@ -2466,6 +2546,8 @@ function readRoomSetupForm(d, { rooms, students, categories }) {
         isRoom: roomBox(pick(`isroom:${room}`)),
         ...neighboursTyped(pick(`neighbours:${room}`), room, rooms),
         description: (pick(`desc:${room}`)?.value ?? "").trim(),
+        // The picture's hidden field (E77 C1), checked by `applyRoomRows` before anything is written.
+        image: (pick(`img:${room}`)?.value ?? "").trim(),
         table: pick(`table:${room}`)?.value ?? "",
         favours: categories
             .map(([key]) => key)
@@ -2838,8 +2920,17 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             table: flagOver(pieces, VAULT_FLAGS.table),
             favours: listOver(pieces, VAULT_FLAGS.favours),
             hinders: listOver(pieces, VAULT_FLAGS.hinders),
-            description: flagOver(pieces, VAULT_FLAGS.description) ?? ""
+            description: flagOver(pieces, VAULT_FLAGS.description) ?? "",
+            // As stored, not as `safeRoomImage` reads it: a value it refuses was drawn as no picture, so a row
+            // that leaves it so differs and its Apply writes null over it.
+            image: flagOver(pieces, VAULT_FLAGS.image) ?? ""
         };
+        /* THE PICTURE IS JUDGED BEFORE THE ROW IS COMPARED (E77 C1). A path `safeRoomImage` refuses is not
+           written and the GM is told which room; the row's other columns are written as usual. `refused`
+           also keeps the picture out of `same`, so a refused path alone writes nothing at all. */
+        const picture = row.image ? safeRoomImage(row.image) : "";
+        const refused = picture === null;
+        if (refused) ui.notifications.warn(game.i18n.format("DRPG.Vault.imageRefused", { room: row.room }));
         const beforeRest = {
             short: Boolean(flagOver(pieces, REST_FLAGS.short)),
             long: Boolean(flagOver(pieces, REST_FLAGS.long))
@@ -2871,7 +2962,8 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             && wasNotShared === row.notShared
             && roomSettled
             && neighboursSettled
-            && before.description === row.description;
+            && before.description === row.description
+            && (refused || before.image === picture);
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
@@ -2886,6 +2978,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
             favours: row.favours,
             hinders: row.hinders,
             description: row.description,
+            image: refused ? undefined : picture || null,
             scene
         });
 
@@ -3145,6 +3238,18 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             wireStashCells(root);
             wirePlaceSwitches(root);
             wireTokenButtons(root, scene, recount);
+
+            // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
+            // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
+            wirePortraitPickers(root, { prefix: "img:" });
+            for (const button of root.querySelectorAll("[data-drpg-picture-clear]")) {
+                button.addEventListener("click", () => {
+                    const cell = button.closest("td");
+                    const field = cell?.querySelector('input[type="hidden"]');
+                    if (field) field.value = "";
+                    cell?.querySelector("[data-drpg-portrait]")?.removeAttribute("src");
+                });
+            }
 
             /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.
 

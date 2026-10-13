@@ -47637,6 +47637,118 @@ const SCENARIOS = [
             + `the stashes (${stasher.name}'s cell, ${owner.name}'s as the new owner) and the owner, and the rooms Apply says it changed`);
     }],
 
+    ["Room Setup writes a room's picture: a picture changed alone is saved on every piece of the room on the scene the window opened on, Remove writes none, a refused path is written nowhere and named, and a console's is read as none", async () => {
+        /*
+         * E77 C1, 13.10.2026; the A8 design's R382, the E77 plan's R507 (ledger V5), whose number the tier-0 guard
+         * carries - a tier-2 test is named, not numbered (tools/registry.mjs). The room's picture is a region flag
+         * written beside the description, and Room Setup decides whether to write a row by comparing it with the
+         * state it drew (`same` in `applyRoomRows`): a field it does not compare is a field whose change alone is
+         * thrown away. Here one scene of the suite's own holds a Hall of two pieces and a Pantry, a second scene
+         * another Hall. Room Setup is opened viewing the first and the second is viewed before Apply's own callback
+         * runs, as in the R119 test above; its form is answered as a GM answers it. Read: (1) the Hall given a
+         * picture and nothing else, the Pantry a foreign URL - the Hall's two pieces on the first scene hold the
+         * path, the second scene's Hall nothing, the Pantry nothing, one warning naming the Pantry, one room
+         * changed; (2) the next window draws the path in the Hall's field and thumbnail, and Remove (an emptied
+         * field) writes none on both pieces; (3) a refused path written straight on the pieces, as a console
+         * writes it, is read as no picture by `roomImage` and drawn as none (an empty field, no `src`); (4)
+         * `game.drpg.setVaultRoom` writes a path on both pieces over it, and refuses a foreign one with the same
+         * warning naming the Hall. The flags are read as stored (`flags.<module>.drpgRoomImage`), not through the
+         * module. Red before C1: no picture field was drawn, so nothing was written and no warning given. In a
+         * GM-store world of the suite's own (`withGmStoreWorld`), as the R119 test. Read on the harness, so the
+         * window is answered without being drawn (its `render` hook - the file picker and the Remove button's
+         * listener - does not run) and nothing fetches the path: what a server answers to it is LIVE-E77-03.
+         */
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const home = canvas?.scene ?? null;
+        const HALL = "SUITE E77 C1 Hall", PANTRY = "SUITE E77 C1 Pantry";
+        const NAMES = ["SUITE E77 C1 opened on", "SUITE E77 C1 on screen at Apply"];
+        const PATH = `worlds/${game.world.id}/suite-e77-c1/hall.webp`, FOREIGN = "https://evil.example/hall.png";
+        const CONSOLE = "javascript:alert(1)//hall.png";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownWarn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const warn = ui.notifications.warn;
+        const warned = [];
+        const stored = (scene, room) => scene.regions.filter(r => r.name === room).map(r => r.flags?.[MODULE_ID]?.drpgRoomImage ?? null);
+        const named = room => warned.filter(message => message.includes(room)).length;
+        let reading = null;
+        await G.withGmStoreWorld(`suite-e77c1-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            try {
+                for (const [i, name] of NAMES.entries()) {
+                    const scene = await Scene.create({ name, width: 3000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    const pieces = i === 0 ? [[HALL, 0], [HALL, 1000], [PANTRY, 2000]] : [[HALL, 0]];
+                    await scene.createEmbeddedDocuments("Region", pieces.map(([room, x]) => ({ name: room,
+                        shapes: [{ type: "rectangle", x, y: 0, width: 800, height: 800 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] })));
+                }
+                const [opened, other] = scenes;
+                ui.notifications.warn = (message, ...rest) => {
+                    warned.push(String(message));
+                    return warn.call(ui.notifications, message, ...rest);
+                };
+                // One Room Setup: opened viewing `opened`, the Hall's picture as drawn read off the form, then each
+                // room's picture field set as `answer` says and `other` viewed before Apply - or cancelled.
+                const setup = async answer => {
+                    await opened.view();
+                    await settle();
+                    let drawn = null;
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const field = room => form.querySelector(`[name="${CSS.escape(`img:${room}`)}"]`);
+                        const thumbnail = form.querySelector(`[data-drpg-portrait="${CSS.escape(HALL)}"]`);
+                        drawn = [field(HALL)?.value ?? "no field", thumbnail ? thumbnail.getAttribute("src") : "no thumbnail"];
+                        if (!answer) return null;
+                        for (const [room, value] of Object.entries(answer)) {
+                            const box = field(room);
+                            if (box) box.value = value;
+                        }
+                        await other.view();
+                        await settle();
+                        const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                        return apply.callback(new Event("click"), apply, { element });
+                    };
+                    const answered = await V.openRoomSetupDialog();
+                    await settle();
+                    return [drawn, answered];
+                };
+                const first = await setup({ [HALL]: PATH, [PANTRY]: FOREIGN });
+                const afterFirst = [stored(opened, HALL), stored(other, HALL), stored(opened, PANTRY), named(PANTRY)];
+                const second = await setup({ [HALL]: "" });
+                const afterSecond = stored(opened, HALL);
+                await opened.updateEmbeddedDocuments("Region", opened.regions.filter(r => r.name === HALL)
+                    .map(r => ({ _id: r.id, [`flags.${MODULE_ID}.drpgRoomImage`]: CONSOLE })));
+                const consoleRead = typeof V.roomImage === "function" ? V.roomImage(HALL, opened) : "no roomImage";
+                const third = await setup(null);
+                await game.drpg.setVaultRoom(HALL, { image: PATH, scene: opened });
+                const byApi = stored(opened, HALL);
+                await game.drpg.setVaultRoom(HALL, { image: FOREIGN, scene: opened });
+                reading = [first, afterFirst, second, afterSecond, consoleRead, third, byApi, stored(opened, HALL), named(HALL)];
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+                else delete ui.notifications.warn;
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(reading), stableJson([
+            [["", null], 1], [[PATH, PATH], [null], [null], 1],
+            [[PATH, PATH], 1], [null, null],
+            null, [["", null], null],
+            [PATH, PATH], [PATH, PATH], 1
+        ]), "[the Hall's field and thumbnail as drawn, and the rooms Apply changed; then the Hall's two pieces on the scene opened on, the other scene's Hall, "
+            + "the Pantry, the warnings naming the Pantry] - [the second window as drawn and Apply's count; the pieces after Remove] - [roomImage of a console's path; "
+            + "the window drawn over it, cancelled] - [the pieces after game.drpg.setVaultRoom with a path, then with a foreign URL; the warnings naming the Hall]");
+    }],
+
     ["a project's room is known on its own scene, whatever scene is on screen", async () => {
         /*
          * E12 C5, 11.10.2026; plan-E12 V5, audit S16-06; the A5 project's R118, whose number the

@@ -1263,7 +1263,7 @@ export function injectSelectPickerSkin() {
  *
  * Expects `<img data-drpg-portrait="{id}">` (or a bare `data-drpg-portrait`
  * for a single-image form) beside `<input type="hidden" name="img.{id}">`
- * (or `name="img"`) - the same markup `projects-ui.mjs` and
+ * (`prefix` names another than `img.`; or `name="img"`) - the same markup `projects-ui.mjs` and
  * `investigation.mjs` both build their portrait cells from.
  *
  * THE HIDDEN FIELD IS THE RECORD; THE `<img>` IS A VIEW OF IT. Both are written
@@ -1272,10 +1272,12 @@ export function injectSelectPickerSkin() {
  * the picture back in step every time it is called. A caller in a live window
  * must call it again after each rebuild.
  */
-export function wirePortraitPickers(root, { defaultImg = null } = {}) {
+export function wirePortraitPickers(root, { defaultImg = null, prefix = "img." } = {}) {
     for (const portrait of root.querySelectorAll("[data-drpg-portrait]")) {
         const id = portrait.dataset.drpgPortrait || null;
-        const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
+        // `prefix` is the field's name before the id: Room Setup's picture column names its fields
+        // `img:<room>`, as its other columns are `desc:<room>` and `owner:<room>` (E77 C1).
+        const hiddenSelector = id ? `[name="${prefix}${CSS.escape(id)}"]` : '[name="img"]';
 
         /*
          * THE HIDDEN FIELD IS THE RECORD AND THE PICTURE FOLLOWS IT (F13).

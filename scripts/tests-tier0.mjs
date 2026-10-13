@@ -8721,7 +8721,7 @@ const REGRESSIONS = [
          * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
          * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
          * census's 26 PLANNED roads (the picture's, `viewerActor`, the settle hook, the tile, the windows' setting, the
-         * narrow row) come with C1, C2, C3, C7 and C8.
+         * narrow row) come with C1, C2, C3, C7 and C8; C1's nine (the picture's: five FIELD, four FORM) are rows since E77 C1.
          * It reads names and text, not data flow, as the parse-only census does: a description handed to a helper the
          * kinds do not list is judged at the call, a CSS `url()` written in a stylesheet is not a road here, and what a
          * server answers to a picture path (a redirect elsewhere) is no reading of the source at all (LIVE-E77-03).
@@ -8731,7 +8731,9 @@ const REGRESSIONS = [
          * Measured 13.10.2026 on C0's working tree (f6822d7's code): this reader, run in Node on the 129 files the crawl
          * from module.mjs reaches, found 24 roads - 4 READ, 5 FIELD, 4 FORM, 4 WRITER, 4 WHO, 3 HOOK - against the 24
          * rows, none either side, the same 24 keys as the parse-only census at f6822d7 (compared key by key). On the
-         * harness (13.10.2026, this test alone, once) it read the same 24 against the 24 rows, none either side.
+         * harness (13.10.2026, this test alone, once) it read the same 24 against the 24 rows, none either side. On C1's
+         * working tree (13.10.2026, in Node) it read 33 - the nine of the picture more, 10 FIELD and 8 FORM - against
+         * the 33 rows, none either side.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8740,20 +8742,29 @@ const REGRESSIONS = [
          */
         const ROOM_TILE_CENSUS = [
             // ---- the writers (the GM's)
-            ["WRITER api.mjs#DrpgApi -> text", "`game.drpg.setVaultRoom` hands its options to `setVaultRoom`, which writes nothing for a player (`if (!game.user.isGM) return null`); the description passes the spread and is stored as a string (E77 C1 passes the picture the same way)"],
-            ["WRITER api.mjs#DrpgApi -> src", "no picture is stored yet; E77 C1 adds one, which `setVaultRoom` checks with `safeRoomImage` at the write, not the API"],
+            ["WRITER api.mjs#DrpgApi -> text", "`game.drpg.setVaultRoom` hands its options to `setVaultRoom`, which writes nothing for a player (`if (!game.user.isGM) return null`); the description and the picture pass the spread; the description is stored as a string"],
+            ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
             ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
-            ["WRITER vault.mjs#applyRoomRows -> src", "no picture is stored yet; E77 C1 sends Room Setup's picture through `safeRoomImage` at the write, and a refused path is not written"],
+            ["WRITER vault.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
             ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
-            ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn (E77 C1 adds the picture beside it, or a rename loses it)"],
+            ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
+            ["FIELD vault.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
+            ["FIELD vault.mjs#pieceData#image -> src", "the list of flags a renamed piece carries, the picture beside the description; nothing is drawn"],
+            ["FIELD vault.mjs#roomImage#image -> src", "the reader answers `safeRoomImage` of the stored value, so a console's or an old value is no picture"],
+            ["FIELD vault.mjs#applyRoomRows#image -> src", "the before-state Room Setup compares a row against, as stored; not drawn"],
             ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`, the move card's `escapeHTML`) - E77 C2 and C3 add the tile, which sets it as textContent"],
             ["FIELD vault.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
             // ---- Room Setup (the GM's own form)
-            ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`); E77 C1 adds the picture's cell beside it"],
+            ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`)"],
             ["FORM vault.mjs#roomCells#desc -> text", "as on setup: the GM reads their own words"],
             ["FIELD vault.mjs#roomCells#description -> text", "the textarea's body, `escapeHTML`"],
+            ["FORM vault.mjs#roomCells#img -> setup", "the picture's hidden field, named by the escaped room (`escRoom`), its value `escapeHTML`; on the GM's own Room Setup"],
+            ["FORM vault.mjs#roomCells#img -> src", "the thumbnail's `src` only from what `safeRoomImage` accepts of the stored value, `escapeHTML`; the file picker then shows the GM's own choice"],
+            ["FIELD vault.mjs#roomCells#image -> src", "read through `safeRoomImage` for the thumbnail and the field; a refused value is drawn as no picture"],
             ["FORM vault.mjs#readRoomSetupForm#desc -> setup", "read back as the textarea's `.value`, trimmed; paragraphs kept as newlines"],
             ["FORM vault.mjs#readRoomSetupForm#desc -> text", "a string handed to `setVaultRoom` and drawn later only as text (E77 C2 keeps its paragraphs with pre-line)"],
+            ["FORM vault.mjs#readRoomSetupForm#img -> setup", "the hidden field's `.value`, trimmed; judged by `safeRoomImage` in `applyRoomRows` before anything is written"],
+            ["FORM vault.mjs#readRoomSetupForm#img -> src", "as on setup: a path, never fetched before `safeRoomImage` accepts it"],
             // ---- the readers
             ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>; E77 C2 keeps its paragraphs"],
             ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene; a GM with a token controlled reads that token's room by design (E77 C2: a player's own character only)"],
@@ -8876,6 +8887,52 @@ const REGRESSIONS = [
             + `against ${ROOM_TILE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
+    }],
+
+    ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {
+        /*
+         * E77 C1, 13.10.2026; the A8 design's R382 (the E77 plan's D2 gave it this number; ledger V5). The tier-2
+         * "Room Setup writes a room's picture: ..." reads the writes themselves; this keeps the shape that makes them,
+         * read in vault.mjs with comments blanked (strings kept: the field names are templates): `roomCells` draws
+         * the field `img:${escRoom}` and `readRoomSetupForm` reads `img:${room}` (keyed by the room's name, as
+         * `desc:`); `applyRoomRows` judges the picture before it compares (`safeRoomImage(row.image)`), puts it in
+         * `same` (`before.image === picture` - a field left out of `same` is a field whose change alone is thrown
+         * away, the harm of the design's R382) and hands it to `setVaultRoom` unless refused; `setVaultRoom` writes
+         * the flag from `safeRoomImage(image)` and is the only place in the module's files that writes it;
+         * `pieceData` lists it, or a piece renamed off a room keeps the room's picture as its own (E12 fix r1-G1's
+         * rule); `roomImage` returns `safeRoomImage(roomFlag(...))`. It reads names, not data flow: a picture
+         * written through a helper these patterns do not name is the tier-2 test's to see. The reader is run first
+         * on a fixture with every part and on the same fixture with the picture taken out of `same`.
+         */
+        const shape = src => {
+            const body = name => topLevelFunction(src, name) ?? "";
+            const write = body("setVaultRoom"), rows = body("applyRoomRows");
+            const writes = [...src.matchAll(/flags\.\$\{MODULE_ID\}\.\$\{VAULT_FLAGS\.image\}/g)].length;
+            return [
+                /name="img:\$\{escRoom\}"/.test(body("roomCells")) && /pick\(`img:\$\{room\}`\)/.test(body("readRoomSetupForm")),
+                /safeRoomImage\(row\.image\)/.test(rows) && /before\.image === picture/.test(rows) && /\bimage: refused \? undefined : picture/.test(rows),
+                /safeRoomImage\(image\)/.test(write) && writes === 1 && /VAULT_FLAGS\.image\}`\] = path/.test(write),
+                /\[VAULT_FLAGS\.image, "DRPG\.Vault\.imageColumn"\]/.test(body("pieceData")),
+                /return safeRoomImage\(roomFlag\(scene, room, VAULT_FLAGS\.image\)\)/.test(body("roomImage"))
+            ];
+        };
+        const FIXTURE = "function roomCells() {\n    return `<input name=\"img:${escRoom}\" />`;\n}\nfunction readRoomSetupForm() {\n    pick(`img:${room}`);\n}\n"
+            + "async function applyRoomRows() {\n    const picture = safeRoomImage(row.image);\n    const same = a\n        && before.image === picture;\n"
+            + "    setVaultRoom(row.room, { image: refused ? undefined : picture || null });\n}\n"
+            + "export async function setVaultRoom() {\n    const path = safeRoomImage(image);\n    update[`flags.${MODULE_ID}.${VAULT_FLAGS.image}`] = path;\n}\n"
+            + "function pieceData() {\n    return [[VAULT_FLAGS.image, \"DRPG.Vault.imageColumn\"]];\n}\n"
+            + "export function roomImage(room, scene) {\n    return safeRoomImage(roomFlag(scene, room, VAULT_FLAGS.image));\n}\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("\n        && before.image === picture", ""))]),
+            JSON.stringify([[true, true, true, true, true], [true, false, true, true, true]]),
+            "the reader does not read its fixture whole, or does not miss the picture taken out of `same`");
+        const sources = new Map(await otherSources());
+        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        must(vault.length > 1000, "vault.mjs is not among the module's sources - this would measure nothing");
+        const elsewhere = [...sources].filter(([file, text]) => file !== "vault.mjs" && /drpgRoomImage|VAULT_FLAGS\.image\}/.test(stripComments(text)))
+            .map(([file]) => file);
+        equal(JSON.stringify([shape(vault), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
+            "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
+            + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
