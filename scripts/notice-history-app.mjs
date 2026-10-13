@@ -25,7 +25,7 @@
 
 import { plural } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
-import { clockSummary } from "./clock.mjs";
+import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
     NOTICE_TEXTS, noticeEntries, noticeSnapshot, noticeWords, noticeTime, noticeHistoryStatus, onNoticeHistoryChange,
@@ -101,6 +101,19 @@ function highlighted(text, query) {
 }
 
 const clockKey = clock => JSON.stringify([clock.chapter, clock.day, clock.session, clock.timeOfDay, clock.eclipse]);
+
+/**
+ * A GROUP OF THE ECLIPSE IS NAMED FOR THE TIME OF DAY IT OPENS INTO (E77 fix r2-H7, 13.10.2026; the owner, shown
+ * "Noon Eclipse" under "Chapter 1 · Day 1 · Session 1 · Morning · ECLIPSE" in H4's shots, chose this over leaving it).
+ * An Eclipse runs before the time of day it is named for and the clock moves only when it ends (eclipse.mjs "WHICH
+ * ECLIPSE IS THIS ONE"), so the clock a notice came under during one still reads the time of day just finished. Its
+ * group names the clock the Eclipse opens into (`clockAfter`: the Eclipse's own word for the time of day, and after
+ * Night the next day and session) with the Eclipse's mark. Derived here from the stamp's `timeOfDay` and `eclipse`, which
+ * every entry has kept since E81, so a history kept before this commit reads the same way. The group itself is still
+ * `clockKey` of the stamp: every entry of one Eclipse in one group, and the time of day after it a group of its own.
+ * The clock pane is not this: it keeps `clockSummary` of the clock as it stands.
+ */
+const groupHeading = clock => clockSummary(clock.eclipse ? { ...clock, ...clockAfter(clock) } : clock);
 
 /** A snapshot's leading heading - its first node with words, when that is an `h1`-`h6` - or null. */
 function leadingHeading(snapshot) {
@@ -382,7 +395,7 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             const key = clockKey(entry.clock);
             if (key !== group) {
                 group = key;
-                into.append(element("h3", "drpg-notices-group", clockSummary(entry.clock)));
+                into.append(element("h3", "drpg-notices-group", groupHeading(entry.clock)));
             }
             into.append(this.entryElement(entry, this.rowWords(entry)));
         }
@@ -404,7 +417,8 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
      * read "Notice" over "Noon Chapter 1 · Day 1 · Session 1 · Noon Every room restocked with search tokens", the title
      * glued to the body and the time of day said twice under a group heading that says it a third time. Such a row takes
      * the card's own heading for its title and leaves it out of its text, and leaves out a block whose words are the
-     * group's heading (`clockSummary` of the clock the notice came under, which the time of day's card prints). Read off
+     * clock line the time of day's card prints (`clockSummary` of the clock the notice came under: the group's heading
+     * outside an Eclipse, `groupHeading`). Read off
      * the kept html through the history's one road (`noticeSnapshot`) as words only, once per entry and html. An entry
      * with a title of its own, without html (clipped, a request not carried out) or whose card does not open on a
      * heading reads as it was kept: the kept title and text are this browser's record, and nothing here rewrites them.
