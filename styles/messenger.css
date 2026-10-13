@@ -77,8 +77,11 @@
        640 x 360 and puts it 8.6 px above it at 1920 x 1080 with a 300 px dock (by hand,
        12.10; the A7 design's P8-6 had -12 and -24 from 1.2.74's 156 px foot). R474 redoes
        the sum from the cascade. The ceiling is the panel's whole height, padding and
-       frame with it: as a content height it let the top out by those 21 px, 13 px above
-       the screen at 640 x 360 (Chromium, 12.10). */
+       frame with it: as a content height it let the top out by those 21 px - run long
+       with 120 rows at 640 x 360, its top 13.2 px above the screen under Monokuma Legacy
+       and 10.1 px under Stained Glass, and 8.0 and 11.1 px inside it as the whole height
+       (Chromium on the glass harness, 13.10.2026; the 13 written here on 12.10 was
+       Legacy's alone - review round 2's P22). */
     right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right));
     bottom: var(--drpg-stack-foot);
     z-index: 71;

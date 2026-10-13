@@ -390,8 +390,10 @@ function trimStack(host = container()) {
  * MEASURED ON THE BOXES, NOT ON `scrollHeight`. A card arrives translated down by
  * half a slide, and a transform counts towards a scroll container's overflow: every
  * arrival read as an overflow, and two cards that fitted were parked down to one.
- * The cards do not shrink (`flex: 1 0 auto`), so their heights and the gaps between
- * them add up to more than the tile exactly when they do not fit.
+ * The cards do not shrink (`flex: 1 0 auto` on the Stained Glass tile, `0 0 auto` on a
+ * stacked screen since E81 fix r2-H2: under Monokuma Legacy they did, and four slivers
+ * read as fitting - narrow.css), so their heights and the gaps between them add up to
+ * more than the tile exactly when they do not fit.
  *
  * ON A STACKED SCREEN TOO, in both themes (E81 C13, the A7 design's P8-7). There the
  * stack stands over the corner buttons with a ceiling under the blocks' stack and
@@ -410,11 +412,20 @@ function overflowsGlass(host) {
     return total > host.clientHeight + 1;
 }
 
+/* WITH THE FLOOR'S ROOM COUNTED (E81 fix r2-H2, review round 2's P9). The bottom card takes the corner's room
+   (`setFloor`), and which card that is changes whenever a card is parked or comes back - the oldest shown. Read
+   before the new floor had its room, a stack fitted by up to that room and a line, and then overflowed: R298 (6b)
+   draws it headless with heights of its own, a card that grows by 30 px as the floor parked beside one that does
+   not. So the floor is set again after every class change a reading follows, here and in `unparkInto` (it changes
+   nothing when the floor is the same card), and once before the first reading, after `trimStack`'s parking by
+   capacity. A card `unparkInto` parks again is followed by `markParked`, which sets the floor first. */
 function parkWhatDoesNotFit(host) {
     let shown = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`)).sort(byArrival);
+    setFloor(host);
     while (shown.length > 1 && overflowsGlass(host)) {
         shown[0].classList.add(PARKED);
         shown = shown.slice(1);
+        setFloor(host);
     }
 }
 
@@ -428,6 +439,7 @@ function unparkInto(host) {
     while (shown < room && parked.length) {
         const card = parked.pop();
         card.classList.remove(PARKED);
+        setFloor(host);
         shown++;
         // Back only if it fits beside what is shown - otherwise it waits a little longer.
         if (overflowsGlass(host)) {
@@ -490,7 +502,10 @@ function markParked(host) {
  * close, read. Which is which is read once, before the first closes: a parked card taken down calls
  * `unparkInto`, which could bring another parked card to the screen before its own turn, and that one still
  * goes as it was found, unread. The parked ones go first, while the shown ones still hold their seats, so
- * `unparkInto` finds a free seat only where a card was already leaving (read in the code, not measured).
+ * `unparkInto` finds a free seat where a card was already leaving, and on a stack that parks below its capacity -
+ * the Stained Glass tile and a stacked screen, where `parkWhatDoesNotFit` parks what does not fit - wherever the
+ * seats are not all taken: a parked card can come back for that moment, and is taken down as it was read here,
+ * unread (read in the code, not measured; review round 2's P12).
  * Through each card's own `drpg-dismiss`, so everything a card does when it closes - the history's state,
  * the floor, the seat - is what its X would have done.
  */
@@ -561,7 +576,10 @@ export function setFloor(host) {
 /* What a node is to the line the card ends on: "inline" (it ends on a line of text, so the spacer goes after
    it in its block), "flow" (a block to look inside), "end" (a block no line runs through) or "none" (not
    drawn - a GM's half on a player's screen). Read off the computed display where there is one; a rule (`hr`)
-   is a block that holds no line whatever its display; with no style to read, a known block tag is a flow. */
+   is a block that holds no line whatever its display; with no style to read, a known block tag is a flow.
+   A block none of whose children draws anything is null, as an empty one is (E81 fix r2-H2, review round 2's
+   P10): `textContent` counts hidden text, so a wrapper holding only a GM's half got past the first test and was
+   "end", and the spacer took a line of its own under the words before it. R298 (6) draws one. */
 const FLOW_TAGS = new Set(["address", "article", "aside", "blockquote", "dd", "details", "div", "dl", "dt", "fieldset",
     "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "li", "main", "nav", "ol",
     "p", "pre", "section", "summary", "ul"]);
@@ -582,7 +600,7 @@ function lineRole(node) {
     if (display === "none") return "none";
     if (display.startsWith("inline")) return "inline";
     if (["block", "list-item", "flow-root", "contents"].includes(display)) {
-        return [...node.childNodes].some(kid => ["inline", "flow", "end"].includes(lineRole(kid))) ? "flow" : "end";
+        return [...node.childNodes].some(kid => ["inline", "flow", "end"].includes(lineRole(kid))) ? "flow" : null;
     }
     return "end";
 }

@@ -199,6 +199,13 @@ body.drpg-stacked #ui-top:empty { display: none; }
    8 px under the stack of blocks at its tallest (`--drpg-column-max`). What does not fit
    under that ceiling is parked, as on the Stained Glass tile (popup.mjs `overflowsGlass`), and
    one card taller than it scrolls.
+   THE CEILING HAS A FLOOR OF 96 PX (E81 fix r2-H2, review round 2's P25). Worked out from the
+   screen alone it reached nothing: measured 13.10.2026 in Chromium on the glass harness, it was
+   252 px at 393 x 852 and 132 px at 844 x 390 as the page stands, and 0 px at both with a camera
+   dock of 300 and 195 px (min(300 px, half the screen), R299 (c)'s), so the newest card had no
+   height and the history's button stood in the corner of nothing. 96 px is a card's title and two
+   lines (the fix list's figure, kept); a stack that tall can then reach under the blocks' stack,
+   which is the lesser fault: a card that is there to be read. glass-sweep.mjs reads both.
    Through 1.2.74 this was a plain `bottom: 96px`, and each theme beat it: Stained Glass
    states its tile's foot and height with `!important` (stained-glass.css), so the tile kept
    its desk foot (`--drpg-note-foot`, 100 px on the scale until glass.mjs fits it) and its
@@ -209,7 +216,7 @@ body.drpg-stacked #ui-top:empty { display: none; }
    and the theme's own selector beside the plain one: an `!important` against an `!important`
    is decided by specificity before order. */
 body.drpg-stacked {
-    --drpg-stack-max: calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-stack-foot));
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-stack-foot)));
 }
 body.drpg-stacked #drpg-popups,
 body.drpg-theme-stained-glass.drpg-stacked #drpg-popups {
@@ -231,8 +238,24 @@ body.drpg-theme-stained-glass.drpg-stacked #drpg-popups {
 }
 /* The cards and nothing else: the history's button in the tile's corner (E81 C8) keeps the
    size it is drawn at. One card taller than the ceiling scrolls inside itself, as it does on
-   the Stained Glass tile. */
+   the Stained Glass tile.
+   AND NO CARD IS SQUEEZED (E81 fix r2-H2, review round 2's P24): `flex: 0 0 auto`. A card is a
+   flex item of the tile's column, and with `overflow-y: auto` its least height is 0, so under
+   Monokuma Legacy the capped tile shrank every card it showed instead of overflowing: measured
+   13.10.2026 in Chromium on the glass harness, four cards of three lines drawn 56 px tall over
+   219 of their own at 393 x 852 (26 over 115 at 844 x 390) - four scrolling slivers - and
+   `overflowsGlass`, which adds up those heights, read that they fit, so nothing was ever parked.
+   Stained Glass was spared by its own `flex: 1 0 auto`, which this replaces on a stacked screen,
+   where the tile has no height of its own to grow into.
+   A card taller than the stack then stops at the stack's ceiling and scrolls - with
+   `box-sizing: border-box`, or the ceiling is its content's and its frame stands out of the tile:
+   a card of 400 words was 254 px in a 252 px tile at 393 x 852 under Monokuma Legacy, its foot
+   cut by the tile's `overflow: hidden`. `max-height: 100%`, the review's first proposal, caps
+   nothing here, since the tile's height is `auto`: the same card was drawn 8385 px tall
+   (Chromium, 13.10.2026; glass-sweep.mjs reads the long card inside the tile). */
 body.drpg-stacked #drpg-popups > .drpg-popup {
+    flex: 0 0 auto;
+    box-sizing: border-box;
     max-width: none;
     width: auto;
     max-height: var(--drpg-stack-max);
@@ -247,7 +270,7 @@ body.drpg-stacked #drpg-popups > .drpg-popup {
    Glass the buttons step inboard of the tab rail by `--drpg-launch-clear` (glass.mjs) and the
    notices with them; under Monokuma Legacy they do not move. */
 body.drpg-stacked.drpg-short {
-    --drpg-stack-max: calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px));
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px)));
 }
 body.drpg-stacked.drpg-short #drpg-popups {
     bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px)) !important;

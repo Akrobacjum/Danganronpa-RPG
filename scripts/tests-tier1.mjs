@@ -9017,7 +9017,10 @@ const INVARIANTS = [
             list: "<p>R298 lead</p><ul><li>R298 one</li><li data-r298=\"last\">R298 two</li></ul>",
             table: "<p>R298 lead</p><table><tbody><tr><td>R298 cell</td></tr></tbody></table>",
             rule: "<p>R298 lead</p><hr>",
-            trailing: "<div><p data-r298=\"last\">R298 words</p><p> </p><br></div>"
+            trailing: "<div><p data-r298=\"last\">R298 words</p><p> </p><br></div>",
+            /* E81 fix r2-H2 (review round 2's P10): a wrapper whose only words are not drawn holds no line - the tail is
+               the words before it, not a line of its own under the body. */
+            hidden: "<p data-r298=\"last\">R298 words</p><div><span style=\"display: none\">R298 not drawn</span></div>"
         };
         try {
             const closeA = drawFloor("<p>R298 floor A</p>"), closeB = drawFloor("<p>R298 floor B</p>");
@@ -9051,11 +9054,71 @@ const INVARIANTS = [
             two: [0, ["R298 floor A"], ["p"]],
             leaving: [["R298 floor B"], ["p"]],
             parked: [true, ["R298 park 2"], 0],
-            shapes: { sentence: ["body"], inline: ["p"], nested: ["p#last"], list: ["li#last"], table: ["body block"], rule: ["body block"], trailing: ["p#last"] },
+            shapes: { sentence: ["body"], inline: ["p"], nested: ["p#last"], list: ["li#last"], table: ["body block"], rule: ["body block"], trailing: ["p#last"], hidden: ["p#last"] },
             changed: [["p#before"], ["li#later"], ["p#before"]]
         }), "[two cards, nothing parked: cards parked, the floor card's words, the tail; the older closed by code: the floor and the tail at once; a card parked: "
             + "it parked, the floor's words, floors on a parked card; the tail of a body ending in a sentence after a <b>, text after a <b> in a <p>, div > p, ul > li, "
-            + "a table, a rule, and a <p> followed by an empty <p> and a <br>; the tail as drawn, after a list is added to the floor card and after it is taken away]");
+            + "a table, a rule, a <p> followed by an empty <p> and a <br>, and a <p> followed by a <div> whose only words are not drawn; the tail as drawn, after a "
+            + "list is added to the floor card and after it is taken away]");
+
+        /* (6b) PARKING COUNTS THE FLOOR'S ROOM (E81 fix r2-H2, review round 2's P9). The stack parks what does not fit by
+           adding up the cards' heights (`overflowsGlass`), and the bottom card - the oldest shown - is taller by the
+           corner's room. Parking a card, or bringing one back, changes which card that is; read before the new floor
+           had its room, the stack fitted and then overflowed by up to that room and a line. Headless nothing has a
+           height, so the cards here get one of their own for the reading: 100 px, and 30 more as the floor for the
+           one marked tall (as a card whose last line is full grows), in a tile of 215 px and its gap, on a stacked
+           screen under Monokuma Legacy (four seats, so it is room, not the seats, that parks). Three cards, the second
+           tall: the first parked, then the tall one as the new floor, the third alone; a fourth beside it; the fourth
+           closed, and the tall one, the newest parked, back only if it fits as the floor. Then the same three under
+           Stained Glass, whose two seats park the first by capacity (`trimStack`) before room is read. Each reading:
+           the cards shown, oldest first, and whether they fit as they are classed. The classes and the heights are
+           put back synchronously. */
+        const PARK_CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"];
+        const parkWas = PARK_CLASSES.map(name => document.body.classList.contains(name));
+        const heightWas = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+        const parkClosers = [], parkSeen = {};
+        try {
+            document.body.classList.remove(PARK_CLASSES[0]);
+            document.body.classList.add(PARK_CLASSES[1], PARK_CLASSES[2]);
+            const gap = Number.parseFloat(getComputedStyle(host).rowGap) || 0, room = 215 + gap;
+            Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+                configurable: true,
+                get() {
+                    if (!this.classList.contains("drpg-popup") || !/R298 fit/.test(this.textContent)) return heightWas.get.call(this);
+                    return 100 + (this.classList.contains("drpg-popup-floor") && this.querySelector("[data-r298-tall]") ? 30 : 0);
+                }
+            });
+            Object.defineProperty(host, "clientHeight", { configurable: true, get: () => room });
+            const draw = html => parkClosers.push(P.showPopup(html, { title: "R298 fit", record: false }));
+            const reading = () => {
+                const cards = shownOnTile().sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq));
+                const used = cards.reduce((sum, card) => sum + card.offsetHeight, gap * Math.max(0, cards.length - 1));
+                return [cards.map(card => card.querySelector(".drpg-popup-body")?.textContent.trim()), used <= room + 1];
+            };
+            draw("<p>R298 fit A</p>");
+            draw("<p data-r298-tall>R298 fit B</p>");
+            draw("<p>R298 fit C</p>");
+            parkSeen.three = reading();
+            draw("<p>R298 fit D</p>");
+            parkSeen.four = reading();
+            parkClosers.at(-1)({ instant: true });
+            parkSeen.closed = reading();
+            while (parkClosers.length) parkClosers.pop()({ instant: true });
+            document.body.classList.replace(PARK_CLASSES[1], PARK_CLASSES[0]);
+            draw("<p>R298 fit A</p>");
+            draw("<p data-r298-tall>R298 fit B</p>");
+            draw("<p>R298 fit C</p>");
+            parkSeen.seats = reading();
+        } finally {
+            for (const close of parkClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            delete host.clientHeight;
+            Object.defineProperty(HTMLElement.prototype, "offsetHeight", heightWas);
+            PARK_CLASSES.forEach((name, i) => document.body.classList.toggle(name, parkWas[i]));
+        }
+        equal(J(parkSeen), J({ three: [["R298 fit C"], true], four: [["R298 fit C", "R298 fit D"], true], closed: [["R298 fit C"], true], seats: [["R298 fit C"], true] }),
+            "[parking with the floor's room counted, a tile of 215 px and its gap, cards of 100 px and the tall one 30 more as the floor: three cards drawn, the "
+            + "shown ones and whether they fit; a fourth drawn; the fourth closed and the tall one tried back as the floor; the three again on the Stained Glass "
+            + "tile's two seats]");
 
         /* (7) Monokuma Legacy on a desk: the tile follows the clock with no card (E81 C10). */
         const hudNode = document.getElementById("drpg-hud"), bar = document.getElementById("drpg-despair");
@@ -9540,6 +9603,15 @@ const INVARIANTS = [
          * box hanging from it, its foot or its top off its place. The buttons' boxes come from their insets and sizes, the tile's and the stack's from
          * `offset*`: under Stained Glass the corner turns with its pane. Only at the browser's size; R476 works out the
          * A7 design's four headless. NEVER RUN: E81 C13 had no browser.
+         * E81 fix r2-H2, 13.10.2026 (review round 2's P8, P7, P23, P24): (b) scrolls the floor card to its end before it
+         * reads the line boxes (a card capped at the tile kept its last line out of reach, so it read 0 with the floor's
+         * rules or without them), counts the unread badge with the button (its `::after` box, from the computed style),
+         * and reads the growth from the content, with the card neither grown into the tile nor capped at it; (a), (c)
+         * and (d) read the insets against the box they are measured from (`insetBox`); (d) adds no card a sliver and a
+         * card of 400 words inside the stack, scrolling. THIS TEST RUNS ONLY INSIDE FOUNDRY, and still has not run: at
+         * a table it is LIVE-E81-02. The same harms are measured in Chromium on the module's own sheets and popup.mjs
+         * by the glass harness's `drpgNoticeCheck`, which audit/glass-sweep.mjs runs at every size in both themes -
+         * red on the stylesheets before this fix, green on them after (the commit's numbers).
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -9600,13 +9672,13 @@ const INVARIANTS = [
                 const [chat, , book] = launchers, chatRight = cascadePx(chat, "right"), chatBottom = cascadePx(chat, "bottom");
                 const badgeRight = chatRight + chat.offsetWidth - chat.clientLeft - badge.offsetLeft - badge.offsetWidth;
                 const badgeBottom = chatBottom + chat.offsetHeight - chat.clientTop - badge.offsetTop - badge.offsetHeight;
-                const bookRight = cascadePx(book, "right"), bookBottom = cascadePx(book, "bottom");
+                const bookRight = cascadePx(book, "right"), bookBottom = cascadePx(book, "bottom"), chatBox = insetBox(chat);
                 const apart = Math.max(badgeRight - (bookRight + book.offsetWidth), bookRight - (badgeRight + badge.offsetWidth),
                     badgeBottom - (bookBottom + book.offsetHeight), bookBottom - (badgeBottom + badge.offsetHeight));
                 drawn[label] = {
                     ...grid,
                     boxes: launchers.map(el => `${el.offsetWidth}x${el.offsetHeight}`).join(" "),
-                    badge: { inView: badgeRight >= 0 && innerHeight - badgeBottom - badge.offsetHeight >= 0, clearOfBook: apart >= cascadePx(document.body, "--drpg-launch-gap") - 0.05 }
+                    badge: { inView: innerWidth - (chatBox.right - badgeRight) >= 0 && chatBox.bottom - badgeBottom - badge.offsetHeight >= 0, clearOfBook: apart >= cascadePx(document.body, "--drpg-launch-gap") - 0.05 }
                 };
                 drawnWant[label] = {
                     ...gridWant,
@@ -9641,7 +9713,7 @@ const INVARIANTS = [
                     roster[label] = {
                         foot: (foot - cascadePx(chat, "bottom") - chat.offsetHeight).toFixed(2),
                         right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
-                        top: innerHeight - foot - panel.offsetHeight >= 8 - 0.5
+                        top: insetBox(panel).bottom - foot - panel.offsetHeight >= 8 - 0.5
                     };
                     if (liftWas) document.body.style.setProperty("--drpg-av-lift", liftWas);
                     else document.body.style.removeProperty("--drpg-av-lift");
@@ -9727,19 +9799,35 @@ const INVARIANTS = [
                     close({ instant: true });
                     continue;
                 }
+                /* E81 fix r2-H2 (review round 2's P8, P7): scrolled to its end, since a card capped at the tile keeps its last
+                   line below the tile until it is, and the badge with the button - the `::after` of it, whose box
+                   getBoundingClientRect leaves out. */
+                card.scrollTop = card.scrollHeight;
+                const unreadWas = button.getAttribute("data-unread");
+                if (unreadWas === null) button.setAttribute("data-unread", "9+");
                 const texts = node => node.nodeType === Node.TEXT_NODE ? [node] : [...node.childNodes].flatMap(texts);
+                const view = card.getBoundingClientRect();
                 const words = texts(body).filter(node => node.data.trim()).flatMap(node => {
                     const range = document.createRange();
                     range.selectNodeContents(node);
                     return [...range.getClientRects()];
-                });
-                const hit = button.getBoundingClientRect();
-                floor.crossed[name] = words.filter(rect => rect.width > 0 && overlaps(rect, hit)).length;
+                }).filter(rect => rect.width > 0 && overlaps(rect, view));
+                const hit = button.getBoundingClientRect(), after = getComputedStyle(button, "::after");
+                const badgeAt = { left: hit.left + button.clientLeft + px(after.left), top: hit.top + button.clientTop + px(after.top) };
+                const badgeBox = after.content === "none" ? null : { ...badgeAt, right: badgeAt.left + px(after.width), bottom: badgeAt.top + px(after.height) };
+                if (unreadWas === null) button.removeAttribute("data-unread");
+                floor.crossed[name] = !badgeBox ? "no badge drawn" : words.filter(rect => overlaps(rect, hit) || overlaps(rect, badgeBox)).length;
                 const lines = Math.max(px(getComputedStyle(body).lineHeight), px(getComputedStyle(tailEl).lineHeight));
+                /* Growth from the content (P8): with the card neither grown into the tile nor capped at it, for the reading -
+                   a card that fills the tile is the tile's height with the floor's room and without it. */
+                const held = ["flex-grow", "max-height"].map(name => [name, card.style.getPropertyValue(name), card.style.getPropertyPriority(name)]);
+                card.style.setProperty("flex-grow", "0", "important");
+                card.style.setProperty("max-height", "none", "important");
                 const withFloor = card.offsetHeight;
                 card.classList.remove("drpg-popup-floor");
                 untail();
                 const without = card.offsetHeight, pad = px(getComputedStyle(body).paddingBottom), lh = px(getComputedStyle(body).lineHeight);
+                held.forEach(([name, value, priority]) => value ? card.style.setProperty(name, value, priority) : card.style.removeProperty(name));
                 P.setFloor(tile);
                 const bound = Math.max(0, room - lh - pad) + lines + 0.5;
                 floor.growth[name] = withFloor - without <= bound ? true : `${withFloor - without} px over a bound of ${bound} px`;
@@ -9791,23 +9879,36 @@ const INVARIANTS = [
                     }
                     const edge = rootPx("--drpg-edge"), lift = rootPx("--drpg-av-lift");
                     /* The buttons' boxes from their own insets: under Stained Glass the corner turns with its pane. */
+                    /* Against the box their insets are measured from (P23: under Stained Glass not the window), and the
+                       tile in the window's coordinates - on a stacked screen it is not turned (narrow.css). */
                     const buttons = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id)).map(el => {
-                        const style = getComputedStyle(el);
-                        return { top: innerHeight - px(style.bottom) - el.offsetHeight, reach: px(style.right) + el.offsetWidth };
+                        const style = getComputedStyle(el), from = insetBox(el);
+                        return { top: from.bottom - px(style.bottom) - el.offsetHeight, reach: innerWidth - from.right + px(style.right) + el.offsetWidth };
                     });
                     const cornerTop = Math.min(...buttons.map(b => b.top)), reach = Math.max(...buttons.map(b => b.reach));
-                    const box = { top: tile.offsetTop, bottom: tile.offsetTop + tile.offsetHeight, left: tile.offsetLeft, right: innerWidth - tile.offsetLeft - tile.offsetWidth };
+                    const drawn = tile.getBoundingClientRect(), tileFrom = insetBox(tile);
+                    const box = { top: drawn.top, bottom: drawn.bottom, left: drawn.left - tileFrom.left, right: tileFrom.right - drawn.right, fromEdge: innerWidth - drawn.right, foot: tileFrom.bottom - drawn.bottom };
                     const inset = name => px(tile.style.getPropertyValue(name)) || 8;
                     const shown = [...tile.querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+                    /* No card a sliver (E81 fix r2-H2, review round 2's P24): drawn shorter than its own content less a line
+                       while another is shown beside it, which is what a card squeezed by the capped tile looks like. */
+                    const lineOf = el => px(getComputedStyle(el).lineHeight) || px(getComputedStyle(el).fontSize) * 1.2;
+                    const slivers = shown.length < 2 ? 0 : shown.filter(el => el.offsetHeight < el.scrollHeight - lineOf(el.querySelector(".drpg-popup-body") ?? el) - 0.5).length;
                     const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
                     stackRead[label] = {
-                        foot: short ? Math.abs(innerHeight - box.bottom - (edge + lift)) <= 0.5 : box.bottom <= cornerTop - 8 + 0.5,
-                        beside: short ? box.right >= Math.max(inset("--drpg-notices-right"), reach + 24) - 0.5 : null,
+                        foot: short ? Math.abs(box.foot - (edge + lift)) <= 0.5 : box.bottom <= cornerTop - 8 + 0.5,
+                        beside: short ? box.fromEdge >= Math.max(inset("--drpg-notices-right"), reach + 24) - 0.5 : null,
                         sides: Math.abs(box.left - inset("--drpg-notices-left")) <= 0.5 && (short || Math.abs(box.right - inset("--drpg-notices-right")) <= 0.5),
                         underColumn: box.top >= offsetTop(column) + column.offsetHeight + 8 - 0.5,
-                        fits: shown.length > 0 && shown.reduce((sum, el) => sum + el.offsetHeight, px(getComputedStyle(tile).rowGap) * (shown.length - 1)) <= tile.clientHeight + 1
+                        fits: shown.length > 0 && shown.reduce((sum, el) => sum + el.offsetHeight, px(getComputedStyle(tile).rowGap) * (shown.length - 1)) <= tile.clientHeight + 1,
+                        slivers
                     };
-                    stackWant[label] = { foot: true, beside: short ? true : null, sides: true, underColumn: true, fits: true };
+                    while (closers.length) closers.pop()({ instant: true });
+                    /* One card taller than the stack (P24's other road): inside the tile, scrolling. */
+                    closers.push(P.showPopup(`<p>${"R299 long words ".repeat(400)}</p>`, { title: "R299 long", record: false }));
+                    const long = tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), longBox = long?.getBoundingClientRect(), tileBox = tile.getBoundingClientRect();
+                    stackRead[label].long = long ? { inTile: longBox.top >= tileBox.top - 0.5 && longBox.bottom <= tileBox.bottom + 0.5, scrolls: long.scrollHeight > long.clientHeight + 1 } : "not shown";
+                    stackWant[label] = { foot: true, beside: short ? true : null, sides: true, underColumn: true, fits: true, slivers: 0, long: { inTile: true, scrolls: true } };
                     while (closers.length) closers.pop()({ instant: true });
                 }
             } finally {
@@ -9818,7 +9919,7 @@ const INVARIANTS = [
             equal(stableJson(stackRead), stableJson(stackWant),
                 `the notice stack at ${innerWidth}x${innerHeight}${short ? ", short" : ""} [per theme, with the suite's cards until one waits parked: its foot 8 px over the `
                 + "corner's highest button, or on the bottom line on a short screen; beside the buttons there, 24 px past the widest; its sides at narrow.mjs's insets; "
-                + "its top 8 px under the blocks' stack at least; the cards shown fitting in it]");
+                + "its top 8 px under the blocks' stack at least; the cards shown fitting in it; none of them a sliver; a card of 400 words inside it, scrolling]");
         }
         /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
            whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
@@ -9964,6 +10065,12 @@ const INVARIANTS = [
          * `left: 16px !important` beats this sheet's and the reading says 16 where a browser draws the inset. The
          * same loss is harmless elsewhere here: the theme's own var() values lose theirs too, and the plain
          * `top: auto` and `height: auto` keep it. Under Monokuma Legacy `left` is read.
+         * E81 fix r2-H2 (review round 2's P24, P25): the ceiling never under 96 px - a short screen with the dock's
+         * 100 px left it 32 px at 844 x 390 and 640 x 360 (worked out: the glass harness reads 132 at both without a
+         * dock, Chromium 13.10.2026), so there the stack reaches under the blocks' stack by what
+         * the 96 px take, and `under` says by how much - and a card that does not shrink, its frame inside its
+         * ceiling (`flex-shrink` 0, `box-sizing: border-box`). What those do to drawn cards is glass-sweep.mjs's
+         * reading, in Chromium on the glass harness, and R299 (d)'s inside Foundry.
          */
         const host = document.getElementById("drpg-popups");
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
@@ -10023,16 +10130,16 @@ const INVARIANTS = [
                             right: round(px(host, "right")),
                             under: round(view.h - bottom - ceiling - (px(column, "top") + px(column, "max-height"))),
                             height: resolved ? null : getComputedStyle(host).height,
-                            card: [round(px(card, "max-height")), getComputedStyle(card).overflowY]
+                            card: [round(px(card, "max-height")), getComputedStyle(card).overflowY, getComputedStyle(card).flexShrink, getComputedStyle(card).boxSizing]
                         };
                         want[key] = {
                             top: resolved ? null : "auto",
                             foot: round(view.short ? 0 : 8),
                             left: glass && !resolved ? null : round(left),
                             right: round(view.short ? Math.max(right, reach + 24) : right),
-                            under: round(8),
+                            under: round(Math.min(8, view.h - bottom - 96 - (px(column, "top") + px(column, "max-height")))),
                             height: resolved ? null : "auto",
-                            card: [round(ceiling), "auto"]
+                            card: [round(ceiling), "auto", "0", "border-box"]
                         };
                         putBack();
                         host.style.setProperty("top", "123px");
@@ -10050,8 +10157,8 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson(want),
             `the notice stack on a stacked screen${resolved ? ` at ${innerWidth}x${innerHeight}` : " at 393x852, 820x1180, 844x390 and 640x360"} [per theme, size and reading: `
             + "the inline top not in force; the foot 8 px over the highest button, or on the bottom line beside them on a short screen; the left and right insets, "
-            + "the right on a short screen 24 px past the widest button at least; the ceiling 8 px under the blocks' stack at its tallest; the height left to "
-            + "the cards; a card's ceiling the stack's, and it scrolls]");
+            + "the right on a short screen 24 px past the widest button at least; the ceiling 8 px under the blocks' stack at its tallest, or 96 px where "
+            + "that leaves less; the height left to the cards; a card's ceiling the stack's, it scrolls, it does not shrink and its frame is inside the ceiling]");
     }],
     ["R500 - a cast row kept by a hall token under 1.2.74 moves to its actor once: the actor's first token in the hall decides, its season kept, and any other key and a second run are left alone", async () => {
         /*
@@ -10237,6 +10344,22 @@ function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, c
         timers: { set: () => 0, clear: () => {} },
         log: { warn: () => {}, debug: () => {} }
     });
+}
+
+/**
+ * The box a fixed element's insets are measured from, in the window's coordinates (E81 fix r2-H2, 13.10.2026; review
+ * round 2's P23; R299 (a), (c) and (d)). R299 read the corner's insets against the window, and under Stained Glass that
+ * is not their containing block - an ancestor carries a filter, and glass.mjs records the two 9 px apart on the right
+ * (`LAUNCH_CLEAR`) -, so a first red in a browser could have been that offset. A fixed probe beside the element, with
+ * no insets of its own, covers the same block. In a browser only; R299 has not run in one (LIVE-E81-02).
+ */
+function insetBox(el) {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position: fixed; inset: 0; visibility: hidden; pointer-events: none";
+    (el.parentElement ?? document.body).append(probe);
+    const box = probe.getBoundingClientRect();
+    probe.remove();
+    return box;
 }
 
 /**

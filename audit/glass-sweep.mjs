@@ -36,6 +36,14 @@
  *   frame     LAST.frame copied with a viewport 100 px wider than this one - stale, not ok
  * A control that reads as a pass fails the sweep.
  *
+ * THE NOTICE STACK AND THE CORNER (E81 fix r2-H2, 13.10.2026). After the launchers, at every size, the page's
+ * `drpgNoticeCheck` draws the module's own cards with popup.mjs on the tile and fails the size on any of: the stack's
+ * ceiling under 96 px on a stacked screen, as it is or with a camera dock (P25); a shown card a sliver of its content
+ * beside another, or the shown cards not fitting (P24, P9); a card of 400 words outside the tile or not scrolling where
+ * the stack has a ceiling (P24's other road); a line of the bottom card's words, scrolled to its end, under the
+ * history's button or its unread badge (P8, P7). Its `why` is printed. R299 reads the same inside Foundry only.
+ * `--no-notices` leaves it out.
+ *
  * KNOWN: 1280x720 edgeGaps 16 is the reading glass.mjs explains ("WHAT THE SKIP LEAVES BARE",
  * E81 C14) - the strip's 160 px skip leaves the wall bare there - and is the default `--known`;
  * any other value at that size still fails. `--known ""` drops it.
@@ -43,7 +51,7 @@
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
- *          [--chromium <executable>] [--no-control]
+ *          [--chromium <executable>] [--no-control] [--no-notices]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -61,7 +69,7 @@ const page0 = opt("--page") ?? "audit/glass-harness.html";
 const themes = (opt("--themes") ?? "stained,legacy").split(",").filter(Boolean);
 const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
-const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control");
+const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const known = Object.fromEntries((opt("--known") ?? "1280x720:eg=16").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
@@ -203,6 +211,15 @@ try {
                         console.log(`  control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} found ${v.found}/${v.expected} hidden ${v.hidden} outside ${v.outside} stale ${v.stale} - ${String(v.why).slice(0, 110)}`);
                         if (!v.pass) fails.push("control " + k + " reads as a pass");
                     }
+                }
+            }
+            if (notices) {
+                const n = await page.evaluate(() => window.drpgNoticeCheck?.() ?? null);
+                if (!n) fails.push("the page defines no drpgNoticeCheck");
+                else {
+                    line += ` | notices ${n.ok ? "ok" : "NOT ok"}` + (n.ceiling ? ` ceiling ${n.ceiling.asIs.toFixed(0)}/${n.ceiling.docked.toFixed(0)}` : "")
+                        + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "");
+                    if (!n.ok) fails.push("notices: " + n.why);
                 }
             }
             if (!r.tile) fails.push("no #drpg-notices-corner");
