@@ -366,19 +366,26 @@ function roomWindowClass() {
     return RoomWindow;
 }
 
+/** The window being opened, from its `new` to the end of its first render (`openRoomWindow`). */
+let openingRoomWindow = null;
+
 /**
  * The description of the viewer's room, in a window: the narrow row's button (E77 C8). One at a time -
- * a second press raises the one already open (once it has rendered: `alreadyOpen` counts rendered windows,
- * as for every window of the module's, and scenario 74 G read a second open asked mid-render make a second).
+ * a second press raises the one already open, and a press while it is still rendering answers that same
+ * window (E77 fix r2-H1, review round 2's "known and open"): `alreadyOpen` counts rendered windows only, and
+ * scenario 74 G read two presses before the first render ended make two windows. The window is a new one
+ * for each opening rather than one kept for the page: the harness's ApplicationV2 does not draw a closed
+ * window again, and whether Foundry's does is from memory, not read.
  *
  * @returns {Promise<object>} the window, the one already open or a new one
  */
 export async function openRoomWindow() {
     const open = alreadyOpen(WINDOW_CLASS);
     if (open) return open;
+    if (openingRoomWindow) return openingRoomWindow;
     const app = new (roomWindowClass())();
-    await app.render({ force: true });
-    return app;
+    openingRoomWindow = app.render({ force: true }).then(() => app).finally(() => { openingRoomWindow = null; });
+    return openingRoomWindow;
 }
 
 /** The toggle's three facts and the description's visibility, without a repaint. */

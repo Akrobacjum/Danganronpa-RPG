@@ -367,8 +367,10 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  * up inside a CSS `url("...")` on the tile), a slash or a backslash written as `%2f` or `%5c`, and an
  * extension not in ROOM_IMAGE_TYPES. Answers the relative path as written, or an absolute one's pathname,
  * trimmed - and only when that answer, read again against this page, is the same URL: the answer is final,
- * so `safeRoomImage(safeRoomImage(x)) === safeRoomImage(x)` for every x and a reader may hand it to a fetch
- * as it is (R505 reads both).
+ * so `safeRoomImage(safeRoomImage(x)) === safeRoomImage(x)` over every row R505 reads (its KEPT, REFUSED
+ * and EMPTY tables - not over every string, which nothing here measures) and a reader may hand it to a
+ * fetch as it is. A path it cannot read is refused as `null`, not thrown (R505 reads that no row of its
+ * tables throws; E77 fix r2-H1).
  *
  * What it does not settle: what the server answers to the path - a redirect to elsewhere is no reading of
  * the string (LIVE-E77-03) - and S3 sources, which are another host and refused (the Description tab's note
@@ -400,7 +402,17 @@ export function safeRoomImage(path) {
        `%5c` are refused above because a server that decodes them before it routes would read the same
        empty segment (not measured on Foundry's server; no file this module offers carries either). */
     const answer = /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
-    return new URL(answer, document.baseURI).href === url.href ? answer : null;
+    /* The re-read can throw (E77 fix r2-H1, review round 2's sec F1): after the empty segment comes what the URL
+       parser will not take as a host - a port that is no number or out of range, a space or `%20`, an unclosed
+       `[`, a bare `%` - and `new URL` rejects the answer (measured 13.10.2026 in Node at 2babd4c: 18 of 18 such
+       paths threw TypeError, each of the six written after `//`, `/.//` and `<scheme>.//`). The tile, Room
+       Setup's cells and setVaultRoom all stopped on the throw, so a stored value of that class kept the tile on
+       the room before and closed Room Setup on its scene. Refused here like every other: `null`. */
+    try {
+        return new URL(answer, document.baseURI).href === url.href ? answer : null;
+    } catch {
+        return null;
+    }
 }
 
 /**

@@ -10767,10 +10767,12 @@ const INVARIANTS = [
         ];
         const REFUSED = [
             "javascript:alert(1)//x.png", "data:image/png;base64,AAAA", `blob:${origin}/x.png`, "file:///etc/x.png",
-            "//evil.example/x.png", "https://evil.example/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
+            "//evil.example/x.png", "https://evil.example/x.png", "https://evil.example:99999/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
             "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/plan.svg", "worlds/x", "", null, 7
         ];
-        equal(JSON.stringify([KEPT.map(([path]) => V.safeRoomImage(path)), REFUSED.map(path => V.safeRoomImage(path))]),
+        // Judged in a try of its own (E77 fix r2-H1): a judgement that throws is read as a wrong answer, not as the test's error.
+        const judge = path => { try { return V.safeRoomImage(path); } catch (err) { return `throws ${err?.name}`; } };
+        equal(JSON.stringify([KEPT.map(([path]) => judge(path)), REFUSED.map(path => judge(path))]),
             JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
             `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
 
@@ -10786,9 +10788,22 @@ const INVARIANTS = [
          * "Room Setup writes a room's picture: ...".
          */
         const scheme = new URL(document.baseURI).protocol;
+        /*
+         * E77 fix r2-H1, 13.10.2026 (round 2's sec F1): THE JUDGEMENT NEVER THROWS. After the empty segment, text the
+         * URL parser takes for no host - a port that is no number or out of range, a space or `%20`, an unclosed `[`,
+         * a bare `%` - made the answer's own re-read throw TypeError (measured in Node at 2babd4c: 18 of these 18), and
+         * each caller stopped on it: the tile stayed on the room before, Room Setup did not open on that scene. The six,
+         * each after `//`, `/.//` and `<scheme>.//`, join EMPTY; every row of the three tables is then judged in a try
+         * of its own, and none may throw. Scenario 74 I reads one of them stored past setVaultRoom, on the screens.
+         */
+        const NO_HOST = ["a:99999", "a:b", "a b", "a%20b", "[::1", "a%"]
+            .flatMap(host => [`${origin}//${host}/x.png`, `${origin}/.//${host}/x.png`, `${scheme}.//${host}/x.png`]);
         const EMPTY = [`${origin}//evil.example/x.png`, `${origin}/.//evil.example/x.png`, `${scheme}.//evil.example/x.png`,
-            `${origin}/%2F%2Fevil.example/x.png`, "/%2f/evil.example/x.png", `${origin}/%5C%5Cevil.example/x.png`, `${origin}/\\evil.example/x.png`];
+            `${origin}/%2F%2Fevil.example/x.png`, "/%2f/evil.example/x.png", `${origin}/%5C%5Cevil.example/x.png`, `${origin}/\\evil.example/x.png`,
+            ...NO_HOST];
         const every = [...KEPT.map(([path]) => path), ...REFUSED, ...EMPTY];
+        const threw = every.map(path => [path, judge(path)]).filter(([, answer]) => String(answer).startsWith("throws "));
+        equal(JSON.stringify(threw), "[]", "[each row of KEPT, REFUSED and EMPTY whose judgement threw, with what it threw]");
         const moved = every.filter(path => V.safeRoomImage(V.safeRoomImage(path)) !== V.safeRoomImage(path));
         const away = every.map(path => V.safeRoomImage(path)).filter(Boolean).filter(kept => new URL(kept, document.baseURI).origin !== origin);
         equal(JSON.stringify([EMPTY.map(path => V.safeRoomImage(path)), moved, away]), JSON.stringify([EMPTY.map(() => null), [], []]),

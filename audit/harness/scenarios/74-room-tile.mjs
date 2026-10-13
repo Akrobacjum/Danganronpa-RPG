@@ -29,19 +29,28 @@
  *   G (the narrow row, E77 C8): the harness's page is a stacked screen, so p1's tile stands in `#drpg-tile-row`, a row
  *     of `#drpg-column`, in its narrow form: a thumbnail whose `src` is the checked path the art layer shows, and a
  *     'Description' button that opens a window of the module's titled 'Description' holding Dorm A's words as text -
- *     no element of the GM's markup in it, nothing run - and a second open is the same window. The row's 44 px, the
- *     thumbnail's 78x44 and the cut need layout: R508's narrow clause and audit/glass-sweep.mjs read them.
+ *     no element of the GM's markup in it, nothing run - and a second open is the same window, as are two presses
+ *     before it has rendered (E77 fix r2-H1). Then the open window follows Aiko (fix r2-H1): its words stay through a
+ *     refused crossing, become the Porch's when p1 takes her there, and the window closes in the Gym, a room of no
+ *     words. The row's 44 px, the thumbnail's 78x44 and the cut need layout: R508's narrow clause and
+ *     audit/glass-sweep.mjs read them.
  *   C (a route another browser settles, E77 fix r1-G2): p2's tile follows p2's own crossings of Botan when p2
  *     settles them, when every player owns every student and when p1 owns Botan beside p2 - p1 settles both - and a
  *     refused route p1 judges paints nothing of its room on p2's tile, nor does a drag begun before the last route
- *     was quiet; then a put-back of p1's that never lands, and the GM's next move of Aiko, which p1's tile follows.
+ *     was quiet; then a put-back of p1's that never lands, and the GM's next move of Aiko, which p1's tile follows -
+ *     and once more, ended by p1's own next move (E77 fix r2-H1).
  *   H (the states that are no gate, E77 fix r1-G3): in an Eclipse p1's tile keeps Aiko's room and follows her
  *     Eclipse crossing; dead it keeps the room her body lies in, and as a Monocub follows her walk; in a Class Trial
  *     every tile is the trial's while each viewer still stands in a school room; and p4's character, on a scene of
  *     two floors, is shown in the room of its token's floor, not of the floor p4's canvas shows, and of its token's
  *     scene, not of the scene p4 looks at.
- *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A), and C and H - the side
- *     fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run after it.
+ *   I (a stored picture that cannot be read, E77 fix r2-H1): a path of this origin whose re-read the URL parser
+ *     rejects, written on the Cafeteria past setVaultRoom - after a control, roomImage answers no picture on the GM
+ *     and on p1, Room Setup opens and draws the Cafeteria with none, p1's tile follows Aiko in, and setVaultRoom
+ *     handed the same path warns and writes nothing.
+ *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
+ *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
+ *     after it; I runs last.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -67,8 +76,10 @@ export const layers = ["ci"];
    (the curtain's cut) raise it with a reading of their own. E77 fix r1-G2's phase C (each crossing waits out the quiet
    of 1.5 s on a browser that does not settle it) took the scenario to 10 checks in 41.5 s, one run of the side fix
    line's fast set on 13.10.2026; three times that is 125 s. E77 fix r1-G3's phase H took it to 14 checks in 52.0 s, one
-   run alone under the lane-A lock beside two other lanes' scenarios on 13.10.2026; three times that is 156 s. */
-export const timeoutMs = 156000;
+   run alone under the lane-A lock beside two other lanes' scenarios on 13.10.2026; three times that is 156 s. E77 fix
+   r2-H1's G3, G4, C6 and phase I took it to 32 checks in 61.5 s, one run alone under the lane-A lock with no other lane
+   busy on 13.10.2026; three times that is 185 s. */
+export const timeoutMs = 185000;
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
 
 const MOD = "danganronpa-rpg";
@@ -439,6 +450,57 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         J(p1G.window) === J({ count: 1, same: true, title: p1G.describe, markup: 0, name: "Dorm A", prose: WORDS["Dorm A"] })
             && p1G.closed === 0 && p1G.ran === null, J(p1G));
 
+    /* E77 fix r2-H1 (13.10.2026; review round 2's "known and open"). Two presses before the window has rendered - two
+       calls of `openRoomWindow` with no wait between them, as a double click on the button asks - read by the window
+       elements on the page and whether both presses answered one application. Until this fix they made two windows. */
+    const twiceG = await p1.eval(`const RT = await import("${repoUrl}/scripts/room-tile.mjs");
+        const apps = await Promise.all([RT.openRoomWindow(), RT.openRoomWindow()]);
+        const out = { windows: document.querySelectorAll(".drpg-window-room").length, same: apps[0] === apps[1] };
+        for (const app of new Set(apps)) await app?.close();
+        await new Promise(r => setTimeout(r, 50));
+        out.left = document.querySelectorAll(".drpg-window-room").length;
+        return out;`, { timeout: 15000 });
+    check("G3: two presses of the Description button before its window has rendered open one window, not two",
+        J(twiceG) === J({ windows: 1, same: true, left: 0 }), J(twiceG));
+
+    /* E77 fix r2-H1 (13.10.2026; review round 2's sec F2, cor F4): THE WINDOW FOLLOWS THE VIEWER. room-tile.mjs
+       `refreshRoomTile` draws the open window again with the viewer's new room when the tile is painted, and closes it
+       when the room has no words; until this phase nothing read it. Opened by the row's button with Aiko in Dorm A (the
+       control: Dorm A's words), then p1 tries the Porch with no action and the free move spent - refused, put back -
+       and then takes it with an action; then the GM stands Aiko in the Gym, a room of no words, and back in Dorm A. */
+    const WINDOW = `const find = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.element?.classList.contains("drpg-window-room"));
+        const words = () => find()[0]?.element?.querySelector(".drpg-room-window-prose")?.textContent ?? null;`;
+    const AIKO_G = `${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}"),
+        t = academy.tokens.get("TOKAIKO000000000");`;
+    const followG = { set: await gm.eval(`${AIKO_G} await game.drpg.setActions(aiko, 0); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        await new Promise(r => setTimeout(r, 600)); return [M.roomOfToken(t), game.drpg.actionsLeft(aiko)];`, { timeout: 30000 }) };
+    followG.open = await p1.eval(`${TILE} ${UNTIL} ${WINDOW} tile()?.querySelector(".drpg-room-tile-describe")?.click();
+        await until(() => find().length === 1, 3000); return { windows: find().length, words: words() };`, { timeout: 15000 });
+    followG.refused = await p1.eval(`${AIKO_G} ${TILE} ${WINDOW} await t.update({ x: 900, y: 300 }).catch(() => null);
+        await new Promise(r => setTimeout(r, 1500));
+        return { windows: find().length, words: words(), tile: read()?.name ?? null, token: M.roomOfToken(t) };`, { timeout: 30000 });
+    await gm.eval(`${AIKO_G} await game.drpg.setActions(aiko, 1); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 });
+    followG.porch = await p1.eval(`${AIKO_G} ${TILE} ${UNTIL} ${WINDOW} await t.update({ x: 900, y: 300 });
+        await until(() => words() === ${J(WORDS.Porch)}, 5000);
+        return { windows: find().length, words: words(), tile: read()?.name ?? null, token: M.roomOfToken(t) };`, { timeout: 30000 });
+    const GM_TO = room => gm.eval(`${AIKO_G} await t.update(M.positionIn("${room}", t), ${MOVE}); await new Promise(r => setTimeout(r, 800));
+        return M.roomOfToken(t);`, { timeout: 30000 });
+    followG.gym = { at: await GM_TO("Gym") };
+    Object.assign(followG.gym, await p1.eval(`${TILE} ${UNTIL} ${WINDOW} await until(() => find().length === 0, 5000);
+        return { windows: find().length, tile: read()?.name ?? null, state: read()?.state ?? null };`, { timeout: 15000 }));
+    followG.home = { at: await GM_TO("Dorm A") };
+    Object.assign(followG.home, await p1.eval(`${TILE} ${UNTIL} ${WINDOW} await until(() => read()?.name === "Dorm A", 5000);
+        for (const app of find()) await app.close();
+        return { windows: find().length, tile: read()?.name ?? null };`, { timeout: 15000 }));
+    check("G4: p1's open Description window follows Aiko - Dorm A's words, unchanged by a refused crossing into the Porch, the "
+        + "Porch's words once p1 takes her there, and closed when the GM stands her in the Gym, a room of no words",
+    J(followG.set) === J(["Dorm A", 0]) && J(followG.open) === J({ windows: 1, words: WORDS["Dorm A"] })
+        && J(followG.refused) === J({ windows: 1, words: WORDS["Dorm A"], tile: "Dorm A", token: "Dorm A" })
+        && J(followG.porch) === J({ windows: 1, words: WORDS.Porch, tile: "74 Porch", token: "74 Porch" })
+        && J(followG.gym) === J({ at: "Gym", windows: 0, tile: "Gym", state: "roomBare" })
+        && J(followG.home) === J({ at: "Dorm A", windows: 0, tile: "Dorm A" }),
+    J(followG));
+
     /* ------------------------------ C. the move of a student another browser settles ------------------------------ */
     phase("C: p2's tile follows Botan's routes when p1 settles them; a put-back that never lands ends at the GM's move");
     /* E77 fix r1-G2 (13.10.2026; review round 1 cor F1, O1, O3, cor F3, O2). One browser charges a route - the first
@@ -556,7 +618,7 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         await t.update(M.positionIn("74 Porch", t), ${MOVE});
         await game.drpg.setActions(aiko, 1); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
         await new Promise(r => setTimeout(r, 800)); return M.roomOfToken(t);`, { timeout: 30000 });
-    const lostC = await p1.eval(`${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+    const LOSE = `${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
         t.update = function (data, options) { return options?.[M.REVERT] ? Promise.resolve(this) : Object.getPrototypeOf(this).update.call(this, data, options); };
         try {
             Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 900, y: 600 }] } }, configurable: true });
@@ -564,7 +626,8 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
             t.update({ x: 900, y: 600 }).catch(() => null);
             await new Promise(r => setTimeout(r, 1500));
         } finally { delete t.update; }
-        return { tile: read()?.name ?? null, token: M.roomOfToken(t), own: !Object.hasOwn(t, "update") };`, { timeout: 30000 });
+        return { tile: read()?.name ?? null, token: M.roomOfToken(t), own: !Object.hasOwn(t, "update") };`;
+    const lostC = await p1.eval(LOSE, { timeout: 30000 });
     await gm.eval(`${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
         await t.update(M.positionIn("Hall", t), ${MOVE}); await new Promise(r => setTimeout(r, 1000)); return true;`, { timeout: 30000 });
     const movedC = await p1.eval(`${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs"), T = await import("${repoUrl}/scripts/room-tile.mjs");
@@ -574,6 +637,30 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
     stuckC === "74 Porch" && lostC.own && lostC.token === "74 Shed" && lostC.tile === "74 Porch"
         && movedC.token === "Hall" && movedC.viewer === "Hall" && movedC.tile === "Hall",
     J({ stuckC, lostC, movedC }));
+
+    /* E77 fix r2-H1 (13.10.2026; fix r1-G2's own note): the same put-back that never lands, ended this time by p1's own
+       next move, with an action the GM gives - which clears the mark the lost put-back left (movement.mjs `judgeMove`,
+       where a route is marked). Until this check no scenario drove that road: fix r1-G2 read only the GM's move (C5).
+       The move stays inside the Shed Aiko stands in: this browser's record has her where the lost put-back would have
+       stood her, Dorm A, so the move is judged - and paid - as a crossing from there, and a move into Dorm A itself
+       would be no crossing and read the same with the mark kept or cleared (a mutant that keeps it read C6 green on
+       13.10.2026 when C6 moved her into Dorm A). */
+    const stuck2C = await gm.eval(`${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}");
+        const t = academy.tokens.get("TOKAIKO000000000");
+        await t.update(M.positionIn("74 Porch", t), ${MOVE});
+        await game.drpg.setActions(aiko, 1); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        await new Promise(r => setTimeout(r, 800)); return M.roomOfToken(t);`, { timeout: 30000 });
+    const lost2C = await p1.eval(LOSE, { timeout: 30000 });
+    await gm.eval(`const aiko = game.actors.get("${IDS.aiko}"); await game.drpg.setActions(aiko, 1); await new Promise(r => setTimeout(r, 600)); return true;`,
+        { timeout: 30000 });
+    const ownC = await p1.eval(`${ACADEMY} ${TILE} ${UNTIL} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+        await t.update({ x: 920, y: 640 });
+        await until(() => read()?.name === "74 Shed", 5000);
+        return { tile: read()?.name ?? null, token: M.roomOfToken(t) };`, { timeout: 30000 });
+    check("C6: a put-back that never lands, then p1's own next move of Aiko, inside the Shed she stands in, moves p1's tile from the Porch to the Shed",
+        stuck2C === "74 Porch" && lost2C.own && lost2C.token === "74 Shed" && lost2C.tile === "74 Porch"
+            && ownC.token === "74 Shed" && ownC.tile === "74 Shed",
+    J({ stuck2C, lost2C, ownC }));
 
     /* ------------------------------ H. the states that are no gate ------------------------------ */
     phase("H: an Eclipse, a death, a Monocub, a Class Trial and a room on another floor, each on the viewer's own tile");
@@ -688,6 +775,65 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         && levelsH.away.canvas === false && levelsH.away.name === "74 Attic" && J(levelsH.away.view) === J(["room", "74 Attic"])
         && J(levelsH.away.painted) === "[]",
     J(levelsH));
+
+    /* ------------------------------ I. a stored picture that cannot be read ------------------------------ */
+    phase("I: a picture path that cannot be read again is no picture - Room Setup opens, the tile follows, setVaultRoom warns");
+    /* E77 fix r2-H1 (13.10.2026; review round 2's sec F1, the reviewer's probe 97 kept as a phase). safeRoomImage read its
+       answer again with `new URL` outside its try, and a path of this origin whose empty first segment is followed by
+       no host - here a port out of range - threw there: the tile stayed on the room before, Room Setup did not open on
+       the scene, setVaultRoom threw instead of warning. The value is written on the Cafeteria's regions with
+       `region.update`, past setVaultRoom, as an import, another module or a console would. THE CONTROL first: p1's tile
+       follows the GM's moves of Aiko into the Cafeteria and back while its picture is the module's own. */
+    const GO = room => gm.eval(`${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+        await t.update(M.positionIn("${room}", t), ${MOVE}); return M.roomOfToken(t);`, { timeout: 30000 });
+    const FOLLOW = room => p1.eval(`${TILE} ${UNTIL} await until(() => read()?.name === "${room}", 6000);
+        const s = read(); return { name: s?.name ?? null, state: s?.state ?? null, art: s?.art ?? null };`, { timeout: 30000 });
+    const controlI = { into: await GO("Cafeteria") };
+    controlI.tile = await FOLLOW("Cafeteria");
+    controlI.back = await GO("Dorm A");
+    controlI.home = await FOLLOW("Dorm A");
+    check("I1: the control - p1's tile follows the GM's moves of Aiko into the Cafeteria, its picture on the art layer, and back into Dorm A",
+        controlI.into === "Cafeteria" && J(controlI.tile) === J({ name: "Cafeteria", state: "roomPicture", art: `url("${IMAGES.Cafeteria}")` })
+            && controlI.back === "Dorm A" && controlI.home.name === "Dorm A",
+    J(controlI));
+    const READ = `const V = await import("${repoUrl}/scripts/vault.mjs"), academy = game.scenes.get("${IDS.scene}");
+        let image; try { image = V.roomImage("Cafeteria", academy); } catch (err) { image = "throws " + err?.name; }`;
+    const storedI = await gm.eval(`${ACADEMY} const V = await import("${repoUrl}/scripts/vault.mjs");
+        const BAD = new URL(document.baseURI).origin + "//a:99999/x.png", key = "flags.${MOD}." + V.VAULT_FLAGS.image;
+        const pieces = [...academy.regions.values()].filter(r => r.name === "Cafeteria");
+        for (const r of pieces) await r.update({ [key]: BAD });
+        await new Promise(r => setTimeout(r, 800));
+        const out = { pieces: pieces.length, stored: pieces.map(r => r.getFlag("${MOD}", V.VAULT_FLAGS.image) === BAD) };
+        let seen = null;
+        globalThis.__dialogAnswers.push(async config => {
+            const form = document.createElement("form");
+            if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
+            const img = form.querySelector('img.drpg-room-picture[data-drpg-portrait="Cafeteria"]');
+            seen = { img: Boolean(img), src: img?.getAttribute("src") ?? null, field: form.querySelector('[name="img:Cafeteria"]')?.value ?? null };
+            return null;
+        });
+        try { await V.openRoomSetupDialog(); out.setup = "opened"; } catch (err) { out.setup = "throws " + err?.name; }
+        finally { globalThis.__dialogAnswers.length = 0; }
+        out.seen = seen;
+        const warned = [], own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        ui.notifications.warn = message => { warned.push(String(message)); };
+        try { const wrote = await V.setVaultRoom("Gym", { image: BAD, scene: academy }); out.gym = wrote === null ? null : "wrote"; }
+        catch (err) { out.gym = "throws " + err?.name; }
+        finally { if (own) Object.defineProperty(ui.notifications, "warn", own); else delete ui.notifications.warn; }
+        out.warned = warned; out.refused = game.i18n.format("DRPG.Vault.imageRefused", { room: "Gym" });
+        return out;`, { timeout: 30000 });
+    const imageI = { gm: await gm.eval(`${READ} return image;`), p1: await p1.eval(`${READ} return image;`) };
+    const intoI = { at: await GO("Cafeteria") };
+    intoI.tile = await FOLLOW("Cafeteria");
+    check("I2: with a path of that class stored on the Cafeteria, roomImage answers no picture on the GM and on p1, and Room Setup "
+        + "opens on the scene and draws the Cafeteria with no picture",
+    storedI.pieces > 0 && storedI.stored.every(Boolean) && imageI.gm === null && imageI.p1 === null
+        && storedI.setup === "opened" && J(storedI.seen) === J({ img: true, src: null, field: "" }),
+    J({ storedI, imageI }));
+    check("I3: p1's tile follows Aiko into that Cafeteria, drawn as a room of no picture",
+        intoI.at === "Cafeteria" && J(intoI.tile) === J({ name: "Cafeteria", state: "roomBare", art: "" }), J(intoI));
+    check("I4: setVaultRoom handed the same path writes nothing and warns that the picture was not saved",
+        storedI.gym === null && J(storedI.warned) === J([storedI.refused]), J(storedI));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);
