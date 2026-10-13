@@ -38,6 +38,7 @@
  * GM and on p1 the window's foot holds Clear and no prose, each announcement's row is titled by its card's heading and
  * says the time of day once, and the Eclipse's entry, opened, shows its words once. E77 fix r2-H7: the Eclipse's group
  * is named for the time of day it opened into, and H4 runs a second Eclipse from Night, whose group names the next day.
+ * E77 fix r2-H8: H5 reads every group heading of that window - no "·" can start a line.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -477,7 +478,7 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
                 while (group && !group.matches(".drpg-notices-group")) group = group.previousElementSibling;
                 const title = details.querySelector(":scope > summary > .drpg-notice-title")?.textContent ?? null;
                 const text = details.querySelector(":scope > summary > .drpg-notice-text")?.textContent ?? "";
-                return { details, title, text, group: group?.textContent ?? null };
+                return { details, title, text, group: group?.textContent.replace(/\u00a0/g, " ") ?? null };
             };
             const foot = root?.querySelector(".drpg-notices-foot");
             const clear = foot?.querySelector('[data-drpg-do="clear"]');
@@ -561,9 +562,11 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
                 return group ?? null;
             };
             const groups = during.map(groupOf), after = groupOf(time);
+            const words = node => node?.textContent.replace(/\u00a0/g, " ") ?? null;
             return { during: during.length, one: groups.length > 0 && !groups.includes(null) && new Set(groups).size === 1,
-                group: groups[0]?.textContent ?? null, opensInto: C.clockSummary({ ...${J(nRan.opened)}, eclipse: true }),
-                after: after?.textContent ?? null, opened: C.clockSummary(${J(nRan.opened)}), apart: Boolean(after) && after !== groups[0] };
+                group: words(groups[0]), opensInto: C.clockSummary({ ...${J(nRan.opened)}, eclipse: true }),
+                after: words(after), opened: C.clockSummary(${J(nRan.opened)}), apart: Boolean(after) && after !== groups[0],
+                headings: [...(root?.querySelectorAll(".drpg-notices-group") ?? [])].map(node => node.textContent) };
         } finally {
             await win?.close();
             for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
@@ -574,6 +577,17 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
             && ["gm", "p1"].every(who => nSeen[who] && nSeen[who].during >= 2 && nSeen[who].one && nSeen[who].group === nSeen[who].opensInto
                 && nSeen[who].after === nSeen[who].opened && nSeen[who].apart),
         J({ ran: nRan, gm: nSeen.gm, p1: nSeen.p1 }));
+    /* H5 (E77 fix r2-H8, 13.10.2026; the orchestrator, reading H7's shots: "... SESSION 1 · NOON" wrapped over "· ECLIPSE").
+       The harness lays nothing out, so the heading's text is read instead of its lines: before each "·" a no-break space
+       (no break opportunity there), after it an ordinary space (the line may still break after the dot). Every group
+       heading of the window H4 opened, at least the Eclipse's and the time of day's after it. H2 and H4 compare the
+       heading's words with `clockSummary`'s, so they read it with each no-break space put back as a space (the two
+       `replace(/\u00a0/g, " ")` above). Red at 0dc9232, where every space in the heading was ordinary. */
+    const keepsSeparators = heading => (heading.match(/·/g) ?? []).length > 0
+        && (heading.match(/·/g) ?? []).length === (heading.match(/\u00a0· /g) ?? []).length;
+    check("H5: no group heading of the history can start a line with its separator - each \"·\" follows a no-break space and is followed by a space - on the GM and on a player",
+        ["gm", "p1"].every(who => nSeen[who] && nSeen[who].headings.length >= 2 && nSeen[who].headings.every(keepsSeparators)),
+        J({ gm: nSeen.gm?.headings, p1: nSeen.p1?.headings }));
 
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:

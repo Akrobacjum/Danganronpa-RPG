@@ -112,8 +112,13 @@ const clockKey = clock => JSON.stringify([clock.chapter, clock.day, clock.sessio
  * every entry has kept since E81, so a history kept before this commit reads the same way. The group itself is still
  * `clockKey` of the stamp: every entry of one Eclipse in one group, and the time of day after it a group of its own.
  * The clock pane is not this: it keeps `clockSummary` of the clock as it stands.
+ * EACH SEPARATOR STAYS WITH THE WORD BEFORE IT (E77 fix r2-H8, 13.10.2026; the orchestrator, reading H7's shots at
+ * 1366x768): the heading wrapped at the window's width as "... SESSION 1 · NOON" over "· ECLIPSE", and before H7 as
+ * "SESSION 1 ·" over "MORNING · ECLIPSE" - where it broke was only the word that happened to sit at the edge. The space
+ * before each "·" is a no-break space here, so a line may still break after a separator and never before one.
+ * DRPG.Clock.summary and summaryEclipse keep their plain spaces: the clock pane, the log and the cards read them too.
  */
-const groupHeading = clock => clockSummary(clock.eclipse ? { ...clock, ...clockAfter(clock) } : clock);
+const groupHeading = clock => clockSummary(clock.eclipse ? { ...clock, ...clockAfter(clock) } : clock).replace(/ ·/g, "\u00a0·");
 
 /** A snapshot's leading heading - its first node with words, when that is an `h1`-`h6` - or null. */
 function leadingHeading(snapshot) {
@@ -417,8 +422,8 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
      * read "Notice" over "Noon Chapter 1 · Day 1 · Session 1 · Noon Every room restocked with search tokens", the title
      * glued to the body and the time of day said twice under a group heading that says it a third time. Such a row takes
      * the card's own heading for its title and leaves it out of its text, and leaves out a block whose words are the
-     * clock line the time of day's card prints (`clockSummary` of the clock the notice came under: the group's heading
-     * outside an Eclipse, `groupHeading`). Read off
+     * clock line the time of day's card prints (`clockSummary` of the clock the notice came under: the group's heading's
+     * words outside an Eclipse, `groupHeading`, which puts a no-break space before each separator). Read off
      * the kept html through the history's one road (`noticeSnapshot`) as words only, once per entry and html. An entry
      * with a title of its own, without html (clipped, a request not carried out) or whose card does not open on a
      * heading reads as it was kept: the kept title and text are this browser's record, and nothing here rewrites them.
