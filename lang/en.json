@@ -341,6 +341,10 @@
       "voiceEnabled": {
         "name": "Regional voice (needs LiveKit AVClient)",
         "hint": "Every mapped room becomes its own LiveKit channel - you hear only whoever stands in the room with you. Needs avclient-livekit installed, active and pointed at a working server. Off by default."
+      },
+      "voiceTile": {
+        "name": "Voice tile instead of the camera dock",
+        "hint": "Off brings Foundry's camera dock back for everyone."
       }
     },
     "SearchTokens": {
@@ -3380,6 +3384,15 @@
         "other": "{n} players sent back to the main voice room."
       },
       "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "tile": {
+        "label": "Voice",
+        "speaking": "Speaking",
+        "nobody": "Nobody is speaking",
+        "more": {
+          "one": "and {n} more speaking",
+          "other": "and {n} more speaking"
+        }
+      },
       "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },
     "States": {

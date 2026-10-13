@@ -1173,6 +1173,31 @@ body.drpg-theme-stained-glass #drpg-room-tile:is([data-state="nowhere"], [data-s
     color: var(--drpg-sg-bone);
     --brush-on: 0;
 }
+/* The voice tile's caption (E78 C3): the room tile's brush above, in the game state's colour (the
+   owner's Q17 and Q18), under the name and the small 'Speaking' together. */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate {
+    position: relative;
+    isolation: isolate;
+    padding: 1px 10px 2px;
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-ink);
+    --brush: var(--drpg-glass-accent);
+    --brush-on: 1;
+}
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-name {
+    letter-spacing: 0.1em;
+    text-shadow: none;
+    text-transform: uppercase;
+}
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate::before {
+    content: "";
+    position: absolute;
+    inset: 1px -5px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+}
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;

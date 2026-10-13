@@ -6399,6 +6399,110 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
     font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
 }
 
+/* THE DOCK OUT OF SIGHT (E78 C3, 13.10.2026; the A9 design's step 2, the owner's Q9). While the
+   voice tile stands in for it (voice-tile.mjs `applyDockHidden`), the dock and the windows it pops
+   out compute `display: none` and stay in the document: avclient-livekit plays everybody's sound
+   through the `<audio>` elements inside them, so removing them would silence the table (R541 reads
+   both, and that the elements stay). `!important` because Foundry's own rules show the dock; whether
+   this wins over them at a table, and whether a hidden dock still plays after F5, are the owner's T1
+   and LIVE-E78 rows, not measured here. The GM's `voiceTile` off drops the class. */
+body.drpg-dock-hidden #camera-views,
+body.drpg-dock-hidden .application[id^="camera-view-"] {
+    display: none !important;
+}
+
+/* ---- the voice tile ----------------------------------------------------- */
+
+/* THE VOICE TILE (E78 C3, 13.10.2026): the portrait and the name of whoever this player hears
+   speaking, the face hidden when nobody does. Its place here is an interim one, by the right wall
+   over the corner's buttons (`--drpg-roster-foot`, the foot the player list opens from), until E78
+   C6 cuts it a pane of the curtain under the Projects tray. 163x188 is the box the A9 design's
+   prototype P7 read at 1366x768 in the sandbox (not measured here); C6 sizes it from the tray. The tile
+   takes no clicks until C4 gives it buttons. */
+#drpg-voice-tile {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: var(--drpg-roster-foot);
+    z-index: 69;
+    box-sizing: border-box;
+    width: 163px;
+    height: 188px;
+    pointer-events: none;
+}
+
+/* The face: the picture fills it (cover, 50% 22% - the owner's Q17: the whole pane, centred across,
+   the face kept in it), the caption at its foot. The fade is the face's opacity over
+   `--drpg-t-turn`, which motion.css makes 0 ms under reduced motion (the owner's Q7). */
+.drpg-voice-tile-face {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 8px 8px 10px;
+    overflow: hidden;
+    text-align: center;
+    color: var(--color-text-primary, #efe6d8);
+    color-scheme: dark;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.18);
+    background: rgba(var(--drpg-deep-rgb), 0.72);
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+.drpg-voice-tile.is-fading .drpg-voice-tile-face { opacity: 0; }
+.drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody)[hidden] { display: none; }
+
+.drpg-voice-tile-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: 50% 22%;
+    background-repeat: no-repeat;
+}
+.drpg-voice-tile-art::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(var(--drpg-deep-rgb), 0.8), rgba(var(--drpg-deep-rgb), 0.45) 22%,
+        rgba(var(--drpg-deep-rgb), 0) 45%);
+}
+
+.drpg-voice-tile-plate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    gap: 1px;
+}
+.drpg-voice-tile-speaking {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+.drpg-voice-tile-name {
+    max-width: 100%;
+    font-size: var(--drpg-text-sm);
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
+}
+.drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
+
+/* Read by a screen reader while nobody speaks, never seen. */
+.drpg-voice-tile-nobody {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 /* ==========================================================================
    THE SHEET IS THIS GAME'S SHEET
    --------------------------------------------------------------------------

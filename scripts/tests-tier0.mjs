@@ -8987,7 +8987,8 @@ const REGRESSIONS = [
          * `toggleAudio(true)` (MIC) - the harm S16-10 names. E78 C2 removed that call and its row, leaving four; R544
          * keeps `toggleAudio(` out of everything but `toggleOwnMic` (C4), so MIC has no row until C4's. The census's
          * 19 PLANNED roads come with C3, C4 and C5, each commit moving its rows in with its code. A verdict ending
-         * "(E78 C<n>)" names the commit that changes it.
+         * "(E78 C<n>)" names the commit that changes it. E78 C3 moved its eight in (twelve rows): the voice tile's
+         * participant, speakers, name and portrait (PEER, SPEAK, WHO, SRC) and the two settings (STORE, WORLD).
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -8995,7 +8996,9 @@ const REGRESSIONS = [
          * Measured 13.10.2026 on C1's working tree: this reader, run in Node on every scripts/*.mjs outside the
          * suite's own files, found the five roads against the five rows, none either side - the same five keys as
          * the parse-only census at the same tree (compared key by key). On C2's working tree (13.10.2026) the same run
-         * found the four roads against the four rows.
+         * found the four roads against the four rows. On C3's (13.10.2026) the suite's own run on the harness read 13
+         * roads against the 12 rows (WHO's `voiceIdentity` is one row for its two sinks), none either side, and the
+         * parse-only census at a scratch commit of the same scripts/ the same 13 pairs, kind by kind.
          * The reader is run first on a fixture: one road of each kind, a `toggleAudio(` in a comment and one in a
          * string, a second call of a key in one declaration, two optional calls (`?.(`), `micHold`'s call inside its own declaration in
          * voice.mjs, `displayNameFor`'s declaration beside its call, a top-level hook, and the two settings; then
@@ -9007,7 +9010,16 @@ const REGRESSIONS = [
             // ---- the room this client stands in (voice-client.mjs)
             ["SOCKET voice-client.mjs#onVoiceSocket -> room", "only the primary GM's packet is applied (`senderId !== primaryGmId()` returns; the sender is Foundry's second argument, not a packet field), and only one addressed to this user; E78 C2's `desiredRoom` reads the value and writes none"],
             ["SOCKET voice-client.mjs#applyBreakout -> room", "called from `applyAndReport` (the primary GM's packet) and `applyLocally` (voice.mjs `assignUserToRoom` on the GM's own client); the value is the room the GM's reconcile chose"],
-            ["SOCKET voice-client.mjs#forgetDesiredRoom -> room", "clears to `undefined`; called by voice.mjs on the voice reset"]
+            ["SOCKET voice-client.mjs#forgetDesiredRoom -> room", "clears to `undefined`; called by voice.mjs on the voice reset"],
+            // ---- the voice tile (voice-tile.mjs, E78 C3) and its two settings
+            ["PEER voice-tile.mjs#participantUser -> which", "only a remote participant this client's own LiveKit Room holds (the viewer's own and anybody the Room does not hold is nobody); the user is avclient-livekit's mapping (external), and a participant with no user of this world is not drawn (R535)"],
+            ["SPEAK voice-tile.mjs#attachRoom -> which", "the own Room's `activeSpeakersChanged` only, never `settings.activity`; every listener leaves the old Room before the new one is attached, and an event of a Room the watch no longer follows changes nothing (R535, R540)"],
+            ["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", "the name as `textContent`; the portrait only through `safeRoomImage` (vault.mjs, the room tile's check) and `cssString` into the art layer's `url()`; a refused path draws no portrait (R542 names the actor, R536 the paint)"],
+            ["SRC voice-tile.mjs#paintSpeaker#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes; never a URL from a packet"],
+            ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me'; a client setting, so it moves only this browser's sound; registered by C3, read and written by nothing until E78 C5's list (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#console -> volume", "nothing reads it until E78 C5, which clamps on read: ids that are users, volumes 0..1; anything else is no mute (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#stale -> volume", "nothing reads it until E78 C5, which skips an id that is not a user on read and drops it on the next write (R538)"],
+            ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VOICE_FILES = /^(?:voice|voice-client|voice-tile|voice-panel|camera-view)\.mjs$/;
@@ -9119,8 +9131,8 @@ const REGRESSIONS = [
 
         const found = censusOf(await otherSources(), SETTINGS);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
-        // The kinds the module has a road of since E78 C2, which removed the MIC road and with it MIC from this list.
-        must(["WHO", "SOCKET"].every(kind => count(kind) > 0),
+        // The kinds the module has a road of since E78 C3 (C2 removed the MIC road and with it MIC from this list).
+        must(["WHO", "SOCKET", "PEER", "SPEAK", "SRC", "STORE", "WORLD"].every(kind => count(kind) > 0),
             `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
         const verdict = judge(found, VOICE_TILE_CENSUS);
         log(`R534: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `

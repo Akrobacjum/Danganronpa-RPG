@@ -126,6 +126,17 @@ export const SETTINGS = {
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
     voiceEnabled: "voiceEnabled",
+    /**
+     * The voice tile instead of Foundry's camera dock (E78 C3; voice-tile.mjs). World, the GM's, on by default
+     * (AM-4): off takes the tile away and gives everybody the dock back - the way back at a table.
+     */
+    voiceTile: "voiceTile",
+    /**
+     * `{ userId: volume before the mute }` - who this browser muted for itself, and the volume to give back
+     * (E78 C3 registers it, C5's list writes and reads it). Client, not shown in the settings window. A console
+     * writes it raw, so whatever reads it clamps: ids that are users, volumes 0..1.
+     */
+    voicePeerMutes: "voicePeerMutes",
     /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
@@ -1182,6 +1193,26 @@ export function registerSettings() {
                 else m.resetAllVoice();
             }).catch(() => {});
         }
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.voiceTile, {
+        name: "DRPG.Settings.voiceTile.name",
+        hint: "DRPG.Settings.voiceTile.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back.
+        onChange: () => {
+            import("./voice-tile.mjs").then(m => m.refreshVoiceTile()).catch(() => {});
+        }
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.voicePeerMutes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.musicEnabled, {

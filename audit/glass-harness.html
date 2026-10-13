@@ -129,6 +129,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      `registerFoundryWindows` below. -->
 <button type="button" id="drpg-messenger-launcher"><i class="fa-solid fa-comments" inert></i></button><button type="button" id="drpg-sound-launcher"><i inert></i></button><button type="button" id="drpg-book-launcher"><i inert></i></button><button type="button" id="drpg-gm-launcher" data-drpg-cluster aria-label="Open the GM panel"><i class="fa-solid fa-eye" inert></i></button>
 <div id="drpg-popups"><button type="button" id="drpg-notices-corner" class="drpg-notices-corner" aria-live="off"><span class="drpg-notices-shape" inert><i></i></span></button></div>
+<!-- The voice tile as voice-tile.mjs's `buildVoiceTile` builds it (E78 C3), appended to the body after the
+     corner and showing one speaker: the portrait (a gradient here, as the room tile's), the plate with the
+     caption and the name. It is a plain fixed element until C6 cuts the curtain around it, so the sweep's
+     readings do not move with it; the microphone and speaker buttons are C4's and are not drawn here. -->
+<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span></section>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
 <script id="drpg-launch-check">

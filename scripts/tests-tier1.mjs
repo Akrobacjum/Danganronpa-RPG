@@ -11762,6 +11762,339 @@ const INVARIANTS = [
             + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
             + "voiceIdentity through voiceActorFor]");
     }],
+    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes", async () => {
+        /*
+         * E78 C3, 13.10.2026; the A9 design's R388 (T1; the E78 plan's D2 gave it this number). The harm: a portrait and
+         * a name on this player's screen of somebody they cannot hear - a player in another room (Foundry's
+         * `settings.activity` names every speaker at the table, R544 keeps it unread), somebody this browser has
+         * muted or turned to 0, or somebody who has already left the channel. Three accounts of this world other than
+         * the one running the suite stand in a bench (`voiceTileRig`): two in a stand-in Room, one outside it; their
+         * `<audio>` elements in a stand-in dock, live and at volume 1. Nothing of Foundry's A/V or the document is
+         * touched but `settings.activity`, planted for the third and put back.
+         * In order, the positive control first: the first speaks - nobody at 249 ms, the first at 250 ms with the
+         * channel's count 2; the third named by `settings.activity` and listed by the Room as a participant it does
+         * not hold - still the first, no '+'; the second speaks as well - '+1'; the first leaves the Room - the
+         * second at once (no hold), count 1; the second leaves - nobody at once, count 0; a new Room - nobody at
+         * once; the connection lost - offline. Then each way this browser does not hear the first, on a bench of its
+         * own: volume 0, muted, paused, the track ended, the track disabled, Foundry's "mute all", no element -
+         * nobody each time.
+         * Red before C3: there was no voice-tile.mjs (the first assertion).
+         */
+        needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's: two in the channel and one outside it");
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
+        if (!V) return;
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b, d, c] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        const nameOf = user => voiceIdentity(user)?.name ?? null;
+        must(new Set([b, d, c].map(nameOf)).size === 3, `the three accounts are named ${[b, d, c].map(nameOf).join(", ")} - one name for two would measure nothing`);
+        const settings = game.webrtc?.settings;
+        must(settings && typeof settings === "object", "this client has no game.webrtc.settings to plant Foundry's table-wide signal in");
+
+        const rig = voiceTileRig(V, [b, d, c]);
+        const room = rig.makeRoom([b.id, d.id]);
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        const seen = [];
+        rig.speak(room, [b.id]);
+        rig.advance(249);
+        seen.push(rig.read().name);
+        rig.advance(1);
+        seen.push([rig.read().name, rig.read().state, rig.read().channel]);
+        const hadActivity = Object.hasOwn(settings, "activity"), activity = settings.activity;
+        try {
+            settings.activity = { ...(activity ?? {}), [c.id]: { speaking: true, muted: false } };
+            rig.speak(room, [c.id, b.id]);
+            rig.advance(300);
+            seen.push([rig.read().name, rig.read().more]);
+        } finally {
+            if (hadActivity) settings.activity = activity;
+            else delete settings.activity;
+        }
+        rig.speak(room, [b.id, d.id]);
+        rig.advance(250);
+        seen.push(rig.read().more);
+        rig.leave(room, b.id);
+        seen.push([rig.read().name, rig.read().more, rig.read().channel]);
+        rig.leave(room, d.id);
+        seen.push([rig.read().name, rig.read().face, rig.read().channel]);
+        const next = rig.makeRoom([b.id]);
+        V.attachRoom(rig.clientOf(next), rig.watch);
+        rig.speak(next, [b.id]);
+        rig.advance(250);
+        const moved = rig.makeRoom([b.id]);
+        V.attachRoom(rig.clientOf(moved), rig.watch);
+        seen.push([rig.read().name, rig.read().face]);
+        rig.speak(moved, [b.id]);
+        rig.advance(250);
+        moved.state = "disconnected";
+        moved.emit("disconnected");
+        seen.push([rig.read().name, rig.read().state, rig.read().channel]);
+
+        const unheard = {
+            "volume 0": bench => { bench.audio[b.id].el.volume = 0; },
+            muted: bench => { bench.audio[b.id].el.muted = true; },
+            paused: bench => { bench.audio[b.id].el.paused = true; },
+            "track ended": bench => { bench.audio[b.id].track.readyState = "ended"; },
+            "track disabled": bench => { bench.audio[b.id].track.enabled = false; },
+            "mute all": bench => bench.setMuteAll(true),
+            "no element": bench => bench.audio[b.id].el.remove()
+        };
+        const shownWhenUnheard = Object.entries(unheard).map(([what, change]) => {
+            const bench = voiceTileRig(V, [b]);
+            const own = bench.makeRoom([b.id]);
+            V.attachRoom(bench.clientOf(own), bench.watch);
+            change(bench);
+            bench.speak(own, [b.id]);
+            bench.advance(300);
+            return `${what}: ${bench.read().name || "nobody"}`;
+        });
+        equal(JSON.stringify([seen, shownWhenUnheard]), JSON.stringify([
+            ["", [nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
+            Object.keys(unheard).map(what => `${what}: nobody`)]),
+        "[nobody at 249 ms, then the speaker with the state and the channel's count (the positive control); with Foundry's signal and another Room "
+            + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [each way this "
+            + "browser does not hear the speaker]");
+    }],
+
+    ["R536 - the voice tile's speaker fades after silence and never flickers: shown for 1499 ms after the Room stops listing them, fading from 1500 ms, gone with no portrait and no name by 1500 ms + the fade + 50 ms; five seconds of speech with pauses under the hold write nothing; a new speaker interrupts the fade; the same speaker back stops it without a new portrait; under reduced motion gone at once after the same hold; a portrait the room tile's check refuses is not drawn", async () => {
+        /*
+         * E78 C3, 13.10.2026; the A9 design's R389 (T2; the E78 plan's D2 gave it this number), the owner's Q7: "the
+         * speaker's portrait, once nobody speaks, fades out and disappears" - held 1500 ms, faded over
+         * `--drpg-t-turn` (840 ms), at once after the same hold under reduced motion. The harm is a tile that
+         * flickers: a portrait gone in a pause between two words and back, or a repaint on every event the Room
+         * sends. A bench (`voiceTileRig`) with two accounts of this world given portraits of the suite's own
+         * (`userOf`: `voiceIdentity` reads a plain user whose character has the picture; no document is touched) and
+         * the fade at 840 ms; the module's own default, `reducedMotion() ? 0 : TURN()`, is read in the source and run
+         * under reduced motion with the body's class set for the clause and put back.
+         * The readings, each `[portrait, name, face shown, fading]`: speaking; 1499 ms after the Room's list empties;
+         * 1500 ms; 1500 + 839 ms; 1500 + 890 ms. Then a MutationObserver's records over 5.2 s of speech with 200 ms
+         * pauses (none). A second speaker 300 ms into a fade: at 249 ms the first, fading; at 250 ms the second, not
+         * fading. That second speaker back 300 ms into their own fade: what changed on the tile (its class alone). Reduced motion: at
+         * 1499 ms shown, at 1500 ms gone, never fading. Last, the portrait's check: three paths `safeRoomImage` refuses
+         * (a `javascript:` URL, another origin, a quote and a bracket that would close the CSS string) - the name is
+         * drawn and the art layer stays empty; the first reading above is the control that a path it accepts is drawn.
+         * Red before C3: there was no voice-tile.mjs (the first assertion).
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's: a speaker and one who interrupts");
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
+        if (!V) return;
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const portrait = { [b.id]: "r536-first.webp", [d.id]: "r536-second.webp" };
+        const userOf = id => (portrait[id] ? { id, name: `R536 ${id}`, isGM: false, avatar: null, character: { name: `R536 ${id}`, img: portrait[id] } } : null);
+        const look = bench => {
+            const now = bench.read();
+            return [now.art.includes(portrait[b.id]) ? "first" : now.art.includes(portrait[d.id]) ? "second" : now.art || "none",
+                now.name, now.face, now.fading];
+        };
+        const nameB = `R536 ${b.id}`, nameD = `R536 ${d.id}`;
+        const source = stripComments((await moduleSources()).get("voice-tile.mjs") ?? "");
+        must(source.length, "voice-tile.mjs is not among the module's sources - the default fade would be read in nothing");
+
+        const rig = voiceTileRig(V, [b, d], { fade: () => 840, userOf });
+        const room = rig.makeRoom([b.id, d.id]);
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        const fade = [];
+        rig.speak(room, [b.id]);
+        rig.advance(250);
+        fade.push(look(rig));
+        rig.speak(room, []);
+        rig.advance(1499);
+        fade.push(look(rig));
+        rig.advance(1);
+        fade.push(look(rig));
+        rig.advance(839);
+        fade.push(look(rig));
+        rig.advance(51);
+        fade.push(look(rig));
+
+        rig.speak(room, [b.id]);
+        rig.advance(250);
+        const watcher = new MutationObserver(() => {});
+        watcher.observe(rig.tile, { subtree: true, attributes: true, childList: true, characterData: true });
+        for (let at = 0; at < 5200; at += 400) {
+            rig.speak(room, []);
+            rig.advance(200);
+            rig.speak(room, [b.id]);
+            rig.advance(200);
+        }
+        const flicker = watcher.takeRecords().length;
+
+        rig.speak(room, []);
+        rig.advance(1800);
+        rig.speak(room, [d.id]);
+        rig.advance(249);
+        const interrupted = [look(rig)];
+        rig.advance(1);
+        interrupted.push(look(rig));
+
+        rig.speak(room, []);
+        rig.advance(1800);
+        watcher.takeRecords();
+        rig.speak(room, [d.id]);
+        const back = [look(rig), watcher.takeRecords().map(record => `${record.target.className} ${record.attributeName ?? record.type}`)];
+        watcher.disconnect();
+
+        const reduced = [];
+        const hadReduced = document.body.classList.contains("drpg-reduced-motion");
+        try {
+            document.body.classList.add("drpg-reduced-motion");
+            const still = voiceTileRig(V, [b], { userOf });
+            const own = still.makeRoom([b.id]);
+            V.attachRoom(still.clientOf(own), still.watch);
+            still.speak(own, [b.id]);
+            still.advance(250);
+            still.speak(own, []);
+            still.advance(1499);
+            reduced.push(look(still));
+            still.advance(1);
+            reduced.push(look(still));
+        } finally {
+            document.body.classList.toggle("drpg-reduced-motion", hadReduced);
+        }
+        const refused = ["javascript:alert(1)//r536.webp", "https://elsewhere.invalid/r536.webp", "r536\") x(.webp"].map(img => {
+            const bench = voiceTileRig(V, [b], { fade: () => 840, userOf: id => (id === b.id ? { id, name: nameB, isGM: false, avatar: null, character: { name: nameB, img } } : null) });
+            const own = bench.makeRoom([b.id]);
+            V.attachRoom(bench.clientOf(own), bench.watch);
+            bench.speak(own, [b.id]);
+            bench.advance(250);
+            return [bench.read().art || "none", bench.read().name];
+        });
+        equal(JSON.stringify([fade, flicker, interrupted, back, reduced, refused, /reducedMotion\(\)\s*\?\s*0\s*:\s*TURN\(\)/.test(fnSource(source, "voiceWatch"))]),
+            JSON.stringify([
+                [["first", nameB, true, false], ["first", nameB, true, false], ["first", nameB, true, true], ["first", nameB, true, true], ["none", "", false, false]],
+                0,
+                [["first", nameB, true, true], ["second", nameD, true, false]],
+                [["second", nameD, true, false], ["drpg-voice-tile class"]],
+                [["first", nameB, true, false], ["none", "", false, false]],
+                [["none", nameB], ["none", nameB], ["none", nameB]],
+                true]),
+            "[speaking, at 1499 ms, 1500 ms, 1500 + 839 ms and 1500 + 890 ms of silence], [the tile's mutations over 5.2 s of speech with 200 ms pauses], "
+                + "[a second speaker 249 ms and 250 ms into a fade], [the same speaker back in a fade, and what changed], [reduced motion at 1499 and 1500 ms], "
+                + "[three refused portraits: no art, the name drawn], [the module's fade is --drpg-t-turn, 0 under reduced motion]");
+    }],
+
+    ["R540 - a new LiveKit Room gets the voice tile's listener and the old one loses it: after the second attach the old Room has no listener of the module's and the new one one per event, the portrait of the old channel is gone at once, an event of the old Room changes nothing, the new Room's speech is shown, and a missing Room is the offline state", async () => {
+        /*
+         * E78 C3, 13.10.2026; the A9 design's R393 (T6; the E78 plan's D2 gave it this number). avclient-livekit makes
+         * a new Room on every connect and calls `liveKitClientInitialized` (the design's reading of 0.6.8, external);
+         * a listener left on the old Room would draw a speaker of a channel this player has left. A bench
+         * (`voiceTileRig`) with two stand-in Rooms attached one after the other, as `refreshVoiceTile` does on that
+         * hook (read in the source: the hook in `registerVoiceTile`, `attachRoom` in `refreshVoiceTile`); the real
+         * hook and a real reconnect are scenario 75's phase A on the harness's LiveKit shim.
+         * The readings: listeners per event on the first Room; the first's speaker shown; after the second attach,
+         * the name at once and the listeners on both; the first Room's speech and loss of connection 2 s later;
+         * the second's speech; then `attachRoom` with no client and with a Room that has no `on`.
+         * Red before C3: there was no voice-tile.mjs (the first assertion).
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, one in each Room");
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
+        if (!V) return;
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const nameOf = user => voiceIdentity(user)?.name ?? null;
+        must(nameOf(b) !== nameOf(d), `both accounts are named ${nameOf(b)} - the second Room's speaker would not be told from the first's`);
+        const source = stripComments((await moduleSources()).get("voice-tile.mjs") ?? "");
+        must(source.length, "voice-tile.mjs is not among the module's sources");
+        const EVENTS = ["activeSpeakersChanged", "participantConnected", "participantDisconnected", "connectionStateChanged", "disconnected"];
+        const listeners = room => EVENTS.map(event => room.listenerCount(event)).join(" ");
+
+        const rig = voiceTileRig(V, [b, d]);
+        const first = rig.makeRoom([b.id]), second = rig.makeRoom([b.id, d.id]);
+        V.attachRoom(rig.clientOf(first), rig.watch);
+        const seen = [listeners(first)];
+        rig.speak(first, [b.id]);
+        rig.advance(250);
+        seen.push(rig.read().name);
+        V.attachRoom(rig.clientOf(second), rig.watch);
+        seen.push(rig.read().name, listeners(first), listeners(second));
+        rig.speak(first, [b.id]);
+        rig.advance(2000);
+        first.state = "disconnected";
+        first.emit("disconnected");
+        seen.push([rig.read().name, rig.read().state]);
+        rig.speak(second, [d.id]);
+        rig.advance(250);
+        seen.push(rig.read().name);
+        const offline = voiceTileRig(V, [b]);
+        seen.push([V.attachRoom(null, offline.watch), offline.read().state, V.attachRoom({ liveKitRoom: {} }, offline.watch), offline.read().state]);
+        equal(JSON.stringify([seen, /Hooks\.on\(\s*"liveKitClientInitialized"/.test(fnSource(source, "registerVoiceTile")),
+            /\battachRoom\(/.test(fnSource(source, "refreshVoiceTile"))]),
+        JSON.stringify([["1 1 1 1 1", nameOf(b), "", "0 0 0 0 0", "1 1 1 1 1", ["", "silent"], nameOf(d), [false, "offline", false, "offline"]], true, true]),
+        "[listeners on the first Room; its speaker; after the second attach: the name, the listeners on the first and the second; the first Room's "
+            + "speech and loss 2 s later; the second's speech; no client and a Room without `on`], the hook in registerVoiceTile, attachRoom in refreshVoiceTile");
+    }],
+
+    ["R541 - the camera dock is out of sight and its sound stays: with `drpg-dock-hidden` on the body `#camera-views` and a camera popout compute `display: none` while they and their `<audio>` stay in the document; the dock is hidden only while the tile is available and `voiceTile` is on, a world setting of the GM's, on by default; off brings it back", async () => {
+        /*
+         * E78 C3, 13.10.2026; the A9 design's R394 (T6; the E78 plan's D2 gave it this number), the owner's Q9: the dock
+         * stays the carrier of the sound and is never seen. avclient-livekit plays every remote user through an
+         * `<audio>` in the dock (the design's reading of 0.6.8, external), so a dock removed from the document would
+         * silence the table - the harm. A stand-in dock (`#camera-views`, a remote user's view with its element) and a
+         * stand-in popout (`.application#camera-view-...`) in a wrapper of the suite's, read through the module's
+         * sheets with `applyDockHidden` off, on and off again; the body's class is put back as it was. Whether
+         * `!important` wins over Foundry's own rules, and whether a hidden dock still plays after F5, are the owner's T1
+         * (steps 2 and 7), not this.
+         * The readings: the display of the dock and the popout, the class off; with it on, the class, both displays,
+         * and whether the dock, the popout and both elements are in the document; off again, both displays. Then
+         * `dockHiddenFor` over the four cases, the `voiceTile` registration (scope, shown in the settings, default)
+         * and the `voicePeerMutes` one (C5's, registered here), and in the source `refreshVoiceTile` deciding with
+         * `getSetting(SETTINGS.voiceTile)`.
+         * Red before C3: there was no voice-tile.mjs (the first assertion).
+         */
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
+        if (!V) return;
+        const source = stripComments((await moduleSources()).get("voice-tile.mjs") ?? "");
+        must(source.length, "voice-tile.mjs is not among the module's sources");
+        const had = document.body.classList.contains(V.DOCK_HIDDEN_CLASS);
+        const holder = document.createElement("div");
+        const dock = document.createElement("section");
+        dock.id = "camera-views";
+        const popout = document.createElement("div");
+        popout.className = "application";
+        popout.id = "camera-view-R541POPOUT000000";
+        const element = parent => {
+            const view = document.createElement("div");
+            view.className = "camera-view";
+            view.dataset.user = "R541REMOTE000000";
+            const audio = document.createElement("audio");
+            audio.className = "user-microphone-audio";
+            view.append(audio);
+            parent.append(view);
+            return audio;
+        };
+        const audio = [element(dock), element(popout)];
+        holder.append(dock, popout);
+        document.body.append(holder);
+        const display = el => getComputedStyle(el).display;
+        const seen = [];
+        try {
+            V.applyDockHidden(false);
+            seen.push([display(dock), display(popout)].map(value => value === "none"));
+            V.applyDockHidden(true);
+            seen.push([document.body.classList.contains("drpg-dock-hidden"), display(dock), display(popout),
+                dock.isConnected, popout.isConnected, ...audio.map(el => el.isConnected)]);
+            V.applyDockHidden(false);
+            seen.push([display(dock), display(popout)].map(value => value === "none"));
+        } finally {
+            holder.remove();
+            V.applyDockHidden(had);
+        }
+        const setting = key => {
+            const row = game.settings.settings.get(`${MODULE_ID}.${key}`);
+            return [row?.scope, row?.config, JSON.stringify(row?.default), row?.type === Boolean || row?.type === Object];
+        };
+        equal(JSON.stringify([seen, [[true, true], [true, false], [false, true], [false, false]].map(([a, b]) => V.dockHiddenFor(a, b)),
+            setting(SETTINGS.voiceTile), setting(SETTINGS.voicePeerMutes),
+            /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
+                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile"))]),
+        JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
+            ["world", true, "true", true], ["client", false, "{}", true], true]),
+        "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
+            + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting");
+    }],
 ];
 
 /**
@@ -11984,6 +12317,106 @@ function cornerReading(roster, views) {
         roster: { foot: round(8), right: round(0), top: views.map(() => "8 or more").join(" ") }
     };
     return { seen, want };
+}
+
+/**
+ * The voice tile's bench (R535, R536, R540; E78 C3, 13.10.2026): a loose tile of the module's own building
+ * (`buildVoiceTile`), a clock that moves only when `advance` says so and runs every timer due on the way, a dock of
+ * `<audio>` elements as avclient-livekit draws them (the design's reading of 0.6.8: `.camera-view[data-user]
+ * audio.user-microphone-audio`), each playing a live, enabled track at volume 1 until a test changes it, and LiveKit
+ * Rooms as plain emitters whose participants stand for `users` (the mapping, `getParticipantFVTTUser`, is a
+ * stand-in: identity = user id). Nothing is appended to the document and nothing of Foundry's A/V is read or
+ * written; `fade` and `userOf` go to `voiceWatch` when given, so without them the module's own run.
+ */
+function voiceTileRig(V, users, { fade, userOf } = {}) {
+    let now = 0, ids = 0, muteAll = false;
+    const timers = new Map();
+    const clock = {
+        now: () => now,
+        setTimeout: (fn, ms) => {
+            timers.set(++ids, { at: now + ms, fn });
+            return ids;
+        },
+        clearTimeout: id => { timers.delete(id); }
+    };
+    const advance = ms => {
+        const end = now + ms;
+        for (;;) {
+            const due = [...timers].filter(([, timer]) => timer.at <= end).sort((x, y) => x[1].at - y[1].at || x[0] - y[0])[0];
+            if (!due) break;
+            timers.delete(due[0]);
+            now = due[1].at;
+            due[1].fn();
+        }
+        now = end;
+    };
+    const dock = document.createElement("section");
+    const audio = {};
+    for (const user of users) {
+        const view = document.createElement("div");
+        view.className = "camera-view";
+        view.dataset.user = user.id;
+        const el = document.createElement("audio");
+        el.className = "user-microphone-audio";
+        const track = { kind: "audio", readyState: "live", enabled: true };
+        for (const [key, value] of Object.entries({ volume: 1, muted: false, paused: false, srcObject: { getAudioTracks: () => [track] } })) {
+            Object.defineProperty(el, key, { configurable: true, writable: true, value });
+        }
+        view.append(el);
+        dock.append(view);
+        audio[user.id] = { el, track };
+    }
+    const makeRoom = memberIds => {
+        const handlers = new Map();
+        return {
+            state: "connected",
+            localParticipant: { identity: game.user.id, isLocal: true },
+            remoteParticipants: new Map(memberIds.map(id => [id, { identity: id, isLocal: false }])),
+            activeSpeakers: [],
+            on(event, fn) {
+                if (!handlers.has(event)) handlers.set(event, []);
+                handlers.get(event).push(fn);
+                return this;
+            },
+            off(event, fn) {
+                const list = handlers.get(event) ?? [];
+                if (list.includes(fn)) list.splice(list.indexOf(fn), 1);
+                return this;
+            },
+            listenerCount: event => (handlers.get(event) ?? []).length,
+            emit(event, arg) {
+                for (const fn of [...(handlers.get(event) ?? [])]) fn(arg);
+            }
+        };
+    };
+    const tile = V.buildVoiceTile();
+    const watch = V.voiceWatch(tile, { clock, dock: () => dock, muteAll: () => muteAll, ...(fade ? { fade } : {}), ...(userOf ? { userOf } : {}) });
+    return {
+        tile, watch, audio, advance, makeRoom,
+        clientOf: room => ({ liveKitRoom: room, getParticipantFVTTUser: participant => game.users.get(participant?.identity) }),
+        /** The Room lists these as speaking, loudest first; an id it does not hold is a participant of another Room. */
+        speak: (room, speakers) => {
+            room.activeSpeakers = speakers.map(id => (id === game.user.id ? room.localParticipant
+                : room.remoteParticipants.get(id) ?? { identity: id, isLocal: false }));
+            room.emit("activeSpeakersChanged", room.activeSpeakers);
+        },
+        leave: (room, id) => {
+            const participant = room.remoteParticipants.get(id);
+            room.remoteParticipants.delete(id);
+            room.activeSpeakers = room.activeSpeakers.filter(p => p !== participant);
+            room.emit("participantDisconnected", participant);
+        },
+        setMuteAll: value => { muteAll = value; },
+        read: () => ({
+            state: tile.dataset.state,
+            channel: tile.dataset.inChannel,
+            name: tile.querySelector(".drpg-voice-tile-name").textContent,
+            face: !tile.querySelector(".drpg-voice-tile-face").hidden,
+            fading: tile.classList.contains("is-fading"),
+            art: tile.querySelector(".drpg-voice-tile-art").style.getPropertyValue("background-image"),
+            more: tile.querySelector(".drpg-voice-tile-more").textContent
+        })
+    };
 }
 
 export { INVARIANTS };

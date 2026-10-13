@@ -92,8 +92,12 @@ export function registerCameraView() {
  * height: a dock that does not reach the bottom edge is not standing on the
  * things this is trying to lift, and a dock taller than the space below them
  * would lift them further than it needs to.
+ *
+ * Exported for the voice tile (E78 C3), which hides the dock by a body class
+ * and measures again when it does: a hidden dock computes `display: none`,
+ * so it reads as zero here.
  */
-function measureCameraDock() {
+export function measureCameraDock() {
     try {
         const dock = document.querySelector("#camera-views, .camera-views");
         let lift = 0;

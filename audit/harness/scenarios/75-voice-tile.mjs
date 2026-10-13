@@ -15,8 +15,19 @@
  *   The control: p3, where nothing installed the shim, reads "no Room", so a green 0 measured the shim.
  *   Then a second connect builds a new Room - the old one says `disconnected`, the hook comes again with
  *   the new one, a speaker on it is heard there and not on the old - and the attach writes `muteAll`.
- * A (C3), B (C4), C (C5) and D (C6) come with their commits: the tile showing who p1 hears, the
- * microphone, the list and the GM's block, and the curtain's cut (the plan's 2.2).
+ * A (C3): the voice tile on p1, which voice-tile.mjs draws on the hook's next Room (a third connect, so
+ *   the attach writes p1's `muteAll` off again). p2 speaks: after the 250 ms sticky rule p1's tile shows
+ *   the name `voiceIdentity` gives p2 and the portrait - a .webp path put on p2's character in p1's memory
+ *   only (`updateSource`, put back; the harness's portraits are .svg, which `safeRoomImage` refuses); p3
+ *   named speaking in Foundry's table-wide `settings.activity` on p1 changes nothing; after the Room's
+ *   silence the face is still there under the 1500 ms hold and gone (no name, no portrait) once the hold
+ *   and the fade are over. p2 leaves the Room and is gone from the tile and its count at once; p1 moves
+ *   to another room (a new Room, the hook again) and that Room's speaker is shown there. The dock computes
+ *   `display: none` with the body's class, and its `<audio>` elements are there; the GM's `voiceTile` off
+ *   takes the tile and the class away on p1 and on brings them back. The control: p3, where nothing
+ *   installed the shim, has no tile and no class.
+ * B (C4), C (C5) and D (C6) come with their commits: the microphone, the list and the GM's block, and
+ * the curtain's cut (the plan's 2.2).
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78 rows and the owner's T1 (lib/livekit.mjs's header).
@@ -29,7 +40,7 @@ export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
 
-export async function run({ p1, p3, check, phase, IDS }) {
+export async function run({ gm, p1, p3, check, phase, IDS, repoUrl }) {
     phase("0: the LiveKit shim - a Room on the hook, its participants mapped to users, an <audio> for each, and none where it is not installed");
     const readRoom = `const lk = game.webrtc?.client?._liveKitClient; return { installed: globalThis.__liveKit?.installed === true, room: lk?.liveKitRoom ? "Room" : "no Room" };`;
     const control = await p3.eval(readRoom);
@@ -81,4 +92,102 @@ export async function run({ p1, p3, check, phase, IDS }) {
             && J(audioOf(second.read, IDS.p2)) === J({ user: IDS.p2, audio: true, volume: 0.5, muted: true })
             && J(audioOf(second.read, IDS.gm)) === J({ user: IDS.gm, audio: true, volume: 1, muted: true }),
         J(second));
+
+    phase("A: the voice tile - who p1 hears in p1's own Room, faded after silence, cleared when they leave or p1 moves; the dock out of sight with its <audio>; the GM's switch");
+    const tileJs = `
+        const lk = game.webrtc.client._liveKitClient;
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const until = async (test, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end && !test()) await sleep(25); return test(); };
+        const tile = () => {
+            const el = document.getElementById("drpg-voice-tile");
+            if (!el) return null;
+            return { state: el.dataset.state, channel: el.dataset.inChannel ?? null, name: el.querySelector(".drpg-voice-tile-name")?.textContent ?? null,
+                face: el.querySelector(".drpg-voice-tile-face")?.hidden === false, fading: el.classList.contains("is-fading"),
+                art: el.querySelector(".drpg-voice-tile-art")?.style.getPropertyValue("background-image") ?? "" };
+        };
+        const dock = () => {
+            const el = document.getElementById("camera-views");
+            return { hidden: document.body.classList.contains("drpg-dock-hidden"), display: el ? getComputedStyle(el).display : null };
+        };`;
+    const a = await p1.eval(`${tileJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const { voiceIdentity } = await import("${repoUrl}/scripts/camera-view.mjs");
+        const { TURN } = await import("${repoUrl}/scripts/motion.mjs");
+        const p2 = game.users.get("${IDS.p2}"), p3 = game.users.get("${IDS.p3}");
+        const actor = p2.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(p2, "OWNER")) ?? null;
+        const out = { installed: true, turn: TURN(), names: [voiceIdentity(p2)?.name ?? null, voiceIdentity(p3)?.name ?? null] };
+        const settings = game.webrtc.settings, hadActivity = Object.hasOwn(settings, "activity"), activity = settings.activity, img = actor?.img;
+        try {
+            actor?.updateSource({ img: "s75/portrait-p2.webp" });
+            out.connected = await game.webrtc.connect();
+            out.fresh = tile();
+            out.dock = { ...dock(), audio: __liveKit.read().audio };
+            __liveKit.speak(["${IDS.p2}"]);
+            await sleep(120);
+            out.early = tile();
+            await until(() => tile()?.name === out.names[0]);
+            out.speaking = tile();
+            settings.activity = { ...(activity ?? {}), ["${IDS.p3}"]: { speaking: true, muted: false } };
+            __liveKit.speak(["${IDS.p2}"]);
+            await sleep(400);
+            out.activity = tile();
+            if (hadActivity) settings.activity = activity;
+            else delete settings.activity;
+            __liveKit.speak([]);
+            await sleep(1000);
+            out.held = tile();
+            await until(() => tile()?.face === false, 1500 + out.turn + 1500);
+            out.gone = tile();
+            __liveKit.speak(["${IDS.p2}"]);
+            await until(() => tile()?.name === out.names[0]);
+            __liveKit.leave("${IDS.p2}");
+            out.left = tile();
+            __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])}, "drpg-elsewhere": ${J([IDS.p1, IDS.p3])} });
+            __liveKit.join("${IDS.p2}");
+            __liveKit.speak(["${IDS.p2}"]);
+            await until(() => tile()?.name === out.names[0]);
+            lk.breakoutRoom = "drpg-elsewhere";
+            out.moved = await game.webrtc.connect();
+            out.inNew = tile();
+            __liveKit.speak(["${IDS.p3}"]);
+            await until(() => tile()?.name === out.names[1]);
+            out.newRoom = { tile: tile(), read: __liveKit.read() };
+        } finally {
+            if (hadActivity) settings.activity = activity;
+            else delete settings.activity;
+            actor?.updateSource({ img });
+        }
+        return out;`, { timeout: 20000 });
+    const ok = (value, state, name, face) => value?.state === state && value.name === name && value.face === face;
+    check("A: on p1 the voice tile shows p2 - the Room's speaker - after the 250 ms sticky rule, with the name voiceIdentity gives and the checked portrait, the channel's count 2; Foundry's table-wide signal naming p3 changes nothing",
+        a.installed === true && a.connected === true && a.names[0] !== a.names[1]
+            && a.fresh?.state === "silent" && a.fresh.channel === "2" && a.fresh.face === false
+            && ok(a.early, "silent", "", false)
+            && ok(a.speaking, "speaking", a.names[0], true) && a.speaking.channel === "2" && /s75\/portrait-p2\.webp/.test(a.speaking.art)
+            && ok(a.activity, "speaking", a.names[0], true),
+        J(a));
+    check("A: after the Room's silence p1's portrait holds (1000 ms: shown, not fading) and is gone once the hold and the fade are over - no name, no portrait",
+        ok(a.held, "speaking", a.names[0], true) && a.held.fading === false && ok(a.gone, "silent", "", false) && a.gone.art === "",
+        J({ turn: a.turn, held: a.held, gone: a.gone }));
+    check("A: p2 leaving p1's Room clears the tile and its count at once; p1 moved to another room (a new Room, the hook again) shows nobody at once and then that room's speaker, p3",
+        ok(a.left, "silent", "", false) && a.left.channel === "1" && a.moved === true && a.inNew?.name === "" && a.inNew.face === false
+            && ok(a.newRoom?.tile, "speaking", a.names[1], true) && a.newRoom.tile.channel === "1" && a.newRoom.read.name === "drpg-elsewhere",
+        J({ left: a.left, moved: a.moved, inNew: a.inNew, newRoom: a.newRoom }));
+    check("A: the dock is out of sight on p1 - the body's class, display: none - and its <audio> elements are in it, one per remote user",
+        a.dock?.hidden === true && a.dock.display === "none" && a.dock.audio?.length === 2 && a.dock.audio.every(x => x.audio === true),
+        J(a.dock));
+
+    const sw = async value => {
+        await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceTile", ${value}); return true;`);
+        return p1.eval(`${tileJs}
+            await until(() => Boolean(tile()) === ${value} && dock().hidden === ${value});
+            return { tile: Boolean(tile()), ...dock() };`);
+    };
+    const off = await sw(false);
+    const on = await sw(true);
+    const bare = await p3.eval(`return { tile: Boolean(document.getElementById("drpg-voice-tile")), hidden: document.body.classList.contains("drpg-dock-hidden") };`);
+    check("A: the GM's voiceTile off takes p1's tile away and gives the dock back; on brings both back - and p3, with no LiveKit, has neither the tile nor the class",
+        J(off) === J({ tile: false, hidden: false, display: "block" }) && J(on) === J({ tile: true, hidden: true, display: "none" })
+            && J(bare) === J({ tile: false, hidden: false }),
+        J({ off, on, bare }));
 }

@@ -338,6 +338,10 @@
         "name": "Głos per pokój (wymaga LiveKit AVClient)",
         "hint": "Każdy zmapowany pokój staje się własnym kanałem LiveKit - słyszysz tylko tych, którzy stoją z tobą w pokoju. Wymaga zainstalowanego, włączonego avclient-livekit podpiętego do działającego serwera. Domyślnie wyłączone."
       },
+      "voiceTile": {
+        "name": "Kafel głosu zamiast doku kamer",
+        "hint": "Wyłączone przywraca wszystkim dok kamer Foundry."
+      },
       "highContrast": {
         "name": "Wysoki kontrast",
         "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Rozmiar tekstu ustawia Skala interfejsu, nie ten przełącznik, a mapy to nie dotyczy. Włącza się sam, gdy twój system prosi o większy kontrast. Tylko ten klient."
@@ -3528,6 +3532,17 @@
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
       "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "tile": {
+        "label": "Głos",
+        "speaking": "Mówi",
+        "nobody": "Nikt nie mówi",
+        "more": {
+          "one": "i jeszcze {n} osoba mówi",
+          "few": "i jeszcze {n} osoby mówią",
+          "many": "i jeszcze {n} osób mówi",
+          "other": "i jeszcze {n} osoby mówi"
+        }
+      },
       "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },
     "States": {
