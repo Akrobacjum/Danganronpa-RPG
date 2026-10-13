@@ -8,7 +8,7 @@
 import {
     OVERFLOW, MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS, ITEM_CATEGORIES,
     LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES, HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC,
-    ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST
+    ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST, FLAGS
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
@@ -11560,6 +11560,207 @@ const INVARIANTS = [
         equal(JSON.stringify([putBack, store.getItem(key) === raw0, uses]), JSON.stringify([[true, true, null, null], true, [true, true]]),
             "[put back from a stored reading: recorded as its text, the lost copy written back as it; from a bare reading: "
             + "recorded as nothing, the copy taken out; the store as it was found; tier 2's snapshot records it, its restore puts it back]");
+    }],
+
+    ["R537 - the module holds a microphone only for its own reasons, from the viewer's own facts: `micHold` holds a player in their own Eclipse room and nobody else, and names a GM's block, a Monocub there, avclient-livekit's own window and no connection without holding; it reads no GmStore; `moduleHoldsMic` names a death kept secret; `voiceRowFor` is the ranking voiceTargets ran inline", async () => {
+        /*
+         * E78 C2, 13.10.2026; the A9 design's R390 (T2; the E78 plan's D2 gave it this number), its data clauses - E78 C4
+         * adds the button's. The owner's answers Q1 (grey and struck through only when the MODULE holds the microphone),
+         * Q2 (a dead student talks in the room they died in until E19 and E67 say otherwise), Q4 (the GM's block is never
+         * offered on a microphone the module holds, nor for a death kept secret) and Q15 (a GM's block is its own state,
+         * a Monocub's too). Asked of plain users and actors, every fact handed in, so it reads no document and writes
+         * nothing (tier 1):
+         *   - `micHold`'s table: a player in their own Eclipse room, alone or with no character - held; a GM in the GMs'
+         *     Eclipse room, a player in another's, in a room, or told nothing - null; a Monocub in its Eclipse room -
+         *     "eclipseHeard", not held; a GM's block on a plain player and on a Monocub there - "gmBlock", not held, but
+         *     the Eclipse's own hold named first when both stand; `useExternalAV` and no connection - not held, and first;
+         *     a dead student in a room - null (Q2); an account with a living character and a Monocub - the lower actor id
+         *     decides, either way round, as `voiceRowFor` ranks every claim of an Eclipse alike;
+         *   - `moduleHoldsMic`'s table on this GM's client, the GMs' record of deaths handed in: a death kept secret -
+         *     "secretDead"; one on the sheet, a living character, a living one beside the secret dead, and a Monokuma -
+         *     null. That it is `null` on a player's client is read in the source (its first statement);
+         *   - `voiceRowFor` against the loop voiceTargets ran inline until E78 (copied below verbatim) on E13's rows - two
+         *     characters of one account, one dead, in and out of the trial and the Eclipse, a tie of two rooms, an account
+         *     that is not connected, Monokuma and an unknown id: the same row for every account, and the rows the rules
+         *     name;
+         *   - no GmStore. A spy on `game.settings.get` around `micHold` with this world's defaults for a player account
+         *     reads no `murderState` (a positive control first: a read under the spy is seen). It runs on this GM's client,
+         *     and micHold has no branch on the viewer's role; GmStore's held copies sit in memory, out of any spy's sight,
+         *     so the source holds the rest: every function of voice.mjs `micHold` reaches, comments stripped, names none
+         *     of GmStore's readers (`isDeadForGm`, `pendingDeath`, `readMine`, `gmStoreByName`, `murderState`, `readCast`,
+         *     `castStore`, `deathRecordFor`, `livingStudentsForGm`) and not `silencedByDeath`, which asks `isDeadForGm`.
+         *     The functions of other files it calls are out of this reading (`desiredRoom`, `isDeceased`, `isMonokuma`,
+         *     `poolUserFor`, all reading the document or this browser's own state).
+         * Red before C2: voice.mjs had no `micHold`, `moduleHoldsMic` or `voiceRowFor`.
+         */
+        const V = await import("./voice.mjs");
+        const { ROOM_PREFIX } = await import("./voice-client.mjs");
+        ok(["micHold", "moduleHoldsMic", "voiceRowFor"].every(name => typeof V[name] === "function"),
+            "voice.mjs has no `micHold`, `moduleHoldsMic` or `voiceRowFor` - nothing answers whether the module holds a microphone");
+        if (typeof V.micHold !== "function" || typeof V.moduleHoldsMic !== "function" || typeof V.voiceRowFor !== "function") return;
+        needs(world.atLeast("playerAccounts", 1), "the GmStore spy asks `micHold` with this world's defaults for a player account");
+        const player = game.users.find(u => !u.isGM);
+
+        const account = (id, isGM = false, active = true) => ({ id, name: id, active, isGM });
+        const actor = (id, ...set) => {
+            const flags = Object.fromEntries(set.map(key => [FLAGS[key], true]));
+            return { id, name: id, type: "character", img: null, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] ?? null : null) };
+        };
+        const me = account("R537PLAYER000000"), gm = account("R537GM0000000000", true);
+        const mine = `${ROOM_PREFIX}eclipse-${me.id}`;
+        const living = actor("R537ACTOR0000002"), monocub = actor("R537ACTOR0000001", "deceased", "monocub"), dead = actor("R537ACTOR0000003", "deceased");
+        const hold = facts => V.micHold({ user: me, room: mine, external: false, connected: true, canBroadcastAudio: true, actors: [living], ...facts });
+        const reason = answer => (answer ? `${answer.reason}:${answer.held}` : null);
+        const table = [
+            hold({}), hold({ actors: [] }), hold({ user: gm, room: `${ROOM_PREFIX}eclipse-gm`, actors: [] }),
+            hold({ room: `${ROOM_PREFIX}eclipse-R537OTHER0000000` }), hold({ room: `${ROOM_PREFIX}dorm-a` }), hold({ room: undefined }),
+            hold({ actors: [monocub] }), hold({ actors: [monocub], canBroadcastAudio: false }),
+            hold({ room: null, canBroadcastAudio: false }), hold({ canBroadcastAudio: false }),
+            hold({ external: true }), hold({ connected: false, canBroadcastAudio: false }),
+            hold({ room: `${ROOM_PREFIX}dorm-a`, actors: [dead] }),
+            hold({ actors: [living, monocub] }), hold({ actors: [actor("R537ACTOR0000000"), monocub] })
+        ].map(reason);
+
+        const holds = (actors, deadFor) => reason(V.moduleHoldsMic(me, { actors, eclipse: false, trial: false, dead: a => deadFor.includes(a.id) }));
+        const secret = actor("R537SECRET000000"), monokuma = actor("R537MONOKUMA0000", "monokuma");
+        const gmTable = [
+            holds([secret], [secret.id]), holds([dead], [dead.id]), holds([living], []),
+            holds([living, secret], [secret.id]), holds([monokuma], [monokuma.id])
+        ];
+
+        // E13's rows, ranked by voiceRowFor and by the loop voiceTargets ran inline until E78 C2 (verbatim).
+        const school = { id: "R537SCHOOL000000", name: "R537 School" };
+        const a = account("R537ACCOUNTA0000"), b = account("R537ACCOUNTB0000"), away = account("R537ACCOUNTC0000", false, false);
+        const people = [
+            [actor("R537A1"), a, false, true, null], [actor("R537A2"), a, false, false, "Dorm A"],
+            [actor("R537B1"), b, false, false, null], [actor("R537B2"), b, false, false, "Dorm B"], [actor("R537B3"), b, false, false, "Cafeteria"],
+            [actor("R537C1"), away, false, false, "Dorm C"], [actor("R537M1", "monokuma"), gm, true, false, "Hall"]
+        ];
+        const ids = [a.id, b.id, away.id, gm.id, "R537UNKNOWN00000"];
+        const ranked = [];
+        for (const [eclipse, trial] of [[false, false], [false, true], [true, false]]) {
+            const rows = people.map(([who, user, isMonokuma, isDead, room]) => ({
+                actor: who, monokuma: isMonokuma, user,
+                ...V.voiceClaim({ user, monokuma: isMonokuma, eclipse, trial, silenced: () => isDead, locate: () => (room ? { scene: school, room } : null) })
+            }));
+            const byUser = new Map();
+            for (const row of rows) {
+                if (!row.user?.active) continue;
+
+                const held = byUser.get(row.user.id);
+                // Strongest claim wins; ties go to the lowest actor id, so the answer is
+                // the same on every client and the same on every pass.
+                if (!held
+                    || row.claim > held.claim
+                    || (row.claim === held.claim && row.actor.id < held.actor.id)) {
+                    byUser.set(row.user.id, row);
+                }
+            }
+            ranked.push(ids.map(id => V.voiceRowFor(rows, id)?.actor.id ?? null), ids.every(id => V.voiceRowFor(rows, id) === (byUser.get(id) ?? null)));
+        }
+
+        const murder = `${MODULE_ID}.${SETTINGS.murderState}`, reads = [];
+        const ownGet = Object.hasOwn(game.settings, "get"), get = game.settings.get;
+        let spied, control;
+        game.settings.get = function (scope, key, ...rest) {
+            reads.push(`${scope}.${key}`);
+            return get.call(this, scope, key, ...rest);
+        };
+        try {
+            game.settings.get(MODULE_ID, SETTINGS.murderState);
+            control = reads.includes(murder);
+            reads.length = 0;
+            spied = reason(V.micHold({ user: player, room: `${ROOM_PREFIX}eclipse-${player.id}`, connected: true }));
+        } finally {
+            if (ownGet) game.settings.get = get;
+            else delete game.settings.get;
+        }
+
+        const sources = await moduleSources();
+        must(sources.get("voice.mjs")?.length, "voice.mjs is not among the module's sources - this would measure nothing");
+        const voice = stripComments(sources.get("voice.mjs"));
+        const declared = new Set([...voice.matchAll(/^(?:export )?(?:async )?function ([\w$]+)\(/gm)].map(m => m[1]));
+        const reached = ["micHold"];
+        for (const name of reached) {
+            // A call, or a spread of one (`...voiceClaim(`); not a member's (`game.users.find(`).
+            for (const m of fnSource(voice, name).matchAll(/(?<![\w$])(?<![^.]\.)([\w$]+)\s*\(/g)) if (declared.has(m[1]) && !reached.includes(m[1])) reached.push(m[1]);
+        }
+        const gmReads = reached.flatMap(name => [...fnSource(voice, name).matchAll(
+            /\b(?:isDeadForGm|pendingDeath|readMine|gmStoreByName|murderState|readCast|castStore|deathRecordFor|livingStudentsForGm|silencedByDeath)\b/g)].map(m => `${name}:${m[0]}`));
+
+        equal(JSON.stringify([table, gmTable, ranked, control, ["eclipse:true", "eclipseHeard:false"].includes(spied), reads.includes(murder),
+            ["accountRow", "voiceRowFor", "voiceClaim"].every(name => reached.includes(name)), gmReads,
+            /^export function moduleHoldsMic\([^]*?\) \{\s*if \(!game\.user\?\.isGM \|\| !user\) return null;/.test(fnSource(voice, "moduleHoldsMic"))]),
+        JSON.stringify([
+            ["eclipse:true", "eclipse:true", null, null, null, null, "eclipseHeard:false", "gmBlock:false", "gmBlock:false", "eclipse:true",
+                "external:false", "offline:false", null, "eclipseHeard:false", "eclipse:true"],
+            ["secretDead:true", null, null, null, null],
+            [["R537A2", "R537B2", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true],
+            true, true, false, true, [], true]),
+        "[micHold: own Eclipse room, with no character; a GM in the GMs' room; another's Eclipse room; a room; told nothing; a Monocub there; blocked there; "
+            + "blocked in the main room; blocked and in the Eclipse; avclient-livekit's window; no connection; a dead student in a room; a living character and "
+            + "a Monocub, each with the lower id | moduleHoldsMic: a secret death; one on the sheet; living; living beside a secret death; Monokuma | voiceRowFor "
+            + "per account outside, in the trial and in an Eclipse, and the same rows as the old loop | the spy sees a read; micHold answers the Eclipse for a "
+            + "player; it read no murderState | micHold reaches accountRow, voiceRowFor and voiceClaim; GmStore readers in what it reaches | moduleHoldsMic is null "
+            + "unless the viewer is a GM]");
+    }],
+
+    ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character, a GM without a Monokuma and an account without a character, and never a token's art", async () => {
+        /*
+         * E78 C2, 13.10.2026; the A9 design's R395 (T7; the E78 plan's D2 gave it this number), its identity clauses -
+         * E78 C5 adds the gear's Voice fieldset. The voice tile (C3) and the list (C6) draw a name and a portrait on every
+         * player's screen; both must be the person the dock's nameplate already names, and the portrait never another's.
+         * Every account of this world is asked against a copy of camera-view.mjs `displayNameFor` as it stood until E78
+         * C2 (an explicit `user.character`, then a GM's Monokuma or pool label, then a player's first owned character or
+         * the account's name), with that character's `img`, else the account's `avatar`, else nothing. Then plain
+         * accounts, no document read or written (tier 1): an assigned character with a portrait (its own, not its
+         * token's), one without (the account's avatar), a GM no Monokuma is pooled to (the pool label, which is the
+         * account's name with none set), and an account with no character (against the copy). In the source, comments
+         * stripped: `voiceIdentity` and `voiceActorFor` read no token or texture, and `displayNameFor` and
+         * `voiceIdentity` both go through `voiceActorFor` - one actor, two surfaces.
+         * Red before C2: camera-view.mjs exported no `voiceIdentity`.
+         */
+        const C = await import("./camera-view.mjs");
+        ok(typeof C.voiceIdentity === "function", "camera-view.mjs has no `voiceIdentity` - the voice tile has no name or portrait to ask for");
+        if (typeof C.voiceIdentity !== "function") return;
+        const { isMonokuma, poolUserFor } = await import("./monokuma.mjs");
+        const { poolLabel } = await import("./despair.mjs");
+        const reference = user => {
+            let actor = null, name;
+            if (user.character?.name) {
+                actor = user.character;
+                name = user.character.name;
+            } else if (user.isGM) {
+                actor = game.actors.find(a => a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === user.id) ?? null;
+                name = actor?.name ?? poolLabel(user);
+            } else {
+                actor = game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER")) ?? null;
+                name = actor?.name ?? user.name;
+            }
+            return { name, img: actor?.img || user.avatar || null };
+        };
+        const token = { texture: { src: "r542-token.webp" } };
+        const assigned = { id: "R542ASSIGNED0000", name: "r542-account", isGM: false, avatar: "r542-avatar.webp",
+            character: { name: "R542 Assigned", img: "r542-portrait.webp", type: "character", prototypeToken: token } };
+        const bare = { ...assigned, id: "R542BARE00000000", character: { ...assigned.character, img: "" } };
+        const lonelyGm = { id: "R542GM0000000000", name: "R542 GM", isGM: true, avatar: null, character: null };
+        const nobody = { id: "R542NOBODY000000", name: "R542 Nobody", isGM: false, avatar: "r542-nobody.webp", character: null };
+
+        const sources = await moduleSources();
+        must(sources.get("camera-view.mjs")?.length, "camera-view.mjs is not among the module's sources - this would measure nothing");
+        const camera = stripComments(sources.get("camera-view.mjs"));
+        const identity = fnSource(camera, "voiceIdentity"), actorOf = fnSource(camera, "voiceActorFor");
+        equal(JSON.stringify([
+            game.users.contents.filter(user => JSON.stringify(C.voiceIdentity(user)) !== JSON.stringify(reference(user))).map(user => user.name),
+            C.voiceIdentity(assigned), C.voiceIdentity(bare), C.voiceIdentity(lonelyGm),
+            JSON.stringify(C.voiceIdentity(nobody)) === JSON.stringify(reference(nobody)), C.voiceIdentity(null),
+            /token|texture/i.test(identity + actorOf),
+            /voiceActorFor\(user\)/.test(fnSource(camera, "displayNameFor")), /voiceActorFor\(user\)/.test(identity)]),
+        JSON.stringify([[], { name: "R542 Assigned", img: "r542-portrait.webp" }, { name: "R542 Assigned", img: "r542-avatar.webp" },
+            { name: "R542 GM", img: null }, true, null, false, true, true]),
+        "[the accounts of this world whose voice name or portrait is not the dock's; an assigned character with a portrait; one without; a GM with no "
+            + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
+            + "voiceIdentity through voiceActorFor]");
     }],
 ];
 

@@ -8260,6 +8260,9 @@ const REGRESSIONS = [
          * DZ6 (12.10.2026); since then it names `createEmbeddedDocuments` once and `deleteEmbeddedDocuments` once, both
          * in `stageHall`, the create with `keepId` (the record names the id before the token exists), and no `.create(`
          * or `.delete(` anywhere.
+         * E78 C2 (13.10.2026) added three declarations to voice.mjs that read a death, Monocub or Monokuma flag - `micHold`,
+         * `moduleHoldsMic` and the `accountRow` both ask - and this reader found them, and nothing else, without a row on
+         * its working tree (a Node run of the SHEET part); none of them judges a move, a token or a trial seat.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
@@ -8280,6 +8283,9 @@ const REGRESSIONS = [
             ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A), since E81 fix r1-D3 of the hall's cast alone (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
             ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
+            ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
+            ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
+            ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
             ["SHEET use-items.mjs#readiedItems", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8978,7 +8984,8 @@ const REGRESSIONS = [
          * switch; dock), once each key exists.
          * At C1 the module has five roads, census-1c.md's five pairs at dcfc31b, which E78 C0 did not move: the dock's
          * name plate (WHO), the three writers of the room voice-client.mjs stands in (SOCKET), and reconcileNow's
-         * `toggleAudio(true)` (MIC) - the harm S16-10 names, which E78 C2 removes, and its row with it. The census's
+         * `toggleAudio(true)` (MIC) - the harm S16-10 names. E78 C2 removed that call and its row, leaving four; R544
+         * keeps `toggleAudio(` out of everything but `toggleOwnMic` (C4), so MIC has no row until C4's. The census's
          * 19 PLANNED roads come with C3, C4 and C5, each commit moving its rows in with its code. A verdict ending
          * "(E78 C<n>)" names the commit that changes it.
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
@@ -8987,7 +8994,8 @@ const REGRESSIONS = [
          * text naming `BROADCAST_AUDIO` (the census reads plain strings only).
          * Measured 13.10.2026 on C1's working tree: this reader, run in Node on every scripts/*.mjs outside the
          * suite's own files, found the five roads against the five rows, none either side - the same five keys as
-         * the parse-only census at the same tree (compared key by key).
+         * the parse-only census at the same tree (compared key by key). On C2's working tree (13.10.2026) the same run
+         * found the four roads against the four rows.
          * The reader is run first on a fixture: one road of each kind, a `toggleAudio(` in a comment and one in a
          * string, a second call of a key in one declaration, two optional calls (`?.(`), `micHold`'s call inside its own declaration in
          * voice.mjs, `displayNameFor`'s declaration beside its call, a top-level hook, and the two settings; then
@@ -8999,9 +9007,7 @@ const REGRESSIONS = [
             // ---- the room this client stands in (voice-client.mjs)
             ["SOCKET voice-client.mjs#onVoiceSocket -> room", "only the primary GM's packet is applied (`senderId !== primaryGmId()` returns; the sender is Foundry's second argument, not a packet field), and only one addressed to this user; E78 C2's `desiredRoom` reads the value and writes none"],
             ["SOCKET voice-client.mjs#applyBreakout -> room", "called from `applyAndReport` (the primary GM's packet) and `applyLocally` (voice.mjs `assignUserToRoom` on the GM's own client); the value is the room the GM's reconcile chose"],
-            ["SOCKET voice-client.mjs#forgetDesiredRoom -> room", "clears to `undefined`; called by voice.mjs on the voice reset"],
-            // ---- the module moving a microphone (voice.mjs)
-            ["MIC voice.mjs#reconcileNow -> mic", "THE HARM S16-10 NAMES ('the module never moves a microphone'): on a GM's own Monokuma walking into a room, reconcileNow calls `game.webrtc.client.toggleAudio(true)` and undoes the GM's own mute - the GM's own microphone only (E78 C2 removes it; R544 forbids `toggleAudio` outside `toggleOwnMic`)"]
+            ["SOCKET voice-client.mjs#forgetDesiredRoom -> room", "clears to `undefined`; called by voice.mjs on the voice reset"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VOICE_FILES = /^(?:voice|voice-client|voice-tile|voice-panel|camera-view)\.mjs$/;
@@ -9113,14 +9119,102 @@ const REGRESSIONS = [
 
         const found = censusOf(await otherSources(), SETTINGS);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
-        // The kinds the module has a road of at C1; E78 C2 removes the MIC road, and with it MIC from this list.
-        must(["WHO", "SOCKET", "MIC"].every(kind => count(kind) > 0),
+        // The kinds the module has a road of since E78 C2, which removed the MIC road and with it MIC from this list.
+        must(["WHO", "SOCKET"].every(kind => count(kind) > 0),
             `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
         const verdict = judge(found, VOICE_TILE_CENSUS);
         log(`R534: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
             + `against ${VOICE_TILE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a voice-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E78 commit that will) and strike the gone one");
+    }],
+
+    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
+        /*
+         * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
+         * never moves a microphone". Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
+         * `game.webrtc.client.toggleAudio(true)` to undo the GM's own mute (the design read it as a no-op in
+         * avclient-livekit 0.6.8; external, not re-read here) - R534's MIC row, gone with it. And the tile E78 C3 draws
+         * shows who is speaking in the viewer's own LiveKit room; Foundry's table-wide signal (`settings.activity`,
+         * `setUserIsSpeaking`) names speakers in rooms the viewer cannot hear, so the module reads neither (1b.2).
+         * Read in every scripts/*.mjs outside the suite's own files, comments blanked and literals blanked where a call
+         * is looked for, each place keyed "<file>#<top-level declaration>" (a top-level hook is "(top level)"):
+         *   - every `.settings.activity` and every `setUserIsSpeaking` - none;
+         *   - every call of `toggleAudio(` and every `.set("client", ...)` whose key names `muted` (Foundry's own
+         *     `users.<id>.muted`) outside a declaration named `toggleOwnMic` - none (E78 C4 writes the viewer's own
+         *     there; until then there is none at all, and no `toggleOwnMic`);
+         *   - the declarations of `micHold` and `moduleHoldsMic` - one each, exported, in voice.mjs: the button (C4) and
+         *     the GM's block (C5) ask the one answer, not a copy (R537 holds what it answers);
+         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it: the account's voice
+         *     character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the reconcile
+         *     places.
+         * Red at the parent, measured: the toggle in `voice.mjs#reconcileNow` (voice.mjs:783 there), no `micHold` or
+         * `moduleHoldsMic`, and the ranking inline in `voice.mjs#voiceTargets`; green on C2's working tree (a Node run of
+         * this test's body on both trees, 13.10.2026). E78 C3 and C4 extend it (the prep's R544 row).
+         * The reader is run first on a fixture: one place of each kind, a toggle in a comment and one in a string, the
+         * allowed toggle and write in `toggleOwnMic`, a client write of a volume beside one of a mute, a top-level hook,
+         * a second ranking, and a `moduleHoldsMic` that is not exported.
+         */
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const ALLOWED = "toggleOwnMic";
+        const scan = sources => {
+            const out = { activity: [], speaking: [], toggles: [], muted: [], holds: [], ranks: [], asks: false };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, exported: /^export\b/.test(m[0]) }));
+                const topAt = at => tops.findLast(t => t.at <= at);
+                const declAt = at => topAt(at)?.name ?? "(top level)";
+                const place = at => `${file}#${declAt(at)}`;
+                for (const m of blank.matchAll(/\.\s*settings\s*\??\.\s*activity\b/g)) out.activity.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])setUserIsSpeaking\b/g)) out.speaking.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])toggleAudio\s*(?:\?\.\s*)?\(/g)) if (declAt(m.index) !== ALLOWED) out.toggles.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])set\s*\(/g)) {
+                    const [scope, key] = callArgs(blank, m.index + m[0].length - 1).args;
+                    if (!scope || !/^\s*(["'])client\1\s*$/.test(code.slice(scope.start, scope.end)) || declAt(m.index) === ALLOWED) continue;
+                    if (key && /muted/.test(code.slice(key.start, key.end))) out.muted.push(place(m.index));
+                }
+                for (const [i, top] of tops.entries()) {
+                    if (top.name === "micHold" || top.name === "moduleHoldsMic") out.holds.push(`${file}#${top.name}#${top.exported ? "export" : "local"}`);
+                    if (file === "voice.mjs" && top.name === "voiceTargets") {
+                        out.asks = /(?<![\w$])voiceRowFor\s*\(/.test(blank.slice(top.at, tops[i + 1]?.at ?? blank.length));
+                    }
+                }
+                for (const m of blank.matchAll(/\.\s*claim\s*>\s*[\w$.]+\.\s*claim\b/g)) out.ranks.push(place(m.index));
+            }
+            return out;
+        };
+        const planted = scan([
+            ["voice.mjs", "export function micHold() {\n    return null;\n}\nfunction moduleHoldsMic() {\n    return null;\n}\n"
+                + "export function voiceRowFor(rows) {\n    let held = null;\n    for (const row of rows) if (!held || row.claim > held.claim) held = row;\n    return held;\n}\n"
+                + "export async function voiceTargets() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "// game.webrtc.client.toggleAudio(true) in a comment moves nothing\nasync function reconcileNow() {\n    const said = \"toggleAudio(true)\";\n"
+                + "    await game.webrtc.client.toggleAudio(true);\n}\n"],
+            ["voice-tile.mjs", "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n"
+                + "    await game.webrtc.client.toggleAudio?.(on);\n}\n"
+                + "function listen() {\n    return game.webrtc.settings.activity;\n}\n"
+                + "Hooks.on(\"rtcSettingsChanged\", () => { ui.webrtc.setUserIsSpeaking = null; });\n"
+                + "function unmute(id) {\n    game.webrtc.settings.set(\"client\", `users.${id}.muted`, false);\n}\n"
+                + "function setVolume(id, v) {\n    game.webrtc.settings.set(\"client\", `users.${id}.volume`, v);\n}\n"
+                + "function rank(a, b) {\n    return a.claim > b.claim;\n}\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify({
+            activity: ["voice-tile.mjs#listen"], speaking: ["voice-tile.mjs#(top level)"], toggles: ["voice.mjs#reconcileNow"],
+            muted: ["voice-tile.mjs#unmute"], holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#local"],
+            ranks: ["voice.mjs#voiceRowFor", "voice-tile.mjs#rank"], asks: true }),
+            "the reader does not read the planted fixture as planted - the live reading below would measure the wrong places");
+
+        const sources = await otherSources();
+        must(sources.some(([file]) => file === "voice.mjs"), "voice.mjs is not among the module's sources - this would measure nothing");
+        const live = scan(sources);
+        log(`R544: ${live.toggles.length} toggle(s) and ${live.muted.length} mute write(s) outside ${ALLOWED}, `
+            + `${live.activity.length + live.speaking.length} read(s) of the table-wide signal, ranking in ${live.ranks.join(", ") || "nothing"}`);
+        equal(JSON.stringify(live), JSON.stringify({
+            activity: [], speaking: [], toggles: [], muted: [], holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#export"],
+            ranks: ["voice.mjs#voiceRowFor"], asks: true }),
+            "[a read of Foundry's table-wide speaking signal; a `toggleAudio(` call, or a client `muted` write, outside `toggleOwnMic` - the module moving "
+            + "a microphone; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
+            + "`voiceTargets` not asking it]");
     }],
 
     ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {

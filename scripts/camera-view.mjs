@@ -63,9 +63,19 @@ export function registerCameraView() {
      * dock rendering (somebody joins, leaves, turns a camera on), the window
      * resizing, and the dock being hidden - which `renderCameraViews` also
      * reports, as a render with nothing visible in it.
+     *
+     * The second listener was `collapseCameraViews`, which Foundry 14 does not
+     * call: the A9 design read v14's files on 11.10 (its CB-3 and REL7; external,
+     * not re-read here) and found no such hook. E78 C2 put Foundry's own
+     * `rtcSettingsChanged` in its place, as the design proposed: the dock's
+     * position and whether it is hidden are A/V client settings, and the design
+     * read that hook as the one Foundry calls when they change (equally not
+     * re-read; the harness's LiveKit shim fires it for its own writes, which
+     * says nothing about Foundry). Measuring once more than needed costs one
+     * `getBoundingClientRect`.
      */
     Hooks.on("renderCameraViews", () => measureCameraDock());
-    Hooks.on("collapseCameraViews", () => measureCameraDock());
+    Hooks.on("rtcSettingsChanged", () => measureCameraDock());
     Hooks.on("ready", () => measureCameraDock());
     window.addEventListener("resize", () => measureCameraDock());
 }
@@ -159,23 +169,50 @@ function onRenderCameraViews(app, element) {
  * GM is named by their Monokuma - the actor whose Despair pool points at them,
  * the same relationship voice.mjs uses to decide which room they follow - and
  * then by their pool label, which is what the Despair widget already shows.
+ */
+function displayNameFor(user) {
+    return nameFor(user, voiceActorFor(user));
+}
+
+/**
+ * The name and the portrait a voice surface shows for this person (E78 C2,
+ * 13.10.2026): `{ name, img }`, or `null` without a user. The name is
+ * `displayNameFor`'s - both go through `voiceActorFor`, so the dock's nameplate
+ * and the voice tile cannot name two different characters for one account -
+ * and the portrait is that same actor's `img`, else the account's own
+ * `avatar`, else `null`. Never a token's art, and never a character this
+ * account was not already named by: the portrait cannot be another's (R542).
+ * Read by the voice tile (E78 C3) and the list (C6) as text and a checked path.
+ */
+export function voiceIdentity(user) {
+    if (!user) return null;
+    const actor = voiceActorFor(user);
+    return { name: nameFor(user, actor), img: actor?.img || user.avatar || null };
+}
+
+/**
+ * The character a person is named by, or `null`: `user.character`, then a GM's
+ * Monokuma, then a player's first owned character.
  *
  * The ownership search is for PLAYERS only: `testUserPermission(gm, "OWNER")`
  * is true for every actor in the world, so running it for a GM returns
  * whichever character happens to be first in the collection.
  */
-function displayNameFor(user) {
-    if (user.character?.name) return user.character.name;
+function voiceActorFor(user) {
+    if (user.character?.name) return user.character;
 
     if (user.isGM) {
-        const mine = game.actors.find(a =>
-            a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === user.id);
-        return mine?.name ?? poolLabel(user);
+        return game.actors.find(a =>
+            a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === user.id) ?? null;
     }
 
-    const owned = game.actors.find(a =>
-        a.type === "character" && a.testUserPermission(user, "OWNER"));
-    return owned?.name ?? user.name;
+    return game.actors.find(a =>
+        a.type === "character" && a.testUserPermission(user, "OWNER")) ?? null;
+}
+
+/** The actor's name, else a GM's pool label or a player's account name. */
+function nameFor(user, actor) {
+    return actor?.name ?? (user.isGM ? poolLabel(user) : user.name);
 }
 
 /** Which of the two nameplate strings Foundry is currently rendering. */
