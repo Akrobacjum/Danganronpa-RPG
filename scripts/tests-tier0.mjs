@@ -8689,6 +8689,195 @@ const REGRESSIONS = [
             "[the census rows that still promise a notice is kept \"to the season's reset\"; the rows of the five roads that can end in memory only that do not say \"in memory\"]");
     }],
 
+    ["R503 - a room-tile road has a census row, and every row judges a road", async () => {
+        /*
+         * E77 C0, 13.10.2026; R472's and R379's twin for the room tile (census-1c.md of the E77 plan, METHOD change 1;
+         * the plan's D2 gave it this number). E77 draws, on every player's screen, two things the GM wrote - a room's
+         * description and its picture, region flags every browser holds - and chooses which room to draw for the viewer.
+         * Three harms are possible: the GM's text drawn as markup, a picture fetched from anywhere but this server, and
+         * another character's room on this viewer's tile. This test keeps the list of the roads to those three closed: a
+         * new one fails until it has a row and a verdict, a row whose road is gone fails until it is struck.
+         * A row is a pair, "<source> -> <sink>", keyed exactly as the parse-only census of the E77 plan keys its verdicts
+         * (S/e77-design/census.mjs and census-verdicts.mjs, kept outside the repository), so the two can be compared key
+         * by key: one read of the description reaches a window as text and also says which room was read, and the two
+         * are judged by different code. The sinks: text (a name or description drawn as text), src (an image URL this
+         * client fetches), which (which room is drawn), card (the move card), explain ('Where are we'), setup (Room Setup,
+         * the GM's own form), place (where a Foundry window stands). Nine kinds, read live in the module's files with
+         * comments blanked, each place keyed by the top-level declaration it stands in (a top-level
+         * `Hooks.on("<event>", ...)` by its event), a second place of a key in one declaration "(2)":
+         * READ - every call of `roomDescription(` or `roomImage(` (vault.mjs's own declaration of either aside), its sinks
+         * by file - movement.mjs's the card, explain.mjs's the window, the picture's src, any other text - and which;
+         * FIELD - every `VAULT_FLAGS.description` (text) and `VAULT_FLAGS.image` (src); FORM - every template whose text
+         * before an expression ends in `desc:` or `img:`, Room Setup's cells (setup, and text or src); WRITER - every call
+         * of `setVaultRoom(` outside its declaration (text and src); WHO - every call of `hudActor(`, `viewerActor(` or
+         * `subjectActor(` in hud.mjs, explain.mjs and room-tile.mjs; HOOK - every `Hooks.on`/`Hooks.once` of a repaint's
+         * event (`updateToken`, `drpgRouteSettled`, `canvasReady`, `controlToken`, `updateRegion`, `updateUser`,
+         * `updateActor`, `renderSceneControls`) in hud.mjs, explain.mjs, room-tile.mjs and narrow.mjs, and every
+         * `Hooks.callAll("drpgRouteSettled"` anywhere; SRC - in room-tile.mjs, narrow.mjs and foundry-windows.mjs every
+         * assignment to `.src` or `.backgroundImage` and every `setProperty(` whose value is a template with `url(`,
+         * and every `new ...ImagePopout(` anywhere; MARKUP - every `innerHTML` assignment, `insertAdjacentHTML(`,
+         * `enrichHTML(` and `data-tooltip` in a literal, in room-tile.mjs, which has no row and fails by design (the tile
+         * sets text only; R509 is the whole rule); STORE - the setting's three sources (this browser's own value, a
+         * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
+         * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
+         * census's 26 PLANNED roads (the picture's, `viewerActor`, the settle hook, the tile, the windows' setting, the
+         * narrow row) come with C1, C2, C3, C7 and C8.
+         * It reads names and text, not data flow, as the parse-only census does: a description handed to a helper the
+         * kinds do not list is judged at the call, a CSS `url()` written in a stylesheet is not a road here, and what a
+         * server answers to a picture path (a redirect elsewhere) is no reading of the source at all (LIVE-E77-03).
+         * Two places where it reads more than the parse-only census: `data-tooltip` in any literal, a template's too
+         * (the census reads plain strings only), and a FORM cell only where its `${` opens a template's expression (the
+         * census reads the template's text, so a quoted "desc:${" was never one there either).
+         * Measured 13.10.2026 on C0's working tree (f6822d7's code): this reader, run in Node on the 129 files the crawl
+         * from module.mjs reaches, found 24 roads - 4 READ, 5 FIELD, 4 FORM, 4 WRITER, 4 WHO, 3 HOOK - against the 24
+         * rows, none either side, the same 24 keys as the parse-only census at f6822d7 (compared key by key). On the
+         * harness (13.10.2026, this test alone, once) it read the same 24 against the 24 rows, none either side.
+         * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
+         * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
+         * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
+         * picture's url and popout, an `innerHTML` and a `data-tooltip` in a fixture room-tile.mjs, and the setting; then
+         * the judge on a planted table with a road without a row and a stale key.
+         */
+        const ROOM_TILE_CENSUS = [
+            // ---- the writers (the GM's)
+            ["WRITER api.mjs#DrpgApi -> text", "`game.drpg.setVaultRoom` hands its options to `setVaultRoom`, which writes nothing for a player (`if (!game.user.isGM) return null`); the description passes the spread and is stored as a string (E77 C1 passes the picture the same way)"],
+            ["WRITER api.mjs#DrpgApi -> src", "no picture is stored yet; E77 C1 adds one, which `setVaultRoom` checks with `safeRoomImage` at the write, not the API"],
+            ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
+            ["WRITER vault.mjs#applyRoomRows -> src", "no picture is stored yet; E77 C1 sends Room Setup's picture through `safeRoomImage` at the write, and a refused path is not written"],
+            ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
+            ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn (E77 C1 adds the picture beside it, or a rename loses it)"],
+            ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`, the move card's `escapeHTML`) - E77 C2 and C3 add the tile, which sets it as textContent"],
+            ["FIELD vault.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
+            // ---- Room Setup (the GM's own form)
+            ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`); E77 C1 adds the picture's cell beside it"],
+            ["FORM vault.mjs#roomCells#desc -> text", "as on setup: the GM reads their own words"],
+            ["FIELD vault.mjs#roomCells#description -> text", "the textarea's body, `escapeHTML`"],
+            ["FORM vault.mjs#readRoomSetupForm#desc -> setup", "read back as the textarea's `.value`, trimmed; paragraphs kept as newlines"],
+            ["FORM vault.mjs#readRoomSetupForm#desc -> text", "a string handed to `setVaultRoom` and drawn later only as text (E77 C2 keeps its paragraphs with pre-line)"],
+            // ---- the readers
+            ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>; E77 C2 keeps its paragraphs"],
+            ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene; a GM with a token controlled reads that token's room by design (E77 C2: a player's own character only)"],
+            ["READ movement.mjs#chargeForCrossing#roomDescription -> card", "`escapeHTML` in the move card, whispered to the mover's owner and the GMs; E77 C2 takes the description off the card (the owner's answer of 11.10)"],
+            ["READ movement.mjs#chargeForCrossing#roomDescription -> which", "the room the mover entered, on the token's own scene (E77 C2 removes the read)"],
+            // ---- whose room
+            ["WHO explain.mjs#roomBlock#subjectActor -> which", "the user's assigned character, else the first controlled token's actor - for a player one they own, their own or an owned NPC; E77 C2 makes it `viewerActor()` for a player"],
+            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text (E77 C2's `subjectActor` reaches it too)"],
+            ["WHO hud.mjs#registerHud#hudActor -> which", "the HUD repaints for the viewer's own token's move only (E77 C3 moves the hook to the tile)"],
+            ["WHO hud.mjs#buildRoom#hudActor -> which", "the viewer's own student (`ownStudent`), or a GM's Monokuma (E77 C3 moves the room block off the clock)"],
+            ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
+            ["HOOK hud.mjs#registerHud#updateToken -> which", "the viewer's own token's moves only, painted on the write before the route settles (E77 C3: the tile paints on `drpgRouteSettled`)"],
+            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const VIEW_FILES = /^(?:hud|explain|room-tile|narrow)\.mjs$/, PAINT_FILES = /^(?:room-tile|narrow|foundry-windows)\.mjs$/;
+        const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
+        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
+        const STORE_SOURCES = ["self", "console", "stale"];
+        const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
+            : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
+            : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
+            : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
+        const censusOf = (sources, settings) => {
+            const found = [], sites = new Map();
+            const add = (kind, file, decl, field) => {
+                const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`, n = (sites.get(base) ?? 0) + 1;
+                sites.set(base, n);
+                for (const sink of sinksOf(kind, file, field)) found.push(`${n === 1 ? base : `${base} (${n})`} -> ${sink}`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                const declared = at => /\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, at - 24), at));
+                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
+                    if (declared(m.index)) continue;
+                    const decl = declAt(m.index), name = m[1], member = /\.\s*$/.test(blank.slice(Math.max(0, m.index - 8), m.index));
+                    if (name === "setVaultRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
+                    else if (name === "roomDescription" || name === "roomImage") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
+                    else if (!member && WHO_FILES.test(file)) add("WHO", file, decl, name);
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])VAULT_FLAGS\s*\??\.\s*(description|image)\b/g)) add("FIELD", file, declAt(m.index), m[1]);
+                for (const m of code.matchAll(/(desc|img):\$\{/g)) {
+                    const open = m.index + m[0].length;
+                    // a template keeps its expression's code in the blanked text; a quoted "desc:${" is blank to its end
+                    const expression = code.slice(open).match(/^[^}]*/)[0];
+                    if (/\S/.test(blank.slice(open, open + expression.length))) add("FORM", file, declAt(m.index), m[1]);
+                }
+                for (const m of code.matchAll(REPAINTS)) {
+                    if (blank.slice(m.index, m.index + 5) !== "Hooks") continue;
+                    if (m[2]) add("HOOK", file, declAt(m.index), "callAll");
+                    else if (VIEW_FILES.test(file)) add("HOOK", file, declAt(m.index), m[1]);
+                }
+                if (PAINT_FILES.test(file)) {
+                    for (const m of blank.matchAll(/\.\s*(src|backgroundImage)\s*[+]?=(?![=>])/g)) add("SRC", file, declAt(m.index), m[1]);
+                    for (const m of blank.matchAll(/\bsetProperty\s*\(/g)) {
+                        const value = callArgs(blank, m.index + m[0].length - 1).args[1];
+                        const text = value ? code.slice(value.start, value.end).trim() : "";
+                        if (text.startsWith("`") && /url\(/.test(text)) add("SRC", file, declAt(m.index), "url");
+                    }
+                }
+                for (const m of blank.matchAll(/\bnew\s+[\w$.]*ImagePopout\b/g)) add("SRC", file, declAt(m.index), "ImagePopout");
+                if (file === "room-tile.mjs") {
+                    for (const m of blank.matchAll(/\.\s*innerHTML\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML)\s*\(/g)) add("MARKUP", file, declAt(m.index), m[1] ?? "innerHTML");
+                    for (const m of code.matchAll(/data-tooltip/g)) if (blank[m.index] === " ") add("MARKUP", file, declAt(m.index), "data-tooltip");
+                }
+            }
+            if (Object.hasOwn(settings ?? {}, "foundryWindows")) for (const source of STORE_SOURCES) add("STORE", "settings.mjs", "foundryWindows", source);
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["READ", "FIELD", "FORM", "WRITER", "WHO", "HOOK", "SRC", "MARKUP", "STORE"];
+        const planted = censusOf([
+            ["vault.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
+                + "export async function setVaultRoom(room, { description } = {}) {\n    if (!game.user.isGM) return null;\n}\n"],
+            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene);\n}\n"
+                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n}\n"
+                + "const cell = room => `<textarea name=\"desc:${room}\"></textarea>` + \"img:${room}\";\n"],
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n}\n"
+                + "function hudActor() {\n    return game.user.character;\n}\nfunction paint(actor = this.hudActor()) {}\n"],
+            ["movement.mjs", "export function settleRoute(tokenDoc) {\n    Hooks.callAll(\"drpgRouteSettled\", tokenDoc);\n}\n"
+                + "Hooks.on(\"canvasReady\", () => roomDescription(\"Hall\", canvas.scene));\n"],
+            ["room-tile.mjs", "export function paintRoomTile(el, path) {\n    el.style.setProperty(\"--drpg-room-art\", `url(\"${path}\")`);\n    el.innerHTML = \"<b>planted</b>\";\n"
+                + "    el.dataset.note = \"data-tooltip\";\n    return new foundry.applications.apps.ImagePopout({ src: path });\n}\n"]
+        ], { foundryWindows: "foundryWindows" });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "FIELD vault.mjs#roomDescription#description -> text",
+            "READ planted.mjs#shown#roomDescription -> text", "READ planted.mjs#shown#roomDescription -> which",
+            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which",
+            "WRITER planted.mjs#kept -> text", "WRITER planted.mjs#kept -> src", "WRITER planted.mjs#kept (2) -> text", "WRITER planted.mjs#kept (2) -> src",
+            "FORM planted.mjs#cell#desc -> setup", "FORM planted.mjs#cell#desc -> text",
+            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
+            "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
+            "HOOK movement.mjs#settleRoute#callAll -> which",
+            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src",
+            "MARKUP room-tile.mjs#paintRoomTile#innerHTML -> text", "MARKUP room-tile.mjs#paintRoomTile#data-tooltip -> text",
+            ...STORE_SOURCES.map(source => `STORE settings.mjs#foundryWindows#${source} -> place`)]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(0, 3), [["FIELD vault.mjs#roomDescription#description -> text", ""],
+            ["READ planted.mjs#shown#roomDescription -> text", ""], ["HOOK hud.mjs#registerHud#gone -> which", ""]])),
+            JSON.stringify({ unclassified: ["READ planted.mjs#shown#roomDescription -> which"], stale: ["HOOK hud.mjs#registerHud#gone -> which"] }),
+            "the census judge does not tell a planted road without a row, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(["READ", "FIELD", "FORM", "WRITER", "WHO", "HOOK"].every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, ROOM_TILE_CENSUS);
+        log(`R503: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${ROOM_TILE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
+    }],
+
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
         /*
          * E13 C3, 12.10.2026; plan-E13 2.3 and 3.2 (V1, doneWhen 1), audit S06-57, the A5 project's reserved R113. The
