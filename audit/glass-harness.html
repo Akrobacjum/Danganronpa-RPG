@@ -8,7 +8,11 @@
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
      `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
-     computes it); `?theme=legacy` the other theme; `?card=1` one notice card in the tile;
+     computes it); `?theme=legacy` the other theme - its body class and, since E77 fix r1-M1, the
+     theme setting too, so no curtain is mounted, as at a table (before it the curtain stayed
+     mounted at 0x0 and its observers placed the Legacy tile, which a table's never do: the sweep's
+     Legacy lines read the same with either, 13.10.2026, but only this one measures
+     glass.mjs's Legacy observer); `?card=1` one notice card in the tile;
      `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 22 sizes in
      both themes and fails on any size that is not right (E81 fix r2-H3); `drpgNoticeCheck()` draws
      the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
@@ -444,8 +448,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
     const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
     const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
-    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : "unplaced", place: tile?.dataset.place ?? null,
-      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null };
+    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : glass ? "unplaced" : "flat", place: tile?.dataset.place ?? null,
+      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     /* A new name and description and the description opened, then a pass: no cut; the control and a recolour after. */
     async function readCuts() {
@@ -470,6 +474,79 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (out.cuts.content || !out.cuts.same) out.why.push(`a new description and the description opened recut the glass (${out.cuts.content} cut(s), same ${out.cuts.same})`);
       if (out.cuts.control < 1) out.why.push("control: a taller clock fired no drpgGlassCut - the count cannot see a cut");
       if (out.cuts.recolour) out.why.push(`a recolour of the same cut fired ${out.cuts.recolour} drpgGlassCut`);
+    }
+    /* UNDER MONOKUMA LEGACY ON A DESK (E77 fix r1-M1, 13.10.2026; review round 1's cor F6, goal row G8): no curtain,
+       and the tile placed all the same by glass.mjs `flatPlacement` - under the clock at the clock's width and edge,
+       F's height up to the design's `maxH`, at least 16 px above `#players`; or 16 px right of the notice stack, level
+       with its top. The place agrees with F and need and with a second reading of `roomPlacement`, the tile is laid
+       out at the placed box, its picture inside it. With `cuts`: a new name and a long description opened, then the
+       placement run again, must leave the placement as it was - and the control, the clock 40 px taller, must move F;
+       under the clock, a column made wider than the clock must leave the tile at the clock's width. */
+    async function readFlat() {
+      if (!room || !out.place || !room.flat) { out.why.push(`no place under this theme (stamp ${out.place}, LAST.room ${JSON.stringify(room)})`); return; }
+      Object.assign(out, { F: room.F, need: room.need, maxH: room.maxH, box: room.box });
+      const chose = room.F >= room.need ? "clock" : "notes";
+      if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F} and need ${room.need} choose ${chose}`);
+      const { box: b, ...placed } = room;
+      if (JSON.stringify(g.roomPlacement(innerWidth, innerHeight)) !== JSON.stringify(placed)) out.why.push("a second reading of roomPlacement differs from the placement");
+      const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+      if (!(near(t.left, b.x) && near(t.top, b.y) && near(t.width, b.w) && near(t.height, b.h)))
+        out.why.push(`the tile is laid out at ${[t.left, t.top, t.width, t.height].map(Math.round)} and placed at ${[b.x, b.y, b.w, b.h]}`);
+      if (!own || loose) out.why.push("the picture is not inside the tile");
+      if (out.place === "clock") {
+        const prev = tile.previousElementSibling, gauge = document.getElementById("players")?.getBoundingClientRect();
+        out.clock = { w: [Math.round(t.width), Math.round(h.width)], left: [Math.round(t.left), Math.round(h.left)], dx: +((t.left + t.width / 2) - (h.left + h.width / 2)).toFixed(1), rail: null };
+        out.flat = { h: [b.h, Math.min(room.F, room.maxH)], players: gauge?.height ? Math.round(gauge.top - t.bottom) : null };
+        if (prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
+        if (!near(t.width, h.width) || !near(t.left, h.left)) out.why.push(`not the clock's width and edge: ${out.clock.w} ${out.clock.left}`);
+        if (b.h !== out.flat.h[1]) out.why.push(`the box is ${b.h} high, not min(F, maxH) ${out.flat.h[1]}`);
+        if (out.flat.players !== null && out.flat.players < 16) out.why.push(`the tile ends ${out.flat.players} px above #players, not 16`);
+      } else {
+        const sb = document.getElementById("drpg-popups")?.getBoundingClientRect();
+        out.flat = { gap: sb ? Math.round(t.left - sb.right) : null, top: sb ? Math.round(t.top - sb.top) : null };
+        if (tile.parentElement !== body) out.why.push(`beside the notices in ${tile.parentElement?.id || tile.parentElement?.tagName}, not the body`);
+        if (out.flat.gap !== 16 || out.flat.top !== 0) out.why.push(`${out.flat.gap} px right of the notice stack and ${out.flat.top} px below its top, not 16 and 0`);
+        if (t.right > innerWidth) out.why.push(`the tile runs ${Math.round(t.right - innerWidth)} px off the screen`);
+      }
+      if (!cuts) return;
+      const name = tile.querySelector(".drpg-room-tile-name"), prose = tile.querySelector(".drpg-room-tile-prose");
+      const was = [name?.textContent, prose?.textContent, prose?.hidden, tile.classList.contains("is-open")], before = JSON.stringify(g.LAST.room);
+      if (name) name.textContent = "A room with a much longer name than any";
+      if (prose) { prose.textContent = "Words. ".repeat(400); prose.hidden = false; }
+      tile.classList.add("is-open");
+      g.placeFlatRoomTile(); await frame();
+      const content = JSON.stringify(g.LAST.room);
+      /* The clock made taller by its own min-height, which wins over a max-height: under this theme a clock at 768 px
+         of height or less did not grow when a 40 px row was put in it (the sweep, 13.10.2026: F unchanged at 1366x768,
+         1224x768, 1300x768 and 1280x720), and the control read a pass there. */
+      const mh = hud.style.getPropertyValue("min-height"), mx = hud.style.getPropertyValue("max-height");
+      hud.style.setProperty("max-height", "none", "important"); hud.style.setProperty("min-height", (hud.offsetHeight + 40) + "px", "important");
+      g.placeFlatRoomTile(); await frame();
+      const control = g.LAST.room?.F;
+      hud.style.removeProperty("min-height"); hud.style.removeProperty("max-height");
+      if (mh) hud.style.setProperty("min-height", mh); if (mx) hud.style.setProperty("max-height", mx);
+      if (name) name.textContent = was[0];
+      if (prose) { prose.textContent = was[1]; prose.hidden = was[2]; }
+      tile.classList.toggle("is-open", was[3]);
+      g.placeFlatRoomTile(); await frame();
+      out.cuts = { content: content === before ? 0 : 1, control: control !== room.F ? 1 : 0, recolour: 0 };
+      if (out.cuts.content) out.why.push(`a new name and a long description opened moved the placement: ${before} -> ${content}`);
+      if (!out.cuts.control) out.why.push("control: a clock 40 px taller left F as it was - the reading cannot see a change of F");
+      /* The column wider than the clock: here the column is exactly the clock's width, so the width reading above
+         cannot tell the clock's width from the column's - a sheet that let the tile take the column's passed it
+         (13.10.2026, the fix's own mutant). `#players` made 60 px wider widens the column; the tile must keep the
+         clock's width, and a column that did not widen is a control that measured nothing. */
+      const players = document.getElementById("players"), col = tile.parentElement;
+      if (out.place !== "clock" || !players) return;
+      const pw = players.style.getPropertyValue("min-width");
+      players.style.setProperty("min-width", (hud.offsetWidth + 60) + "px", "important");
+      g.placeFlatRoomTile(); await frame();
+      const wide = [tile, hud, col].map(e => Math.round(e.getBoundingClientRect().width));
+      players.style.removeProperty("min-width"); if (pw) players.style.setProperty("min-width", pw);
+      g.placeFlatRoomTile(); await frame();
+      out.flat.wide = wide;
+      if (wide[2] < wide[1] + 59) out.why.push(`control: #players 60 px wider left the column ${wide[2]} wide by a clock ${wide[1]} - the width reading cannot see the column`);
+      else if (!near(wide[0], wide[1])) out.why.push(`in a column ${wide[2]} wide the tile is ${wide[0]} wide, not the clock's ${wide[1]}`);
     }
     if (!tile || !hud) { out.why.push("no room tile or no clock"); return done(); }
     const room = g?.LAST?.room ?? null;
@@ -500,6 +577,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (cuts && cut) await readCuts();
       return done();
     }
+    if (out.expect === "flat") { await readFlat(); return done(); }
     if (!room || !out.place) { out.why.push("the cut placed no tile"); return done(); }
     // the curtain bands a block by its midpoint: under the clock the tile must fall in the top band, beside the notices in the bottom
     if ((room.box.y + room.box.h / 2 < (at?.height ?? innerHeight) / 2) !== (out.place === "clock"))
@@ -712,7 +790,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
-  const defaults = { theme: "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
+  const defaults = { theme: q.get("theme") === "legacy" ? "monokumaLegacy" : "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
   /* A registry rather than three no-ops since E77 C4: `drpgRoomCheck` counts glass.mjs's `drpgGlassCut`. */
   const hooks = new Map();
   globalThis.Hooks = { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },

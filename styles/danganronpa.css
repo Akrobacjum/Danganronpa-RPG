@@ -1118,6 +1118,26 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     margin: 0 0 4px;
 }
 
+/* UNDER MONOKUMA LEGACY ITS TWO PLACES ARE glass.mjs's TOO (`flatPlacement`, E77 fix r1-M1,
+   13.10.2026), placed with no curtain, and this sheet states only what that wrote, as
+   stained-glass.css does for its own theme: under the clock the clock's width, not the column's;
+   beside the notice stack a fixed box in the body, one under Foundry's window layer as the empty
+   notice stack is (the rule at the end of this file), so a sheet dragged over it stays on top
+   (not measured with Foundry's own windows: LIVE-E77-14). */
+body:not(.drpg-theme-stained-glass) #ui-left-column-1 > #drpg-room-tile[data-place="clock"] {
+    align-self: flex-start;
+    width: var(--drpg-room-w);
+    max-width: none;
+}
+body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
+    position: fixed;
+    left: var(--drpg-room-x);
+    top: var(--drpg-room-y);
+    width: var(--drpg-room-w);
+    margin: 0;
+    z-index: calc(var(--z-index-app, 30) - 1);
+}
+
 /* THE FLOOR SWITCHER (E12 C11): one button per floor this browser may look at
    (fog.mjs `floorSwitcher`), placed right after the clock. The clock's order, so
    the two stay together above the launcher and the tools; how it looks at a table
@@ -12780,8 +12800,10 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
    its corner. Its height never follows its content - an entry into another room must not move
    what stands under it (the A8 design's step 6). 250 px is the design's estimate of the smallest
    box (step 6: about 250 px at a 265 px clock), not measured here; E77 C4 measures it with the
-   curtain and writes `--drpg-room-h`. Its width is the column's, which the clock sets, and
-   `contain: inline-size` keeps a long name from widening the column. */
+   curtain and writes `--drpg-room-h`, and under Monokuma Legacy, with no curtain, E77 fix r1-M1
+   does (glass.mjs `flatPlacement`): the 250 px is left only to a tile no pass has placed. Its
+   width here is the column's, which the clock sets (each theme's placed rule states the clock's
+   own), and `contain: inline-size` keeps a long name from widening the column. */
 .drpg-room-tile {
     position: relative;
     isolation: isolate;

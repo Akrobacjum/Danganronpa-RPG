@@ -51,9 +51,11 @@
  * THE CUT IS NOT READ HERE (E77 fix r1-G3, 13.10.2026; review round 1 goal 6). The E77 plan's 2.2 gave E77 C4 a
  * phase of this scenario reading that a new description, its expansion and a change of room fire no `drpgGlassCut`.
  * Read on p1 by a probe run once after phase H and not kept (13.10.2026, on the side fix line's tree, whose runtime was
- * E77 C4's - not read again since C8 put the tile in the stacked screen's row): the harness's 1024x768 page is a
- * stacked screen (the body's `drpg-stacked`), its curtain is never painted (no `drpg-curtain-on`, glass.mjs
- * `LAST.panes` empty, `LAST.room` null), `roomPlacement` answers 'notes' with F null because no element has a size in jsdom, and `refreshGlass`
+ * E77 C4's), and read again on p1 and the GM by a probe of E77 fix r1-M1, run alone and not kept, once C8 had put the
+ * tile in the stacked screen's row (13.10.2026, e77-wip after ceb70a4 with r1-M1's glass.mjs): the harness's 1024x768
+ * page is a stacked screen (the body's `drpg-stacked`, under Stained Glass), the tile stands in `#drpg-tile-row` with
+ * no place stamped, its curtain is never painted (no `drpg-curtain-on`, glass.mjs `LAST.panes` empty, `LAST.room`
+ * unset), `roomPlacement` answers 'notes' with F null because no element has a size in jsdom, and `refreshGlass`
  * fired no `drpgGlassCut` - nor did it after the clock was made 40 px taller, the control that must cut. A count here
  * would read 0 whatever the tile did, so the cut is measured in Chromium instead: audit/glass-sweep.mjs at its sizes
  * and both themes (`drpgRoomCheck`, audit/glass-harness.html), and R508's clause of the same reading with the same

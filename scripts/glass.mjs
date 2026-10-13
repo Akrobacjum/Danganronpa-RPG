@@ -253,6 +253,7 @@ function columnRail(sel, root = document) {
 }
 /** The room tile's place and box for a W x H screen, from the measured F and the role (a GM's rail and button). */
 export function roomPlacement(W, H) {
+  if (!document.body.classList.contains("drpg-theme-stained-glass")) return flatPlacement(W, H);
   const s = uiScale(), foot = gaugeFoot(H, s), noteW = noteTile().w * s;
   const clock = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q))
     .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect());
@@ -276,6 +277,63 @@ export function roomPlacement(W, H) {
   const w = Math.round(noteW), { need, maxH } = roomSizes(w);
   const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22));
   return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, x: Math.round(16 + noteW + 32 + h * ROOM_TAN), y: Math.round(H - foot - h), w, h };
+}
+/* UNDER MONOKUMA LEGACY THE SAME TWO PLACES, WITH NO CURTAIN (E77 fix r1-M1, 13.10.2026; review round
+   1's cor F6 and goal row G8; the A8 design's P16-0). Until this the tile stood under the clock at the
+   base sheet's 250 px under this theme, because `--drpg-room-h` was written only by a pass of the
+   curtain, and no curtain is mounted here. The design's rule for this theme: under the clock, the
+   clock's width, as tall as under Stained Glass (`maxH`) and no lower than `#players` less 16 px; when
+   the smallest box does not fit there, right of the notice stack, which this theme stands at the top
+   in the middle (danganronpa.css `#drpg-popups`, popup.mjs `positionBelowWidgets`).
+   F is the height from where the tile's top stands - the last of the clock's column (the clock, or
+   the floor switcher after it), its bottom margin and the column's gap, none of them the tile's - to
+   `#players`' top less 16, read through `gaugeFoot` (whose foot is `#players`' top less 8, or 100 px
+   on the geometry scale where the gauge does not stand on the floor, as in the glass harness).
+   Beside the notices: 16 px right of the stack, level with its top, the clock's width or what is left
+   to the screen's edge, and down to the same floor; the design names the place and not its width or
+   gap, so the width is the panel's own and the gap the 16 px this theme keeps at the screen's sides.
+   With no stack drawn yet (popup.mjs draws it at `ready`, on every desk) the tile keeps the clock's
+   place at the smallest box. Readings in Chromium, audit/glass-harness.html `?theme=legacy`,
+   13.10.2026, before this: the tile 430x250 at y 153 at 1920x1080, 1366x768 and 1280x720 alike;
+   audit/glass-sweep.mjs prints the place and box at every size since. */
+function flatPlacement(W, H) {
+  /* `#players` IS READ WITH THE TILE OUT OF THE FLOW. Where the gauge does not stand on the floor it
+     follows the column - the tile in it - and a gauge read with the tile laid out made F the tile's
+     own: in the glass harness at 1366x768 the tile 491 high pushed `#players` onto the floor, the
+     foot read off it gave F 495, and F stayed 495 at 1280x720 and with the clock 574 px taller
+     (13.10.2026, audit/glass-sweep.mjs, the pin's control). Hidden for the one reading, in the same
+     task, so nothing is painted without it. */
+  const s = uiScale(), tile = document.getElementById("drpg-room-tile"), display = tile?.style.getPropertyValue("display") ?? "";
+  tile?.style.setProperty("display", "none", "important");
+  const foot = gaugeFoot(H, s);
+  if (tile) { tile.style.removeProperty("display"); if (display) tile.style.setProperty("display", display); }
+  const els = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q)).filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0);
+  if (!els.length) return null;
+  const hud = els[0].getBoundingClientRect(), last = els.at(-1), px = (e, k) => parseFloat(getComputedStyle(e)[k]) || 0;
+  const top = Math.max(...els.map(e => e.getBoundingClientRect().bottom)) + px(last, "marginBottom") + (last.parentElement ? px(last.parentElement, "rowGap") : 0);
+  const F = Math.round(H - foot - 8 - top);
+  const { need, maxH } = roomSizes(hud.width);
+  const stack = document.getElementById("drpg-popups"), sb = stack?.offsetWidth > 0 ? stack.getBoundingClientRect() : null;
+  if (F >= need || !sb) return { place: "clock", flat: true, F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH) : need) };
+  const x = Math.round(sb.right + 16), y = Math.round(sb.top), w = Math.round(Math.min(hud.width, W - 16 - x));
+  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y)) };
+}
+/* WHO PLACES IT THERE. No curtain watches the page under this theme, so this does, and only this: a
+   resize, the clock drawn again (`drpgHudRendered`), the theme applied (`refreshGlass`), and a change
+   of size of the clock, the floor switcher, `#players` or the notice stack (a ResizeObserver, bound
+   again when one of them is a new node). Nothing the room says is among them, and the tile itself is
+   not watched: its content cannot move it. Under Stained Glass each returns at once - the curtain's
+   pass places the tile there (`moduleLayout`). */
+let flatWatch = null, flatTimer = 0;
+const flatSoon = () => { clearTimeout(flatTimer); flatTimer = setTimeout(placeFlatRoomTile, 150); };
+export function placeFlatRoomTile() {
+  if (document.body.classList.contains("drpg-theme-stained-glass")) return;
+  placeRoomTile(innerWidth, innerHeight);
+  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups"].map(q => document.querySelector(q)).filter(Boolean);
+  if (typeof ResizeObserver !== "function" || (flatWatch && nodes.length === flatWatch.nodes.length && nodes.every((n, i) => n === flatWatch.nodes[i]))) return;
+  flatWatch?.ro.disconnect();
+  flatWatch = { nodes, ro: new ResizeObserver(flatSoon) };
+  nodes.forEach(n => flatWatch.ro.observe(n));
 }
 /* ONCE A PASS, BEFORE THE RAIL IS PLACED: the rail is pushed down under whatever ends the clock's
    column, and in the 'clock' place that is the tile. In 'notes' the tile goes to the body, as the
@@ -3277,7 +3335,8 @@ export function refreshGlass() {
   document.body.classList.toggle("drpg-glass-flat", themeOn() && !glassRoom());
   // `unmount` only when there is something to take down: this runs on every DOM
   // mutation through `schedule`, and it walks the document clearing styles
-  if (!glassRoom()) { if (anythingMounted()) unmount(); return; }
+  placeFlatRoomTile();
+  if (!glassRoom()) { if (anythingMounted()) { unmount(); placeFlatRoomTile(); } return; }
   if (curtains.length) { rebuild(); return; }
   const go = () => { mount(); observe(); };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
@@ -3321,7 +3380,8 @@ export function registerGlass() {
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
   // Debounced like everything else on resize: `rebuild` already pins the right column and
   // frees the board, and the raw handler did both on every event of a window drag.
-  addEventListener("resize", () => { if (themeOn()) schedule(); });
+  addEventListener("resize", () => { if (themeOn()) schedule(); flatSoon(); });
+  Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse

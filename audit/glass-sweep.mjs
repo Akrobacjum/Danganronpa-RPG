@@ -62,6 +62,21 @@
  * take the stack down with the tile back under the clock, or beside the notices where the curtain puts it there, and
  * the clock first in its column (narrow.mjs `restoreDesk`); the page is then put back at its own size.
  *
+ * MONOKUMA LEGACY AND THE PINS (E77 fix r1-M1, 13.10.2026; review round 1's F6, G8 and O9). Under Legacy no curtain is
+ * cut, and the tile's place and height come from glass.mjs `flatPlacement`: the same F, from the clock's foot to the
+ * player list, and the same two places. A Legacy desk expects `flat` and fails on any of: no placement, or one that is
+ * not flat; a place F does not choose; a second `roomPlacement` that answers otherwise; the tile laid off its box;
+ * under the clock, not under it, not its width or edge, not min(F, max) high, or less than 16 px above the player
+ * list; beside the notices, not in the body 16 px right of the stack, level with its top, or off the screen; a new
+ * description or the description opened moving the placement, while a taller clock moves it (that reading's
+ * control); under the clock, `#players` made 60 px wider widening the column and the tile taking the column's width,
+ * not the clock's (`wide tile/clock/column`; a column that did not widen fails as a control). Every line is
+ * then compared with PINS below, in both themes and roles: a size whose place is not its pin fails, and so does a
+ * size of the default list with no pin. The pin's control runs once a theme, at the first size pinned 'clock' that
+ * reads it: the clock made F - need + 40 px taller, with no pass called (the module's own observers must move the
+ * tile), must read another place, and the room check must hold there. A control that reads as the pin, or a theme
+ * whose control never ran, fails the sweep.
+ *
  * FOUNDRY'S WINDOWS (E77 C5, 13.10.2026). After the room, at every size, the page's `drpgFoundryCut` fails the size on
  * the GM's page when either window is missing, open at load or not holding its rail, and - where glass is drawn -
  * when opening and closing both fires `drpgGlassCut` or changes the clip-path, or a taller clock fires none (the
@@ -113,6 +128,18 @@ const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolea
 }));
 const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,"
     + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,844x390,640x360").split(",");
+/* THE PINS (E77 fix r1-M1, 13.10.2026; review round 1's O9): the place each size reads, as this file read it on
+   e77-wip after E77 C9 and the side fix line (ceb70a4) with fix r1-M1 on it, in Chromium, GM and player alike -
+   'row' on a stacked screen (E77 C8), 'notes' where Stained Glass's F leaves less than the smallest box (F 194 at
+   1366x768, 1224x768 and 1300x768, 226 at 1280x800 and 1264x800 against need 233, 146 at 1280x720), 'clock'
+   everywhere else; under Monokuma Legacy every desk size reads 'clock' (F 489 to 1899 against need 310). A
+   reading that moves is a design change: say why in the commit that moves the pin. */
+const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
+const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720"], legacy: [] };
+const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
+    ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
+        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,844x390,640x360").split(",").map(size =>
+        [`${theme} ${role} ${size}`, PIN_ROW.includes(size) ? "row" : PIN_NOTES[theme].includes(size) ? "notes" : "clock"]))));
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -233,6 +260,27 @@ async function plantRoom() {
     return res;
 }
 
+/* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
+   over a max-height), so F falls 40 px short of the smallest box; the place read and the room check run at that
+   other place (under Legacy the only reading of its place beside the notices: no size of the sweep reaches it), and
+   the page put back. Nothing here calls a pass: the clock changing size is what must move the tile, through the
+   module's own observers (Stained Glass's on its blocks, `schedule`; Legacy's on the clock and its neighbours,
+   `placeFlatRoomTile`), as at a table where nobody calls one either. The wait covers the turn as well: the move
+   recuts the curtain, and for the turn's length the old curtain's ghost stands between the picture and its glow -
+   read at 1500 ms the room check failed on exactly that, and from 2000 ms on the order was back (Stained,
+   1920x1080, 13.10.2026). */
+async function plantPin(px) {
+    const hud = document.getElementById("drpg-hud"), g = window.__glass, tile = document.getElementById("drpg-room-tile");
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const pass = async () => { await wait(1500); for (let i = 0; i < 50 && document.querySelector(".drpg-curtain-ghost"); i++) await wait(100); };
+    hud.style.setProperty("max-height", "none", "important"); hud.style.setProperty("min-height", (hud.offsetHeight + px) + "px", "important");
+    await pass();
+    const res = { px, got: tile?.dataset.place ?? "-", F: g.LAST.room?.F ?? null, check: await window.drpgRoomCheck({ cuts: false }) };
+    hud.style.removeProperty("min-height"); hud.style.removeProperty("max-height");
+    await pass();
+    return res;
+}
+
 /* Runs in the page: the row reading's planted fault, read at once and put back (E77 C8). */
 async function plantRow() {
     const row = document.getElementById("drpg-tile-row"), was = row?.style.height ?? "";
@@ -254,7 +302,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let bad = 0, glassSizes = 0, controlled = false, roomControlled = false, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
+let bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -280,10 +328,11 @@ try {
             else if (!r.c) {
                 line += " no glass (" + (r.report || "-").slice(0, 60) + ")";
                 /* Only the stack that scrolls (844x390, 640x360) and the Legacy theme draw no glass by design -
-                   `?theme=legacy` swaps the body's class, the curtain stays mounted at 0x0 and is cut for nothing
-                   (13.10.2026, every size) - and there the count says it is no answer, and why, rather than a
-                   number (P28: it returned null for three reasons). Under Legacy the three launchers are still
-                   drawn, so they are still counted: found and none hidden. */
+                   `?theme=legacy` swaps the body's class, and until E77 fix r1-M1 the curtain stayed mounted at
+                   0x0 and was cut for nothing (13.10.2026, every size); since then the page's theme setting is
+                   Legacy as well and no curtain is mounted ("theme off") - and there the count says it is no
+                   answer, and why, rather than a number (P28: it returned null for three reasons). Under Legacy
+                   the three launchers are still drawn, so they are still counted: found and none hidden. */
                 const legacy = theme === "legacy";
                 if (!legacy && !/^flat:/.test(r.report)) fails.push("no glass");
                 if (!r.lo || r.lo.ok || !/no curtain|no pane toned launch/.test(r.lo.why)) fails.push("drpgLaunchOutside does not say why it is no answer: " + JSON.stringify(r.lo)?.slice(0, 80));
@@ -328,14 +377,31 @@ try {
                 if (!rc) fails.push("the page defines no drpgRoomCheck");
                 else {
                     const rw = rc.row;
-                    line += ` | room ${rc.ok ? "ok" : "NOT ok"} ` + (rc.expect === "placed"
-                        ? `${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
+                    line += ` | room ${rc.ok ? "ok" : "NOT ok"} ` + (rc.expect === "placed" || rc.expect === "flat"
+                        ? `${rc.expect === "flat" ? "flat " : ""}${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
                         : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
                             + (rw.over ? ` over ${rw.over.got}/${rw.over.control}` : "") : "unplaced")
                         + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
+                        + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top}`) : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
                     if (theme !== "legacy" && r.c && !r.stacked && rc.expect !== "placed") fails.push("room: a desk with glass reads unplaced");
+                    if (theme === "legacy" && !r.stacked && rc.expect !== "flat") fails.push(`room: a Legacy desk reads ${rc.expect}, not placed without a curtain`);
+                    /* THE PIN (E77 fix r1-M1, review round 1's O9). The place F chooses at this size, theme and role,
+                       as PINS records it: a change of F that moves a size to the other place is a red line here,
+                       not a silent one - drpgRoomCheck checks the place against F, and F against nothing. */
+                    const got = rc.expect === "row" ? "row" : rc.place ?? "-", pin = PINS[`${theme} ${role} ${size}`];
+                    line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
+                    if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
+                    if (!pin) unpinned++;
+                    if (control && !pinControlled.has(theme) && pin === "clock" && got === "clock") {
+                        pinControlled.add(theme);
+                        const v = await page.evaluate(plantPin, rc.F - rc.need + 40);
+                        console.log(`  pin control ${theme.padEnd(8)} ${v.got !== pin ? "sees it" : "MISSES IT"}: a clock ${v.px} px taller reads ${v.got} (F ${v.F}) where PINS has ${pin}`
+                            + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top}` : ""} ${String(v.check.why).slice(0, 110)}`);
+                        if (v.got === pin) fails.push("pin control reads as a pass");
+                        if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
+                    }
                     if (r.stacked) stackedRead = true;
                     if (r.stacked && rc.expect !== "row") fails.push("room: a stacked screen reads no row");
                     if (control && !rowControlled && rc.expect === "row") {
@@ -352,8 +418,8 @@ try {
                             if (!v.pass) fails.push(k === "desk" ? "the desk after the stack: " + v.why : "row control " + k + " reads as a pass");
                         }
                     }
-                    if (control && !roomControlled && rc.expect === "placed") {
-                        roomControlled = true;
+                    if (control && !roomControlled.has(rc.expect) && (rc.expect === "placed" || rc.expect === "flat")) {
+                        roomControlled.add(rc.expect);
                         const ctl = await page.evaluate(plantRoom);
                         for (const [k, v] of Object.entries(ctl)) {
                             console.log(`  room control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
@@ -393,7 +459,10 @@ try {
     }
 } finally { await browser.close(); srv?.kill(); }
 if (control && !controlled) { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
-if (control && rooms && !roomControlled) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
+if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
+if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
+if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }
+if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
