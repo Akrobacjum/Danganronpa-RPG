@@ -59,6 +59,16 @@ const BLOCKS = [
      to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
      `--drpg-note-w`, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
+  /* THE ROOM TILE IS NOT MEASURED EITHER (E77 C4, 13.10.2026; the A8 design's step 6). Its box is
+     `placeRoomTile`'s, chosen once a pass from the room the clock's column leaves and from no word
+     or picture of the room, so a new description, a new picture, a new room or the description
+     opened never recut the glass. It takes its band by its midpoint as every block does: at the
+     sweep's 15 desk sizes (audit/glass-sweep.mjs, 13.10.2026, both roles) that is the top band
+     under the clock and the bottom one beside the notices, every time, and the sweep's
+     `drpgRoomCheck` fails a size where it is not. It is `solid`: a fixed
+     block with something on it is painted as glass, not as the empty tile's stripes. No place
+     (no tile, a stacked screen - E77 C8's), no box, no pane. */
+  { cls: "room-block", sel: "#drpg-room-tile", fixed: true, solid: true, fallback: () => ROOM.box },
   { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
@@ -158,13 +168,16 @@ const NOTE_MAX = 360;
    in it, and the strip reserved four columns of glass beside two tiles ("za szeroka",
    Dawid). The tile gives up what a narrower strip is worth only while it keeps its floor;
    past that, the tools wrap as they did. */
-function fitNoteTile(H, railEnds, s) {
-  const body = document.body;
+function gaugeFoot(H, s) {
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
   /* The gauge only counts where it stands on the floor. In the glass harness it follows the
      rail down the column instead, and a foot read off that would put the tile mid-screen. */
-  const foot = g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+  return g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+}
+function fitNoteTile(H, railEnds, s) {
+  const body = document.body;
+  const foot = gaugeFoot(H, s);
   const tile = noteTile();
   const lean = Math.round(tile.w * s * 0.22);
   const roomUnder = end => (H - foot) - (end + 34 + 8 + lean);
@@ -176,6 +189,141 @@ function fitNoteTile(H, railEnds, s) {
   body.style.setProperty("--drpg-note-fit", h + "px");
   return { foot, h, lean, railEnd };
 }
+/* ---- the room tile's place (E77 C4, 13.10.2026; the A8 design's step 6, the owner's Q0, Q3, Q13) ----
+   Two places, chosen once a pass by the measured free height F and never by what the room says:
+   'clock' - a section of the clock's column, the clock's width and left edge, turning about the
+   same corner - when F leaves the smallest box; 'notes' - a column of its own in the bottom row,
+   right of the notice tile, its foot level with the tile's - when it does not. Every input is
+   read off something the tile does not move (the clock, Foundry's gauge, the notice tile's
+   width, the scene rail's own run), so the place a pass chooses is the place the next one
+   chooses, and the box comes from F, the width and the type scale - never from the content.
+
+   F IS THE DESIGN'S, LESS THE SCENE RAIL. The design measured F with the rail gone from the
+   column (E77 C5 takes it out): F = the lowest the column may end over the notice tile's floor
+   (`NOTE_MIN`, the lean of its pane and the rail's skirt, `fitNoteTile`'s `roomUnder`) less the
+   clock's bottom. Until C5 the rail still stands in the column under the clock, so its run and
+   the slot over it (the GM button's or a player's `GM_SLOT`, `GM_DROP`, the 12 px gap) come off
+   F as well: a tile that took that room would push the rail onto the notice tile's glass. The
+   design's readings (P8: F 491 at 1920x1080, 733 at 2560x1440, 195 at 1366x768) are therefore
+   not this file's until C5; audit/glass-sweep.mjs prints the ones it measures.
+
+   The smallest box and the tallest are the design's formula in the type scale's units (the
+   theme's floor of 21 px, a line of 1.3 of it, a heading of the name's 1.9 of it plus the tile's
+   own 18 px of padding): `need` = width / 3 + heading + 4 lines (the description's three and the
+   toggle's), `maxH` = width x 9 / 16 + heading + 7 lines. This is the one copy of it: the sheets
+   read `--drpg-room-h` and state no height of their own (R509). */
+const ROOM = { place: null, box: null };
+const ROOM_TAN = Math.tan(8 * Math.PI / 180);
+const ROOM_VARS = ["--drpg-room-h", "--drpg-room-w", "--drpg-room-x", "--drpg-room-y", "--drpg-room-min-h", "--drpg-room-max-h"];
+function roomSizes(w) {
+  const t = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
+  const line = 21 * t * 1.3, head = 21 * t * 1.9 + 18;
+  return { need: Math.round(w / 3 + head + 4 * line), maxH: Math.round(w * 9 / 16 + head + 7 * line) };
+}
+/* What the scene rail takes out of the clock's column under the tile: the slot over its first
+   tile and its layers' run, read off the layer buttons themselves (their run does not depend on
+   where the rail stands, so this is the same number whichever place the last pass chose). */
+function railRun() {
+  const menu = document.querySelector("#scene-controls > menu");
+  const own = menu ? [...menu.querySelectorAll("button.ui-control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0) : [];
+  if (!own.length) return 0;
+  const rs = own.map(e => e.getBoundingClientRect());
+  const run = Math.max(...rs.map(r => r.bottom)) - Math.min(...rs.map(r => r.top));
+  const gm = document.querySelector("#drpg-gm-launcher");
+  const slot = gm && gm.offsetWidth > 0 && gm.offsetHeight > 0 ? 4 + 16 + 20 + gm.getBoundingClientRect().height : GM_SLOT;
+  return Math.ceil(slot + GM_DROP + 12 + run);
+}
+/** The room tile's place and box for a W x H screen, from the measured F and the role (a GM's rail and button). */
+export function roomPlacement(W, H) {
+  const s = uiScale(), foot = gaugeFoot(H, s), noteW = noteTile().w * s;
+  const clock = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q))
+    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect());
+  const hud = clock[0] ?? null;
+  const maxEnd = H - foot - NOTE_MIN * s - 42 - Math.round(noteW * 0.22);
+  const F = hud ? Math.round(maxEnd - Math.max(...clock.map(r => r.bottom)) - railRun()) : null;
+  if (hud) {
+    const { need, maxH } = roomSizes(hud.width);
+    if (F - 24 >= need) return { place: "clock", F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(Math.min(F - 24, maxH)) };
+  }
+  const w = Math.round(noteW), { need, maxH } = roomSizes(w);
+  const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22));
+  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, x: Math.round(16 + noteW + 32 + h * ROOM_TAN), y: Math.round(H - foot - h), w, h };
+}
+/* ONCE A PASS, BEFORE THE RAIL IS PLACED: the rail is pushed down under whatever ends the clock's
+   column, and in the 'clock' place that is the tile. In 'notes' the tile goes to the body, as the
+   notice stack is (a scaled interface would put a fixed box inside it in the wrong pixels), and
+   stands over the curtain at the curtain's own index, later in the tree; back in 'clock' it is
+   put where room-tile.mjs `ensureRoomTile` puts it, which leaves a tile in the body alone. */
+function placeRoomTile(W, H) {
+  ROOM.place = ROOM.box = null;
+  const tile = document.getElementById("drpg-room-tile");
+  const p = tile && !narrowLayout() ? roomPlacement(W, H) : null;
+  seatRoomTile(tile, p);
+  LAST.room = p && { ...p };
+  if (!p) return;
+  ROOM.place = p.place;
+  /* Under the clock the tile's TOP is where the column lays it, read with the rotations off; its
+     width and height are the placement's, so nothing the room says reaches the box. */
+  const top = p.place === "clock" ? Math.round(tile.getBoundingClientRect().top) : p.y;
+  ROOM.box = { x: p.x, y: top, w: p.w, h: p.h };
+  LAST.room.box = { ...ROOM.box };
+}
+function seatRoomTile(tile, p) {
+  const body = document.body;
+  if (!p) {
+    ROOM_VARS.forEach(k => body.style.removeProperty(k));
+    if (tile) { if (tile.dataset.place) delete tile.dataset.place; tile.style.zIndex = ""; homeRoomTile(tile); }
+    return;
+  }
+  const vars = { "--drpg-room-h": p.h, "--drpg-room-w": p.w, "--drpg-room-x": p.x, "--drpg-room-y": p.y ?? 0, "--drpg-room-min-h": p.need, "--drpg-room-max-h": p.maxH };
+  for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v + "px");
+  if (tile.dataset.place !== p.place) tile.dataset.place = p.place;
+  if (p.place === "notes") {
+    if (tile.parentElement !== body) body.append(tile);
+    tile.style.zIndex = document.getElementById("drpg-curtain")?.style.zIndex ?? "";
+  } else { tile.style.zIndex = ""; homeRoomTile(tile); }
+}
+function homeRoomTile(tile) {
+  if (tile.parentElement !== document.body) return;
+  const hud = document.getElementById("drpg-hud");
+  if (!hud?.parentElement) return;
+  const floors = hud.nextElementSibling?.id === "drpg-floors" ? hud.nextElementSibling : null;
+  (floors ?? hud).after(tile);
+}
+/* THE PICTURE LIES ON THE TILE'S WHOLE PANE (the owner's Q13), not in the tile's box: the pane runs
+   past the box to the wall and leans with its column. room-tile.mjs draws the art layer inside the
+   tile; while the curtain stands with a pane cut for the tile, it is moved to the body, over the
+   curtain and under its glow at their own index (the seams' bloom runs over the picture's edges as
+   it does over every pane's; laid over the glow, the picture hid its own leading - 13.10.2026,
+   1920x1080) and under the interface, sized to the pane's bounds and clipped to its polygon.
+   Called after every new cut and after every paint of the tile (a paint builds a new layer, and
+   the old one in the body goes). With no pane it goes back into the tile. */
+export function seatRoomArt() {
+  const tile = document.getElementById("drpg-room-tile");
+  const fresh = tile?.querySelector(":scope > .drpg-room-tile-art") ?? null;
+  const loose = document.getElementById("drpg-room-art");
+  const cur = document.getElementById("drpg-curtain");
+  const pane = curtains.length && cur && LAST.room ? (LAST.panes || []).find(p => p.tone === "room-block") : null;
+  if (fresh && loose && fresh !== loose) loose.remove();
+  const art = fresh ?? loose;
+  if (!art) return;
+  if (!pane || !tile) {
+    if (!tile || !tile.contains(art)) {
+      art.removeAttribute("id");
+      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset"]) art.style.removeProperty(k);
+      if (tile) tile.prepend(art); else art.remove();
+    }
+    return;
+  }
+  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
+  art.id = "drpg-room-art";
+  art.classList.toggle("is-open", tile.classList.contains("is-open"));
+  const set = { position: "fixed", inset: "auto", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
+    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
+  for (const [k, v] of Object.entries(set)) art.style.setProperty(k, v);
+  if (cur.nextElementSibling !== art) cur.after(art);
+}
+const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...poly.map(q => q[1])), x1: Math.max(...poly.map(q => q[0])), y1: Math.max(...poly.map(q => q[1])) });
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip
@@ -701,6 +849,7 @@ function moduleLayout(W, H) {
      actually stand. */
   pinRightColumn();
   clearLaunchers();
+  placeRoomTile(W, H);
   /* THE LEFT RAIL STARTS UNDER THE MODULE'S OWN LEFT COLUMN, AND THAT IS A ONE-WAY READ.
      `#drpg-gm-launcher` is laid out over the top of `#scene-controls`, so with nothing done
      the first two tiles sit under the GM badge. The old `placeTiles` pushed the rail down
@@ -725,7 +874,9 @@ function moduleLayout(W, H) {
        first tiles sat 38 px under the clock's upright box - on its glass, across its seam
        ("rozjechane przyciski foundry u gracza", Dawid, 22.09). So a screen without the button
        keeps its slot: the button's own margin, height and the column gap it would have taken. */
-    const hudEl = document.querySelector("#drpg-hud");
+    /* Under the room tile when it stands under the clock (E77 C4): the slot is kept under
+       whatever ends the clock's column, which `roomPlacement` counted F against. */
+    const hudEl = document.querySelector(ROOM.place === "clock" ? "#drpg-room-tile" : "#drpg-hud");
     const gmEl = document.querySelector("#drpg-gm-launcher");
     const gmShown = Boolean(gmEl && gmEl.offsetWidth > 0 && gmEl.offsetHeight > 0);
     if (!gmShown && hudEl && hudEl.offsetHeight > 0) {
@@ -844,8 +995,10 @@ function moduleLayout(W, H) {
     }
     if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
     const box = r ? { ...r } : b.fallback(W, H, rects);
+    if (!box) return;                              // a fixed block with no place this pass (the room tile)
     rects[b.cls] = box;
-    out.push({ cls: b.cls, sel: b.sel, fixed: Boolean(b.fixed), x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
+    out.push({ cls: b.cls, sel: b.sel, fixed: Boolean(b.fixed), solid: Boolean(b.solid),
+      x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
   });
   LAST.blocks = out.map(b => ({ cls: b.cls, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), measured: Boolean(b.r), n: b.els.length }));
   return out;
@@ -941,7 +1094,7 @@ export function debugGlass() {
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
      means it was cut for something else, or the block moved after it was cut. */
   const live = {};
-  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-player-status", "#countdowns"]) {
+  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-room-tile", "#drpg-player-status", "#countdowns"]) {
     const r = document.querySelector(sel)?.getBoundingClientRect();
     if (r) live[sel] = [Math.round(r.left), Math.round(r.right), Math.round(r.width), Math.round(r.height), getComputedStyle(document.querySelector(sel)).transform === "none" ? "upright" : "tilted"];
   }
@@ -963,7 +1116,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      tablet screenshot shows behind the clock and the tray. The lift is small (a panel's
      pane must still read as the calmest thing on the screen) and it is paid for by the
      black layer in `paintGlass`, which is thinner over content than over filler. */
-  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", launch: "#0d0b16" };
+  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", launch: "#0d0b16" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
@@ -1455,10 +1608,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
       const pt = rot(0, Ydiv);
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
-      const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r; piece = below;
+      const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
     }
     c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
-    if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r;
+    if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r && !c.items[c.items.length - 1].solid;
   };
 
   /* filler between two rays of one band: a pencil of rays interpolated between the
@@ -2599,6 +2752,11 @@ function unmount() {
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on");
   document.body.removeAttribute("data-drpg-turning");
+  // the room tile back under the clock at the sheet's height, its picture back in it (E77 C4)
+  ROOM.place = ROOM.box = null; LAST.room = null;
+  seatRoomTile(document.getElementById("drpg-room-tile"), null);
+  seatRoomArt();
+  globalThis.Hooks?.callAll?.("drpgGlassCut", { room: null });
   document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
@@ -2849,6 +3007,14 @@ function rebuildAll() {
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
         morph(j, oldPanes, oldAcc, oldLook, oldGlow);
+        /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
+           its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
+           a new picture or the description opened recut nothing: a recolour of the same cut and
+           the fast path of an identical one fire nothing. */
+        if (!wasPainted || !check?.same) {
+          seatRoomArt();
+          globalThis.Hooks?.callAll?.("drpgGlassCut", { room: LAST.room ? { ...LAST.room } : null });
+        }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
   }

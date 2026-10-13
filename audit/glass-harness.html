@@ -11,7 +11,10 @@
      computes it); `?theme=legacy` the other theme; `?card=1` one notice card in the tile;
      `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 22 sizes in
      both themes and fails on any size that is not right (E81 fix r2-H3); `drpgNoticeCheck()` draws
-     the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2). -->
+     the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
+     The room tile stands under the clock as room-tile.mjs builds it, with a gradient for its picture,
+     and the clock has no room row (E77 C3); `?role=player` is a player's screen - no GM button, so the
+     rail keeps the button's slot - and `drpgRoomCheck()` reads where the curtain put the tile (E77 C4). -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -73,7 +76,10 @@
     <div class="drpg-hud-campaign is-long">DanganRPG: Safe Havens Bleed</div><div class="drpg-hud-chapter">Chapter 1 · Day 3</div>
     <div class="drpg-hud-phase"><span class="drpg-hud-phase-glyph drpg-pxi"></span>Daily Life</div>
     <div class="drpg-hud-time-row"><button class="drpg-hud-button">&lt;</button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button class="drpg-hud-button">&gt;</button></div>
-    <div class="drpg-hud-elapsed">43 min in</div><div class="drpg-hud-room">Dorm · no available project</div></div>
+    <div class="drpg-hud-elapsed">43 min in</div></div>
+  <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span></div><div class="drpg-hud-room-project">Available project</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
+
+A second paragraph.</p></section>
   <button id="drpg-gm-launcher"><i class="fa-solid fa-eye" inert></i><span>GM Panel</span></button>
   <div id="scene-controls"><menu id="scene-controls-layers"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu><menu id="scene-controls-tools"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu></div>
   <div id="players">Monokuma · 65 ms</div>
@@ -363,6 +369,137 @@
     return out;
   };
 </script>
+<script id="drpg-room-check">
+  /* WHERE THE CURTAIN PUT THE ROOM TILE, MEASURED IN A BROWSER (E77 C4, 13.10.2026; the E77 plan's 2.3, ledger V6-V10).
+     R508 reads the same inside Foundry and only there: headless there is no layout. Answers { ok, why, ... } as the two
+     checks above do, never a bare number:
+       expect   "placed" where the curtain is cut on a desk; "unplaced" under Monokuma Legacy, on a stacked screen
+                (E77 C8's) and where nothing is cut - there the tile has no `data-place` and its picture is inside
+                it, and on a desk it stands under the clock (a stacked screen's place for it is C8's to read).
+       place    'clock' or 'notes' as glass.mjs `placeRoomTile` stamped it, and it must be the one F chooses:
+                'clock' exactly when F - 24 >= need (LAST.room), and in the curtain's band its place names (the
+                top one under the clock, the bottom one beside the notices). F, need and maxH are printed by the sweep.
+       box      the tile as laid out, its turn taken off, against the placement's box (a pixel of slack): the box
+                is the placement's and nothing else's.
+       clock    under the clock: the tile's width and left edge are the clock's and so is its centre (dx), and both
+                turn by the same angle - one column; the scene rail's first tile below the tile's box (rail, px).
+       notes    beside the notices: the foot level with the notice tile's, the gap 32 + h x tan 8 deg off its edge,
+                and the corner of the history's button (A7) on no part of the room's pane.
+       art      the picture's layer in the body between the curtain and its glow, at the room pane's bounds,
+                clipped to its polygon, at the curtain's index; the tile itself without a plate.
+       cuts     a new description, a new name and the description opened, then a pass of the glass: no
+                `drpgGlassCut` and the pass found the same cut. THE CONTROL: the clock 40 px taller and a pass -
+                at least one `drpgGlassCut`; a count that cannot move would read the same as a pass. Then the
+                curtain's `--acc` changed and a pass: a recolour repaints the same cut and fires none.
+     The turn and the page are put back before it answers; `{ cuts: false }` leaves the cut alone. */
+  window.drpgRoomCheck = async ({ cuts = true } = {}) => {
+    const g = window.__glass, body = document.body, tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const settle = () => new Promise(r => setTimeout(r, 450));
+    const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+    const inside = (poly, x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k; } return k; };
+    const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
+    const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
+    const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
+    const out = { ok: false, why: [], expect: cut && !stacked ? "placed" : "unplaced", place: tile?.dataset.place ?? null,
+      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    if (!tile || !hud) { out.why.push("no room tile or no clock"); return done(); }
+    const room = g?.LAST?.room ?? null;
+    const own = tile.querySelector(":scope > .drpg-room-tile-art"), loose = document.getElementById("drpg-room-art");
+    if (out.expect === "unplaced") {
+      const prev = tile.previousElementSibling;
+      if (out.place || room) out.why.push(`placed (${out.place}) where nothing is cut for it`);
+      // a stacked screen moves the clock into the stack and leaves the tile where it was: its place there is E77 C8's
+      if (!stacked && prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
+      if (!own || loose) out.why.push("the picture is not inside the tile");
+      return done();
+    }
+    if (!room || !out.place) { out.why.push("the cut placed no tile"); return done(); }
+    // the curtain bands a block by its midpoint: under the clock the tile must fall in the top band, beside the notices in the bottom
+    if ((room.box.y + room.box.h / 2 < (at?.height ?? innerHeight) / 2) !== (out.place === "clock"))
+      out.why.push(`the tile's midpoint ${Math.round(room.box.y + room.box.h / 2)} puts it in the other band from its place`);
+    Object.assign(out, { F: room.F, need: room.need, maxH: room.maxH, box: room.box });
+    const chose = room.F != null && room.F - 24 >= room.need ? "clock" : "notes";
+    if (out.place !== chose || room.place !== chose) out.why.push(`place ${out.place} (LAST.room ${room.place}) where F ${room.F} and need ${room.need} choose ${chose}`);
+    const block = g.LAST.blocks.find(b => b.cls === "room-block"), note = g.LAST.blocks.find(b => b.cls === "note-block");
+    const pane = (g.LAST.panes || []).find(p => p.tone === "room-block");
+    if (!block) out.why.push("no room-block in LAST.blocks");
+    if (!pane) { out.why.push("no pane toned room-block"); return done(); }
+    if (pane.empty || pane.kind !== "section") out.why.push(`the room pane is ${pane.empty ? "painted empty" : pane.kind}`);
+    const turn = [tile, hud].map(e => getComputedStyle(e).transform);
+    const still = body.classList.contains("drpg-reduced-motion");
+    body.classList.add("drpg-reduced-motion");
+    for (const e of [tile, hud]) { e.style.setProperty("transition", "none", "important"); e.style.setProperty("transform", "none", "important"); }
+    const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+    /* The turn comes back with the transition still off and read once, or the clock and the tile
+       would ease back from upright and a screenshot taken next would show them upright. */
+    for (const e of [tile, hud]) { e.style.removeProperty("transform"); void getComputedStyle(e).transform; e.style.removeProperty("transition"); }
+    if (!still) body.classList.remove("drpg-reduced-motion");
+    const b = room.box, laid = { x: t.left - at.left, y: t.top - at.top, w: t.width, h: t.height };
+    if (!(near(laid.x, b.x) && near(laid.y, b.y) && near(laid.w, b.w) && near(laid.h, b.h)))
+      out.why.push(`the tile is laid out at ${[laid.x, laid.y, laid.w, laid.h].map(Math.round)} and placed at ${[b.x, b.y, b.w, b.h]}`);
+    if (out.place === "clock") {
+      out.clock = { w: [Math.round(t.width), Math.round(h.width)], left: [Math.round(t.left), Math.round(h.left)], dx: +((t.left + t.width / 2) - (h.left + h.width / 2)).toFixed(1), turn };
+      if (!near(t.width, h.width) || !near(t.left, h.left)) out.why.push(`not the clock's width and edge: ${out.clock.w} ${out.clock.left}`);
+      if (turn[0] !== turn[1]) out.why.push(`the tile turns ${turn[0]} and the clock ${turn[1]}`);
+      /* The scene rail is pushed under what ends the clock's column, which is now the tile: its first tile
+         stands below the tile's box, never on it (glass.mjs keeps a player's slot under the tile). */
+      const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
+      out.clock.rail = rail.length ? Math.round(Math.min(...rail.map(e => e.getBoundingClientRect().top)) - at.top - (b.y + b.h)) : null;
+      if (out.clock.rail !== null && out.clock.rail < 0) out.why.push(`the scene rail starts ${-out.clock.rail} px up inside the tile's box`);
+    } else {
+      const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
+      const lean = Math.tan(8 * Math.PI / 180);
+      out.notes = { foot: [Math.round(b.y + b.h), note ? note.y + note.h : null], gap: note ? +(b.x - (note.x + note.w)).toFixed(1) : null, want: +(32 + b.h * lean).toFixed(1), corner: null };
+      if (!note || !near(b.y + b.h, note.y + note.h, 1.5)) out.why.push(`the foot ${out.notes.foot[0]} is not the notice tile's ${out.notes.foot[1]}`);
+      if (out.notes.gap == null || !near(out.notes.gap, out.notes.want, 1.5)) out.why.push(`the gap ${out.notes.gap} off the notice tile is not ${out.notes.want}`);
+      if (!corner || !corner.width) out.why.push("no history button to keep free");
+      else {
+        const qs = [[corner.left, corner.top], [corner.right, corner.top], [corner.right, corner.bottom], [corner.left, corner.bottom]].map(([x, y]) => [x - at.left, y - at.top]);
+        out.notes.corner = qs.filter(q => inside(pane.poly, q[0], q[1])).length;
+        if (out.notes.corner) out.why.push(`${out.notes.corner} corner(s) of the history's button on the room's pane`);
+      }
+    }
+    const bg = getComputedStyle(tile).backgroundColor;
+    if (!/rgba\(.*,\s*0\)$|transparent/.test(bg)) out.why.push(`the tile keeps a plate (${bg})`);
+    const art = loose;
+    if (!art || own) out.why.push(own ? "the picture is still inside the tile" : "no picture layer in the body");
+    else {
+      const r = art.getBoundingClientRect(), cs = getComputedStyle(art), clip = cs.clipPath.match(/px/g)?.length ?? 0;
+      out.art = { box: [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top].map(Math.round), pane: [pane.x0, pane.y0, pane.x1, pane.y1], points: clip / 2,
+        z: [cs.zIndex, cur.style.zIndex], under: art.previousElementSibling?.id || art.previousElementSibling?.className || null, picture: cs.backgroundImage !== "none" };
+      if (out.art.box.some((v, i) => !near(v, out.art.pane[i], 1.5))) out.why.push(`the picture at ${out.art.box} and its pane at ${out.art.pane}`);
+      if (out.art.points !== pane.poly.length) out.why.push(`the picture is clipped to ${out.art.points} points, its pane has ${pane.poly.length}`);
+      if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !art.nextElementSibling?.classList.contains("curtain-glow")) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
+      if (!out.art.picture) out.why.push("the picture's layer has no picture");
+    }
+    if (cuts) {
+      let n = 0; const count = () => { n++; };
+      Hooks.on("drpgGlassCut", count);
+      const name = tile.querySelector(".drpg-room-tile-name"), prose = tile.querySelector(".drpg-room-tile-prose");
+      const was = [name.textContent, prose.textContent, prose.hidden, tile.classList.contains("is-open")];
+      const pass = async () => { g.refreshGlass(); await frame(); await settle(); };
+      name.textContent = "A room with a much longer name than any";
+      prose.textContent = "Words. ".repeat(400); prose.hidden = false; tile.classList.add("is-open");
+      await pass();
+      out.cuts = { content: n, same: Boolean(g.CHECKS.at(-1)?.same), control: null };
+      const row = document.createElement("div"); row.style.height = "40px"; hud.append(row);
+      await pass();
+      out.cuts.control = n - out.cuts.content;
+      row.remove(); [name.textContent, prose.textContent, prose.hidden] = was; tile.classList.toggle("is-open", was[3]);
+      await pass();
+      // a recolour of the same cut repaints the curtain and is not a cut either (the state's colour, `--acc`)
+      const k = n; cur.style.setProperty("--acc", "#ff2050"); await pass();
+      out.cuts.recolour = n - k; cur.style.removeProperty("--acc"); await pass();
+      Hooks.off("drpgGlassCut", count);
+      if (out.cuts.content || !out.cuts.same) out.why.push(`a new description and the description opened recut the glass (${out.cuts.content} cut(s), same ${out.cuts.same})`);
+      if (out.cuts.control < 1) out.why.push("control: a taller clock fired no drpgGlassCut - the count cannot see a cut");
+      if (out.cuts.recolour) out.why.push(`a recolour of the same cut fired ${out.cuts.recolour} drpgGlassCut`);
+    }
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
@@ -371,8 +508,14 @@
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   const defaults = { theme: "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
-  globalThis.Hooks = { on() {}, once() {}, callAll() {} };
-  globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], settings: new Map() }, user: { isGM: true } };
+  /* A registry rather than three no-ops since E77 C4: `drpgRoomCheck` counts glass.mjs's `drpgGlassCut`. */
+  const hooks = new Map();
+  globalThis.Hooks = { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },
+    once(name, fn) { return this.on(name, fn); }, off(name, fn) { hooks.set(name, (hooks.get(name) ?? []).filter(f => f !== fn)); },
+    callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
+  const player = q.get("role") === "player";
+  if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.remove("drpg-gm"); }
+  globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], settings: new Map() }, user: { isGM: !player } };
   globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;

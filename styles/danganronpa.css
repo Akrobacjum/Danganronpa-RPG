@@ -12742,7 +12742,14 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     background: linear-gradient(to top, rgba(var(--drpg-deep-rgb), 0.88), rgba(var(--drpg-deep-rgb), 0.8) 33%,
         rgba(var(--drpg-deep-rgb), 0.55) 66%, rgba(var(--drpg-deep-rgb), 0.35));
 }
-.drpg-room-tile.is-open .drpg-room-tile-art::after { opacity: 1; }
+.drpg-room-tile.is-open .drpg-room-tile-art::after,
+#drpg-room-art.is-open::after { opacity: 1; }
+/* Laid on its pane over the curtain (glass.mjs `seatRoomArt`), the layer keeps a layer of its own.
+   Without one, the description's shade fading in and out under the layer's clip-path left Chromium
+   painting parts of the picture past the polygon as an upright rectangle, in 256 px bands
+   (13.10.2026, the glass harness at 1920x1080: the computed clip-path read the pane's four points,
+   the screenshot did not; with `will-change: transform`, or with the fade off, it was clean). */
+#drpg-room-art { will-change: transform; }
 
 /* The picture's button lies over the whole tile and under everything written on it. */
 .drpg-room-tile-open {

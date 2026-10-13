@@ -44,6 +44,15 @@
  * history's button or its unread badge (P8, P7). Its `why` is printed. R299 reads the same inside Foundry only.
  * `--no-notices` leaves it out.
  *
+ * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
+ * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
+ * nothing is cut for it, or unplaced on a desk with glass; a place F does not choose; the tile laid out off the box
+ * it was placed at; under the clock, not the clock's width, edge or turn; beside the notices, the foot off the notice
+ * tile's, the gap not 32 + h x tan 8 deg, a corner of the history's button on the room's pane; the picture not on the
+ * room's pane over the curtain; a new description or the description opened firing `drpgGlassCut` - and a taller clock
+ * firing none, which is that count's own control. At the first placed size two more controls: the place stamp
+ * swapped without a pass, and the tile taken out - each must read as not ok. `--no-room` leaves it out.
+ *
  * KNOWN: 1280x720 edgeGaps 16 is the reading glass.mjs explains ("WHAT THE SKIP LEAVES BARE",
  * E81 C14) - the strip's 160 px skip leaves the wall bare there - and is the default `--known`;
  * any other value at that size still fails. `--known ""` drops it.
@@ -51,7 +60,7 @@
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
- *          [--chromium <executable>] [--no-control] [--no-notices]
+ *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -70,6 +79,7 @@ const themes = (opt("--themes") ?? "stained,legacy").split(",").filter(Boolean);
 const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
+const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const known = Object.fromEntries((opt("--known") ?? "1280x720:eg=16").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
@@ -154,10 +164,31 @@ function plant(sel) {
     return res;
 }
 
-let bad = 0, glassSizes = 0, controlled = false;
+/* Runs in the page: the room check's two planted faults, each read at once and put back. */
+async function plantRoom() {
+    const tile = document.getElementById("drpg-room-tile"), res = {};
+    {   // swapped: the stamp names the other place and no pass has run
+        const was = tile.dataset.place;
+        tile.dataset.place = was === "clock" ? "notes" : "clock";
+        const r = await window.drpgRoomCheck({ cuts: false });
+        tile.dataset.place = was;
+        res.swapped = { ok: r.ok, why: r.why, pass: !r.ok && /place/.test(r.why) };
+    }
+    {   // removed
+        const parent = tile.parentNode, next = tile.nextSibling;
+        tile.remove();
+        const r = await window.drpgRoomCheck({ cuts: false });
+        parent.insertBefore(tile, next);
+        res.removed = { ok: r.ok, why: r.why, pass: !r.ok && /no room tile/.test(r.why) };
+    }
+    return res;
+}
+
+let bad = 0, glassSizes = 0, controlled = false, roomControlled = false;
 try {
-    for (const theme of themes) {
-        const query = theme === "legacy" ? (page0.includes("?") ? "&" : "?") + "theme=legacy" : "";
+    for (const theme of themes) for (const role of roles) {
+        const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
+        const query = qs.length ? (page0.includes("?") ? "&" : "?") + qs.join("&") : "";
         for (const size of SIZES) {
             const [W, H] = size.split("x").map(Number);
             const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: corner ? 2 : 1 });
@@ -173,7 +204,7 @@ try {
                          tile: !!document.getElementById("drpg-notices-corner"), stacked: document.body.classList.contains("drpg-stacked"),
                          report: g?.glassReport?.() ?? "" };
             }, sel);
-            let line = `${theme.padEnd(7)} ${size.padEnd(10)}` + (r.stacked ? " stacked" : " desk   ");
+            let line = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(10)}` + (r.stacked ? " stacked" : " desk   ");
             const fails = [];
             if (!r.has) fails.push("the page defines no drpgLaunchOutside");
             else if (!r.c) {
@@ -222,12 +253,32 @@ try {
                     if (!n.ok) fails.push("notices: " + n.why);
                 }
             }
+            if (rooms) {
+                const rc = await page.evaluate(() => window.drpgRoomCheck?.() ?? null);
+                if (!rc) fails.push("the page defines no drpgRoomCheck");
+                else {
+                    line += ` | room ${rc.ok ? "ok" : "NOT ok"} ` + (rc.expect === "placed"
+                        ? `${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}` : "unplaced")
+                        + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
+                        + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
+                    if (!rc.ok) fails.push("room: " + rc.why);
+                    if (theme !== "legacy" && r.c && !r.stacked && rc.expect !== "placed") fails.push("room: a desk with glass reads unplaced");
+                    if (control && !roomControlled && rc.expect === "placed") {
+                        roomControlled = true;
+                        const ctl = await page.evaluate(plantRoom);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  room control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("room control " + k + " reads as a pass");
+                        }
+                    }
+                }
+            }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
             if (fails.length) { bad++; line += "  FAIL: " + fails.join("; "); }
             console.log(line);
             if (shots) {
-                const file = `${shots}/${theme}-${size}${corner ? "-corner" : ""}.png`;
+                const file = `${shots}/${theme}-${role}-${size}${corner ? "-corner" : ""}.png`;
                 await page.screenshot(corner ? { path: file, clip: { x: W - 200, y: H - 230, width: 200, height: 230 } } : { path: file });
             }
             await page.close();
@@ -235,5 +286,6 @@ try {
     }
 } finally { await browser.close(); srv?.kill(); }
 if (control && !controlled) { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
-console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
+if (control && rooms && !roomControlled) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
+console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);

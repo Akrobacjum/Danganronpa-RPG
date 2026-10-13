@@ -9047,7 +9047,7 @@ const REGRESSIONS = [
             + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
 
-    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows", async () => {
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
          * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
@@ -9068,6 +9068,14 @@ const REGRESSIONS = [
          * tooltip takes an empty one's `aria-label` through the client's `cleanHTML`, the E02-D01 hole; the tile's
          * tooltips are `dataset.tooltipText`); and hud.mjs names `buildRoom` and `buildSearchPips` no more (the
          * clock's room rows moved to the tile). The fixture is read again with each of the five planted.
+         * E77 C4 (13.10.2026) adds the one formula: the tile's place and box are glass.mjs `roomPlacement`'s, from the
+         * measured F, the clock's width and the type scale, and glass.mjs is the one source that writes the variables
+         * the sheets size the tile by (`--drpg-room-h`, -w, -x, -y, -min-h, -max-h). Read with comments blanked: glass.mjs
+         * exports `roomPlacement` and names "--drpg-room-h"; no other source of the module names a `--drpg-room-` variable
+         * of the six or defines `roomPlacement` or `roomSizes`; no stylesheet declares one of the six (a `var()` that
+         * reads it, with a fallback for Monokuma Legacy, is a reader, not a second copy). A second formula is how a
+         * height that "fits the description" would come back, and with it a recut on every new description. The fixture
+         * is read again with the export gone, a second writer in room-tile.mjs and a sheet declaring the height.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
         const shape = files => {
@@ -9106,8 +9114,31 @@ const REGRESSIONS = [
             ...Array(4).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
         "the reader does not read its fixture whole, or does not miss the GM's gate taken off, a second reader of the student, the GM's words "
             + "drawn as markup four ways, or the clock's room rows put back");
+        const VARS = /--drpg-room-(?:h|w|x|y|min-h|max-h)\b/;
+        const formula = (scripts, sheets) => [
+            /\bexport function roomPlacement\(/.test(scripts.get("glass.mjs") ?? "") && /"--drpg-room-h"/.test(scripts.get("glass.mjs") ?? ""),
+            [...scripts].filter(([file, text]) => file !== "glass.mjs" && (VARS.test(text) || /\bfunction (?:roomPlacement|roomSizes)\b/.test(text))).map(([file]) => file),
+            [...sheets].filter(([, text]) => new RegExp(VARS.source + "\\s*:").test(text)).map(([file]) => file)
+        ];
+        const GLASS = "export function roomPlacement(W, H) {\n  return { place: \"notes\" };\n}\nfunction seatRoomTile(tile, p) {\n"
+            + "  document.body.style.setProperty(\"--drpg-room-h\", p.h + \"px\");\n}\n";
+        const TILE = "export function paintRoomTile(tile, view) {\n    tile.replaceChildren();\n}\n";
+        const SHEET = "#drpg-room-tile {\n    height: var(--drpg-room-h, 250px);\n}\n";
+        const scriptsOf = (glass, tile) => new Map([["glass.mjs", glass], ["room-tile.mjs", tile]]);
+        equal(JSON.stringify([formula(scriptsOf(GLASS, TILE), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS.replace("export function roomPlacement", "function roomPlacement"), TILE), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS, TILE.replace("tile.replaceChildren();", "tile.style.setProperty(\"--drpg-room-h\", tile.scrollHeight + \"px\");")), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS, TILE), new Map([["danganronpa.css", SHEET], ["stained-glass.css", "body { --drpg-room-h: 300px; }\n"]]))]),
+        JSON.stringify([[true, [], []], [false, [], []], [true, ["room-tile.mjs"], []], [true, [], ["stained-glass.css"]]]),
+        "the formula reader does not read its fixture whole, or does not miss the export gone, a second writer of the height or a sheet declaring it");
         const sources = new Map(await otherSources());
         must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
+        const sheets = new Map();
+        for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"])
+            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""))));
+        must([...sheets.values()].every(text => text.length > 1000), "a stylesheet did not load - this would measure nothing");
+        equal(JSON.stringify(formula(new Map([...sources].map(([file, text]) => [file, stripComments(text)])), sheets)), JSON.stringify([true, [], []]),
+            "[glass.mjs exports roomPlacement and writes --drpg-room-h; the other sources naming a room variable or a second formula; the sheets declaring one]");
         const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
         const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
         equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, [], true, true], []]),

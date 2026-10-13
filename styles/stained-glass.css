@@ -443,7 +443,8 @@ body.drpg-curtain-on #drpg-hud,
 body.drpg-curtain-on #drpg-despair,
 body.drpg-curtain-on #drpg-events,
 body.drpg-curtain-on #drpg-player-status,
-body.drpg-curtain-on #countdowns {
+body.drpg-curtain-on #countdowns,
+body.drpg-curtain-on #drpg-room-tile[data-place] {
     background: transparent !important;
     border-color: transparent !important;
     box-shadow: none !important;
@@ -1033,6 +1034,7 @@ body.drpg-theme-stained-glass[data-drpg-turning] :is(.drpg-panel .window-header,
 body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #sidebar-tabs,
 body.drpg-theme-stained-glass #drpg-hud,
+body.drpg-theme-stained-glass #drpg-room-tile,
 body.drpg-theme-stained-glass #drpg-gm-launcher,
 body.drpg-theme-stained-glass #drpg-despair,
 body.drpg-theme-stained-glass #drpg-events,
@@ -1115,13 +1117,30 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed {
    (room-tile.mjs). The state's colour reaches it as on the clock: the name on a brush stroke in
    `--drpg-glass-accent` with ink on it (the phase stamp's pairing), the pips, the project line and
    the toggle's edge. The stroke is a copy of the brush's declarations above rather than a member
-   of that list, whose `--brush-on` is 0 until a hover: the name's stroke is always on. Until the
-   curtain cuts a pane for the tile (E77 C4) it carries its own dark glass. */
+   of that list, whose `--brush-on` is 0 until a hover: the name's stroke is always on. Where the
+   curtain has cut no pane for the tile (a stacked screen until E77 C8) it carries its own dark
+   glass; where it has (`data-place`, E77 C4), the plate comes off with the other blocks' above. */
 body.drpg-theme-stained-glass #drpg-room-tile {
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
     border-radius: 0;
     background: rgba(7, 7, 10, 0.72);
     color: var(--drpg-sg-bone);
+}
+/* ITS TWO PLACES ARE glass.mjs's (`placeRoomTile`, E77 C4, 13.10.2026), and the sheet states only
+   what the pass wrote: under the clock, the clock's width and left edge, not the column's (the
+   column is as wide as its widest child); beside the notice tile, a fixed box in the body at the
+   pass's corner. The height is `--drpg-room-h` in both, and the base sheet's. */
+body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-room-tile[data-place="clock"] {
+    align-self: flex-start;
+    width: var(--drpg-room-w);
+    max-width: none;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
+    position: fixed;
+    left: var(--drpg-room-x);
+    top: var(--drpg-room-y);
+    width: var(--drpg-room-w);
+    margin: 0;
 }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
@@ -2017,11 +2036,11 @@ body.drpg-theme-stained-glass .drpg-tb-badge.type.final { background: var(--drpg
    Font Awesome is exempt and must be: its own class rules pick the glyph WITH the weight
    (900 solid, 400 regular), so an `i` that loses its weight loses its icon. The selector
    therefore never names an icon element, and an icon's weight comes from its own rule. */
-body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #drpg-events,
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #drpg-player-status, #drpg-events,
     #countdowns, #drpg-popups, #drpg-gm-launcher, #drpg-messenger-launcher,
     #drpg-sound-launcher, #pause, .drpg-panel, .drpg-popup, .drpg-messenger,
     .character-header-sheet, .character-sidebar-sheet),
-body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #drpg-events,
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #drpg-player-status, #drpg-events,
     #countdowns, #drpg-popups, #drpg-gm-launcher, #pause, .drpg-panel, .drpg-popup,
     .drpg-messenger, .character-header-sheet, .character-sidebar-sheet) *:not(i):not([class*="fa-"]) {
     font-weight: 400;
@@ -2709,6 +2728,7 @@ body.drpg-theme-stained-glass #ui-right-column-1[data-drpg-pinned="1"] { transit
 body[data-drpg-measuring] #scene-controls,
 body[data-drpg-measuring] #sidebar-tabs,
 body[data-drpg-measuring] #drpg-hud,
+body[data-drpg-measuring] #drpg-room-tile,
 body[data-drpg-measuring] #drpg-gm-launcher,
 body[data-drpg-measuring] #drpg-despair,
 body[data-drpg-measuring] #drpg-events,
@@ -3184,9 +3204,9 @@ body.drpg-theme-stained-glass #drpg-hud {
 #drpg-curtain > canvas.ghost { z-index: 3; pointer-events: none; }
 #drpg-curtain > canvas.morph { z-index: 4; pointer-events: none; }
 /* form controls inside the module's surfaces: a bare `button` falls to the browser's own face */
-body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
     .drpg-panel, .drpg-popup, .drpg-messenger, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-gm-launcher, #players),
-body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
     .drpg-panel, .drpg-popup, .drpg-messenger, #players) :is(button, input, select, textarea, output, a):not([class*="fa-"]) {
     font-family: var(--drpg-font-chrome);
 }

@@ -48,6 +48,7 @@ import { roomDescription, roomImage, safeRoomImage } from "./vault.mjs";
 // Both were hud.mjs's for the clock's room rows and moved with them (E77 C3); neither reaches this file back.
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
+import { seatRoomArt } from "./glass.mjs";
 import { error } from "./utils.mjs";
 
 const TILE_ID = "drpg-room-tile";
@@ -150,6 +151,9 @@ export function ensureRoomTile() {
         tile.setAttribute("role", "region");
         tile.setAttribute("aria-label", game.i18n.localize("DRPG.Room.tileLabel"));
     }
+    /* Beside the notice tile glass.mjs has moved it to the body (E77 C4, `placeRoomTile`), and it
+       stays there until the next pass of the curtain puts it back under the clock. */
+    if (tile.dataset.place === "notes" && tile.parentElement === document.body) return tile;
     const hud = document.getElementById("drpg-hud");
     if (hud?.parentElement) {
         const floors = hud.nextElementSibling?.id === "drpg-floors" ? hud.nextElementSibling : null;
@@ -183,6 +187,10 @@ export function paintRoomTile(tile, view = tileView()) {
     const open = Boolean(view.description) && last?.room === view.room && last?.sceneId === view.sceneId
         && tile.classList.contains("is-open");
     painted.set(tile, { key, room: view.room, sceneId: view.sceneId });
+    /* The last paint's picture, if the curtain had laid it on the tile's pane (E77 C4, glass.mjs
+       `seatRoomArt`) - only for the tile on the screen: R504 paints loose tiles of its own. */
+    const live = tile.id === TILE_ID;
+    if (live) document.getElementById("drpg-room-art")?.remove();
 
     tile.dataset.state = view.state;
     tile.classList.toggle("is-open", open);
@@ -234,12 +242,15 @@ export function paintRoomTile(tile, view = tileView()) {
 
     tile.replaceChildren(...parts);
     openProse(tile, open);
+    if (live) seatRoomArt();
     return true;
 }
 
 /** The toggle's three facts and the description's visibility, without a repaint. */
 function openProse(tile, open) {
     tile.classList.toggle("is-open", open);
+    // the picture's darker gradient, where the curtain has moved the picture onto the pane (E77 C4)
+    if (tile.id === TILE_ID) document.getElementById("drpg-room-art")?.classList.toggle("is-open", open);
     const more = tile.querySelector(".drpg-room-tile-more");
     const prose = tile.querySelector(".drpg-room-tile-prose");
     if (more) {
