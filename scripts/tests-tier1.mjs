@@ -10416,9 +10416,11 @@ const INVARIANTS = [
     ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
-         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room) and scenario 74 the
-         * states this suite cannot make read-only (a trial, an Eclipse, a death, a Monocub). Two halves, both read,
-         * nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
+         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room). The states this suite
+         * cannot make read-only - an Eclipse, a death, a Monocub, a Class Trial, a room on another floor and a token on
+         * a scene its viewer is not looking at - are scenario 74's phase H, which reads each on a player's tile beside
+         * its viewerRoom (E77 fix r1-G3; until then this comment said 74 covered four of them, and 74 read none). Two
+         * halves, both read, nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
          * Kitchen of two room pieces of which only the second carries words and a picture, a region named Kitchen
          * that is no room (listed first, with words of its own - a reader over every region of the name would
          * answer them), a Hall, a Pantry whose picture is `javascript:`, a Cellar nobody drew, and a second scene

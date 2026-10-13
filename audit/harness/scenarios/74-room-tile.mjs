@@ -21,19 +21,35 @@
  *     settles them, when every player owns every student and when p1 owns Botan beside p2 - p1 settles both - and a
  *     refused route p1 judges paints nothing of its room on p2's tile, nor does a drag begun before the last route
  *     was quiet; then a put-back of p1's that never lands, and the GM's next move of Aiko, which p1's tile follows.
+ *   H (the states that are no gate, E77 fix r1-G3): in an Eclipse p1's tile keeps Aiko's room and follows her
+ *     Eclipse crossing; dead it keeps the room her body lies in, and as a Monocub follows her walk; in a Class Trial
+ *     every tile is the trial's while each viewer still stands in a school room; and p4's character, on a scene of
+ *     two floors, is shown in the room of its token's floor, not of the floor p4's canvas shows, and of its token's
+ *     scene, not of the scene p4 looks at.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
- * tile, the gradient, its height) needs layout and is not read here; the trial's empty pane and a GM without a
- * Monokuma are painted on boxes by R504 (a trial is not started here).
+ * tile, the gradient, its height) needs layout and is not read here; a GM without a Monokuma is painted on a box by
+ * R504.
+ *
+ * THE CUT IS NOT READ HERE (E77 fix r1-G3, 13.10.2026; review round 1 goal 6). The E77 plan's 2.2 gave E77 C4 a
+ * phase of this scenario reading that a new description, its expansion and a change of room fire no `drpgGlassCut`.
+ * Read on p1 by a probe run once after phase H and not kept (13.10.2026): the harness's 1024x768 page is a stacked screen (the body's
+ * `drpg-stacked`), its curtain is never painted (no `drpg-curtain-on`, glass.mjs `LAST.panes` empty, `LAST.room`
+ * null), `roomPlacement` answers 'notes' with F null because no element has a size in jsdom, and `refreshGlass`
+ * fired no `drpgGlassCut` - nor did it after the clock was made 40 px taller, the control that must cut. A count here
+ * would read 0 whatever the tile did, so the cut is measured in Chromium instead: audit/glass-sweep.mjs at its sizes
+ * and both themes (`drpgRoomCheck`, audit/glass-harness.html), and R508's clause of the same reading with the same
+ * control, which is skipped headless (`env.layout`). The plan's letter C went to fix r1-G2's phase.
  */
 export const layers = ["ci"];
 /* Measured alone on 13.10.2026 (E77 C3's phases A and B, once, under the harness lock): 19.8 s from the cluster's start
    to its end by the results file, the checks 15.8 s of it. 60 s is three times that, as 73 keeps; E77's later phases here
    (the curtain's cut) raise it with a reading of their own. E77 fix r1-G2's phase C (each crossing waits out the quiet
    of 1.5 s on a browser that does not settle it) took the scenario to 10 checks in 41.5 s, one run of the side fix
-   line's fast set on 13.10.2026; three times that is 125 s. */
-export const timeoutMs = 125000;
+   line's fast set on 13.10.2026; three times that is 125 s. E77 fix r1-G3's phase H took it to 14 checks in 52.0 s, one
+   run alone under the lane-A lock beside two other lanes' scenarios on 13.10.2026; three times that is 156 s. */
+export const timeoutMs = 156000;
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
 
 const MOD = "danganronpa-rpg";
@@ -347,6 +363,120 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         && movedC.token === "Hall" && movedC.viewer === "Hall" && movedC.tile === "Hall",
     J({ stuckC, lostC, movedC }));
 
+    /* ------------------------------ H. the states that are no gate ------------------------------ */
+    phase("H: an Eclipse, a death, a Monocub, a Class Trial and a room on another floor, each on the viewer's own tile");
+    /* E77 fix r1-G3 (13.10.2026; review round 1 cor F5, sec F3, O5, goal 5). room-tile.mjs `viewerRoom` gates a Class
+       Trial, no viewer and no room, and nothing else, by design (the A8 design's step 2, P2-0): in an Eclipse the
+       character still stands where they stand, a body lies in its room, a Monocub walks with its token, and the room is
+       the one on the token's own floor and scene, never the camera's. Until this phase nothing read any of them on a
+       screen - R504 paints the tile's own states on loose boxes and reads viewerRoom only as the suite's world stands - and R504's
+       comment said this scenario did. Each reading below is p1's tile (or p4's) beside its own `viewerRoom()`, after a
+       positive control on the same tile, and a paint is counted as in A. Aiko is put back in Dorm A by the GM first. */
+    const VIEW = `${TILE} ${UNTIL} const T = await import("${repoUrl}/scripts/room-tile.mjs");
+        const seen = async (test, ms = 5000) => { await until(test, ms); const s = read(), v = T.viewerRoom();
+            return { state: s?.state ?? null, name: s?.name ?? null, view: [v.state, v.room], painted: take() }; };`;
+    const AIKO = `${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}"),
+        t = academy.tokens.get("TOKAIKO000000000");`;
+    const SLEEP = ms => `await new Promise(r => setTimeout(r, ${ms}));`;
+    const setH = await gm.eval(`${AIKO} globalThis.__s74.clock = foundry.utils.deepClone(game.drpg.getClock());
+        await t.update(M.positionIn("Dorm A", t), ${MOVE}); ${SLEEP(1000)} return M.roomOfToken(t);`, { timeout: 30000 });
+    await p1.eval(`${TILE} return watch();`);
+    /* The Eclipse, started and ended by the GM's own call (eclipse.mjs `startEclipse`, `endEclipse`); inside it p1 takes
+       Aiko from Dorm A into the Porch, the crossing B paid for, now judged as an Eclipse crossing through the GM. */
+    const eclipseH = { set: setH, home: await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`) };
+    eclipseH.start = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const started = Boolean(await E.startEclipse()); ${SLEEP(1200)} return [started, E.isEclipse()];`, { timeout: 30000 });
+    eclipseH.during = await p1.eval(`${VIEW} return seen(() => false, 0);`);
+    eclipseH.cross = await p1.eval(`${AIKO} ${VIEW} await t.update({ x: 900, y: 300 });
+        return { ...await seen(() => read()?.name === "74 Porch"), token: M.roomOfToken(t) };`, { timeout: 30000 });
+    eclipseH.end = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        await E.endEclipse({ advance: false }); ${SLEEP(1000)} return E.isEclipse();`, { timeout: 30000 });
+    check("H1: in an Eclipse p1's tile keeps Aiko's own Dorm A, unpainted, and follows her Eclipse crossing into the Porch, painted once",
+        eclipseH.set === "Dorm A" && J(eclipseH.home.view) === J(["room", "Dorm A"]) && eclipseH.home.name === "Dorm A"
+        && J(eclipseH.start) === J([true, true]) && eclipseH.during.state === "room" && eclipseH.during.name === "Dorm A"
+        && J(eclipseH.during.view) === J(["room", "Dorm A"]) && J(eclipseH.during.painted) === "[]"
+        && eclipseH.cross.token === "74 Porch" && eclipseH.cross.name === "74 Porch" && J(eclipseH.cross.view) === J(["room", "74 Porch"])
+        && J(eclipseH.cross.painted) === J(["74 Porch"]) && eclipseH.end === false,
+    J(eclipseH));
+
+    /* Aiko marked dead where she stands (chapter.mjs `markDeceased`), then made a Monocub (monocub.mjs `setMonocub`, which
+       asks for the dead) with actions to walk on, and p1 takes her back into Dorm A; then alive again. */
+    const deadH = { set: await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        await C.markDeceased(aiko); ${SLEEP(1200)} return [game.drpg.isDeadForGm(aiko), M.roomOfToken(t)];`, { timeout: 30000 }) };
+    deadH.body = await p1.eval(`${VIEW} return seen(() => false, 0);`);
+    deadH.cub = await gm.eval(`${AIKO} const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const made = Boolean(await Mc.setMonocub(aiko, true)); await game.drpg.setActions(aiko, 3); ${SLEEP(1200)} return [made, Mc.isMonocub(aiko)];`,
+    { timeout: 30000 });
+    deadH.cubTile = await p1.eval(`${VIEW} return seen(() => false, 0);`);
+    deadH.cross = await p1.eval(`${AIKO} ${VIEW} await t.update(M.positionIn("Dorm A", t));
+        return { ...await seen(() => read()?.name === "Dorm A"), token: M.roomOfToken(t) };`, { timeout: 30000 });
+    deadH.back = await gm.eval(`${AIKO} const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        await Mc.setMonocub(aiko, false); await C.reviveCharacter(aiko, { quiet: true }); ${SLEEP(800)}
+        return [game.drpg.isDeadForGm(aiko), Mc.isMonocub(aiko)];`, { timeout: 30000 });
+    check("H2: dead, p1's tile keeps the Porch her body lies in, unpainted; a Monocub, the same, and it follows her walk into Dorm A, "
+        + "painted once",
+    J(deadH.set) === J([true, "74 Porch"]) && deadH.body.state === "room" && deadH.body.name === "74 Porch"
+        && J(deadH.body.view) === J(["room", "74 Porch"]) && J(deadH.body.painted) === "[]"
+        && J(deadH.cub) === J([true, true]) && deadH.cubTile.name === "74 Porch" && J(deadH.cubTile.view) === J(["room", "74 Porch"])
+        && J(deadH.cubTile.painted) === "[]" && deadH.cross.token === "Dorm A" && deadH.cross.name === "Dorm A"
+        && J(deadH.cross.view) === J(["room", "Dorm A"]) && J(deadH.cross.painted) === J(["Dorm A"]) && J(deadH.back) === J([false, false]),
+    J(deadH));
+
+    /* A Class Trial opened as 01-runtests and 10 open one (`setClock({ phase: "classTrial" })`; no hall is linked in this
+       world, so nobody's token moves), read on all three tiles beside the room `locateActor` still finds for each viewer;
+       then the clock as it was before this phase. */
+    const trialH = { set: await gm.eval(`await game.drpg.setClock({ phase: "classTrial" }); ${SLEEP(1200)} return game.drpg.getClock().phase;`,
+        { timeout: 30000 }) };
+    const TRIAL = `${VIEW} const H = await import("${repoUrl}/scripts/hud.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        return { ...await seen(() => read()?.state === "trial"), located: M.locateActor(H.viewerActor())?.room ?? null };`;
+    for (const [who, c] of [["p1", p1], ["p2", p2], ["gm", gm]]) trialH[who] = await c.eval(TRIAL);
+    trialH.end = await gm.eval(`await game.drpg.setClock(globalThis.__s74.clock); ${SLEEP(1200)} return game.drpg.getClock().phase;`, { timeout: 30000 });
+    trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`);
+    check("H3: in a Class Trial every tile - p1's, p2's and the GM's - is the trial's, painted once, though each viewer still stands in a "
+        + "school room; after it p1's tile is Dorm A again",
+    trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "trial" && J(trialH[who].view) === J(["trial", null]))
+        && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["Dorm A", "74 Shed", "Hall"])
+        && J(trialH.p1.painted) === J([null]) && trialH.end !== "classTrial"
+        && trialH.after.name === "Dorm A" && J(trialH.after.view) === J(["room", "Dorm A"]) && J(trialH.after.painted) === J(["Dorm A"]),
+    J(trialH));
+
+    /* p4 gets a character of its own, S74 Daku, whose only token stands on a scene of two floors built here: a Lab on the
+       ground floor and an Attic above it, drawn over the same ground. p4 looks at that scene, then the GM lifts Daku to the
+       upper floor (a GM's move, which p4 as the owner follows - fix r1-G2), and p4 looks back at the Academy. */
+    const L1 = "LEVELS74GROUND00", L2 = "LEVELS74UPPER000";
+    const levelsH = { set: await gm.eval(`const V = await import("${repoUrl}/scripts/vault.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const tower = await Scene.create({ name: "74 Tower", width: 2000, height: 1500, grid: { size: 100 }, active: false,
+            levels: [{ id: "${L1}", name: "Ground", elevation: 0 }, { id: "${L2}", name: "Upper", elevation: 10 }] });
+        globalThis.__s74.tower = tower.id;
+        const room = (name, level) => ({ name, shapes: ${rect(200, 200, 600, 600)}, levels: [level], behaviors: [],
+            flags: { "${MOD}": { room: true, [V.VAULT_FLAGS.description]: "S" + name + " words" } } });
+        await tower.createEmbeddedDocuments("Region", [room("74 Lab", "${L1}"), room("74 Attic", "${L2}")]);
+        const daku = await Actor.create({ name: "S74 Daku", type: "character", ownership: { default: 0, USERP4000000000A: 3 } });
+        globalThis.__s74.daku = daku.id;
+        const [t] = await tower.createEmbeddedDocuments("Token", [{ name: "Daku", actorId: daku.id, actorLink: true, x: 400, y: 400, width: 1, height: 1,
+            hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1, level: "${L1}" }]);
+        globalThis.__s74.dakuToken = t.id; ${SLEEP(1000)}
+        return [M.roomOfToken(t), t.level];`, { timeout: 30000 }) };
+    const TOWER = `const tower = game.scenes.find(s => s.name === "74 Tower");`;
+    levelsH.ground = await p4.eval(`${VIEW} ${TOWER} const before = read()?.state ?? null; watch(); await tower.view();
+        return { before, ...await seen(() => read()?.name === "74 Lab"), canvas: [canvas.scene?.id === tower.id, canvas.level?.id ?? null] };`,
+    { timeout: 30000 });
+    levelsH.lift = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = game.scenes.get(globalThis.__s74.tower).tokens.get(globalThis.__s74.dakuToken);
+        await t.update({ level: "${L2}" }, ${MOVE}); ${SLEEP(1000)} return [M.roomOfToken(t), t.level];`, { timeout: 30000 });
+    levelsH.upper = await p4.eval(`${VIEW} ${TOWER} return { ...await seen(() => read()?.name === "74 Attic"),
+        canvas: [canvas.scene?.id === tower.id, canvas.level?.id ?? null] };`, { timeout: 30000 });
+    levelsH.away = await p4.eval(`${VIEW} ${TOWER} await game.scenes.get("${IDS.scene}").view(); ${SLEEP(800)}
+        return { ...await seen(() => false, 0), canvas: canvas.scene?.id === tower.id };`, { timeout: 30000 });
+    check("H4: p4's tile names the room on its character's own floor - the Lab, then the Attic above it once the GM lifts Daku, while "
+        + "p4's canvas stays on the ground floor - and keeps the Attic when p4 looks at another scene",
+    J(levelsH.set) === J(["74 Lab", L1]) && levelsH.ground.before === "noActor" && J(levelsH.ground.canvas) === J([true, L1])
+        && levelsH.ground.name === "74 Lab" && J(levelsH.ground.view) === J(["room", "74 Lab"]) && J(levelsH.ground.painted) === J(["74 Lab"])
+        && J(levelsH.lift) === J(["74 Attic", L2]) && J(levelsH.upper.canvas) === J([true, L1]) && levelsH.upper.name === "74 Attic"
+        && J(levelsH.upper.view) === J(["room", "74 Attic"]) && J(levelsH.upper.painted) === J(["74 Attic"])
+        && levelsH.away.canvas === false && levelsH.away.name === "74 Attic" && J(levelsH.away.view) === J(["room", "74 Attic"])
+        && J(levelsH.away.painted) === "[]",
+    J(levelsH));
+
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);
         globalThis.__s74observer?.disconnect();
@@ -355,6 +485,8 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         for (const key of ["__s74cWritten", "__s74c", "__s74observer", "__s74painted"]) delete globalThis[key]; return true;`);
     await gm.eval(`${ACADEMY} const V = await import("${repoUrl}/scripts/vault.mjs"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s74;
         if (was.regions) await academy.deleteEmbeddedDocuments("Region", was.regions);
+        if (was.tower) await game.scenes.get(was.tower)?.delete();
+        if (was.daku) await game.actors.get(was.daku)?.delete();
         for (const [room, { description, image }] of Object.entries(was.rooms)) await V.setVaultRoom(room, { description, image, scene: academy });
         for (const [id, { x, y }] of Object.entries(was.at)) await academy.tokens.get(id).update({ x, y }, ${MOVE});
         if (was.actions !== undefined) await game.drpg.setActions(aiko, was.actions);
