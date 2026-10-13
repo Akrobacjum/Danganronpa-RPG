@@ -8806,6 +8806,21 @@ const INVARIANTS = [
          * (the positive control: a window that drew nothing would pass every count of what is gone) and no `data-*`,
          * `aria-*`, `style` or `on*` under it. The title and the text carry markup of their own and are drawn as the
          * characters they are: text nodes, no element parsed out of them, the characters all there.
+         * THE WINDOW AS IT IS WHEN IT IS READ (E77 fix r2-H9, 13.10.2026). Scenario 01's A2 (tiers 0 and 1 inside a
+         * Class Trial) failed this clause once, at k3 on 0dc9232 (S/e77run/k3/01a.log:313); the log cut the message
+         * before the compared values, and three runs of tier 1 inside a trial at a119775 (scenario 01's A2 shape, one
+         * after its A1) passed. Two things can move under the clause between the opening and its 50 ms poll, and
+         * e77run/scratch/r2h9-trial.mjs forces each at a119775 (R294 alone, inside a trial). The window draws its list
+         * again whenever the history moves (`changed`, at once) or a world setting of the module is written
+         * (keepLive, 120 ms coalesced), and the list drawn again reopens its open entries (`dressList`), which moves
+         * the one remembered snapshot out of the entry drawn before: this clause held that entry and read
+         * `snapshot: null`, with the redraw forced after the opening and before it. And a11y.mjs's sweep, which runs a
+         * frame after any change in the columns it watches, marked the card's link `data-drpg-named`: read with a
+         * sweep forced after the opening, and on both runs that forced none once the reading below was in. The
+         * redrawn list also carried chrome.mjs's `data-drpg-chrome` on the card's table. Neither mark is another
+         * user's markup, and neither is allowed in a snapshot: a11y.mjs and chrome.mjs now leave
+         * `.drpg-notice-snapshot` alone, and the entry is looked up in the window at every poll, opened again when a
+         * redraw closed it, and measured as the window shows it - green with each of the three forced.
          */
         const TITLE = `R294 <img src="r294-title.png" onerror="globalThis.__drpgR294 = 5"> title`;
         const windows = () => [...foundry.applications.instances.values()].filter(app => app.options?.classes?.includes("drpg-window-notices"));
@@ -8818,10 +8833,15 @@ const INVARIANTS = [
         try {
             const id = NH.recordNotice({ source: "mine", kind: "info", title: TITLE, text: `${TITLE} text`, html: CARD });
             win = await openNotices();
-            const details = win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
-            must(details !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
-            details.open = true;
-            await until(() => details.querySelector(".drpg-notice-snapshot"), 1000);
+            const shown = () => win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(shown() !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
+            await until(() => {
+                const entry = shown();
+                if (entry && !entry.open) entry.open = true;
+                return entry?.querySelector(".drpg-notice-snapshot");
+            }, 1000);
+            const details = shown();
+            must(details !== null, "the window stopped listing the suite's card - its snapshot would be measured on nothing");
             const snapshot = details.querySelector(".drpg-notice-snapshot");
             const part = name => details.querySelector(`summary > .drpg-notice-${name}`);
             seen = {

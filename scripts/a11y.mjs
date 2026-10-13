@@ -109,6 +109,15 @@ function kindOf(el) {
  *
  * Safe to call as often as anything renders: a control that has a name is skipped,
  * and one that is given a name is marked so it is never looked at twice.
+ *
+ * NOT A KEPT CARD (E77 fix r2-H9, 13.10.2026). The notice history window is a `.drpg-panel`, and an entry opened
+ * in it holds a past card's body (`.drpg-notice-snapshot`) - a card's words, not the module's chrome. A sweep that
+ * ran after an entry opened marked the card's link `data-drpg-named` (and, read in the code, would give a nameless
+ * one an `aria-label` from its title), where the history allows no `data-*` and no `aria-*` (R294's window half).
+ * Measured with R294's window clause inside a Class Trial (e77run/scratch/r2h9-trial.mjs): attrs
+ * ["data-drpg-named"] under the snapshot with a change in `#drpg-popups` forced after the opening
+ * (DRPG_REBUILD=sweep), and on two of four runs that forced no sweep - one comes a frame after any change in the
+ * columns watched below. The card stays as the history drew it.
  */
 export function nameControls(root = document) {
     try {
@@ -119,7 +128,7 @@ export function nameControls(root = document) {
         if (root.matches?.(SURFACES.join(","))) hosts.push(root);
         for (const host of hosts) {
             for (const el of host.querySelectorAll(CONTROLS)) {
-                if (el.dataset.drpgNamed) continue;
+                if (el.dataset.drpgNamed || el.closest(".drpg-notice-snapshot")) continue;
                 if (accessibleName(el)) { el.dataset.drpgNamed = "own"; continue; }
                 const name = nameFrom(el);
                 if (name) {

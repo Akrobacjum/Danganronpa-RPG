@@ -211,12 +211,21 @@ export function injectFilters() {
 export function dressChrome(root) {
     if (!themeOn() || !root?.querySelectorAll) return;
     try {
+        /* A KEPT CARD IS LEFT AS THE HISTORY DREW IT (E77 fix r2-H9, 13.10.2026). The notice history window draws a
+           past card's body lazily, when its entry opens, and no hook reaches that; a redraw of the window's list
+           (keepLive, then `drpgWindowUpdated`) opens it again and came through here, so the same card's table read
+           `data-drpg-chrome` (and, read in the code, `num` on a column of figures) only after the list had been
+           drawn again. Measured with R294's window clause and a redraw forced after the entry opened
+           (e77run/scratch/r2h9-trial.mjs, DRPG_REBUILD=after): attrs ["data-drpg-chrome"] under the snapshot. The
+           history allows its own classes only (notice-history.mjs NOTICE_CLASSES) and no `data-*`, so nothing
+           under `.drpg-notice-snapshot` is dressed and the card stays as it was on its first opening. */
+        const dress = selector => [...root.querySelectorAll(selector)].filter(el => !el.closest(".drpg-notice-snapshot"));
         const panel = root.classList?.contains("drpg-panel") || root.closest?.(".drpg-panel");
         if (panel) {
-            for (const input of root.querySelectorAll('input[type="number"]')) dressNumberField(input);
-            for (const select of root.querySelectorAll("select")) dressSelect(select);
+            for (const input of dress('input[type="number"]')) dressNumberField(input);
+            for (const select of dress("select")) dressSelect(select);
         }
-        for (const table of root.querySelectorAll("table")) dressTable(table);
+        for (const table of dress("table")) dressTable(table);
     } catch (err) {
         log("chrome pass failed", err);
     }
