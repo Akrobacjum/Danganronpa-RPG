@@ -345,9 +345,16 @@ export function roomDescription(room, scene) {
     return roomFlag(scene, room, VAULT_FLAGS.description) ?? "";
 }
 
-/* The picture formats a room may show. No gif and no apng: `prefers-reduced-motion` does not stop an
-   animation in an `<img>` or a CSS `url()` (the A8 design's step 9, 11.10.2026). */
-const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif", "svg"]);
+/* The picture formats a room may show, by the path's extension and nothing else: no file is opened to read
+   what it holds. No gif and no apng, because `prefers-reduced-motion` does not stop an animation in an
+   `<img>` or a CSS `url()` (the A8 design's step 9, 11.10.2026) - but an animated PNG, WebP or AVIF saved
+   under a still name is not detected and moves on every screen that shows the room (E77 round 1, sec F2;
+   telling one by decoding it is E20/E46's picture-checks row, decision D5). No svg (E77 fix r1-G1,
+   13.10.2026): the decision was to keep it only if this module drew a picture as an `<img>` alone, and it
+   draws it three ways - Room Setup's thumbnail `<img>` (`roomCells`), the tile's CSS `background-image`
+   and its probe `Image` (room-tile.mjs `paintRoomTile`, `openRoomImage`) - and hands it to Foundry's
+   ImagePopout, whose markup is not in this repository and was not read. */
+const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
 
 /**
  * A room picture's path if it is a picture of this server, else `null` (E77 C1; pure, every client).
@@ -357,8 +364,11 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif", "svg"]);
  * not) or an absolute URL of this origin. Refused: any other scheme (`javascript:`, `data:`, `blob:`,
  * `file:`), another host (`//host/x.png`, `https://host/x.png`), a query or a fragment (`/route?x.png`),
  * a `..` segment (plain or `%2e`), a backslash, a quote, a bracket or a control character (the path ends
- * up inside a CSS `url("...")` on the tile), and an extension not in ROOM_IMAGE_TYPES. Answers the relative
- * path as written, or an absolute one's pathname, trimmed.
+ * up inside a CSS `url("...")` on the tile), a slash or a backslash written as `%2f` or `%5c`, and an
+ * extension not in ROOM_IMAGE_TYPES. Answers the relative path as written, or an absolute one's pathname,
+ * trimmed - and only when that answer, read again against this page, is the same URL: the answer is final,
+ * so `safeRoomImage(safeRoomImage(x)) === safeRoomImage(x)` for every x and a reader may hand it to a fetch
+ * as it is (R505 reads both).
  *
  * What it does not settle: what the server answers to the path - a redirect to elsewhere is no reading of
  * the string (LIVE-E77-03) - and S3 sources, which are another host and refused (the Description tab's note
@@ -368,7 +378,7 @@ export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
     const text = path.trim();
     if (!text || /[\u0000-\u001f\u007f"'()<>\\?#]/.test(text)) return null;
-    if (/(?:^|\/)(?:\.|%2e){2}(?:\/|$)/i.test(text)) return null;
+    if (/(?:^|\/)(?:\.|%2e){2}(?:\/|$)/i.test(text) || /%(?:2f|5c)/i.test(text)) return null;
     let url;
     try {
         url = new URL(text, document.baseURI);
@@ -382,12 +392,21 @@ export function safeRoomImage(path) {
     if (!/^https?:$/.test(url.protocol) || url.origin !== new URL(document.baseURI).origin || url.search || url.hash) return null;
     const type = url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
     if (!ROOM_IMAGE_TYPES.has(type)) return null;
-    return /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
+    /* THE ANSWER IS READ AGAIN (E77 fix r1-G1, round 1's sec F1). An absolute URL of this origin whose path
+       starts with an empty segment - `<origin>//host/x.png`, `<origin>/.//host/x.png`, `https:.//host/x.png`
+       - passed every check above and answered its pathname, `//host/x.png`, which a browser reads as another
+       host (measured 13.10.2026 in Node: once `//other.example/x.png`, twice null). Room Setup's thumbnail
+       judged it once and drew it. The answer is kept only when it resolves to the very URL judged; `%2f` and
+       `%5c` are refused above because a server that decodes them before it routes would read the same
+       empty segment (not measured on Foundry's server; no file this module offers carries either). */
+    const answer = /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
+    return new URL(answer, document.baseURI).href === url.href ? answer : null;
 }
 
 /**
  * The room's picture, a path `safeRoomImage` accepts, or `null` (E77 C1). Checked again on every read: a
- * value written by a console, or by a road nobody has measured, is never handed to a fetch.
+ * value written by a console, or by a road nobody has measured, is never handed to a fetch. The answer is
+ * `safeRoomImage`'s final one, safe to use as a URL as it is (E77 fix r1-G1).
  */
 export function roomImage(room, scene) {
     return safeRoomImage(roomFlag(scene, room, VAULT_FLAGS.image));

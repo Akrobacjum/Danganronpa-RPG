@@ -47657,6 +47657,11 @@ const SCENARIOS = [
          * GM-store world of the suite's own (`withGmStoreWorld`), as the R119 test. Read on the harness, so the
          * window is answered without being drawn (its `render` hook - the file picker and the Remove button's
          * listener - does not run) and nothing fetches the path: what a server answers to it is LIVE-E77-03.
+         * E77 fix r1-G1, 13.10.2026 (round 1's sec F1) appends (5): a URL of this origin whose path starts with an
+         * empty segment (`<origin>//evil.example/hall.png`) is refused by `game.drpg.setVaultRoom` with the
+         * warning, and when written straight on the pieces it is no picture to `roomImage` and the window draws
+         * no field value and no thumbnail `src`. At 81d0f0c `safeRoomImage` answered it `//evil.example/hall.png`
+         * once, which was stored and drawn as the thumbnail's `src` - another host.
          */
         const V = await import("./vault.mjs");
         const R = await import("./rooms.mjs");
@@ -47673,7 +47678,7 @@ const SCENARIOS = [
         const warned = [];
         const stored = (scene, room) => scene.regions.filter(r => r.name === room).map(r => r.flags?.[MODULE_ID]?.drpgRoomImage ?? null);
         const named = room => warned.filter(message => message.includes(room)).length;
-        let reading = null;
+        let reading = null, hostile = null;
         await G.withGmStoreWorld(`suite-e77c1-${foundry.utils.randomID(8)}`, async () => {
             const scenes = [];
             try {
@@ -47729,6 +47734,13 @@ const SCENARIOS = [
                 const byApi = stored(opened, HALL);
                 await game.drpg.setVaultRoom(HALL, { image: FOREIGN, scene: opened });
                 reading = [first, afterFirst, second, afterSecond, consoleRead, third, byApi, stored(opened, HALL), named(HALL)];
+                const EMPTY = `${new URL(document.baseURI).origin}//evil.example/hall.png`;
+                await game.drpg.setVaultRoom(HALL, { image: EMPTY, scene: opened });
+                const refusedByApi = [stored(opened, HALL), named(HALL)];
+                await opened.updateEmbeddedDocuments("Region", opened.regions.filter(r => r.name === HALL)
+                    .map(r => ({ _id: r.id, [`flags.${MODULE_ID}.drpgRoomImage`]: EMPTY })));
+                const emptyRead = typeof V.roomImage === "function" ? V.roomImage(HALL, opened) : "no roomImage";
+                hostile = [refusedByApi, emptyRead, (await setup(null))[0]];
             } finally {
                 if (own) Object.defineProperty(D, "wait", own);
                 else delete D.wait;
@@ -47747,6 +47759,9 @@ const SCENARIOS = [
         ]), "[the Hall's field and thumbnail as drawn, and the rooms Apply changed; then the Hall's two pieces on the scene opened on, the other scene's Hall, "
             + "the Pantry, the warnings naming the Pantry] - [the second window as drawn and Apply's count; the pieces after Remove] - [roomImage of a console's path; "
             + "the window drawn over it, cancelled] - [the pieces after game.drpg.setVaultRoom with a path, then with a foreign URL; the warnings naming the Hall]");
+        equal(stableJson(hostile), stableJson([[[PATH, PATH], 2], null, ["", null]]),
+            "[the Hall's pieces and the warnings naming it after game.drpg.setVaultRoom with a URL of this origin whose path starts with `//`; "
+            + "roomImage of that URL written on the pieces; the Hall's field and thumbnail `src` drawn over it]");
     }],
 
     ["a project's room is known on its own scene, whatever scene is on screen", async () => {

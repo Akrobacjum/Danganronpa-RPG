@@ -489,8 +489,21 @@ const REGRESSIONS = [
         const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
             .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
 
+        /*
+         * A CLASS THE WORLD STILL CARRIES IS NOT DEAD. A chat card is stored as HTML, so a class
+         * a card once wore outlives its last emitter in every world that kept the card. Each row
+         * names the cards and the change that stopped writing it; a row whose rule is gone from
+         * the sheet is a stale row and fails (E77 fix r1-G4, round 1's O4: C2 removed the move
+         * card's description, and with it the only rule its old cards had).
+         */
+        const STORED = {
+            "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
+        };
+        const stale = Object.keys(STORED).filter(c => !styled.has(c) || named.has(c));
+        ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
+
         const orphans = [...inSheet].filter(c =>
-            styled.has(c) && !switches.has(c)
+            styled.has(c) && !switches.has(c) && !(c in STORED)
             && !named.has(c) && ![...families].some(f => c.startsWith(f)));
         ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
     }],
@@ -8718,8 +8731,11 @@ const REGRESSIONS = [
          * `updateActor`, `renderSceneControls`) in hud.mjs, explain.mjs, room-tile.mjs and narrow.mjs, and every
          * `Hooks.callAll("drpgRouteSettled"` anywhere; SRC - in room-tile.mjs, narrow.mjs and foundry-windows.mjs every
          * assignment to `.src` or `.backgroundImage` and every `setProperty(` whose value is a template with `url(`,
-         * and every `new ...ImagePopout(` anywhere; MARKUP - every `innerHTML` assignment, `insertAdjacentHTML(`,
-         * `enrichHTML(` and `data-tooltip` in a literal, in room-tile.mjs, which has no row and fails by design (the tile
+         * and every `new ...ImagePopout(` anywhere (its picture, src, and its window's title, text); MARKUP - every
+         * `innerHTML` or `outerHTML` assignment, `insertAdjacentHTML(`, `enrichHTML(`, `setHTMLUnsafe(`, `setHTML(`,
+         * `createContextualFragment(`, `parseFromString(`, `parseHTMLUnsafe(`, `renderTemplate(`, `.html(`,
+         * `new DOMParser`, `createElement("template")` and `data-tooltip` in a literal, in room-tile.mjs, which has
+         * no row and fails by design (the tile
          * sets text only; R509 is the whole rule); STORE - the setting's three sources (this browser's own value, a
          * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
          * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
@@ -8745,7 +8761,9 @@ const REGRESSIONS = [
          * census planned none for - the probe that decodes the picture before the popout opens (`.src =`). On C3's
          * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
          * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
-         * (compared key by key). E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
+         * (compared key by key). E77 fix r1-G1 (13.10.2026, round 1's sec F4) reads the popout's window title as a
+         * road of its own (one more row, 43) and widens MARKUP from three sinks to every one R509 names.
+         * E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
          * E77 C8 added the last planned road, the narrow row's thumbnail (`img.src` in room-tile.mjs `paintTileRow`).
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
@@ -8791,7 +8809,7 @@ const REGRESSIONS = [
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
-            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); a listener paints only its own viewer's token"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2); a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
@@ -8799,6 +8817,7 @@ const REGRESSIONS = [
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
+            ["SRC room-tile.mjs#openRoomImage#ImagePopout -> text", "the window's title: asked for under the tile's own label, then the room's name written as `textContent` of the heading at `window.title` (R505, a stand-in: the harness has no ImagePopout); how Foundry draws an option's title is not read here (LIVE-E77-04)"],
             ["SRC room-tile.mjs#paintTileRow#src -> src", "the narrow row's 78x44 thumbnail (E77 C8): `img.src` only from `safeRoomImage` of the view's path, the path `paintRoomTile` gives the art layer; R505 reads it as that path and paints a `javascript:` picture with no thumbnail"],
             ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack and, since E77 C8, of the tiles' row in it; the event chooses no room, and the tile in the row is painted from `viewerRoom` as anywhere (scenario 74 G)"],
             // ---- where Foundry's two windows stand (a client setting, E77 C7)
@@ -8811,9 +8830,12 @@ const REGRESSIONS = [
         const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
         const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
         const STORE_SOURCES = ["self", "console", "stale"];
+        // E77 fix r1-G1 (round 1's sec F4): every sink that parses a string as markup, not only the first three - R509's net.
+        const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
         const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
             : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
             : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
+            : kind === "SRC" && field === "ImagePopout" ? ["src", "text"]
             : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
         const censusOf = (sources, settings) => {
             const found = [], sites = new Map();
@@ -8862,7 +8884,8 @@ const REGRESSIONS = [
                 }
                 for (const m of blank.matchAll(/\bnew\s+[\w$.]*ImagePopout\b/g)) add("SRC", file, declAt(m.index), "ImagePopout");
                 if (file === "room-tile.mjs") {
-                    for (const m of blank.matchAll(/\.\s*innerHTML\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML)\s*\(/g)) add("MARKUP", file, declAt(m.index), m[1] ?? "innerHTML");
+                    for (const m of blank.matchAll(MARKUP_SINKS)) add("MARKUP", file, declAt(m.index), m[1] ?? m[2] ?? m[3] ?? m[4]);
+                    for (const m of code.matchAll(/\bcreateElement\s*\(\s*["'`]template["'`]/g)) if (blank[m.index] === "c") add("MARKUP", file, declAt(m.index), "template");
                     for (const m of code.matchAll(/data-tooltip/g)) if (blank[m.index] === " ") add("MARKUP", file, declAt(m.index), "data-tooltip");
                 }
             }
@@ -8896,7 +8919,7 @@ const REGRESSIONS = [
             "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
             "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
             "HOOK movement.mjs#settleRoute#callAll -> which",
-            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src",
+            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> text",
             "MARKUP room-tile.mjs#paintRoomTile#innerHTML -> text", "MARKUP room-tile.mjs#paintRoomTile#data-tooltip -> text",
             ...STORE_SOURCES.map(source => `STORE settings.mjs#foundryWindows#${source} -> place`)]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
@@ -8991,6 +9014,13 @@ const REGRESSIONS = [
          * of `renderHud` rather than importing it (room-tile.mjs imports hud.mjs; R161), and until this clause
          * nothing read that line: with it taken out, this test as it stood passed (13.10.2026, once). Scenario 74
          * B counts the paints on the mover's browser.
+         * E77 fix r1-G2 (13.10.2026; review round 1 cor F1, F3, F4, O1-O3) adds three shapes: the mark is the
+         * update's own object and `onUpdateToken`'s finally clears it only while it is still that update's
+         * (`unsettled.get(tokenDoc.id) === route`), `settledSpot` reads its `spot`; the GM's branch returns
+         * nothing for a write that moves nothing and, for a move, ends the wait, the put-back and the mark; and
+         * a route another browser settles waits on an owning browser (`untilQuiet`), every update starting the
+         * wait again and the REVERT, a GM's move and the next route ending it. Scenario 74 C and 66 W2/W5 run
+         * what these read; the fixture gains one variant per shape, each taken out.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
@@ -8998,38 +9028,53 @@ const REGRESSIONS = [
             const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
             const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
             const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
-            const mark = judge.indexOf("unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id)");
+            const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
-                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src),
-                /if \(options\?\.\[REVERT\]\) \{[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
-                    && /\?\.isGM\) \{[^}]*return true;\s*\}/.test(judge) && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
+                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
+                    && /if \(unsettled\.get\(tokenDoc\.id\) === route && !putBack\.has\(tokenDoc\.id\)\) unsettled\.delete\(tokenDoc\.id\);/.test(on),
+                /if \(options\?\.\[REVERT\]\) \{\s*endQuiet\(tokenDoc\.id\);[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
+                    && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
+                    && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
                 mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
-                    && /return unsettled\.get\(tokenDoc\.id\) \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
-                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src)
+                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
+                /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?await untilQuiet\(tokenDoc\)/.test(judge)
             ];
         };
         const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
-            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id) ?? spotOf(tokenDoc);\n}\n"
-            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    const accepted = await judgeMove(tokenDoc, changes, options, userId);\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
+            + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
+            + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
             + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
             + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
-            + "async function judgeMove(tokenDoc, changes, options, userId) {\n    if (options?.[REVERT]) {\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
-            + "    if (game.users.get(userId)?.isGM) {\n        return true;\n    }\n    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
-            + "    unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id) ?? null);\n    const actor = await import(\"./monokuma.mjs\");\n    return settleRoute(tokenDoc);\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (game.users.get(userId)?.isGM) {\n        if (!isMoveChange(changes)) return;\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        unsettled.delete(tokenDoc.id);\n        return true;\n    }\n"
+            + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
+            + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
+            + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
             + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
         equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
-            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>"))]),
-        JSON.stringify([[true, true, true, true], [false, true, true, true], [true, true, true, false]]),
-        "the reader does not read its fixture whole, or does not miss the gate taken out or the description put back on the card");
+            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
+            shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
+            shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
+            shape(FIXTURE.replace("    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n", "    return settled;\n"))]),
+        JSON.stringify([[true, true, true, true, true], [false, true, true, true, true], [true, true, true, false, true],
+            [false, true, true, true, true], [true, false, true, true, true], [true, true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
+            + "the finally clearing any mark, a GM's write that moves nothing answered as a route or the wait for quiet taken out");
         const sources = new Map(await otherSources());
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
         const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
-        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true], []]),
-            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken; the REVERT answering false, a GM's move "
-            + "true, a pending waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before; the card "
-            + "where and the price, and no description read in movement.mjs] and the other files that announce a route");
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
+            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken, its finally clearing only its own mark; "
+            + "the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending waypoint nothing; the route marked before "
+            + "the first await, the put-back marked, the settled spot the one before; the card where and the price, and no description read in "
+            + "movement.mjs; a route another browser settles waited on for quiet where the actor is owned] and the other files that announce a route");
 
         const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
         const listens = (tile, hud) => [
@@ -9075,6 +9120,11 @@ const REGRESSIONS = [
          * tooltip takes an empty one's `aria-label` through the client's `cleanHTML`, the E02-D01 hole; the tile's
          * tooltips are `dataset.tooltipText`); and hud.mjs names `buildRoom` and `buildSearchPips` no more (the
          * clock's room rows moved to the tile). The fixture is read again with each of the five planted.
+         * E77 fix r1-G1 (13.10.2026, round 1's sec F4) widens the markup net to every sink that parses a string:
+         * an `outerHTML` write, `setHTMLUnsafe(` (and `setHTML(`), `createContextualFragment(`, `DOMParser` and
+         * `parseFromString(` (and `parseHTMLUnsafe(`), jQuery's `.html(`, a `<template>` made by `createElement`
+         * and `renderTemplate(`; room-tile.mjs used none of them at 81d0f0c (read in full), so this changes no
+         * verdict on the code and the fixture is read once more with each of the seven forms planted.
          * E77 C4 (13.10.2026) adds the one formula: the tile's place and box are glass.mjs `roomPlacement`'s, from the
          * measured F, the clock's width and the type scale, and glass.mjs is the one source that writes the variables
          * the sheets size the tile by (`--drpg-room-h`, -w, -x, -y, -min-h, -max-h). Read with comments blanked: glass.mjs
@@ -9097,6 +9147,9 @@ const REGRESSIONS = [
          * the module's path and a logo under an assets folder planted.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
+            /\b(?:insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(/]
+            .map(part => part.source).join("|"));
         const shape = files => {
             const hud = files.get("hud.mjs") ?? "", explain = files.get("explain.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
             const viewer = topLevelFunction(hud, "viewerActor") ?? "", subject = topLevelFunction(explain, "subjectActor") ?? "";
@@ -9108,7 +9161,7 @@ const REGRESSIONS = [
                     && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
                 /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
                 rest,
-                !/\.\s*innerHTML\s*[+]?=(?![=>])|\b(?:insertAdjacentHTML|enrichHTML)\s*\(|data-tooltip/.test(tile),
+                !MARKUP.test(tile),
                 !/\b(?:buildRoom|buildSearchPips)\b/.test(hud)
             ];
         };
@@ -9126,13 +9179,19 @@ const REGRESSIONS = [
         equal(JSON.stringify([shape(FIXTURE), shape(planted("explain.mjs", "game.user.isGM ? canvas", "true ? canvas")),
             shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();")),
             ...["tile.innerHTML = view.description;", "tile.insertAdjacentHTML(\"beforeend\", view.description);",
-                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");"]
+                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");",
+                "tile.firstChild.outerHTML = view.description;", "tile.setHTMLUnsafe(view.description);",
+                "tile.append(document.createRange().createContextualFragment(view.description));",
+                "tile.append(...new DOMParser().parseFromString(view.description, \"text/html\").body.childNodes);",
+                "$(tile).html(view.description);",
+                "tile.append(Object.assign(document.createElement(\"template\"), { innerHTML: view.description }).content);",
+                "tile.append(await foundry.applications.handlebars.renderTemplate(\"room.hbs\", view));"]
                 .map(markup => shape(planted("room-tile.mjs", PROSE, markup))),
             shape(planted("hud.mjs", "function buildClock() {", "function buildRoom() {"))]),
         JSON.stringify([[true, true, true, [], true, true], [true, false, true, [], true, true], [true, true, true, ["hud.mjs"], true, true],
-            ...Array(4).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
+            ...Array(11).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
         "the reader does not read its fixture whole, or does not miss the GM's gate taken off, a second reader of the student, the GM's words "
-            + "drawn as markup four ways, or the clock's room rows put back");
+            + "drawn as markup eleven ways, or the clock's room rows put back");
         const VARS = /--drpg-room-(?:h|w|x|y|min-h|max-h)\b/;
         const formula = (scripts, sheets) => [
             /\bexport function roomPlacement\(/.test(scripts.get("glass.mjs") ?? "") && /"--drpg-room-h"/.test(scripts.get("glass.mjs") ?? ""),

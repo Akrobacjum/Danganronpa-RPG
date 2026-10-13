@@ -10750,7 +10750,9 @@ const INVARIANTS = [
          * page's own origin (answered as its path), an upper-case extension; refused - `javascript:`, `data:`,
          * `blob:` (of this origin too: a blob's origin is the page's), `file:`, `//host`, another host, a query, a
          * fragment, a `..` (plain or `%2e`), a backslash, a quote (the path ends up in a CSS `url("...")`), a gif and
-         * an apng (an animation `prefers-reduced-motion` does not stop), a page with no extension, not a string,
+         * an apng by name (an animation `prefers-reduced-motion` does not stop; only the extension is read, so an
+         * animated PNG, WebP or AVIF under a still name is kept - E77 round 1's sec F2, not detected), an svg (E77
+         * fix r1-G1: the module draws a picture as more than an `<img>`), a page with no extension, not a string,
          * empty. Pure: it reads `document.baseURI` and writes nothing. What a server answers to
          * a kept path - a redirect elsewhere - is no reading of the string: LIVE-E77-03.
          */
@@ -10761,16 +10763,37 @@ const INVARIANTS = [
         const KEPT = [
             ["  worlds/suite/rooms/hall.webp  ", "worlds/suite/rooms/hall.webp"], ["/route/worlds/suite/hall.png", "/route/worlds/suite/hall.png"],
             [`${origin}/worlds/suite/hall.jpg`, "/worlds/suite/hall.jpg"], ["worlds/suite/HALL.JPEG", "worlds/suite/HALL.JPEG"],
-            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"], ["worlds/suite/plan.svg", "worlds/suite/plan.svg"]
+            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"]
         ];
         const REFUSED = [
             "javascript:alert(1)//x.png", "data:image/png;base64,AAAA", `blob:${origin}/x.png`, "file:///etc/x.png",
             "//evil.example/x.png", "https://evil.example/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
-            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/x", "", null, 7
+            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/plan.svg", "worlds/x", "", null, 7
         ];
         equal(JSON.stringify([KEPT.map(([path]) => V.safeRoomImage(path)), REFUSED.map(path => V.safeRoomImage(path))]),
             JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
             `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
+
+        /*
+         * E77 fix r1-G1, 13.10.2026 (round 1's sec F1): ONE JUDGEMENT, AND IT IS FINAL. An absolute URL of this
+         * origin whose path starts with an empty segment answered its pathname, `//evil.example/x.png`, which a
+         * browser reads as another host; a second pass refused it, so the tile (which judges twice) was safe and
+         * Room Setup's thumbnail (once) was not (measured 13.10.2026 in Node at 81d0f0c: once
+         * `//other.example/x.png`, twice null). Refused here: that URL, its `/.//` and scheme-only `.//` forms,
+         * the empty segment written as `%2F` (either case) or `%5C`, and as a backslash. Then over every row of
+         * both tables and these: each answer is a fixed point, `safeRoomImage(safeRoomImage(p)) === safeRoomImage(p)`,
+         * and each answer kept resolves to this page's origin. The thumbnail's own `src` is read by the tier-2 test
+         * "Room Setup writes a room's picture: ...".
+         */
+        const scheme = new URL(document.baseURI).protocol;
+        const EMPTY = [`${origin}//evil.example/x.png`, `${origin}/.//evil.example/x.png`, `${scheme}.//evil.example/x.png`,
+            `${origin}/%2F%2Fevil.example/x.png`, "/%2f/evil.example/x.png", `${origin}/%5C%5Cevil.example/x.png`, `${origin}/\\evil.example/x.png`];
+        const every = [...KEPT.map(([path]) => path), ...REFUSED, ...EMPTY];
+        const moved = every.filter(path => V.safeRoomImage(V.safeRoomImage(path)) !== V.safeRoomImage(path));
+        const away = every.map(path => V.safeRoomImage(path)).filter(Boolean).filter(kept => new URL(kept, document.baseURI).origin !== origin);
+        equal(JSON.stringify([EMPTY.map(path => V.safeRoomImage(path)), moved, away]), JSON.stringify([EMPTY.map(() => null), [], []]),
+            "[each path with an empty first segment, plain, encoded or a backslash: null], [the paths whose answer is not its own answer], "
+            + "[the answers kept that resolve to another origin]");
 
         /*
          * E77 C3, 13.10.2026: the tile's clauses (the A8 design's R380, ledger V3, V17, L2). `paintRoomTile` is handed
@@ -10781,7 +10804,8 @@ const INVARIANTS = [
          * same view with a `javascript:` picture paints no picture and no button to open one. Then `openRoomImage`
          * against stand-ins for Foundry's ImagePopout (the harness has none), for the probe's Image (so no file is
          * fetched, here or at a table) and for the warning, all three put back in `finally`: the probe is handed
-         * the checked path and the window gets it, the room as its title, empty controls and no `uuid`; a refused
+         * the checked path and the window gets it, the tile's label as its title (E77 fix r1-G1: the room's name, markup
+         * and all, is then the text of the window's heading, and nothing in it runs), empty controls and no `uuid`; a refused
          * path probes and opens nothing; a picture whose probe fails to decode opens nothing and warns once; and
          * `stripImageControls` empties the tile's window's header controls and leaves another ImagePopout's alone.
          */
@@ -10844,25 +10868,28 @@ const INVARIANTS = [
         // went unread there and the paths probed came back empty (13.10.2026).
         const RealImage = globalThis.Image, ownWarn = ui.notifications && Object.getOwnPropertyDescriptor(ui.notifications, "warn");
         const opened = [], probed = [], warned = [];
+        // E77 fix r1-G1 (round 1's sec F4): the room's name is the GM's words, and the window's title is drawn from it.
+        const NAMED = "R505 <img src=x onerror=\"window.__drpgR505 = 3\">Hall";
         let decodes = true, got;
         try {
             Object.defineProperty(apps, "ImagePopout", { configurable: true, writable: true, value: class {
                 constructor(options) { this.options = options; opened.push(options); }
-                async render() { return this; }
+                async render() { this.window = { title: document.createElement("h1") }; return this; }
             } });
             globalThis.Image = class {
                 set src(path) { probed.push(path); }
                 async decode() { if (!decodes) throw new Error("R505: the stand-in does not decode"); }
             };
             if (ui.notifications) ui.notifications.warn = text => { warned.push(text); };
-            const win = await T.openRoomImage("worlds/suite/hall.png", "R505 Hall");
+            const win = await T.openRoomImage("worlds/suite/hall.png", NAMED);
             const refused = await T.openRoomImage("javascript:alert(1)//x.png", "R505 Hall");
             decodes = false;
             const missing = await T.openRoomImage("worlds/suite/gone.png", "R505 Hall");
             const mine = [{ action: "shareImage" }, { action: "another" }], theirs = [{ action: "shareImage" }];
             T.stripImageControls(win, mine);
             T.stripImageControls({ options: { classes: ["image-popout"] } }, theirs);
-            got = [probed, opened, refused, missing, warned, mine.length, theirs.length];
+            got = [probed, opened, refused, missing, warned, mine.length, theirs.length,
+                [win?.window?.title?.textContent === NAMED, win?.window?.title?.childElementCount ?? null, window.__drpgR505 ?? null]];
         } finally {
             if (before) Object.defineProperty(apps, "ImagePopout", before);
             else delete apps.ImagePopout;
@@ -10871,17 +10898,20 @@ const INVARIANTS = [
             else if (ui.notifications) delete ui.notifications.warn;
         }
         equal(JSON.stringify(got), JSON.stringify([["worlds/suite/hall.png", "worlds/suite/gone.png"], [{ src: "worlds/suite/hall.png",
-            classes: ["drpg-room-image"], window: { title: "R505 Hall", controls: [] }, showTitle: true }], null, null,
-            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1]),
+            classes: ["drpg-room-image"], window: { title: game.i18n.localize("DRPG.Room.tileLabel"), controls: [] }, showTitle: true }], null, null,
+            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1, [true, 0, null]]),
             "[the paths probed, the windows asked for, a refused path's answer, an undecodable picture's answer, the warnings, "
-            + "the tile's window's header controls left, another ImagePopout's left]");
+            + "the tile's window's header controls left, another ImagePopout's left, [the window's heading reads the room's name, "
+            + "elements in it, what the name's markup ran]]");
     }],
     ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
-         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room) and scenario 74 the
-         * states this suite cannot make read-only (a trial, an Eclipse, a death, a Monocub). Two halves, both read,
-         * nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
+         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room). The states this suite
+         * cannot make read-only - an Eclipse, a death, a Monocub, a Class Trial, a room on another floor and a token on
+         * a scene its viewer is not looking at - are scenario 74's phase H, which reads each on a player's tile beside
+         * its viewerRoom (E77 fix r1-G3; until then this comment said 74 covered four of them, and 74 read none). Two
+         * halves, both read, nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
          * Kitchen of two room pieces of which only the second carries words and a picture, a region named Kitchen
          * that is no room (listed first, with words of its own - a reader over every region of the name would
          * answer them), a Hall, a Pantry whose picture is `javascript:`, a Cellar nobody drew, and a second scene
@@ -11145,6 +11175,130 @@ const INVARIANTS = [
             Hooks.off("drpgGlassCut", hook);
             G.refreshGlass();
         }
+    }],
+    ["R530 - the room tile looks as P11 draws it, by the sheets' own cascade: the toggle in the tile's top-right corner over the picture's button in both themes, the name and the project line in capitals under Stained Glass, and an old move card's description still set apart", async () => {
+        /*
+         * E77 fix r1-G4, 13.10.2026 (round 1's cor F2, goal 1, goal 2, O4). The toggle stood in the flow under the
+         * project line in both themes: the lift `.drpg-room-tile > :not(...)` is 0,2,0 and set `position: relative`
+         * over the toggle's own `absolute` at 0,1,0. Nothing read it - the sweep, R508 and scenario 74 read no
+         * toggle - and jsdom has no layout, so this reads the cascade itself: every stylesheet of module.json, in
+         * order, parsed into a sheet that is adopted by nothing (it styles nothing on this screen), and for each
+         * element of a tile and of a chat card built on a body of their own (connected to nothing on this page) the winning
+         * declaration - `!important`, then specificity, then order - among the style rules whose selector the
+         * element matches by its own `matches`. Inherited properties are looked for up the element's parents.
+         * Rules under @media, @container and @supports are not read: the desk's cascade, not a stacked screen's
+         * (the narrow row is E77 C8's). Read at fa2fd7d, this fix's parent: the toggle `relative` at 0,2,0,
+         * no `text-transform` on the name or the project line, no rule for `.drpg-room-prose`.
+         * The capitals are the Stained Glass theme's, where P11's shots draw them and where the clock drew this
+         * block before E77 C3 (its `#drpg-hud` rule is uppercase); Legacy's clock drew the room as typed and P11
+         * has no Legacy shot, so Legacy keeps it. `text-transform` changes the drawing only: the stored name and
+         * the node's text are the GM's (R505 reads them literal). What a screen reader is handed is not read here: in
+         * Chromium's accessibility tree the heading is "DORM" for a node whose text is "Dorm" (the glass harness under
+         * Stained Glass, 13.10.2026), as the clock's room row was drawn by the same theme's uppercase `#drpg-hud` rule
+         * until E77 C3 (read in f6822d7's sheet, not measured).
+         */
+        const css = await moduleStyles();
+        // the page's own constructor: the harness's module scope is Node's, whose globalThis has none
+        const sheet = new document.defaultView.CSSStyleSheet();
+        sheet.replaceSync(css);
+        const rules = [...sheet.cssRules].filter(rule => typeof rule.selectorText === "string" && rule.style);
+        ok(rules.length > 1000, `only ${rules.length} style rules were read - the stylesheets did not load`);
+        const split = text => {
+            const out = [];
+            let depth = 0, part = "";
+            for (const ch of text) {
+                if (ch === "(") depth++;
+                if (ch === ")") depth--;
+                if (ch === "," && !depth) { out.push(part); part = ""; } else part += ch;
+            }
+            return [...out, part].map(each => each.trim()).filter(Boolean);
+        };
+        const more = (x, y) => {
+            const at = x.findIndex((v, i) => v !== y[i]);
+            return at >= 0 && x[at] > y[at];
+        };
+        const specificity = selector => {
+            const sum = [0, 0, 0];
+            const add = part => part.forEach((v, i) => { sum[i] += v; });
+            let i = 0;
+            const word = () => { while (i < selector.length && /[\w-]/.test(selector[i])) i++; };
+            while (i < selector.length) {
+                const ch = selector[i];
+                if (ch === "#") { sum[0]++; i++; word(); } else if (ch === ".") { sum[1]++; i++; word(); } else if (ch === "[") {
+                    sum[1]++;
+                    while (i < selector.length && selector[i] !== "]") i++;
+                    i++;
+                } else if (ch === ":") {
+                    const element = selector[i + 1] === ":";
+                    i += element ? 2 : 1;
+                    const start = i;
+                    word();
+                    const name = selector.slice(start, i);
+                    let args = null;
+                    if (selector[i] === "(") {
+                        let depth = 0;
+                        const open = i;
+                        do { depth += selector[i] === "(" ? 1 : selector[i] === ")" ? -1 : 0; i++; } while (depth && i < selector.length);
+                        args = selector.slice(open + 1, i - 1);
+                    }
+                    if (element) sum[2]++;
+                    else if (["is", "not", "has"].includes(name)) add(split(args).map(specificity).reduce((top, s) => more(s, top) ? s : top, [0, 0, 0]));
+                    else if (name !== "where") sum[1]++;
+                } else if (/[a-z]/i.test(ch)) { sum[2]++; word(); } else i++;
+            }
+            return sum;
+        };
+        const INHERITED = new Set(["text-transform", "font-style"]);
+        const cascaded = (el, property) => {
+            let best = null;
+            rules.forEach((rule, order) => {
+                const value = rule.style.getPropertyValue(property);
+                if (!value) return;
+                for (const selector of split(rule.selectorText)) {
+                    let hit = false;
+                    try { hit = el.matches(selector); } catch { continue; }
+                    if (!hit) continue;
+                    const rank = [rule.style.getPropertyPriority(property) === "important" ? 1 : 0, ...specificity(selector), order];
+                    if (!best || more(rank, best.rank)) best = { rank, value: value.trim() };
+                }
+            });
+            if ((!best || best.value === "inherit") && INHERITED.has(property) && el.parentElement) return cascaded(el.parentElement, property);
+            return best?.value ?? null;
+        };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), column = document.createElement("div");
+            body.className = `drpg-theme-${theme} drpg-curtain-on`;
+            column.id = "ui-left-column-1";
+            html.append(body);
+            body.append(column);
+            const tile = document.createElement("section");
+            tile.id = "drpg-room-tile";
+            tile.className = "drpg-room-tile";
+            tile.dataset.place = "clock";
+            column.append(tile);
+            const part = (tag, className) => {
+                const el = document.createElement(tag);
+                el.className = className;
+                return el;
+            };
+            const [show, name, project, toggle] = [part("button", "drpg-room-tile-open"), part("h3", "drpg-room-tile-name"),
+                part("div", "drpg-hud-room-project"), part("button", "drpg-room-tile-more")];
+            tile.append(part("div", "drpg-room-tile-art"), show, name, project, toggle, part("p", "drpg-room-tile-prose"));
+            const card = part("li", "chat-message message");
+            const content = part("div", "message-content"), words = part("p", "drpg-room-prose");
+            content.append(words);
+            card.append(content);
+            body.append(card);
+            const z = el => Number.parseInt(cascaded(el, "z-index") ?? "auto", 10);
+            return [theme, cascaded(toggle, "position"), cascaded(toggle, "top") !== null && cascaded(toggle, "right") !== null,
+                z(toggle) > z(show), cascaded(name, "text-transform") ?? "none", cascaded(project, "text-transform") ?? "none",
+                cascaded(words, "font-style"), cascaded(words, "border-left") !== null];
+        };
+        equal(JSON.stringify([read("stained-glass"), read("monokuma-legacy")]),
+            JSON.stringify([["stained-glass", "absolute", true, true, "uppercase", "uppercase", "italic", true],
+                ["monokuma-legacy", "absolute", true, true, "none", "none", "italic", true]]),
+            "[theme, the toggle's position, a top and a right for it, the toggle over the picture's button, the name's "
+            + "text-transform, the project line's, an old move card's description's font-style, a rule on its left edge]");
     }],
 ];
 

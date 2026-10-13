@@ -1803,7 +1803,7 @@
       "imageColumn": "Zdjęcie",
       "imagePick": "Wybierz zdjęcie",
       "imageClear": "Usuń zdjęcie",
-      "imageRefused": "{room}: nie zapisano zdjęcia. Można użyć tylko zdjęcia z plików tego serwera: jpg, png, webp, avif albo svg.",
+      "imageRefused": "{room}: nie zapisano zdjęcia. Można użyć tylko zdjęcia z plików tego serwera: jpg, png, webp albo avif.",
       "tabFog": "Mgła",
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",

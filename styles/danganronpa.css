@@ -12842,7 +12842,11 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
    the screenshot did not; with `will-change: transform`, or with the fade off, it was clean). */
 #drpg-room-art { will-change: transform; }
 
-/* The picture's button lies over the whole tile and under everything written on it. */
+/* The picture's button lies over the whole tile and under everything written on it. The toggle
+   is left out of the lift below because it has a place of its own: that rule is 0,2,0 (`:not()`
+   counts its most specific argument) and the toggle's own is 0,1,0, so with the toggle in the
+   lift it stood in the flow under the project line in both themes, not in P11's corner (round 1,
+   cor F2; R530 reads the sheets' cascade for it). */
 .drpg-room-tile-open {
     position: absolute;
     inset: 0;
@@ -12856,7 +12860,7 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     background: transparent;
     cursor: zoom-in;
 }
-.drpg-room-tile > :not(.drpg-room-tile-art, .drpg-room-tile-open) {
+.drpg-room-tile > :not(.drpg-room-tile-art, .drpg-room-tile-open, .drpg-room-tile-more) {
     position: relative;
     z-index: 1;
 }
@@ -12877,11 +12881,13 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 }
 
 /* The toggle: a corner button, only where the room has words. Open, the description fills the
-   tile above the name and scrolls inside it; the tile's box does not change. */
+   tile above the name and scrolls inside it; the tile's box does not change. Over the picture's
+   button, so a click on the corner opens the words and not the picture. */
 .drpg-room-tile-more {
     position: absolute;
     top: 6px;
     right: 6px;
+    z-index: 1;
     width: 28px;
     height: 28px;
     margin: 0;
@@ -16470,6 +16476,19 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     white-space: pre-line;
     padding-left: 0.6rem;
     border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
+    opacity: 0.92;
+}
+
+/* The GM's own words about a room on the card for walking into it, as the card drew them until
+   E77 C2. No card is written with them any more (the move card says only where the character went
+   and the price); this rule is for the cards already in a world's chat log, whose stored content
+   still carries the class, so it is scoped to a chat message (round 1's O4). R2 knows the class
+   has no emitter and why. */
+.chat-message .drpg-room-prose {
+    margin: 0.4rem 0 0;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
+    font-style: italic;
     opacity: 0.92;
 }
 

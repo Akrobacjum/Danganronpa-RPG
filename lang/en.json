@@ -1756,7 +1756,7 @@
       "imageColumn": "Picture",
       "imagePick": "Choose a picture",
       "imageClear": "Remove the picture",
-      "imageRefused": "{room}: the picture was not saved. Only a picture from this server's files can be used: jpg, png, webp, avif or svg.",
+      "imageRefused": "{room}: the picture was not saved. Only a picture from this server's files can be used: jpg, png, webp or avif.",
       "tabFog": "Fog",
       "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
