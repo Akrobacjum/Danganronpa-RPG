@@ -58,8 +58,12 @@ const STATE_LABELS = Object.freeze({ open: "DRPG.Notices.state.shown", unread: "
 
 const localize = key => game.i18n.localize(key);
 
-/** Search folding: decomposed, the marks dropped, lower case. "Gęślą" folds to "gesla"; "ł" has no decomposition and stays "ł" (node, 12.10.2026). */
-const fold = text => String(text ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+/**
+ * Search folding: decomposed, the marks dropped, lower case, and "ł" made "l". "Gęślą" folds to "gesla"; "ł" has no
+ * decomposition (node, 12.10.2026), so until E81 fix r2-H1 (review P3) it stayed "ł" and "kolo" missed "koło". The
+ * replace is one character for one, after lower case has made "Ł" "ł", so `highlighted`'s offsets hold.
+ */
+const fold = text => String(text ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/ł/g, "l");
 
 /**
  * `text` with every match of the folded `query` wrapped in `<mark>`, built from text nodes only: the
@@ -202,13 +206,15 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         if (this.wired) return;
         this.wired = true;
         const root = this.element;
-        const searched = foundry.utils.debounce(value => {
-            this.query = fold(value.trim());
+        /* The box as it is when the wait ends, not as it was at the keystroke: Esc empties it inside the wait, and a
+           search handed the old value then filtered under an empty box (E81 fix r2-H1, review P1). */
+        const searched = foundry.utils.debounce(box => {
+            this.query = fold(box.value.trim());
             this.redraw();
         }, SEARCH_MS);
         root.addEventListener("click", event => this.onClick(event));
         root.addEventListener("input", event => {
-            if (event.target?.matches?.(".drpg-notices-search input")) searched(event.target.value);
+            if (event.target?.matches?.(".drpg-notices-search input")) searched(event.target);
         });
         root.addEventListener("keydown", event => {
             if (event.key !== "Escape" || !event.target?.matches?.(".drpg-notices-search input") || !event.target.value) return;
@@ -260,11 +266,15 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         }
     }
 
-    /** The list and the chrome around it, drawn again now: the reader asked (a chip, the search) or nothing is in the way. */
+    /**
+     * The list and the chrome around it, drawn again now: the reader asked (a chip, the search) or nothing is in the way.
+     * The chrome first: it moves a filter whose chip fell to 0 back to "all", and a list drawn before that stood under a
+     * filter no chip showed pressed (E81 fix r2-H1, review P2).
+     */
     redraw() {
         this.stale = false;
-        this.live?.refresh?.();
         if (this.element) this.syncChrome(this.element);
+        this.live?.refresh?.();
     }
 
     /*
@@ -279,17 +289,20 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         const list = root.querySelector(".drpg-notices-list");
         const focused = Boolean(list?.contains(document.activeElement));
         const fresh = noticeEntries().some(entry => !this.drawn.has(entry.id));
+        /* A filter the chrome moved is the one thing that does not wait for the reader: the list under it is drawn
+           again at once, or it would go on listing what a chip no longer pressed chose (E81 fix r2-H1, review P2). */
         if (fresh && list && (focused || list.scrollTop > 0)) {
             root.querySelector(".drpg-notices-new").hidden = false;
-            this.syncChrome(root);
+            if (this.syncChrome(root)) this.redraw();
         } else if (focused) {
             this.stale = true;
-            this.syncChrome(root);
+            if (this.syncChrome(root)) this.redraw();
         } else this.redraw();
     }
 
-    /** The chips' counts, the unread banner and the foot, from the history as it is now. */
+    /** The chips' counts, the unread banner and the foot, from the history as it is now. Answers whether it moved the filter. */
     syncChrome(root) {
+        const was = this.filter;
         const all = noticeEntries();
         const empty = all.length === 0;
         for (const chip of root.querySelectorAll("[data-drpg-filter]")) {
@@ -310,6 +323,7 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         const unsaved = root.querySelector(".drpg-notices-unsaved");
         unsaved.textContent = note ? localize(note) : "";
         unsaved.hidden = !note;
+        return this.filter !== was;
     }
 
     /** The list region (`keepLive` swaps it): newest first, in groups by the time of day, older chapters folded. */
@@ -384,7 +398,10 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         if (entry.mark) tags.push(localize(NOTICE_TEXTS.mark[entry.mark]));
         if (noticeSessionOnly(entry.id)) tags.push(localize("DRPG.Notices.sessionOnly"));
         if (TAGGED.has(entry.source)) tags.push(localize(SOURCE_LABELS[entry.source]));
-        const author = entry.author ? game.users?.get(entry.author)?.name : null;
+        /* No name on a safeword's entry either: its card names nobody, and the caller's card with no GM connected
+           carries the caller as its author (E81 fix r2-H1, review round 2's C2-1: another player's window drew it).
+           The stored author stays - the per-author bound counts it. */
+        const author = entry.author && entry.source !== "safeword" ? game.users?.get(entry.author)?.name : null;
         if (author) tags.push(author);
         if (tags.length) {
             const line = element("span", "drpg-notice-tags");

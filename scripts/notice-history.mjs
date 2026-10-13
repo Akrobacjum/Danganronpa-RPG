@@ -833,7 +833,10 @@ export function createNoticeEngine(env) {
      * Keep one notice (E81 C3 and C4 call it; the entry's shape is the A7 design's P1-1). `id`, `at` and
      * `clock` are this client's: `at` is `Date.now()` here whatever the caller passes, never a packet's
      * (the lesson of E02-D08). The html is kept as `env.clean` hands it back (E81 C2), and a cleaner that
-     * throws keeps the notice without it: a history error never stops a card. Answers the entry's id, or
+     * throws keeps the notice without it: a history error never stops a card. An `author` that is no user of
+     * this world is dropped here (E81 fix r2-H1, review round 2's S1): each author is a holder of its own in
+     * `trimSection`, so a made-up id per card made one-entry holders that outlasted this login's own entries
+     * (the review's 150 cards, each naming a made-up thread, left a GM 0 of its 5). Answers the entry's id, or
      * null for an entry the shape refuses.
      */
     function record(input = {}) {
@@ -842,7 +845,7 @@ export function createNoticeEngine(env) {
         const entry = normalizeEntry({
             id: env.randomId(), at: env.now(), messageId: input.messageId ?? null, kind: input.kind ?? "info", tone: input.tone ?? null,
             source: input.source, state: input.state ?? "open", mark: null, title: input.title, text, html,
-            clipped: false, author: input.author, link: input.link,
+            clipped: false, author: env.userExists(input.author) ? input.author : undefined, link: input.link,
             clock: { chapter: clock.chapter, day: clock.day, session: clock.session, timeOfDay: clock.timeOfDay, eclipse: clock.eclipse }
         });
         if (!entry) {

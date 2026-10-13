@@ -735,9 +735,13 @@ function watchCard(card, body, id) {
  * user's card carries that user, whatever its source, because the history bounds each sender by it
  * (notice-history.mjs `trimSection`) and an entry with none was bounded by nothing - a whisper with `gmPopup`,
  * an evidence card, a `gmAsk` card. The caller's `author` when it names one, else the card's writer
- * (`cardWriter`, for the bound alone: a card a GM posted at a player's asking is the player's) when that is
- * not a GM. A player's public card keeps its document's author as before; a GM's own card and a card of no
- * document carry nobody.
+ * (`cardWriter`: a card a GM posted at a player's asking is the player's) when that is not a GM. A player's
+ * public card keeps its document's author as before; a GM's own card and a card of no document carry nobody.
+ * The author is kept for the bound and for the window's tag, the name drawn on the entry
+ * (notice-history-app.mjs `entryElement`) - never on a safeword entry, whose card names nobody (E81 fix r2-H1,
+ * review round 2's C2-1 and C2-2: this said "for the bound alone" after the window had begun to draw it). The
+ * messenger's GM branch passes the card's writer, or the thread's player when a GM's session wrote the card,
+ * never the `thread` flag alone (review round 2's S1); `recordNotice` drops an author that is no user of this world.
  */
 function noticeSource(source, messageId, author) {
     const message = messageId ? game.messages?.get(messageId) : null;

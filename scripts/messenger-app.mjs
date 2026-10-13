@@ -448,12 +448,17 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
         if (!cardFlag(message, MESSENGER_FLAGS.gmAsk)) return;
         // The words, not the stub: a thread card is a private card now and
         // its text lands a moment after the document does.
+        const writer = cardWriter(message);
         showPopup(cardPreview(await wordsOf(message)), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
             onClick: () => openMessenger(playerUserId),
             ...keptAsMessenger(message, playerUserId),
-            // The thread's player, whoever wrote the card: the bridge posts some from the GM's own session (E81 fix r1-G1).
-            author: playerUserId
+            /* Kept under the thread's player only when a GM's session wrote the card - the bridge posts some of
+               these for a player (E81 fix r1-G1) - and under its writer otherwise, as `noticeSource` (popup.mjs)
+               reads a card's writer: the `thread` flag is the writer's to set, so taken as the author it let one
+               player's cards fill another's share of this GM's history and carry that player's name (E81 fix
+               r2-H1, review round 2's S1). The writer is handed on, not looked up again by the message's id. */
+            author: writer?.isGM ? (isThreadUser(playerUserId) ? playerUserId : null) : writer?.id ?? null
         });
         return;
     }

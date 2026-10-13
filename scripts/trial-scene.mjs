@@ -692,6 +692,11 @@ export async function leaveTrialScene(hall = trialScene()) {
  */
 export async function returnTheLiving(scene, room, hall = trialScene()) {
     await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
+    /* The cast's rows, once the store holds them, as `tidyTrialHall` reads them: a store not yet hydrated
+       answers no rows, and `castActorIds` then reads `defaultReveal` for everybody - Monokuma and the students
+       a player owns - in place of the GMs' tick (E81 fix r2-H1, review P15; its last clause in the tier-2 test
+       "End the trial moves the living to the GM's room ..."). */
+    await trialCastStore.whenHydrated();
     const only = castActorIds(hall);
     const { carried, twice } = await carryTheLiving(scene, room, hall, only);
     const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true, only });

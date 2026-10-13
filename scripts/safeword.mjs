@@ -217,7 +217,10 @@ function nextCard(ms) {
  * `observe: false`): what `awaitCard` adds to the caller's card afterwards is that browser's
  * own news, so the entry is the same frozen sentence on every browser and names nobody (R297).
  * `author`: the player whose chat card raised it, which the history bounds like any other sender's
- * (E81 fix r1-G1); a GM's card and the caller's own press pass none. `messageId`: that chat card, by
+ * (E81 fix r1-G1); a GM's card and the caller's own press pass none. The history window draws the entry
+ * with its title and words alone - no time and no user's name, though the author is stored (E81 fix
+ * r2-H1, review round 2's C2-1: it drew the caller's name when no GM was connected; R296, 73-notice-history
+ * S3). `messageId`: that chat card, by
  * which two tabs of one login keep one entry (E81 fix r1-G5, review round 1's N3: they kept two); the
  * banner does not go when the card is deleted, as it did not before. Exported for the suite, which
  * raises it without a chat card.

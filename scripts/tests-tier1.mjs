@@ -7826,12 +7826,17 @@ const INVARIANTS = [
             road[key] = [entry?.source ?? null, entry?.author === player.id];
             dismissNew();
         };
-        let bound = null, detail = null, deleted = null;
+        let bound = null, detail = null, deleted = null, s1 = null;
         must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        /* The second author and the safeword's sender are users of the suite's own, which this world answers for while
+           the clause runs: since E81 fix r2-H1 the history keeps no author that is no user of this world. */
+        must(!Object.hasOwn(game.users, "get"), "game.users already answers get for itself - the suite's stand-in would hide it");
         must(!DrpgMessengerApp.instances.has(player.id), `the GM has ${player.name}'s conversation open - the messenger's cards would append to it, not be drawn`);
         await NH.holdNoticeHistory(true);
         const getOf = game.messages.get;
         game.messages.get = function (id, ...rest) { return flooded.get(id) ?? getOf.call(this, id, ...rest); };
+        const usersGet = game.users.get, standIns = new Map([SECOND, sender.id].map(id => [id, { id, name: id, isGM: false }]));
+        game.users.get = function (id, ...rest) { return standIns.get(id) ?? usersGet.call(this, id, ...rest); };
         const made = (tag, i, more) => {
             const message = fake(fid(tag, i), more);
             flooded.set(message.id, message);
@@ -7880,25 +7885,70 @@ const INVARIANTS = [
             }
             deleted = [shown.map(card => card.classList.contains("leaving")),
                 gone.map(id => NH.noticeEntries().filter(entry => entry.messageId === id).map(entry => [entry.source, entry.state, entry.mark]))];
+
+            /*
+             * WHOSE A THREAD CARD IS (E81 fix r2-H1, 13.10.2026; review round 2's S1, measured by the security review in
+             * the harness at eefa79f: one `gmAsk` card a player wrote naming another player's thread was kept on the GM as
+             * that other player's and tagged with their name; 41 of them took that player's own entry; 150, each naming a
+             * made-up thread, took all 5 of the GM's own). The `thread` flag is the card's writer's to set. Here the player
+             * writes such cards to this GM: one naming the second author's thread is kept under the player; 41 leave the
+             * second author's 3 entries; 150 naming threads of no user leave this GM's own 5 and form no holder; and an
+             * author that is no user of this world, handed to `recordNotice` directly, is not kept.
+             */
+            const forge = (tag, i, thread) => {
+                const card = made(tag, i, { author: player, whisper: [me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: `<p>R297 ${tag} ${i}</p>` });
+                Hooks.callAll("drpgMessengerMessage", thread, card);
+                return card;
+            };
+            const keptOf = card => NH.noticeEntries().filter(entry => entry.messageId === card.id);
+            const has = id => NH.noticeEntries().some(entry => entry.id === id);
+            const one = forge("S", 0, SECOND);
+            await until(() => keptOf(one).length > 0, 500);
+            s1 = { one: keptOf(one).map(entry => [entry.source, entry.author === player.id, entry.author === SECOND]) };
+            dismissNew();
+            for (let i = 0; i < 41; i++) {
+                const card = forge("T", i, SECOND);
+                if (i % 10 === 9 || i === 40) {
+                    await until(() => keptOf(card).length > 0, 500);
+                    dismissNew();
+                }
+            }
+            s1.second = seconds.every(has);
+            const nobody = i => `R297NoUser${String(i).padStart(6, "0")}`;
+            for (let i = 0; i < 150; i++) {
+                const card = forge("U", i, nobody(i));
+                if (i % 10 === 9) {
+                    await until(() => keptOf(card).length > 0, 500);
+                    dismissNew();
+                }
+            }
+            s1.own = owned.every(has);
+            s1.nobody = NH.noticeEntries().filter(entry => String(entry.author ?? "").startsWith("R297NoUser")).length;
+            const loose = NH.recordNotice({ source: "player", author: "R297NoSuchUser01", kind: "info", title: "R297 loose", text: "", html: "<p>R297 loose</p>" });
+            s1.loose = NH.noticeEntries().filter(entry => entry.id === loose).map(entry => entry.author ?? null);
         } finally {
             delete game.messages.get;
+            delete game.users.get;
             dismissNew();
             NH.holdNoticeHistory(false);
         }
         const hook = stripComments(sources.get("safeword.mjs") ?? "");
-        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null, message\.id\)/.test(hook), deleted }), JSON.stringify({
+        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null, message\.id\)/.test(hook), deleted, s1 }), JSON.stringify({
             flood: { gm: [true, true, true, "safeword 29", true, true], player: [true, true, true, "safeword 29", true, true] },
             crowd: { gm: [true, true, true], player: [true, true, true] },
             bound: [true, true, true, true],
             road: { public: ["player", true], gmPopup: ["mine", true], evidence: ["evidence", true], gmAsk: ["messenger", true], banner: ["safeword", true] },
             detail: [["safeword", true, false]],
             hook: true,
-            deleted: [[true, true], [[["evidence", "unread", "deleted"]], [["messenger", "unread", "deleted"]]]]
+            deleted: [[true, true], [[["evidence", "unread", "deleted"]], [["messenger", "unread", "deleted"]]]],
+            s1: { one: [["messenger", true, false]], second: true, own: true, nobody: 0, loose: [null] }
         }), "[the engine, a GM's and a player's: [own 5 kept, a second author's 3 kept, a heavy sender within 40 entries and a quarter, its newest, "
             + "160 short within 40, grown stubs within a quarter]; six senders: [own kept, each one's newest, the section within its budget]; "
             + "this GM through the roads: [own 5 kept, a second author's 3 kept, the player within 40 entries, within 25 000 characters]; "
             + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player and its card (E81 fix r1-G5); "
-            + "a plain deletion: [cards closing], [the entries' [source, state, mark]]]");
+            + "a plain deletion: [cards closing], [the entries' [source, state, mark]]; E81 fix r2-H1, a player's `gmAsk` cards naming a thread: "
+            + "one naming the second author's [source, kept under its writer, under the thread's user], 41 of them leave the second author's 3, "
+            + "150 naming no user leave this GM's own 5, the entries kept under no user, an author of no user handed to recordNotice]");
     }],
 
     ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {
@@ -9202,6 +9252,16 @@ const INVARIANTS = [
          * are counted, and none may move. "Open conversation" is pressed with the messenger window's render held, so
          * no thread is drawn or marked read on this client: it asks for the entry's own thread, once. Last, the
          * window's file is read for the roads it must not take, and the keybinding and the API for being there.
+         *
+         * E81 fix r2-H1 (13.10.2026; review round 2's C2-1, goal V9b and the early review's P1-P3), in the window the
+         * button opened: a safeword entry with an author kept draws neither that user's name (in text or in an attribute)
+         * nor a time, where a player's entry draws the name; "kolo" finds "Koło"; Esc pressed inside the search's 150 ms
+         * wait leaves every entry listed once the wait is over; and a filter whose chip falls to 0 (its one entry
+         * withdrawn) draws the list again under "all" at once - with the reader out of the list, with focus on an entry's
+         * button, and with focus there and a new entry behind the pill. Red at eefa79f (13.10.2026, once): the name drawn
+         * as a tag, "kolo" listing nothing, the search firing on "zzz" under an empty box (0 listed), and the list left
+         * under the filter in all three. No time was drawn on the safeword entry there either: that clause is red only
+         * with `entryElement`'s condition taken out (measured as a mutant, 13.10.2026).
          */
         const NH = await import("./notice-history.mjs");
         const { DrpgMessengerApp } = await import("./messenger-app.mjs");
@@ -9228,8 +9288,11 @@ const INVARIANTS = [
         let created = 0;
         const createHook = Hooks.on("preCreateChatMessage", () => { created++; });
         /* Cards are counted by the ones that were not on the page when the test began: an earlier test's card that
-         * times out during the test is not a card the window took back (12.10.2026, A2: counting all `.drpg-popup`
-         * read 3 before and 2 after in the tier 0/1 run, and passed when R296 ran by name). */
+         * leaves the page during the test is not a card the window took back (12.10.2026, A2: counting all `.drpg-popup`
+         * read 3 before and 2 after in the tier 0/1 run, and passed when R296 ran by name). No card closes on a timer:
+         * popup.mjs has none. A dismissed card leaves at its `transitionend`, or at `dismiss`'s backstop `SNAP()` + 1 000 ms
+         * after the dismissal; which of the two removed the card that A2 counted was not measured (E81 fix r2-H1, review
+         * P4: this said the card "times out"). */
         const cardsBefore = new Set(document.querySelectorAll(".drpg-popup"));
         const page = () => ({
             cards: [...document.querySelectorAll(".drpg-popup")].filter(card => !cardsBefore.has(card)).length,
@@ -9240,7 +9303,7 @@ const INVARIANTS = [
         const putRenderBack = () => { if (ownRender) proto.render = realRender; else delete proto.render; };
         const { plural } = await import("./utils.mjs");
         const asked = [];
-        let win = null, seen = null, dialog = null, ids = [], unreadAt = -1;
+        let win = null, seen = null, dialog = null, ids = [], unreadAt = -1, later = null;
         await NH.holdNoticeHistory(true);
         try {
             must(undo.length > 0, "no audio road of Foundry's to watch here - a sound would go uncounted");
@@ -9310,6 +9373,82 @@ const INVARIANTS = [
             win = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? win;
             found.button = [Boolean(corner), reopened];
             seen = { banner: bannerAt, expanded, snapshots, inWindow, found, unreadAfter };
+
+            /* E81 fix r2-H1 (13.10.2026): the window's own code, in the window the button opened. */
+            const root2 = reopened ? win?.element ?? null : null;
+            must(root2 !== null, "the tile's button opened no window - the clauses after it would be measured on nothing");
+            const listed = () => [...root2.querySelectorAll("details.drpg-notice-entry")].map(details => details.dataset.drpgKey);
+            const entryIn = id => root2.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
+            const pressed = () => root2.querySelector('[data-drpg-filter][aria-pressed="true"]')?.dataset.drpgFilter ?? null;
+            const box = root2.querySelector(".drpg-notices-search input");
+            const chip = id => root2.querySelector(`[data-drpg-filter="${id}"]`);
+            const gmId = game.users.find(user => user.isGM)?.id ?? null;
+            const withdraw = messageId => NH.noticeCardDeleted({ id: messageId }, { [MODULE_ID]: { withdraw: true } }, gmId);
+            const messenger = messageId => NH.recordNotice({ source: "messenger", kind: "info", title: "R296 Koło", text: "R296 a wheel", html: "", messageId, link: { messenger: thread } });
+            const focusIn = async id => {
+                if (!entryIn(id)) return null;
+                entryIn(id).open = true;
+                await until(() => entryIn(id)?.querySelector(".drpg-notice-conversation"), 1000);
+                entryIn(id)?.querySelector(".drpg-notice-conversation")?.focus();
+                return root2.querySelector(".drpg-notices-list")?.contains(document.activeElement) === true;
+            };
+            const again = {};
+            /* The name of whoever raised a safeword card (review round 2's C2-1) and its time (goal V9b) are drawn nowhere
+               on its entry, in text or in an attribute, though the entry keeps its author; a player's entry still draws its
+               author's name. */
+            const name = game.users.get(thread)?.name ?? null;
+            const rest = [
+                messenger("R296Withdrawn001"),
+                NH.recordNotice({ source: "player", kind: "info", title: "R296 stays", text: "R296 stays", html: "", author: thread }),
+                NH.recordNotice({ source: "safeword", kind: "error", title: "R296 safeword", text: "R296 safeword", html: "", author: thread })
+            ];
+            await until(() => rest.every(id => listed().includes(id)), 1000);
+            const said = id => {
+                const summary = entryIn(id)?.querySelector(":scope > summary");
+                return summary ? [summary.textContent, ...[summary, ...summary.querySelectorAll("*")].flatMap(node => [...node.attributes].map(a => a.value))].join("\n") : null;
+            };
+            again.named = [NH.noticeEntries().find(e => e.id === rest[2])?.author === thread, said(rest[2])?.includes(name) ?? null,
+                Boolean(entryIn(rest[2])?.querySelector(".drpg-notice-time")), said(rest[1])?.includes(name) ?? null];
+            /* Polish folding (review P3): "kolo" finds "Koło", the mark on the word as written. */
+            box.value = "kolo";
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            await until(() => listed().length === 1, 1000);
+            again.fold = [listed(), [...root2.querySelectorAll(".drpg-notice-title mark")].map(mark => mark.textContent)];
+            /* Esc inside the search's wait (review P1): the wait ends on the emptied box, not on what was typed. */
+            box.value = "zzz";
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            box.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+            await wait(450);
+            again.esc = [box.value, listed().length];
+            /* An empty search once more, so that a search still standing on "zzz" (the fault the clause above reads)
+               is not read again by the clauses below as theirs. */
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            await wait(450);
+            /* A filter whose chip falls to 0 (review P2): the list is drawn again under "all" - with the reader out of
+               the list, with focus in it, and with focus in it and a new entry behind the pill. */
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            withdraw("R296Withdrawn001");
+            await until(() => listed().length === 2, 1000);
+            again.away = [pressed(), listed()];
+            const second = messenger("R296Withdrawn002");
+            await until(() => listed().includes(second), 1000);
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            const focused = await focusIn(second);
+            withdraw("R296Withdrawn002");
+            await until(() => !listed().includes(second), 1000);
+            again.focused = [focused, pressed(), listed()];
+            const third = messenger("R296Withdrawn003");
+            await until(() => listed().includes(third), 1000);
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            const focusedToo = await focusIn(third);
+            const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R296 fresh", text: "R296 fresh", html: "" });
+            withdraw("R296Withdrawn003");
+            await until(() => listed().includes(fresh), 1000);
+            again.pill = [focusedToo, pressed(), listed()];
+            later = { again, rest, fresh };
         } finally {
             putRenderBack();
             DrpgMessengerApp.instances.delete(thread);
@@ -9325,6 +9464,13 @@ const INVARIANTS = [
         }), "[the unread banner; every entry expanded; a snapshot for each with a body; no card in the window; the search for 'gesla' "
             + "(one entry, highlighted from text, emptied by Esc); Clear (Cancel the default; refused keeps all three; answered empties); "
             + "the tile's button there and opening the window again; Mark as read]");
+        const { again = null, rest: [wheel, stays, safeword] = [], fresh = null } = later ?? {};
+        equal(stableJson(again), stableJson({
+            named: [true, false, false, true], fold: [[wheel], ["Koło"]], esc: ["", 3], away: ["all", [safeword, stays]],
+            focused: [true, "all", [safeword, stays]], pill: [true, "all", [fresh, safeword, stays]]
+        }), "E81 fix r2-H1: [a safeword entry: [its author kept, the author's name drawn on it, a time drawn on it], a player's entry: the name drawn]; "
+            + "[the search 'kolo': the entries listed, the marks]; [Esc inside the search's wait: the box, the entries listed]; a filter whose chip fell to 0: "
+            + "[the chip pressed, the entries listed] with the reader out of the list, [focus in the list, ...] with focus in it, and with a new entry behind the pill");
         equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
             "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
 

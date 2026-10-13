@@ -50629,6 +50629,13 @@ const SCENARIOS = [
          * place outside its rooms and on that map (whom `standingTwice` would name). Each stays where it stood and is not
          * named. Red at 3148dc0: the return moved three more (`aside`, `aside twice` and the copy of `aside away`, carried
          * over) and named `aside stray` as not moved; the whisper differed too, read here as one yes or no.
+         *
+         * E81 fix r2-H1 (13.10.2026; review P15): the return read the cast's store without waiting for its hydration, as
+         * `tidyTrialHall` waits. Last, from the square the gather left them in, the return runs again with the store
+         * standing in for one not yet hydrated - no rows, and `whenHydrated` answering 400 ms on - and the living student
+         * and the Monocub, ticked, go to the GM's room while `aside`, unticked, stays. Red at eefa79f (13.10.2026, once): the
+         * Monocub stayed in the square; the living student went and `aside` stayed, so not "everybody" was carried, as the
+         * review's list expected - the tick the GMs gave the Monocub was what the unhydrated read lost.
          */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.setTrialExit === "function", "trial-scene.mjs holds no room for the end of the trial - End the trial moves nobody (the owner's f)");
@@ -50710,13 +50717,37 @@ const SCENARIOS = [
                 : flagsHeldNow(actor);
             const again = await gatherEveryone(SQUARE, place, { held: holdsLiving, box: true }) - fenced(SQUARE);
             await settle();
+            const square = rooms();
+            /* E81 fix r2-H1: the return once more, from the square, with the cast's store not yet hydrated - no rows
+               until its hydration lands, 400 ms on. */
+            const { trialCastStore } = await import("./gm-stores.mjs");
+            const ownStore = ["entries", "whenHydrated"].map(key => [key, Object.hasOwn(trialCastStore, key) ? trialCastStore[key] : null]);
+            const realEntries = trialCastStore.entries, realHydrated = trialCastStore.whenHydrated;
+            let landed = false, land = null;
+            const hydration = new Promise(resolve => { land = resolve; });
+            trialCastStore.entries = (...args) => (landed ? realEntries.apply(trialCastStore, args) : {});
+            trialCastStore.whenHydrated = () => hydration.then(() => realHydrated.call(trialCastStore));
+            try {
+                const pending = T.returnTheLiving(place, GYM, hall);
+                await settle();
+                landed = true;
+                land();
+                await pending;
+            } finally {
+                for (const [key, own] of ownStore) {
+                    if (own) trialCastStore[key] = own;
+                    else delete trialCastStore[key];
+                }
+            }
+            await settle();
+            const waited = Object.fromEntries(Object.entries(rooms()).filter(([name]) => [living, cub, aside].some(actor => actor.name === name)));
             read = [linkable, refused, held && held.sceneId === place.id && held.room === GYM, left?.destination === place.id, left?.activated, activated,
                 (left?.gathered?.moved ?? NaN) - fencedIn, T.trialExitHeld(), after, stableJson(kept()) === stableJson(keptBefore), hall.tokens.contents.map(t => t.hidden),
                 [away, awayDead, living, cub, dead, monokuma, asideAway, asideStray, asideTwice].map(actor => leftIds.includes(actor.id)),
                 stableJson(whispered) === stableJson([`<p>${plural("DRPG.Floor.endTrialMoves", { n: 2 + fencedIn, room: GYM })}</p>`
                     + `<p>${plural("DRPG.TrialScene.notMoved", { n: leftIds.length, names })}</p>`
                     + line("DRPG.TrialScene.hiddenHere", theirs(left?.gathered?.hidden)) + line("DRPG.TrialScene.tokensStay", theirs(left?.gathered?.others))]) && !twice.length,
-                again, rooms()];
+                again, square, waited];
         } finally {
             await untick?.();
             T.setTrialExit(null);
@@ -50730,11 +50761,13 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, [null, null], true, true, true, 1, 2, null,
             { [living]: GYM, [cub]: GYM, [monokuma.name]: SQUARE, [dead]: STORE, [aside]: SQUARE, [asideTwice]: null }, true, [true],
             [true, false, false, false, false, false, false, false, false], true,
-            3, { [living]: GYM, [cub]: SQUARE, [monokuma.name]: SQUARE, [dead]: STORE, [aside]: SQUARE, [asideTwice]: SQUARE }]),
+            3, { [living]: GYM, [cub]: SQUARE, [monokuma.name]: SQUARE, [dead]: STORE, [aside]: SQUARE, [asideTwice]: SQUARE },
+            { [living]: GYM, [cub]: GYM, [aside]: SQUARE }]),
             "[the roles can be linked; what is held for a room of no scene's and for the hall, and whether the chosen room is held; leaving goes to the chosen scene, "
             + "activates it, how often; how many the return moved; what is held after; the room each token of the chosen scene stands in; the hall's and the other "
             + "scene's tokens where they were (the unticked ones uncarried); the hall's token hidden; whom the return names, of the living and the dead away, the moved, the dead, Monokuma and the three unticked away; "
-            + "the GMs' whisper (naming nobody left out of the cast); a gather reading the living student held as Monokuma, handed no cast: how many it moves and where each token stands]");
+            + "the GMs' whisper (naming nobody left out of the cast); a gather reading the living student held as Monokuma, handed no cast: how many it moves and where each token stands; "
+            + "the return again from the square with the cast's store hydrating: where the living student, the Monocub and the unticked one stand]");
     }],
 
     ["End the trial carries a living student from another scene with rooms into the GM's room under a new token id and names the rest", async () => {

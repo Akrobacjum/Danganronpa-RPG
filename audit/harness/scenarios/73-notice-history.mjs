@@ -31,7 +31,9 @@
  * none of its words; pressed, one window, and closed, no badge. G3 (E81 fix r1-G3): a player's own cards - one
  * deleted with the withdraw option, two updated with `settled` and `rerolled`, a private one whose meta they send
  * again with both - move nothing in the GM's history or another player's but the plain deletion's mark, while a
- * GM's update and a GM's meta still mark.
+ * GM's update and a GM's meta still mark. S3 (E81 fix r2-H1, review round 2's S3): with no GM connected a player
+ * calls the safeword; the caller posts the card, another player keeps it under the caller's id, and that player's
+ * window draws the entry with no user's name and no time (the window's tag skips a safeword entry's author).
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -50,7 +52,9 @@ export const layers = ["ci"];
    C8's phase D (12.10.2026, alone, once): 31.3 s from start to end by the results file, the checks 22.6 s of it - 5.1 s
    more checks than C7's reading, from one run each and not timed apart by phase. Still inside 60 s, so it stays.
    E81 fix r1-G3's phase G3 (12.10.2026, alone, once): 26.5 s from start to end by the results file, the checks 17.9 s
-   of it. It stays. */
+   of it. It stays.
+   E81 fix r2-H1's phase S3 (13.10.2026, alone, once): 28.8 s from start to end by the results file, the checks 24.7 s
+   of it - the phase disconnects the GM and waits on the caller's own card. Still inside 60 s, so it stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -410,4 +414,46 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         return true;`);
     const metaMarked = await p2.eval(`${marksOf} await until(() => marks().meta[0] === "rerolled"); return marks().meta;`);
     check("G3c: a GM's meta on the private card marks its reader's entry rerolled", J(metaMarked) === J(["rerolled"]), J(metaMarked));
+
+    phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
+    /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:
+       p1's window tagged the entry "PlayerTwo"). With no GM connected the caller posts the public card itself
+       (safeword.mjs `safewordPoster`), so the card's author is that player and the entry stores it for the per-author
+       bound - and the window drew it as a tag. Here the stored author is read as the precondition, and the entry as drawn
+       must carry the caller's name nowhere: not in its text, not in an attribute, and no time either (the A7 design's
+       P4-0). Last on purpose: a seeded account cannot connect again (cluster.mjs `connect`), so the GM stays away. */
+    const s3caller = await p2.eval(`return { id: game.user.id, name: game.user.name };`);
+    // Phase S's public card is a safeword entry on p1 too: only an entry kept after this line is read.
+    const s3earlier = await p1.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs"); return NH.noticeEntries().map(e => e.id);`);
+    await disconnect("gm");
+    await settle(1500);
+    const s3pressed = await p2.eval(`const S = await import("${repoUrl}/scripts/safeword.mjs");
+        return { poster: S.safewordPoster(), called: await S.callSafeword({ room: "S73 S3 room" }) };`, { timeout: 40000 });
+    const s3drawn = await p1.eval(`${UNTIL}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const banner = game.i18n.localize("DRPG.Safeword.banner");
+        const earlier = new Set(${J(s3earlier)});
+        const mine = () => NH.noticeEntries().filter(e => e.source === "safeword" && e.title === banner && !earlier.has(e.id));
+        await until(() => mine().length > 0);
+        const kept = mine().map(e => ({ id: e.id, author: e.author ?? null }));
+        const win = await game.drpg.openNotices();
+        const rows = [];
+        try {
+            for (const { id } of kept) {
+                const summary = win?.element?.querySelector(\`details.drpg-notice-entry[data-drpg-key="\${CSS.escape(id)}"] > summary\`);
+                if (!summary) { rows.push(null); continue; }
+                const said = [summary.textContent, ...[summary, ...summary.querySelectorAll("*")].flatMap(node => [...node.attributes].map(a => a.value))].join("\\n");
+                rows.push({ tags: [...summary.querySelectorAll(".drpg-notice-tags span")].map(tag => tag.textContent),
+                    named: said.includes(${J(s3caller.name)}), time: Boolean(summary.querySelector(".drpg-notice-time")) });
+            }
+        } finally {
+            await win?.close();
+            for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        return { kept, rows };`);
+    await p2.eval(`for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } })); return true;`);
+    check("S3: with no GM connected the caller's safeword card is kept on another player under the caller, and that player's window draws the entry with no user's name and no time",
+        s3pressed.poster === "caller" && s3pressed.called === true && s3drawn.kept.length === 1 && s3drawn.kept[0].author === s3caller.id
+            && s3drawn.rows.length === 1 && s3drawn.rows[0] !== null && s3drawn.rows[0].named === false && s3drawn.rows[0].time === false,
+        J({ caller: s3caller, pressed: s3pressed, drawn: s3drawn }));
 }
