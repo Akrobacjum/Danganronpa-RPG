@@ -1500,10 +1500,58 @@ function dumpDocument(out, path, name, data) {
     out.set(path, stableJson(kept));
 }
 
+/*
+ * WHAT THIS BROWSER STORED, NOT ONLY WHAT IT READS (E77 fix r2-H5, 13.10.2026; checkpoint k2's F1). A client
+ * setting nothing ever wrote reads as its default, and one written with its default reads the same, so a dump
+ * of values cannot tell the two apart. R516 put `foundryWindows` back with `set(key, was)`, `was` the value it
+ * had read: on a GM who had never moved a Foundry window that stored `{}` where nothing had been, and "tier 0/1
+ * changed nothing in the world" passed while scenario 01's A1, which reads the harness's localStorage itself,
+ * failed on `client.danganronpa-rpg.foundryWindows` (e77run/k2/01a.log:142, at ceb70a4). So the dump also files,
+ * for each of this module's client settings, whether this browser holds a stored copy (`client-stored:`), and a
+ * test that writes one puts back what was stored - `clientStored()` before, `putBackStored()` after, nothing
+ * stored included. The store is `game.settings.storage.get("client")`, localStorage in Foundry as in the
+ * harness (the `client-orphan:` reading below rests on the same); that Foundry's own read of a client setting
+ * goes to that store every time, so a key taken out of it reads as the default at once, is the harness's model
+ * and was not measured on v14. Only this module's settings: the system's and the foreign ones are read by value.
+ */
+function clientStore() {
+    const store = game.settings.storage?.get?.("client");
+    return typeof store?.getItem === "function" ? store : null;
+}
+
+/** This module's client settings, `"ns.key"` -> the stored text, or null where this browser stores nothing. */
+function clientStored() {
+    const out = new Map(), store = clientStore();
+    if (!store) return out;
+    for (const [full, def] of game.settings.settings) {
+        if (full.startsWith(`${MODULE_ID}.`) && def?.scope === "client") out.set(full, store.getItem(full));
+    }
+    return out;
+}
+
+/**
+ * Each key of a `clientStored()` reading back as stored or not stored: a copy this browser did not have is
+ * taken out, one it had and lost is written back as its text. Called after the values were put back with
+ * `game.settings.set` (whose onChange redraws what reads them), so taking a copy out leaves the value the
+ * setting reads as the one recorded; a key stored both times is left to that write.
+ */
+function putBackStored(recorded) {
+    const store = clientStore();
+    if (!store) return;
+    for (const [full, raw] of recorded ?? []) {
+        const now = store.getItem(full);
+        if (now === raw) continue;
+        if (raw === null) store.removeItem(full);
+        else if (now === null) store.setItem(full, raw);
+    }
+}
+
 /**
  * Everything on this client a test can write, as `Map<unit, stable JSON>`:
  * this module's and the system's settings in both scopes (`world:` / `client:`),
- * the foreign ones in DUMP_FOREIGN_SETTINGS, keys under this module's name in the
+ * whether this browser stores a copy of each of this module's client settings
+ * (`client-stored:`, `clientStored` above), the foreign ones in DUMP_FOREIGN_SETTINGS,
+ * keys under this module's name in the
  * client store that no registered setting claims (`client-orphan:`), every
  * document of every world collection with its embedded ones, and the pause, the
  * active and the viewed scene (`state:`). Async, so a store read asynchronously
@@ -1523,6 +1571,7 @@ async function worldDump() {
         const def = game.settings.settings.get(full);
         out.set(`${def?.scope === "client" ? "client" : "world"}:${full}`, stableJson(value));
     }
+    for (const [full, raw] of clientStored()) out.set(`client-stored:${full}`, stableJson(raw !== null));
     const client = game.settings.storage?.get?.("client");
     if (client && typeof client.key === "function") {
         for (let i = 0; i < client.length; i++) {
@@ -1729,6 +1778,6 @@ export {
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
-    stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, watchLog, cast,
+    stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

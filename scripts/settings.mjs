@@ -392,6 +392,10 @@ export const SETTINGS = {
     readableRolls: "readableRolls",
     /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
     noticeHistory: "noticeHistory",
+    /** Where this browser's GM last dragged Foundry tools and Map tools, `{ ftools: { x, y }, maptools: { x, y } }` (E77 C7, foundry-windows.mjs). */
+    foundryWindows: "foundryWindows",
+    /** Whether a GM's Foundry sidebar and scene controls stand in the module's two windows; off, where Foundry puts them (E77 fix r2-H2, foundry-windows.mjs). */
+    foundryToolWindows: "foundryToolWindows",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1520,6 +1524,31 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    /* The places of the GM's two Foundry windows (E77 C7, foundry-windows.mjs): this browser's, as the owner's Q9 of
+       11.10 has it (a place remembered in this browser), so a reload keeps them and another screen keeps its own. A
+       console can write anything here, so foundry-windows.mjs reads it through `readPlaces` (two finite numbers per
+       window, anything else is no place) and clamps every place to the screen it is shown on. */
+    game.settings.register(MODULE_ID, SETTINGS.foundryWindows, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    /* The world switch of the GM's Foundry windows (E77 fix r2-H2, 13.10.2026; the owner's amend of 11.10, session 0
+       (1): one switch as the emergency way back at the table). On by default; off, foundry-windows.mjs builds nothing
+       on a GM's page and Foundry's two rails stay where Foundry puts them (THE WORLD SWITCH there). A reload, because
+       the windows are built once at ready and hold Foundry's own nodes. A player's page is the same either way. */
+    game.settings.register(MODULE_ID, SETTINGS.foundryToolWindows, {
+        name: "DRPG.Settings.foundryToolWindows.name",
+        hint: "DRPG.Settings.foundryToolWindows.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {

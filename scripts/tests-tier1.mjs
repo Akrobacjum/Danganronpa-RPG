@@ -21,7 +21,8 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson,
+    worldDump, dumpDiff
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2087,9 +2088,15 @@ const INVARIANTS = [
         // The Despair names' column is the longest name's.
         ok(/function fitNameColumn\(/.test(src("despair.mjs")), "the Despair name column is a guess again");
 
-        // The left rail: a player's starts where the GM's does; every control fits its strip.
+        // The left rail, where one still stands in the column: it starts under the clock (RAIL_SLOT since E77 C6); every control fits its strip.
         const glass = src("glass.mjs");
-        ok(/GM_SLOT/.test(glass), "a player's rail starts on the clock's glass again");
+        ok(/RAIL_SLOT/.test(glass), "a rail still in the column starts on the clock's glass again");
+        /* And its value (E77 fix r2-H3, the round-2 question Q6): the name alone passed with any number behind it.
+           The six terms are the comment's over the constant - the clock's margin, the column's gap, the old GM
+           button's margin and height, the drop off the glass, the gap over the first tile - and their sum 110. */
+        const slot = /const RAIL_SLOT = ([\d\s+]+);/.exec(glass)?.[1].split("+").map(Number) ?? [];
+        equal(stableJson([slot, slot.reduce((a, b) => a + b, 0)]), stableJson([[4, 16, 20, 32, 26, 12], 110]),
+            "RAIL_SLOT's terms and their sum [as glass.mjs states them over it]");
         ok(/railEnd - boxTop/.test(glass), "the tools box is bounded to all the room above the notice tile again");
         ok(/r\.bottom\) - top/.test(glass), "the strip is cut to the tiles on screen, not to the box they can fill");
     }],
@@ -2263,6 +2270,539 @@ const INVARIANTS = [
         const tile = LAST.blocks.find(b => b.cls === "note-block");
         ok(tile, "no pane was cut for the notices");
         ok(tile.x === 16 && tile.w > 100, `the notice tile is at ${tile.x},${tile.y} ${tile.w}x${tile.h}`);
+    }],
+
+    ["R513 - the room tile is always cut: a fixed block at the box glass.mjs placed, in either place, its pane a section never painted empty", async () => {
+        const { LAST } = await import("./glass.mjs");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
+        needs(env.desk(), "a stacked screen places no tile: it cuts the tiles' row instead (E77 C8, R508's narrow clause)");
+        // The room tile is part of the curtain's one shape too, in either of its places and whatever
+        // the room says (E77 C4, 13.10.2026): a fixed block at the box glass.mjs placed, its pane a
+        // section that is never painted as an empty one, since the tile has no plate of its own to
+        // show. Its notice-tile twin above has no number because it is older than 1.2.61; a new
+        // tier-1 test without one fails the registry, and R510-R512 are the E77 plan's for C5 and C6.
+        ok(LAST.blocks.length, "the curtain cut nothing in a browser that lays out");
+        const tile = LAST.blocks.find(b => b.cls === "room-block"), pane = (LAST.panes || []).find(p => p.tone === "room-block");
+        ok(tile && LAST.room?.box, "no pane was cut for the room tile");
+        const { x, y, w, h } = LAST.room.box;
+        ok(tile.x === x && tile.y === y && tile.w === w && tile.h === h, `the room block is at ${tile.x},${tile.y} ${tile.w}x${tile.h}, the tile placed at ${x},${y} ${w}x${h}`);
+        ok(pane?.kind === "section" && !pane.empty, `the room's pane is ${pane ? (pane.empty ? "painted empty" : pane.kind) : "missing"}`);
+    }],
+
+    ["R510 - a player has no scene controls of Foundry's and keeps the Tokens layer: the stylesheet hides `#scene-controls` for body.drpg-player with !important in every theme, and the layer is asked back to Tokens with its select tool on every new canvas and every render of the controls, whenever it is another, once a second at most and never on a GM's screen", async () => {
+        /*
+         * E77 C5, 13.10.2026; the A8 design's R385 (the E77 plan's D2 gave it this number), the owner's Q4 ("u gracza
+         * usuwamy przyciski Foundry calkowicie"). Three readings. The rule, in the module's sheets with comments blanked:
+         * `body.drpg-player #scene-controls { display: none !important; }` with no theme class in the selector - read
+         * first on a fixture, and on it with the `!important` taken off and with the rule tied to Stained Glass. The
+         * road: foundry-windows.mjs `registerFoundryWindows` hooks `keepTokensLayer` to `canvasReady` and
+         * `renderSceneControls` for a player, before anything of the GM's. The ask, `askTokensLayer`, on stand-ins of
+         * `ui.controls`: Tokens already active - nothing asked; a GM on Drawings - nothing; a player on Drawings (the
+         * positive control: another layer set first) - `activate({ control: "tokens", tool: "select" })` once and the
+         * layer is Tokens; Walls half a second later - dropped, which is what keeps a Foundry that refuses the call
+         * from asking on every render it causes; Walls a second and a half later - asked. Whether `activate` takes
+         * that shape on v14 is LIVE-E77-11; computed `display: none` on a player's client in both themes is
+         * scenario 74 D. E77 fix r2-H2 (13.10.2026; review round 2's cor F3): a player on Templates or on Notes - a
+         * template a system's card hands out, a note dropped on the canvas, the only roads there once the controls
+         * are hidden - is left there, each asked more than a second after the last ask, so the throttle cannot be
+         * what answers; whether Daggerheart hands players a template is LIVE-E77-16.
+         */
+        const RULE = /(?:^|[{};,]\s*)body\.drpg-player #scene-controls\s*\{\s*display:\s*none\s*!important;?\s*\}/;
+        const FIX = "body.drpg-player #sidebar {\n    display: none;\n}\nbody.drpg-player #scene-controls {\n    display: none !important;\n}\n";
+        equal(JSON.stringify([FIX, FIX.replace(" !important", ""), FIX.replace("body.drpg-player #scene-controls", "body.drpg-theme-stained-glass.drpg-player #scene-controls")]
+            .map(text => RULE.test(text))), "[true,false,false]",
+            "the rule reader does not find the rule in its fixture, or does not miss the !important taken off or the rule tied to a theme");
+        const styles = await moduleStyles();
+        must(styles.length > 10000, "the module's stylesheets did not load - this would measure nothing");
+        ok(RULE.test(styles), "no rule hides Foundry's scene controls from a player in every theme with !important");
+        const FW = await import("./foundry-windows.mjs").catch(() => null);
+        ok(typeof FW?.askTokensLayer === "function", "there is no foundry-windows.mjs asking a player's layer back to Tokens");
+        const sources = new Map(await otherSources());
+        const player = bodyOf(stripComments(sources.get("foundry-windows.mjs") ?? ""), "export function registerFoundryWindows",
+            { until: "document.body.classList.add" });
+        equal(JSON.stringify(["canvasReady", "renderSceneControls"].map(hook => player.includes(`Hooks.on("${hook}", keepTokensLayer)`))), "[true,true]",
+            "[a player's keepTokensLayer hooked to canvasReady, to renderSceneControls]");
+        const asked = [];
+        const controls = name => ({ control: { name }, activate(how) { asked.push(how); this.control = { name: how.control }; } });
+        const t0 = Date.now(), drawings = controls("drawings");
+        const answers = [FW.askTokensLayer(controls("tokens"), { isGM: false }, t0), FW.askTokensLayer(controls("drawings"), { isGM: true }, t0),
+            FW.askTokensLayer(drawings, { isGM: false }, t0), FW.askTokensLayer(controls("walls"), { isGM: false }, t0 + 500),
+            FW.askTokensLayer(controls("walls"), { isGM: false }, t0 + 1500)];
+        equal(JSON.stringify([answers, drawings.control.name, asked]),
+            JSON.stringify([[false, false, true, false, true], "tokens", [{ control: "tokens", tool: "select" }, { control: "tokens", tool: "select" }]]),
+            "[asked with Tokens active, for a GM, for a player on Drawings, on Walls half a second later, a second and a half later; the layer after; what was asked]");
+        const placing = [FW.askTokensLayer(controls("templates"), { isGM: false }, t0 + 3000), FW.askTokensLayer(controls("notes"), { isGM: false }, t0 + 4500)];
+        equal(JSON.stringify([placing, asked.length]), JSON.stringify([[false, false], 2]),
+            "[asked for a player on Templates, on Notes, each past the throttle; how many asks in all]");
+    }],
+
+    ["R511 - a GM's Foundry tools are two windows of the module's that hold Foundry's own nodes: frames outside #interface with their title and close button, `#sidebar` and `#scene-controls` the same objects, a guard that puts a node back from Foundry's columns and only from there, closed meaning hidden, inert and collapsed, Foundry's own ways to open the sidebar opening the window, and the frames wearing #interface's theme", async () => {
+        /*
+         * E77 C5, 13.10.2026; the A8 design's R386 (the E77 plan's D2 gave it this number), the owner's Q5 and Q9. Its
+         * DOM clauses, on the GM's client (tier 1 runs there): the layout clause - that opening them recuts nothing -
+         * is R514, and Escape, dragging and the clamp are E77 C7's. Each frame of FOUNDRY_WINDOWS: a body child outside
+         * `#interface`, a region named by its title, an h2 and a close button with a label; `#sidebar` (and
+         * `#scene-controls`, where Foundry drew one - headless there is none) its body's child, `ui.sidebar.element`
+         * that same object. THE GUARD: `#sidebar` put into `#ui-right` comes back before the next task (the
+         * MutationObserver on `#interface`); put straight into the body - outside `#interface` - it stays there, the
+         * negative control that the guard is what moved it; `adoptFoundryNodes`, which `renderSidebar` and
+         * `renderSceneControls` run (read in the source), brings it back. CLOSED IS COLLAPSED: `setFoundryWindow`
+         * closing hides the frame with `hidden` and `inert` and leaves `ui.sidebar.expanded` false - closed AFTER an
+         * opening that expanded it, since a sidebar that starts collapsed would pass a close that collapsed nothing (the
+         * a2 mutant that dropped `collapseSidebar` from the close lived until the order was turned); opening shows it
+         * expanded. FOUNDRY'S WAYS IN: with the window closed, `ui.sidebar.changeTab` opens it, and so does
+         * `toggleExpanded()` expanding; `toggleExpanded(false)` in an open window collapses the sidebar and leaves
+         * the window open. THE THEME: a `theme-` class put on `#interface` is on both frames before the next task and
+         * a class of another name is not; taken off, gone. GUARDED (E77 fix r2-H2; review round 2's Q3): with a
+         * stand-in on Foundry tools' frame whose `getBoundingClientRect` throws - so showing and placing the window
+         * throw - `changeTab` to another tab and `toggleExpanded(true)` from closed: neither throws out, Foundry's
+         * original ran for each (the tab is the other one, the sidebar expanded) and the window is shown. Everything
+         * is put back as it was found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs").catch(() => null);
+        ok(Array.isArray(FW?.FOUNDRY_WINDOWS), "there is no foundry-windows.mjs: the GM's rails stand in Foundry's columns, on the glass");
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const bar = globalThis.ui?.sidebar, side = document.getElementById("sidebar"), ui0 = document.getElementById("interface");
+        const frames = FW.FOUNDRY_WINDOWS.map(row => document.getElementById(row.id));
+        must(side && ui0, "the sidebar or #interface is missing - this would measure nothing");
+        ok(frames.every(Boolean), "the GM has no Foundry windows: its rails stand in Foundry's columns, on the glass");
+        const shape = FW.FOUNDRY_WINDOWS.map((row, i) => {
+            const f = frames[i], body = f.querySelector(":scope > .drpg-foundry-window-body"), node = document.getElementById(row.node);
+            return [f.parentElement === document.body, ui0.contains(f), f.getAttribute("role"), f.getAttribute("aria-label") === game.i18n.localize(row.title),
+                f.querySelector(":scope > header > h2")?.textContent === game.i18n.localize(row.title),
+                Boolean(f.querySelector(":scope > header > button.drpg-foundry-window-close")?.getAttribute("aria-label")), node ? node.parentElement === body : "none"];
+        });
+        equal(JSON.stringify([shape[0], shape[1].slice(0, 6), bar?.element ? bar.element === side : "no element"]),
+            JSON.stringify([[true, false, "region", true, true, true, true], [true, false, "region", true, true, true], true]),
+            "[Foundry tools: a body child, inside #interface, its role, its label, its title, its close button's label, holding #sidebar; the same for Map tools; ui.sidebar.element the node in the window]");
+        if (document.getElementById("scene-controls")) equal(shape[1][6], true, "the scene controls are not in the Map tools window");
+        const sources = new Map(await otherSources());
+        ok(/for \(const hook of \["renderSidebar", "renderSceneControls"\]\) Hooks\.on\(hook, adoptFoundryNodes\)/
+            .test(stripComments(sources.get("foundry-windows.mjs") ?? "")), "adoptFoundryNodes is not run on renderSidebar and renderSceneControls");
+        const right = document.getElementById("ui-right") ?? ui0, home = side.parentElement;
+        const open0 = frames.map(f => !f.hidden), expanded0 = bar?.expanded, cls0 = ui0.className;
+        try {
+            right.append(side);
+            await tick();
+            const guarded = side.parentElement === home;
+            document.body.append(side);
+            await tick();
+            const outside = side.parentElement === document.body;
+            const moved = FW.adoptFoundryNodes();
+            equal(JSON.stringify([guarded, outside, moved, side.parentElement === home]), "[true,true,1,true]",
+                "[back from #ui-right before the next task; left in the body, outside #interface (the negative control); adopted by adoptFoundryNodes; home again]");
+            const state = () => [!frames[0].hidden, frames[0].hasAttribute("inert"), bar?.expanded ?? null];
+            FW.setFoundryWindow("ftools", true);
+            const opened = state();
+            FW.setFoundryWindow("ftools", false);
+            const closed = state();
+            FW.setFoundryWindow("ftools", true);
+            bar?.toggleExpanded?.(false);
+            const narrowed = state();
+            FW.setFoundryWindow("ftools", false);
+            bar?.changeTab?.(bar.tabGroups?.primary ?? "chat", "primary");
+            const byTab = state();
+            FW.setFoundryWindow("ftools", false);
+            bar?.toggleExpanded?.();
+            const byToggle = state();
+            equal(JSON.stringify([closed, opened, narrowed, byTab[0], byToggle]),
+                JSON.stringify([[false, true, false], [true, false, true], [true, false, false], true, [true, false, true]]),
+                "[closed: shown, inert, expanded; opened; collapsed with Foundry's own call in the open window; changeTab with the window closed shows it; toggleExpanded() expanding with it closed]");
+            ui0.classList.add("theme-r511probe", "drpg-r511probe");
+            await tick();
+            const worn = frames.map(f => [f.classList.contains("theme-r511probe"), f.classList.contains("drpg-r511probe")]);
+            ui0.classList.remove("theme-r511probe", "drpg-r511probe");
+            await tick();
+            const shed = frames.map(f => f.classList.contains("theme-r511probe"));
+            equal(JSON.stringify([worn, shed]), JSON.stringify([[[true, false], [true, false]], [false, false]]),
+                "[each frame: the theme class put on #interface, the other class; the theme class once taken off]");
+            FW.setFoundryWindow("ftools", false);
+            const was = bar?.tabGroups?.primary ?? bar?.activeTab ?? "chat", other = was === "chat" ? "settings" : "chat";
+            frames[0].getBoundingClientRect = () => { throw new Error("R511's stand-in: a step of the module's that throws"); };
+            const escaped = [];
+            try { bar?.changeTab?.(other, "primary"); } catch { escaped.push("changeTab"); }
+            const tabbed = [bar?.activeTab, bar?.tabGroups?.primary].includes(other), shownByTab = !frames[0].hidden;
+            FW.setFoundryWindow("ftools", false);
+            try { bar?.toggleExpanded?.(true); } catch { escaped.push("toggleExpanded"); }
+            const expanded = bar?.expanded === true, shownByToggle = !frames[0].hidden;
+            delete frames[0].getBoundingClientRect;
+            bar?.changeTab?.(was, "primary");
+            equal(JSON.stringify([escaped, tabbed, shownByTab, expanded, shownByToggle]), JSON.stringify([[], true, true, true, true]),
+                "[with a step of the module's throwing: the calls that threw out; changeTab's tab taken, the window shown; toggleExpanded's sidebar expanded, the window shown]");
+        } finally {
+            delete frames[0].getBoundingClientRect;
+            if (side.parentElement !== home) home.append(side);
+            ui0.className = cls0;
+            frames.forEach((f, i) => FW.setFoundryWindow(FW.FOUNDRY_WINDOWS[i].key, open0[i]));
+            if (bar && typeof expanded0 === "boolean" && bar.expanded !== expanded0 && open0[0]) bar.toggleExpanded?.(expanded0);
+        }
+    }],
+
+    ["R514 - opening and closing a GM's Foundry windows recuts nothing: no drpgGlassCut and the curtain's clip-path the same, and a taller clock still cuts", async () => {
+        /*
+         * E77 C5, 13.10.2026; the layout clause of the A8 design's R386 ("never recut the curtain"), numbered apart from
+         * R511 so that its skip without a layout is a skip of this alone (the E77 plan's D9). The windows stand outside
+         * `#interface` and hold the only rails, which glass.mjs and narrow.mjs read only while they stand in Foundry's
+         * columns: both opened (`toggleFoundryTools(true)`), a pass of the glass, closed, a pass - no `drpgGlassCut` and
+         * the curtain's clip-path the same throughout. THE CONTROL: the clock 40 px taller and a pass fires one, or the
+         * count could not see a cut. audit/glass-harness.html's `drpgFoundryCut` reads the same at the sweep's 22
+         * sizes. The windows are put back as they were found.
+         */
+        const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
+        const cur = document.getElementById("drpg-curtain"), hud = document.getElementById("drpg-hud");
+        must(cur && hud && FW.foundryWindow("ftools"), "no curtain, no clock or no window - this would measure nothing");
+        const open0 = FW.FOUNDRY_WINDOWS.map(row => !FW.foundryWindow(row.key)?.hidden);
+        let cuts = 0;
+        const count = () => { cuts++; };
+        const hook = Hooks.on("drpgGlassCut", count);
+        const row = document.createElement("div");
+        try {
+            FW.toggleFoundryTools(false);
+            G.refreshGlass();
+            await wait(300);
+            cuts = 0;
+            const clip = [cur.style.clipPath];
+            FW.toggleFoundryTools(true);
+            G.refreshGlass();
+            await wait(300);
+            clip.push(cur.style.clipPath);
+            FW.toggleFoundryTools(false);
+            G.refreshGlass();
+            await wait(300);
+            clip.push(cur.style.clipPath);
+            const windows = cuts;
+            row.style.height = "40px";
+            hud.append(row);
+            G.refreshGlass();
+            await wait(300);
+            equal(JSON.stringify([windows, clip.every(c => c === clip[0]), cuts > windows]), "[0,true,true]",
+                "[cuts while the windows opened and closed, the clip-path the same, the control's taller clock cut]");
+        } finally {
+            row.remove();
+            Hooks.off("drpgGlassCut", hook);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            G.refreshGlass();
+        }
+    }],
+
+    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, and a drag by the title writes where it ends", async () => {
+        /*
+         * E77 C7, 13.10.2026; the place, drag and clamp clauses of the A8 design's R386 (R511 holds its DOM clauses,
+         * R514 its layout one), numbered apart as R514 was. Headless, where jsdom gives every box 0x0, so the clamp is
+         * read as the pure function it is: P11's places at 1920x1080 (Foundry tools 939,130, Map tools 520,260; the
+         * design's T7) with frame sizes standing in for a browser's (360x690 and 120x520 - not measured: the glass
+         * harness's `drpgWindowsCheck` reads the real frames at the sweep's 23 sizes), and for the cluster glass.mjs's
+         * own fallback for the `launch` block at 1366x768 (W - 22 - 114, H - 22 - 134, 114x134). THE SETTING: this
+         * browser's, not in the settings window; `readPlaces` keeps two finite numbers, rounded, and drops a string, a
+         * NaN, an Infinity, a null, an array and a key that is no window's. THE CLAMP: both P11 places end wholly in
+         * [8, W - 8] x [8, H - 8] with their boxes and 8 px around them off the cluster's - THE CONTROL: both unclamped
+         * run off the bottom; a place on the cluster goes left (78 px) when that is shorter, up (26 px) when that is,
+         * and up when going left would leave the screen; a console's -500,1e9 stands at the corner it is nearest.
+         * THE DRAG, on the real Foundry tools window: a pointerdown, a move and a pointerup on its title, 50 px right
+         * and 30 px down, leave the frame and the setting at its place plus that (clamped as the drop clamps it); a
+         * pointerdown on the close button drags nothing; a cancelled drag goes back and writes nothing. The setting,
+         * the windows and the frame's place are put back as they were found - the setting AS IT WAS STORED (E77 fix
+         * r2-H5, 13.10.2026; checkpoint k2's F1): `set(key, was)` alone stored `{}` on a GM's browser that had stored
+         * nothing, which scenario 01's A1 read as a world tier 1 had moved (e77run/k2/01a.log:142) and the suite's own
+         * dump could not see until it read stored copies (tests-kit.mjs `clientStored`, R532). So a copy this browser
+         * did not have is taken out of its client store after the value is written back, once the drop's write has
+         * had a settle to land, and the stored text is read against what was found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        ok(typeof FW.clampPlace === "function" && typeof FW.readPlaces === "function", "foundry-windows.mjs has no clampPlace or readPlaces: a window's place is not kept on the screen");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.foundryWindows}`);
+        equal(JSON.stringify([SETTINGS.foundryWindows ?? null, reg?.scope ?? null, reg?.config ?? null]), JSON.stringify(["foundryWindows", "client", false]),
+            "[the key, its scope, shown in the settings window]");
+        equal(JSON.stringify([FW.readPlaces({ ftools: { x: 939.4, y: 130 }, maptools: { x: "520", y: 260 }, other: { x: 1, y: 2 } }),
+            FW.readPlaces(null), FW.readPlaces("ftools"), FW.readPlaces([{ x: 1, y: 2 }]), FW.readPlaces({ ftools: { x: NaN, y: 1 }, maptools: { x: Infinity, y: 1 } }),
+            FW.readPlaces({ ftools: null, maptools: [1, 2] })]), JSON.stringify([{ ftools: { x: 939, y: 130 } }, {}, {}, {}, {}, {}]),
+            "[a good place and a string, null, a string, an array, NaN and Infinity, null and an array - read]");
+        const S = { W: 1366, H: 768 }, B = { x: 1366 - 22 - 114, y: 768 - 22 - 134, w: 114, h: 134 }, M = 8;
+        const P11 = [[{ x: 939, y: 130 }, { w: 360, h: 690 }], [{ x: 520, y: 260 }, { w: 120, h: 520 }]];
+        const clamped = P11.map(([at, size]) => FW.clampPlace(at, size, S, B));
+        const onScreen = (at, size) => at.x >= M && at.y >= M && at.x + size.w <= S.W - M && at.y + size.h <= S.H - M;
+        const offCluster = (at, size) => !(at.x - M < B.x + B.w && at.x + size.w + M > B.x && at.y - M < B.y + B.h && at.y + size.h + M > B.y);
+        equal(JSON.stringify([clamped, clamped.map((at, i) => [onScreen(at, P11[i][1]), offCluster(at, P11[i][1])]), P11.map(([at, size]) => onScreen(at, size))]),
+            JSON.stringify([[{ x: 862, y: 70 }, { x: 520, y: 240 }], [[true, true], [true, true]], [false, false]]),
+            "[P11's places at 1366x768 clamped; each on the screen and off the cluster; the control - each unclamped on the screen]");
+        equal(JSON.stringify([FW.clampPlace({ x: 1200, y: 600 }, { w: 100, h: 100 }, S, B), FW.clampPlace({ x: 1150, y: 530 }, { w: 100, h: 100 }, S, B),
+            FW.clampPlace({ x: 400, y: 600 }, { w: 1300, h: 100 }, S, B), FW.clampPlace({ x: -500, y: 1e9 }, { w: 360, h: 690 }, S, null)]),
+            JSON.stringify([{ x: 1122, y: 600 }, { x: 1150, y: 504 }, { x: 58, y: 504 }, { x: 8, y: 70 }]),
+            "[on the cluster, left shorter; up shorter; too wide to go left; a console's far-off place]");
+        const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), close = head?.querySelector("button");
+        must(frame && head && close, "no Foundry tools window with a title bar - this would measure nothing");
+        const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+        const store = game.settings.storage?.get?.("client"), stored = () => store?.getItem?.(key) ?? null, stored0 = stored();
+        const open0 = FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key)?.hidden === false), style0 = [frame.style.left, frame.style.top];
+        const Ev = typeof globalThis.PointerEvent === "function" ? globalThis.PointerEvent : MouseEvent;
+        const fire = (el, type, x, y) => el.dispatchEvent(new Ev(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1 }));
+        const saved = () => game.settings.get(MODULE_ID, SETTINGS.foundryWindows)?.ftools ?? null;
+        const at = () => [parseFloat(frame.style.left), parseFloat(frame.style.top)];
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.foundryWindows, {});
+            FW.setFoundryWindow("ftools", true);
+            const from = FW.placeFoundryWindow("ftools");
+            must(from, "the open Foundry tools window has no place - this would measure nothing");
+            const r = frame.getBoundingClientRect();
+            const want = FW.clampPlace({ x: from.x + 50, y: from.y + 30 }, { w: r.width, h: r.height }, { W: window.innerWidth, H: window.innerHeight });
+            fire(head, "pointerdown", 100, 100);
+            fire(head, "pointermove", 130, 115);
+            fire(head, "pointerup", 150, 130);
+            await until(() => saved()?.x === want.x && saved()?.y === want.y, 2000);
+            const dragged = [at(), saved()];
+            fire(close, "pointerdown", 100, 100);
+            fire(head, "pointermove", 300, 300);
+            fire(head, "pointerup", 300, 300);
+            await settle();
+            const closeButton = [at(), saved(), FW.foundryWindow("ftools").hidden];
+            fire(head, "pointerdown", 100, 100);
+            fire(head, "pointermove", 140, 100);
+            const midway = at();
+            fire(head, "pointercancel", 140, 100);
+            await settle();
+            equal(JSON.stringify([dragged, closeButton, midway[0] !== want.x, at(), saved()]),
+                JSON.stringify([[[want.x, want.y], want], [[want.x, want.y], want, false], true, [want.x, want.y], want]),
+                `[dragged from ${from.x},${from.y}: the frame and the setting; after a pointerdown on the close button: both, still open; the cancelled drag moved; after it, the frame and the setting] (setting ${key})`);
+        } finally {
+            await settle();
+            await game.settings.set(MODULE_ID, SETTINGS.foundryWindows, was);
+            if (stored0 === null) store?.removeItem?.(key);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            [frame.style.left, frame.style.top] = style0;
+        }
+        equal(stored(), stored0, `this browser's stored ${key} after the test, against what it stored before (null: nothing)`);
+    }],
+
+    ["R517 - Escape is Foundry's first: with a framed window rendered, a text field focused, Foundry's menu or a context menu open, a tour running or a token selected it leaves a GM's open Foundry windows open and the key to Foundry; with none of those it closes both before any listener of Foundry's; with both closed it takes nothing", async () => {
+        /*
+         * E77 C7, 13.10.2026; the Escape clause of the A8 design's R386 (the owner's Q5: Foundry's keys as before). Foundry's
+         * `core.dismiss` (read by the design in 14.365's client-keybindings.mjs, not here) dismisses a drag, its main menu, a
+         * context menu, a tour, every framed window, then releases the selection, and only then opens the main menu;
+         * foundry-windows.mjs takes Escape in place of that last step alone. Each case: both windows open, one stand-in put
+         * where Foundry keeps that thing (a framed rendered app in `foundry.applications.instances`, a rendered one in
+         * `ui.windows`, a textarea focused in Foundry tools where the chat's field stands while the window is open (the chat
+         * focus: typing there, Escape is Foundry's), `ui.menu.rendered`, `ui.context.element`,
+         * `foundry.nue.Tour.tourInProgress`, `canvas.activeLayer.controlled`) and taken away after, and an Escape keydown
+         * dispatched on the focused element: whether its default was prevented, whether a bubbling listener on `window` -
+         * where Foundry's KeyboardManager listens in v13, not read on v14 here - still saw it, and whether both windows are
+         * open. THE CONTROL: with no stand-in Escape closes both, prevented and unseen by that listener; with both closed it
+         * is neither. E77 fix r2-H2 (review round 2's cor F1) adds a drag in progress - a ruler, a box select, a wall
+         * being drawn - which controls nothing: a stand-in `canvas.currentMouseManager`, the field v11-v13 hold it in
+         * (from memory, LIVE-E77-10). Another module's Escape on an empty screen is LIVE-E77-10. Whatever held the focus is blurred first, or
+         * a field the run left focused would read as every case; the windows and that focus are put back as they were found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        must(FW.FOUNDRY_WINDOWS.every(r => FW.foundryWindow(r.key)), "the GM has no Foundry windows - this would measure nothing");
+        const open0 = FW.FOUNDRY_WINDOWS.map(r => FW.foundryWindow(r.key).hidden === false);
+        let seen = 0;
+        const later = event => { if (event.key === "Escape") seen++; };
+        const press = () => {
+            const before = seen, event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+            (document.activeElement ?? document.body).dispatchEvent(event);
+            return [event.defaultPrevented, seen > before, FW.FOUNDRY_WINDOWS.every(r => FW.foundryWindow(r.key).hidden === false)];
+        };
+        const stand = (owner, name, value) => {
+            const had = Object.getOwnPropertyDescriptor(owner, name);
+            Object.defineProperty(owner, name, { configurable: true, enumerable: true, writable: true, value });
+            return () => { if (had) Object.defineProperty(owner, name, had); else delete owner[name]; };
+        };
+        const field = document.createElement("textarea");
+        const CASES = [
+            ["a framed window", () => { foundry.applications.instances.set("r517-probe", { hasFrame: true, rendered: true }); return () => foundry.applications.instances.delete("r517-probe"); }],
+            ["an old window", () => stand(ui.windows, "r517-probe", { rendered: true })],
+            ["a text field", () => { FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body").append(field); field.focus(); return () => { field.blur(); field.remove(); }; }],
+            ["the main menu", () => stand(ui, "menu", { rendered: true })],
+            ["a context menu", () => stand(ui, "context", { element: document.createElement("nav") })],
+            ["a tour", () => foundry.nue?.Tour ? stand(foundry.nue.Tour, "tourInProgress", true) : stand(foundry, "nue", { Tour: { tourInProgress: true } })],
+            ["a selected token", () => stand(canvas, "activeLayer", { controlled: [{ id: "r517-probe" }] })],
+            ["a drag in progress", () => stand(canvas, "currentMouseManager", { state: 1 })]
+        ];
+        const focus0 = document.activeElement;
+        must(FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body"), "Foundry tools has no body to hold the text field - this would measure nothing");
+        window.addEventListener("keydown", later);
+        const read = {};
+        try {
+            focus0?.blur?.();
+            for (const [name, put] of CASES) {
+                FW.toggleFoundryTools(true);
+                const away = put();
+                try { read[name] = press(); } finally { away(); }
+            }
+            FW.toggleFoundryTools(true);
+            read.nothing = press();
+            FW.toggleFoundryTools(false);
+            read.closed = press();
+        } finally {
+            window.removeEventListener("keydown", later);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            if (focus0 && focus0 !== document.body && focus0.isConnected) focus0.focus?.();
+        }
+        const left = [false, true, true];
+        equal(JSON.stringify(read), JSON.stringify({ ...Object.fromEntries(CASES.map(([name]) => [name, left])), nothing: [true, false, false], closed: [false, true, false] }),
+            "[each case: prevented, seen by a later listener on window, both windows open] - with a stand-in, with none, with both closed");
+    }],
+
+    ["R512 - the corner's upper row: a GM's red button and Foundry tools are children of the body in the cluster through data-drpg-cluster, with no drpg- class on them or above them, named for a screen reader, the eye and Foundry's own logo their faces; Foundry tools opens both windows and closes them, saying so in aria-pressed; and in both themes each stands on its cell two rows over settings and the handbooks, the size its token gives, the gap from the chat and from each other, with the camera dock's lift and the tab rail's clearance as well", async () => {
+        /*
+         * E77 C6, 13.10.2026; the A8 design's R387 (the E77 plan's D2 gave it this number), the owner's AM-21 variant B
+         * (mockup/grid.txt). Tier 1 runs on the GM, where both are built: gm-panel.mjs `injectLauncher` in module.mjs's
+         * ready sequence and foundry-windows.mjs `registerFoundryWindows`, both before the glass. THE BODY: each a child
+         * of the body, carrying `data-drpg-cluster` and matching glass.mjs's LAUNCHERS (so the corner's pane and its
+         * step off the tab rail count it, R475), and neither it nor an ancestor under the body wears a class with
+         * "drpg-" in it - pixel-icons.css paints any `i.fa-eye` under such an ancestor as its plain eye, over the
+         * Monokuma one (R515 reads what that does in a browser). THE FACES: the GM's `i` is exactly `fa-solid fa-eye`
+         * and inert, the button holds no text and its `aria-label` is DRPG.Panel.launcher; Foundry tools' only child is
+         * an `img` whose `src` attribute is `icons/fvtt.png` with an empty `alt`, and its `aria-label` is
+         * DRPG.FoundryTools.toggle. THE CLICK: from closed, a click opens both windows with `aria-pressed` "true", a
+         * second closes both with "false". THE CELLS, from the cascade as R474 reads the other three (`cornerGeometry`,
+         * so headless too): the GM's button's right and Foundry tools' equal to settings' and the handbooks', their
+         * bottoms two `--drpg-launch-row` over them, both the small and book tokens' size, the clip-path the chat's, and
+         * the chat to each and the two to each other the gap token apart - in both themes, as the table has it and
+         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. THE LOGO THAT DOES NOT LOAD (E77 fix r2-H2;
+         * review round 2's cor F6): an `error` event on the logo leaves one inert `fa-solid fa-toolbox` in its place;
+         * jsdom loads no picture, so the event is dispatched, and at a table where the file is missing this test's
+         * faces read the icon and fail, which is LIVE-E77-09's question. The logo goes back and the error is fired
+         * a second time: the fallback holds on every error, so the next tier-1 run in the same page reads what this
+         * one read (E77 fix r2-H6, 13.10.2026: with a one-shot listener R512 was green on a page's first run and red
+         * on every later one, scenario 01's A2, A3 and C at 9ef00ef). Everything is put back as it was found.
+         */
+        must(game.user.isGM, "the upper row is a GM's, and tier 1 runs on the GM");
+        const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
+        const gm = document.getElementById("drpg-gm-launcher"), tools = document.getElementById("drpg-foundry-tools");
+        must(gm && tools && FW.foundryWindow("ftools"), "the GM's button, Foundry tools or its window is not on the page - there is nothing to read");
+        const classed = el => { for (let n = el; n && n !== document.body; n = n.parentElement) if (/drpg-/.test(n.getAttribute("class") ?? "")) return true; return false; };
+        const eye = gm.querySelector("i"), logo = tools.querySelector("img");
+        const dom = [gm, tools].map(el => [el.parentElement === document.body, el.hasAttribute("data-drpg-cluster"), el.matches(G.LAUNCHERS), classed(el)]);
+        const faces = [eye?.getAttribute("class"), eye?.hasAttribute("inert"), gm.textContent.trim(), gm.getAttribute("aria-label") === game.i18n.localize("DRPG.Panel.launcher"),
+            tools.children.length, logo?.getAttribute("src"), logo?.getAttribute("alt"), tools.getAttribute("aria-label") === game.i18n.localize("DRPG.FoundryTools.toggle")];
+        const open0 = FW.FOUNDRY_WINDOWS.map(row => !FW.foundryWindow(row.key)?.hidden);
+        const state = () => [FW.FOUNDRY_WINDOWS.map(row => FW.foundryWindow(row.key)?.hidden === false), tools.getAttribute("aria-pressed")];
+        const clicks = [];
+        try {
+            FW.toggleFoundryTools(false);
+            clicks.push(state());
+            tools.click();
+            clicks.push(state());
+            tools.click();
+            clicks.push(state());
+        } finally {
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+        }
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
+        const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
+        const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+        const seen = {}, want = {};
+        try {
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                for (const [label, lift, clear] of [["as it is", null, null], ["lifted, cleared 37", `${Math.min(300, Math.floor(innerHeight / 2))}px`, "37px"]]) {
+                    if (lift) {
+                        body.style.setProperty(INLINE[0], lift);
+                        body.style.setProperty(INLINE[1], clear);
+                    }
+                    const { place, clip, gap } = cornerGeometry();
+                    const token = name => cascadePx(body, name);
+                    const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
+                    const U = place("drpg-gm-launcher"), T = place("drpg-foundry-tools"), row = token("--drpg-launch-row"), g = token("--drpg-launch-gap");
+                    const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`;
+                    seen[key] = {
+                        shape: [U.el, T.el].map(el => (getComputedStyle(el).clipPath ?? "none") === clip),
+                        sizes: [U.w, U.h, T.w, T.h].map(round).join(" "),
+                        cells: [U.right - S.right, U.bottom - S.bottom, T.right - B.right, T.bottom - B.bottom].map(round).join(" "),
+                        gaps: [gap(M, U), gap(M, T), gap(U, T)].map(round).join(" ")
+                    };
+                    want[key] = {
+                        shape: [true, true],
+                        sizes: [token("--drpg-launcher-small"), token("--drpg-launcher-small"), token("--drpg-launcher-book"), token("--drpg-launcher-book")].map(round).join(" "),
+                        cells: [0, 2 * row, 0, 2 * row].map(round).join(" "),
+                        gaps: [g, g, g].map(round).join(" ")
+                    };
+                    putBack();
+                }
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            putBack();
+        }
+        equal(JSON.stringify([dom, faces, clicks]), JSON.stringify([[[true, true, true, false], [true, true, true, false]],
+            ["fa-solid fa-eye", true, "", true, 1, "icons/fvtt.png", "", true],
+            [[[false, false], "false"], [[true, true], "true"], [[false, false], "false"]]]),
+            "[per button: a child of the body, data-drpg-cluster, in LAUNCHERS, a drpg- class on it or above it; the GM's eye's classes, inert, its text, "
+            + "its label; Foundry tools' children, the logo's src and alt, its label; the windows and aria-pressed closed, after a click, after a second]");
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
+            + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
+        const fallback = [];
+        try {
+            for (let n = 0; n < 2; n++) {
+                logo?.dispatchEvent(new Event("error"));
+                const mark = tools.firstElementChild;
+                fallback.push([tools.children.length, mark?.tagName ?? null, mark?.getAttribute("class") ?? null, mark?.hasAttribute("inert") ?? null, logo?.isConnected ?? null]);
+                if (logo && !logo.isConnected) tools.replaceChildren(logo);
+            }
+        } finally {
+            if (logo && !logo.isConnected) tools.replaceChildren(logo);
+        }
+        equal(JSON.stringify(fallback), JSON.stringify([[1, "I", "fa-solid fa-toolbox", true, false], [1, "I", "fa-solid fa-toolbox", true, false]]),
+            "[after the logo's error, and after a second error once it is put back: Foundry tools' children, the one's tag, its classes, inert, the logo still on the page]");
+    }],
+
+    ["R515 - in a browser the corner's upper row wears its own colours: Foundry tools' ring the state's accent as settings' and the handbooks' are through a change of phase, the GM's button red through it, and the GM's eye the Monokuma mask, not the plain eye pixel-icons.css paints under a drpg- class", async () => {
+        /*
+         * E77 C6, 13.10.2026; the colour and glyph clauses of the A8 design's R387, numbered apart from R512 so that
+         * their skip without a cascade is a skip of these alone (the E77 plan's D9: headless, var() does not resolve
+         * and no ring has a colour). Under Stained Glass, with `data-drpg-measuring` on the body (no transition runs,
+         * stained-glass.css) and `drpg-eclipse` and `drpg-incident-here` off (each overrides the phase's accent), the
+         * ring colour (`border-top-color`) of settings, the handbooks, Foundry tools and the GM's button is read with
+         * `data-drpg-phase` "investigation" and again with "classTrial". Settings' changing is the control that the
+         * accent moved at all; Foundry tools' equal to settings' in each; the GM's the same in both. The messenger's
+         * ring is not read: it wore the accent in 1.2.73 and is left as it was (the E77 plan's T8). THE EYE: the GM's
+         * `i::before` has the Monokuma mask (danganronpa.css, its 24-cell path) and the `i`'s own mask-image is none;
+         * THE CONTROL: with a `drpg-probe` class on the button for one reading, pixel-icons.css's rule reaches the `i`
+         * and its own mask-image is not none - the trap R512's "no drpg- class" exists for. Everything is put back.
+         */
+        needs(env.cascade(), "the rings' colours come from var() through the cascade");
+        const ids = ["drpg-sound-launcher", "drpg-book-launcher", "drpg-foundry-tools", "drpg-gm-launcher"];
+        const els = ids.map(id => document.getElementById(id));
+        must(els.every(Boolean), "a corner button is not on the page - there is nothing to read");
+        const body = document.body, gm = els[3], eye = gm.querySelector("i");
+        must(eye, "the GM's button has no eye - there is nothing to read");
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-eclipse", "drpg-incident-here"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const phaseWas = body.getAttribute("data-drpg-phase"), measuringWas = body.hasAttribute("data-drpg-measuring");
+        const mask = style => style.maskImage || style.webkitMaskImage || "none";
+        let rings, glyph, trapped;
+        try {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, i === 0));
+            body.toggleAttribute("data-drpg-measuring", true);
+            rings = ["investigation", "classTrial"].map(phase => {
+                body.setAttribute("data-drpg-phase", phase);
+                return els.map(el => getComputedStyle(el).borderTopColor);
+            });
+            glyph = [/M23(?: |%20)5h1v1H23z/.test(mask(getComputedStyle(eye, "::before"))), mask(getComputedStyle(eye))];
+            gm.classList.add("drpg-probe");
+            trapped = mask(getComputedStyle(eye));
+        } finally {
+            gm.classList.remove("drpg-probe");
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            if (phaseWas === null) body.removeAttribute("data-drpg-phase"); else body.setAttribute("data-drpg-phase", phaseWas);
+            body.toggleAttribute("data-drpg-measuring", measuringWas);
+        }
+        const [a, b] = rings;
+        equal(JSON.stringify([a[0] !== b[0], a[1] === a[0] && b[1] === b[0], a[2] === a[0] && b[2] === b[0], a[3] === b[3], glyph, trapped !== "none"]),
+            JSON.stringify([true, true, true, true, [true, "none"], true]),
+            `[settings' ring changed with the phase; the handbooks' as settings'; Foundry tools' as settings'; the GM's the same; the eye's ::before the Monokuma mask `
+            + `and its own mask none; with a drpg- class its own mask set] - rings ${JSON.stringify(rings)}, own mask with the class ${String(trapped).slice(0, 40)}`);
     }],
 
     ["the theme tokens resolve", () => {
@@ -8266,6 +8806,21 @@ const INVARIANTS = [
          * (the positive control: a window that drew nothing would pass every count of what is gone) and no `data-*`,
          * `aria-*`, `style` or `on*` under it. The title and the text carry markup of their own and are drawn as the
          * characters they are: text nodes, no element parsed out of them, the characters all there.
+         * THE WINDOW AS IT IS WHEN IT IS READ (E77 fix r2-H9, 13.10.2026). Scenario 01's A2 (tiers 0 and 1 inside a
+         * Class Trial) failed this clause once, at k3 on 0dc9232 (S/e77run/k3/01a.log:313); the log cut the message
+         * before the compared values, and three runs of tier 1 inside a trial at a119775 (scenario 01's A2 shape, one
+         * after its A1) passed. Two things can move under the clause between the opening and its 50 ms poll, and
+         * e77run/scratch/r2h9-trial.mjs forces each at a119775 (R294 alone, inside a trial). The window draws its list
+         * again whenever the history moves (`changed`, at once) or a world setting of the module is written
+         * (keepLive, 120 ms coalesced), and the list drawn again reopens its open entries (`dressList`), which moves
+         * the one remembered snapshot out of the entry drawn before: this clause held that entry and read
+         * `snapshot: null`, with the redraw forced after the opening and before it. And a11y.mjs's sweep, which runs a
+         * frame after any change in the columns it watches, marked the card's link `data-drpg-named`: read with a
+         * sweep forced after the opening, and on both runs that forced none once the reading below was in. The
+         * redrawn list also carried chrome.mjs's `data-drpg-chrome` on the card's table. Neither mark is another
+         * user's markup, and neither is allowed in a snapshot: a11y.mjs and chrome.mjs now leave
+         * `.drpg-notice-snapshot` alone, and the entry is looked up in the window at every poll, opened again when a
+         * redraw closed it, and measured as the window shows it - green with each of the three forced.
          */
         const TITLE = `R294 <img src="r294-title.png" onerror="globalThis.__drpgR294 = 5"> title`;
         const windows = () => [...foundry.applications.instances.values()].filter(app => app.options?.classes?.includes("drpg-window-notices"));
@@ -8278,10 +8833,15 @@ const INVARIANTS = [
         try {
             const id = NH.recordNotice({ source: "mine", kind: "info", title: TITLE, text: `${TITLE} text`, html: CARD });
             win = await openNotices();
-            const details = win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
-            must(details !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
-            details.open = true;
-            await until(() => details.querySelector(".drpg-notice-snapshot"), 1000);
+            const shown = () => win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(shown() !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
+            await until(() => {
+                const entry = shown();
+                if (entry && !entry.open) entry.open = true;
+                return entry?.querySelector(".drpg-notice-snapshot");
+            }, 1000);
+            const details = shown();
+            must(details !== null, "the window stopped listing the suite's card - its snapshot would be measured on nothing");
             const snapshot = details.querySelector(".drpg-notice-snapshot");
             const part = name => details.querySelector(`summary > .drpg-notice-${name}`);
             seen = {
@@ -9550,7 +10110,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -9590,8 +10150,9 @@ const INVARIANTS = [
          * cuts the badge, which stands out of its top-right corner, to a red sliver with no digits (Chromium 12.10, the
          * same in 1.2.74's corner; not this commit's to change). (c), E81 C12, for a GM: the roster opened by
          * clicking its button, run long with 120 rows of the suite's, read as it is and with a dock of 300 px (or
-         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the
-         * screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
+         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the upper row (the GM's
+         * button and Foundry tools, since E77 fix r2-H3), its right edge with the chat's, its drawn top at least 8 px
+         * inside the screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
          * browser's size; R474 works that one out headless. The two clauses' Chromium readings of 12.10 were taken on
          * the grid mockup's page with this commit's sheets, not by this test: NEVER RUN in a browser either.
          * (d), E81 C13: on a stacked screen, the notice stack in both themes (the classes turned as in (b) and back), filled
@@ -9710,8 +10271,9 @@ const INVARIANTS = [
                 for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
                     if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
                     const chat = launchers[0], foot = cascadePx(panel, "bottom");
+                    const row = ["drpg-gm-launcher", "drpg-foundry-tools"].map(id => document.getElementById(id)).filter(Boolean);
                     roster[label] = {
-                        foot: (foot - cascadePx(chat, "bottom") - chat.offsetHeight).toFixed(2),
+                        foot: (foot - Math.max(...row.map(el => cascadePx(el, "bottom") + el.offsetHeight), row.length ? -Infinity : NaN)).toFixed(2),
                         right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
                         top: insetBox(panel).bottom - foot - panel.offsetHeight >= 8 - 0.5
                     };
@@ -9726,7 +10288,7 @@ const INVARIANTS = [
             }
             const placed = { foot: "8.00", right: "0.00", top: true };
             equal(stableJson(roster), stableJson({ "as it is": placed, lifted: placed, overCards: true }),
-                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
+                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the upper row, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
                 + "with a dock of 300 px or half the screen; over the notice cards on a stacked screen]");
         }
 
@@ -9976,7 +10538,7 @@ const INVARIANTS = [
             + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
             + "clock grew with no card; back on Stained Glass, the top]");
     }],
-    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the chat with its right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
+    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the upper row with the chat's right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
         /*
          * E81 C12, 12.10.2026: the owner's grid (AM-18 of 11.10, variant B accepted in AM-21 of 12.10), read from the
          * cascade so it runs headless - R299 (a) and (c) read the same and the boxes as drawn, but only in a browser.
@@ -10038,7 +10600,7 @@ const INVARIANTS = [
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the corner could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson({ ...seen, overCards }), stableJson({ ...want, overCards: true }),
             `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
-            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the chat, "
+            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the upper row, "
             + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
     }],
     ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line, 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
@@ -10261,6 +10823,744 @@ const INVARIANTS = [
             "[a seat inside kept; one outside clamped into the rect; with no rect a line along the top; the ring's first two cells by hand; the ring of eight on the grid "
             + "and inside; its distinct cells; a taken cell skipped one further out; every cell of the ray taken, the first anyway; a second run the same]");
     }],
+
+    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type; the room tile draws the GM's words as text and a picture only through it, and opens it on this browser alone; and the narrow row's thumbnail is the same checked path and its window draws the words as text under a title of the module's", async () => {
+        /*
+         * E77 C1, 13.10.2026; the A8 design's R380 (the E77 plan's D2 gave it this number; ledger V3), its
+         * `safeRoomImage` clauses - E77 C3 adds the tile's (the GM's words drawn as text, no `data-tooltip`) and C8
+         * the narrow row's. The picture is a path somebody else wrote that every player's browser fetches, at the
+         * write (`setVaultRoom`) and at every read (`roomImage`) through this one function, so its table is the rule:
+         * kept - a relative path as Foundry's file picker gives it (trimmed), one with a route prefix, one of this
+         * page's own origin (answered as its path), an upper-case extension; refused - `javascript:`, `data:`,
+         * `blob:` (of this origin too: a blob's origin is the page's), `file:`, `//host`, another host, a query, a
+         * fragment, a `..` (plain or `%2e`), a backslash, a quote (the path ends up in a CSS `url("...")`), a gif and
+         * an apng by name (an animation `prefers-reduced-motion` does not stop; only the extension is read, so an
+         * animated PNG, WebP or AVIF under a still name is kept - E77 round 1's sec F2, not detected), an svg (E77
+         * fix r1-G1: the module draws a picture as more than an `<img>`), a page with no extension, not a string,
+         * empty. Pure: it reads `document.baseURI` and writes nothing. What a server answers to
+         * a kept path - a redirect elsewhere - is no reading of the string: LIVE-E77-03.
+         */
+        const V = await import("./vault.mjs");
+        ok(typeof V.safeRoomImage === "function", "vault.mjs has no `safeRoomImage` - a room's picture would be fetched from wherever it says");
+        if (typeof V.safeRoomImage !== "function") return;
+        const origin = new URL(document.baseURI).origin;
+        const KEPT = [
+            ["  worlds/suite/rooms/hall.webp  ", "worlds/suite/rooms/hall.webp"], ["/route/worlds/suite/hall.png", "/route/worlds/suite/hall.png"],
+            [`${origin}/worlds/suite/hall.jpg`, "/worlds/suite/hall.jpg"], ["worlds/suite/HALL.JPEG", "worlds/suite/HALL.JPEG"],
+            ["worlds/suite/hall.avif", "worlds/suite/hall.avif"]
+        ];
+        const REFUSED = [
+            "javascript:alert(1)//x.png", "data:image/png;base64,AAAA", `blob:${origin}/x.png`, "file:///etc/x.png",
+            "//evil.example/x.png", "https://evil.example/x.png", "https://evil.example:99999/x.png", "/route?x.png", "/x.png#y", "worlds/../x.png",
+            "worlds/%2E%2E/x.png", "worlds\\x.png", "worlds/x.png\")", "worlds/x.gif", "worlds/x.apng", "worlds/plan.svg", "worlds/x", "", null, 7
+        ];
+        // Judged in a try of its own (E77 fix r2-H1): a judgement that throws is read as a wrong answer, not as the test's error.
+        const judge = path => { try { return V.safeRoomImage(path); } catch (err) { return `throws ${err?.name}`; } };
+        equal(JSON.stringify([KEPT.map(([path]) => judge(path)), REFUSED.map(path => judge(path))]),
+            JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
+            `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
+
+        /*
+         * E77 fix r1-G1, 13.10.2026 (round 1's sec F1): ONE JUDGEMENT, AND IT IS FINAL. An absolute URL of this
+         * origin whose path starts with an empty segment answered its pathname, `//evil.example/x.png`, which a
+         * browser reads as another host; a second pass refused it, so the tile (which judges twice) was safe and
+         * Room Setup's thumbnail (once) was not (measured 13.10.2026 in Node at 81d0f0c: once
+         * `//other.example/x.png`, twice null). Refused here: that URL, its `/.//` and scheme-only `.//` forms,
+         * the empty segment written as `%2F` (either case) or `%5C`, and as a backslash. Then over every row of
+         * both tables and these: each answer is a fixed point, `safeRoomImage(safeRoomImage(p)) === safeRoomImage(p)`,
+         * and each answer kept resolves to this page's origin. The thumbnail's own `src` is read by the tier-2 test
+         * "Room Setup writes a room's picture: ...".
+         */
+        const scheme = new URL(document.baseURI).protocol;
+        /*
+         * E77 fix r2-H1, 13.10.2026 (round 2's sec F1): THE JUDGEMENT NEVER THROWS. After the empty segment, text the
+         * URL parser takes for no host - a port that is no number or out of range, a space or `%20`, an unclosed `[`,
+         * a bare `%` - made the answer's own re-read throw TypeError (measured in Node at 2babd4c: 18 of these 18), and
+         * each caller stopped on it: the tile stayed on the room before, Room Setup did not open on that scene. The six,
+         * each after `//`, `/.//` and `<scheme>.//`, join EMPTY; every row of the three tables is then judged in a try
+         * of its own, and none may throw. Scenario 74 I reads one of them stored past setVaultRoom, on the screens.
+         */
+        const NO_HOST = ["a:99999", "a:b", "a b", "a%20b", "[::1", "a%"]
+            .flatMap(host => [`${origin}//${host}/x.png`, `${origin}/.//${host}/x.png`, `${scheme}.//${host}/x.png`]);
+        const EMPTY = [`${origin}//evil.example/x.png`, `${origin}/.//evil.example/x.png`, `${scheme}.//evil.example/x.png`,
+            `${origin}/%2F%2Fevil.example/x.png`, "/%2f/evil.example/x.png", `${origin}/%5C%5Cevil.example/x.png`, `${origin}/\\evil.example/x.png`,
+            ...NO_HOST];
+        const every = [...KEPT.map(([path]) => path), ...REFUSED, ...EMPTY];
+        const threw = every.map(path => [path, judge(path)]).filter(([, answer]) => String(answer).startsWith("throws "));
+        equal(JSON.stringify(threw), "[]", "[each row of KEPT, REFUSED and EMPTY whose judgement threw, with what it threw]");
+        const moved = every.filter(path => V.safeRoomImage(V.safeRoomImage(path)) !== V.safeRoomImage(path));
+        const away = every.map(path => V.safeRoomImage(path)).filter(Boolean).filter(kept => new URL(kept, document.baseURI).origin !== origin);
+        equal(JSON.stringify([EMPTY.map(path => V.safeRoomImage(path)), moved, away]), JSON.stringify([EMPTY.map(() => null), [], []]),
+            "[each path with an empty first segment, plain, encoded or a backslash: null], [the paths whose answer is not its own answer], "
+            + "[the answers kept that resolve to another origin]");
+
+        /*
+         * E77 C3, 13.10.2026: the tile's clauses (the A8 design's R380, ledger V3, V17, L2). `paintRoomTile` is handed
+         * a view on a box that is in no document - nothing on this screen is touched - with a name and a description
+         * that carry markup four ways and a paragraph break, and the GM's picture: the name and the words come back
+         * literal, with no element inside them and no element of those kinds anywhere in the box, nothing of the box
+         * carries a data-tooltip, nothing the markup would run has run, and the art layer's picture is the path. The
+         * same view with a `javascript:` picture paints no picture and no button to open one. Then `openRoomImage`
+         * against stand-ins for Foundry's ImagePopout (the harness has none), for the probe's Image (so no file is
+         * fetched, here or at a table) and for the warning, all three put back in `finally`: the probe is handed
+         * the checked path and the window gets it, the tile's label as its title (E77 fix r1-G1: the room's name, markup
+         * and all, is then the text of the window's heading, and nothing in it runs), empty controls and no `uuid`; a refused
+         * path probes and opens nothing; a picture whose probe fails to decode opens nothing and warns once; and
+         * `stripImageControls` empties the tile's window's header controls and leaves another ImagePopout's alone.
+         */
+        const T = await import("./room-tile.mjs");
+        ok(["paintRoomTile", "openRoomImage", "stripImageControls"].every(name => typeof T[name] === "function"),
+            "room-tile.mjs has no `paintRoomTile`, `openRoomImage` and `stripImageControls` - there is no tile to read");
+        if (typeof T.paintRoomTile !== "function") return;
+        const HOSTILE = "<img src=x onerror=\"window.__drpgR505 = 1\"><script>window.__drpgR505 = 2</script>"
+            + "<iframe srcdoc=\"<b>x</b>\"></iframe><b>bold</b>\n\nA second paragraph.";
+        const view = image => ({ state: "room", room: "R505 <b>Hall</b>", sceneId: "SUITER505SCENE00", description: HOSTILE, image,
+            tokens: { max: 3, left: 2, sealed: false }, project: true });
+        /* E77 C8: the narrow row's thumbnail is the one `<img>` a paint makes, so the markup's kinds are counted
+           outside it, and the thumbnail's own `src` and the words' button are read beside them. */
+        const read = image => {
+            const box = document.createElement("section");
+            T.paintRoomTile(box, view(image));
+            const prose = box.querySelector(".drpg-room-tile-prose"), name = box.querySelector(".drpg-room-tile-name");
+            const art = box.querySelector(".drpg-room-tile-art"), thumb = box.querySelector(".drpg-room-tile-thumb > img");
+            return [prose?.textContent === HOSTILE && prose.childElementCount === 0, name?.textContent === "R505 <b>Hall</b>" && name.childElementCount === 0,
+                [...box.querySelectorAll("img, script, iframe, b")].filter(el => el !== thumb).length, box.querySelectorAll("[data-tooltip]").length,
+                art?.style.backgroundImage ?? null, Boolean(box.querySelector(".drpg-room-tile-open")),
+                thumb?.getAttribute("src") ?? null, Boolean(box.querySelector(".drpg-room-tile-describe"))];
+        };
+        equal(JSON.stringify([read("worlds/suite/hall.png"), read("javascript:alert(1)//x.png"), window.__drpgR505 ?? null]),
+            JSON.stringify([[true, true, 0, 0, 'url("worlds/suite/hall.png")', true, "worlds/suite/hall.png", true],
+                [true, true, 0, 0, "", false, null, true], null]),
+            "the tile painted with [its words literal and bare, its name literal and bare, elements of the markup's kinds, data-tooltips, the art's picture, "
+            + "a button to open it, the narrow row's thumbnail, its button for the words] for the GM's picture and for a `javascript:` one, and what the markup ran");
+
+        /*
+         * E77 C8, 13.10.2026: the window's clause (ledger V3, D2). On a stacked screen the words open in a window
+         * (`openRoomWindow`), built by `roomWindowBody` from the view: read on the same hostile view, the name and the
+         * words come back literal with no element in them and none of the markup's kinds in the body. Then the window
+         * itself, opened for this browser's own viewer (the GM's Monokuma here, whatever room it stands in): its title
+         * is the module's 'Description' and not a room's name, it holds none of those elements and no data-tooltip, its
+         * heading is the viewer's room, and a second press answers the window already open rather than a second one.
+         */
+        ok(typeof T.roomWindowBody === "function" && typeof T.openRoomWindow === "function",
+            "room-tile.mjs has no `roomWindowBody` or `openRoomWindow` - the narrow row has no window to read");
+        const body = T.roomWindowBody(view("worlds/suite/hall.png"));
+        const bodyName = body.querySelector(".drpg-room-window-name"), bodyProse = body.querySelector(".drpg-room-window-prose");
+        const room = await T.openRoomWindow(), again = await T.openRoomWindow();
+        let shown;
+        try {
+            shown = [room?.title, room?.element?.querySelectorAll("img, script, iframe, b, [data-tooltip]").length ?? null,
+                room?.element?.querySelector(".drpg-room-window-name")?.textContent ?? null, again === room];
+        } finally {
+            await room?.close();
+        }
+        equal(JSON.stringify([bodyName?.textContent === "R505 <b>Hall</b>" && bodyName.childElementCount === 0,
+            bodyProse?.textContent === HOSTILE && bodyProse.childElementCount === 0, body.querySelectorAll("img, script, iframe, b, [data-tooltip]").length,
+            window.__drpgR505 ?? null, ...shown]),
+        JSON.stringify([true, true, 0, null, game.i18n.localize("DRPG.Room.describe"), 0, T.tileView().room ?? "", true]),
+            "[the window's name literal and bare, its words literal and bare, elements of the markup's kinds and data-tooltips in it, what the markup ran; "
+            + "the opened window's title, those elements in it, its heading, a second press answering the same window]");
+
+        const apps = foundry.applications.apps, before = Object.getOwnPropertyDescriptor(apps, "ImagePopout");
+        // The stand-in goes on globalThis, which the module's `new Image()` reads: in a browser that is window, and the
+        // headless harness copies jsdom's Image onto Node's own global (client-entry.mjs), so a window.Image stand-in
+        // went unread there and the paths probed came back empty (13.10.2026).
+        const RealImage = globalThis.Image, ownWarn = ui.notifications && Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const opened = [], probed = [], warned = [];
+        // E77 fix r1-G1 (round 1's sec F4): the room's name is the GM's words, and the window's title is drawn from it.
+        const NAMED = "R505 <img src=x onerror=\"window.__drpgR505 = 3\">Hall";
+        let decodes = true, got;
+        try {
+            Object.defineProperty(apps, "ImagePopout", { configurable: true, writable: true, value: class {
+                constructor(options) { this.options = options; opened.push(options); }
+                async render() { this.window = { title: document.createElement("h1") }; return this; }
+            } });
+            globalThis.Image = class {
+                set src(path) { probed.push(path); }
+                async decode() { if (!decodes) throw new Error("R505: the stand-in does not decode"); }
+            };
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(text); };
+            const win = await T.openRoomImage("worlds/suite/hall.png", NAMED);
+            const refused = await T.openRoomImage("javascript:alert(1)//x.png", "R505 Hall");
+            decodes = false;
+            const missing = await T.openRoomImage("worlds/suite/gone.png", "R505 Hall");
+            const mine = [{ action: "shareImage" }, { action: "another" }], theirs = [{ action: "shareImage" }];
+            T.stripImageControls(win, mine);
+            T.stripImageControls({ options: { classes: ["image-popout"] } }, theirs);
+            got = [probed, opened, refused, missing, warned, mine.length, theirs.length,
+                [win?.window?.title?.textContent === NAMED, win?.window?.title?.childElementCount ?? null, window.__drpgR505 ?? null]];
+        } finally {
+            if (before) Object.defineProperty(apps, "ImagePopout", before);
+            else delete apps.ImagePopout;
+            globalThis.Image = RealImage;
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else if (ui.notifications) delete ui.notifications.warn;
+        }
+        equal(JSON.stringify(got), JSON.stringify([["worlds/suite/hall.png", "worlds/suite/gone.png"], [{ src: "worlds/suite/hall.png",
+            classes: ["drpg-room-image"], window: { title: game.i18n.localize("DRPG.Room.tileLabel"), controls: [] }, showTitle: true }], null, null,
+            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1, [true, 0, null]]),
+            "[the paths probed, the windows asked for, a refused path's answer, an undecodable picture's answer, the warnings, "
+            + "the tile's window's header controls left, another ImagePopout's left, [the window's heading reads the room's name, "
+            + "elements in it, what the name's markup ran]]");
+    }],
+    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
+         * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room). The states this suite
+         * cannot make read-only - an Eclipse, a death, a Monocub, a Class Trial, a room on another floor and a token on
+         * a scene its viewer is not looking at - are scenario 74's phase H, which reads each on a player's tile beside
+         * its viewerRoom (E77 fix r1-G3; until then this comment said 74 covered four of them, and 74 read none). Two
+         * halves, both read, nothing written. FIRST roomFacts on plain objects, so the answer is the rule's and not a world's: a
+         * Kitchen of two room pieces of which only the second carries words and a picture, a region named Kitchen
+         * that is no room (listed first, with words of its own - a reader over every region of the name would
+         * answer them), a Hall, a Pantry whose picture is `javascript:`, a Cellar nobody drew, and a second scene
+         * with a Kitchen of its own (a reader of the camera's scene, or of the first scene of the name, would
+         * answer the other's). THEN viewerRoom on the browser that runs the suite, against what it must be built
+         * from: `trialSlot` first, `viewerActor` (hud.mjs) and nothing else for the actor, `locateActor` for the
+         * token and its scene, and the room that token stands in - no route is being judged while the suite reads,
+         * so the settled spot is the token's own (movement.mjs `settledSpot`). The other browsers' answers, and a
+         * route not yet settled, are scenario 66's phase W (they need a token moved and three clients). On the
+         * harness the GM's viewer is the seeded Monokuma, whose pool is the seeded GM's: scenario 66 W1 read the GM's
+         * answer as the Hall, where it stands (13.10.2026).
+         */
+        const T = await import("./room-tile.mjs").catch(() => null);
+        ok(typeof T?.roomFacts === "function" && typeof T?.viewerRoom === "function",
+            "room-tile.mjs has no `roomFacts` and `viewerRoom` - there is no one answer to which room a screen shows");
+        if (typeof T?.roomFacts !== "function" || typeof T?.viewerRoom !== "function") return;
+        const R = await import("./rooms.mjs"), V = await import("./vault.mjs");
+        const H = await import("./hud.mjs"), M = await import("./movement.mjs");
+        const D = V.VAULT_FLAGS.description, I = V.VAULT_FLAGS.image;
+        const piece = (id, name, flags, room = true) => ({ id, name, behaviors: [],
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? room : flags[key]) });
+        const here = { id: "SUITER504HERE000", name: "R504 here", regions: new Set([
+            piece("R504KX", "Kitchen", { [D]: "Not a room's words.", [I]: "worlds/suite/not-a-room.webp" }, false),
+            piece("R504K1", "Kitchen", {}),
+            piece("R504K2", "Kitchen", { [D]: "Pots on the wall.\nA cold stove.", [I]: "worlds/suite/kitchen.webp" }),
+            piece("R504H1", "Hall", { [D]: "A long hall.", [I]: "worlds/suite/hall.png" }),
+            piece("R504P1", "Pantry", { [D]: "Shelves.", [I]: "javascript:alert(1)//x.png" })
+        ]) };
+        const there = { id: "SUITER504THERE00", name: "R504 there", regions: new Set([
+            piece("R504K9", "Kitchen", { [D]: "The other school's kitchen.", [I]: "worlds/suite/other-kitchen.jpg" })
+        ]) };
+        equal(JSON.stringify([["Kitchen", here], ["Hall", here], ["Pantry", here], ["Cellar", here], ["Kitchen", there]]
+            .map(([room, scene]) => T.roomFacts(room, scene))),
+        JSON.stringify([
+            { room: "Kitchen", description: "Pots on the wall.\nA cold stove.", image: "worlds/suite/kitchen.webp" },
+            { room: "Hall", description: "A long hall.", image: "worlds/suite/hall.png" },
+            { room: "Pantry", description: "Shelves.", image: null },
+            { room: "Cellar", description: "", image: null },
+            { room: "Kitchen", description: "The other school's kitchen.", image: "worlds/suite/other-kitchen.jpg" }
+        ]), "roomFacts of [the Kitchen of two pieces and a non-room namesake, the Hall, the Pantry's `javascript:` picture, a room nobody drew, "
+            + "the other scene's Kitchen]");
+        const viewer = typeof H.viewerActor === "function" ? H.viewerActor() : undefined;
+        ok(viewer !== undefined, "hud.mjs exports no `viewerActor` - the clock and the tile could each choose their own character");
+        const place = viewer ? M.locateActor(viewer) : null;
+        const want = H.trialSlot() ? ["trial", null, null, null]
+            : !viewer ? [game.user.isGM ? "none" : "noActor", null, null, null]
+                : !place ? ["nowhere", null, null, null]
+                    : [place.room ? "room" : "nowhere", place.room, place.scene.id, viewer.id];
+        const got = T.viewerRoom();
+        equal(JSON.stringify([got.state, got.room, got.scene?.id ?? null, got.tokenDoc?.actorId ?? null]), JSON.stringify(want),
+            `viewerRoom on this browser as [state, room, scene, the token's actor]; the viewer is ${viewer?.name ?? "nobody"}`);
+
+        /*
+         * E77 C3, 13.10.2026: the tile's DOM (the A8 design's R379; ledger V2, V19, D3). On boxes in no document, so
+         * nothing on this screen is touched, painted from `roomFacts` of the plain scenes above: the Kitchen's tile
+         * carries the Kitchen's words and picture - the positive control, read first, so the absence after it is
+         * an absence of something this reader can see - and no word or path of the Hall, of the namesake that is
+         * no room, or of the other school's Kitchen. Then every state on a box of its own, as [state, a toggle, a
+         * button for the picture, a picture on the art layer, the one heading's text, aria-hidden, a project
+         * line]. Then the toggle: opened, it stays open through a repaint of the same room, an unchanged view
+         * writes nothing, and another room closes it. Last the tile on this browser, read and not painted: its
+         * state and heading are `tileView()`'s (the GM's on the harness is the Hall, where its Monokuma stands).
+         * Which room each browser's tile shows, the GM's Room Setup reaching it and a crossing settling it are
+         * scenario 74's (they need two players and a write).
+         */
+        ok(typeof T.paintRoomTile === "function" && typeof T.tileView === "function",
+            "room-tile.mjs has no `paintRoomTile` and `tileView` - there is no tile to read");
+        if (typeof T.paintRoomTile !== "function" || typeof T.tileView !== "function") return;
+        const L = key => game.i18n.localize(key);
+        const viewOf = (room, scene, extra = {}) => {
+            const { description, image } = T.roomFacts(room, scene);
+            return { state: image ? (description ? "room" : "roomPicture") : (description ? "roomText" : "roomBare"), room, sceneId: scene.id,
+                description, image, tokens: { max: 3, left: 3, sealed: false }, project: false, ...extra };
+        };
+        const paint = view => {
+            const box = document.createElement("section");
+            T.paintRoomTile(box, view);
+            return box;
+        };
+        const kitchen = paint(viewOf("Kitchen", here)).outerHTML;
+        ok(kitchen.includes("Pots on the wall.") && kitchen.includes("worlds/suite/kitchen.webp"),
+            "the Kitchen's tile does not carry the Kitchen's own words and picture - the absence read next would measure nothing");
+        equal(JSON.stringify(["A long hall.", "worlds/suite/hall.png", "Not a room's words.", "not-a-room.webp", "other school", "other-kitchen.jpg"]
+            .filter(word => kitchen.includes(word))), "[]", "the words and paths of other rooms found on the Kitchen's tile");
+        const STATES = [
+            viewOf("Kitchen", here), { ...viewOf("Kitchen", here), state: "roomPicture", description: "", project: true },
+            { ...viewOf("Hall", here), state: "roomText", image: null }, viewOf("Cellar", here),
+            ...["nowhere", "noActor", "trial", "none"].map(state => ({ state, room: null }))
+        ];
+        const stateOf = box => [box.dataset.state, Boolean(box.querySelector(".drpg-room-tile-more")), Boolean(box.querySelector(".drpg-room-tile-open")),
+            Boolean(box.querySelector(".drpg-room-tile-art")?.style.backgroundImage), box.querySelector(".drpg-room-tile-name")?.textContent ?? null,
+            box.getAttribute("aria-hidden"), Boolean(box.querySelector(".drpg-hud-room-project"))];
+        equal(JSON.stringify(STATES.map(view => stateOf(paint(view)))), JSON.stringify([
+            ["room", true, true, true, "Kitchen", null, false], ["roomPicture", false, true, true, "Kitchen", null, true],
+            ["roomText", true, false, false, "Hall", null, false], ["roomBare", false, false, false, "Cellar", null, false],
+            ["nowhere", false, false, false, L("DRPG.Hud.roomNowhere"), null, false],
+            ["noActor", false, false, false, L("DRPG.Explain.room.noActor"), null, false],
+            ["trial", false, false, false, null, "true", false], ["none", false, false, false, null, "true", false]
+        ]), "each state's tile as [state, a toggle, a button for the picture, a picture on the art layer, the heading, aria-hidden, a project line]");
+        const box = paint(viewOf("Kitchen", here));
+        box.querySelector(".drpg-room-tile-more").click();
+        const toggle = () => [box.classList.contains("is-open"), box.querySelector(".drpg-room-tile-more")?.getAttribute("aria-expanded") ?? null,
+            box.querySelector(".drpg-room-tile-prose")?.hidden ?? null];
+        const opened = toggle(), spent = viewOf("Kitchen", here, { tokens: { max: 3, left: 2, sealed: false } });
+        const repainted = T.paintRoomTile(box, spent), kept = toggle(), again = T.paintRoomTile(box, spent);
+        T.paintRoomTile(box, viewOf("Hall", here));
+        equal(JSON.stringify([opened, repainted, kept, again, toggle()]), JSON.stringify([[true, "true", false], true, [true, "true", false], false,
+            [false, "false", true]]), "the toggle [opened, the same room repainted, still open, the unchanged view written, another room]");
+
+        const live = document.getElementById("drpg-room-tile"), view = T.tileView();
+        ok(Boolean(live), "this browser has no #drpg-room-tile - module.mjs did not build the tile");
+        if (!live) return;
+        const heading = view.room ?? { nowhere: L("DRPG.Hud.roomNowhere"), noActor: L("DRPG.Explain.room.noActor") }[view.state] ?? null;
+        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room]),
+            JSON.stringify([view.state, heading, got.room]), "this browser's tile as [state, heading] and tileView's room, against tileView and viewerRoom");
+        /* E77 C4 (13.10.2026): beside the notices glass.mjs `placeRoomTile` hands the tile to the body, and the
+           tile's own refresh must leave it there - put back under the clock between two passes, it would push the
+           scene rail down for a frame and stand where its pane is not. Under the clock the refresh still seats it. */
+        const home = [live.parentElement, live.nextElementSibling], was = live.dataset.place;
+        try {
+            /* E77 C8 (13.10.2026): the harness page is a stacked screen, where the tile is a row of the stack and
+               the refresh brings it back to the row whatever `place` says (the desk clause below cannot be asked
+               there: measured, with the tile put in the body it stood in #drpg-tile-row after the refresh). */
+            const stacked = Boolean(live.closest("#drpg-tile-row"));
+            live.dataset.place = "notes";
+            document.body.append(live);
+            const kept = T.ensureRoomTile() === live && (stacked ? live.parentElement?.id === "drpg-tile-row" : live.parentElement === document.body);
+            live.dataset.place = "clock";
+            T.ensureRoomTile();
+            const hud = document.getElementById("drpg-hud"), floors = hud?.nextElementSibling?.id === "drpg-floors" ? hud.nextElementSibling : hud;
+            equal(JSON.stringify([kept, stacked ? live.parentElement?.id === "drpg-tile-row" : !hud || floors.nextElementSibling === live]), JSON.stringify([true, true]),
+                stacked ? "[on a stacked screen the refresh brings a tile put in the body back to the stack's row, whatever its place says]"
+                    : "[the refresh leaves a tile placed beside the notices in the body, and seats one placed under the clock after the clock]");
+        } finally {
+            if (was === undefined) delete live.dataset.place; else live.dataset.place = was;
+            if (home[0]) home[0].insertBefore(live, home[1]?.parentElement === home[0] ? home[1] : null);
+        }
+    }],
+    ["R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane; on a stacked screen a row of the stack 44 px high, cut as its own pane, with a 78x44 thumbnail and a 44 px button for the words; and a new description, the description opened or a recolour recuts nothing; under Monokuma Legacy on a desk the same two places from F and the width left before Foundry's right column, the tile at its box, and a description opened moves nothing", async () => {
+        /*
+         * E77 C4, 13.10.2026; the A8 design's R383 (the E77 plan's D2 gave it this number; ledger V6, V8, V9, D1, D6).
+         * The place and the box are chosen once a pass by glass.mjs `placeRoomTile` from `roomPlacement`: F, the
+         * height the clock's column has left over the notice tile's floor less the scene rail's run, against
+         * `need` = width / 3 + heading + 4 lines. Measured in the glass harness in Chromium (13.10.2026, a player,
+         * audit/glass-sweep.mjs prints the rest): 1920x1080 F 211 'notes', 1366x768 F -80 'notes', 2560x1440 F 441
+         * 'clock' - C4's readings. Since E77 C5 took the rail out of the column, 1920x1080 reads the design's 'clock'
+         * at F 485 under Stained Glass, a GM and a player alike (audit/glass-sweep.mjs on 13.10.2026, on fix r1-M1's
+         * tree; the sweep's PINS hold the place at every size). Read here at
+         * this window's size: the place agrees with F and need, a second reading of roomPlacement agrees with the
+         * pass's, the tile laid out (rotations off, as the curtain measures) at the placed box within a pixel, under
+         * the clock at the clock's width and left edge, beside the notices with no corner of the history's button
+         * (A7) on the room's pane, the picture's layer in the body at the pane's bounds and clipped to its points.
+         * Then a long description is put on the tile and opened, and a pass of the glass must fire no
+         * `drpgGlassCut` and report the same cut; the control - the clock 40 px taller - must fire one, or the
+         * count could not see a cut; and a recolour of the same cut (the curtain's `--acc`) repaints and fires
+         * none. Under the clock the scene rail's first tile must stand below the tile's box: a player's slot is
+         * kept under the tile, which kept under the clock put the rail 273 px up inside it at 2560x1440 (the
+         * glass harness, 13.10.2026).
+         * THE NARROW CLAUSE (E77 C8, 13.10.2026; ledger V8, D2, RISK-b). On a stacked screen the tile is not placed:
+         * it stands in narrow.mjs's `#drpg-tile-row`, a row of the stack, and the curtain cuts the row (`tiles-row`, a
+         * measured block) and no room block. Read here: the row in the stack and the tile in it, no `LAST.room` and no
+         * room pane; for a tile with something in it the row 44 px high as laid out, the `tiles-row` block that
+         * height and toned on a pane, the thumbnail (with a picture) 78x44 and the words' button (with words) 44x44,
+         * and the desk's picture layer, its button, the toggle and the description not drawn; an empty tile (a trial,
+         * a GM with no Monokuma) leaves the row undrawn and no block. Then the same three readings of the cut as on a
+         * desk. Not run headless (no layout there): audit/glass-sweep.mjs reads the same numbers in Chromium at its
+         * seven stacked sizes, through `drpgRoomCheck`'s row reading with a control.
+         * THE LEGACY CLAUSE (E77 fix r2-H3, 13.10.2026; M1 left this test reading Stained Glass only). Under Monokuma
+         * Legacy on a desk no curtain is mounted and glass.mjs `flatPlacement` chooses: under the clock when F leaves
+         * the smallest box, beside the notice stack when it does not and there is width left before Foundry's
+         * right column (`free`), otherwise the clock's place at the smallest box. Read here: the place agrees with F,
+         * need and free, a second reading of roomPlacement agrees with the pass's, the tile laid out at the placed
+         * box within a pixel (no rotations under this theme), under the clock at the clock's width and left edge,
+         * beside the notices 16 px right of the stack and at least 16 px short of what Foundry's right column draws;
+         * then a long description opened and a pass of `refreshGlass` must leave the placement as it was. NEVER RUN
+         * in a browser at this commit: headless it stops at `env.layout` as the Stained clause does, and
+         * audit/glass-sweep.mjs reads the same place and box under `?theme=legacy` (`drpgRoomCheck`'s readFlat).
+         */
+        const G = await import("./glass.mjs");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
+        const tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
+        if (!env.glass().holds && env.desk().holds) {
+            ok(tile && hud, "no room tile or clock on this screen - nothing to measure");
+            G.refreshGlass();
+            await wait(300);
+            const room = G.LAST.room;
+            ok(room?.flat && room.box, `the pass placed no tile under Monokuma Legacy (${JSON.stringify(room)})`);
+            equal(room.place, room.F >= room.need || !(room.free >= 1) ? "clock" : "notes", `F ${room.F}, need ${room.need} and free ${room.free} choose the other place`);
+            const { box, ...placed } = room;
+            equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
+            const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+            const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            const laid = [t.left, t.top, t.width, t.height];
+            ok(laid.every((v, i) => near(v, [box.x, box.y, box.w, box.h][i])), `the tile is laid out at ${laid.map(Math.round)} and placed at ${[box.x, box.y, box.w, box.h]}`);
+            if (room.place === "clock") {
+                ok(near(t.width, h.width) && near(t.left, h.left), `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
+            } else {
+                const stack = document.getElementById("drpg-popups").getBoundingClientRect();
+                const walls = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
+                    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window")).map(e => e.getBoundingClientRect().left);
+                const clear = Math.min(innerWidth, ...walls) - t.right;
+                ok(near(t.left - stack.right, 16) && clear >= 16 - 1, `beside the notices ${Math.round(t.left - stack.right)} px right of the stack, ${Math.round(clear)} px short of Foundry's right column`);
+            }
+            const was = tile.classList.contains("is-open"), prose = document.createElement("p");
+            try {
+                prose.textContent = "Words. ".repeat(400);
+                tile.append(prose);
+                tile.classList.add("is-open");
+                G.refreshGlass();
+                await wait(300);
+                equal(JSON.stringify(G.LAST.room), JSON.stringify(room), "the placement after a long description opened");
+            } finally {
+                prose.remove(); tile.classList.toggle("is-open", was);
+                G.refreshGlass();
+            }
+            return;
+        }
+        needs(env.glass(), "this measures Stained Glass, and Monokuma Legacy on a desk");
+        const cur = document.getElementById("drpg-curtain");
+        ok(tile && hud && cur, "no room tile, clock or curtain on this screen - nothing to measure");
+        G.refreshGlass();
+        await wait(300);
+        if (!env.desk().holds) {
+            const row = document.getElementById("drpg-tile-row"), block = G.LAST.blocks.find(b => b.cls === "tiles-row");
+            ok(row && row.parentElement?.id === "drpg-column" && tile.parentElement === row,
+                `the tile stands in ${tile.parentElement?.id || tile.parentElement?.tagName}, the row in ${row?.parentElement?.id ?? "nothing"}`);
+            ok(!G.LAST.room && !(G.LAST.panes || []).some(p => p.tone === "room-block"), "a stacked screen's tile was placed as a desk's");
+            // laid-out sizes, which a turn of the row with its pane does not change
+            const box = el => el ? [el.offsetWidth, el.offsetHeight] : null;
+            const hidden = [".drpg-room-tile-art", ".drpg-room-tile-open", ".drpg-room-tile-more", ".drpg-room-tile-prose"]
+                .filter(sel => tile.querySelector(sel)?.offsetWidth > 0);
+            if (["trial", "none"].includes(tile.dataset.state)) {
+                equal(JSON.stringify([row.offsetHeight, Boolean(block)]), JSON.stringify([0, false]), `[the empty ${tile.dataset.state} tile's row height, a block cut for it]`);
+            } else {
+                ok(row.offsetHeight === 44 && block?.measured && block.h === 44
+                    && (G.LAST.panes || []).some(p => p.tone === "tiles-row"),
+                `the row is ${box(row)}, its block ${JSON.stringify(block)}, ${(G.LAST.panes || []).some(p => p.tone === "tiles-row") ? "a" : "no"} pane toned for it`);
+                const thumb = tile.querySelector(".drpg-room-tile-thumb"), words = tile.querySelector(".drpg-room-tile-describe");
+                if (thumb) equal(JSON.stringify(box(thumb)), "[78,44]", "the thumbnail's width and height");
+                if (words) equal(JSON.stringify(box(words)), "[44,44]", "the words' button's width and height");
+                equal(JSON.stringify(hidden), "[]", "the desk's parts drawn in the row");
+            }
+        } else {
+            const room = G.LAST.room, pane = (G.LAST.panes || []).find(p => p.tone === "room-block");
+            ok(room && room.box && pane, `the pass placed no tile (${JSON.stringify(room)}) or cut no pane for it`);
+            equal(room.place, room.F - 24 >= room.need ? "clock" : "notes", `F ${room.F} and need ${room.need} choose the other place`);
+            const { box, ...placed } = room;
+            equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
+            const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+            const at = cur.getBoundingClientRect();
+            document.body.toggleAttribute("data-drpg-measuring", true);
+            const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            document.body.toggleAttribute("data-drpg-measuring", false);
+            void document.body.offsetWidth;
+            const laid = [t.left - at.left, t.top - at.top, t.width, t.height];
+            ok(laid.every((v, i) => near(v, [box.x, box.y, box.w, box.h][i])), `the tile is laid out at ${laid.map(Math.round)} and placed at ${[box.x, box.y, box.w, box.h]}`);
+            if (room.place === "clock") {
+                ok(near(t.width, h.width) && near(t.left, h.left) && near(t.left + t.width / 2, h.left + h.width / 2),
+                    `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
+                // a GM's rail stands in the Map tools window since E77 C5 and holds no place under the tile
+                const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")]
+                    .filter(e => e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window"));
+                if (rail.length) ok(Math.min(...rail.map(e => e.getBoundingClientRect().top)) - at.top >= box.y + box.h,
+                    "the scene rail's first tile stands up inside the room tile's box - its slot was kept under the clock, not under the tile");
+            } else {
+                const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
+                const inside = (poly, x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k; } return k; };
+                ok(corner?.width, "no history button beside the notices to keep free");
+                const on = [[corner.left, corner.top], [corner.right, corner.top], [corner.right, corner.bottom], [corner.left, corner.bottom]]
+                    .filter(([x, y]) => inside(pane.poly, x - at.left, y - at.top)).length;
+                equal(on, 0, "corners of the history's button on the room's pane");
+            }
+            const art = document.getElementById("drpg-room-art");
+            if (art || tile.querySelector(".drpg-room-tile-art")) {
+                ok(art && !tile.contains(art), "the picture is still inside the tile, not on its pane");
+                const r = art.getBoundingClientRect(), points = (getComputedStyle(art).clipPath.match(/px/g)?.length ?? 0) / 2;
+                const got = [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top];
+                ok(got.every((v, i) => near(v, [pane.x0, pane.y0, pane.x1, pane.y1][i], 1.5)) && points === pane.poly.length,
+                    `the picture at ${got.map(Math.round)} clipped to ${points} points, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]} with ${pane.poly.length}`);
+            }
+        }
+        let cuts = 0;
+        const count = () => { cuts++; };
+        const hook = Hooks.on("drpgGlassCut", count);
+        const was = tile.classList.contains("is-open"), prose = document.createElement("p"), row = document.createElement("div");
+        try {
+            prose.textContent = "Words. ".repeat(400);
+            tile.append(prose);
+            tile.classList.add("is-open");
+            G.refreshGlass();
+            await wait(300);
+            const content = [cuts, Boolean(G.CHECKS.at(-1)?.same)];
+            row.style.height = "40px";
+            hud.append(row);
+            G.refreshGlass();
+            await wait(300);
+            const control = cuts;
+            row.remove();
+            G.refreshGlass();
+            await wait(300);
+            const settled = cuts;
+            cur.style.setProperty("--acc", "#ff2050");
+            G.refreshGlass();
+            await wait(300);
+            equal(JSON.stringify([...content, control > content[0], cuts - settled]), JSON.stringify([0, true, true, 0]),
+                "[cuts after a long description opened, the same cut, the control's taller clock cut, cuts after a recolour of the same cut]");
+        } finally {
+            prose.remove(); row.remove(); tile.classList.toggle("is-open", was); cur.style.removeProperty("--acc");
+            Hooks.off("drpgGlassCut", hook);
+            G.refreshGlass();
+        }
+    }],
+    ["R530 - the room tile looks as P11 draws it, by the sheets' own cascade: the toggle in the tile's top-right corner over the picture's button in both themes, the name and the project line in capitals under Stained Glass, and an old move card's description still set apart", async () => {
+        /*
+         * E77 fix r1-G4, 13.10.2026 (round 1's cor F2, goal 1, goal 2, O4). The toggle stood in the flow under the
+         * project line in both themes: the lift `.drpg-room-tile > :not(...)` is 0,2,0 and set `position: relative`
+         * over the toggle's own `absolute` at 0,1,0. Nothing read it - the sweep, R508 and scenario 74 read no
+         * toggle - and jsdom has no layout, so this reads the cascade itself: every stylesheet of module.json, in
+         * order, parsed into a sheet that is adopted by nothing (it styles nothing on this screen), and for each
+         * element of a tile and of a chat card built on a body of their own (connected to nothing on this page) the winning
+         * declaration - `!important`, then specificity, then order - among the style rules whose selector the
+         * element matches by its own `matches`. Inherited properties are looked for up the element's parents.
+         * Rules under @media, @container and @supports are not read: the desk's cascade, not a stacked screen's
+         * (the narrow row is E77 C8's). Read at fa2fd7d, this fix's parent: the toggle `relative` at 0,2,0,
+         * no `text-transform` on the name or the project line, no rule for `.drpg-room-prose`.
+         * The capitals are the Stained Glass theme's, where P11's shots draw them and where the clock drew this
+         * block before E77 C3 (its `#drpg-hud` rule is uppercase); Legacy's clock drew the room as typed and P11
+         * has no Legacy shot, so Legacy keeps it. `text-transform` changes the drawing only: the stored name and
+         * the node's text are the GM's (R505 reads them literal). What a screen reader is handed is not read here: in
+         * Chromium's accessibility tree the heading is "DORM" for a node whose text is "Dorm" (the glass harness under
+         * Stained Glass, 13.10.2026), as the clock's room row was drawn by the same theme's uppercase `#drpg-hud` rule
+         * until E77 C3 (read in f6822d7's sheet, not measured).
+         */
+        const css = await moduleStyles();
+        // the page's own constructor: the harness's module scope is Node's, whose globalThis has none
+        const sheet = new document.defaultView.CSSStyleSheet();
+        sheet.replaceSync(css);
+        const rules = [...sheet.cssRules].filter(rule => typeof rule.selectorText === "string" && rule.style);
+        ok(rules.length > 1000, `only ${rules.length} style rules were read - the stylesheets did not load`);
+        const split = text => {
+            const out = [];
+            let depth = 0, part = "";
+            for (const ch of text) {
+                if (ch === "(") depth++;
+                if (ch === ")") depth--;
+                if (ch === "," && !depth) { out.push(part); part = ""; } else part += ch;
+            }
+            return [...out, part].map(each => each.trim()).filter(Boolean);
+        };
+        const more = (x, y) => {
+            const at = x.findIndex((v, i) => v !== y[i]);
+            return at >= 0 && x[at] > y[at];
+        };
+        const specificity = selector => {
+            const sum = [0, 0, 0];
+            const add = part => part.forEach((v, i) => { sum[i] += v; });
+            let i = 0;
+            const word = () => { while (i < selector.length && /[\w-]/.test(selector[i])) i++; };
+            while (i < selector.length) {
+                const ch = selector[i];
+                if (ch === "#") { sum[0]++; i++; word(); } else if (ch === ".") { sum[1]++; i++; word(); } else if (ch === "[") {
+                    sum[1]++;
+                    while (i < selector.length && selector[i] !== "]") i++;
+                    i++;
+                } else if (ch === ":") {
+                    const element = selector[i + 1] === ":";
+                    i += element ? 2 : 1;
+                    const start = i;
+                    word();
+                    const name = selector.slice(start, i);
+                    let args = null;
+                    if (selector[i] === "(") {
+                        let depth = 0;
+                        const open = i;
+                        do { depth += selector[i] === "(" ? 1 : selector[i] === ")" ? -1 : 0; i++; } while (depth && i < selector.length);
+                        args = selector.slice(open + 1, i - 1);
+                    }
+                    if (element) sum[2]++;
+                    else if (["is", "not", "has"].includes(name)) add(split(args).map(specificity).reduce((top, s) => more(s, top) ? s : top, [0, 0, 0]));
+                    else if (name !== "where") sum[1]++;
+                } else if (/[a-z]/i.test(ch)) { sum[2]++; word(); } else i++;
+            }
+            return sum;
+        };
+        const INHERITED = new Set(["text-transform", "font-style"]);
+        const cascaded = (el, property) => {
+            let best = null;
+            rules.forEach((rule, order) => {
+                const value = rule.style.getPropertyValue(property);
+                if (!value) return;
+                for (const selector of split(rule.selectorText)) {
+                    let hit = false;
+                    try { hit = el.matches(selector); } catch { continue; }
+                    if (!hit) continue;
+                    const rank = [rule.style.getPropertyPriority(property) === "important" ? 1 : 0, ...specificity(selector), order];
+                    if (!best || more(rank, best.rank)) best = { rank, value: value.trim() };
+                }
+            });
+            if ((!best || best.value === "inherit") && INHERITED.has(property) && el.parentElement) return cascaded(el.parentElement, property);
+            return best?.value ?? null;
+        };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), column = document.createElement("div");
+            body.className = `drpg-theme-${theme} drpg-curtain-on`;
+            column.id = "ui-left-column-1";
+            html.append(body);
+            body.append(column);
+            const tile = document.createElement("section");
+            tile.id = "drpg-room-tile";
+            tile.className = "drpg-room-tile";
+            tile.dataset.place = "clock";
+            column.append(tile);
+            const part = (tag, className) => {
+                const el = document.createElement(tag);
+                el.className = className;
+                return el;
+            };
+            const [show, name, project, toggle] = [part("button", "drpg-room-tile-open"), part("h3", "drpg-room-tile-name"),
+                part("div", "drpg-hud-room-project"), part("button", "drpg-room-tile-more")];
+            tile.append(part("div", "drpg-room-tile-art"), show, name, project, toggle, part("p", "drpg-room-tile-prose"));
+            const card = part("li", "chat-message message");
+            const content = part("div", "message-content"), words = part("p", "drpg-room-prose");
+            content.append(words);
+            card.append(content);
+            body.append(card);
+            const z = el => Number.parseInt(cascaded(el, "z-index") ?? "auto", 10);
+            return [theme, cascaded(toggle, "position"), cascaded(toggle, "top") !== null && cascaded(toggle, "right") !== null,
+                z(toggle) > z(show), cascaded(name, "text-transform") ?? "none", cascaded(project, "text-transform") ?? "none",
+                cascaded(words, "font-style"), cascaded(words, "border-left") !== null];
+        };
+        equal(JSON.stringify([read("stained-glass"), read("monokuma-legacy")]),
+            JSON.stringify([["stained-glass", "absolute", true, true, "uppercase", "uppercase", "italic", true],
+                ["monokuma-legacy", "absolute", true, true, "none", "none", "italic", true]]),
+            "[theme, the toggle's position, a top and a right for it, the toggle over the picture's button, the name's "
+            + "text-transform, the project line's, an old move card's description's font-style, a rule on its left edge]");
+    }],
+    ["R531 - the world switch of a GM's Foundry windows: `foundryToolWindows` a world setting in the module's settings, on by default and taking effect after a reload; on, the GM's rails stand in the two windows beside their launcher; off, registerFoundryWindows adopts and draws nothing", async () => {
+        /*
+         * E77 fix r2-H2, 13.10.2026 (review round 2's goal AM2a; the owner's amend of 11.10, session 0 (1): one switch
+         * as the emergency way back at the table). THE SETTING: registered under SETTINGS.foundryToolWindows, scope
+         * world, shown in the module's settings, a Boolean on by default that asks for a reload, its name and hint in
+         * the lang file; `foundryWindowsOn` answers false for false alone - true for true and for a setting that
+         * cannot be read. BOTH STATES on the GM's page (tier 1 runs there). On, as the page booted: both frames, the
+         * body class, `#sidebar` in Foundry tools' body and the launcher. Off - a stand-in on `game.settings.get`
+         * answering false for this key alone, so no world setting is written - with `#sidebar` put into `#ui-right`,
+         * the body class and the launcher taken off: `registerFoundryWindows()` run and read in the same task, before
+         * the guard's MutationObserver can answer - the sidebar where it was put, no body class, no launcher. THE
+         * CONTROL that this reading can see an adoption: `adoptFoundryNodes()`, the step an "on" page runs, has the
+         * sidebar back in the window. Everything is put back as it was found (the same launcher, where it stood).
+         * A second GM booted with the switch off is scenario 74 J; the curtain cut for Foundry's rails then is the
+         * glass harness's `?windows=off`, in Chromium.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.foundryToolWindows}`);
+        equal(JSON.stringify([SETTINGS.foundryToolWindows ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
+            reg?.requiresReload ?? null, [reg?.name, reg?.hint].map(key => typeof key === "string" && game.i18n.has(key))]),
+            JSON.stringify(["foundryToolWindows", "world", true, true, true, true, [true, true]]),
+            "[the setting's key, scope, shown in the settings, a Boolean, its default, asks for a reload, its name and hint in the lang file]");
+        const settings = game.settings, had = Object.getOwnPropertyDescriptor(settings, "get"), get0 = settings.get;
+        const answer = value => {
+            Object.defineProperty(settings, "get", { configurable: true, writable: true, value(module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.foundryToolWindows) { if (value instanceof Error) throw value; return value; }
+                return get0.call(this, module, key, ...rest);
+            } });
+        };
+        const putGet = () => { if (had) Object.defineProperty(settings, "get", had); else delete settings.get; };
+        const reads = [];
+        try {
+            for (const value of [true, false, undefined, new Error("R531's stand-in: a setting that cannot be read")]) {
+                answer(value);
+                try { reads.push(FW.foundryWindowsOn()); } finally { putGet(); }
+            }
+        } finally { putGet(); }
+        equal(JSON.stringify([reads, FW.foundryWindowsOn()]), JSON.stringify([[true, false, true, true], true]),
+            "[foundryWindowsOn for true, false, no value, a read that throws; for the world as it is]");
+        const side = document.getElementById("sidebar"), right = document.getElementById("ui-right") ?? document.getElementById("interface");
+        const launcher = document.getElementById("drpg-foundry-tools"), body = document.body;
+        must(side && right && launcher && FW.foundryWindow("ftools"), "the sidebar, #ui-right, the launcher or Foundry tools is missing - this would measure nothing");
+        const home = side.parentElement, next = launcher.nextSibling, cls0 = body.classList.contains("drpg-foundry-windows");
+        const on = [FW.FOUNDRY_WINDOWS.every(row => FW.foundryWindow(row.key)), cls0, home === FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body"), launcher.isConnected];
+        let off = null, control = null;
+        try {
+            right.append(side);
+            launcher.remove();
+            body.classList.remove("drpg-foundry-windows");
+            answer(false);
+            try { FW.registerFoundryWindows(); } finally { putGet(); }
+            off = [side.parentElement === right, body.classList.contains("drpg-foundry-windows"), Boolean(document.getElementById("drpg-foundry-tools"))];
+            FW.adoptFoundryNodes();
+            control = side.parentElement === home;
+        } finally {
+            putGet();
+            for (const extra of document.querySelectorAll("#drpg-foundry-tools")) if (extra !== launcher) extra.remove();
+            if (!launcher.isConnected) body.insertBefore(launcher, next?.parentElement === body ? next : null);
+            body.classList.toggle("drpg-foundry-windows", cls0);
+            if (side.parentElement !== home) home.append(side);
+        }
+        equal(JSON.stringify([on, off, control]), JSON.stringify([[true, true, true, true], [true, false, false], true]),
+            "[on: both frames, the body class, #sidebar in Foundry tools, the launcher; off, registered again: #sidebar where it was put, the body class, a launcher; "
+            + "the control: adoptFoundryNodes brings #sidebar back]");
+    }],
+    ["R532 - the suite's reading of the world tells a client setting this browser stored from one it never stored: `foundryWindows` read the same with nothing stored and with its value stored is two worlds to worldDump, and tier 2's put-back takes out a copy this browser did not have and writes back one it lost", async () => {
+        /*
+         * E77 fix r2-H5, 13.10.2026 (checkpoint k2's F1). R516 put `foundryWindows` back with the value it had read,
+         * which stored `{}` on a GM's browser that had stored nothing; scenario 01's A1 (the harness's own reading of
+         * localStorage) failed on it at ceb70a4 (e77run/k2/01a.log:142) while "tier 0/1 changed nothing in the world"
+         * passed beside it, because worldDump read each client setting by value and the two states read alike. THE
+         * DUMP: the key's stored copy taken out (the value then reads as its default) and the same value stored as
+         * Foundry stores it (its JSON): the value read is the same both times - the control that only the stored copy
+         * differs - and dumpDiff names the key. THE PUT-BACK tier 2's restore runs (tests-kit.mjs `putBackStored`):
+         * from a reading with the key not stored, a stored copy is taken out; from one with it stored, a lost copy is
+         * written back as its text; and tier 2 uses it, read in its source (comments stripped): `snapshot` records
+         * `clientStored()` and `restore` hands that reading to `putBackStored`. Whether any tier-2 test changes a
+         * stored copy alone was not measured; the whole tier's reading is scenario 01's C run, whose "put back what it
+         * found" now reads stored copies too. Only this browser's localStorage is written, never through `game.settings.set`,
+         * so no onChange runs, and the key is left as it was found (its stored text, or nothing).
+         */
+        const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, store = game.settings.storage?.get?.("client");
+        must(typeof store?.getItem === "function", "no client store under game.settings.storage - the dump would read nothing stored");
+        const raw0 = store.getItem(key), read = () => stableJson(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+        const moved = (a, b) => dumpDiff(a, b).filter(d => d.unit.endsWith(key)).length > 0;
+        let putBack = null;
+        try {
+            store.removeItem(key);
+            const bare = await worldDump(), readBare = read(), text = JSON.stringify(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
+            store.setItem(key, text);
+            const kept = await worldDump(), readKept = read();
+            equal(JSON.stringify([readBare === readKept, moved(bare, kept)]), JSON.stringify([true, true]),
+                `[${key} read alike with nothing stored and with ${text} stored; the dump moved for the key]`);
+            const { clientStored, putBackStored } = await import("./tests-kit.mjs");
+            must(typeof clientStored === "function" && typeof putBackStored === "function", "tests-kit.mjs has no clientStored or putBackStored - tier 2 cannot put a stored copy back");
+            const asStored = clientStored();
+            store.removeItem(key);
+            putBackStored(asStored);
+            const written = store.getItem(key);
+            store.removeItem(key);
+            const asBare = clientStored();
+            store.setItem(key, "{}");
+            putBackStored(asBare);
+            putBack = [asStored.get(key) === text, written === text, asBare.get(key), store.getItem(key)];
+        } finally {
+            if (raw0 === null) store.removeItem(key); else store.setItem(key, raw0);
+        }
+        const tier2 = stripComments(new Map(await moduleSources()).get("tests-tier2.mjs") ?? "");
+        const uses = [/\bstored:\s*clientStored\(\)/.test(fnSource(tier2, "snapshot")), /\bputBackStored\(\s*snap\.stored\s*\)/.test(fnSource(tier2, "restore"))];
+        equal(JSON.stringify([putBack, store.getItem(key) === raw0, uses]), JSON.stringify([[true, true, null, null], true, [true, true]]),
+            "[put back from a stored reading: recorded as its text, the lost copy written back as it; from a bare reading: "
+            + "recorded as nothing, the copy taken out; the store as it was found; tier 2's snapshot records it, its restore puts it back]");
+    }],
 ];
 
 /**
@@ -10408,6 +11708,29 @@ function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
 }
 
 /**
+ * The corner's buttons as the cascade places them and the drawn shape's gap between two of them (E81 C12, 12.10.2026,
+ * out of `cornerReading` in E77 C6 so that R512 reads the upper row with the same arithmetic): `place(id)` is a
+ * button's right and bottom insets and its size through `cascadePx`, `clip` the chat's clip-path and `k` its slant
+ * (null with none), `gap(a, b)` flat to flat on one row, slanted to slanted across rows, or rim to rim between circles.
+ */
+function cornerGeometry() {
+    const place = id => {
+        const el = document.getElementById(id);
+        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
+    };
+    const clip = getComputedStyle(document.getElementById("drpg-messenger-launcher")).clipPath ?? "none";
+    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
+    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
+    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
+    const gap = (a, b) => {
+        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
+        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
+        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
+    };
+    return { place, clip, k, centre, gap };
+}
+
+/**
  * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) and (c) in a browser). The three
  * buttons and the roster as the cascade places them - each one's inset from the right and from the bottom and its
  * size, through `cascadePx`, never a box: under Stained Glass the corner turns with its pane and a turned box is not
@@ -10423,20 +11746,9 @@ function cornerReading(roster, views) {
     const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
     const token = name => cascadePx(body, name);
     const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
-    const place = id => {
-        const el = document.getElementById(id);
-        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
-    };
+    const { place, clip, k, centre, gap } = cornerGeometry();
     const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
-    const clip = getComputedStyle(M.el).clipPath ?? "none";
-    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
-    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
-    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
-    const gap = (a, b) => {
-        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
-        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
-        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
-    };
+    const upper = ["drpg-gm-launcher", "drpg-foundry-tools"].filter(id => document.getElementById(id)).map(place);
     const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
     const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
     const seen = {
@@ -10449,7 +11761,10 @@ function cornerReading(roster, views) {
         above: centre(M).y > S.bottom + S.h && centre(M).y > B.bottom + B.h,
         height: round(M.bottom + M.h - S.bottom),
         roster: {
-            foot: round(cascadePx(roster, "bottom") - (M.bottom + M.h)),
+            /* Over the upper row since E77 fix r2-H3 (13.10.2026): on the chat's foot it stood on the GM's red button and
+               Foundry tools. The row's top is the higher of the two on the page (Foundry tools is not there with the
+               windows switched off), read like the rest from the cascade; with neither, NaN, which the caller fails. */
+            foot: round(cascadePx(roster, "bottom") - Math.max(...upper.map(q => q.bottom + q.h), upper.length ? -Infinity : NaN)),
             right: round(cascadePx(roster, "right") - M.right),
             /* A ceiling below zero is none (CSS clamps it); the parser does not, so it is clamped here. */
             top: views.map(view => view.h - cascadePx(roster, "bottom", view) - Math.max(0, cascadePx(roster, "max-height", view)))

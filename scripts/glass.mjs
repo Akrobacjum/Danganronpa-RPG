@@ -20,6 +20,7 @@
 import { SETTINGS, getSetting, shortScreen, BREAKPOINTS } from "./settings.mjs";
 import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
 import { log } from "./utils.mjs";
+import { inFoundryWindow } from "./foundry-windows.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
@@ -41,10 +42,14 @@ export const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
-  /* THE GM BUTTON IS NOT A BLOCK ANY MORE. It stands directly over the scene rail, so a pane
-     of its own put a seam between it and the tiles it sits on top of. It joins the rail's
-     shard instead - same piece of glass, same angle - which is what `railBox` reserves room
-     for below and what the rotation loop turns with the rail. */
+  /* THE TILES' ROW IS MEASURED (E77 C8, 13.10.2026). It exists only on a stacked screen (narrow.mjs
+     `tileRow`), as a row of the stack at a height the stylesheet states, 44 px, so what the room says
+     cannot move it and measuring it costs no recut the fixed room block was made to avoid. No row - a
+     desk, or a trial's or a GM's empty tile, which hides it - no pane. */
+  { cls: "tiles-row", sel: "#drpg-tile-row", fallback: null },
+  /* THE GM BUTTON IS IN THE CORNER (E77 C6, 13.10.2026). From 07.09 it rode the scene rail's
+     shard at the top of the left column; it is a member of `launch` now, through
+     `data-drpg-cluster`, over the settings button in the AM-21 grid, and turns with the cluster. */
   /* The fallback is the box to cut when the rail cannot be measured at all. 412x90 was smaller
      than the rail has ever been - measured 454x102 at 100% and 540x109 at 140% - and it did not
      scale, so on a large interface it cut a pane the rail stood outside of. Sized from the
@@ -59,6 +64,16 @@ const BLOCKS = [
      to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
      `--drpg-note-w`, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
+  /* THE ROOM TILE IS NOT MEASURED EITHER (E77 C4, 13.10.2026; the A8 design's step 6). Its box is
+     `placeRoomTile`'s, chosen once a pass from the room the clock's column leaves and from no word
+     or picture of the room, so a new description, a new picture, a new room or the description
+     opened never recut the glass. It takes its band by its midpoint as every block does: at the
+     sweep's 15 desk sizes (audit/glass-sweep.mjs, 13.10.2026, both roles) that is the top band
+     under the clock and the bottom one beside the notices, every time, and the sweep's
+     `drpgRoomCheck` fails a size where it is not. It is `solid`: a fixed
+     block with something on it is painted as glass, not as the empty tile's stripes. No place
+     (no tile, or a stacked screen, where the tile is in `tiles-row` above), no box, no pane. */
+  { cls: "room-block", sel: "#drpg-room-tile", fixed: true, solid: true, fallback: () => ROOM.box },
   { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
@@ -148,7 +163,7 @@ const noteFoot = s => {
    the rail and 220 of tile keeps the overlap it had, and less of it (1600x900: the notice
    pane over the last 58 px of the rail, from 137). Above the ceiling the tile would stop
    being a corner. */
-const NOTE_MIN = 220;
+export const NOTE_MIN = 220;
 const NOTE_MAX = 360;
 /* THE TOOLS TAKE THEIR RUN FIRST, IN AS FEW COLUMNS AS THE TILE CAN SPARE (22.09).
    `railEnds` is where the rail would end with its longest tools menu in one column, in two,
@@ -158,13 +173,16 @@ const NOTE_MAX = 360;
    in it, and the strip reserved four columns of glass beside two tiles ("za szeroka",
    Dawid). The tile gives up what a narrower strip is worth only while it keeps its floor;
    past that, the tools wrap as they did. */
-function fitNoteTile(H, railEnds, s) {
-  const body = document.body;
+function gaugeFoot(H, s) {
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
   /* The gauge only counts where it stands on the floor. In the glass harness it follows the
      rail down the column instead, and a foot read off that would put the tile mid-screen. */
-  const foot = g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+  return g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+}
+function fitNoteTile(H, railEnds, s) {
+  const body = document.body;
+  const foot = gaugeFoot(H, s);
   const tile = noteTile();
   const lean = Math.round(tile.w * s * 0.22);
   const roomUnder = end => (H - foot) - (end + 34 + 8 + lean);
@@ -176,6 +194,235 @@ function fitNoteTile(H, railEnds, s) {
   body.style.setProperty("--drpg-note-fit", h + "px");
   return { foot, h, lean, railEnd };
 }
+/* ---- the room tile's place (E77 C4, 13.10.2026; the A8 design's step 6, the owner's Q0, Q3, Q13) ----
+   Two places, chosen once a pass by the measured free height F and never by what the room says:
+   'clock' - a section of the clock's column, the clock's width and left edge, turning about the
+   same corner - when F leaves the smallest box; 'notes' - a column of its own in the bottom row,
+   right of the notice tile, its foot level with the tile's - when it does not. Every input is
+   read off something the tile does not move (the clock, Foundry's gauge, the notice tile's
+   width, the scene rail's own run), so the place a pass chooses is the place the next one
+   chooses, and the box comes from F, the width and the type scale - never from the content.
+
+   F IS THE DESIGN'S, LESS THE SCENE RAIL. The design measured F with the rail gone from the
+   column (E77 C5 takes it out): F = the lowest the column may end over the notice tile's floor
+   (`NOTE_MIN`, the lean of its pane and the rail's skirt, `fitNoteTile`'s `roomUnder`) less the
+   clock's bottom. Where a rail still stands in the column under the clock (a GM whose windows
+   were not built), its run and the slot over it (`RAIL_SLOT`) come off F as well: a tile that
+   took that room would push the rail onto the notice tile's glass. With none (E77 C5) only the
+   column's drop at the wall comes off it, on a GM's screen as on a player's since the GM button
+   left the column (E77 C6). The design's readings were P8: F 491 at 1920x1080, 733 at 2560x1440,
+   195 at 1366x768; this file's, in Chromium on audit/glass-harness.html on 13.10.2026, were a
+   player's 485, 708 and 194 and, while the button still stood in the column (C5), a GM's 427,
+   657 and 136. audit/glass-sweep.mjs prints them at every size.
+
+   The smallest box and the tallest are the design's formula in the type scale's units (the
+   theme's floor of 21 px, a line of 1.3 of it, a heading of the name's 1.9 of it plus the tile's
+   own 18 px of padding): `need` = width / 3 + heading + 4 lines (the description's three and the
+   toggle's), `maxH` = width x 9 / 16 + heading + 7 lines. This is the one copy of it: the sheets
+   read `--drpg-room-h` and state no height of their own (R509). */
+const ROOM = { place: null, box: null };
+const ROOM_TAN = Math.tan(8 * Math.PI / 180);
+const ROOM_VARS = ["--drpg-room-h", "--drpg-room-w", "--drpg-room-x", "--drpg-room-y", "--drpg-room-min-h", "--drpg-room-max-h"];
+function roomSizes(w) {
+  const t = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
+  const line = 21 * t * 1.3, head = 21 * t * 1.9 + 18;
+  return { need: Math.round(w / 3 + head + 4 * line), maxH: Math.round(w * 9 / 16 + head + 7 * line) };
+}
+/* What the scene rail takes out of the clock's column under the tile: the slot over its first
+   tile and its layers' run, read off the layer buttons themselves (their run does not depend on
+   where the rail stands, so this is the same number whichever place the last pass chose). */
+function railRun() {
+  const menu = columnRail("#scene-controls")?.querySelector(":scope > menu");
+  const own = menu ? [...menu.querySelectorAll("button.ui-control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0) : [];
+  /* NO RAIL IN THE COLUMN (E77 C5): a player's is hidden and a GM's stands in the Map tools window,
+     and since E77 C6 the GM button stands in the corner, so the column under the clock holds nothing. */
+  if (!own.length) return 0;
+  const rs = own.map(e => e.getBoundingClientRect());
+  const run = Math.max(...rs.map(r => r.bottom)) - Math.min(...rs.map(r => r.top));
+  return Math.ceil(RAIL_SLOT + run);
+}
+/* A RAIL OF FOUNDRY'S IS READ ONLY WHILE IT STANDS IN FOUNDRY'S COLUMNS (E77 C5, 13.10.2026).
+   On a GM's screen `#scene-controls` and `#sidebar` stand in the module's two windows
+   (foundry-windows.mjs), which float over the curtain and are cut for by nothing: a rail read
+   there would be measured, pushed, bounded and turned where it no longer is, and an opened window
+   would recut the glass. On a player's screen both are hidden, and an element with no box was
+   already no rail to every reader here. Null for both, so every reader takes its no-rail road. */
+function columnRail(sel, root = document) {
+  const el = root.querySelector(sel);
+  return el && !inFoundryWindow(el) ? el : null;
+}
+/** The room tile's place and box for a W x H screen, from the measured F and the role (a GM's rail and button). */
+export function roomPlacement(W, H) {
+  if (!document.body.classList.contains("drpg-theme-stained-glass")) return flatPlacement(W, H);
+  const s = uiScale(), foot = gaugeFoot(H, s), noteW = noteTile().w * s;
+  const clock = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q))
+    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect());
+  const hud = clock[0] ?? null;
+  const maxEnd = H - foot - NOTE_MIN * s - 42 - Math.round(noteW * 0.22);
+  /* AND WITH NO RAIL, THE COLUMN'S OWN DROP AT THE WALL (E77 C5, 13.10.2026; the design's "z
+     pochyleniem kolumny przy scianie"). The clock's column turns about its top right corner by up
+     to 8 degrees (`buildColumn`), so its pane meets the wall lower than its box ends - by up to the
+     column's right edge x tan 8. A rail's run and slot used to stand in that stretch; with none,
+     the tile took it. Chromium, audit/glass-harness.html, a player at 1600x900 without this: F 366,
+     the tile's box ended at 564 and its pane met the wall at 619, the notice tile's pane began at
+     620 and the tile was pressed to its floor (`--drpg-note-fit` 220, which `fitNoteTile` reaches
+     only by clamping). With it: F 326, the panes at 579 and 616, the fit 226. The larger of the
+     two is reserved; `drpgFoundryCut` fails a tile under the clock that leaves the floor alone. */
+  const drop = hud ? Math.ceil(Math.max(...clock.map(r => r.right)) * ROOM_TAN) : 0;
+  const F = hud ? Math.round(maxEnd - Math.max(...clock.map(r => r.bottom)) - Math.max(railRun(), drop)) : null;
+  if (hud) {
+    const { need, maxH } = roomSizes(hud.width);
+    if (F - 24 >= need) return { place: "clock", F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(Math.min(F - 24, maxH)) };
+  }
+  const w = Math.round(noteW), { need, maxH } = roomSizes(w);
+  const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22));
+  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, x: Math.round(16 + noteW + 32 + h * ROOM_TAN), y: Math.round(H - foot - h), w, h };
+}
+/* UNDER MONOKUMA LEGACY THE SAME TWO PLACES, WITH NO CURTAIN (E77 fix r1-M1, 13.10.2026; review round
+   1's cor F6 and goal row G8; the A8 design's P16-0). Until this the tile stood under the clock at the
+   base sheet's 250 px under this theme, because `--drpg-room-h` was written only by a pass of the
+   curtain, and no curtain is mounted here. The design's rule for this theme: under the clock, the
+   clock's width, as tall as under Stained Glass (`maxH`) and no lower than `#players` less 16 px; when
+   the smallest box does not fit there, right of the notice stack, which this theme stands at the top
+   in the middle (danganronpa.css `#drpg-popups`, popup.mjs `positionBelowWidgets`).
+   F is the height from where the tile's top stands - the last of the clock's column (the clock, or
+   the floor switcher after it), its bottom margin and the column's gap, none of them the tile's - to
+   `#players`' top less 16, read through `gaugeFoot` (whose foot is `#players`' top less 8, or 100 px
+   on the geometry scale where the gauge does not stand on the floor, as in the glass harness).
+   Beside the notices: 16 px right of the stack, level with its top, the clock's width or what is left
+   to the screen's edge, and down to the same floor; the design names the place and not its width or
+   gap, so the width is the panel's own and the gap the 16 px this theme keeps at the screen's sides.
+   With no stack drawn yet (popup.mjs draws it at `ready`, on every desk) the tile keeps the clock's
+   place at the smallest box. Readings in Chromium, audit/glass-harness.html `?theme=legacy`,
+   13.10.2026, before this: the tile 430x250 at y 153 at 1920x1080, 1366x768 and 1280x720 alike;
+   audit/glass-sweep.mjs prints the place and box at every size since. */
+function flatPlacement(W, H) {
+  /* `#players` IS READ WITH THE TILE OUT OF THE FLOW. Where the gauge does not stand on the floor it
+     follows the column - the tile in it - and a gauge read with the tile laid out made F the tile's
+     own: in the glass harness at 1366x768 the tile 491 high pushed `#players` onto the floor, the
+     foot read off it gave F 495, and F stayed 495 at 1280x720 and with the clock 574 px taller
+     (13.10.2026, audit/glass-sweep.mjs, the pin's control). Hidden for the one reading, in the same
+     task, so nothing is painted without it. */
+  const s = uiScale(), tile = document.getElementById("drpg-room-tile"), display = tile?.style.getPropertyValue("display") ?? "";
+  tile?.style.setProperty("display", "none", "important");
+  const foot = gaugeFoot(H, s);
+  if (tile) { tile.style.removeProperty("display"); if (display) tile.style.setProperty("display", display); }
+  const els = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q)).filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0);
+  if (!els.length) return null;
+  const hud = els[0].getBoundingClientRect(), last = els.at(-1), px = (e, k) => parseFloat(getComputedStyle(e)[k]) || 0;
+  const top = Math.max(...els.map(e => e.getBoundingClientRect().bottom)) + px(last, "marginBottom") + (last.parentElement ? px(last.parentElement, "rowGap") : 0);
+  const F = Math.round(H - foot - 8 - top);
+  const { need, maxH } = roomSizes(hud.width);
+  const stack = document.getElementById("drpg-popups"), sb = stack?.offsetWidth > 0 ? stack.getBoundingClientRect() : null;
+  /* BESIDE THE NOTICES, NOT OVER FOUNDRY'S RIGHT COLUMN (E77 fix r2-H3, 13.10.2026). The width was the
+     clock's or what was left to the screen's edge, and the status strip and the Projects tray stand
+     between the two: in the glass harness with the clock made taller until F fell short (Chromium,
+     13.10.2026, a GM and a player alike) the tile stood 1192 to 1622 over `#ui-right-column-1` from
+     1457 at 1920x1080, and 915 to 1345 over it from 903 at 1366x768; at 2560x1440 it ended 155 px
+     short of it. So the free width ends 16 px before the left of what Foundry's right column draws
+     (its status column, and the sidebar where a GM's switch leaves it there), as it ends 16 px
+     before the screen's edge. Where nothing is left there (1366x768 above), the tile keeps the
+     clock's place at the smallest box, as it does with no stack drawn. */
+  const right = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
+    .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !inFoundryWindow(e)).map(e => e.getBoundingClientRect().left);
+  const x = sb ? Math.round(sb.right + 16) : 0, free = Math.round(Math.min(W, ...right) - 16 - x);
+  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH) : need) };
+  const y = Math.round(sb.top), w = Math.round(Math.min(hud.width, free));
+  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y)) };
+}
+/* WHO PLACES IT THERE. No curtain watches the page under this theme, so this does, and only this: a
+   resize, the clock drawn again (`drpgHudRendered`), the theme applied (`refreshGlass`), and a change
+   of size of the clock, the floor switcher, `#players`, the notice stack or Foundry's right column (a
+   ResizeObserver, bound again when one of them is a new node; the column since fix r2-H3 bounds the
+   width beside the notices). Nothing the room says is among them, and the tile itself is
+   not watched: its content cannot move it. Under Stained Glass each returns at once - the curtain's
+   pass places the tile there (`moduleLayout`). */
+let flatWatch = null, flatTimer = 0;
+const flatSoon = () => { clearTimeout(flatTimer); flatTimer = setTimeout(placeFlatRoomTile, 150); };
+export function placeFlatRoomTile() {
+  if (document.body.classList.contains("drpg-theme-stained-glass")) return;
+  placeRoomTile(innerWidth, innerHeight);
+  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1"].map(q => document.querySelector(q)).filter(Boolean);
+  if (typeof ResizeObserver !== "function" || (flatWatch && nodes.length === flatWatch.nodes.length && nodes.every((n, i) => n === flatWatch.nodes[i]))) return;
+  flatWatch?.ro.disconnect();
+  flatWatch = { nodes, ro: new ResizeObserver(flatSoon) };
+  nodes.forEach(n => flatWatch.ro.observe(n));
+}
+/* ONCE A PASS, BEFORE THE RAIL IS PLACED: the rail is pushed down under whatever ends the clock's
+   column, and in the 'clock' place that is the tile. In 'notes' the tile goes to the body, as the
+   notice stack is (a scaled interface would put a fixed box inside it in the wrong pixels), and
+   stands over the curtain at the curtain's own index, later in the tree; back in 'clock' it is
+   put where room-tile.mjs `ensureRoomTile` puts it, which leaves a tile in the body alone. */
+function placeRoomTile(W, H) {
+  ROOM.place = ROOM.box = null;
+  const tile = document.getElementById("drpg-room-tile");
+  const p = tile && !narrowLayout() ? roomPlacement(W, H) : null;
+  seatRoomTile(tile, p);
+  LAST.room = p && { ...p };
+  if (!p) return;
+  ROOM.place = p.place;
+  /* Under the clock the tile's TOP is where the column lays it, read with the rotations off; its
+     width and height are the placement's, so nothing the room says reaches the box. */
+  const top = p.place === "clock" ? Math.round(tile.getBoundingClientRect().top) : p.y;
+  ROOM.box = { x: p.x, y: top, w: p.w, h: p.h };
+  LAST.room.box = { ...ROOM.box };
+}
+function seatRoomTile(tile, p) {
+  const body = document.body;
+  if (!p) {
+    ROOM_VARS.forEach(k => body.style.removeProperty(k));
+    if (tile) { if (tile.dataset.place) delete tile.dataset.place; tile.style.zIndex = ""; homeRoomTile(tile); }
+    return;
+  }
+  const vars = { "--drpg-room-h": p.h, "--drpg-room-w": p.w, "--drpg-room-x": p.x, "--drpg-room-y": p.y ?? 0, "--drpg-room-min-h": p.need, "--drpg-room-max-h": p.maxH };
+  for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v + "px");
+  if (tile.dataset.place !== p.place) tile.dataset.place = p.place;
+  if (p.place === "notes") {
+    if (tile.parentElement !== body) body.append(tile);
+    tile.style.zIndex = document.getElementById("drpg-curtain")?.style.zIndex ?? "";
+  } else { tile.style.zIndex = ""; homeRoomTile(tile); }
+}
+function homeRoomTile(tile) {
+  if (tile.parentElement !== document.body) return;
+  const hud = document.getElementById("drpg-hud");
+  if (!hud?.parentElement) return;
+  const floors = hud.nextElementSibling?.id === "drpg-floors" ? hud.nextElementSibling : null;
+  (floors ?? hud).after(tile);
+}
+/* THE PICTURE LIES ON THE TILE'S WHOLE PANE (the owner's Q13), not in the tile's box: the pane runs
+   past the box to the wall and leans with its column. room-tile.mjs draws the art layer inside the
+   tile; while the curtain stands with a pane cut for the tile, it is moved to the body, over the
+   curtain and under its glow at their own index (the seams' bloom runs over the picture's edges as
+   it does over every pane's; laid over the glow, the picture hid its own leading - 13.10.2026,
+   1920x1080) and under the interface, sized to the pane's bounds and clipped to its polygon.
+   Called after every new cut and after every paint of the tile (a paint builds a new layer, and
+   the old one in the body goes). With no pane it goes back into the tile. */
+export function seatRoomArt() {
+  const tile = document.getElementById("drpg-room-tile");
+  const fresh = tile?.querySelector(":scope > .drpg-room-tile-art") ?? null;
+  const loose = document.getElementById("drpg-room-art");
+  const cur = document.getElementById("drpg-curtain");
+  const pane = curtains.length && cur && LAST.room ? (LAST.panes || []).find(p => p.tone === "room-block") : null;
+  if (fresh && loose && fresh !== loose) loose.remove();
+  const art = fresh ?? loose;
+  if (!art) return;
+  if (!pane || !tile) {
+    if (!tile || !tile.contains(art)) {
+      art.removeAttribute("id");
+      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset"]) art.style.removeProperty(k);
+      if (tile) tile.prepend(art); else art.remove();
+    }
+    return;
+  }
+  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
+  art.id = "drpg-room-art";
+  art.classList.toggle("is-open", tile.classList.contains("is-open"));
+  const set = { position: "fixed", inset: "auto", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
+    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
+  for (const [k, v] of Object.entries(set)) art.style.setProperty(k, v);
+  if (cur.nextElementSibling !== art) cur.after(art);
+}
+const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...poly.map(q => q[1])), x1: Math.max(...poly.map(q => q[0])), y1: Math.max(...poly.map(q => q[1])) });
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip
@@ -232,26 +479,21 @@ let sidebarWatched = false;
 function watchSidebar() {
   const bar = document.querySelector("#sidebar"), tabs = document.querySelector("#sidebar-tabs");
   if (!bar || !tabs) return;
-  const read = () => document.body.classList.toggle("drpg-sidebar-open", bar.offsetWidth > tabs.offsetWidth + 40);
+  // a sidebar opened in the Foundry tools window (E77 C5) widens the window, not the right wall
+  const read = () => document.body.classList.toggle("drpg-sidebar-open", !inFoundryWindow(bar) && bar.offsetWidth > tabs.offsetWidth + 40);
   read();
   if (sidebarWatched) return;
   sidebarWatched = true;
   new ResizeObserver(read).observe(bar);
 }
 const RAIL_MARGIN = 16;
-/* HOW FAR THE GM BUTTON DROPS TO CLEAR THE CLOCK'S GLASS.
-   A column's pane reaches further down the wall than the column's own block does - padding,
-   plus the swing of its rotation - and the button is laid out in that overhang, so its top
-   two corners sat on the clock's pane and its lower two on the rail's. It cannot be fixed by
-   trimming the clock's pane: this partition's overlap and point-in-pane tests both assume
-   convex panes, and a pane with a notch is not convex. So the button moves, and it moves
-   BEFORE anything is measured - the rail's own padding is computed from the dropped position,
-   so the tiles follow it down and the shard is cut around both where they end up. */
-const GM_DROP = 26;
-/* What the GM button takes out of the left column below the clock, for a screen that has no
-   button (see the rail placement in `moduleLayout`): the clock's bottom margin 4, the column's
-   gap 16, the button's own top margin 20 (stained-glass.css) and its height 32. */
-const GM_SLOT = 4 + 16 + 20 + 32;
+/* WHERE A RAIL STILL IN THE COLUMN STARTS UNDER THE CLOCK. Until E77 C6 the GM button stood
+   between the clock and the scene rail, and a player's rail kept its room (22.09): the clock's
+   bottom margin 4, the column's gap 16, the button's top margin 20 and height 32, the 26 px it
+   dropped to clear the clock's glass and the 12 px gap over the first tile. The button is in the
+   corner now; a rail left in the column (a GM whose windows were not built) starts where it did,
+   so its shard is cut as it was. One sum of the old constants, not re-measured since C6. */
+const RAIL_SLOT = 4 + 16 + 20 + 32 + 26 + 12;
 function railOverhang(el) {
   const r = el.getBoundingClientRect();
   if (r.width < 1) return 0;
@@ -274,9 +516,6 @@ function railOverhang(el) {
    of one": the pane is as wide as its column - the notice tile sets that on the left - and a
    72 px rail left at the wall stood in a third of it. The wall margin still wins if centring
    would take the rail off the screen. */
-/* Where each rail's own tiles came to rest, so anything sharing its shard can be centred on
-   them. The hull a rail is measured by IS its tiles (see `tileLocal`), so this is their middle. */
-const RAIL_AT = new Map();
 function railRule(r) {
   const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(r.transform)?.[1] ?? "0");
   const [ox, oy] = r.origin.split(" ").map(parseFloat);
@@ -284,36 +523,21 @@ function railRule(r) {
   /* THE TILES, READ NOW, FROM LAYOUT VALUES.
      `offsetLeft` / `offsetTop` carry no transform, so unlike `getBoundingClientRect` they can
      be read while the rotation is applied - which means this rule can be recomputed whenever
-     the rail's contents change, not only when the curtain is recut. That is what keeps the GM
-     button over the tiles after a scene control opens its tools and the tile block gets wider:
-     the curtain deliberately does not recut on a click, so a box captured at cut time was a
-     box from before the click ("dalej nie jest wycentrowany", 08.09). */
+     the rail's contents change, not only when the curtain is recut, which the curtain
+     deliberately does not do on a click: a box captured at cut time was a box from before the
+     click ("dalej nie jest wycentrowany", 08.09). */
   const railAt = el => { let x = 0, y = 0; for (let n = el; n; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; } return [x, y]; };
   const live = (() => {
     const kids = tileButtons(r.el);
     if (!kids.length) return null;
     const own = railAt(r.el);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    const boxes = [];
     for (const k of kids) {
       const [kx, ky] = railAt(k);
       const b = [kx - own[0], ky - own[1], kx - own[0] + k.offsetWidth, ky - own[1] + k.offsetHeight];
-      boxes.push(b);
       x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]);
     }
-    /* THE TOP ROW, KEPT SEPARATELY. Anything standing above the rail is judged against the
-       tiles it is ACTUALLY above, which is the first row - not the column's average. A rail
-       leans, so those are not the same place: measured 08.09 at 1440p, the column's middle
-       was 76 and its first row 88, and the GM button centred on 76 read as 12 px too far left
-       every time, however exactly the arithmetic agreed with itself. */
-    const rowH = boxes[0][3] - boxes[0][1];
-    const first = boxes.filter(b => b[1] < y0 + rowH * 0.8);
-    const box = [x0, y0, x1, y1];
-    box.rowMid = (Math.min(...first.map(b => b[0])) + Math.max(...first.map(b => b[2]))) / 2;
-    // and the row's OWN height: a rotation moves a point sideways by its distance from the
-    // pivot in y, so the row has to be turned about its own middle, not the column's
-    box.rowY = (Math.min(...first.map(b => b[1])) + Math.max(...first.map(b => b[3]))) / 2;
-    return box;
+    return [x0, y0, x1, y1];
   })();
   /* THE HULL IS THE TILES', NOT THE CONTAINER'S.
      `#scene-controls` is 151 px wide with its buttons in the right 99 of it - Foundry leaves
@@ -326,46 +550,25 @@ function railRule(r) {
   const bx1 = box ? box[2] : w, by1 = box ? box[3] : h;
   /* only the wall-flush tab rail needs the guard; the scene rail has room either side */
   const at = r.sel === "#sidebar-tabs" ? "body.drpg-theme-stained-glass:not(.drpg-sidebar-open)" : "body.drpg-theme-stained-glass";
-  const plain = `${at} :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${r.dy ? `translateY(${Math.round(r.dy)}px) ` : ""}${r.transform}; }`;
+  const plain = `${at} :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${r.transform}; }`;
   if (!(w > 0) || !Number.isFinite(phi) || !phi) return plain;
   /* The element's own untransformed left, measured during the layout pass when the
-     rotations were off. The `offsetParent` chain is the fallback, and only that: it is not
-     the same chain for `#drpg-gm-launcher` as for the rail, and a hull built from it put the
-     button 57 px out and then the wall clamp held it there. */
+     rotations were off. The `offsetParent` chain is the fallback, and only that: built from
+     it, the hull of the GM button that rode this shard until E77 C6 came out 57 px out. */
   const L = live ? railAt(r.el)[0] : (Number.isFinite(r.pageLeft) ? r.pageLeft : railAt(r.el)[0]);
   const cs = Math.cos(phi), sn = Math.sin(phi);
   const xs = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => ox + (x - ox) * cs - (y - oy) * sn);
   const left = L + Math.min(...xs), right = L + Math.max(...xs);
   const W = window.innerWidth;
   let shift = 0;
-  /* CENTRED ON THE THING IT SHARES THE GLASS WITH, NOT ON THE GLASS.
-     The GM button sits on the scene rail's shard, and centring it in that shard on its own
-     put it 57 px left of the tiles: it is a different width, it starts at a different place,
-     and its `offsetParent` chain is not the rail's. Lining it up on where the RAIL ended up
-     is the only measure that means "over the tiles" (Dawid, 07.09). */
-  if (r.alignTo && RAIL_AT.has(r.alignTo)) {
-    /* Centred on where the rail's TILES came to rest - both hulls are computed the same way
-       from the same kind of measurement now, so "over the tiles" is one subtraction and not
-       an offset carried across two coordinate systems. */
-    shift = Math.round(RAIL_AT.get(r.alignTo) - (left + right) / 2);
-  } else if (r.pane) {
+  if (r.pane) {
     const cx = document.getElementById("drpg-curtain")?.getBoundingClientRect().left ?? 0;
     shift = Math.round((cx + (r.pane[0] + r.pane[1]) / 2) - (left + right) / 2);
   }
   if (left + shift < RAIL_MARGIN) shift = Math.ceil(RAIL_MARGIN - left);
   else if (right + shift > W - RAIL_MARGIN) shift = -Math.ceil(right - (W - RAIL_MARGIN));
-  /* What is recorded is where the TILES end up, not where the element's box does: the rail's
-     box carries padding that puts its middle 25 px left of the tiles inside it, and "over the
-     tiles" is the thing being asked for. */
-  /* Where the first row of tiles came to rest, in page pixels, after this rule's own turn
-     and shift - that is what anything sharing the shard lines up on. */
-  const rowMid = live && Number.isFinite(live.rowMid)
-    ? L + (ox + (live.rowMid - ox) * cs - (live.rowY - oy) * sn) + shift
-    : (left + right) / 2 + shift;
-  RAIL_AT.set(r.sel, rowMid);
-  const drop = r.dy ? ` translateY(${Math.round(r.dy)}px)` : "";
-  if (!shift && !drop) return plain;
-  return `${at} :is(${r.sel}) { transform-origin: ${r.origin}; transform: translateX(${shift}px)${drop} ${r.transform}; }`;
+  if (!shift) return plain;
+  return `${at} :is(${r.sel}) { transform-origin: ${r.origin}; transform: translateX(${shift}px) ${r.transform}; }`;
 }
 
 /* ONE WRITE, OR THE RAILS ANIMATE EVERY TIME THE GLASS IS RECUT.
@@ -378,7 +581,6 @@ function railRule(r) {
    and never for one already written. */
 function applyRotations() {
   const rules = [];
-  RAIL_AT.clear();
   for (const r of ROT) {
     if (r.rail && r.el && r.sel) rules.push(railRule(r));
     else if (r.sel) rules.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${r.transform}; }`);
@@ -414,56 +616,8 @@ function applyRotations() {
     const withFixes = rules.concat(fixes).join(" ");
     if (sheet.textContent !== withFixes) sheet.textContent = withFixes;
   }
-  tightenGmGap();
 }
 
-/**
- * The tiles sit under the GM button by the same gap they keep between themselves.
- *
- * MEASURED AFTER THE ROTATIONS, BECAUSE THAT IS THE ONLY PLACE THE ANSWER IS. The margin
- * in `moduleLayout` is computed with the rotations off, deliberately - a position fed back
- * into the thing being measured is what used to make the tiles creep every recut. But the
- * rail and the GM button are then both turned, and the button is aligned TO the rail
- * (`alignTo`), so what the margin asks for and what the screen shows are two different
- * numbers. Measured on 11.09: the tiles keep 6 px between themselves and stood 37 px under
- * the button at 1920x1080, 16 at 1600x900 and 73 at 2560x1440 - three different holes from
- * one constant, which is the signature of a number being read in the wrong frame.
- *
- * So the correction is the same shape as `railOverhang` above it: propose, look, answer.
- * Iterated because moving the rail moves the button with it - the coupling measured about
- * two thirds, so it converges - and capped, because a correction that has not settled in
- * three goes is one that never will.
- *
- * SAFE FOR THE GLASS, and that is not an accident: the band's top is `min(first tile, the
- * GM button + GM_DROP)`, and the button is the higher of the two, so the band is already
- * cut from above the button. Tiles moving UP move further inside their own shard, never
- * out of it. Verified by the corner tally either side of this landing.
- */
-function tightenGmGap() {
-  const rail = document.querySelector("#scene-controls");
-  const gm = document.querySelector("#drpg-gm-launcher");
-  if (!rail || !gm || !gm.offsetWidth || !themeOn()) return;
-  const menu = rail.querySelector(":scope > menu");
-  if (!menu) return;
-
-  for (let pass = 0; pass < 3; pass++) {
-    const tiles = [...menu.querySelectorAll("button.ui-control")]
-      .filter(e => e.offsetWidth > 0).map(e => e.getBoundingClientRect());
-    if (tiles.length < 2) return;
-    /* THE TILES' OWN GAP, not a constant: it is Foundry's menu gap at this interface
-       scale, and matching it is the whole request ("z rownym marginesem do przerw miedzy
-       kafelkami", Dawid 11.09). Read from the first pair and sanity-checked, because a
-       wrapped column would put the second tile beside the first rather than under it. */
-    const own = Math.round(tiles[1].top - tiles[0].bottom);
-    if (!(own >= 0 && own < 40)) return;
-    const have = Math.round(tiles[0].top - gm.getBoundingClientRect().bottom);
-    const delta = have - own;
-    if (Math.abs(delta) < 2) return;
-    const base = parseFloat(rail.style.marginTop) || 0;
-    rail.style.marginTop = Math.round(base - delta) + "px";
-    void rail.offsetHeight;
-  }
-}
 /* THE RIGHT-HAND COLUMN STANDS STILL.
    Foundry lays `#ui-right-column-1` out beside the sidebar, so opening the sidebar pushes the
    status strip and the Projects tray 300 px to the left - and a curtain cut around them would
@@ -488,7 +642,7 @@ function pinRightColumn() {
      (measured, three overlapping pairs). Stacked, the column is in narrow.mjs's
      column and belongs to it. */
   if (!themeOn() || narrowLayout()) { unpinRightColumn(); return; }
-  const rail = document.getElementById("sidebar-tabs");
+  const rail = columnRail("#sidebar-tabs");
   const r = rail && rail.offsetWidth ? rail.getBoundingClientRect() : null;
   /* AND CLEAR OF THE RAIL'S BAND, NOT JUST OF THE RAIL.
      The tab rail leans, so the glass cut for it is the tiles plus the swing that lean costs
@@ -613,7 +767,7 @@ const LAUNCH_CLEAR = "--drpg-launch-clear";
 function clearLaunchers() {
   const drop = () => document.body.style.removeProperty(LAUNCH_CLEAR);
   if (!themeOn() || narrowLayout()) { drop(); return; }
-  const rail = document.getElementById("sidebar-tabs");
+  const rail = columnRail("#sidebar-tabs");
   const box = rail && rail.offsetWidth ? tileButtons(rail).map(e => e.getBoundingClientRect()) : [];
   const buttons = [...document.querySelectorAll(LAUNCHERS)]
     .filter(e => e.offsetWidth);
@@ -701,52 +855,40 @@ function moduleLayout(W, H) {
      actually stand. */
   pinRightColumn();
   clearLaunchers();
+  placeRoomTile(W, H);
   /* THE LEFT RAIL STARTS UNDER THE MODULE'S OWN LEFT COLUMN, AND THAT IS A ONE-WAY READ.
-     `#drpg-gm-launcher` is laid out over the top of `#scene-controls`, so with nothing done
-     the first two tiles sit under the GM badge. The old `placeTiles` pushed the rail down
-     until it stood clear of the SHARD CUT FOR IT - a measured position fed back into the
-     thing being measured, which is why the tiles crept and jumped every recut. The push is
-     computed here instead, from the bottom of the two blocks that stand above the rail and
-     whose position does not depend on it, and it is computed while the rotations are off, so
-     it is the same number every pass. The rail is then measured where it will actually be. */
-  const railTop = document.querySelector("#scene-controls");
+     Left alone, Foundry lays the first tiles at the top of the column, under what stands there.
+     The old `placeTiles` pushed the rail down until it stood clear of the SHARD CUT FOR IT - a
+     measured position fed back into the thing being measured, which is why the tiles crept and
+     jumped every recut. The push is computed here instead, from the bottom of what ends the
+     clock's column, whose position does not depend on the rail, and it is computed while the
+     rotations are off, so it is the same number every pass. The rail is then measured where it
+     will actually be. */
+  const railTop = columnRail("#scene-controls");
+  let noteFitted = false;
   if (railTop) {
     railTop.style.paddingTop = "";
     railTop.style.marginTop = "";
     void railTop.offsetWidth;
     const tops = tileButtons(railTop).map(e => e.getBoundingClientRect().top);
-    const above = ["#drpg-hud", "#drpg-gm-launcher"].map(s => document.querySelector(s))
-      .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0)
-      .map(e => e.getBoundingClientRect().bottom);
-    /* A PLAYER'S RAIL STARTS WHERE THE GM'S DOES (22.09). These are read with the rotations
-       off, and the clock is drawn tilted: its pane runs some 50 px below its upright box at the
-       wall. On a GM's screen the button stands in that gap and the tiles follow it, so nothing
-       showed. A player has no button, and once the column was packed from the top (1.2.49) the
-       first tiles sat 38 px under the clock's upright box - on its glass, across its seam
-       ("rozjechane przyciski foundry u gracza", Dawid, 22.09). So a screen without the button
-       keeps its slot: the button's own margin, height and the column gap it would have taken. */
-    const hudEl = document.querySelector("#drpg-hud");
-    const gmEl = document.querySelector("#drpg-gm-launcher");
-    const gmShown = Boolean(gmEl && gmEl.offsetWidth > 0 && gmEl.offsetHeight > 0);
-    if (!gmShown && hudEl && hudEl.offsetHeight > 0) {
-      above.push(hudEl.getBoundingClientRect().bottom + GM_SLOT);
-    }
-    if (tops.length && above.length) {
-      /* 40, not 18: the GM launcher is a block, and a block is rotated about its pane's
-         corner after this runs, which walks it up to 30 px down the screen from the box read
-         here. The clearance has to cover where it ENDS UP, not where it is measured. */
-      /* 12, not 52. The GM button rides on the rail's shard and turns with it, so it needs
-         only a gap, not clearance for a swing it no longer has: 52 left a 50 px hole between
-         the button and the first tile ("troche za wysoko", 08.09). */
+    /* A PLAYER'S RAIL STARTED WHERE THE GM'S DID (22.09), AND SINCE E77 C6 THERE IS NO
+       DIFFERENCE LEFT TO MAKE. These are read with the rotations off, and the clock is drawn
+       tilted: its pane runs some 50 px below its upright box at the wall. A player had no GM
+       button, and once the column was packed from the top (1.2.49) the first tiles sat 38 px
+       under the clock's upright box - on its glass, across its seam ("rozjechane przyciski
+       foundry u gracza", Dawid, 22.09). So the rail keeps `RAIL_SLOT` under whatever ends the
+       clock's column - the room tile when it stands there (E77 C4), which `roomPlacement`
+       counted F against. */
+    const hudEl = document.querySelector(ROOM.place === "clock" ? "#drpg-room-tile" : "#drpg-hud");
+    if (tops.length && hudEl && hudEl.offsetHeight > 0) {
       /* MARGIN, NOT PADDING, AND IT MAY BE NEGATIVE.
-         The rail is placed so its first tile sits 12 px under the GM button, wherever Foundry
-         happens to put it. `padding-top` can only ever push it DOWN, so the moment Foundry's
+         The rail is placed so its first tile sits `RAIL_SLOT` under the clock's column, wherever
+         Foundry happens to put it. `padding-top` can only ever push it DOWN, so the moment Foundry's
          own layout left a bigger gap than we want - which is what a trip up and back down the
          interface scale does - there was no way to close it again: measured 9 px at 100 %,
          16 at 140 %, and 46 px on the way back to 100 %, growing every round trip.
          A margin moves the box either way, so the gap is stated rather than accumulated. */
-      // the button drops by GM_DROP and the tiles keep a gap under it
-      const need = Math.round(Math.max(...above) + GM_DROP + 12 - Math.min(...tops));
+      const need = Math.round(hudEl.getBoundingClientRect().bottom + RAIL_SLOT - Math.min(...tops));
       railTop.style.boxSizing = "border-box";
       if (Math.abs(need) > 1) railTop.style.marginTop = need + "px";
       /* AND IT STOPS WHERE THE NOTICE TILE STARTS.
@@ -754,7 +896,7 @@ function moduleLayout(W, H) {
          second column only when they run out of it. Left alone, a control with thirteen tools
          put its last tiles 120 px inside the notice pane - outside the glass cut for the rail,
          which is what "za niska na nasze kafelki" was. The rail is BOUNDED here instead, to
-         the room between the GM launcher and the notice tile (whose box is a constant of the
+         the room between the top of its own run and the notice tile (whose box is a constant of the
          same scale, see the note-block fallback), so the tools wrap into the third column the
          shard already reserves and the run always ends inside its own glass. */
       const s = uiScale();
@@ -801,6 +943,7 @@ function moduleLayout(W, H) {
         .map(cols => Math.max(layersEnd, Math.ceil(firstTop + Math.ceil(most / cols) * pitch - (pitch - tileH))))
         .concat(layersEnd);
       const fitted = fitNoteTile(H, railEnds, s);
+      noteFitted = true;
       /* THE BOX IS THE CAPACITY CHOSEN ABOVE, AND NOT ONE PIXEL OF THE TILE'S ROOM MORE (22.09).
          It used to be all the room above the notice tile, and once the tile reached its
          ceiling that was far more than any menu needs: a 13-tool menu then wrapped ten deep in
@@ -830,6 +973,24 @@ function moduleLayout(W, H) {
       railTop.style.maxHeight = Math.max(natural, room) + "px";
     }
   }
+  /* NO RAIL ON THE WALL (E77 C5, 13.10.2026). A player's scene controls are hidden and a GM's
+     stand in the Map tools window, so nothing above calls `fitNoteTile` and the notice tile would
+     keep whatever height was written last, or the stylesheet's own. It is fitted under what does
+     end the clock's column instead: the room tile when it stands there (its placed box), else the
+     clock - each with the column's drop at the wall that `roomPlacement` reserves, because the
+     tile is fitted under that column's PANE, not its box (fitted under the box, a player's notice
+     tile at 1600x900 grew to 281 px and its pane began at 577, two pixels into the room tile's).
+     With nothing in the column at all it is fitted under the screen's top, which is NOTE_MAX. */
+  if (!noteFitted) {
+    const clock = ["#drpg-hud", "#drpg-hud + #drpg-floors"].map(q => document.querySelector(q))
+      .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect());
+    const ends = [];
+    if (clock.length) {
+      const end = ROOM.place === "clock" && ROOM.box ? ROOM.box.y + ROOM.box.h : Math.max(...clock.map(r => r.bottom));
+      ends.push(Math.ceil(end + Math.max(...clock.map(r => r.right)) * ROOM_TAN));
+    }
+    fitNoteTile(H, [ends.length ? Math.max(...ends) : 0], uiScale());
+  }
   const cur = document.getElementById("drpg-curtain")?.getBoundingClientRect();
   const ox = cur?.left ?? 0, oy = cur?.top ?? 0;
   const rects = {}, out = [];
@@ -844,8 +1005,10 @@ function moduleLayout(W, H) {
     }
     if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
     const box = r ? { ...r } : b.fallback(W, H, rects);
+    if (!box) return;                              // a fixed block with no place this pass (the room tile)
     rects[b.cls] = box;
-    out.push({ cls: b.cls, sel: b.sel, fixed: Boolean(b.fixed), x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
+    out.push({ cls: b.cls, sel: b.sel, fixed: Boolean(b.fixed), solid: Boolean(b.solid),
+      x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
   });
   LAST.blocks = out.map(b => ({ cls: b.cls, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), measured: Boolean(b.r), n: b.els.length }));
   return out;
@@ -941,7 +1104,7 @@ export function debugGlass() {
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
      means it was cut for something else, or the block moved after it was cut. */
   const live = {};
-  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-player-status", "#countdowns"]) {
+  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-room-tile", "#drpg-player-status", "#countdowns"]) {
     const r = document.querySelector(sel)?.getBoundingClientRect();
     if (r) live[sel] = [Math.round(r.left), Math.round(r.right), Math.round(r.width), Math.round(r.height), getComputedStyle(document.querySelector(sel)).transform === "none" ? "upright" : "tilted"];
   }
@@ -963,7 +1126,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      tablet screenshot shows behind the clock and the tray. The lift is small (a panel's
      pane must still read as the calmest thing on the screen) and it is paid for by the
      black layer in `paintGlass`, which is thinner over content than over filler. */
-  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", launch: "#0d0b16" };
+  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", "tiles-row": "#0d0b16", launch: "#0d0b16" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
@@ -1196,7 +1359,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      sliding out over the curtain changes nothing about it. Nothing here is read from a
      state the user can change with a click. */
   const railBox = (host, cv, W, sel, side, fallback) => {
-    const rail = host.querySelector(sel);
+    const rail = columnRail(sel, host);
     const o = cv?.getBoundingClientRect();
     if (!rail || !rail.offsetWidth || !o) return fallback ? { ...fallback, real: false } : { real: false };
     const keep = rail.style.transform; rail.style.transform = "";
@@ -1210,17 +1373,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const gap = menus.length > 1
       ? Math.max(0, Math.round(menus[1].getBoundingClientRect().left - menus[0].getBoundingClientRect().right))
       : 8;
-    let top = btns.length ? Math.min(...btns.map(e => e.getBoundingClientRect().top)) : r.top;
-    /* THE GM BUTTON RIDES WITH THE LEFT RAIL. It is laid out directly above the tiles, in
-       the same 72 px of wall, so the shard is measured to hold both and they turn together
-       (Dawid, 07.09: "przerzucmy gm button do tego samego kawalka kurtyny"). */
-    if (!side) {
-      const gm = host.querySelector("#drpg-gm-launcher");
-      if (gm && gm.offsetWidth) {
-        const g = gm.getBoundingClientRect();
-        top = Math.min(top, g.top + GM_DROP);
-      }
-    }
+    /* The GM button rode this shard over the tiles from 07.09 until E77 C6 moved it into the
+       corner; the band starts at the first tile again. */
+    const top = btns.length ? Math.min(...btns.map(e => e.getBoundingClientRect().top)) : r.top;
     /* From wherever the shard now STARTS to the bottom of the rail's own run. Adding the
        GM button's height on top of a height already measured from its top counted it twice
        and ran the band down into the notice tile's column, which then stopped hugging the
@@ -1245,9 +1400,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        a 34 px skirt below THAT. It ran into the notice tile's pane, which is what the
        seam through the bottom row of tiles was really about.
 
-       The band exists to hold the tiles and the GM button above them. Both are measured;
-       the padding under the last tile is not part of either. `top` is already the higher
-       of the first tile and the GM button, so this is the other end of the same reading. */
+       The band exists to hold the tiles, which are measured; the padding under the last tile
+       is not part of them. `top` is the first tile's, so this is the other end of the same
+       reading. */
     const tilesBottom = btns.length
       ? Math.max(...btns.map(e => e.getBoundingClientRect().bottom))
       : (r.top + rail.offsetHeight);
@@ -1325,7 +1480,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
                 so the seam between the strip and the notice tile's section ran through the
                 bottom row - three corners of twenty tiles on the wrong pane at 1080p, and none
                 at 1440p, because there the run ends far above the tile. 34 below puts the seam
-                clear of the row; above it stays 14, where the GM button needs it tight. */
+                clear of the row; above it stays 14, where the GM button needed it tight until E77 C6. */
              coreY: [(top - o.top) / s - 14, (top - o.top) / s + wantH / s + 34],
              origin: [(c0 + c1) / 2 * s + o.left - r.left, (y0 + y1) / 2 * s + o.top - r.top] };
   };
@@ -1455,10 +1610,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
       const pt = rot(0, Ydiv);
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
-      const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r; piece = below;
+      const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
     }
     c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
-    if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r;
+    if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r && !c.items[c.items.length - 1].solid;
   };
 
   /* filler between two rays of one band: a pencil of rays interpolated between the
@@ -1648,7 +1803,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandT + 0.5 : bb.x0 < bandT - 0.5) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - bandB + 0.5 : bb.x0 < bandB - 0.5) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
-      if (yBot - yTop < 160) continue;
+      /* WITH NO RAIL ON THE WALL, NO STRETCH OF IT IS TOO SHORT (E77 C5, 13.10.2026). The 160
+         below is what the tiles need to stand in; once Foundry's rails moved into the GM's
+         windows and off a player's screen, nothing stands there, and the skip only left the
+         wall bare between the clock's pane and the notice tile's: Chromium,
+         audit/glass-harness.html, stained, edgeGaps 12 at 1920x1080 (y 644-732, the GM button's
+         stretch) and 17 at 1366x768 (y 260-388), the GM's and the player's alike. Such a strip is
+         cut as a short one - one quad from the clock's pane to the notice tile's - however short
+         it is; under a pixel there is no wall left between the two. */
+      const railed = tb.real !== false;
+      if (yBot - yTop < (railed ? 160 : 1)) continue;
       /* A SHORT STRIP IS THE TILES' ALONE. Between a tall clock column (a long campaign name,
          a large interface scale) and the notice pane there can be too little of the edge for
          a mid seam with the tiles' shard above it: the seam was forced under the tiles, and
@@ -1666,7 +1830,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          pane met the wall at 440, 488 and 520 at 720, 768 and 800 px of height - the height less
          280 - so with this harness's clock the strip should be cut again from about 751 px (worked
          out from those three, not measured there). Covering that stretch is a change to the
-         partition, and it is not made here.
+         partition, and it is not made here. It holds for a wall with a rail only: since E77 C5
+         a wall without one is cut however short (above), and the sweep reads 0 there.
 
          WHY THE RAIL USED TO STRADDLE, AND THE THREE CUTS THAT STOPPED IT (10.09).
 
@@ -1750,10 +1915,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          tiles' width at its middle, `wCtl` and `wMid` came out equal, and the control vertex
          landed two pixels from `M` - a degenerate edge, which makes the quad non-convex and
          breaks the point-in-pane test the whole coverage check rests on (it then reported 47
-         covered samples as holes). It is a corner or it is not there. */
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(!onFloor && yCtl < yMid - 40 && wCtl > wMid + 4 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
-      // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
-      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl, origin: tb.origin || null, box: tb.core || [tb.x0, tb.x1], centre: tb.centre || null };
+         covered samples as holes). It is a corner or it is not there.
+         AND ONLY WHERE THERE ARE TILES TO KEEP CLEAR OF (E77 C5). With no rail `yCtl` is the
+         fallback box's 640, and on the short strip from 630 to 749 under the GM's room tile at
+         1920x1080 that put the vertex 10 px under the top and 26 px in: a dent, one non-convex
+         pane in the self-check. A wall with no rail has no tiles, so its strip has no such corner. */
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(railed && !onFloor && yCtl < yMid - 40 && wCtl > wMid + 4 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      /* the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right).
+         None with no rail on the wall (E77 C5): the GM button rode the left one until E77 C6, and
+         turned to the fallback box's edge it stood at -8,631 34x74 at 1920x1080, off the screen. */
+      if (railed) tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl, origin: tb.origin || null, box: tb.core || [tb.x0, tb.x1], centre: tb.centre || null };
       let lowerQ = short ? null : clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       // a short strip reaches the bottom column's pane, and is clipped by its far edge as the lower quad would be
@@ -2308,8 +2479,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (!same) { job.panes = panes; el.style.clipPath = "path('" + d + "')"; }
     el.style.visibility = "";
     const t = panes.meta.tiles || {};
-    for (const [sel, side] of [["#scene-controls", "left"], ["#drpg-gm-launcher", "left"], ["#sidebar-tabs", "right"]]) {
-      const tile = host.querySelector(sel); if (!tile || !tile.offsetWidth) continue;
+    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
+      // a rail in one of the GM's Foundry windows (E77 C5) is not turned: it stands on no shard
+      const tile = columnRail(sel, host); if (!tile || !tile.offsetWidth) continue;
       /* Every element on a rail's shard turns about the SHARD's centre, so the origin is
          computed from that centre against each element's own box - one number for the piece
          of glass, one origin per thing standing on it. */
@@ -2330,39 +2502,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          taking it verbatim is what "równolegle" means. */
       const ang = t[side]?.angle ?? 0;
       /* THE SCENE RAIL IS NOT CENTRED IN ITS GLASS. Centring it moved the tiles to the
-         middle of the band and the GM button came with them, which put both a good 50 px
-         right of the wall they belong against ("mialy byc pod gm panel", 07.09). It keeps
-         Foundry's own place at the wall and only the wall clamp applies; the band is anchored
-         to the same wall, so the tiles sit at its edge and the button sits over them. */
+         middle of the band, a good 50 px right of the wall they belong against ("mialy byc pod
+         gm panel", 07.09). It keeps Foundry's own place at the wall and only the wall clamp
+         applies; the band is anchored to the same wall, so the tiles sit at its edge. */
       const kids = tileButtons(tile).map(e => e.getBoundingClientRect());
       const own = tile.getBoundingClientRect();
-      /* THE GM BUTTON DROPS UNTIL IT IS ON ONE PIECE OF GLASS.
-         It rides on the rail's shard, but it is laid out 10 px too high for it: the clock's
-         pane reaches a little further down the wall than the clock's own block does, so the
-         button's top two corners sat on the clock's glass and its lower two on the rail's,
-         with the seam between them running across it (measured 08.09 - two corners on
-         `section#0`, two on `strip/plain#31`).
-         Trimming the clock's pane instead is not an option: this partition's overlap and
-         point-in-pane tests both assume convex panes, and a pane with a notch cut out of it
-         is not convex - it makes the strip beside it look overlapping and gets it discarded.
-         So the button moves, by the smallest amount that puts it clear. */
-      /* A CONSTANT DROP, AFTER TWO ATTEMPTS AT A MEASURED ONE MADE IT WORSE.
-         The gap wants to be 12 px, and deriving it from the two boxes should give exactly
-         that. It does not: the button's own box is not dependable at layout time - on the
-         first pass it may not have rendered, which gave a 0 px gap once and 18 px on every
-         pass after - and a drop derived from it lands the button 17 px INSIDE the tiles,
-         consistently, at every scale and with the shard's rotation accounted for. I could not
-         find the missing 17 px, so this stays a constant with the room for it reserved above
-         the tiles. What that buys, and what the complaint was about, is that the gap no longer
-         GROWS: measured across a trip to 140 % and back, and down to 80 % and back, it holds
-         its value instead of adding 28 px each way. */
-      const dy = sel === "#drpg-gm-launcher" ? GM_DROP : 0;
       const tileLocal = kids.length ? [
         Math.min(...kids.map(q => q.left)) - own.left, Math.min(...kids.map(q => q.top)) - own.top,
         Math.max(...kids.map(q => q.right)) - own.left, Math.max(...kids.map(q => q.bottom)) - own.top] : null;
-      ROT.push({ sel, el: tile, rail: true, pane: sel === "#scene-controls" ? null : (t[side]?.box ?? null), tileLocal, dy,
+      ROT.push({ sel, el: tile, rail: true, pane: sel === "#scene-controls" ? null : (t[side]?.box ?? null), tileLocal,
                  pageLeft: own.left, pageTop: own.top,
-                 alignTo: sel === "#drpg-gm-launcher" ? "#scene-controls" : null,
                  origin: o ? Math.round(o[0]) + "px " + Math.round(o[1]) + "px" : "50% 50%",
                  transform: ang ? "rotate(" + ang + "rad)" : "none" });
     }
@@ -2599,6 +2748,11 @@ function unmount() {
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on");
   document.body.removeAttribute("data-drpg-turning");
+  // the room tile back under the clock at the sheet's height, its picture back in it (E77 C4)
+  ROOM.place = ROOM.box = null; LAST.room = null;
+  seatRoomTile(document.getElementById("drpg-room-tile"), null);
+  seatRoomArt();
+  globalThis.Hooks?.callAll?.("drpgGlassCut", { room: null });
   document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
@@ -2849,6 +3003,14 @@ function rebuildAll() {
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
         morph(j, oldPanes, oldAcc, oldLook, oldGlow);
+        /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
+           its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
+           a new picture or the description opened recut nothing: a recolour of the same cut and
+           the fast path of an identical one fire nothing. */
+        if (!wasPainted || !check?.same) {
+          seatRoomArt();
+          globalThis.Hooks?.callAll?.("drpgGlassCut", { room: LAST.room ? { ...LAST.room } : null });
+        }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
   }
@@ -3107,8 +3269,8 @@ function observe() {
     BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => ro.observe(e)));
     observers.push(ro);
     /* A RAIL CHANGING SIZE DOES NOT RECUT THE GLASS - that is the whole point of cutting it
-       to capacity - but it does move the tiles inside their band, and the GM button rides on
-       them. Re-applying the rotation rules is a few string writes and no geometry at all. */
+       to capacity - but it does move the tiles inside their band. Re-applying the rotation rules
+       is a few string writes and no geometry at all. */
     /* ...and once per frame (UI-16): a tool palette opening resizes the rail several times in
        one tick, and each notification was a synchronous `applyRotations` with its forced layouts. */
     let railFrame = 0;
@@ -3120,7 +3282,7 @@ function observe() {
       });
     });
     for (const sel of ["#scene-controls", "#sidebar-tabs"]) {
-      const e = document.querySelector(sel); if (e) rr.observe(e);
+      const e = columnRail(sel); if (e) rr.observe(e);
     }
     observers.push(rr);
   }
@@ -3186,7 +3348,8 @@ export function refreshGlass() {
   document.body.classList.toggle("drpg-glass-flat", themeOn() && !glassRoom());
   // `unmount` only when there is something to take down: this runs on every DOM
   // mutation through `schedule`, and it walks the document clearing styles
-  if (!glassRoom()) { if (anythingMounted()) unmount(); return; }
+  placeFlatRoomTile();
+  if (!glassRoom()) { if (anythingMounted()) { unmount(); placeFlatRoomTile(); } return; }
   if (curtains.length) { rebuild(); return; }
   const go = () => { mount(); observe(); };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
@@ -3230,7 +3393,8 @@ export function registerGlass() {
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
   // Debounced like everything else on resize: `rebuild` already pins the right column and
   // frees the board, and the raw handler did both on every event of a window drag.
-  addEventListener("resize", () => { if (themeOn()) schedule(); });
+  addEventListener("resize", () => { if (themeOn()) schedule(); flatSoon(); });
+  Hooks.on("drpgHudRendered", flatSoon);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse

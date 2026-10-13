@@ -25,10 +25,10 @@
 
 import { plural } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
-import { clockSummary } from "./clock.mjs";
+import { clockSummary, clockAfter } from "./clock.mjs";
 import { openMessenger } from "./messenger-app.mjs";
 import {
-    NOTICE_TEXTS, noticeEntries, noticeSnapshot, noticeTime, noticeHistoryStatus, onNoticeHistoryChange,
+    NOTICE_TEXTS, noticeEntries, noticeSnapshot, noticeWords, noticeTime, noticeHistoryStatus, onNoticeHistoryChange,
     markNoticesRead, clearNoticeHistory, noticeSessionOnly
 } from "./notice-history.mjs";
 
@@ -102,6 +102,35 @@ function highlighted(text, query) {
 
 const clockKey = clock => JSON.stringify([clock.chapter, clock.day, clock.session, clock.timeOfDay, clock.eclipse]);
 
+/**
+ * A GROUP OF THE ECLIPSE IS NAMED FOR THE TIME OF DAY IT OPENS INTO (E77 fix r2-H7, 13.10.2026; the owner, shown
+ * "Noon Eclipse" under "Chapter 1 · Day 1 · Session 1 · Morning · ECLIPSE" in H4's shots, chose this over leaving it).
+ * An Eclipse runs before the time of day it is named for and the clock moves only when it ends (eclipse.mjs "WHICH
+ * ECLIPSE IS THIS ONE"), so the clock a notice came under during one still reads the time of day just finished. Its
+ * group names the clock the Eclipse opens into (`clockAfter`: the Eclipse's own word for the time of day, and after
+ * Night the next day and session) with the Eclipse's mark. Derived here from the stamp's `timeOfDay` and `eclipse`, which
+ * every entry has kept since E81, so a history kept before this commit reads the same way. The group itself is still
+ * `clockKey` of the stamp: every entry of one Eclipse in one group, and the time of day after it a group of its own.
+ * The clock pane is not this: it keeps `clockSummary` of the clock as it stands.
+ * EACH SEPARATOR STAYS WITH THE WORD BEFORE IT (E77 fix r2-H8, 13.10.2026; the orchestrator, reading H7's shots at
+ * 1366x768): the heading wrapped at the window's width as "... SESSION 1 · NOON" over "· ECLIPSE", and before H7 as
+ * "SESSION 1 ·" over "MORNING · ECLIPSE" - where it broke was only the word that happened to sit at the edge. The space
+ * before each "·" is a no-break space here, so a line may still break after a separator and never before one.
+ * DRPG.Clock.summary and summaryEclipse keep their plain spaces: the clock pane, the log and the cards read them too.
+ */
+const groupHeading = clock => clockSummary(clock.eclipse ? { ...clock, ...clockAfter(clock) } : clock).replace(/ ·/g, "\u00a0·");
+
+/** A snapshot's leading heading - its first node with words, when that is an `h1`-`h6` - or null. */
+function leadingHeading(snapshot) {
+    for (const node of snapshot.childNodes) {
+        if (!String(node.textContent ?? "").trim()) continue;
+        return /^h[1-6]$/.test(node.localName ?? "") ? node : null;
+    }
+    return null;
+}
+
+const squash = text => String(text ?? "").replace(/\s+/g, "");
+
 function element(tag, className, text) {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -137,6 +166,7 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         this.byId = new Map();
         this.drawn = new Set();
         this.snapshots = new Map();
+        this.rows = new Map();
         this.live = null;
         this.unlisten = null;
         this.stale = false;
@@ -181,14 +211,17 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         pill.dataset.drpgDo = "showNew";
         pill.hidden = true;
 
+        /* THE FOOT HOLDS CLEAR, AND A LINE ONLY WHEN SAVING STOPPED (E77 fix r2-H4, 13.10.2026; the owner's screenshot
+           of 1.2.75's window). E81 put a paragraph beside Clear on how long the history keeps a notice and who else
+           on the computer can read it - eighteen lines down the GM's window in that screenshot, how the module works
+           rather than what happened. The owner had it taken out (the shared computer is a risk he accepted in E81's
+           Q9, and the handbooks keep the limits); the line that saving stopped stays, as a state, drawn only when
+           `noticeHistoryStatus` says so (`syncChrome`). Scenario 73's phase H reads the foot on a GM and a player. */
         const foot = element("footer", "drpg-notices-foot");
         const clear = element("button", "", localize("DRPG.Notices.clear"));
         clear.type = "button";
         clear.dataset.drpgDo = "clear";
-        const notes = element("div", "drpg-notices-notes");
-        notes.append(element("p", "", localize(game.user?.isGM ? "DRPG.Notices.gmNote" : "DRPG.Notices.kept")));
-        notes.append(element("p", "drpg-notices-unsaved"));
-        foot.append(clear, notes);
+        foot.append(element("p", "drpg-notices-unsaved"), clear);
 
         root.append(chips, search, banner, pill, this.buildList(), foot);
         this.syncChrome(root);
@@ -227,7 +260,9 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         });
         // `toggle` does not bubble; caught on the way down, for every entry the list will ever hold.
         root.addEventListener("toggle", event => {
-            if (event.target?.matches?.("details.drpg-notice-entry") && event.target.open) this.expand(event.target);
+            if (!event.target?.matches?.("details.drpg-notice-entry")) return;
+            if (event.target.open) this.expand(event.target);
+            this.sayOnce(event.target);
         }, true);
         root.addEventListener("focusout", event => {
             const list = root.querySelector(".drpg-notices-list");
@@ -339,8 +374,13 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             return list;
         }
         const sources = FILTERS.find(f => f.id === this.filter)?.sources ?? null;
-        const shown = all.filter(entry => (!sources || sources.includes(entry.source))
-            && (!this.query || fold(`${entry.title}\n${entry.text}`).includes(this.query))).reverse();
+        // The words the rows show are the words searched: an untitled card's "Notice" is no longer on its row (`rowWords`).
+        const shown = all.filter(entry => {
+            if (sources && !sources.includes(entry.source)) return false;
+            if (!this.query) return true;
+            const row = this.rowWords(entry);
+            return fold(`${row.title}\n${row.text}`).includes(this.query);
+        }).reverse();
         if (!shown.length) {
             list.append(element("p", "drpg-notices-empty", localize("DRPG.Notices.noMatch")));
             return list;
@@ -360,19 +400,67 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             const key = clockKey(entry.clock);
             if (key !== group) {
                 group = key;
-                into.append(element("h3", "drpg-notices-group", clockSummary(entry.clock)));
+                into.append(element("h3", "drpg-notices-group", groupHeading(entry.clock)));
             }
-            into.append(this.entryElement(entry));
+            into.append(this.entryElement(entry, this.rowWords(entry)));
         }
         return list;
     }
 
     /** What a rebuilt list needs that markup cannot carry: the entries `keepLive` opened again get their snapshot back. */
     dressList(list) {
-        for (const details of list.querySelectorAll("details.drpg-notice-entry[open]")) this.expand(details);
+        for (const details of list.querySelectorAll("details.drpg-notice-entry[open]")) {
+            this.expand(details);
+            this.sayOnce(details);
+        }
     }
 
-    entryElement(entry) {
+    /**
+     * THE ROW SAYS WHAT THE CARD SAYS, AS THE CARD SAYS IT (E77 fix r2-H4, 13.10.2026; the owner's screenshot of 1.2.75's
+     * window, GM view). A card posted without a title of its own - every announcement, the time of day's and an
+     * Eclipse's among them - is kept under its kind's word, and its words were read off the card in one run: that row
+     * read "Notice" over "Noon Chapter 1 · Day 1 · Session 1 · Noon Every room restocked with search tokens", the title
+     * glued to the body and the time of day said twice under a group heading that says it a third time. Such a row takes
+     * the card's own heading for its title and leaves it out of its text, and leaves out a block whose words are the
+     * clock line the time of day's card prints (`clockSummary` of the clock the notice came under: the group's heading's
+     * words outside an Eclipse, `groupHeading`, which puts a no-break space before each separator). Read off
+     * the kept html through the history's one road (`noticeSnapshot`) as words only, once per entry and html. An entry
+     * with a title of its own, without html (clipped, a request not carried out) or whose card does not open on a
+     * heading reads as it was kept: the kept title and text are this browser's record, and nothing here rewrites them.
+     */
+    rowWords(entry) {
+        const kept = { title: entry.title, text: entry.text };
+        if (!entry.html || entry.title !== localize(`DRPG.Popup.kind.${entry.kind}`)) return kept;
+        const group = clockSummary(entry.clock);
+        const seen = this.rows.get(entry.id);
+        if (seen?.html === entry.html && seen.group === group) return seen.words;
+        const snapshot = noticeSnapshot(entry.html);
+        const head = leadingHeading(snapshot);
+        let words = kept;
+        if (head) {
+            const title = noticeWords(head);
+            head.remove();
+            const blocks = [...snapshot.childNodes].map(node => noticeWords(node)).filter(text => text && text !== group);
+            words = { title, text: blocks.join(" ") };
+        }
+        this.rows.set(entry.id, { html: entry.html, group, words });
+        return words;
+    }
+
+    /**
+     * AN OPEN ENTRY SAYS ITS WORDS ONCE (E77 fix r2-H4; the owner's screenshot: "Noon Eclipse Lights out. Place your
+     * token..." on the row and the same words again in the card under it). While the card is open under its row, the
+     * row's text gives way when the card holds every word of it; closed, the row shows it again. The card's own leading
+     * heading gives way when it is the row's title (`expand`).
+     */
+    sayOnce(details) {
+        const text = details.querySelector(":scope > summary > .drpg-notice-text");
+        const copy = details.querySelector(":scope > .drpg-notice-more > .drpg-notice-snapshot");
+        if (!text) return;
+        text.hidden = Boolean(details.open && copy && squash(text.textContent) && squash(copy.textContent).includes(squash(text.textContent)));
+    }
+
+    entryElement(entry, row) {
         const details = element("details", `drpg-notice-entry drpg-src-${entry.source}`);
         if (entry.tone) details.classList.add(`drpg-tone-${entry.tone}`);
         if (entry.state === "unread") details.classList.add("is-unread");
@@ -385,13 +473,15 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
         glyph.setAttribute("aria-label", localize(SOURCE_LABELS[entry.source]));
         glyph.dataset.tooltip = localize(SOURCE_LABELS[entry.source]);
         const title = element("span", "drpg-notice-title");
-        title.append(highlighted(entry.title, this.query));
+        title.append(highlighted(row.title, this.query));
         summary.append(glyph, title);
         // No time on a safeword's entry: when somebody stopped the scene is not the table's to read (P4-0).
         if (entry.source !== "safeword") summary.append(element("span", "drpg-notice-time", noticeTime(entry.at)));
-        const text = element("span", "drpg-notice-text");
-        text.append(highlighted(entry.text, this.query));
-        summary.append(text);
+        if (row.text) {
+            const text = element("span", "drpg-notice-text");
+            text.append(highlighted(row.text, this.query));
+            summary.append(text);
+        }
 
         const tags = [];
         if (STATE_LABELS[entry.state]) tags.push(localize(STATE_LABELS[entry.state]));
@@ -422,6 +512,8 @@ class NoticeHistoryApp extends foundry.applications.api.ApplicationV2 {
             let kept = this.snapshots.get(entry.id);
             if (kept?.html !== entry.html) {
                 kept = { html: entry.html, node: noticeSnapshot(entry.html) };
+                const head = leadingHeading(kept.node), title = details.querySelector(":scope > summary > .drpg-notice-title");
+                if (head && title && squash(head.textContent) === squash(title.textContent)) head.hidden = true;
                 this.snapshots.set(entry.id, kept);
             }
             more.append(kept.node);

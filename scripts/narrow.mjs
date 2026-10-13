@@ -11,8 +11,8 @@
  *
  * Below the breakpoint, then, the blocks leave those columns and stack in one of
  * this module's own: full width, at the top, scrolled if it runs out of room,
- * with the board under it. Foundry's own left column - the scene controls and
- * the GM launcher - is pushed down by exactly the column's height, which is the
+ * with the board under it. Foundry's own left column - the scene controls, where
+ * they still stand in it (E77 C5) - is pushed down by exactly the column's height, which is the
  * one number that cannot be written in CSS because it depends on what is in the
  * stack today.
  *
@@ -38,6 +38,7 @@
 
 import { narrowScreen } from "./settings.mjs";
 import { error } from "./utils.mjs";
+import { inFoundryWindow } from "./foundry-windows.mjs";
 
 const COLUMN_ID = "drpg-column";
 /** The stack, for anything that has to measure it - the curtain cuts its panes to it. */
@@ -46,8 +47,19 @@ export const COLUMN_SEL = "#" + COLUMN_ID;
 const EDGE = 8;
 /* Where the notices start and end on a stacked screen, read by narrow.css (`noticesClearOfTheTools`). */
 const NOTICES_LEFT = "--drpg-notices-left", NOTICES_RIGHT = "--drpg-notices-right";
-/** The blocks that stack, in the order they stack in. */
-const STACKED = ["#drpg-hud", "#drpg-despair", "#ui-right-column-1"];
+/** The blocks that stack. The order on the screen is narrow.css's; this one is the order they are moved in. */
+const STACKED = ["#drpg-hud", "#drpg-tile-row", "#drpg-despair", "#ui-right-column-1"];
+/*
+ * THE TILES' ROW (E77 C8, 13.10.2026; the A8 design's narrow layout). On a desk the room tile stands under
+ * the clock at the height glass.mjs gives it (`roomSizes`: at least a third of its width, a heading and four
+ * lines); the stack has no such room - at 1024x768 it reaches its ceiling with the tile as a 44 px row
+ * already (the sweep's screenshot, 13.10.2026) - so here the tile is one row of 44 px: the picture as a
+ * 78x44 thumbnail, the name, the search tokens and a button for the description, which opens in a window (room-tile.mjs). The row is
+ * this file's own element and a block of the curtain's (`tiles-row`, measured, glass.mjs); its members are
+ * moved into it as the clock is moved into the stack, and back. E78's voice tile is meant to join it.
+ */
+const ROW_ID = "drpg-tile-row";
+const ROW_MEMBERS = ["#drpg-room-tile"];
 
 /** Where each moved element came from, so a resize back to a desk can undo it. */
 const HOMES = new Map();
@@ -75,6 +87,33 @@ export function narrowColumn() {
     }
 }
 
+/**
+ * The row the tiles stand in on a stacked screen, made in the stack on demand, or null on a desk.
+ *
+ * room-tile.mjs asks for it before it puts the tile under the clock: the tile can be built before
+ * the stack is (module.mjs builds it at `ready`, ahead of `registerNarrow`), and a tile that went
+ * under the clock in the stack would stand there at its desk height.
+ */
+export function tileRow() {
+    const column = narrowColumn();
+    if (!column) return null;
+    try {
+        return ensureTileRow(column);
+    } catch (err) {
+        error("The narrow layout could not make the tiles' row", err);
+        return null;
+    }
+}
+
+function ensureTileRow(column) {
+    const found = document.getElementById(ROW_ID);
+    if (found?.parentElement === column) return found;
+    const row = found ?? document.createElement("div");
+    row.id = ROW_ID;
+    column.append(row);
+    return row;
+}
+
 function ensureColumn() {
     const found = document.getElementById(COLUMN_ID);
     if (found?.isConnected) return found;
@@ -93,12 +132,9 @@ export function applyNarrowLayout() {
     try {
         if (!narrowLayout()) { restoreDesk(); return; }
         const column = ensureColumn();
-        for (const sel of STACKED) {
-            const el = document.querySelector(sel);
-            if (!el || el.parentElement === column) continue;
-            if (!HOMES.has(el)) HOMES.set(el, { parent: el.parentElement, next: el.nextElementSibling });
-            column.append(el);
-        }
+        const row = ensureTileRow(column);
+        for (const sel of STACKED) moveHome(document.querySelector(sel), column);
+        for (const sel of ROW_MEMBERS) moveHome(document.querySelector(sel), row);
         watchColumn(column);
         reserveRoom();
     } catch (err) {
@@ -106,10 +142,17 @@ export function applyNarrowLayout() {
     }
 }
 
+/** `el` into `host`, its first home remembered for `restoreDesk`. */
+function moveHome(el, host) {
+    if (!el || el.parentElement === host) return;
+    if (!HOMES.has(el)) HOMES.set(el, { parent: el.parentElement, next: el.nextElementSibling });
+    host.append(el);
+}
+
 /**
  * The stack keeps clear of Foundry's own two rails, in both directions.
  *
- * DOWNWARDS: the scene controls and the GM launcher are absolutely positioned at
+ * DOWNWARDS: the scene controls (the GM launcher with them until E77 C6) are absolutely positioned at
  * the top of the interface, which is where the stack now is, so the left column
  * starts below it. The offset is the stack's measured height, which no media
  * query can know - it is the clock plus however many Monokuma rows this table has
@@ -174,7 +217,8 @@ function noticesClearOfTheTools() {
     if (!notices) return;
     if (!narrowLayout()) { forgetNoticeInsets(notices); return; }
     const rail = document.querySelector("#scene-controls");
-    const r = rail?.offsetWidth ? rail.getBoundingClientRect() : null;
+    // a GM's rail in the Map tools window (E77 C5) holds no part of the wall
+    const r = rail?.offsetWidth && !inFoundryWindow(rail) ? rail.getBoundingClientRect() : null;
     const want = r ? Math.round(r.right) + EDGE : EDGE;
     const left = Math.min(Math.max(EDGE, want), Math.round(innerWidth * 0.4));
     notices.style.setProperty(NOTICES_LEFT, `${left}px`);
@@ -191,7 +235,7 @@ function forgetNoticeInsets(notices) {
 function railInset(el) {
     const tabs = document.querySelector("#sidebar-tabs");
     const host = el.offsetParent ?? document.getElementById("interface") ?? document.documentElement;
-    if (!tabs?.offsetWidth || !host) return EDGE;
+    if (!tabs?.offsetWidth || inFoundryWindow(tabs) || !host) return EDGE;
     const wall = host.getBoundingClientRect();
     const rail = tabs.getBoundingClientRect();
     const want = Math.round(wall.right - rail.left) + EDGE;
@@ -213,17 +257,29 @@ function watchColumn(column) {
        the run is taller than the screen, which is exactly what a phone does to it,
        and a rail that got wider without this would take the stack's edge back. */
     const tabs = document.querySelector("#sidebar-tabs");
-    if (tabs) columnWatch.observe(tabs);
+    if (tabs && !inFoundryWindow(tabs)) columnWatch.observe(tabs);
 }
 
-/** Every moved element back where it came from, and the column gone. */
+/**
+ * Every moved element back where it came from, and the column gone.
+ *
+ * LAST MOVED, FIRST BACK (E77 C8). The clock's recorded neighbour is the room tile, and the tile has
+ * gone into the row since: put back in the order they left, the clock found its neighbour still in
+ * the stack and went to the end of the left column instead of above the tile. A member of the row
+ * with no home recorded - the tile room-tile.mjs put there itself - goes to the left column rather
+ * than out with the row, and `ensureRoomTile` sets it under the clock at the clock's next render,
+ * which `applyTheme` asks for straight after this.
+ */
 function restoreDesk() {
-    for (const [el, home] of HOMES) {
+    for (const [el, home] of [...HOMES].reverse()) {
         if (!home.parent?.isConnected) continue;
         if (home.next?.isConnected && home.next.parentElement === home.parent) home.parent.insertBefore(el, home.next);
         else home.parent.append(el);
     }
     HOMES.clear();
+    const row = document.getElementById(ROW_ID);
+    if (row?.children.length) (document.getElementById("ui-left-column-1") ?? document.body).append(...row.children);
+    row?.remove();
     columnWatch?.disconnect();
     columnWatch = null;
     document.getElementById(COLUMN_ID)?.remove();

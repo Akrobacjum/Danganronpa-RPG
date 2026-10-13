@@ -288,6 +288,10 @@
         "name": "Język",
         "hint": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu."
       },
+      "foundryToolWindows": {
+        "name": "Okna modułu dla paska bocznego i sterowania sceną Foundry",
+        "hint": "Włączone: pasek boczny i sterowanie sceną Foundry stoją u GMa w dwóch oknach modułu, Narzędzia Foundry i Narzędzia mapy, otwieranych przyciskiem nad podręcznikiem. Wyłączone: zostają tam, gdzie stawia je Foundry, a tego przycisku nie ma. Ekran gracza jest taki sam w obu przypadkach. Działa po przeładowaniu."
+      },
       "theme": {
         "name": "Motyw",
         "hint": "Jak moduł wygląda w tej przeglądarce. Stained Glass to obecna tożsamość: czarne, pęknięte szkło wzdłuż krawędzi ekranu, kolor w spoinach. Monokuma Legacy to poprzedni wygląd.",
@@ -514,6 +518,20 @@
       "controlFailed": "Ta operacja na zegarze nie doszła do końca. Powód podaje Dziennik debugowania w panelu GM-a.",
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
       "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
+    },
+    "Room": {
+      "tileLabel": "Pokój",
+      "readMore": "Czytaj dalej",
+      "readLess": "Zwiń opis",
+      "imageOpen": "Pokaż zdjęcie: {room}",
+      "imageMissing": "Zdjęcie tego pokoju się nie wczytuje.",
+      "describe": "Opis"
+    },
+    "FoundryTools": {
+      "title": "Narzędzia Foundry",
+      "mapTitle": "Narzędzia mapy",
+      "close": "Zamknij",
+      "toggle": "Otwórz lub zamknij narzędzia Foundry"
     },
     "Action": {
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
@@ -1784,8 +1802,12 @@
       "tabDescription": "Opis",
       "descriptionColumn": "Jak wygląda",
       "descriptionPlaceholder": "np. Długie stoły, okienko do wydawania i zapach wybielacza, którego nikt nie umie umiejscowić.",
-      "descriptionIntro": "Jak wygląda każdy pokój, twoimi słowami. Każdy stojący w pokoju może przeczytać jego opis, klikając zegar u góry ekranu.",
-      "descriptionNote": "Zwykły tekst - gracze widzą go dokładnie tak, jak wpisano. Zostaw puste, a pokój po prostu nie ma nic napisanego.",
+      "descriptionIntro": "Opisz własnymi słowami, jak wygląda każdy pokój, i jeśli chcesz, dodaj zdjęcie. Kto stoi w pokoju, widzi to na swoim kafelku pokoju.",
+      "descriptionNote": "Zwykły tekst, pokazany tak, jak wpisano; pusta linia zaczyna nowy akapit. Zdjęcia tylko z plików tego serwera (nie z S3). Każda przeglądarka ma opisy i zdjęcia wszystkich pokoi, więc sekrety pokoju trzymaj w skrytkach i śladach.",
+      "imageColumn": "Zdjęcie",
+      "imagePick": "Wybierz zdjęcie",
+      "imageClear": "Usuń zdjęcie",
+      "imageRefused": "{room}: nie zapisano zdjęcia. Można użyć tylko zdjęcia z plików tego serwera: jpg, png, webp albo avif.",
       "tabFog": "Mgła",
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",
@@ -3027,7 +3049,7 @@
     "Panel": {
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GM-a",
-      "launcher": "GM",
+      "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może otworzyć panel.",
       "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
       "nextLabel": "Dalej",
@@ -5203,14 +5225,12 @@
       "newPill": "Nowe powiadomienia - pokaż je",
       "chapterFold": "Rozdział {chapter} ({n})",
       "openConversation": "Otwórz rozmowę",
-      "empty": "Jeszcze nic. Każde powiadomienie, które zobaczysz na ekranie, zostaje tutaj, także te zamknięte bez czytania.",
+      "empty": "Jeszcze żadnych powiadomień.",
       "noMatch": "Żadne powiadomienie nie pasuje.",
-      "kept": "Zapisane w tej przeglądarce - najwyżej 250 najnowszych i 40 od jednego nadawcy - do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu; karta, którą moduł wycofa, znika i stąd. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a wiersz poniżej mówi, kiedy staje.",
-      "gmNote": "Twoja własna historia: to, co pokazał ci ten klient. Gracze mają swoje. Trzyma najwyżej 150 najnowszych i 40 od jednego nadawcy, do resetu sezonu, który czyści zegar, incydent, własne karty tego modułu albo resztę dziennika czatu, a karta, którą moduł wycofa, znika i stąd; na wspólnym komputerze inne konto zalogowane w tej przeglądarce może ją przeczytać, więc wyczyść ją, zanim oddasz komputer. Gdy w tej przeglądarce zabraknie miejsca albo historie innych kont zapełnią jej udział, zostaje mniej albo zapis staje, a wiersz poniżej mówi, kiedy staje.",
       "markRead": "Oznacz jako przeczytane",
       "clear": "Wyczyść",
       "clearTitle": "Wyczyścić historię powiadomień?",
-      "clearBody": "Znikną wszystkie powiadomienia, które ta przeglądarka zachowała dla ciebie, także karty o morderstwie. Nie wrócą.",
+      "clearBody": "Znikną wszystkie powiadomienia z tej historii, także karty o morderstwie. Nie wrócą.",
       "clearYes": "Wyczyść historię",
       "notSaved": "Ta przeglądarka nie mogła zapisać historii powiadomień: powiadomienia pokazane od teraz zostaną tylko do zamknięcia lub przeładowania tej strony.",
       "clipped": "Za długie, by zachować całość: zachowano tylko tekst.",

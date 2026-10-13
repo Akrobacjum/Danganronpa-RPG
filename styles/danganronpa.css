@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.75";
+    --drpg-css-version: "1.2.76";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -324,8 +324,9 @@
        8 px on a touch screen, which makes the 44 px target the design asks for out of
        the same 28 px shape (the media rule with the button's block). Tokens later stages
        take as they are, with `ensureNoticeTile` and `setFloor` (popup.mjs; the A7 design's
-       P0-8): E18, E23, E49 and E55 use them and do not rewrite them, and E77 and E78 take
-       them over with the corner. */
+       P0-8): E18, E23, E49 and E55 use them and do not rewrite them; E77 (1.2.76) left
+       them as they were (no line of its diff from 1.2.75 touches them, read 13.10.2026),
+       and E78 takes them over with the corner. */
     --drpg-corner: 28px;
     --drpg-corner-inset: 6px;
     --drpg-corner-reach: 0px;
@@ -623,16 +624,36 @@ body {
     --drpg-launch-m-bottom: calc(var(--drpg-launcher-small) / 2 + var(--drpg-launch-row)
         - var(--drpg-launcher) / 2);
     --drpg-launch-s-right: calc(var(--drpg-launcher-book) + var(--drpg-launch-gap));
+    /* THE UPPER ROW (E77 C6, 13.10.2026): the GM's button over settings and Foundry tools over
+       the handbooks, each two rows above the cell under it - the AM-21 variant B grid, 95.76
+       under Stained Glass and 111.28 under Monokuma Legacy. Two rows and not one: one row up is
+       the chat's centre line, and the chat sits between the two columns at that height, so
+       the cell clear of it on both sides is the next row. That puts both 6 px off the chat's
+       slanted sides and 6 px off each other, which R512 reads in both themes. */
+    --drpg-launch-u-bottom: calc(2 * var(--drpg-launch-row));
     /* THE TWO TOKENS LATER STAGES TAKE (the A7 design's step 0, P0-8): how tall the corner
        is from its bottom line to the chat's top - 102.88 px under Stained Glass, 110.64
        under Monokuma Legacy - and where anything that stands over the corner starts: the
        edge, that height, 8 px, and the camera dock's lift. The GM's roster sits on the foot
        here (messenger.css). The A7 design has the narrow layout's notice stack take the
-       foot in C13, E18, E23, E49 and E55 read both without rewriting them, and E77 and E78,
-       which add the GM's and Foundry tools' buttons in the cells over settings and the
-       handbooks, take them over. */
+       foot in C13, E18, E23, E49 and E55 read both without rewriting them. E77 (1.2.76, its
+       C6) put the GM's and Foundry tools' buttons in the cells over settings and the
+       handbooks on a row of their own (`--drpg-launch-u-bottom`, above) and left these two
+       as they were, so on a GM's screen the corner now stands taller than this height: by
+       the tokens' sum the upper row's top is 2 x 47.88 + 44 = 139.76 px over the edge under
+       Stained Glass (not read on a screen). E78 takes them over, and with them the question
+       whether the foot counts that row. */
     --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
     --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
+    /* THE GM'S ROSTER OVER THE UPPER ROW (E77 fix r2-H3, 13.10.2026; the round-2 question Q6). On the
+       stack's foot the roster opened over the GM's red button and Foundry tools: in the glass harness
+       (Chromium, a roster of 40 rows) it covered 1089 and 1328 of their drawn pixels under Stained
+       Glass and 1417 and 1012 under Monokuma Legacy, at 1920x1080 and 1366x768 alike, and the centre
+       of each answered `elementFromPoint` with the roster. Its foot is 8 px over the upper row's top
+       instead, the camera dock's lift with it: none covered at those sizes and at 640x360, where
+       its top stands 8 px inside the screen in both themes. The stack's foot above stays as it was
+       (E78's question). Only a GM opens the roster, and every GM's corner has the row. */
+    --drpg-roster-foot: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-launcher-small) + 8px + var(--drpg-av-lift, 0px));
 }
 
 /* Shared pixel-sprite plumbing.
@@ -1095,6 +1116,35 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
        negative number is the whole rule. */
     order: -1;
     margin: 0 0 4px;
+}
+
+/* The room tile under the clock (E77 C3) rides with it, in the clock's width: the column does
+   not stretch its children, so this one is told to. room-tile.mjs keeps it right after the
+   clock, or after the floor switcher when that follows the clock. */
+#ui-left-column-1 > #drpg-room-tile {
+    order: -1;
+    align-self: stretch;
+    margin: 0 0 4px;
+}
+
+/* UNDER MONOKUMA LEGACY ITS TWO PLACES ARE glass.mjs's TOO (`flatPlacement`, E77 fix r1-M1,
+   13.10.2026), placed with no curtain, and this sheet states only what that wrote, as
+   stained-glass.css does for its own theme: under the clock the clock's width, not the column's;
+   beside the notice stack a fixed box in the body, one under Foundry's window layer as the empty
+   notice stack is (the rule at the end of this file), so a sheet dragged over it stays on top
+   (not measured with Foundry's own windows: LIVE-E77-14). */
+body:not(.drpg-theme-stained-glass) #ui-left-column-1 > #drpg-room-tile[data-place="clock"] {
+    align-self: flex-start;
+    width: var(--drpg-room-w);
+    max-width: none;
+}
+body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
+    position: fixed;
+    left: var(--drpg-room-x);
+    top: var(--drpg-room-y);
+    width: var(--drpg-room-w);
+    margin: 0;
+    z-index: calc(var(--z-index-app, 30) - 1);
 }
 
 /* THE FLOOR SWITCHER (E12 C11): one button per floor this browser may look at
@@ -3952,6 +4002,21 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-room-setup-table .drpg-col-step { width: calc(150px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-prose { width: calc(560px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-picture { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+
+/* The Description tab's picture (E77 C1): a 16:9 thumbnail the GM clicks to choose a file, an empty
+   framed box while the room has none, and the clear button under it. Sizes are choices, as the
+   columns' are, not readings (the harness lays nothing out; LIVE-E12-06 is Room Setup at a desk). */
+.drpg-room-setup-table .drpg-room-picture {
+    display: block;
+    width: calc(128px * var(--drpg-legacy-scale, 1));
+    min-width: calc(128px * var(--drpg-legacy-scale, 1));
+    height: calc(72px * var(--drpg-legacy-scale, 1));
+    object-fit: cover;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+    cursor: pointer;
+}
 
 /* A room's name wraps inside its 220 px rather than running under the next
    column: the dialog-table rule keeps every cell on one line, and a fixed
@@ -7137,39 +7202,6 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
     color: var(--drpg-crimson-light);
 }
 
-/* The room's search tokens, during a trial. Not removed - the room still has
-   however many it has - but nothing can be spent from inside a Class Trial, so
-   they stop being a control and become a note. */
-.drpg-hud-room-tokens.is-idle {
-    opacity: 0.3;
-}
-
-/* WHO IS TALKING, where the room name usually is.
-   --------------------------------------------------------------------------
-   Everybody is in the same room during a trial, so the room's name is the least
-   useful line on the widget at exactly the moment the most useful one - whose
-   floor is this - has nowhere to live. The rows are reused rather than added:
-   the clock is the same shape and height in a trial as out of one.
-
-   The name reads as a name rather than as a label, because it is one. The
-   second row holds "vs <the objector>" during a rebuttal and an em dash the
-   rest of the time - the dash keeps the row's place so the block does not
-   change height when a rebuttal opens. */
-.drpg-hud-room.is-trial .drpg-hud-room-name {
-    font-weight: 600;
-    letter-spacing: 0.02em;
-}
-
-.drpg-hud-room.is-trial .drpg-hud-room-project {
-    opacity: 0.4;
-    font-variant-numeric: tabular-nums;
-}
-
-.drpg-hud-room.is-trial .drpg-hud-room-project.is-versus {
-    opacity: 0.85;
-    color: var(--drpg-crimson-light);
-}
-
 /* The Eclipse caption sits in the time row, not the phase line, so it takes the
    colour from the same token rather than from the red it used to hard-code -
    red is the Trial's, and an Eclipse wearing it said the wrong thing twice. */
@@ -7535,6 +7567,85 @@ body.drpg-pixel-font .drpg-safeword-button {
    keep its chat tile instead of hiding the lot. */
 body.drpg-player #sidebar {
     display: none;
+}
+
+/* ==========================================================================
+   FOUNDRY'S RAILS OUT OF THE COLUMNS (E77 C5, 13.10.2026; the owner's Q4, Q5, Q9)
+   --------------------------------------------------------------------------
+   A player has no scene controls in either theme ("u gracza usuwamy przyciski
+   Foundry calkowicie"); foundry-windows.mjs keeps their Tokens layer active, and
+   Foundry's keys are untouched. `!important`, as the E77 plan states it: no
+   theme's rule may lay the rail out again, and R510 reads that it carries it.
+
+   A GM gets both rails in two windows of the module's (foundry-windows.mjs):
+   body children, fixed, holding Foundry's own nodes. No rule here gives a frame,
+   or anything in one, `clip-path`, `overflow: hidden` or `display: none` (R509):
+   the first two would cut off a directory's context menu at the frame's edge, and
+   a closed frame is the `hidden` attribute's, which is why the frame's own
+   display is stated only for `:not([hidden])`. Where a frame stands is not stated
+   here: foundry-windows.mjs writes `left` and `top` on every opening - a place
+   remembered in this browser or the frame's home, clamped to the screen and off
+   the corner cluster (E77 C7) - and the title bar is what drags it, so a finger
+   on it moves the window rather than the page (`touch-action`). Rules of
+   Foundry's that hang off `#ui-right` or `#ui-left-column-1` no longer reach the
+   nodes, so the sidebar's height (the design's P9 reading) and the rail's margin
+   are stated here. */
+body.drpg-player #scene-controls {
+    display: none !important;
+}
+.drpg-foundry-window:not([hidden]) {
+    position: fixed;
+    z-index: var(--z-index-app, 30);
+    display: flex;
+    flex-direction: column;
+    max-width: calc(100vw - 16px);
+    background: rgba(9, 8, 13, 0.88);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, #8a7fa0) 45%, transparent);
+    border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    color: #ece6f0;
+}
+.drpg-foundry-window-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px 3px 10px;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+}
+.drpg-foundry-window-title {
+    flex: 1;
+    margin: 0;
+    border: 0;
+    font-size: var(--font-size-16, 1rem);
+    white-space: nowrap;
+}
+.drpg-foundry-window-close {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+.drpg-foundry-window-body > #sidebar {
+    position: relative;
+    height: min(700px, calc(100vh - 110px));
+}
+.drpg-foundry-window-body > #scene-controls {
+    position: relative;
+    margin: 0 !important;
+    padding: 6px;
+    height: auto;
+    max-height: none;
+}
+body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden]) {
+    background: var(--drpg-paper-alt);
+    color: var(--drpg-ink);
+    border: 2px solid var(--drpg-ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
 }
 
 #ui-right-column-1 > #drpg-player-status { order: 0; }
@@ -8061,6 +8172,16 @@ html body {
    ========================================================================== */
 
 /* --- the font takes everything ------------------------------------------ */
+/* Foundry's own rails included where E77 put them (fix r2-H3, 13.10.2026; review round 2's
+   cor F2): on a GM's screen #sidebar and #scene-controls stand in the module's windows, children
+   of the body and out of #interface, and they keep the face through the frame's own class
+   (`[class*="drpg-"] *` below), the icons through the Font Awesome rule after it. Read in Chromium
+   on audit/glass-harness.html under Monokuma Legacy, with a stand-in for Foundry's sheet on the stub
+   sidebar: a text node in Foundry tools computes the pixel face and its icon Font Awesome at every
+   GM size of audit/glass-sweep.mjs (`drpgFoundryCut`'s `face`), and read the same at the commit
+   before (1920x1080 and 1366x768): the round's proposal, a rule of its own for
+   `.drpg-foundry-window` with Font Awesome twins, was tried and changed neither reading, so none
+   was added. Which face Foundry's real sheet leaves there is LIVE-E77-18. */
 
 body.drpg-pixel-font,
 body.drpg-pixel-font .application.sheet.actor,
@@ -12690,31 +12811,156 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
    geometry, the module's own type scale.
    ========================================================================== */
 
-/* ---- the room block, under the clock ----------------------------------- */
+/* ---- the room tile, under the clock ----------------------------------- */
 
-/* Three short rows, tighter than the lines above them: the clock is the
-   headline and this is the footnote about where you are standing. */
-.drpg-hud-room {
+/* THE ROOM TILE (E77 C3, 13.10.2026). The clock's three room rows became a block of their own
+   under it (room-tile.mjs): the GM's picture fills it, the name, the search tokens and 'Available
+   project' sit at its foot, and the GM's description opens over the picture behind the toggle in
+   its corner. Its height never follows its content - an entry into another room must not move
+   what stands under it (the A8 design's step 6). 250 px is the design's estimate of the smallest
+   box (step 6: about 250 px at a 265 px clock), not measured here; E77 C4 measures it with the
+   curtain and writes `--drpg-room-h`, and under Monokuma Legacy, with no curtain, E77 fix r1-M1
+   does (glass.mjs `flatPlacement`): the 250 px is left only to a tile no pass has placed. Its
+   width here is the column's, which the clock sets (each theme's placed rule states the clock's
+   own), and `contain: inline-size` keeps a long name from widening the column. */
+.drpg-room-tile {
+    position: relative;
+    isolation: isolate;
+    contain: inline-size;
+    box-sizing: border-box;
+    height: var(--drpg-room-h, 250px);
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
-    gap: 1px;
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid var(--drpg-line);
+    gap: 2px;
+    padding: 8px 12px 10px;
+    overflow: hidden;
+    pointer-events: auto;
+    text-align: center;
+    color: var(--color-text-primary, #efe6d8);
+    color-scheme: dark;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.18);
+    background: rgba(var(--drpg-deep-rgb), 0.72);
 }
 
-.drpg-hud-room-name {
+/* The picture, cover and centred, under a gradient that runs to the tile's edges: darker at the
+   foot where the name stands, and darker still while the description is open over it (the
+   design's stops, step 4b). A picture that does not load leaves this layer empty and the tile's
+   own dark glass under the name. */
+.drpg-room-tile-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+.drpg-room-tile-art::before,
+.drpg-room-tile-art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transition: opacity var(--drpg-t-enter);
+}
+.drpg-room-tile-art::before {
+    background: linear-gradient(to top, rgba(var(--drpg-deep-rgb), 0.8), rgba(var(--drpg-deep-rgb), 0.55) 20%,
+        rgba(var(--drpg-deep-rgb), 0.2) 40%, rgba(var(--drpg-deep-rgb), 0) 58%);
+}
+.drpg-room-tile-art::after {
+    opacity: 0;
+    background: linear-gradient(to top, rgba(var(--drpg-deep-rgb), 0.88), rgba(var(--drpg-deep-rgb), 0.8) 33%,
+        rgba(var(--drpg-deep-rgb), 0.55) 66%, rgba(var(--drpg-deep-rgb), 0.35));
+}
+.drpg-room-tile.is-open .drpg-room-tile-art::after,
+#drpg-room-art.is-open::after { opacity: 1; }
+/* Laid on its pane over the curtain (glass.mjs `seatRoomArt`), the layer keeps a layer of its own.
+   Without one, the description's shade fading in and out under the layer's clip-path left Chromium
+   painting parts of the picture past the polygon as an upright rectangle, in 256 px bands
+   (13.10.2026, the glass harness at 1920x1080: the computed clip-path read the pane's four points,
+   the screenshot did not; with `will-change: transform`, or with the fade off, it was clean). */
+#drpg-room-art { will-change: transform; }
+
+/* The picture's button lies over the whole tile and under everything written on it. The toggle
+   is left out of the lift below because it has a place of its own: that rule is 0,2,0 (`:not()`
+   counts its most specific argument) and the toggle's own is 0,1,0, so with the toggle in the
+   lift it stood in the flow under the project line in both themes, not in P11's corner (round 1,
+   cor F2; R530 reads the sheets' cascade for it). */
+.drpg-room-tile-open {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+.drpg-room-tile > :not(.drpg-room-tile-art, .drpg-room-tile-open, .drpg-room-tile-more) {
+    position: relative;
+    z-index: 1;
+}
+
+.drpg-room-tile-name {
+    margin: 0;
+    border: 0;
     font-size: var(--drpg-text-sm);
+    font-weight: 400;
     letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
 }
 
-.drpg-hud-room-project {
+.drpg-room-tile .drpg-hud-room-project {
     font-size: var(--drpg-text-xs);
     opacity: 0.8;
 }
 
-.drpg-hud-room-tokens {
+/* The toggle: a corner button, only where the room has words. Open, the description fills the
+   tile above the name and scrolls inside it; the tile's box does not change. Over the picture's
+   button, so a click on the corner opens the words and not the picture. */
+.drpg-room-tile-more {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+}
+.drpg-room-tile-more > i { transition: transform var(--drpg-t-enter); }
+.drpg-room-tile.is-open .drpg-room-tile-more > i { transform: rotate(180deg); }
+
+.drpg-room-tile-prose {
+    order: -1;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 30px 0 4px;
+    overflow-y: auto;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    text-align: center;
+    font-size: var(--drpg-text-sm);
+    text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
+}
+.drpg-room-tile-prose[hidden] { display: none; }
+/* The narrow row's thumbnail and description button (E77 C8): every paint draws them, and only
+   the row on a stacked screen shows them (narrow.css). */
+.drpg-room-tile > :is(.drpg-room-tile-thumb, .drpg-room-tile-describe) { display: none; }
+
+/* An empty pane: a Class Trial, or a GM without a Monokuma of their own (the design's D9). */
+.drpg-room-tile:is([data-state="trial"], [data-state="none"]) { pointer-events: none; }
+
+.drpg-room-tile .drpg-hud-room-tokens {
     display: flex;
     gap: 3px;
     align-items: center;
@@ -13850,47 +14096,27 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* ---- the GM panel launcher ---------------------------------------------- */
 
-/* Solid crimson, named, and OUTSIDE the toolbar's grammar - see the note in
-   gm-panel.mjs. Everything around it is translucent so that this is not. */
+/* Solid crimson and OUTSIDE the cluster's colour - see the note in gm-panel.mjs.
+   Until E77 C6 a named rectangle at the top of Foundry's left column; now a 44 px
+   circle in the corner over settings (`--drpg-launch-u-bottom`), and the name is
+   its `aria-label` and tooltip. A child of the body, like the cluster's other
+   buttons, so nothing of Foundry's turns its pointer events off. */
 #drpg-gm-launcher {
+    position: fixed;
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right));
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-av-lift, 0px));
+    z-index: 70;
+    width: var(--drpg-launcher-small);
+    height: var(--drpg-launcher-small);
+    box-sizing: border-box;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    /* Stretched, not sized: the column is exactly as wide as the control
-       rails, so stretching is what lines the button up with them flush on
-       both edges (Dawid, 26.08). */
-    align-self: stretch;
-    /* Core turns pointer events OFF for the whole interface layer and each
-       control opts back in. A button that does not opt in LOOKS clickable and
-       hands every real click to the canvas underneath - the programmatic
-       `.click()` in the tests bypasses hit-testing entirely, which is why
-       this shipped broken and verified green. */
-    pointer-events: all;
-    /* THE TILES BELOW SIT 4px UNDER THIS BUTTON, not 22.
-       The right-hand column is the module's ruler for vertical rhythm: the
-       Projects tray sits 4px under the actions-and-Hope panel, and the left
-       rail read as a stray button floating above its own toolbar by
-       comparison (Dawid, 26.08). The arithmetic is forced by whose property
-       is whose - Foundry's `#ui-left-column-1` is a flex column with a 16px
-       gap, and that gap also spaces the players list off the bottom of the
-       rail, where 16 is right. So the correction goes on this button, which
-       the module owns: 16 - 12 = 4. */
-    margin: 0 0 -12px;
-    /* The scene button next door is 32px tall; at its own padding the
-       launcher came out 26px, so the row's two red controls disagreed by six
-       pixels of bottom edge. Same height, flex does the centring. */
-    box-sizing: border-box;
-    height: 32px;
-    padding: 0 8px;
     background: var(--drpg-eye);
-    border: 1px solid var(--drpg-eye-light);
-    border-radius: 3px;
+    border: 2px solid var(--drpg-eye-light);
+    border-radius: 50%;
     color: var(--drpg-bone);
-    font-size: var(--drpg-text-sm);
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     cursor: pointer;
     box-shadow: 0 0 8px rgba(var(--drpg-eye-rgb), 0.35);
 }
@@ -13900,8 +14126,66 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     box-shadow: 0 0 12px var(--drpg-eye-glow);
 }
 
+/* The Monokuma eye is the `::before` mask below (the pixel sprites), 1em square:
+   22 px at 100 %, half the 44 px button (the handbooks' glyph is 24 px in theirs).
+   Under Legacy it carries the Interface scale's factor, as every size in this file
+   does (R60 failed at the bare 22px on the first run of tier 0, 13.10.2026); Stained
+   Glass states its own constant 22 px in stained-glass.css. */
 #drpg-gm-launcher i {
     color: inherit;
+    font-size: calc(22px * var(--drpg-legacy-scale, 1));
+    line-height: 1;
+}
+
+/* ---- the Foundry tools launcher (E77 C6) -------------------------------- */
+
+/* Over the handbooks, two rows up, the same circle as the handbooks. Its face is
+   Foundry's own logo (`icons/fvtt.png`, Foundry's core file, D7), which is dark on
+   a dark ground: grayscale and brightness make it read as bone, the shadow gives
+   it an edge. The filter's numbers are the E77 plan's and NOT measured: the glass
+   harness serves no such file, so what the real logo looks like through them on a
+   v14 table is LIVE-E77-09, the owner's before the release. */
+#drpg-foundry-tools {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-b-bottom) + var(--drpg-launch-u-bottom) + var(--drpg-av-lift, 0px));
+    z-index: 70;
+    width: var(--drpg-launcher-book);
+    height: var(--drpg-launcher-book);
+    box-sizing: border-box;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone) !important;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
+    color: var(--drpg-bone) !important;
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35) !important;
+    cursor: pointer;
+}
+
+#drpg-foundry-tools:hover,
+#drpg-foundry-tools[aria-pressed="true"] {
+    box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
+}
+
+#drpg-foundry-tools img {
+    display: block;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    pointer-events: none;
+    filter: grayscale(1) brightness(2.1) contrast(1.05) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+
+/* What stands in for a logo that did not load (foundry-windows.mjs `buildLauncher`, E77 fix r2-H2): a Font Awesome
+   toolbox in the button's bone. The lg rung (20 px at 100 %) is chosen to sit inside the logo's 24 px box, not
+   measured against it; a rung and not a literal, as R60 asks of every size (its first form, 20px, read red there). */
+#drpg-foundry-tools > i {
+    font-size: var(--drpg-text-lg);
+    line-height: 1;
+    pointer-events: none;
 }
 
 /* ---- the scene button, and the rest of the left rail's geometry --------- */
@@ -16233,19 +16517,24 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     opacity: 0.45;
 }
 
-/* The GM's own words about a room, set apart from the module's. */
+/* The GM's own words about a room, set apart from the module's. `pre-line` keeps the
+   paragraphs the GM typed in Room Setup's description panel, a textarea (E77 C2): the
+   text is set escaped, so its newlines are the only breaks it has, and HTML folds them
+   away (read in the code, 13.10.2026). */
 .drpg-explain .drpg-explain-prose {
     display: block;
+    white-space: pre-line;
     padding-left: 0.6rem;
     border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
     opacity: 0.92;
 }
 
-/* The GM's own words about a room, on the card you get for walking into it -
-   see `chargeForCrossing` in movement.mjs. Set apart from the module's own two
-   lines above it the same way the state window sets it apart: this is the one
-   piece of prose on the card that a person wrote. */
-.drpg-room-prose {
+/* The GM's own words about a room on the card for walking into it, as the card drew them until
+   E77 C2. No card is written with them any more (the move card says only where the character went
+   and the price); this rule is for the cards already in a world's chat log, whose stored content
+   still carries the class, so it is scoped to a chat message (round 1's O4). R2 knows the class
+   has no emitter and why. */
+.chat-message .drpg-room-prose {
     margin: 0.4rem 0 0;
     padding-left: 0.6rem;
     border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
@@ -16912,16 +17201,18 @@ details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
 .drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-line-strong); }
 .drpg-notice-clipped { margin: 0; font-size: var(--drpg-text-xs); opacity: 0.8; }
 .drpg-notices-empty { padding: 28px 12px; text-align: center; opacity: 0.8; font-size: var(--drpg-text-sm); line-height: 1.5; }
+/* Clear at the foot's right, where a window's action stands; the line that saving stopped, when there is one, at its
+   left (E77 fix r2-H4: the paragraph that stood beside Clear is gone). */
 .drpg-notices-foot {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 10px;
     padding-top: 6px;
     border-top: 1px solid var(--drpg-line-strong);
     font-size: var(--drpg-text-xs);
 }
-.drpg-notices-foot p { margin: 0; text-align: right; opacity: 0.8; }
+.drpg-notices-foot p { margin: 0 auto 0 0; opacity: 0.8; }
 @media (pointer: coarse) {
     .drpg-notices-chips button, .drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation { min-height: 44px; }
 }

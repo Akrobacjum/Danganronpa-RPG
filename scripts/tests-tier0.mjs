@@ -489,8 +489,21 @@ const REGRESSIONS = [
         const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
             .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
 
+        /*
+         * A CLASS THE WORLD STILL CARRIES IS NOT DEAD. A chat card is stored as HTML, so a class
+         * a card once wore outlives its last emitter in every world that kept the card. Each row
+         * names the cards and the change that stopped writing it; a row whose rule is gone from
+         * the sheet is a stale row and fails (E77 fix r1-G4, round 1's O4: C2 removed the move
+         * card's description, and with it the only rule its old cards had).
+         */
+        const STORED = {
+            "drpg-room-prose": "the move card's description, written until E77 C2 (movement.mjs chargeForCrossing)"
+        };
+        const stale = Object.keys(STORED).filter(c => !styled.has(c) || named.has(c));
+        ok(!stale.length, `these rows of STORED have no rule left in the sheet, or an emitter again: ${stale.join(", ")}`);
+
         const orphans = [...inSheet].filter(c =>
-            styled.has(c) && !switches.has(c)
+            styled.has(c) && !switches.has(c) && !(c in STORED)
             && !named.has(c) && ![...families].some(f => c.startsWith(f)));
         ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
     }],
@@ -8065,7 +8078,9 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "out of scope as a judge: repaints and records a discovery on a move; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
-            ["HOOK hud.mjs#registerHud#updateToken:inline", "out of scope: redraws the HUD's own room; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
+            ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
@@ -8280,7 +8295,7 @@ const REGRESSIONS = [
             ["SHEET murder-rules.mjs#registerMurder", "judged: its `updateToken` hook runs on the primary (`maybeBodyFound`); the return from the trial announces no body: 41 g reads 0 new body cards and the stamps unchanged after End the trial takes the table back to the school (E13 C3; 41 i, the gather's half, is C3b's). E12 C12 adds the witness standing"],
             ["SHEET inventory.mjs#wearItem", "judged on a GM through `held` (the swing's); on a player's own item class 1. C8 changes the durability for tier 0 (E13 C8)"],
             ["SHEET inventory.mjs#breakItem", "held: `itemsHeldNow`; C8's spent tier-0 item breaks through it (E13 C8)"],
-            ["SHEET movement.mjs#onUpdateToken", "out of scope: `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
+            ["SHEET movement.mjs#judgeMove", "out of scope (E77 C2 moved the body of `onUpdateToken` here; `onUpdateToken` now only announces its verdict): `isMonokuma` from the document skips Monokuma's token; a player's move in the hall finds no room once C1 makes `roomPieces(hall)` empty, so nothing is charged (41 b) [1b.1 a token's movement in the hall]"],
             ["SHEET settings.mjs#isDeadForGm", "not a source: the GM's own death record (settings.mjs:2459), not a player's flag"],
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8288,10 +8303,10 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK foundry-windows.mjs#canvasReady#keepTokensLayer", "out of scope: asks this client's own Tokens layer back after a new canvas, at most once a second and never while it is active (E77 C5); a player's layer decides no rule"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
-            ["HOOK hud.mjs#updateToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
             ["HOOK messenger-app.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK movement.mjs#preUpdateToken#onPreUpdateToken", "judged: the mover's own client vetoes a crossing (E12 C9 rewrites it as `crossingVerdict`); in the hall it returns at movement.mjs:242 (no rooms) and keeps the corpse veto (:229) [1b.1]"],
             ["HOOK movement.mjs#updateToken#onUpdateToken", "judged: a GM's move is free (`userId`), a player's is charged on the primary through rooms; the hall has none after C1, so nothing is charged (41 b)"],
@@ -8301,6 +8316,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; since E81 DZ6 the stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall, one create on a GM, and they ride it the same way - their records dropped by `forgetToken` when the stage deletes them. Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
             ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK room-tile.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK own-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK player-status.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK projects-map.mjs#canvasReady#arrow1", "out of scope: project tokens (E11 C7/C8, R346's rows); E13 adds no project token to the hall. Whether `syncProjectTokens` writes when a GM views the hall is E11's primary gate, not re-read here"],
@@ -8340,7 +8356,7 @@ const REGRESSIONS = [
         const FILES = ["trial-floor-ui.mjs", "call-world.mjs", "voice.mjs", "use-items.mjs", "clock.mjs", "requirements.mjs", "trial-scene.mjs"];
         const NAMED = { "gm-bridge.mjs": ["requestSendBack"], "murder-rules.mjs": ["wearSwing", "undoLastCrisis", "rateTierZero", "registerMurder"],
             "inventory.mjs": ["wearItem", "breakItem"], "sheet-audit.mjs": ["flagsAsHeld", "flagsHeldNow", "actorHeldNow", "itemAsHeld"],
-            "movement.mjs": ["onPreUpdateToken", "onUpdateToken", "locateActor", "placesOf", "registerMovement"], "chapter.mjs": ["applyChapterEnd"],
+            "movement.mjs": ["onPreUpdateToken", "judgeMove", "locateActor", "placesOf", "registerMovement"], "chapter.mjs": ["applyChapterEnd"],
             "sync.mjs": ["registerSync"], "gm-panel.mjs": ["openClockDialog"], "settings.mjs": ["isDeadForGm"], "monocub.mjs": ["isMonocub"] };
         // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
@@ -8584,8 +8600,8 @@ const REGRESSIONS = [
             ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); never cut to make room for this login, which is kept in memory instead (`trimValue`, R292 and R298); cleared with every section of this world by a reset that clears one of `EPOCH_GROUPS`, and by no other (R297)"],
             ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
             ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"],
-            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security)"],
-            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half)"],
+            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security). A card with no title of its own is also read through it for its row's words, as text only, once per entry (E77 fix r2-H4, `rowWords`; scenario 73's H)"],
+            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half); a row read off its card (`rowWords`) is words, set the same way"],
             ["WINDOW notice-history-app.mjs#window#search", "the query folded and matched on text; the highlight built of text nodes and `<mark>` elements whose only content is text (R296)"],
             ["WINDOW notice-history-app.mjs#window#conversation", "\"Open conversation\" calls `openMessenger` once with the entry's `link.messenger`, which the read held to an existing user; a player asking for another's thread is refused there (messenger-app.mjs `openMessenger`, R296)"]
         ];
@@ -8687,6 +8703,562 @@ const REGRESSIONS = [
         equal(JSON.stringify({ promise: NOTICE_CENSUS.filter(([, text]) => /to the season's reset/.test(text)).map(([key]) => key),
             memory: MEMORY.filter(key => !/\bin memory\b/.test(textOf.get(key) ?? "")) }), JSON.stringify({ promise: [], memory: [] }),
             "[the census rows that still promise a notice is kept \"to the season's reset\"; the rows of the five roads that can end in memory only that do not say \"in memory\"]");
+    }],
+
+    ["R503 - a room-tile road has a census row, and every row judges a road", async () => {
+        /*
+         * E77 C0, 13.10.2026; R472's and R379's twin for the room tile (census-1c.md of the E77 plan, METHOD change 1;
+         * the plan's D2 gave it this number). E77 draws, on every player's screen, two things the GM wrote - a room's
+         * description and its picture, region flags every browser holds - and chooses which room to draw for the viewer.
+         * Three harms are possible: the GM's text drawn as markup, a picture fetched from anywhere but this server, and
+         * another character's room on this viewer's tile. This test keeps the list of the roads to those three closed: a
+         * new one fails until it has a row and a verdict, a row whose road is gone fails until it is struck.
+         * A row is a pair, "<source> -> <sink>", keyed exactly as the parse-only census of the E77 plan keys its verdicts
+         * (S/e77-design/census.mjs and census-verdicts.mjs, kept outside the repository), so the two can be compared key
+         * by key: one read of the description reaches a window as text and also says which room was read, and the two
+         * are judged by different code. The sinks: text (a name or description drawn as text), src (an image URL this
+         * client fetches), which (which room is drawn), card (the move card), explain ('Where are we'), setup (Room Setup,
+         * the GM's own form), place (where a Foundry window stands). Nine kinds, read live in the module's files with
+         * comments blanked, each place keyed by the top-level declaration it stands in (a top-level
+         * `Hooks.on("<event>", ...)` by its event), a second place of a key in one declaration "(2)":
+         * READ - every call of `roomDescription(` or `roomImage(` (vault.mjs's own declaration of either aside), its sinks
+         * by file - movement.mjs's the card, explain.mjs's the window, the picture's src, any other text - and which;
+         * FIELD - every `VAULT_FLAGS.description` (text) and `VAULT_FLAGS.image` (src); FORM - every template whose text
+         * before an expression ends in `desc:` or `img:`, Room Setup's cells (setup, and text or src); WRITER - every call
+         * of `setVaultRoom(` outside its declaration (text and src); WHO - every call of `hudActor(`, `viewerActor(` or
+         * `subjectActor(` in hud.mjs, explain.mjs and room-tile.mjs; HOOK - every `Hooks.on`/`Hooks.once` of a repaint's
+         * event (`updateToken`, `drpgRouteSettled`, `canvasReady`, `controlToken`, `updateRegion`, `updateUser`,
+         * `updateActor`, `renderSceneControls`) in hud.mjs, explain.mjs, room-tile.mjs and narrow.mjs, and every
+         * `Hooks.callAll("drpgRouteSettled"` anywhere; SRC - in room-tile.mjs, narrow.mjs and foundry-windows.mjs every
+         * assignment to `.src` or `.backgroundImage` and every `setProperty(` whose value is a template with `url(`,
+         * and every `new ...ImagePopout(` anywhere (its picture, src, and its window's title, text); MARKUP - every
+         * `innerHTML` or `outerHTML` assignment, `insertAdjacentHTML(`, `enrichHTML(`, `setHTMLUnsafe(`, `setHTML(`,
+         * `createContextualFragment(`, `parseFromString(`, `parseHTMLUnsafe(`, `renderTemplate(`, `.html(`,
+         * `new DOMParser`, `createElement("template")` and `data-tooltip` in a literal, in room-tile.mjs, which has
+         * no row and fails by design (the tile
+         * sets text only; R509 is the whole rule); STORE - the setting's three sources (this browser's own value, a
+         * console's, a stale one) once `SETTINGS.foundryWindows` exists. A verdict says what judges the road today; one
+         * ending "(E77 C<n>)" names the commit that changes it, which rewrites or strikes the row with the code. The
+         * census's 26 PLANNED roads (the picture's, `viewerActor`, the settle hook, the tile, the windows' setting, the
+         * narrow row) come with C1, C2, C3, C7 and C8; C1's nine (the picture's: five FIELD, four FORM) are rows since E77 C1,
+         * and C2's eight since E77 C2 (four READ of room-tile.mjs, two WHO, and the two settle-hook roads as one HOOK: the
+         * announcement is made in `onUpdateToken` alone), when the move card's two READ went with its description.
+         * It reads names and text, not data flow, as the parse-only census does: a description handed to a helper the
+         * kinds do not list is judged at the call, a CSS `url()` written in a stylesheet is not a road here, and what a
+         * server answers to a picture path (a redirect elsewhere) is no reading of the source at all (LIVE-E77-03).
+         * Two places where it reads more than the parse-only census: `data-tooltip` in any literal, a template's too
+         * (the census reads plain strings only), and a FORM cell only where its `${` opens a template's expression (the
+         * census reads the template's text, so a quoted "desc:${" was never one there either).
+         * Measured 13.10.2026 on C0's working tree (f6822d7's code): this reader, run in Node on the 129 files the crawl
+         * from module.mjs reaches, found 24 roads - 4 READ, 5 FIELD, 4 FORM, 4 WRITER, 4 WHO, 3 HOOK - against the 24
+         * rows, none either side, the same 24 keys as the parse-only census at f6822d7 (compared key by key). On the
+         * harness (13.10.2026, this test alone, once) it read the same 24 against the 24 rows, none either side. On C1's
+         * working tree (13.10.2026, in Node) it read 33 - the nine of the picture more, 10 FIELD and 8 FORM - against
+         * the 33 rows, none either side. On C2's working tree (13.10.2026, in Node) it read 38 - 6 READ, 6 WHO, 4 HOOK -
+         * against the 38 rows, none either side, the same 38 keys as the parse-only census (compared key by key); on the
+         * harness (13.10.2026, this test alone, once) it passed. E77 C3 struck three (the clock's room rows: two WHO,
+         * one HOOK) and added seven: the tile's three HOOK rows and its WHO, the picture's url and popout, and one the
+         * census planned none for - the probe that decodes the picture before the popout opens (`.src =`). On C3's
+         * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
+         * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
+         * (compared key by key). E77 fix r1-G1 (13.10.2026, round 1's sec F4) reads the popout's window title as a
+         * road of its own (one more row, 43) and widens MARKUP from three sinks to every one R509 names.
+         * E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
+         * E77 C8 added the last planned road, the narrow row's thumbnail (`img.src` in room-tile.mjs `paintTileRow`).
+         * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
+         * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
+         * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
+         * picture's url and popout, an `innerHTML` and a `data-tooltip` in a fixture room-tile.mjs, and the setting; then
+         * the judge on a planted table with a road without a row and a stale key.
+         */
+        const ROOM_TILE_CENSUS = [
+            // ---- the writers (the GM's)
+            ["WRITER api.mjs#DrpgApi -> text", "`game.drpg.setVaultRoom` hands its options to `setVaultRoom`, which writes nothing for a player (`if (!game.user.isGM) return null`); the description and the picture pass the spread; the description is stored as a string"],
+            ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
+            ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
+            ["WRITER vault.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
+            ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
+            ["FIELD vault.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
+            ["FIELD vault.mjs#pieceData#image -> src", "the list of flags a renamed piece carries, the picture beside the description; nothing is drawn"],
+            ["FIELD vault.mjs#roomImage#image -> src", "the reader answers `safeRoomImage` of the stored value, so a console's or an old value is no picture"],
+            ["FIELD vault.mjs#applyRoomRows#image -> src", "the before-state Room Setup compares a row against, as stored; not drawn"],
+            ["FIELD vault.mjs#roomDescription#description -> text", "the reader returns the raw string; each caller draws it escaped (`roomBlock`'s `esc`) - the move card no longer reads it (E77 C2), and C3's tile sets it as textContent"],
+            ["FIELD vault.mjs#applyRoomRows#description -> text", "the before-state Room Setup compares a row against; not drawn"],
+            // ---- Room Setup (the GM's own form)
+            ["FORM vault.mjs#roomCells#desc -> setup", "the Description tab's textarea: its body `escapeHTML`, its name the escaped room (`escRoom`)"],
+            ["FORM vault.mjs#roomCells#desc -> text", "as on setup: the GM reads their own words"],
+            ["FIELD vault.mjs#roomCells#description -> text", "the textarea's body, `escapeHTML`"],
+            ["FORM vault.mjs#roomCells#img -> setup", "the picture's hidden field, named by the escaped room (`escRoom`), its value `escapeHTML`; on the GM's own Room Setup"],
+            ["FORM vault.mjs#roomCells#img -> src", "the thumbnail's `src` only from what `safeRoomImage` accepts of the stored value, `escapeHTML`; the file picker then shows the GM's own choice"],
+            ["FIELD vault.mjs#roomCells#image -> src", "read through `safeRoomImage` for the thumbnail and the field; a refused value is drawn as no picture"],
+            ["FORM vault.mjs#readRoomSetupForm#desc -> setup", "read back as the textarea's `.value`, trimmed; paragraphs kept as newlines"],
+            ["FORM vault.mjs#readRoomSetupForm#desc -> text", "a string handed to `setVaultRoom` and drawn later only as text (E77 C2 keeps its paragraphs with pre-line)"],
+            ["FORM vault.mjs#readRoomSetupForm#img -> setup", "the hidden field's `.value`, trimmed; judged by `safeRoomImage` in `applyRoomRows` before anything is written"],
+            ["FORM vault.mjs#readRoomSetupForm#img -> src", "as on setup: a path, never fetched before `safeRoomImage` accepts it"],
+            // ---- the readers
+            ["READ explain.mjs#roomBlock#roomDescription -> explain", "'Where are we' draws it escaped (`esc`) in an <em>, its paragraphs kept by `white-space: pre-line` (E77 C2)"],
+            ["READ explain.mjs#roomBlock#roomDescription -> which", "the room of `locateActor(subjectActor())` on that token's own scene: a player's own character (`viewerActor`, E77 C2); a GM's selected token by design, else their Monokuma"],
+            ["READ room-tile.mjs#roomFacts#roomDescription -> text", "the GM's raw words, handed on as a string; the tile sets them as text only (E77 C3; R509 forbids markup in room-tile.mjs)"],
+            ["READ room-tile.mjs#roomFacts#roomDescription -> which", "the room and scene `viewerRoom` gives: the viewer's own token's, at the spot its last settled route left it (R504, scenario 66 W1)"],
+            ["READ room-tile.mjs#roomFacts#roomImage -> src", "`roomImage` answers `safeRoomImage` of the stored value on every read, null when refused (R504 reads a refused value as null)"],
+            ["READ room-tile.mjs#roomFacts#roomImage -> which", "as the description: the viewer's own room on its own scene (R504, scenario 66 W1)"],
+            // ---- whose room
+            ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
+            ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
+            ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
+            ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
+            ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2); a listener paints only its own viewer's token"],
+            ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
+            ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
+            ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateRegion -> which", "a repaint of `viewerRoom` (a GM's edit of the room's words or picture, or of its shape); the event chooses no room (scenario 74 A)"],
+            ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
+            ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
+            ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
+            ["SRC room-tile.mjs#openRoomImage#ImagePopout -> text", "the window's title: asked for under the tile's own label, then the room's name written as `textContent` of the heading at `window.title` (R505, a stand-in: the harness has no ImagePopout); how Foundry draws an option's title is not read here (LIVE-E77-04)"],
+            ["SRC room-tile.mjs#paintTileRow#src -> src", "the narrow row's 78x44 thumbnail (E77 C8): `img.src` only from `safeRoomImage` of the view's path, the path `paintRoomTile` gives the art layer; R505 reads it as that path and paints a `javascript:` picture with no thumbnail"],
+            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack and, since E77 C8, of the tiles' row in it; the event chooses no room, and the tile in the row is painted from `viewerRoom` as anywhere (scenario 74 G)"],
+            // ---- where Foundry's two windows stand (a client setting, E77 C7)
+            ["STORE settings.mjs#foundryWindows#self -> place", "validated on read (`readPlaces`): two finite numbers, rounded, under a known key, or no place; then clamped wholly on screen and off the corner cluster (`clampPlace`, R516)"],
+            ["STORE settings.mjs#foundryWindows#console -> place", "numbers only, clamped: a bad value is no place and the window stands at its home; the value is this browser's and moves only its own windows (R516)"],
+            ["STORE settings.mjs#foundryWindows#stale -> place", "clamped on every opening, drop, window resize and frame-size change (`placeFoundryWindow`); the clamp never writes the setting, so a place saved on a larger screen comes back there (R516, scenario 74 F)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const VIEW_FILES = /^(?:hud|explain|room-tile|narrow)\.mjs$/, PAINT_FILES = /^(?:room-tile|narrow|foundry-windows)\.mjs$/;
+        const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
+        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
+        const STORE_SOURCES = ["self", "console", "stale"];
+        // E77 fix r1-G1 (round 1's sec F4): every sink that parses a string as markup, not only the first three - R509's net.
+        const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
+        const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
+            : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
+            : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
+            : kind === "SRC" && field === "ImagePopout" ? ["src", "text"]
+            : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
+        const censusOf = (sources, settings) => {
+            const found = [], sites = new Map();
+            const add = (kind, file, decl, field) => {
+                const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`, n = (sites.get(base) ?? 0) + 1;
+                sites.set(base, n);
+                for (const sink of sinksOf(kind, file, field)) found.push(`${n === 1 ? base : `${base} (${n})`} -> ${sink}`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                const declared = at => /\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, at - 24), at));
+                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
+                    if (declared(m.index)) continue;
+                    const decl = declAt(m.index), name = m[1], member = /\.\s*$/.test(blank.slice(Math.max(0, m.index - 8), m.index));
+                    if (name === "setVaultRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
+                    else if (name === "roomDescription" || name === "roomImage") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
+                    else if (!member && WHO_FILES.test(file)) add("WHO", file, decl, name);
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])VAULT_FLAGS\s*\??\.\s*(description|image)\b/g)) add("FIELD", file, declAt(m.index), m[1]);
+                for (const m of code.matchAll(/(desc|img):\$\{/g)) {
+                    const open = m.index + m[0].length;
+                    // a template keeps its expression's code in the blanked text; a quoted "desc:${" is blank to its end
+                    const expression = code.slice(open).match(/^[^}]*/)[0];
+                    if (/\S/.test(blank.slice(open, open + expression.length))) add("FORM", file, declAt(m.index), m[1]);
+                }
+                for (const m of code.matchAll(REPAINTS)) {
+                    if (blank.slice(m.index, m.index + 5) !== "Hooks") continue;
+                    if (m[2]) add("HOOK", file, declAt(m.index), "callAll");
+                    else if (VIEW_FILES.test(file)) add("HOOK", file, declAt(m.index), m[1]);
+                }
+                if (PAINT_FILES.test(file)) {
+                    for (const m of blank.matchAll(/\.\s*(src|backgroundImage)\s*[+]?=(?![=>])/g)) add("SRC", file, declAt(m.index), m[1]);
+                    for (const m of blank.matchAll(/\bsetProperty\s*\(/g)) {
+                        const value = callArgs(blank, m.index + m[0].length - 1).args[1];
+                        const text = value ? code.slice(value.start, value.end).trim() : "";
+                        if (text.startsWith("`") && /url\(/.test(text)) add("SRC", file, declAt(m.index), "url");
+                    }
+                }
+                for (const m of blank.matchAll(/\bnew\s+[\w$.]*ImagePopout\b/g)) add("SRC", file, declAt(m.index), "ImagePopout");
+                if (file === "room-tile.mjs") {
+                    for (const m of blank.matchAll(MARKUP_SINKS)) add("MARKUP", file, declAt(m.index), m[1] ?? m[2] ?? m[3] ?? m[4]);
+                    for (const m of code.matchAll(/\bcreateElement\s*\(\s*["'`]template["'`]/g)) if (blank[m.index] === "c") add("MARKUP", file, declAt(m.index), "template");
+                    for (const m of code.matchAll(/data-tooltip/g)) if (blank[m.index] === " ") add("MARKUP", file, declAt(m.index), "data-tooltip");
+                }
+            }
+            if (Object.hasOwn(settings ?? {}, "foundryWindows")) for (const source of STORE_SOURCES) add("STORE", "settings.mjs", "foundryWindows", source);
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["READ", "FIELD", "FORM", "WRITER", "WHO", "HOOK", "SRC", "MARKUP", "STORE"];
+        const planted = censusOf([
+            ["vault.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
+                + "export async function setVaultRoom(room, { description } = {}) {\n    if (!game.user.isGM) return null;\n}\n"],
+            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene);\n}\n"
+                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n}\n"
+                + "const cell = room => `<textarea name=\"desc:${room}\"></textarea>` + \"img:${room}\";\n"],
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n}\n"
+                + "function hudActor() {\n    return game.user.character;\n}\nfunction paint(actor = this.hudActor()) {}\n"],
+            ["movement.mjs", "export function settleRoute(tokenDoc) {\n    Hooks.callAll(\"drpgRouteSettled\", tokenDoc);\n}\n"
+                + "Hooks.on(\"canvasReady\", () => roomDescription(\"Hall\", canvas.scene));\n"],
+            ["room-tile.mjs", "export function paintRoomTile(el, path) {\n    el.style.setProperty(\"--drpg-room-art\", `url(\"${path}\")`);\n    el.innerHTML = \"<b>planted</b>\";\n"
+                + "    el.dataset.note = \"data-tooltip\";\n    return new foundry.applications.apps.ImagePopout({ src: path });\n}\n"]
+        ], { foundryWindows: "foundryWindows" });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "FIELD vault.mjs#roomDescription#description -> text",
+            "READ planted.mjs#shown#roomDescription -> text", "READ planted.mjs#shown#roomDescription -> which",
+            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which",
+            "WRITER planted.mjs#kept -> text", "WRITER planted.mjs#kept -> src", "WRITER planted.mjs#kept (2) -> text", "WRITER planted.mjs#kept (2) -> src",
+            "FORM planted.mjs#cell#desc -> setup", "FORM planted.mjs#cell#desc -> text",
+            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
+            "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
+            "HOOK movement.mjs#settleRoute#callAll -> which",
+            "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> text",
+            "MARKUP room-tile.mjs#paintRoomTile#innerHTML -> text", "MARKUP room-tile.mjs#paintRoomTile#data-tooltip -> text",
+            ...STORE_SOURCES.map(source => `STORE settings.mjs#foundryWindows#${source} -> place`)]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(0, 3), [["FIELD vault.mjs#roomDescription#description -> text", ""],
+            ["READ planted.mjs#shown#roomDescription -> text", ""], ["HOOK hud.mjs#registerHud#gone -> which", ""]])),
+            JSON.stringify({ unclassified: ["READ planted.mjs#shown#roomDescription -> which"], stale: ["HOOK hud.mjs#registerHud#gone -> which"] }),
+            "the census judge does not tell a planted road without a row, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(["READ", "FIELD", "FORM", "WRITER", "WHO", "HOOK"].every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, ROOM_TILE_CENSUS);
+        log(`R503: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${ROOM_TILE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
+    }],
+
+    ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {
+        /*
+         * E77 C1, 13.10.2026; the A8 design's R382 (the E77 plan's D2 gave it this number; ledger V5). The tier-2
+         * "Room Setup writes a room's picture: ..." reads the writes themselves; this keeps the shape that makes them,
+         * read in vault.mjs with comments blanked (strings kept: the field names are templates): `roomCells` draws
+         * the field `img:${escRoom}` and `readRoomSetupForm` reads `img:${room}` (keyed by the room's name, as
+         * `desc:`); `applyRoomRows` judges the picture before it compares (`safeRoomImage(row.image)`), puts it in
+         * `same` (`before.image === picture` - a field left out of `same` is a field whose change alone is thrown
+         * away, the harm of the design's R382) and hands it to `setVaultRoom` unless refused; `setVaultRoom` writes
+         * the flag from `safeRoomImage(image)` and is the only place in the module's files that writes it;
+         * `pieceData` lists it, or a piece renamed off a room keeps the room's picture as its own (E12 fix r1-G1's
+         * rule); `roomImage` returns `safeRoomImage(roomFlag(...))`. It reads names, not data flow: a picture
+         * written through a helper these patterns do not name is the tier-2 test's to see. The reader is run first
+         * on a fixture with every part and on the same fixture with the picture taken out of `same`.
+         */
+        const shape = src => {
+            const body = name => topLevelFunction(src, name) ?? "";
+            const write = body("setVaultRoom"), rows = body("applyRoomRows");
+            const writes = [...src.matchAll(/flags\.\$\{MODULE_ID\}\.\$\{VAULT_FLAGS\.image\}/g)].length;
+            return [
+                /name="img:\$\{escRoom\}"/.test(body("roomCells")) && /pick\(`img:\$\{room\}`\)/.test(body("readRoomSetupForm")),
+                /safeRoomImage\(row\.image\)/.test(rows) && /before\.image === picture/.test(rows) && /\bimage: refused \? undefined : picture/.test(rows),
+                /safeRoomImage\(image\)/.test(write) && writes === 1 && /VAULT_FLAGS\.image\}`\] = path/.test(write),
+                /\[VAULT_FLAGS\.image, "DRPG\.Vault\.imageColumn"\]/.test(body("pieceData")),
+                /return safeRoomImage\(roomFlag\(scene, room, VAULT_FLAGS\.image\)\)/.test(body("roomImage"))
+            ];
+        };
+        const FIXTURE = "function roomCells() {\n    return `<input name=\"img:${escRoom}\" />`;\n}\nfunction readRoomSetupForm() {\n    pick(`img:${room}`);\n}\n"
+            + "async function applyRoomRows() {\n    const picture = safeRoomImage(row.image);\n    const same = a\n        && before.image === picture;\n"
+            + "    setVaultRoom(row.room, { image: refused ? undefined : picture || null });\n}\n"
+            + "export async function setVaultRoom() {\n    const path = safeRoomImage(image);\n    update[`flags.${MODULE_ID}.${VAULT_FLAGS.image}`] = path;\n}\n"
+            + "function pieceData() {\n    return [[VAULT_FLAGS.image, \"DRPG.Vault.imageColumn\"]];\n}\n"
+            + "export function roomImage(room, scene) {\n    return safeRoomImage(roomFlag(scene, room, VAULT_FLAGS.image));\n}\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("\n        && before.image === picture", ""))]),
+            JSON.stringify([[true, true, true, true, true], [true, false, true, true, true]]),
+            "the reader does not read its fixture whole, or does not miss the picture taken out of `same`");
+        const sources = new Map(await otherSources());
+        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        must(vault.length > 1000, "vault.mjs is not among the module's sources - this would measure nothing");
+        const elsewhere = [...sources].filter(([file, text]) => file !== "vault.mjs" && /drpgRoomImage|VAULT_FLAGS\.image\}/.test(stripComments(text)))
+            .map(([file]) => file);
+        equal(JSON.stringify([shape(vault), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
+            "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
+            + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
+    }],
+    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R381 (the E77 plan's D2 gave it this number; ledger V4, D5, D7), its
+         * C2 clauses, read in movement.mjs with comments blanked. The plan put R506 on tier 1; what it asks - one
+         * announcement per settled route, none while waypoints are pending, nothing of a refused room at 400 and
+         * 1200 ms - needs a token moved by a player and three browsers listening, which is scenario 66's W2-W4
+         * (the behaviour) and no read-only test, so this keeps the shape that makes it, as R507 did for C1: one
+         * `Hooks.callAll("drpgRouteSettled"` in the module's files, in `onUpdateToken`, behind
+         * `if (accepted === false && putBack.has(tokenDoc.id)) return;` (a refusal that schedules a put-back is
+         * announced by the REVERT's own update, on every browser, so no listener reads the refused room between
+         * the two); `onUpdateToken` registered on `updateToken`; `judgeMove`'s REVERT branch clears the put-back
+         * and answers false, the GM's move answers true, a pending waypoint answers nothing, and the route is
+         * marked `unsettled` after the waypoint gate and before the first `await`, with the spot before it (a hook
+         * of the same update that runs after movement's reads `settledSpot` before the judging has yielded once);
+         * `sendBack` marks the put-back; `settledSpot` answers the marked spot while the route is unsettled (not
+         * `lastPosition` itself, which a paid first crossing moves to the route's end before a refused second
+         * one is put back - scenario 66 W4's route); `chargeForCrossing`'s card
+         * is `<p>${where}<br>${price}</p>` and nothing in movement.mjs reads `roomDescription` (the owner's answer
+         * of 11.10, question 1 "b": the description is the room tile's). It reads names, not data flow: a second
+         * announcement through a helper is scenario 66's to count. The reader is run first on a fixture with
+         * every part, and on the same fixture with the gate taken out and with the description put back.
+         * E77 C3 (13.10.2026) adds the listener's side: the room tile repaints on the announcement and never on the
+         * raw `updateToken` (which reaches a browser before a refusal and its put-back, the design's CB-8), and only
+         * for the viewer's own token (`registerRoomTile`: `tokenDoc.actorId !== viewerActor()?.id` returns); and
+         * hud.mjs, whose room rows went to the tile, listens on `updateToken` no more. Read in room-tile.mjs and
+         * hud.mjs with comments blanked, first on a fixture, then with the tile on `updateToken`, with the
+         * clock's hook put back and with the clock silent. The clock tells the tile by `drpgHudRendered` at the end
+         * of `renderHud` rather than importing it (room-tile.mjs imports hud.mjs; R161), and until this clause
+         * nothing read that line: with it taken out, this test as it stood passed (13.10.2026, once). Scenario 74
+         * B counts the paints on the mover's browser.
+         * E77 fix r1-G2 (13.10.2026; review round 1 cor F1, F3, F4, O1-O3) adds three shapes: the mark is the
+         * update's own object and `onUpdateToken`'s finally clears it only while it is still that update's
+         * (`unsettled.get(tokenDoc.id) === route`), `settledSpot` reads its `spot`; the GM's branch returns
+         * nothing for a write that moves nothing and, for a move, ends the wait, the put-back and the mark; and
+         * a route another browser settles waits on an owning browser (`untilQuiet`), every update starting the
+         * wait again and the REVERT, a GM's move and the next route ending it. Scenario 74 C and 66 W2/W5 run
+         * what these read; the fixture gains one variant per shape, each taken out.
+         */
+        const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
+        const shape = src => {
+            const body = name => topLevelFunction(src, name) ?? "";
+            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
+            const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
+            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
+            const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
+            return [
+                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
+                    && /if \(unsettled\.get\(tokenDoc\.id\) === route && !putBack\.has\(tokenDoc\.id\)\) unsettled\.delete\(tokenDoc\.id\);/.test(on),
+                /if \(options\?\.\[REVERT\]\) \{\s*endQuiet\(tokenDoc\.id\);[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
+                    && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
+                    && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
+                mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
+                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
+                /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?await untilQuiet\(tokenDoc\)/.test(judge)
+            ];
+        };
+        const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
+            + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
+            + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
+            + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
+            + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (game.users.get(userId)?.isGM) {\n        if (!isMoveChange(changes)) return;\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        unsettled.delete(tokenDoc.id);\n        return true;\n    }\n"
+            + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
+            + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
+            + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n}\n"
+            + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
+            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
+            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
+            shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
+            shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
+            shape(FIXTURE.replace("    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n", "    return settled;\n"))]),
+        JSON.stringify([[true, true, true, true, true], [false, true, true, true, true], [true, true, true, false, true],
+            [false, true, true, true, true], [true, false, true, true, true], [true, true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
+            + "the finally clearing any mark, a GM's write that moves nothing answered as a route or the wait for quiet taken out");
+        const sources = new Map(await otherSources());
+        const movement = stripComments(sources.get("movement.mjs") ?? "");
+        must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
+        const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
+            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken, its finally clearing only its own mark; "
+            + "the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending waypoint nothing; the route marked before "
+            + "the first await, the put-back marked, the settled spot the one before; the card where and the price, and no description read in "
+            + "movement.mjs; a route another browser settles waited on for quiet where the actor is owned] and the other files that announce a route");
+
+        const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
+        const listens = (tile, hud) => [
+            /\bHooks\.on\(\s*["']drpgRouteSettled["']/.test(tile) && !ON_MOVE.test(tile)
+                && /if \(!tokenDoc \|\| tokenDoc\.actorId !== viewerActor\(\)\?\.id\) return;/.test(topLevelFunction(tile, "registerRoomTile") ?? ""),
+            !ON_MOVE.test(hud),
+            /\bHooks\.callAll\(\s*["']drpgHudRendered["']\s*\)/.test(topLevelFunction(hud, "renderHud") ?? "")
+                && /\bHooks\.on\(\s*["']drpgHudRendered["']/.test(topLevelFunction(tile, "registerRoomTile") ?? "")
+        ];
+        const TILE = "export function registerRoomTile() {\n    Hooks.on(\"drpgRouteSettled\", ({ tokenDoc } = {}) => {\n"
+            + "        if (!tokenDoc || tokenDoc.actorId !== viewerActor()?.id) return;\n        refreshRoomTile();\n    });\n    Hooks.on(\"drpgHudRendered\", () => refreshRoomTile());\n}\n";
+        const HUD = "export function registerHud() {\n    Hooks.on(\"canvasReady\", () => renderHud());\n}\n"
+            + "export function renderHud() {\n    renderEvents();\n    Hooks.callAll(\"drpgHudRendered\");\n}\n";
+        equal(JSON.stringify([listens(TILE, HUD), listens(TILE.replace("drpgRouteSettled", "updateToken"), HUD),
+            listens(TILE, HUD.replace("canvasReady", "updateToken")), listens(TILE, HUD.replace("    Hooks.callAll(\"drpgHudRendered\");\n", ""))]),
+        JSON.stringify([[true, true, true], [false, true, true], [true, false, true], [true, true, false]]),
+            "the listener reader does not read its fixture whole, or does not miss the tile on updateToken, the clock's hook put back or the clock silent");
+        const tile = stripComments(sources.get("room-tile.mjs") ?? "");
+        must(/\bexport function registerRoomTile\(/.test(tile), "room-tile.mjs has no `registerRoomTile` among the module's sources - this would measure nothing");
+        equal(JSON.stringify(listens(tile, stripComments(sources.get("hud.mjs") ?? ""))), JSON.stringify([true, true, true]),
+            "[the tile repaints on drpgRouteSettled for the viewer's own token and never on updateToken; hud.mjs listens on updateToken no more; "
+            + "renderHud fires drpgHudRendered and the tile listens to it]");
+    }],
+
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them; and no source names the GM button's old rail constants (GM_SLOT, GM_DROP, tightenGmGap), and the one Foundry logo a source names is Foundry's own icons/fvtt.png", async () => {
+        /*
+         * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
+         * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
+         * data-tooltip; hud.mjs without buildRoom), C4 the one placement formula, C5 Foundry's windows, C6
+         * GM_SLOT, GM_DROP and the logo file. Until C2 the clock chose its character in `hudActor` and the
+         * Explain window in `subjectActor`, which for a player fell back to a selected token (a player selects
+         * only what they own, so their own or an owned NPC - E77 census row, read in the code at f6822d7); the
+         * tile is a third reader of the same question and the one that shows another user's words. Read with
+         * comments blanked: `viewerActor` is exported from hud.mjs and is the only place in the three files that
+         * reads `game.user.character`, `ownStudent(`, `poolUserFor(` or a token's `.controlled`, save
+         * `subjectActor`'s one line, which reads the selection only under `game.user.isGM` and otherwise returns
+         * `viewerActor()`; `viewerRoom` asks `viewerActor()`; no file of the module names `hudActor` any more.
+         * `game.actors` is not in the list: hud.mjs reads an actor by id for the trial's speaker (read in the code,
+         * 13.10.2026), which is not the viewer. The reader is run first on a fixture of the three files, and on
+         * the same fixture with the GM's gate taken off the selection and with a second reader of the student.
+         * E77 C3 (13.10.2026) adds the markup clauses: room-tile.mjs, which draws another user's words, has no
+         * `innerHTML` write, no `insertAdjacentHTML(`, no `enrichHTML(` and no data-tooltip in any literal (Foundry's
+         * tooltip takes an empty one's `aria-label` through the client's `cleanHTML`, the E02-D01 hole; the tile's
+         * tooltips are `dataset.tooltipText`); and hud.mjs names `buildRoom` and `buildSearchPips` no more (the
+         * clock's room rows moved to the tile). The fixture is read again with each of the five planted.
+         * E77 fix r1-G1 (13.10.2026, round 1's sec F4) widens the markup net to every sink that parses a string:
+         * an `outerHTML` write, `setHTMLUnsafe(` (and `setHTML(`), `createContextualFragment(`, `DOMParser` and
+         * `parseFromString(` (and `parseHTMLUnsafe(`), jQuery's `.html(`, a `<template>` made by `createElement`
+         * and `renderTemplate(`; room-tile.mjs used none of them at 81d0f0c (read in full), so this changes no
+         * verdict on the code and the fixture is read once more with each of the seven forms planted.
+         * E77 C4 (13.10.2026) adds the one formula: the tile's place and box are glass.mjs `roomPlacement`'s, from the
+         * measured F, the clock's width and the type scale, and glass.mjs is the one source that writes the variables
+         * the sheets size the tile by (`--drpg-room-h`, -w, -x, -y, -min-h, -max-h). Read with comments blanked: glass.mjs
+         * exports `roomPlacement` and names "--drpg-room-h"; no other source of the module names a `--drpg-room-` variable
+         * of the six or defines `roomPlacement` or `roomSizes`; no stylesheet declares one of the six (a `var()` that
+         * reads it, with a fallback for Monokuma Legacy, is a reader, not a second copy). A second formula is how a
+         * height that "fits the description" would come back, and with it a recut on every new description. The fixture
+         * is read again with the export gone, a second writer in room-tile.mjs and a sheet declaring the height.
+         * E77 C5 (13.10.2026) adds Foundry's windows: no rule of the three sheets whose selector names a frame of
+         * foundry-windows.mjs (`.drpg-foundry-window`, `#drpg-win-`) gives it or anything in it a `clip-path`, an
+         * `overflow` of hidden or clip, or `display: none`. The first two would cut a directory's context menu off at
+         * the frame's edge; a closed frame is the `hidden` attribute's alone, so a sheet that hid one would leave it
+         * shut whatever the GM clicked. Read on a fixture first, then on it with each of the three planted.
+         * E77 C6 (13.10.2026) adds the corner: the GM button left the scene rail for the cluster, and with it went
+         * `GM_SLOT`, `GM_DROP` and `tightenGmGap` (glass.mjs keeps one `RAIL_SLOT` for a rail left in the column) - a
+         * source that names one again is the button's old machinery coming back. And Foundry tools wears Foundry's
+         * logo from Foundry's own core files (`icons/fvtt.png`, the decision D7: the module ships no copy of it), so
+         * every string literal of a source that names a Foundry logo - `fvtt`, or "foundry" beside "logo" - is
+         * exactly that path. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under
+         * the module's path and a logo under an assets folder planted.
+         */
+        const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
+        const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
+            /\b(?:insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(/]
+            .map(part => part.source).join("|"));
+        const shape = files => {
+            const hud = files.get("hud.mjs") ?? "", explain = files.get("explain.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
+            const viewer = topLevelFunction(hud, "viewerActor") ?? "", subject = topLevelFunction(explain, "subjectActor") ?? "";
+            const rest = [["hud.mjs", hud.replace(viewer, "")], ["explain.mjs", explain.replace(subject, "")], ["room-tile.mjs", tile]]
+                .filter(([, text]) => READS.test(text)).map(([file]) => file);
+            return [
+                /export function viewerActor\(\)/.test(hud) && /\bpoolUserFor\(/.test(viewer) && /\bownStudent\(\)/.test(viewer),
+                /=\s*game\.user\.isGM \? canvas\?\.tokens\?\.controlled\?\.\[0\]\?\.actor \?\? null : null;/.test(subject)
+                    && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
+                /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
+                rest,
+                !MARKUP.test(tile),
+                !/\b(?:buildRoom|buildSearchPips)\b/.test(hud)
+            ];
+        };
+        const FIXTURE = new Map([
+            ["hud.mjs", "export function viewerActor() {\n    if (game.user.isGM) return game.actors.find(a => poolUserFor(a)?.id === game.user.id) ?? null;\n"
+                + "    return ownStudent();\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
+            ["explain.mjs", "function subjectActor() {\n    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;\n"
+                + "    return selected ?? viewerActor();\n}\n"],
+            ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"
+                + "export function paintRoomTile(tile, view) {\n    tile.replaceChildren(textNode(\"p\", \"drpg-room-tile-prose\", view.description));\n"
+                + "    tile.dataset.tooltipText = view.room;\n}\n"]
+        ]);
+        const planted = (file, from, to) => new Map([...FIXTURE].map(([name, text]) => [name, name === file ? text.replace(from, to) : text]));
+        const PROSE = "tile.replaceChildren(textNode(\"p\", \"drpg-room-tile-prose\", view.description));";
+        equal(JSON.stringify([shape(FIXTURE), shape(planted("explain.mjs", "game.user.isGM ? canvas", "true ? canvas")),
+            shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();")),
+            ...["tile.innerHTML = view.description;", "tile.insertAdjacentHTML(\"beforeend\", view.description);",
+                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");",
+                "tile.firstChild.outerHTML = view.description;", "tile.setHTMLUnsafe(view.description);",
+                "tile.append(document.createRange().createContextualFragment(view.description));",
+                "tile.append(...new DOMParser().parseFromString(view.description, \"text/html\").body.childNodes);",
+                "$(tile).html(view.description);",
+                "tile.append(Object.assign(document.createElement(\"template\"), { innerHTML: view.description }).content);",
+                "tile.append(await foundry.applications.handlebars.renderTemplate(\"room.hbs\", view));"]
+                .map(markup => shape(planted("room-tile.mjs", PROSE, markup))),
+            shape(planted("hud.mjs", "function buildClock() {", "function buildRoom() {"))]),
+        JSON.stringify([[true, true, true, [], true, true], [true, false, true, [], true, true], [true, true, true, ["hud.mjs"], true, true],
+            ...Array(11).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
+        "the reader does not read its fixture whole, or does not miss the GM's gate taken off, a second reader of the student, the GM's words "
+            + "drawn as markup eleven ways, or the clock's room rows put back");
+        const VARS = /--drpg-room-(?:h|w|x|y|min-h|max-h)\b/;
+        const formula = (scripts, sheets) => [
+            /\bexport function roomPlacement\(/.test(scripts.get("glass.mjs") ?? "") && /"--drpg-room-h"/.test(scripts.get("glass.mjs") ?? ""),
+            [...scripts].filter(([file, text]) => file !== "glass.mjs" && (VARS.test(text) || /\bfunction (?:roomPlacement|roomSizes)\b/.test(text))).map(([file]) => file),
+            [...sheets].filter(([, text]) => new RegExp(VARS.source + "\\s*:").test(text)).map(([file]) => file)
+        ];
+        const GLASS = "export function roomPlacement(W, H) {\n  return { place: \"notes\" };\n}\nfunction seatRoomTile(tile, p) {\n"
+            + "  document.body.style.setProperty(\"--drpg-room-h\", p.h + \"px\");\n}\n";
+        const TILE = "export function paintRoomTile(tile, view) {\n    tile.replaceChildren();\n}\n";
+        const SHEET = "#drpg-room-tile {\n    height: var(--drpg-room-h, 250px);\n}\n";
+        const scriptsOf = (glass, tile) => new Map([["glass.mjs", glass], ["room-tile.mjs", tile]]);
+        equal(JSON.stringify([formula(scriptsOf(GLASS, TILE), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS.replace("export function roomPlacement", "function roomPlacement"), TILE), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS, TILE.replace("tile.replaceChildren();", "tile.style.setProperty(\"--drpg-room-h\", tile.scrollHeight + \"px\");")), new Map([["danganronpa.css", SHEET]])),
+            formula(scriptsOf(GLASS, TILE), new Map([["danganronpa.css", SHEET], ["stained-glass.css", "body { --drpg-room-h: 300px; }\n"]]))]),
+        JSON.stringify([[true, [], []], [false, [], []], [true, ["room-tile.mjs"], []], [true, [], ["stained-glass.css"]]]),
+        "the formula reader does not read its fixture whole, or does not miss the export gone, a second writer of the height or a sheet declaring it");
+        const sources = new Map(await otherSources());
+        must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
+        const sheets = new Map();
+        for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"])
+            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""))));
+        must([...sheets.values()].every(text => text.length > 1000), "a stylesheet did not load - this would measure nothing");
+        equal(JSON.stringify(formula(new Map([...sources].map(([file, text]) => [file, stripComments(text)])), sheets)), JSON.stringify([true, [], []]),
+            "[glass.mjs exports roomPlacement and writes --drpg-room-h; the other sources naming a room variable or a second formula; the sheets declaring one]");
+        const FRAMED = /\.drpg-foundry-window\b|#drpg-win-/;
+        const CUTS = /\bclip-path\s*:\s*(?!none\b)|\boverflow(?:-[xy])?\s*:\s*(?:hidden|clip)\b|\bdisplay\s*:\s*none\b/;
+        const framed = list => [...list].flatMap(([file, text]) => [...text.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(([, sel, body]) => FRAMED.test(sel) && CUTS.test(body)).map(([, sel]) => `${file}: ${sel.trim()}`));
+        const FRAME_SHEET = "body.drpg-player #sidebar {\n    display: none;\n}\n.drpg-foundry-window:not([hidden]) {\n    position: fixed;\n    display: flex;\n}\n"
+            + "@media (max-width: 900px) {\n    .drpg-foundry-window-body > #sidebar {\n        height: 700px;\n    }\n}\n";
+        equal(JSON.stringify([framed(new Map([["danganronpa.css", FRAME_SHEET]])),
+            ...["clip-path: inset(0);", "overflow: hidden;", "display: none;"]
+                .map(cut => framed(new Map([["danganronpa.css", FRAME_SHEET.replace("height: 700px;", `height: 700px;\n        ${cut}`)]])))]),
+        JSON.stringify([[], ...Array(3).fill(["danganronpa.css: .drpg-foundry-window-body > #sidebar"])]),
+        "the window reader does not read its fixture whole, or does not see a clip-path, an overflow: hidden or a display: none on a frame's rule");
+        ok([...sheets.values()].some(text => FRAMED.test(text)), "no stylesheet styles Foundry's windows (E77 C5), and with no rule there is nothing to read");
+        equal(JSON.stringify(framed(sheets)), "[]", "[the rules naming Foundry's windows that clip them, cut off their overflow or hide them]");
+        const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
+        const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
+        equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, [], true, true], []]),
+            "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
+            + "viewerActor(); the three files' other readers of the account's character; room-tile.mjs without markup or a data-tooltip literal; "
+            + "hud.mjs without the room rows] and the files that still name hudActor");
+        /* E77 fix r2-H2 (13.10.2026; review round 2's cor F8): the net is cast over C5-C8's DOM writers too - Foundry's
+           windows and the launcher, and the stacked screen's rows - read with comments blanked by the same MARKUP. */
+        const writers = ["foundry-windows.mjs", "narrow.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]);
+        must(writers.every(([, text]) => text.length > 1000), "foundry-windows.mjs or narrow.mjs is not among the module's sources - this would measure nothing");
+        equal(JSON.stringify(writers.filter(([, text]) => MARKUP.test(text)).map(([file]) => file)), "[]",
+            "[foundry-windows.mjs and narrow.mjs: the ones that parse a string as markup or name a data-tooltip]");
+        const OLD_GM = /\b(?:GM_SLOT|GM_DROP|tightenGmGap)\b/;
+        const LOGO = /fvtt|foundry[\w./-]*logo|logo[\w./-]*foundry/i;
+        const corner = list => [
+            [...list].filter(([, text]) => OLD_GM.test(text)).map(([file]) => file),
+            [...new Set([...list].flatMap(([, text]) => [...text.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map(m => m[2]).filter(lit => LOGO.test(lit))))]
+        ];
+        const CORNER = new Map([["glass.mjs", "const RAIL_SLOT = 4 + 16 + 20 + 32 + 26 + 12;\n"],
+            ["foundry-windows.mjs", "logo.setAttribute(\"src\", \"icons/fvtt.png\");\nlogo.setAttribute(\"alt\", \"\");\n"]]);
+        const cornerPlanted = (file, from, to) => new Map([...CORNER].map(([name, text]) => [name, name === file ? text.replace(from, to) : text]));
+        equal(JSON.stringify([corner(CORNER), corner(cornerPlanted("glass.mjs", "const RAIL_SLOT", "const GM_DROP = 26;\nconst RAIL_SLOT")),
+            corner(cornerPlanted("foundry-windows.mjs", "icons/fvtt.png", `modules/${MODULE_ID}/assets/fvtt.png`)),
+            corner(cornerPlanted("foundry-windows.mjs", "icons/fvtt.png", "assets/foundry-logo.svg"))]),
+        JSON.stringify([[[], ["icons/fvtt.png"]], [["glass.mjs"], ["icons/fvtt.png"]],
+            [[], [`modules/${MODULE_ID}/assets/fvtt.png`]], [[], ["assets/foundry-logo.svg"]]]),
+        "the corner reader does not read its fixture whole, or does not see GM_DROP put back or a logo of the module's own");
+        equal(JSON.stringify(corner(new Map([...sources].map(([file, text]) => [file, stripComments(text)])))), JSON.stringify([[], ["icons/fvtt.png"]]),
+            "[the sources naming GM_SLOT, GM_DROP or tightenGmGap; the string literals naming a Foundry logo]");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
@@ -10953,7 +11525,7 @@ const REGRESSIONS = [
             + "and on a stacked screen]");
     }],
 
-    ["R478 - the handbooks name the notice history where a player and a GM look for it, quote the window's own sentences on how long it keeps a notice, with the budgets notice-history.mjs states, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
+    ["R478 - the handbooks name the notice history where a player and a GM look for it, state how long it keeps a notice with the budgets notice-history.mjs states, tell a GM on a shared computer to clear it, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
         /*
          * E81 C15, 12.10.2026 (the A7 design's P13-0 and P13-1; the stage's doneWhen D8). Through 1.2.74 the player's
          * handbook said of the notice cards "The chat log keeps them." - which a card drawn with no chat message behind
@@ -10979,6 +11551,14 @@ const REGRESSIONS = [
          * shared-computer sentence the GM's and the same bound) - a stable token that follows the code, so a budget
          * that changes fails this until the window and, through the quotes, the books say the new number - and the
          * GM's section 16, the season reset, names the history (which reset clears it).
+         *
+         * NO LONGER QUOTED FROM THE WINDOW (E77 fix r2-H4, 13.10.2026; the owner's screenshot of 1.2.75's window). The
+         * owner had the window's two sentences taken out of its foot - how the module keeps a notice is the handbooks'
+         * to say, not the window's - so DRPG.Notices.kept and DRPG.Notices.gmNote are gone and there is nothing left to
+         * quote. The books keep the limits in their own words: the player's section 16 must name the per-sender bound
+         * (and the player's budget, which it already named), the GM's section 18 every budget, and the GM's section 19
+         * must still tell a GM on a shared computer to clear it (the owner's Q9 of 11.10.2026). That the window shows
+         * none of it is scenario 73's phase H, on a GM and a player.
          */
         const served = new Map(await moduleSources()).get("notice-history.mjs") ?? "";
         const budget = {
@@ -10993,10 +11573,8 @@ const REGRESSIONS = [
         const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
         for (const lang of ["en", "pl"]) {
             const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Notices);
-            const title = keys?.title ?? "", kept = keys?.kept ?? "";
-            const shared = /^(?:[^.]*\.\s+){2}(.+)$/.exec(keys?.gmNote ?? "")?.[1] ?? "";
-            ok(title.length > 0 && kept.length > 20 && shared.length > 40,
-                `lang/${lang}.json has no notice history title, kept sentence or shared-computer sentence - this test measured nothing`);
+            const title = keys?.title ?? "", shared = { en: "shared computer", pl: "wspólnym komputerze" }[lang];
+            ok(title.length > 0, `lang/${lang}.json has no notice history title - this test measured nothing`);
             const text = {};
             for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
@@ -11007,19 +11585,19 @@ const REGRESSIONS = [
             const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
             const reset = section(text["gm-handbook"], 16);
             measured[lang] = {
-                player: [tips.includes(`**${title}**`), tips.includes(`"${kept}"`)],
+                player: tips.includes(`**${title}**`),
                 brochure: text["player-brochure"].includes(`**${title}**`),
                 gm: [look.includes(`**${title}**`), look.includes("`game.drpg.openNotices()`")],
-                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)],
-                limits: [names(kept, budget.player, budget.perAuthor), names(shared, budget.gm, budget.perAuthor)],
+                safeword: [safeword.includes(`**${title}**`), safeword.includes(shared)],
+                limits: [names(tips, budget.player, budget.perAuthor), names(look, budget.gm, budget.player, budget.perAuthor)],
                 reset: reset.includes(`**${title}**`)
             };
-            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
+            expected[lang] = { player: true, brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
-            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold, its kept sentence quoted; the brochure: the title; "
-            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted; "
-            + `the window's kept sentence names ${budget.player} and ${budget.perAuthor}, its shared-computer sentence ${budget.gm} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
+            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold; the brochure: the title; "
+            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the shared computer; "
+            + `the player's section 16 names ${budget.player} and ${budget.perAuthor}, the GM's section 18 ${budget.gm}, ${budget.player} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
             + "the GM's section 16: the window's title in bold]");
     }],
 
@@ -11066,6 +11644,95 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per interface: its nearest comment ends at most 200 characters above it, and the stages that comment does not name]");
+    }],
+
+    ["R518 - the handbooks say where a room went and where Foundry's tools went: the player's chapter 3 names the room tile by its buttons and the GM's Description tab by its two columns, the GM's book quotes the tab's note on what every browser holds, its move card names no description, its GM panel is no longer under the clock, its section 18 names Foundry tools, Map tools, Shift+C and Escape, and the player's section 16 the tools a player lost, and neither the player's brochure nor the GM's section 4 puts a room's search tokens, project or description on the HUD or the clock, in English and in Polish", async () => {
+        /*
+         * E77 C9, 13.10.2026 (the E77 plan's C9 and 5.1; the owner's Q4 and Q12 of 11.10; the stage's doneWhen D8 and
+         * risk RISK-c). Through 1.2.75 the books said what E77 made untrue: the player's HUD carried the room, its
+         * search tokens and its project; the GM's Description tab was "shown on the move card ... and behind the
+         * clock"; the move card "names the room, the price, and the room's description"; the GM panel opened "under
+         * the clock"; Foundry's sidebar "stays on a GM's screen". And they said nothing of what it added: the room
+         * tile and its narrow row, the picture column, the two windows a GM's Foundry tools live in, and what a
+         * player loses with Foundry's buttons (Q4: 'ginie rysowanie, notatki na mapie i przycisk celowania - zdanie w
+         * podreczniku gracza'). Q12 kept the descriptions and pictures public, as the map is, on the condition that
+         * the GM is told so in the book and in the tab's note. So this reads the books as the table is served them,
+         * by section (`## n. `): what the screen calls a thing is quoted from the lang files, so a renamed button
+         * fails this until the books follow - the tile's Read more, Description and Available project; the tab's
+         * two columns; the note's last sentence, quoted whole in the GM's section 1 beside what every browser
+         * holds; the tools' launcher's and the two windows' names. Two clauses are the old sentences coming back:
+         * a sentence of the GM's section 9 that names the move card and the word Description (the tab's own name,
+         * lower case: "description", "opis"), and the GM's section 3's first paragraph or section 1's Starting a
+         * world saying the panel is under the clock. Shift+C and Escape are Foundry's names and stay literal; so do
+         * the three words for what a player lost, which have no lang key (`LOST`), and the HUD's paragraph, which
+         * named the room's search tokens as the clock's (`HUD`). What a player's keys do on a real
+         * canvas is LIVE-E77-11, and whether Shift+C reaches the window beside other modules LIVE-E77-10, not this.
+         * E77 fix r2-H2 (13.10.2026; review round 2's goal AM2a): section 18 also names the world switch that puts
+         * Foundry's rails back where Foundry puts them, by its name in the settings.
+         * E77 fix r2-H3 (13.10.2026; review round 2's Q10): the two places C9 did not read - the player's brochure
+         * and the GM's section 4 (the clock, whose paragraph on the HUD says what every player sees on it). No
+         * sentence of either may name the HUD or the clock together with a room's search tokens, project or
+         * description (`ON`, `ROOM`; the Polish book keeps Search Tokens in English and says "zeton" too). At this
+         * commit both count 0, the brochure naming neither the HUD nor the clock and section 4 nine sentences of
+         * them, none with a room's thing; a sentence like 1.2.75's ("the HUD shows your room's search tokens") is
+         * read as 1.
+         */
+        const LOST = { en: ["drawing", "map notes", "target button"], pl: ["rysowanie", "notatki na mapie", "przycisk celowania"] };
+        const CLOCK = { en: "under the clock", pl: "pod zegarem" };
+        const MOVE_CARD = { en: "move card", pl: "karta ruchu" };
+        const HUD = { en: ["**The HUD**", "search tokens"], pl: ["**HUD**", "Search Tokens"] };
+        const ON = { en: /\bHUD\b|clock/i, pl: /\bHUD\b|zegar/i }, ROOM = { en: /search token|project|description/i, pl: /search token|\u017ceton|projekt|opis/i };
+        const roomOnClock = (text, lang) => text.split(/(?<=[.;!?])\s+|\n/).filter(s => ON[lang].test(s) && ROOM[lang].test(s)).length;
+        const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
+        const paragraph = (text, start) => text.split(/\n\s*\n/).find(part => part.trimStart().startsWith(start)) ?? "";
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const D = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG ?? {});
+            const words = {
+                readMore: D.Room?.readMore, describe: D.Room?.describe, project: D.Hud?.roomProject, tab: D.Vault?.tabDescription,
+                looks: D.Vault?.descriptionColumn, picture: D.Vault?.imageColumn, panel: D.Panel?.launcher,
+                tools: D.FoundryTools?.title, map: D.FoundryTools?.mapTitle, toggle: D.FoundryTools?.toggle, switch: D.Settings?.foundryToolWindows?.name,
+                note: /([^.]*[^.\s][^.]*\.)$/.exec(D.Vault?.descriptionNote ?? "")?.[1]?.trim()
+            };
+            ok(Object.values(words).every(w => typeof w === "string" && w.length > 2) && words.note.length > 40,
+                `lang/${lang}.json lacks a word this test quotes (${JSON.stringify(words)}) - it measured nothing`);
+            const text = {};
+            for (const book of ["player-handbook", "gm-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 100, `docs/handbooks/${book}.${lang}.md is nearly empty - this test measured nothing`);
+            }
+            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? r.text() : ""));
+            ok(brochure.split("\n").length > 40, `docs/handbooks/player-brochure.${lang}.md did not load or is nearly empty - this test measured nothing`);
+            const clockSection = section(text["gm-handbook"], 4);
+            ok(clockSection.split("\n").filter(line => ON[lang].test(line)).length > 2, `the GM's section 4 (${lang}) names neither the HUD nor the clock - this test measured nothing`);
+            const seeing = section(text["player-handbook"], 3), tips = section(text["player-handbook"], 16);
+            const start = section(text["gm-handbook"], 1), panel = section(text["gm-handbook"], 3), rooms = section(text["gm-handbook"], 9);
+            const look = section(text["gm-handbook"], 18), opening = paragraph(panel, "`scripts/gm-panel.mjs`");
+            const row = rooms.split("\n").find(line => line.startsWith(`| ${words.tab} |`)) ?? "";
+            const cardSentences = rooms.split(/(?<=[.;])\s+|\n/).filter(s => s.toLowerCase().includes(MOVE_CARD[lang]));
+            const lostAt = tips.split(/\n\s*\n/).find(part => LOST[lang].every(w => part.includes(w))) ?? "";
+            measured[lang] = {
+                tile: [`**${words.readMore}**`, `**${words.describe}**`, `**${words.project}**`].map(w => seeing.includes(w)),
+                tab: [row.includes(`**${words.looks}**`), row.includes(`**${words.picture}**`)],
+                publicNote: start.includes(`"${words.note}"`),
+                card: [cardSentences.length > 0, cardSentences.filter(s => s.toLowerCase().includes(words.tab.toLowerCase())).length],
+                panel: [opening.includes(`**${words.panel}**`), opening.includes(CLOCK[lang]),
+                    start.split("\n").filter(line => /\bpanel\b/i.test(line) && line.includes(CLOCK[lang])).length],
+                windows: [`**${words.tools}**`, `**${words.map}**`, `**${words.toggle}**`, "**Shift+C**", "**Escape**", `**${words.switch}**`].map(w => look.includes(w)),
+                lost: lostAt.length > 0,
+                hud: [paragraph(tips, HUD[lang][0]).length > 0, paragraph(tips, HUD[lang][0]).includes(HUD[lang][1])],
+                roomOnClock: [roomOnClock(brochure, lang), roomOnClock(clockSection, lang)]
+            };
+            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true, true], lost: true, hud: [true, false], roomOnClock: [0, 0] };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the player's chapter 3: Read more, Description and Available project in bold; the GM's section 9: the Description row names its two columns in bold; "
+            + "the GM's section 1 quotes the tab note's last sentence; section 9 has a move card sentence, and how many of them name the tab's word; "
+            + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
+            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens; "
+            + "how many sentences of the brochure and of the GM's section 4 put a room's search tokens, project or description on the HUD or the clock]");
     }]
 ];
 

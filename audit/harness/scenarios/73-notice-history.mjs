@@ -33,7 +33,12 @@
  * again with both - move nothing in the GM's history or another player's but the plain deletion's mark, while a
  * GM's update and a GM's meta still mark. S3 (E81 fix r2-H1, review round 2's S3): with no GM connected a player
  * calls the safeword; the caller posts the card, another player keeps it under the caller's id, and that player's
- * window draws the entry with no user's name and no time (the window's tag skips a safeword entry's author).
+ * window draws the entry with no user's name and no time (the window's tag skips a safeword entry's author). H (E77
+ * fix r2-H4), run before S3 because it needs the GM: the GM starts an Eclipse and ends it with the clock moved; on the
+ * GM and on p1 the window's foot holds Clear and no prose, each announcement's row is titled by its card's heading and
+ * says the time of day once, and the Eclipse's entry, opened, shows its words once. E77 fix r2-H7: the Eclipse's group
+ * is named for the time of day it opened into, and H4 runs a second Eclipse from Night, whose group names the next day.
+ * E77 fix r2-H8: H5 reads every group heading of that window - no "·" can start a line.
  *
  * THE PLAYER WHO RELOADS IS A LATE ACCOUNT, `p4`, not p1 as the plan wrote it: the seeded four cannot
  * connect again (cluster.mjs `connect`), and a reload is a disconnect and a connect with the storage the
@@ -54,7 +59,12 @@ export const layers = ["ci"];
    E81 fix r1-G3's phase G3 (12.10.2026, alone, once): 26.5 s from start to end by the results file, the checks 17.9 s
    of it. It stays.
    E81 fix r2-H1's phase S3 (13.10.2026, alone, once): 28.8 s from start to end by the results file, the checks 24.7 s
-   of it - the phase disconnects the GM and waits on the caller's own card. Still inside 60 s, so it stays. */
+   of it - the phase disconnects the GM and waits on the caller's own card. Still inside 60 s, so it stays.
+   E77 fix r2-H4's phase H (13.10.2026, alone, once, its final form): the cluster's own line read "27/27 checks passed,
+   0 failed in 29940ms", 35 s by the wall clock with the cluster's start - the Eclipse started and ended and two windows
+   opened, not timed apart by phase. Still inside 60 s, so it stays.
+   E77 fix r2-H7's H4 (13.10.2026, alone, once): "28/28 checks passed, 0 failed in 31530ms"; in a2.sh's fast set beside
+   two other lanes 36157ms. Still inside 60 s. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -414,6 +424,170 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
         return true;`);
     const metaMarked = await p2.eval(`${marksOf} await until(() => marks().meta[0] === "rerolled"); return marks().meta;`);
     check("G3c: a GM's meta on the private card marks its reader's entry rerolled", J(metaMarked) === J(["rerolled"]), J(metaMarked));
+
+    phase("H: an Eclipse and the time of day after it, read again in the history's window on the GM and a player");
+    /* E77 fix r2-H4 (13.10.2026; the owner's screenshot of 1.2.75's window, GM view, and his answers of the same day).
+       The GM starts an Eclipse and ends it with the clock moved (eclipse.mjs `startEclipse`, `endEclipse`), which posts
+       the two announcements of the screenshot; the GM and p1 each open their window. H1: the foot holds Clear and no
+       prose - the line that saving stopped is hidden while the history saves. H2: each of the two rows is titled by its
+       card's heading, its text without that heading, and the time of day's row says its time of day once. H3: opened,
+       the Eclipse's entry shows its sentence and its name once each, not on the row and again in the card.
+       E77 fix r2-H7 (13.10.2026; the owner, shown H4's shots with "Noon Eclipse" under "... Morning · ECLIPSE", chose
+       the change): the Eclipse's group names the clock the Eclipse opened into, read here as the clock after it ended
+       with the Eclipse's mark, and the time of day after it stands in a group of its own (H2; red at 22a1eb9, where the
+       group read the clock the notice came under). H4 does the same from Night, where the clock it opens into is the
+       next day and session. */
+    const hBefore = { gm: await gm.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs"); return NH.noticeEntries().map(e => e.id);`),
+        p1: await p1.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs"); return NH.noticeEntries().map(e => e.id);`) };
+    const hRan = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const started = Boolean(await E.startEclipse());
+        const name = E.eclipseLabel(), during = C.getClock();
+        await E.endEclipse();
+        const after = C.getClock();
+        return { started, name, during: [during.timeOfDay, during.eclipse], ended: !E.isEclipse(), time: C.timeOfDayLabel(after.timeOfDay),
+            opened: { chapter: after.chapter, day: after.day, session: after.session, timeOfDay: after.timeOfDay, eclipse: after.eclipse } };`, { timeout: 90000 });
+    const hRead = earlier => `${UNTIL}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const earlier = new Set(${J(earlier)});
+        const heading = e => new DOMParser().parseFromString(e.html, "text/html").querySelector("h1, h2, h3, h4, h5, h6")?.textContent.trim() ?? null;
+        const find = words => NH.noticeEntries().find(e => !earlier.has(e.id) && e.source === "public" && heading(e) === words) ?? null;
+        await until(() => find(${J(hRan.name)}) && find(${J(hRan.time)}));
+        const eclipse = find(${J(hRan.name)}), time = find(${J(hRan.time)});
+        const sentence = eclipse ? new DOMParser().parseFromString(eclipse.html, "text/html").querySelector("p")?.textContent.replace(/\\s+/g, " ").trim() ?? "" : "";
+        const visible = node => {
+            let out = "";
+            const walk = n => {
+                if (n.nodeType === Node.TEXT_NODE) { out += n.textContent + " "; return; }
+                if (n.nodeType === Node.ELEMENT_NODE && n.hidden) return;
+                for (const child of n.childNodes) walk(child);
+            };
+            if (node) walk(node);
+            return out.replace(/\\s+/g, " ").trim();
+        };
+        const times = (text, words) => words ? text.split(words).length - 1 : -1;
+        const win = await game.drpg.openNotices();
+        const root = win?.element;
+        try {
+            const row = entry => {
+                const details = entry ? root?.querySelector(\`details.drpg-notice-entry[data-drpg-key="\${CSS.escape(entry.id)}"]\`) : null;
+                if (!details) return null;
+                let group = details.previousElementSibling;
+                while (group && !group.matches(".drpg-notices-group")) group = group.previousElementSibling;
+                const title = details.querySelector(":scope > summary > .drpg-notice-title")?.textContent ?? null;
+                const text = details.querySelector(":scope > summary > .drpg-notice-text")?.textContent ?? "";
+                return { details, title, text, group: group?.textContent.replace(/\u00a0/g, " ") ?? null };
+            };
+            const foot = root?.querySelector(".drpg-notices-foot");
+            const clear = foot?.querySelector('[data-drpg-do="clear"]');
+            const footWords = visible(foot).replace(clear?.textContent ?? "", "").trim();
+            const e = row(eclipse), t = row(time);
+            const rows = {
+                eclipse: e && { title: e.title, startsWithTitle: e.text.startsWith(e.title), group: e.group,
+                    opensInto: C.clockSummary({ ...${J(hRan.opened)}, eclipse: true }), named: E.eclipseLabel(eclipse.clock), atEclipse: eclipse.clock.eclipse },
+                time: t && { title: t.title, startsWithTitle: t.text.startsWith(t.title), said: times(\`\${t.title} \${t.text}\`, ${J(hRan.time)}), row: \`\${t.title} | \${t.text}\`,
+                    group: t.group, opened: C.clockSummary(${J(hRan.opened)}) }
+            };
+            let open = null;
+            if (e) {
+                e.details.open = true;
+                await until(() => e.details.querySelector(".drpg-notice-more"), 3000);
+                const shown = visible(e.details);
+                open = { sentence: times(shown, sentence), name: times(shown, ${J(hRan.name)}), shown: shown.slice(0, 400) };
+                // The list drawn again with the entry open (what a new notice does when the reader is not in the list).
+                win.redraw();
+                const again = row(eclipse)?.details;
+                await until(() => again?.open && again.querySelector(".drpg-notice-more"), 3000);
+                const redrawn = visible(again);
+                open.redrawn = [again !== e.details, times(redrawn, sentence), times(redrawn, ${J(hRan.name)})];
+                (again ?? e.details).open = false;
+                await until(() => !(again ?? e.details).querySelector(":scope > summary > .drpg-notice-text")?.hidden, 1000);
+                open.closedText = visible((again ?? e.details).querySelector(":scope > summary")).includes(sentence);
+            }
+            return { found: [Boolean(eclipse), Boolean(time)], sentence, foot: { words: footWords, clear: Boolean(clear), unsaved: foot?.querySelector(".drpg-notices-unsaved")?.hidden ?? null }, rows, open };
+        } finally {
+            await win?.close();
+            for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }`;
+    const hSeen = { gm: await gm.eval(hRead(hBefore.gm)), p1: await p1.eval(hRead(hBefore.p1)) };
+    const hBoth = test => ["gm", "p1"].every(who => hSeen[who] && test(hSeen[who]));
+    check("H1: the window's foot holds Clear and no prose on how the history keeps a notice, on the GM and on a player - the line that saving stopped hidden while it saves",
+        hRan.started && hRan.ended && hBoth(seen => J(seen.found) === J([true, true]) && seen.foot.words === "" && seen.foot.clear && seen.foot.unsaved === true),
+        J({ ran: hRan, foot: { gm: hSeen.gm?.foot, p1: hSeen.p1?.foot } }));
+    check("H2: an untitled card's row is titled by its heading and its text does not start with it - the Eclipse's in a group named for the time of day it opened into, the time of day's in its own group saying its time of day once",
+        hBoth(({ rows: { eclipse, time } }) => eclipse !== null && time !== null
+            && eclipse.title === hRan.name && !eclipse.startsWithTitle && eclipse.group === eclipse.opensInto && eclipse.atEclipse === true && eclipse.named === hRan.name
+            && time.title === hRan.time && !time.startsWithTitle && time.said === 1 && time.group === time.opened && time.group !== eclipse.group),
+        J({ ran: hRan, rows: { gm: hSeen.gm?.rows, p1: hSeen.p1?.rows } }));
+    check("H3: opened, the Eclipse's entry shows its sentence and its name once each - not on the row and again in the card - also once the list is drawn again, and closed, the row's text is back",
+        hBoth(({ open, sentence }) => sentence.length > 0 && open !== null && open.sentence === 1 && open.name === 1
+            && J(open.redrawn) === J([true, 1, 1]) && open.closedText === true),
+        J({ gm: hSeen.gm?.open, p1: hSeen.p1?.open, sentence: hSeen.gm?.sentence }));
+
+    // H4 (E77 fix r2-H7): an Eclipse begun at Night opens into the next day's Morning, a new session - its group says so;
+    // its two notices (the Eclipse's card and one more) under that one heading.
+    const nBefore = { gm: await gm.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs"); return NH.noticeEntries().map(e => e.id);`),
+        p1: await p1.eval(`const NH = await import("${repoUrl}/scripts/notice-history.mjs"); return NH.noticeEntries().map(e => e.id);`) };
+    const nRan = await gm.eval(`const E = await import("${repoUrl}/scripts/eclipse.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        await C.setClock({ timeOfDay: "night" });
+        const before = C.getClock();
+        const started = Boolean(await E.startEclipse());
+        const name = E.eclipseLabel();
+        // A second notice inside the same Eclipse, and time for every client to keep it before the clock moves.
+        const U = await import("${repoUrl}/scripts/utils.mjs");
+        await U.announce({ content: "<p>H4: a second notice while the lights are out</p>" });
+        await new Promise(r => setTimeout(r, 1000));
+        await E.endEclipse();
+        const after = C.getClock();
+        return { started, name, ended: !E.isEclipse(), time: C.timeOfDayLabel(after.timeOfDay), before: [before.timeOfDay, before.day, before.session],
+            opened: { chapter: after.chapter, day: after.day, session: after.session, timeOfDay: after.timeOfDay, eclipse: after.eclipse } };`, { timeout: 90000 });
+    const nRead = earlier => `${UNTIL}
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const earlier = new Set(${J(earlier)});
+        const heading = e => new DOMParser().parseFromString(e.html, "text/html").querySelector("h1, h2, h3, h4, h5, h6")?.textContent.trim() ?? null;
+        const fresh = () => NH.noticeEntries().filter(e => !earlier.has(e.id));
+        const find = words => fresh().find(e => e.source === "public" && heading(e) === words) ?? null;
+        await until(() => find(${J(nRan.name)}) && find(${J(nRan.time)}));
+        const during = fresh().filter(e => e.clock.eclipse === true), time = find(${J(nRan.time)});
+        const win = await game.drpg.openNotices();
+        const root = win?.element;
+        try {
+            const groupOf = entry => {
+                let group = entry ? root?.querySelector(\`details.drpg-notice-entry[data-drpg-key="\${CSS.escape(entry.id)}"]\`) : null;
+                while (group && !group.matches(".drpg-notices-group")) group = group.previousElementSibling;
+                return group ?? null;
+            };
+            const groups = during.map(groupOf), after = groupOf(time);
+            const words = node => node?.textContent.replace(/\u00a0/g, " ") ?? null;
+            return { during: during.length, one: groups.length > 0 && !groups.includes(null) && new Set(groups).size === 1,
+                group: words(groups[0]), opensInto: C.clockSummary({ ...${J(nRan.opened)}, eclipse: true }),
+                after: words(after), opened: C.clockSummary(${J(nRan.opened)}), apart: Boolean(after) && after !== groups[0],
+                headings: [...(root?.querySelectorAll(".drpg-notices-group") ?? [])].map(node => node.textContent) };
+        } finally {
+            await win?.close();
+            for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }`;
+    const nSeen = { gm: await gm.eval(nRead(nBefore.gm)), p1: await p1.eval(nRead(nBefore.p1)) };
+    check("H4: an Eclipse begun at Night stands in one group, both its notices, named for the next day's session and time of day it opened into, and the time of day after it in a group of its own, on the GM and on a player",
+        nRan.started && nRan.ended && nRan.before[0] === "night" && nRan.opened.day === nRan.before[1] + 1
+            && ["gm", "p1"].every(who => nSeen[who] && nSeen[who].during >= 2 && nSeen[who].one && nSeen[who].group === nSeen[who].opensInto
+                && nSeen[who].after === nSeen[who].opened && nSeen[who].apart),
+        J({ ran: nRan, gm: nSeen.gm, p1: nSeen.p1 }));
+    /* H5 (E77 fix r2-H8, 13.10.2026; the orchestrator, reading H7's shots: "... SESSION 1 · NOON" wrapped over "· ECLIPSE").
+       The harness lays nothing out, so the heading's text is read instead of its lines: before each "·" a no-break space
+       (no break opportunity there), after it an ordinary space (the line may still break after the dot). Every group
+       heading of the window H4 opened, at least the Eclipse's and the time of day's after it. H2 and H4 compare the
+       heading's words with `clockSummary`'s, so they read it with each no-break space put back as a space (the two
+       `replace(/\u00a0/g, " ")` above). Red at 0dc9232, where every space in the heading was ordinary. */
+    const keepsSeparators = heading => (heading.match(/·/g) ?? []).length > 0
+        && (heading.match(/·/g) ?? []).length === (heading.match(/\u00a0· /g) ?? []).length;
+    check("H5: no group heading of the history can start a line with its separator - each \"·\" follows a no-break space and is followed by a space - on the GM and on a player",
+        ["gm", "p1"].every(who => nSeen[who] && nSeen[who].headings.length >= 2 && nSeen[who].headings.every(keepsSeparators)),
+        J({ gm: nSeen.gm?.headings, p1: nSeen.p1?.headings }));
 
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:

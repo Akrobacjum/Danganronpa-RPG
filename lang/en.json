@@ -288,6 +288,10 @@
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
       },
+      "foundryToolWindows": {
+        "name": "The module's windows for Foundry's sidebar and scene controls",
+        "hint": "On: a GM's Foundry sidebar and scene controls stand in two windows of the module's, Foundry tools and Map tools, opened from the button above the handbooks. Off: they stay where Foundry puts them, and that button is not drawn. A player's screen is the same either way. Takes effect after a reload."
+      },
       "theme": {
         "name": "Theme",
         "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, colour in the seams. Monokuma Legacy is the look before it.",
@@ -533,6 +537,20 @@
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}"
+    },
+    "Room": {
+      "tileLabel": "Room",
+      "readMore": "Read more",
+      "readLess": "Show less",
+      "imageOpen": "Show the picture of {room}",
+      "imageMissing": "The picture of this room does not load.",
+      "describe": "Description"
+    },
+    "FoundryTools": {
+      "title": "Foundry tools",
+      "mapTitle": "Map tools",
+      "close": "Close",
+      "toggle": "Open or close Foundry tools"
     },
     "Action": {
       "murderConfirmEclipse": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
@@ -1737,8 +1755,12 @@
       "tabDescription": "Description",
       "descriptionColumn": "What it looks like",
       "descriptionPlaceholder": "e.g. Long tables, a serving hatch, and a smell of bleach nobody can place.",
-      "descriptionIntro": "What each room looks like, in your own words. Anyone standing in a room can read its description by clicking the clock at the top of the screen.",
-      "descriptionNote": "Plain text - it is shown to players exactly as typed. Leave one blank and the room simply has nothing written about it.",
+      "descriptionIntro": "Describe in your own words what each room looks like, and add a picture if you want. Whoever stands in a room sees it on their room tile.",
+      "descriptionNote": "Plain text, shown as typed; an empty line starts a new paragraph. Pictures come only from this server's files (not from S3). Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and traces.",
+      "imageColumn": "Picture",
+      "imagePick": "Choose a picture",
+      "imageClear": "Remove the picture",
+      "imageRefused": "{room}: the picture was not saved. Only a picture from this server's files can be used: jpg, png, webp or avif.",
       "tabFog": "Fog",
       "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
@@ -2455,7 +2477,7 @@
       "title": "Move",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
-      "entered": "Entered {room}.",
+      "entered": "You enter {room}.",
       "leftRooms": "Left the room.",
       "wasSprint": {
         "one": "Paid by a Sprint. {n} left.",
@@ -2905,7 +2927,7 @@
     "Panel": {
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
-      "launcher": "GM",
+      "launcher": "Open the GM panel",
       "gmOnly": "Only a GM can open the panel.",
       "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
       "nextLabel": "Next",
@@ -3920,14 +3942,12 @@
       "newPill": "New notices - show them",
       "chapterFold": "Chapter {chapter} ({n})",
       "openConversation": "Open the conversation",
-      "empty": "Nothing yet. Every notice you see on screen is kept here, also the ones you close without reading.",
+      "empty": "No notices yet.",
       "noMatch": "No notice matches.",
-      "kept": "Kept in this browser - at most the newest 250, and 40 from any one sender - until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and the line below says when it stops.",
-      "gmNote": "Your own history: what this client showed you. Players keep theirs. It keeps at most the newest 150, and 40 from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log, and a card the module takes back leaves it; on a shared computer another account logged in on this browser can read it, so clear it before you hand the computer over. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and the line below says when it stops.",
       "markRead": "Mark as read",
       "clear": "Clear",
       "clearTitle": "Clear the notice history?",
-      "clearBody": "Every notice this browser kept for you goes, the cards about the murder too. They do not come back.",
+      "clearBody": "Every notice in this history goes, the cards about the murder too. They do not come back.",
       "clearYes": "Clear the history",
       "notSaved": "This browser could not save the notice history: the notices shown from now on are kept only until this page is closed or reloaded.",
       "clipped": "Too long to keep whole: only its text was kept.",

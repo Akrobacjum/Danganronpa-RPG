@@ -83,20 +83,22 @@ body.drpg-short #drpg-column { gap: 2px; }
 body.drpg-curtain-on #drpg-column,
 body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
 
-/* The order of the stack, which is the order of the game: what time it is, how
-   much Despair is in the room, what is happening right now, then the table's own
-   standing and its projects. DOM order cannot say this - the Event card inserts
-   itself after the Despair rail, and the right column is appended last. */
+/* The order of the stack, which is the order of the game: what time it is, where
+   the character stands (the tiles' row, E77 C8), how much Despair is in the room,
+   what is happening right now, then the table's own standing and its projects. DOM
+   order cannot say this - the Event card inserts itself after the Despair rail, and
+   the right column is appended last. */
 #drpg-column > #drpg-hud { order: 1; }
-#drpg-column > #drpg-despair { order: 2; }
-#drpg-column > #drpg-events { order: 3; }
-#drpg-column > #ui-right-column-1 { order: 4; }
+#drpg-column > #drpg-tile-row { order: 2; }
+#drpg-column > #drpg-despair { order: 3; }
+#drpg-column > #drpg-events { order: 4; }
+#drpg-column > #ui-right-column-1 { order: 5; }
 
 /* Every block in the stack is as wide as the stack. On a desk each is a box of a
    stated width in a column sized by it; here the column is the screen and they
    fill it. `min-width: 0` with them: a flex item refuses to shrink below its
    content by default, which is what put the Despair rail 5 px over the edge. */
-body.drpg-stacked #drpg-column > :is(#drpg-hud, #drpg-despair, #drpg-events, #ui-right-column-1),
+body.drpg-stacked #drpg-column > :is(#drpg-hud, #drpg-tile-row, #drpg-despair, #drpg-events, #ui-right-column-1),
 body.drpg-stacked #drpg-column :is(#drpg-player-status, #countdowns) {
     width: auto;
     max-width: none;
@@ -184,6 +186,127 @@ body.drpg-stacked #drpg-column > #ui-right-column-1 {
    from each other; stacked, they are one above the other, and the rule can only
    make the strip taller than its own contents. */
 body.drpg-stacked #drpg-player-status { min-height: 0; }
+
+/* THE TILES' ROW (E77 C8, 13.10.2026; the E77 plan's C8). The room tile, which stands under the
+   clock on a desk at the height glass.mjs gives it, is one row of 44 px here (narrow.mjs `tileRow`): the picture as a
+   78x44 thumbnail at its left end, the name over the search tokens and 'Available project', and at
+   its right end a 44 px button that opens the description in a window (room-tile.mjs). 44 px is
+   the plan's row and a finger's target; the thumbnail is the row's height at 16:9. The row is a
+   block of the curtain's (`tiles-row`, glass.mjs), measured, so its height being stated here is
+   what keeps a room's words or picture from recutting the glass. The desk's picture layer, its
+   button, the toggle and the description are not drawn in the row; the thumbnail and the
+   description's button are drawn only here (danganronpa.css hides them on a desk). Read in
+   Chromium by audit/glass-sweep.mjs at its seven stacked sizes (`drpgRoomCheck`, the `row` reading). */
+body.drpg-stacked #drpg-tile-row {
+    --drpg-tile-row-h: 44px;
+    --drpg-room-thumb-w: 78px;
+    display: flex;
+    flex: 0 0 auto;
+    height: var(--drpg-tile-row-h);
+}
+/* An empty tile - a Class Trial, a GM without a Monokuma - is no row: no pane is cut for nothing. */
+body.drpg-stacked #drpg-tile-row:not(:has(> :not([data-state="trial"], [data-state="none"]))) { display: none; }
+body.drpg-stacked #drpg-tile-row > #drpg-room-tile {
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: 1fr 1fr;
+    column-gap: 8px;
+    align-items: center;
+    text-align: left;
+    border: 0;
+    box-shadow: inset 0 0 0 1px rgba(var(--drpg-bone-rgb), 0.18);
+}
+body.drpg-curtain-on #drpg-tile-row > #drpg-room-tile {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+body.drpg-stacked #drpg-tile-row > #drpg-room-tile > :is(.drpg-room-tile-art, .drpg-room-tile-open, .drpg-room-tile-more, .drpg-room-tile-prose) {
+    display: none;
+}
+body.drpg-stacked #drpg-tile-row .drpg-room-tile-thumb {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: block;
+    width: var(--drpg-room-thumb-w);
+    height: var(--drpg-tile-row-h);
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background: transparent;
+    cursor: zoom-in;
+}
+body.drpg-stacked #drpg-tile-row .drpg-room-tile-thumb > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+}
+body.drpg-stacked #drpg-tile-row .drpg-room-tile-name {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    align-self: end;
+    justify-self: start;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+}
+body.drpg-stacked #drpg-tile-row :is([data-state="nowhere"], [data-state="noActor"]) > .drpg-room-tile-name {
+    grid-row: 1 / 3;
+    align-self: center;
+}
+body.drpg-stacked #drpg-tile-row .drpg-hud-room-tokens {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    justify-self: start;
+    margin-top: 3px;
+}
+body.drpg-stacked #drpg-tile-row .drpg-hud-room-project {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+body.drpg-stacked #drpg-tile-row .drpg-room-tile-describe {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    display: grid;
+    place-items: center;
+    width: var(--drpg-tile-row-h);
+    height: var(--drpg-tile-row-h);
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+/* The description's window: the screen less 8 px a side at most, the words as the GM broke them. */
+body.drpg-stacked .application.drpg-window-room { width: min(480px, calc(100vw - 16px)) !important; }
+.drpg-room-window-prose { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* FOUNDRY'S WINDOWS OVER THE STACK (E77 C8). The GM's Foundry tools and Map tools are frames in the
+   body at Foundry's `--z-index-app` (danganronpa.css), and the stack stands in `#interface` at the
+   same 30 (above): a tie, which the tree breaks only while `#interface` makes no stacking context of
+   its own - so on a phone, where the stack is the top of the screen the frames open over, a frame
+   could open under the clock. One over the stack, on a stacked screen only. The glass harness's
+   `#interface` makes none (audit/glass-harness.html); Foundry's at a table is not measured here. */
+body.drpg-stacked .drpg-foundry-window:not([hidden]) { z-index: calc(var(--z-index-app, 30) + 1); }
 
 /* Foundry's top bar keeps nothing of the module's now and should not still be
    reserving room in the middle of the screen. */

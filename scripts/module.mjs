@@ -24,7 +24,7 @@ import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerActionResource } from "./resources.mjs";
-import { registerGmPanel, registerGmChrome } from "./gm-panel.mjs";
+import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
@@ -88,6 +88,8 @@ import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
+import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
+import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
@@ -347,6 +349,18 @@ Hooks.once("ready", () => {
     // tile too: after the theme that draws it, before the narrow layout and the
     // accessibility sweep that find it, and before the glass is cut around it.
     safely("the notice tile", ensureNoticeTile);
+    // The room tile under the clock (E77 C3), like the notice tile: before the narrow
+    // layout and the glass, which find it. Its first paint waits at the column's end
+    // until the clock's own first render, which comes after this hook, moves it.
+    safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
+    // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
+    // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
+    // glass, which measure a rail only while it stands in Foundry's columns.
+    // The GM's button in the corner cluster (E77 C6): before the glass, whose first measurement
+    // would otherwise cut the corner without it (the design's P9 lesson); gm-panel's own ready
+    // hook runs after this one.
+    safely("the GM panel's button", injectLauncher);
+    safely("Foundry's windows", registerFoundryWindows);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

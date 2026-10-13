@@ -81,13 +81,16 @@
        with 120 rows at 640 x 360, its top 13.2 px above the screen under Monokuma Legacy
        and 10.1 px under Stained Glass, and 8.0 and 11.1 px inside it as the whole height
        (Chromium on the glass harness, 13.10.2026; the 13 written here on 12.10 was
-       Legacy's alone - review round 2's P22). */
+       Legacy's alone - review round 2's P22). Those readings were made on the stack's foot;
+       since E77 fix r2-H3 (13.10.2026) the foot is `--drpg-roster-foot`, 8 px over the GM's
+       upper row (danganronpa.css), which R474 and R299 (c) read, with the ceiling taken
+       from the same foot. */
     right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right));
-    bottom: var(--drpg-stack-foot);
+    bottom: var(--drpg-roster-foot);
     z-index: 71;
     box-sizing: border-box;
     width: 260px;
-    max-height: min(60vh, calc(100dvh - var(--drpg-stack-foot) - 8px));
+    max-height: min(60vh, calc(100dvh - var(--drpg-roster-foot) - 8px));
     overflow-y: auto;
     padding: 0.6rem;
     border-radius: 6px;

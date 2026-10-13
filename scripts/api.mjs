@@ -226,6 +226,7 @@ import {
     restoreFreeMove
 } from "./actions.mjs";
 import { openGmPanel, openClockDialog } from "./gm-panel.mjs";
+import { toggleFoundryTools } from "./foundry-windows.mjs";
 import {
     initCharacter,
     resourceMax,
@@ -1382,6 +1383,10 @@ export const DrpgApi = {
      *  `game.drpg.perf()` - every performance number in the audit was measured
      *  headlessly, and this is the only one measured where somebody is playing. */
     perf: perfReport,
+    /** The GM's two Foundry windows, 'Foundry tools' (the sidebar) and 'Map tools' (the scene
+     *  controls), opened together, or closed together when either is open (E77 C5; the corner's
+     *  launcher, `#drpg-foundry-tools`, since C6). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */
+    toggleFoundryTools,
     /** The other half of `perf()`: instead of pricing what the module already
      *  suspects, this watches for a while and asks the browser to name the file
      *  and the function every long frame's script time was spent in.

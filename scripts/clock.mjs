@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
-import { SETTINGS, getClock, clearBodyDiscovery } from "./settings.mjs";
+import { SETTINGS, getClock, clearBodyDiscovery, incomingTimeOfDay } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, error, plural, serverNow } from "./utils.mjs";
@@ -254,10 +254,7 @@ export async function advanceTimeOfDay({
 } = {}) {
     if (!game.user.isGM) return null;
 
-    const clock = getClock();
-    const index = TIMES_OF_DAY.indexOf(clock.timeOfDay);
-    const nextIndex = (index + 1) % TIMES_OF_DAY.length;
-    const rolledOver = nextIndex === 0;
+    const { timeOfDay, session, day, rolledOver } = clockAfter(getClock());
 
     // ONE write, not two.
     //
@@ -268,17 +265,26 @@ export async function advanceTimeOfDay({
     // for a frame, and then the time advanced. On screen that is the old time
     // of day flashing up between the Eclipse and the new one.
     //
-    // Five times of day make one in-fiction day, so the day ticks over on the
-    // same wrap that starts a new session.
-    const next = await setClock({
-        ...also,
-        timeOfDay: TIMES_OF_DAY[nextIndex],
-        session: rolledOver ? clock.session + 1 : clock.session,
-        day: rolledOver ? (clock.day ?? 1) + 1 : (clock.day ?? 1)
-    });
+    // Where it goes is `clockAfter`'s, below.
+    const next = await setClock({ ...also, timeOfDay, session, day });
 
     await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
+}
+
+/**
+ * Where the clock goes when the time of day moves on: the next time of day and, past the day's last one, a new day and a
+ * new session. Five times of day make one in-fiction day, so the day ticks over on the same wrap that starts a new
+ * session. `advanceTimeOfDay` writes it, and the notice history's window names a running Eclipse's group by it (E77
+ * fix r2-H7, 13.10.2026, the owner's choice of the same day: "Noon Eclipse" stood under "Morning · ECLIPSE"). The time
+ * of day is `incomingTimeOfDay`'s, the word the Eclipse's own name is made of (eclipse.mjs `eclipseLabel`), so the
+ * group and the card cannot name two times; the wrap is here once, where the advance used to hold it inline.
+ */
+export function clockAfter(clock = getClock()) {
+    const timeOfDay = incomingTimeOfDay(clock);
+    const rolledOver = timeOfDay === TIMES_OF_DAY[0];
+    const day = clock.day ?? 1;
+    return { timeOfDay, rolledOver, session: rolledOver ? clock.session + 1 : clock.session, day: rolledOver ? day + 1 : day };
 }
 
 /**

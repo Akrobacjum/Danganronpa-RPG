@@ -117,6 +117,7 @@ belongs to.
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
 | 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
+| 74 | scenarios/74-room-tile.mjs | ci | exists | E77 | the room tile: every browser shows its own character's room, painted once the move has settled (a refused move draws nothing), the GM's text only as text (E77 C3: the GM's Room Setup on the viewer's tile and on no other's, every state a player's tile can take (A), a crossing and a refused crossing (B)); the curtain's cut, also with Foundry's windows open, comes with E77's later commits |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | ci, local-gate | exists | E33 | every legal road a player's roll takes read clean (E33 C4); twelve forgeries from a player's console, each undone or never applied and traced to that player (C5b) |
