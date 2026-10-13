@@ -2668,8 +2668,10 @@ const INVARIANTS = [
          * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. THE LOGO THAT DOES NOT LOAD (E77 fix r2-H2;
          * review round 2's cor F6): an `error` event on the logo leaves one inert `fa-solid fa-toolbox` in its place;
          * jsdom loads no picture, so the event is dispatched, and at a table where the file is missing this test's
-         * faces read the icon and fail, which is LIVE-E77-09's question. The logo goes back, its one-shot listener
-         * spent. Everything is put back as it was found.
+         * faces read the icon and fail, which is LIVE-E77-09's question. The logo goes back and the error is fired
+         * a second time: the fallback holds on every error, so the next tier-1 run in the same page reads what this
+         * one read (E77 fix r2-H6, 13.10.2026: with a one-shot listener R512 was green on a page's first run and red
+         * on every later one, scenario 01's A2, A3 and C at 9ef00ef). Everything is put back as it was found.
          */
         must(game.user.isGM, "the upper row is a GM's, and tier 1 runs on the GM");
         const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
@@ -2741,16 +2743,19 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson(want),
             `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
-        let fallback = null;
+        const fallback = [];
         try {
-            logo?.dispatchEvent(new Event("error"));
-            const mark = tools.firstElementChild;
-            fallback = [tools.children.length, mark?.tagName ?? null, mark?.getAttribute("class") ?? null, mark?.hasAttribute("inert") ?? null, logo?.isConnected ?? null];
+            for (let n = 0; n < 2; n++) {
+                logo?.dispatchEvent(new Event("error"));
+                const mark = tools.firstElementChild;
+                fallback.push([tools.children.length, mark?.tagName ?? null, mark?.getAttribute("class") ?? null, mark?.hasAttribute("inert") ?? null, logo?.isConnected ?? null]);
+                if (logo && !logo.isConnected) tools.replaceChildren(logo);
+            }
         } finally {
             if (logo && !logo.isConnected) tools.replaceChildren(logo);
         }
-        equal(JSON.stringify(fallback), JSON.stringify([1, "I", "fa-solid fa-toolbox", true, false]),
-            "[after the logo's error: Foundry tools' children, the one's tag, its classes, inert, the logo still on the page]");
+        equal(JSON.stringify(fallback), JSON.stringify([[1, "I", "fa-solid fa-toolbox", true, false], [1, "I", "fa-solid fa-toolbox", true, false]]),
+            "[after the logo's error, and after a second error once it is put back: Foundry tools' children, the one's tag, its classes, inert, the logo still on the page]");
     }],
 
     ["R515 - in a browser the corner's upper row wears its own colours: Foundry tools' ring the state's accent as settings' and the handbooks' are through a change of phase, the GM's button red through it, and the GM's eye the Monokuma mask, not the plain eye pixel-icons.css paints under a drpg- class", async () => {

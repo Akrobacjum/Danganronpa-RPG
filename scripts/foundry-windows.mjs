@@ -361,14 +361,17 @@ function buildLauncher() {
     logo.setAttribute("alt", "");
     logo.draggable = false;
     /* A Foundry whose core files have no `icons/fvtt.png` would leave the broken-image glyph on the button (review
-       round 2's cor F6; the glass harness serves no such file). Then a Font Awesome toolbox stands in once; the
-       button's name is its label either way. R512 fires the error. */
+       round 2's cor F6; the glass harness serves no such file). Then a Font Awesome toolbox stands in; the button's
+       name is its label either way. The listener stays for every error, not one: R512 fires the error and puts the
+       logo back, and with `{ once: true }` (r2-H2's form) the next tier-1 run in the same page found the logo with no
+       listener and failed - H5's scenario 01 at 9ef00ef, R512 red on the second and third run, green on the first
+       (E77 fix r2-H6, 13.10.2026). A logo that fails again after it is put back falls back again. */
     logo.addEventListener("error", () => {
         const mark = document.createElement("i");
         mark.className = "fa-solid fa-toolbox";
         mark.setAttribute("inert", "");
         logo.replaceWith(mark);
-    }, { once: true });
+    });
     btn.append(logo);
     btn.addEventListener("click", () => toggleFoundryTools());
     document.body.append(btn);
