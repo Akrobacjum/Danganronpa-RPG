@@ -8793,7 +8793,7 @@ const REGRESSIONS = [
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
-            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); a listener paints only its own viewer's token"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2); a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
@@ -8993,6 +8993,13 @@ const REGRESSIONS = [
          * of `renderHud` rather than importing it (room-tile.mjs imports hud.mjs; R161), and until this clause
          * nothing read that line: with it taken out, this test as it stood passed (13.10.2026, once). Scenario 74
          * B counts the paints on the mover's browser.
+         * E77 fix r1-G2 (13.10.2026; review round 1 cor F1, F3, F4, O1-O3) adds three shapes: the mark is the
+         * update's own object and `onUpdateToken`'s finally clears it only while it is still that update's
+         * (`unsettled.get(tokenDoc.id) === route`), `settledSpot` reads its `spot`; the GM's branch returns
+         * nothing for a write that moves nothing and, for a move, ends the wait, the put-back and the mark; and
+         * a route another browser settles waits on an owning browser (`untilQuiet`), every update starting the
+         * wait again and the REVERT, a GM's move and the next route ending it. Scenario 74 C and 66 W2/W5 run
+         * what these read; the fixture gains one variant per shape, each taken out.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
@@ -9000,38 +9007,53 @@ const REGRESSIONS = [
             const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
             const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
             const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
-            const mark = judge.indexOf("unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id)");
+            const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
-                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src),
-                /if \(options\?\.\[REVERT\]\) \{[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
-                    && /\?\.isGM\) \{[^}]*return true;\s*\}/.test(judge) && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
+                [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
+                    && /if \(unsettled\.get\(tokenDoc\.id\) === route && !putBack\.has\(tokenDoc\.id\)\) unsettled\.delete\(tokenDoc\.id\);/.test(on),
+                /if \(options\?\.\[REVERT\]\) \{\s*endQuiet\(tokenDoc\.id\);[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
+                    && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
+                    && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
                 mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
-                    && /return unsettled\.get\(tokenDoc\.id\) \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
-                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src)
+                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
+                /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?await untilQuiet\(tokenDoc\)/.test(judge)
             ];
         };
         const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
-            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id) ?? spotOf(tokenDoc);\n}\n"
-            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    const accepted = await judgeMove(tokenDoc, changes, options, userId);\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
+            + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
+            + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
             + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
             + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
-            + "async function judgeMove(tokenDoc, changes, options, userId) {\n    if (options?.[REVERT]) {\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
-            + "    if (game.users.get(userId)?.isGM) {\n        return true;\n    }\n    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
-            + "    unsettled.set(tokenDoc.id, lastPosition.get(tokenDoc.id) ?? null);\n    const actor = await import(\"./monokuma.mjs\");\n    return settleRoute(tokenDoc);\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (game.users.get(userId)?.isGM) {\n        if (!isMoveChange(changes)) return;\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        unsettled.delete(tokenDoc.id);\n        return true;\n    }\n"
+            + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
+            + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
+            + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
             + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
         equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
-            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>"))]),
-        JSON.stringify([[true, true, true, true], [false, true, true, true], [true, true, true, false]]),
-        "the reader does not read its fixture whole, or does not miss the gate taken out or the description put back on the card");
+            shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
+            shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
+            shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
+            shape(FIXTURE.replace("    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n", "    return settled;\n"))]),
+        JSON.stringify([[true, true, true, true, true], [false, true, true, true, true], [true, true, true, false, true],
+            [false, true, true, true, true], [true, false, true, true, true], [true, true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
+            + "the finally clearing any mark, a GM's write that moves nothing answered as a route or the wait for quiet taken out");
         const sources = new Map(await otherSources());
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
         const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
-        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true], []]),
-            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken; the REVERT answering false, a GM's move "
-            + "true, a pending waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before; the card "
-            + "where and the price, and no description read in movement.mjs] and the other files that announce a route");
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
+            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken, its finally clearing only its own mark; "
+            + "the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending waypoint nothing; the route marked before "
+            + "the first await, the put-back marked, the settled spot the one before; the card where and the price, and no description read in "
+            + "movement.mjs; a route another browser settles waited on for quiet where the actor is owned] and the other files that announce a route");
 
         const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
         const listens = (tile, hud) => [

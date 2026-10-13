@@ -13,7 +13,8 @@
  *     it (R509 reads that this file takes an actor from nowhere else).
  *   - WHERE is the token `locateActor` chooses, on its own scene and floor, read at the spot the route last
  *     settled on (`settledPosition`): a crossing this browser is still judging, or one refused and not yet put
- *     back, is not the character's room yet (movement.mjs `settledSpot`, `drpgRouteSettled`).
+ *     back, is not the character's room yet (movement.mjs `settledSpot`, `drpgRouteSettled`); nor, on a browser
+ *     that owns the token, is one another browser settles until it is announced there (E77 fix r1-G2).
  *   - WHAT is `roomDescription` and `roomImage` on that scene: the first piece of the room that carries a value
  *     (rooms.mjs `roomFlag`), the picture through `safeRoomImage` on every read (vault.mjs, E77 C1), so a value
  *     a console wrote is no picture. Both stay the GM's raw words here; the tile sets them as text.

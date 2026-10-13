@@ -71,7 +71,8 @@
  *      GM, each with its own room's words and picture and none of another's, and Botan out of every room; then
  *      `drpgRouteSettled` heard on the three for p1's crossing into a Porch, a step with waypoints pending, a crossing
  *      refused for its price and put back (read at 400 and 1200 ms), and a GM's move - and the move card, which no longer
- *      carries the room's description.
+ *      carries the room's description; then the refused route again with a GM's flag written on the token while p1
+ *      judges it (E77 fix r1-G2, W5).
  *   X  what the second review found (E12 fix r2-S2): a tower whose upper floor alone is walled, with a room of Foundry's
  *      name, under the GM's map check and the fog's report on each floor (EARLY-C10-3, O4, EARLY-C10-2); a Teleport
  *      taken off a marked Hall and put back, with p1 looking at it (EARLY-C7-3); a region marked and renamed through its
@@ -132,6 +133,8 @@
  * message.
  * E77 C2 (W1-W4 added, before X): 61 checks in 104.6 s, one run under the harness lock on 13.10.2026 (its first two
  * drafts, 59 and 60 passing, took 103.8 s and 105.7 s); whether other lanes ran then was not read.
+ * E77 fix r1-G2 (W2 rewritten, W5 added; W's crossing settles for 1000 ms): 62 checks in 119.3 s, one run of the side
+ * fix line's fast set on 13.10.2026; whether other lanes ran then was not read.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -1405,7 +1408,9 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         await new Promise(r => setTimeout(r, 1500));
         const words = await Promise.all(game.messages.contents.slice(before).map(m => S.wordsOf(m)));
         return words.map(String).filter(text => text.includes("66 W Porch"));`, { timeout: 30000 });
-    await settle(300);
+    /* 1000 ms rather than 300 since E77 fix r1-G2: the GM, which owns Aiko, announces p1's route once the token has been
+       quiet for movement.mjs's ROUTE_QUIET_MS, 1500 ms after the update reached it. */
+    await settle(1000);
     const acceptedW = await takeAll();
     /* (b) Two steps inside the Porch: the first while Foundry would still have waypoints of the route pending (the
        token's `movement` stood in for, as movement.mjs reads it), the second the route's last. */
@@ -1448,6 +1453,47 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         await t.update(M.positionIn("Dorm A", t), { teleport: true, movementAction: "displace", animate: false });
         await new Promise(r => setTimeout(r, 1000)); return true;`, { timeout: 30000 });
     const gmMoveW = await takeAll();
+    /* (e) E77 fix r1-G2 (review round 1 cor F4, the reviewer's probe Y): the route of (c) again, from the Porch, with the GM
+       writing a flag on Aiko's token as soon as it sees the refused step - a GM's update that moves nothing, landing on p1
+       while p1 still judges the route. p1 records the order in which that write and the put-back reach it, and reads its
+       room one tick after the write (when movement.mjs is done with it). The pending step is stood in on the GM's copy as
+       well as p1's: the GM owns Aiko and since this fix waits on p1's routes, and would take that step for a whole route. */
+    const flagSetW = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}");
+        const t = academy.tokens.get("TOKAIKO000000000");
+        await t.update(M.positionIn("66 W Porch", t), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(aiko, 1); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        globalThis.__s66wFlag = Hooks.on("updateToken", (doc, changes, options, userId) => {
+            if (doc.id === "TOKAIKO000000000" && userId === "${IDS.p1}" && changes.y === 600 && !options?.[M.REVERT]) doc.setFlag("${MOD}", "s66wFlag", Date.now());
+        });
+        await new Promise(r => setTimeout(r, 800)); return M.roomOfToken(t);`, { timeout: 30000 });
+    const STAND_IN = `${SCENES} Object.defineProperty(academy.tokens.get("TOKAIKO000000000"), "movement",
+        { value: { pending: { waypoints: [{ x: 900, y: 600 }] } }, configurable: true }); return true;`;
+    await Promise.all([p1, gm].map(client => client.eval(STAND_IN)));
+    await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 600, y: 400 }); await new Promise(r => setTimeout(r, 800)); return true;`,
+        { timeout: 30000 });
+    await Promise.all([p1, gm].map(client => client.eval(`${SCENES} delete academy.tokens.get("TOKAIKO000000000").movement; return true;`)));
+    await takeAll();
+    const [flagP1, flagGm] = await Promise.all([
+        p1.eval(`${SCENES} ${VIEW} ${AT} const t = academy.tokens.get("TOKAIKO000000000"), M = await import("${repoUrl}/scripts/movement.mjs");
+            const order = [], ticked = [];
+            const seen = (doc, changes, options) => {
+                if (doc.id !== "TOKAIKO000000000") return;
+                if (options?.[M.REVERT]) order.push("putBack");
+                else if (JSON.stringify(changes).includes("s66wFlag")) { order.push("flag"); setTimeout(() => ticked.push(view().room), 0); }
+            };
+            Hooks.on("updateToken", seen);
+            t.update({ x: 900, y: 600 }).catch(() => null);
+            const early = await at(400), late = await at(800);
+            await new Promise(r => setTimeout(r, 800));
+            Hooks.off("updateToken", seen);
+            return { early, late, order, ticked, token: M.roomOfToken(t), flag: t.getFlag("${MOD}", "s66wFlag") ?? null };`, { timeout: 30000 }),
+        /* The GM is read for 2.2 s, past ROUTE_QUIET_MS after its own flag: a wait the put-back did not end would announce
+           the route a second time, as accepted. */
+        gm.eval(`${AT} return { early: await at(400), late: await at(1800) };`, { timeout: 30000 })
+    ]);
+    await gm.eval(`${SCENES} Hooks.off("updateToken", globalThis.__s66wFlag); delete globalThis.__s66wFlag;
+        await academy.tokens.get("TOKAIKO000000000").unsetFlag("${MOD}", "s66wFlag"); await new Promise(r => setTimeout(r, 300)); return true;`, { timeout: 30000 });
+    await takeAll();
     await Promise.all([p1, p2, gm].map(client => client.eval(`Hooks.off("drpgRouteSettled", globalThis.__s66wSettled);
         Hooks.off("updateToken", globalThis.__s66wWritten); Hooks.off("drpgRoomCrossed", globalThis.__s66wCrossed);
         delete globalThis.__s66wSettled; delete globalThis.__s66wWritten; delete globalThis.__s66wCrossed; delete globalThis.__s66wTake;
@@ -1467,11 +1513,14 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const shedFree = value => !/66W-shed/i.test(J(value));
     /* Until E77 C2 the move card carried the room's description, and nothing announced a settled route: a reader of the
        token's room on `updateToken` read a refused room until its put-back landed. */
-    check("W2: p1's crossing into the Porch is announced once, on p1 alone, after the update was written and the crossing paid with "
-        + "Dorm A still p1's room, and its card names the Porch without its words (E77 C2)",
+    /* Until E77 fix r1-G2 the GM heard nothing here: only the browser that settles a route announced it (review round 1
+       O3, cor F1). */
+    check("W2: p1's crossing into the Porch is announced once on p1, which settles it, after the update was written and the "
+        + "crossing paid with Dorm A still p1's room, once on the GM, which owns Aiko, and not on p2; and its card names the Porch "
+        + "without its words (E77 C2, fix r1-G2)",
     J(acceptedW.p1.heard) === J([true]) && J(acceptedW.p1.written) === J(["Dorm A"]) && porchW(acceptedW.p1.view)
         && J(acceptedW.p1.crossed) === J([["Dorm A", "66 W Porch", "Dorm A"]])
-        && J(acceptedW.p2.heard) === J([]) && J(acceptedW.gm.heard) === J([])
+        && J(acceptedW.p2.heard) === J([]) && J(acceptedW.gm.heard) === J([true])
         && crossW.length === 1 && crossW[0].includes("You enter 66 W Porch.") && !crossW[0].includes("66W-porch") && !crossW[0].includes("drpg-room-prose"),
     J({ acceptedW, crossW }));
     check("W3: a step taken while waypoints are pending is not announced, and the route's last step is, once (E77 C2)",
@@ -1492,6 +1541,16 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         && [refusedP1, refusedP2, refusedGm].every(shedFree)
         && J([gmMoveW.p1.heard, gmMoveW.p2.heard, gmMoveW.gm.heard]) === J([[true], [true], [true]]),
     J({ brokeW, viaW, refusedP1, refusedP2, refusedGm, gmMoveW }));
+    /* Until E77 fix r1-G2 the GM's flag was announced on every browser as a settled route, and the end of its update
+       cleared p1's mark of the route still being judged: p1 heard [true, false] and its tile painted the Shed (the
+       reviewer's probe Y, e77-review/correctness-r1.md F4). */
+    check("W5: a GM's write that moves nothing, reaching p1 while p1 judges a route refused at its second crossing, is not "
+        + "announced and leaves p1's room the one before the route; the route is announced once, as refused, on p1 and on the "
+        + "GM, and nothing of the Shed is p1's room at any reading (E77 fix r1-G2)",
+    flagSetW === "66 W Porch" && flagP1.flag !== null && J(flagP1.order) === J(["flag", "putBack"]) && J(flagP1.ticked) === J(["66 W Porch"])
+        && [flagP1, flagGm].every(({ early, late }) => J([...early.heard, ...late.heard]) === J([false]))
+        && shedFree(flagP1) && dormW(flagP1.late.view) && flagP1.token === "Dorm A",
+    J({ flagSetW, flagP1, flagGm }));
 
     /* ------------------------------ X. the second review's findings ------------------------------ */
     phase("X: one floor's walls, a room of Foundry's name, a Teleport taken off and put on, regions in a scene's update, a GM's handover");
