@@ -83,7 +83,7 @@
     <div class="drpg-hud-elapsed">43 min in</div></div>
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span></div><div class="drpg-hud-room-project">Available project</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
-A second paragraph.</p></section>
+A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-label="Show the picture"><img alt="" loading="lazy" decoding="async" src="/docs/img/01-player-view.webp"></button><button type="button" class="drpg-room-tile-describe" aria-label="Description"><i class="fa-solid fa-align-left" aria-hidden="true"></i></button></section>
   <div id="scene-controls"><menu id="scene-controls-layers"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu><menu id="scene-controls-tools"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu></div>
   <div id="players">Monokuma · 65 ms</div>
 </div>
@@ -380,9 +380,9 @@ A second paragraph.</p></section>
   /* WHERE THE CURTAIN PUT THE ROOM TILE, MEASURED IN A BROWSER (E77 C4, 13.10.2026; the E77 plan's 2.3, ledger V6-V10).
      R508 reads the same inside Foundry and only there: headless there is no layout. Answers { ok, why, ... } as the two
      checks above do, never a bare number:
-       expect   "placed" where the curtain is cut on a desk; "unplaced" under Monokuma Legacy, on a stacked screen
-                (E77 C8's) and where nothing is cut - there the tile has no `data-place` and its picture is inside
-                it, and on a desk it stands under the clock (a stacked screen's place for it is C8's to read).
+       expect   "placed" where the curtain is cut on a desk; "unplaced" on a desk under Monokuma Legacy and where
+                nothing is cut - there the tile has no `data-place`, its picture is inside it and it stands under the
+                clock; "row" on a stacked screen in either theme (E77 C8), read below.
        place    'clock' or 'notes' as glass.mjs `placeRoomTile` stamped it, and it must be the one F chooses:
                 'clock' exactly when F - 24 >= need (LAST.room), and in the curtain's band its place names (the
                 top one under the clock, the bottom one beside the notices). F, need and maxH are printed by the sweep.
@@ -392,6 +392,14 @@ A second paragraph.</p></section>
                 turn by the same angle - one column; the scene rail's first tile below the tile's box (rail, px).
        notes    beside the notices: the foot level with the notice tile's, the gap 32 + h x tan 8 deg off its edge,
                 and the corner of the history's button (A7) on no part of the room's pane.
+       row      on a stacked screen (E77 C8, 13.10.2026): the tile in narrow.mjs's `#drpg-tile-row`, a child of the
+                stack, with no place and no `LAST.room`; the row 44 px high as laid out, the thumbnail 78x44, the
+                words' button 44x44, the desk's picture layer, its button, the toggle and the words not drawn; where
+                the curtain is cut, a measured `tiles-row` block 44 px high and a pane toned for it. `over`, on the
+                GM's page: both Foundry windows opened, a point where a frame stands on a row of the stack must hit
+                the frame, and THE CONTROL - the frame put at z-index 29 - must not; the windows closed again. Where
+                no frame stands on the stack it is null. The sweep's `plantRow` sets the row 60 px high, which must
+                fail the reading, and loads the page back at a desk's size, where the tile must be under the clock.
        art      the picture's layer in the body between the curtain and its glow, at the room pane's bounds,
                 clipped to its polygon, at the curtain's index; the tile itself without a plate.
        cuts     a new description, a new name and the description opened, then a pass of the glass: no
@@ -399,6 +407,34 @@ A second paragraph.</p></section>
                 at least one `drpgGlassCut`; a count that cannot move would read the same as a pass. Then the
                 curtain's `--acc` changed and a pass: a recolour repaints the same cut and fires none.
      The turn and the page are put back before it answers; `{ cuts: false }` leaves the cut alone. */
+  /* Foundry's windows over the stack (E77 C8, narrow.css): on the GM's page both opened, a point where a frame stands on
+     a row of the stack hit-tested, then with the frame at z-index 29 (the control), and both closed. Null where no frame
+     stands on a row or there are no frames (a player's page). */
+  async function overTheStack(frame) {
+    const fw = window.__windows, frames = [...document.querySelectorAll(".drpg-foundry-window")];
+    if (!fw?.toggleFoundryTools || !frames.length) return null;
+    fw.toggleFoundryTools(true); await frame();
+    const rows = [...document.querySelectorAll("#drpg-column > *")].filter(e => e.offsetWidth && e.offsetHeight);
+    let at = null;
+    for (const f of frames.filter(f => !f.hidden)) {
+      const a = f.getBoundingClientRect();
+      for (const e of rows) {
+        const b = e.getBoundingClientRect(), x0 = Math.max(a.left, b.left), x1 = Math.min(a.right, b.right), y0 = Math.max(a.top, b.top), y1 = Math.min(a.bottom, b.bottom);
+        if (x1 - x0 > 4 && y1 - y0 > 4) { at = { f, e, x: (x0 + x1) / 2, y: (y0 + y1) / 2 }; break; }
+      }
+      if (at) break;
+    }
+    let res = null;
+    if (at) {
+      const hit = () => { const h = document.elementFromPoint(at.x, at.y); return at.f.contains(h) ? "frame" : at.e.contains(h) ? "stack" : (h?.id || h?.tagName || "nothing"); };
+      const z = at.f.style.zIndex, got = hit();
+      at.f.style.zIndex = "29"; const control = hit(); at.f.style.zIndex = z;
+      res = { ok: got === "frame" && control !== "frame", got, control, row: at.e.id || at.e.className,
+        why: got !== "frame" ? `a Foundry window opened under the stack's ${at.e.id} (the point hits ${got})` : `control: the frame at 29 still hits ${control} - the reading cannot see a frame under the stack` };
+    }
+    fw.toggleFoundryTools(false); await frame();
+    return res;
+  }
   window.drpgRoomCheck = async ({ cuts = true } = {}) => {
     const g = window.__glass, body = document.body, tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -408,18 +444,60 @@ A second paragraph.</p></section>
     const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
     const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
     const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
-    const out = { ok: false, why: [], expect: cut && !stacked ? "placed" : "unplaced", place: tile?.dataset.place ?? null,
-      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null };
+    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : "unplaced", place: tile?.dataset.place ?? null,
+      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    /* A new name and description and the description opened, then a pass: no cut; the control and a recolour after. */
+    async function readCuts() {
+      let n = 0; const count = () => { n++; };
+      Hooks.on("drpgGlassCut", count);
+      const name = tile.querySelector(".drpg-room-tile-name"), prose = tile.querySelector(".drpg-room-tile-prose");
+      const was = [name.textContent, prose.textContent, prose.hidden, tile.classList.contains("is-open")];
+      const pass = async () => { g.refreshGlass(); await frame(); await settle(); };
+      name.textContent = "A room with a much longer name than any";
+      prose.textContent = "Words. ".repeat(400); prose.hidden = false; tile.classList.add("is-open");
+      await pass();
+      out.cuts = { content: n, same: Boolean(g.CHECKS.at(-1)?.same), control: null };
+      const row = document.createElement("div"); row.style.height = "40px"; hud.append(row);
+      await pass();
+      out.cuts.control = n - out.cuts.content;
+      row.remove(); [name.textContent, prose.textContent, prose.hidden] = was; tile.classList.toggle("is-open", was[3]);
+      await pass();
+      // a recolour of the same cut repaints the curtain and is not a cut either (the state's colour, `--acc`)
+      const k = n; cur.style.setProperty("--acc", "#ff2050"); await pass();
+      out.cuts.recolour = n - k; cur.style.removeProperty("--acc"); await pass();
+      Hooks.off("drpgGlassCut", count);
+      if (out.cuts.content || !out.cuts.same) out.why.push(`a new description and the description opened recut the glass (${out.cuts.content} cut(s), same ${out.cuts.same})`);
+      if (out.cuts.control < 1) out.why.push("control: a taller clock fired no drpgGlassCut - the count cannot see a cut");
+      if (out.cuts.recolour) out.why.push(`a recolour of the same cut fired ${out.cuts.recolour} drpgGlassCut`);
+    }
     if (!tile || !hud) { out.why.push("no room tile or no clock"); return done(); }
     const room = g?.LAST?.room ?? null;
     const own = tile.querySelector(":scope > .drpg-room-tile-art"), loose = document.getElementById("drpg-room-art");
     if (out.expect === "unplaced") {
       const prev = tile.previousElementSibling;
       if (out.place || room) out.why.push(`placed (${out.place}) where nothing is cut for it`);
-      // a stacked screen moves the clock into the stack and leaves the tile where it was: its place there is E77 C8's
-      if (!stacked && prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
+      if (prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
       if (!own || loose) out.why.push("the picture is not inside the tile");
+      return done();
+    }
+    if (out.expect === "row") {
+      const row = document.getElementById("drpg-tile-row"), column = document.getElementById("drpg-column");
+      const size = el => el ? [el.offsetWidth, el.offsetHeight] : null;
+      const block = g?.LAST?.blocks?.find(b => b.cls === "tiles-row") ?? null;
+      out.row = { h: row?.offsetHeight ?? null, thumb: size(tile.querySelector(".drpg-room-tile-thumb")), words: size(tile.querySelector(".drpg-room-tile-describe")),
+        block: block && { measured: block.measured, h: block.h }, pane: cut ? (g.LAST.panes || []).some(p => p.tone === "tiles-row") : null,
+        desk: [".drpg-room-tile-art", ".drpg-room-tile-open", ".drpg-room-tile-more", ".drpg-room-tile-prose"].filter(s => tile.querySelector(s)?.offsetWidth > 0), over: null };
+      if (!row || !column || row.parentElement !== column || tile.parentElement !== row) out.why.push(`the tile is not in the stack's row (it is in ${tile.parentElement?.id || tile.parentElement?.tagName})`);
+      if (out.place || room) out.why.push(`placed (${out.place}) on a stacked screen`);
+      if (out.row.h !== 44) out.why.push(`the row is ${out.row.h} px high, not 44`);
+      if (String(out.row.thumb) !== "78,44") out.why.push(`the thumbnail is ${out.row.thumb}, not 78x44`);
+      if (String(out.row.words) !== "44,44") out.why.push(`the words' button is ${out.row.words}, not 44x44`);
+      if (out.row.desk.length) out.why.push(`the desk's parts drawn in the row: ${out.row.desk.join(", ")}`);
+      if (cut && !(block?.measured && block.h === 44 && out.row.pane)) out.why.push(`no measured 44 px tiles-row block on a pane (${JSON.stringify(out.row.block)}, pane ${out.row.pane})`);
+      out.row.over = await overTheStack(frame);
+      if (out.row.over && !out.row.over.ok) out.why.push(out.row.over.why);
+      if (cuts && cut) await readCuts();
       return done();
     }
     if (!room || !out.place) { out.why.push("the cut placed no tile"); return done(); }
@@ -481,29 +559,7 @@ A second paragraph.</p></section>
       if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !art.nextElementSibling?.classList.contains("curtain-glow")) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
       if (!out.art.picture) out.why.push("the picture's layer has no picture");
     }
-    if (cuts) {
-      let n = 0; const count = () => { n++; };
-      Hooks.on("drpgGlassCut", count);
-      const name = tile.querySelector(".drpg-room-tile-name"), prose = tile.querySelector(".drpg-room-tile-prose");
-      const was = [name.textContent, prose.textContent, prose.hidden, tile.classList.contains("is-open")];
-      const pass = async () => { g.refreshGlass(); await frame(); await settle(); };
-      name.textContent = "A room with a much longer name than any";
-      prose.textContent = "Words. ".repeat(400); prose.hidden = false; tile.classList.add("is-open");
-      await pass();
-      out.cuts = { content: n, same: Boolean(g.CHECKS.at(-1)?.same), control: null };
-      const row = document.createElement("div"); row.style.height = "40px"; hud.append(row);
-      await pass();
-      out.cuts.control = n - out.cuts.content;
-      row.remove(); [name.textContent, prose.textContent, prose.hidden] = was; tile.classList.toggle("is-open", was[3]);
-      await pass();
-      // a recolour of the same cut repaints the curtain and is not a cut either (the state's colour, `--acc`)
-      const k = n; cur.style.setProperty("--acc", "#ff2050"); await pass();
-      out.cuts.recolour = n - k; cur.style.removeProperty("--acc"); await pass();
-      Hooks.off("drpgGlassCut", count);
-      if (out.cuts.content || !out.cuts.same) out.why.push(`a new description and the description opened recut the glass (${out.cuts.content} cut(s), same ${out.cuts.same})`);
-      if (out.cuts.control < 1) out.why.push("control: a taller clock fired no drpgGlassCut - the count cannot see a cut");
-      if (out.cuts.recolour) out.why.push(`a recolour of the same cut fired ${out.cuts.recolour} drpgGlassCut`);
-    }
+    if (cuts) await readCuts();
     return done();
   };
 </script>

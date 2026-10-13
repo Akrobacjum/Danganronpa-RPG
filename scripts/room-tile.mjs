@@ -38,6 +38,14 @@
  *     and writes nothing when it is unchanged. The tile never calls `renderHud` or the curtain, and sends no
  *     socket and no packet.
  *
+ * THE NARROW ROW (E77 C8, 13.10.2026; the E77 plan's C8). On a stacked screen the tile is a row of the stack,
+ * 44 px high, in narrow.mjs's `#drpg-tile-row`: the picture as a 78x44 thumbnail, the name, the tokens and
+ * 'Available project', and a button that opens the description in a window of its own. Every paint draws
+ * both forms and the stylesheets show the one the screen has, because a change of layout changes no view and
+ * so paints nothing. The thumbnail is an `<img>` whose `src` is the path `safeRoomImage` gave the art layer
+ * (`paintTileRow`), and pressing it opens the same ImagePopout; the window (`openRoomWindow`) is built from
+ * the view with `textContent` alone, under a title of the module's, not the room's name.
+ *
  * The suite reaches this file through R504's and R505's imports (which is also how R503's census reads its
  * roads); module.mjs builds the tile at `ready` (`ensureRoomTile`, `registerRoomTile`).
  */
@@ -49,12 +57,16 @@ import { roomDescription, roomImage, safeRoomImage } from "./vault.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { seatRoomArt } from "./glass.mjs";
+import { tileRow } from "./narrow.mjs";
+import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
 const TILE_ID = "drpg-room-tile";
 const PROSE_ID = "drpg-room-tile-prose";
 /** The class the tile's ImagePopout carries, so the header-controls hook strips that window's and no other's. */
 const POPOUT_CLASS = "drpg-room-image";
+/** The description's window on a stacked screen (E77 C8), by the class `alreadyOpen` finds it by. */
+const WINDOW_CLASS = "drpg-window-room";
 
 /**
  * Where a token stands for the tile: the spot its last settled route left it on (movement.mjs `settledSpot`).
@@ -151,6 +163,13 @@ export function ensureRoomTile() {
         tile.setAttribute("role", "region");
         tile.setAttribute("aria-label", game.i18n.localize("DRPG.Room.tileLabel"));
     }
+    /* A row of the stack on a stacked screen (E77 C8, narrow.mjs), and left there: under the clock in
+       the stack it would stand at its desk height in a column with no room for it. */
+    const row = tileRow();
+    if (row) {
+        if (tile.parentElement !== row) row.append(tile);
+        return tile;
+    }
     /* Beside the notice tile glass.mjs has moved it to the body (E77 C4, `placeRoomTile`), and it
        stays there until the next pass of the curtain puts it back under the clock. */
     if (tile.dataset.place === "notes" && tile.parentElement === document.body) return tile;
@@ -239,11 +258,126 @@ export function paintRoomTile(tile, view = tileView()) {
         prose.tabIndex = 0;
         parts.push(more, prose);
     }
+    parts.push(...paintTileRow(view, image));
 
     tile.replaceChildren(...parts);
     openProse(tile, open);
     if (live) seatRoomArt();
     return true;
+}
+
+/**
+ * The tile's narrow form (E77 C8): the thumbnail, when there is a picture, and the button for the
+ * description, when there are words. Hidden on a desk (danganronpa.css) and shown in the row (narrow.css).
+ *
+ * The thumbnail's `src` is `image`, which `paintRoomTile` has from `safeRoomImage` and from nowhere else:
+ * the census's one road into an element's `src` in this file (R503, "SRC room-tile.mjs#paintTileRow#src").
+ * Lazy, so a desk that never shows it need not ask for it (a lazy image under `display: none` waits to be
+ * laid out - the browsers' rule, not measured here; the desk's art layer asks for the same path anyway). Its
+ * alt is empty and the button carries the words, so a screen reader hears the room, not the file's name.
+ *
+ * @param {ReturnType<typeof tileView>} view
+ * @param {string|null} image  the checked path, or null
+ * @returns {HTMLElement[]}
+ */
+function paintTileRow(view, image) {
+    const parts = [];
+    if (image) {
+        const thumb = document.createElement("button");
+        thumb.type = "button";
+        thumb.className = "drpg-room-tile-thumb";
+        thumb.setAttribute("aria-label", game.i18n.format("DRPG.Room.imageOpen", { room: view.room }));
+        const img = document.createElement("img");
+        img.alt = "";
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = image;
+        thumb.append(img);
+        thumb.addEventListener("click", () => openRoomImage(image, view.room));
+        parts.push(thumb);
+    }
+    if (view.description) {
+        const label = game.i18n.localize("DRPG.Room.describe");
+        const describe = document.createElement("button");
+        describe.type = "button";
+        describe.className = "drpg-room-tile-describe";
+        describe.setAttribute("aria-label", label);
+        describe.dataset.tooltipText = label;
+        const icon = document.createElement("i");
+        icon.className = "fa-solid fa-align-left";
+        icon.setAttribute("aria-hidden", "true");
+        describe.append(icon);
+        describe.addEventListener("click", () => openRoomWindow());
+        parts.push(describe);
+    }
+    return parts;
+}
+
+/**
+ * The description window's content for `view`: the room's name and its words, as text. Pure - builds a
+ * box in no document and reads nothing else - so R505 reads it with a view of its own.
+ *
+ * @param {ReturnType<typeof tileView>} view
+ * @returns {HTMLElement}
+ */
+export function roomWindowBody(view) {
+    const root = document.createElement("div");
+    root.className = "drpg-room-window-body";
+    root.append(textNode("h3", "drpg-room-window-name", view?.room ?? ""));
+    root.append(textNode("p", "drpg-room-window-prose", view?.description ?? ""));
+    return root;
+}
+
+let RoomWindow = null;
+
+/**
+ * The window class, made on first use: `foundry.applications.api` is not there when this file is
+ * imported by the suite's tier 0, and a class that extends it at the top would throw on import.
+ * It reads `tileView()` on every render, so it always shows this browser's viewer's room now.
+ */
+function roomWindowClass() {
+    RoomWindow ??= class extends foundry.applications.api.ApplicationV2 {
+        static DEFAULT_OPTIONS = {
+            id: "drpg-room-window",
+            classes: ["drpg-panel", WINDOW_CLASS],
+            window: { icon: "fa-solid fa-align-left", resizable: false, minimizable: false }
+        };
+
+        constructor(options = {}) {
+            const width = Math.min(480, window.innerWidth - 16);
+            super(foundry.utils.mergeObject({ position: { width } }, options));
+        }
+
+        /* The module's word, never the room's name: the name is somebody else's text, and a window
+           title is not this file's to draw. */
+        get title() {
+            return game.i18n.localize("DRPG.Room.describe");
+        }
+
+        async _renderHTML() {
+            return roomWindowBody(tileView());
+        }
+
+        _replaceHTML(result, content) {
+            content.replaceChildren(result);
+        }
+    };
+    return RoomWindow;
+}
+
+/**
+ * The description of the viewer's room, in a window: the narrow row's button (E77 C8). One at a time -
+ * a second press raises the one already open (once it has rendered: `alreadyOpen` counts rendered windows,
+ * as for every window of the module's, and scenario 74 G read a second open asked mid-render make a second).
+ *
+ * @returns {Promise<object>} the window, the one already open or a new one
+ */
+export async function openRoomWindow() {
+    const open = alreadyOpen(WINDOW_CLASS);
+    if (open) return open;
+    const app = new (roomWindowClass())();
+    await app.render({ force: true });
+    return app;
 }
 
 /** The toggle's three facts and the description's visibility, without a repaint. */
@@ -357,10 +491,22 @@ export function stripImageControls(app, controls) {
 /** Paint the tile for this browser's viewer now; an error is logged and leaves the clock alone. */
 export function refreshRoomTile() {
     try {
-        paintRoomTile(ensureRoomTile());
+        const view = tileView();
+        if (paintRoomTile(ensureRoomTile(), view)) refreshRoomWindow(view);
     } catch (err) {
         error("Could not paint the room tile", err);
     }
+}
+
+/**
+ * The description's window follows the tile: drawn again when the tile was, and closed when the room
+ * it would show has no words, or there is no room.
+ */
+function refreshRoomWindow(view) {
+    const app = RoomWindow && [...foundry.applications.instances.values()].find(a => a instanceof RoomWindow && a.rendered);
+    if (!app) return;
+    if (view.description) app.render();
+    else app.close();
 }
 
 /**

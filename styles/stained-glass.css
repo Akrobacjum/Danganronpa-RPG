@@ -1036,6 +1036,7 @@ body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #sidebar-tabs,
 body.drpg-theme-stained-glass #drpg-hud,
 body.drpg-theme-stained-glass #drpg-room-tile,
+body.drpg-theme-stained-glass #drpg-tile-row,
 body.drpg-theme-stained-glass #drpg-despair,
 body.drpg-theme-stained-glass #drpg-events,
 body.drpg-theme-stained-glass #drpg-player-status,
@@ -1118,8 +1119,9 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed {
    `--drpg-glass-accent` with ink on it (the phase stamp's pairing), the pips, the project line and
    the toggle's edge. The stroke is a copy of the brush's declarations above rather than a member
    of that list, whose `--brush-on` is 0 until a hover: the name's stroke is always on. Where the
-   curtain has cut no pane for the tile (a stacked screen until E77 C8) it carries its own dark
-   glass; where it has (`data-place`, E77 C4), the plate comes off with the other blocks' above. */
+   curtain has cut no pane for the tile it carries its own dark glass; where it has (`data-place`,
+   E77 C4, or the tiles' row on a stacked screen, E77 C8 - narrow.css), the plate comes off with
+   the other blocks' above. */
 body.drpg-theme-stained-glass #drpg-room-tile {
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
     border-radius: 0;
@@ -1170,7 +1172,7 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
 }
-body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-more {
+body.drpg-theme-stained-glass #drpg-room-tile :is(.drpg-room-tile-more, .drpg-room-tile-describe) {
     border: 1px solid var(--drpg-glass-accent);
     color: var(--drpg-glass-accent);
     background: rgba(7, 7, 10, 0.6);
@@ -2741,6 +2743,7 @@ body[data-drpg-measuring] #scene-controls,
 body[data-drpg-measuring] #sidebar-tabs,
 body[data-drpg-measuring] #drpg-hud,
 body[data-drpg-measuring] #drpg-room-tile,
+body[data-drpg-measuring] #drpg-tile-row,
 body[data-drpg-measuring] #drpg-gm-launcher,
 body[data-drpg-measuring] #drpg-despair,
 body[data-drpg-measuring] #drpg-events,

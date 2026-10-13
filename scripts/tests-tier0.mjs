@@ -8746,6 +8746,7 @@ const REGRESSIONS = [
          * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
          * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
          * (compared key by key). E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
+         * E77 C8 added the last planned road, the narrow row's thumbnail (`img.src` in room-tile.mjs `paintTileRow`).
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8798,7 +8799,8 @@ const REGRESSIONS = [
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
             ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
-            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"],
+            ["SRC room-tile.mjs#paintTileRow#src -> src", "the narrow row's 78x44 thumbnail (E77 C8): `img.src` only from `safeRoomImage` of the view's path, the path `paintRoomTile` gives the art layer; R505 reads it as that path and paints a `javascript:` picture with no thumbnail"],
+            ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack and, since E77 C8, of the tiles' row in it; the event chooses no room, and the tile in the row is painted from `viewerRoom` as anywhere (scenario 74 G)"],
             // ---- where Foundry's two windows stand (a client setting, E77 C7)
             ["STORE settings.mjs#foundryWindows#self -> place", "validated on read (`readPlaces`): two finite numbers, rounded, under a known key, or no place; then clamped wholly on screen and off the corner cluster (`clampPlace`, R516)"],
             ["STORE settings.mjs#foundryWindows#console -> place", "numbers only, clamped: a bad value is no place and the window stands at its home; the value is this browser's and moves only its own windows (R516)"],

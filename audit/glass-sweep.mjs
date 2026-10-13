@@ -54,6 +54,13 @@
  * room's pane over the curtain; a new description or the description opened firing `drpgGlassCut` - and a taller clock
  * firing none, which is that count's own control. At the first placed size two more controls: the place stamp
  * swapped without a pass, and the tile taken out - each must read as not ok. `--no-room` leaves it out.
+ * THE NARROW ROW (E77 C8, 13.10.2026). At a stacked size the page's `drpgRoomCheck` expects `row`: the tile in the
+ * stack's `#drpg-tile-row`, the row 44 px, the thumbnail 78x44, the words' button 44x44, a measured `tiles-row` block
+ * on a pane where glass is drawn, and on the GM's page a Foundry window opened over the stack (`over`, with its own
+ * control: the frame put under the stack). A stacked size that reads anything else fails. At the first stacked size
+ * two more readings: the row set 60 px high must read as not ok (`plantRow`), and the page resized to 1920x1080 must
+ * take the stack down with the tile back under the clock, or beside the notices where the curtain puts it there, and
+ * the clock first in its column (narrow.mjs `restoreDesk`); the page is then put back at its own size.
  *
  * FOUNDRY'S WINDOWS (E77 C5, 13.10.2026). After the room, at every size, the page's `drpgFoundryCut` fails the size on
  * the GM's page when either window is missing, open at load or not holding its rail, and - where glass is drawn -
@@ -226,7 +233,28 @@ async function plantRoom() {
     return res;
 }
 
-let bad = 0, glassSizes = 0, controlled = false, roomControlled = false, placesControlled = false, placesRead = false;
+/* Runs in the page: the row reading's planted fault, read at once and put back (E77 C8). */
+async function plantRow() {
+    const row = document.getElementById("drpg-tile-row"), was = row?.style.height ?? "";
+    if (row) row.style.height = "60px";
+    const r = await window.drpgRoomCheck({ cuts: false });
+    if (row) row.style.height = was;
+    return { tall: { ok: r.ok, why: r.why, pass: !r.ok && /the row is 60 px/.test(r.why) } };
+}
+
+/* Runs in the page after a resize to a desk: the stack taken down and the tile and the clock back (E77 C8). */
+function deskAgain() {
+    const tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud"), left = document.getElementById("ui-left-column-1");
+    const prev = tile?.previousElementSibling;
+    const under = prev === hud || (prev?.id === "drpg-floors" && prev.previousElementSibling === hud);
+    const got = { column: Boolean(document.getElementById("drpg-column")), row: Boolean(document.getElementById("drpg-tile-row")),
+        place: tile?.dataset.place ?? null, tile: tile?.parentElement === document.body ? "body" : under ? "under the clock" : (prev?.id || tile?.parentElement?.id || "gone"),
+        clockFirst: hud?.parentElement === left && left.firstElementChild === hud };
+    const ok = !got.column && !got.row && got.clockFirst && (got.place === "notes" ? got.tile === "body" : got.tile === "under the clock");
+    return { ok, why: JSON.stringify(got), pass: ok };
+}
+
+let bad = 0, glassSizes = 0, controlled = false, roomControlled = false, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -299,12 +327,31 @@ try {
                 const rc = await page.evaluate(() => window.drpgRoomCheck?.() ?? null);
                 if (!rc) fails.push("the page defines no drpgRoomCheck");
                 else {
+                    const rw = rc.row;
                     line += ` | room ${rc.ok ? "ok" : "NOT ok"} ` + (rc.expect === "placed"
-                        ? `${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}` : "unplaced")
+                        ? `${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
+                        : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
+                            + (rw.over ? ` over ${rw.over.got}/${rw.over.control}` : "") : "unplaced")
                         + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
                     if (theme !== "legacy" && r.c && !r.stacked && rc.expect !== "placed") fails.push("room: a desk with glass reads unplaced");
+                    if (r.stacked) stackedRead = true;
+                    if (r.stacked && rc.expect !== "row") fails.push("room: a stacked screen reads no row");
+                    if (control && !rowControlled && rc.expect === "row") {
+                        rowControlled = true;
+                        const ctl = await page.evaluate(plantRow);
+                        await page.setViewportSize({ width: 1920, height: 1080 });
+                        await page.waitForTimeout(waitMs);
+                        ctl.desk = await page.evaluate(deskAgain);
+                        await page.setViewportSize({ width: W, height: H });
+                        await page.waitForTimeout(waitMs);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            const said = k === "desk" ? (v.pass ? "holds" : "BROKEN") : v.pass ? "sees it" : "MISSES IT";
+                            console.log(`  row control ${k.padEnd(8)} ${said}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push(k === "desk" ? "the desk after the stack: " + v.why : "row control " + k + " reads as a pass");
+                        }
+                    }
                     if (control && !roomControlled && rc.expect === "placed") {
                         roomControlled = true;
                         const ctl = await page.evaluate(plantRoom);
@@ -347,6 +394,7 @@ try {
 } finally { await browser.close(); srv?.kill(); }
 if (control && !controlled) { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
 if (control && rooms && !roomControlled) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
+if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);

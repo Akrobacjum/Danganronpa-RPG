@@ -2269,7 +2269,7 @@ const INVARIANTS = [
         const { LAST } = await import("./glass.mjs");
         needs(env.glass(), "this measures Stained Glass");
         needs(env.layout(), "the curtain's canvas has no width outside a browser");
-        needs(env.desk(), "a stacked screen gets the tile's place in E77 C8");
+        needs(env.desk(), "a stacked screen places no tile: it cuts the tiles' row instead (E77 C8, R508's narrow clause)");
         // The room tile is part of the curtain's one shape too, in either of its places and whatever
         // the room says (E77 C4, 13.10.2026): a fixed block at the box glass.mjs placed, its pane a
         // section that is never painted as an empty one, since the tile has no plate of its own to
@@ -10740,7 +10740,7 @@ const INVARIANTS = [
             + "and inside; its distinct cells; a taken cell skipped one further out; every cell of the ray taken, the first anyway; a second run the same]");
     }],
 
-    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type; the room tile draws the GM's words as text and a picture only through it, and opens it on this browser alone", async () => {
+    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type; the room tile draws the GM's words as text and a picture only through it, and opens it on this browser alone; and the narrow row's thumbnail is the same checked path and its window draws the words as text under a title of the module's", async () => {
         /*
          * E77 C1, 13.10.2026; the A8 design's R380 (the E77 plan's D2 gave it this number; ledger V3), its
          * `safeRoomImage` clauses - E77 C3 adds the tile's (the GM's words drawn as text, no `data-tooltip`) and C8
@@ -10793,19 +10793,50 @@ const INVARIANTS = [
             + "<iframe srcdoc=\"<b>x</b>\"></iframe><b>bold</b>\n\nA second paragraph.";
         const view = image => ({ state: "room", room: "R505 <b>Hall</b>", sceneId: "SUITER505SCENE00", description: HOSTILE, image,
             tokens: { max: 3, left: 2, sealed: false }, project: true });
+        /* E77 C8: the narrow row's thumbnail is the one `<img>` a paint makes, so the markup's kinds are counted
+           outside it, and the thumbnail's own `src` and the words' button are read beside them. */
         const read = image => {
             const box = document.createElement("section");
             T.paintRoomTile(box, view(image));
             const prose = box.querySelector(".drpg-room-tile-prose"), name = box.querySelector(".drpg-room-tile-name");
-            const art = box.querySelector(".drpg-room-tile-art");
+            const art = box.querySelector(".drpg-room-tile-art"), thumb = box.querySelector(".drpg-room-tile-thumb > img");
             return [prose?.textContent === HOSTILE && prose.childElementCount === 0, name?.textContent === "R505 <b>Hall</b>" && name.childElementCount === 0,
-                box.querySelectorAll("img, script, iframe, b").length, box.querySelectorAll("[data-tooltip]").length,
-                art?.style.backgroundImage ?? null, Boolean(box.querySelector(".drpg-room-tile-open"))];
+                [...box.querySelectorAll("img, script, iframe, b")].filter(el => el !== thumb).length, box.querySelectorAll("[data-tooltip]").length,
+                art?.style.backgroundImage ?? null, Boolean(box.querySelector(".drpg-room-tile-open")),
+                thumb?.getAttribute("src") ?? null, Boolean(box.querySelector(".drpg-room-tile-describe"))];
         };
         equal(JSON.stringify([read("worlds/suite/hall.png"), read("javascript:alert(1)//x.png"), window.__drpgR505 ?? null]),
-            JSON.stringify([[true, true, 0, 0, 'url("worlds/suite/hall.png")', true], [true, true, 0, 0, "", false], null]),
+            JSON.stringify([[true, true, 0, 0, 'url("worlds/suite/hall.png")', true, "worlds/suite/hall.png", true],
+                [true, true, 0, 0, "", false, null, true], null]),
             "the tile painted with [its words literal and bare, its name literal and bare, elements of the markup's kinds, data-tooltips, the art's picture, "
-            + "a button to open it] for the GM's picture and for a `javascript:` one, and what the markup ran");
+            + "a button to open it, the narrow row's thumbnail, its button for the words] for the GM's picture and for a `javascript:` one, and what the markup ran");
+
+        /*
+         * E77 C8, 13.10.2026: the window's clause (ledger V3, D2). On a stacked screen the words open in a window
+         * (`openRoomWindow`), built by `roomWindowBody` from the view: read on the same hostile view, the name and the
+         * words come back literal with no element in them and none of the markup's kinds in the body. Then the window
+         * itself, opened for this browser's own viewer (the GM's Monokuma here, whatever room it stands in): its title
+         * is the module's 'Description' and not a room's name, it holds none of those elements and no data-tooltip, its
+         * heading is the viewer's room, and a second press answers the window already open rather than a second one.
+         */
+        ok(typeof T.roomWindowBody === "function" && typeof T.openRoomWindow === "function",
+            "room-tile.mjs has no `roomWindowBody` or `openRoomWindow` - the narrow row has no window to read");
+        const body = T.roomWindowBody(view("worlds/suite/hall.png"));
+        const bodyName = body.querySelector(".drpg-room-window-name"), bodyProse = body.querySelector(".drpg-room-window-prose");
+        const room = await T.openRoomWindow(), again = await T.openRoomWindow();
+        let shown;
+        try {
+            shown = [room?.title, room?.element?.querySelectorAll("img, script, iframe, b, [data-tooltip]").length ?? null,
+                room?.element?.querySelector(".drpg-room-window-name")?.textContent ?? null, again === room];
+        } finally {
+            await room?.close();
+        }
+        equal(JSON.stringify([bodyName?.textContent === "R505 <b>Hall</b>" && bodyName.childElementCount === 0,
+            bodyProse?.textContent === HOSTILE && bodyProse.childElementCount === 0, body.querySelectorAll("img, script, iframe, b, [data-tooltip]").length,
+            window.__drpgR505 ?? null, ...shown]),
+        JSON.stringify([true, true, 0, null, game.i18n.localize("DRPG.Room.describe"), 0, T.tileView().room ?? "", true]),
+            "[the window's name literal and bare, its words literal and bare, elements of the markup's kinds and data-tooltips in it, what the markup ran; "
+            + "the opened window's title, those elements in it, its heading, a second press answering the same window]");
 
         const apps = foundry.applications.apps, before = Object.getOwnPropertyDescriptor(apps, "ImagePopout");
         // The stand-in goes on globalThis, which the module's `new Image()` reads: in a browser that is window, and the
@@ -10971,20 +11002,25 @@ const INVARIANTS = [
            scene rail down for a frame and stand where its pane is not. Under the clock the refresh still seats it. */
         const home = [live.parentElement, live.nextElementSibling], was = live.dataset.place;
         try {
+            /* E77 C8 (13.10.2026): the harness page is a stacked screen, where the tile is a row of the stack and
+               the refresh brings it back to the row whatever `place` says (the desk clause below cannot be asked
+               there: measured, with the tile put in the body it stood in #drpg-tile-row after the refresh). */
+            const stacked = Boolean(live.closest("#drpg-tile-row"));
             live.dataset.place = "notes";
             document.body.append(live);
-            const kept = T.ensureRoomTile() === live && live.parentElement === document.body;
+            const kept = T.ensureRoomTile() === live && (stacked ? live.parentElement?.id === "drpg-tile-row" : live.parentElement === document.body);
             live.dataset.place = "clock";
             T.ensureRoomTile();
             const hud = document.getElementById("drpg-hud"), floors = hud?.nextElementSibling?.id === "drpg-floors" ? hud.nextElementSibling : hud;
-            equal(JSON.stringify([kept, !hud || floors.nextElementSibling === live]), JSON.stringify([true, true]),
-                "[the refresh leaves a tile placed beside the notices in the body, and seats one placed under the clock after the clock]");
+            equal(JSON.stringify([kept, stacked ? live.parentElement?.id === "drpg-tile-row" : !hud || floors.nextElementSibling === live]), JSON.stringify([true, true]),
+                stacked ? "[on a stacked screen the refresh brings a tile put in the body back to the stack's row, whatever its place says]"
+                    : "[the refresh leaves a tile placed beside the notices in the body, and seats one placed under the clock after the clock]");
         } finally {
             if (was === undefined) delete live.dataset.place; else live.dataset.place = was;
             if (home[0]) home[0].insertBefore(live, home[1]?.parentElement === home[0] ? home[1] : null);
         }
     }],
-    ["R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane, and a new description, the description opened or a recolour recuts nothing", async () => {
+    ["R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane; on a stacked screen a row of the stack 44 px high, cut as its own pane, with a 78x44 thumbnail and a 44 px button for the words; and a new description, the description opened or a recolour recuts nothing", async () => {
         /*
          * E77 C4, 13.10.2026; the A8 design's R383 (the E77 plan's D2 gave it this number; ledger V6, V8, V9, D1, D6).
          * The place and the box are chosen once a pass by glass.mjs `placeRoomTile` from `roomPlacement`: F, the
@@ -11001,53 +11037,83 @@ const INVARIANTS = [
          * count could not see a cut; and a recolour of the same cut (the curtain's `--acc`) repaints and fires
          * none. Under the clock the scene rail's first tile must stand below the tile's box: a player's slot is
          * kept under the tile, which kept under the clock put the rail 273 px up inside it at 2560x1440 (the
-         * glass harness, 13.10.2026). Only on a desk: a stacked screen's tile is E77 C8's.
+         * glass harness, 13.10.2026).
+         * THE NARROW CLAUSE (E77 C8, 13.10.2026; ledger V8, D2, RISK-b). On a stacked screen the tile is not placed:
+         * it stands in narrow.mjs's `#drpg-tile-row`, a row of the stack, and the curtain cuts the row (`tiles-row`, a
+         * measured block) and no room block. Read here: the row in the stack and the tile in it, no `LAST.room` and no
+         * room pane; for a tile with something in it the row 44 px high as laid out, the `tiles-row` block that
+         * height and toned on a pane, the thumbnail (with a picture) 78x44 and the words' button (with words) 44x44,
+         * and the desk's picture layer, its button, the toggle and the description not drawn; an empty tile (a trial,
+         * a GM with no Monokuma) leaves the row undrawn and no block. Then the same three readings of the cut as on a
+         * desk. Not run headless (no layout there): audit/glass-sweep.mjs reads the same numbers in Chromium at its
+         * seven stacked sizes, through `drpgRoomCheck`'s row reading with a control.
          */
         const G = await import("./glass.mjs");
         needs(env.glass(), "this measures Stained Glass");
         needs(env.layout(), "the curtain's canvas has no width outside a browser");
-        needs(env.desk(), "a stacked screen gets the tile's place in E77 C8");
         const tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
         const cur = document.getElementById("drpg-curtain");
         ok(tile && hud && cur, "no room tile, clock or curtain on this screen - nothing to measure");
         G.refreshGlass();
         await wait(300);
-        const room = G.LAST.room, pane = (G.LAST.panes || []).find(p => p.tone === "room-block");
-        ok(room && room.box && pane, `the pass placed no tile (${JSON.stringify(room)}) or cut no pane for it`);
-        equal(room.place, room.F - 24 >= room.need ? "clock" : "notes", `F ${room.F} and need ${room.need} choose the other place`);
-        const { box, ...placed } = room;
-        equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
-        const near = (a, b, d = 1) => Math.abs(a - b) <= d;
-        const at = cur.getBoundingClientRect();
-        document.body.toggleAttribute("data-drpg-measuring", true);
-        const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
-        document.body.toggleAttribute("data-drpg-measuring", false);
-        void document.body.offsetWidth;
-        const laid = [t.left - at.left, t.top - at.top, t.width, t.height];
-        ok(laid.every((v, i) => near(v, [box.x, box.y, box.w, box.h][i])), `the tile is laid out at ${laid.map(Math.round)} and placed at ${[box.x, box.y, box.w, box.h]}`);
-        if (room.place === "clock") {
-            ok(near(t.width, h.width) && near(t.left, h.left) && near(t.left + t.width / 2, h.left + h.width / 2),
-                `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
-            // a GM's rail stands in the Map tools window since E77 C5 and holds no place under the tile
-            const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")]
-                .filter(e => e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window"));
-            if (rail.length) ok(Math.min(...rail.map(e => e.getBoundingClientRect().top)) - at.top >= box.y + box.h,
-                "the scene rail's first tile stands up inside the room tile's box - its slot was kept under the clock, not under the tile");
+        if (!env.desk().holds) {
+            const row = document.getElementById("drpg-tile-row"), block = G.LAST.blocks.find(b => b.cls === "tiles-row");
+            ok(row && row.parentElement?.id === "drpg-column" && tile.parentElement === row,
+                `the tile stands in ${tile.parentElement?.id || tile.parentElement?.tagName}, the row in ${row?.parentElement?.id ?? "nothing"}`);
+            ok(!G.LAST.room && !(G.LAST.panes || []).some(p => p.tone === "room-block"), "a stacked screen's tile was placed as a desk's");
+            // laid-out sizes, which a turn of the row with its pane does not change
+            const box = el => el ? [el.offsetWidth, el.offsetHeight] : null;
+            const hidden = [".drpg-room-tile-art", ".drpg-room-tile-open", ".drpg-room-tile-more", ".drpg-room-tile-prose"]
+                .filter(sel => tile.querySelector(sel)?.offsetWidth > 0);
+            if (["trial", "none"].includes(tile.dataset.state)) {
+                equal(JSON.stringify([row.offsetHeight, Boolean(block)]), JSON.stringify([0, false]), `[the empty ${tile.dataset.state} tile's row height, a block cut for it]`);
+            } else {
+                ok(row.offsetHeight === 44 && block?.measured && block.h === 44
+                    && (G.LAST.panes || []).some(p => p.tone === "tiles-row"),
+                `the row is ${box(row)}, its block ${JSON.stringify(block)}, ${(G.LAST.panes || []).some(p => p.tone === "tiles-row") ? "a" : "no"} pane toned for it`);
+                const thumb = tile.querySelector(".drpg-room-tile-thumb"), words = tile.querySelector(".drpg-room-tile-describe");
+                if (thumb) equal(JSON.stringify(box(thumb)), "[78,44]", "the thumbnail's width and height");
+                if (words) equal(JSON.stringify(box(words)), "[44,44]", "the words' button's width and height");
+                equal(JSON.stringify(hidden), "[]", "the desk's parts drawn in the row");
+            }
         } else {
-            const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
-            const inside = (poly, x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k; } return k; };
-            ok(corner?.width, "no history button beside the notices to keep free");
-            const on = [[corner.left, corner.top], [corner.right, corner.top], [corner.right, corner.bottom], [corner.left, corner.bottom]]
-                .filter(([x, y]) => inside(pane.poly, x - at.left, y - at.top)).length;
-            equal(on, 0, "corners of the history's button on the room's pane");
-        }
-        const art = document.getElementById("drpg-room-art");
-        if (art || tile.querySelector(".drpg-room-tile-art")) {
-            ok(art && !tile.contains(art), "the picture is still inside the tile, not on its pane");
-            const r = art.getBoundingClientRect(), points = (getComputedStyle(art).clipPath.match(/px/g)?.length ?? 0) / 2;
-            const got = [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top];
-            ok(got.every((v, i) => near(v, [pane.x0, pane.y0, pane.x1, pane.y1][i], 1.5)) && points === pane.poly.length,
-                `the picture at ${got.map(Math.round)} clipped to ${points} points, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]} with ${pane.poly.length}`);
+            const room = G.LAST.room, pane = (G.LAST.panes || []).find(p => p.tone === "room-block");
+            ok(room && room.box && pane, `the pass placed no tile (${JSON.stringify(room)}) or cut no pane for it`);
+            equal(room.place, room.F - 24 >= room.need ? "clock" : "notes", `F ${room.F} and need ${room.need} choose the other place`);
+            const { box, ...placed } = room;
+            equal(JSON.stringify(G.roomPlacement(innerWidth, innerHeight)), JSON.stringify(placed), "a second reading of roomPlacement");
+            const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+            const at = cur.getBoundingClientRect();
+            document.body.toggleAttribute("data-drpg-measuring", true);
+            const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+            document.body.toggleAttribute("data-drpg-measuring", false);
+            void document.body.offsetWidth;
+            const laid = [t.left - at.left, t.top - at.top, t.width, t.height];
+            ok(laid.every((v, i) => near(v, [box.x, box.y, box.w, box.h][i])), `the tile is laid out at ${laid.map(Math.round)} and placed at ${[box.x, box.y, box.w, box.h]}`);
+            if (room.place === "clock") {
+                ok(near(t.width, h.width) && near(t.left, h.left) && near(t.left + t.width / 2, h.left + h.width / 2),
+                    `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
+                // a GM's rail stands in the Map tools window since E77 C5 and holds no place under the tile
+                const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")]
+                    .filter(e => e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window"));
+                if (rail.length) ok(Math.min(...rail.map(e => e.getBoundingClientRect().top)) - at.top >= box.y + box.h,
+                    "the scene rail's first tile stands up inside the room tile's box - its slot was kept under the clock, not under the tile");
+            } else {
+                const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
+                const inside = (poly, x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k; } return k; };
+                ok(corner?.width, "no history button beside the notices to keep free");
+                const on = [[corner.left, corner.top], [corner.right, corner.top], [corner.right, corner.bottom], [corner.left, corner.bottom]]
+                    .filter(([x, y]) => inside(pane.poly, x - at.left, y - at.top)).length;
+                equal(on, 0, "corners of the history's button on the room's pane");
+            }
+            const art = document.getElementById("drpg-room-art");
+            if (art || tile.querySelector(".drpg-room-tile-art")) {
+                ok(art && !tile.contains(art), "the picture is still inside the tile, not on its pane");
+                const r = art.getBoundingClientRect(), points = (getComputedStyle(art).clipPath.match(/px/g)?.length ?? 0) / 2;
+                const got = [r.left - at.left, r.top - at.top, r.right - at.left, r.bottom - at.top];
+                ok(got.every((v, i) => near(v, [pane.x0, pane.y0, pane.x1, pane.y1][i], 1.5)) && points === pane.poly.length,
+                    `the picture at ${got.map(Math.round)} clipped to ${points} points, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]} with ${pane.poly.length}`);
+            }
         }
         let cuts = 0;
         const count = () => { cuts++; };

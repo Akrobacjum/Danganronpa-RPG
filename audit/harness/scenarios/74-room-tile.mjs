@@ -26,6 +26,11 @@
  *   F (the windows' places and Escape, E77 C7): opening both windows fires no `drpgGlassCut` (beside a taller clock's
  *     control); Foundry tools dragged by its title stands where it was dropped and the place is in the GM's client
  *     storage, in no player's; with a framed DialogV2 open Escape is Foundry's, and only the next one closes both.
+ *   G (the narrow row, E77 C8): the harness's page is a stacked screen, so p1's tile stands in `#drpg-tile-row`, a row
+ *     of `#drpg-column`, in its narrow form: a thumbnail whose `src` is the checked path the art layer shows, and a
+ *     'Description' button that opens a window of the module's titled 'Description' holding Dorm A's words as text -
+ *     no element of the GM's markup in it, nothing run - and a second open is the same window. The row's 44 px, the
+ *     thumbnail's 78x44 and the cut need layout: R508's narrow clause and audit/glass-sweep.mjs read them.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -54,7 +59,8 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
             return t ? { state: t.dataset.state ?? null, name: t.querySelector(".drpg-room-tile-name")?.textContent ?? null,
                 prose: t.querySelector(".drpg-room-tile-prose")?.textContent ?? null, art: t.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? null,
                 open: t.classList.contains("is-open"), expanded: t.querySelector(".drpg-room-tile-more")?.getAttribute("aria-expanded") ?? null,
-                hidden: t.getAttribute("aria-hidden"), after: t.previousElementSibling?.id ?? null, text: t.textContent } : null; };
+                hidden: t.getAttribute("aria-hidden"), after: t.previousElementSibling?.id ?? null, parent: t.parentElement?.id ?? null,
+                stacked: document.body.classList.contains("drpg-stacked"), text: t.textContent } : null; };
         const watch = () => { const painted = globalThis.__s74painted = [];
             globalThis.__s74observer?.disconnect();
             if (!tile()) return false;
@@ -115,11 +121,14 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
     const [p2A, gmA, p4A] = [await p2.eval(PAGE), await gm.eval(PAGE), await p4.eval(PAGE)];
     const L = await p1.eval(`return { nowhere: game.i18n.localize("DRPG.Hud.roomNowhere"), noActor: game.i18n.localize("DRPG.Explain.room.noActor") };`);
     check("A1: the GM's Room Setup gives Dorm A words and a picture, and p1's tile, Aiko's Dorm A, is painted once with both - the words "
-        + "literal, markup and paragraph break as typed, the picture on the art layer - after the clock it stands under",
+        + "literal, markup and paragraph break as typed, the picture on the art layer - after the clock it stands under, or in the tiles' row on a stacked screen",
     J(setA) === J({ TOKAIKO000000000: "Dorm A", TOKBOTAN00000000: "Cafeteria", TOKMONOKUMA00000: "Hall" })
         && applied.seen?.words === true && applied.seen?.picture === true
         && J(p1A.painted) === J(["Dorm A"]) && p1A.tile?.state === "room" && p1A.tile.name === "Dorm A" && p1A.tile.prose === WORDS["Dorm A"]
-        && p1A.tile.art === `url("${IMAGES["Dorm A"]}")` && ["drpg-hud", "drpg-floors"].includes(p1A.tile.after) && p1A.ran === null,
+        && p1A.tile.art === `url("${IMAGES["Dorm A"]}")` && p1A.ran === null
+        // The harness's page is a stacked screen (jsdom's 1024 px is under the breakpoint), and there the tile stands in
+        // the tiles' row since E77 C8 rather than under the clock; on a desk it is under the clock, as C3 read it.
+        && (p1A.tile.stacked ? p1A.tile.parent === "drpg-tile-row" : ["drpg-hud", "drpg-floors"].includes(p1A.tile.after)),
     J({ setA, applied, p1A }));
     check("A2: nothing of Dorm A reaches p2's page, the GM's tile is its Monokuma's Hall (words, no picture), p4 with no character "
         + "reads the line for none, and no clock carries the old room rows",
@@ -360,6 +369,48 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         Boolean(want) && J(gmF.drag.to) === J([want.x, want.y]) && J(gmF.drag.stored?.ftools ?? null) === J(want) && J(playersF) === J([null, null]), J({ gmF, playersF }));
     check("F3: with a framed DialogV2 rendered Escape leaves both windows open and the key to Foundry; with the dialog closed the next Escape closes both and is taken",
         J(gmF.escape) === J([[true, true], [false, [true, true]], [true, [false, false]]]), J(gmF.escape));
+
+    /* ------------------------------ G. the narrow row (E77 C8) ------------------------------ */
+    phase("G: stacked: #drpg-tile-row holds the tile's narrow form; the window opens with text only");
+    /* On p1 as B left it: Aiko in Dorm A, the room with words and a picture. The window is opened by a click on the
+       row's own button (what a player does) and then once more through `openRoomWindow` (what a second click does):
+       the second must answer the first window, not a second one. Read: the window's class, its title, every element
+       of the GM's words that a parser would make (none), the words as text, and `__s74ran` (the words' `onerror`). Put
+       back: the window closed. */
+    const p1G = await p1.eval(`const RT = await import("${repoUrl}/scripts/room-tile.mjs");
+        const tile = document.getElementById("drpg-room-tile"), row = document.getElementById("drpg-tile-row");
+        const thumb = tile?.querySelector(".drpg-room-tile-thumb img"), words = tile?.querySelector(".drpg-room-tile-describe");
+        const pause = ms => new Promise(r => setTimeout(r, ms));
+        const out = { stacked: document.body.classList.contains("drpg-stacked"), inRow: Boolean(row && tile?.parentElement === row),
+            rowInColumn: row?.parentElement?.id ?? null, state: tile?.dataset.state ?? null,
+            thumb: thumb?.getAttribute("src") ?? null, words: Boolean(words), label: words?.getAttribute("aria-label") ?? null };
+        // Rendered ones only: an application is in \`instances\` from the start of its first render, and a second open
+        // asked before the first has finished is a second window (alreadyOpen counts rendered windows, as for every
+        // window of the module's) - a reader that waited for the element alone read that race on 13.10.2026, not the row.
+        const find = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.element?.classList.contains("drpg-window-room"));
+        let first = null;
+        try {
+            words?.click();
+            const end = Date.now() + 3000;
+            while (!find().length && Date.now() < end) await pause(50);
+            first = find()[0] ?? null;
+            const again = await RT.openRoomWindow();
+            const el = first?.element;
+            out.window = { count: find().length, same: again === first, title: first?.title ?? null,
+                markup: el ? el.querySelectorAll(".drpg-room-window-body img, .drpg-room-window-body script, .drpg-room-window-body iframe, .drpg-room-window-body b").length : null,
+                name: el?.querySelector(".drpg-room-window-name")?.textContent ?? null,
+                prose: el?.querySelector(".drpg-room-window-prose")?.textContent ?? null };
+        } finally { for (const app of find()) await app.close(); }
+        await pause(50);
+        out.closed = find().length; out.ran = globalThis.__s74ran ?? null;
+        out.describe = game.i18n.localize("DRPG.Room.describe");
+        return out;`, { timeout: 15000 });
+    check("G1: on a stacked screen p1's tile stands in #drpg-tile-row, a row of #drpg-column, with a thumbnail of the checked path the art layer shows and a 'Description' button",
+        p1G.stacked === true && p1G.inRow === true && p1G.rowInColumn === "drpg-column" && p1G.state === "room"
+            && p1G.thumb === IMAGES["Dorm A"] && p1G.words === true && p1G.label === p1G.describe, J(p1G));
+    check("G2: the button opens one window titled 'Description' with Dorm A's words as text - no element of the markup, nothing run - and a second open is the same window",
+        J(p1G.window) === J({ count: 1, same: true, title: p1G.describe, markup: 0, name: "Dorm A", prose: WORDS["Dorm A"] })
+            && p1G.closed === 0 && p1G.ran === null, J(p1G));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

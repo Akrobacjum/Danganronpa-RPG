@@ -12901,6 +12901,9 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
 }
 .drpg-room-tile-prose[hidden] { display: none; }
+/* The narrow row's thumbnail and description button (E77 C8): every paint draws them, and only
+   the row on a stacked screen shows them (narrow.css). */
+.drpg-room-tile > :is(.drpg-room-tile-thumb, .drpg-room-tile-describe) { display: none; }
 
 /* An empty pane: a Class Trial, or a GM without a Monokuma of their own (the design's D9). */
 .drpg-room-tile:is([data-state="trial"], [data-state="none"]) { pointer-events: none; }

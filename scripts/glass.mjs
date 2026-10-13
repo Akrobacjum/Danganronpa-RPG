@@ -42,6 +42,11 @@ export const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
+  /* THE TILES' ROW IS MEASURED (E77 C8, 13.10.2026). It exists only on a stacked screen (narrow.mjs
+     `tileRow`), as a row of the stack at a height the stylesheet states, 44 px, so what the room says
+     cannot move it and measuring it costs no recut the fixed room block was made to avoid. No row - a
+     desk, or a trial's or a GM's empty tile, which hides it - no pane. */
+  { cls: "tiles-row", sel: "#drpg-tile-row", fallback: null },
   /* THE GM BUTTON IS IN THE CORNER (E77 C6, 13.10.2026). From 07.09 it rode the scene rail's
      shard at the top of the left column; it is a member of `launch` now, through
      `data-drpg-cluster`, over the settings button in the AM-21 grid, and turns with the cluster. */
@@ -67,7 +72,7 @@ const BLOCKS = [
      under the clock and the bottom one beside the notices, every time, and the sweep's
      `drpgRoomCheck` fails a size where it is not. It is `solid`: a fixed
      block with something on it is painted as glass, not as the empty tile's stripes. No place
-     (no tile, a stacked screen - E77 C8's), no box, no pane. */
+     (no tile, or a stacked screen, where the tile is in `tiles-row` above), no box, no pane. */
   { cls: "room-block", sel: "#drpg-room-tile", fixed: true, solid: true, fallback: () => ROOM.box },
   { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
@@ -1050,7 +1055,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      tablet screenshot shows behind the clock and the tray. The lift is small (a panel's
      pane must still read as the calmest thing on the screen) and it is paid for by the
      black layer in `paintGlass`, which is thinner over content than over filler. */
-  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", launch: "#0d0b16" };
+  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", "tiles-row": "#0d0b16", launch: "#0d0b16" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";

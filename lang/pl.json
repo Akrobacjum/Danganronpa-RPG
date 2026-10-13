@@ -520,7 +520,8 @@
       "readMore": "Czytaj dalej",
       "readLess": "Zwiń opis",
       "imageOpen": "Pokaż zdjęcie: {room}",
-      "imageMissing": "Zdjęcie tego pokoju się nie wczytuje."
+      "imageMissing": "Zdjęcie tego pokoju się nie wczytuje.",
+      "describe": "Opis"
     },
     "FoundryTools": {
       "title": "Narzędzia Foundry",
