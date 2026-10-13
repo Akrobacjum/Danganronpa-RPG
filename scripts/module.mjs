@@ -89,6 +89,7 @@ import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
+import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
@@ -352,6 +353,10 @@ Hooks.once("ready", () => {
     // layout and the glass, which find it. Its first paint waits at the column's end
     // until the clock's own first render, which comes after this hook, moves it.
     safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
+    // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
+    // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
+    // glass, which measure a rail only while it stands in Foundry's columns.
+    safely("Foundry's windows", registerFoundryWindows);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

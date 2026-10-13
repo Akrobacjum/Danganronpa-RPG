@@ -541,6 +541,11 @@
       "imageOpen": "Show the picture of {room}",
       "imageMissing": "The picture of this room does not load."
     },
+    "FoundryTools": {
+      "title": "Foundry tools",
+      "mapTitle": "Map tools",
+      "close": "Close"
+    },
     "Action": {
       "murderConfirmEclipse": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
       "beat": "beat {n}",

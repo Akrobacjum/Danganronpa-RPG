@@ -522,6 +522,11 @@
       "imageOpen": "Pokaż zdjęcie: {room}",
       "imageMissing": "Zdjęcie tego pokoju się nie wczytuje."
     },
+    "FoundryTools": {
+      "title": "Narzędzia Foundry",
+      "mapTitle": "Narzędzia mapy",
+      "close": "Zamknij"
+    },
     "Action": {
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "beat": "przebij {n}",

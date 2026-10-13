@@ -53,14 +53,25 @@
  * firing none, which is that count's own control. At the first placed size two more controls: the place stamp
  * swapped without a pass, and the tile taken out - each must read as not ok. `--no-room` leaves it out.
  *
- * KNOWN: 1280x720 edgeGaps 16 is the reading glass.mjs explains ("WHAT THE SKIP LEAVES BARE",
- * E81 C14) - the strip's 160 px skip leaves the wall bare there - and is the default `--known`;
- * any other value at that size still fails. `--known ""` drops it.
+ * FOUNDRY'S WINDOWS (E77 C5, 13.10.2026). After the room, at every size, the page's `drpgFoundryCut` fails the size on
+ * the GM's page when either window is missing, open at load or not holding its rail, and - where glass is drawn -
+ * when opening and closing both fires `drpgGlassCut` or changes the clip-path, or a taller clock fires none (the
+ * count's own control); on a player's page when a frame exists or either rail has a box; on either, a desk with glass
+ * whose notice tile was not fitted (no rail in the column leaves the fit to `moduleLayout`'s no-rail branch alone), or
+ * fitted to NOTE_MIN under a room tile that stands under the clock (the column's drop at the wall not reserved).
+ * `--no-windows` leaves it out.
+ *
+ * KNOWN: none since E77 C5. 1280x720 edgeGaps 16 was the reading glass.mjs explains ("WHAT THE
+ * SKIP LEAVES BARE", E81 C14) - the strip's 160 px skip left the wall bare there. The sweep before
+ * C5 (C4's, 13.10.2026) already read 0 at that size for both roles, and since C5 no rail stands at
+ * that wall, so the strip is cut however short; C5's sweep reads 0. `--known 1280x720:eg=16` (or
+ * any `<size>:<key>=<n>`) still exempts exactly that reading.
  *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
+ *          [--no-windows]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -80,7 +91,8 @@ const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
-const known = Object.fromEntries((opt("--known") ?? "1280x720:eg=16").split(",").filter(Boolean).map(k => {
+const windows = !args.includes("--no-windows");
+const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
 }));
@@ -271,6 +283,14 @@ try {
                             if (!v.pass) fails.push("room control " + k + " reads as a pass");
                         }
                     }
+                }
+            }
+            if (windows) {
+                const fc = await page.evaluate(() => window.drpgFoundryCut?.() ?? null);
+                if (!fc) fails.push("the page defines no drpgFoundryCut");
+                else {
+                    line += ` | windows ${fc.ok ? "ok" : "NOT ok"} ${fc.expect}` + (fc.cuts ? ` cuts ${fc.cuts.open}/${fc.cuts.control}` : "") + (fc.fit ? ` fit ${fc.fit}` : "");
+                    if (!fc.ok) fails.push("windows: " + fc.why);
                 }
             }
             if (!r.tile) fails.push("no #drpg-notices-corner");

@@ -17,6 +17,9 @@
  *     refused for its price - read on p1's tile 400 and 1200 ms after the last step, nothing of the refused Shed
  *     at any moment, and the tile ends in Dorm A, where the put-back stands the token. Scenario 66 W reads the same
  *     routes on room-tile.mjs's data; this reads what is drawn.
+ *   D (Foundry's rails leave the screen, E77 C5): p1's scene controls computed `display: none` in both themes and its
+ *     layer back to Tokens after a new canvas and a render of the controls; the GM's two windows closed, Foundry tools
+ *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -204,6 +207,66 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         && refusedB.late.tile?.name === "Dorm A" && refusedB.late.tile.prose === WORDS["Dorm A"] && refusedB.token === "Dorm A"
         && J([...refusedB.late.settled, ...refusedB.rest.settled]) === J([[false, "Dorm A"]]) && J(p2B) === "[]",
     J({ brokeB, refusedB, p2B }));
+
+    /* ------------------------------ D. Foundry's rails leave the screen (E77 C5) ------------------------------ */
+    phase("D: a player has no scene controls and keeps the Tokens layer; the GM's rails stand in two closed windows");
+    /* The harness draws no scene controls of Foundry's, so each page is handed a stand-in `#scene-controls` in its left
+       column - the element the stylesheet and the guard name - and it is taken away again. Computed in both themes on p1
+       (the theme's class swapped and put back); on the GM the guard moves the stand-in into Map tools before the next
+       task, and the same rule leaves its display alone there - the control that the rule is the player's. The Tokens
+       layer through the harness's `ui.controls` (v13's `control` and `activate`, LIVE-E77-11 at a table): another layer
+       set, then a new canvas, then a render of the controls; and with Tokens already active, nothing asked. */
+    const STAND_IN = `const standIn = () => { const el = document.createElement("div"); el.id = "scene-controls";
+            el.innerHTML = '<menu><li><button type="button" class="ui-control"></button></li></menu>';
+            (document.getElementById("ui-left") ?? document.getElementById("interface")).append(el); return el; };
+        const tick = () => new Promise(r => setTimeout(r, 0));`;
+    const p1D = await p1.eval(`${STAND_IN} const body = document.body, el = standIn(), out = {};
+        const swap = legacy => { body.classList.toggle("drpg-theme-stained-glass", !legacy); body.classList.toggle("drpg-theme-monokuma-legacy", legacy); };
+        const was = [body.classList.contains("drpg-theme-stained-glass"), body.classList.contains("drpg-theme-monokuma-legacy")];
+        try {
+            out.player = body.classList.contains("drpg-player");
+            swap(false); out.stained = getComputedStyle(el).display;
+            swap(true); out.legacy = getComputedStyle(el).display;
+        } finally { body.classList.toggle("drpg-theme-stained-glass", was[0]); body.classList.toggle("drpg-theme-monokuma-legacy", was[1]); el.remove(); }
+        out.frames = document.querySelectorAll(".drpg-foundry-window").length;
+        const controls = ui.controls, asked = [], activate = controls.activate;
+        controls.activate = function (how) { asked.push(how); return activate.call(this, how); };
+        try {
+            controls.control = { name: "drawings" };
+            game._viewScene(canvas.scene);
+            await tick();
+            out.canvas = [controls.control?.name ?? null, asked.length];
+            await new Promise(r => setTimeout(r, 1100));
+            controls.control = { name: "walls" };
+            Hooks.callAll("renderSceneControls", controls, document.createElement("div"), {});
+            out.render = [controls.control?.name ?? null, asked.length];
+            await new Promise(r => setTimeout(r, 1100));
+            Hooks.callAll("renderSceneControls", controls, document.createElement("div"), {});
+            out.still = asked.length;
+            out.asked = asked;
+        } finally { controls.activate = activate; controls.control = { name: "tokens" }; }
+        return out;`, { timeout: 20000 });
+    const gmD = await gm.eval(`${STAND_IN} const frame = id => document.getElementById(id), out = {};
+        const [ftools, maptools] = [frame("drpg-win-ftools"), frame("drpg-win-maptools")];
+        const bodyOf = f => f?.querySelector(":scope > .drpg-foundry-window-body") ?? null;
+        out.closed = [ftools, maptools].map(f => f ? [f.parentElement === document.body, f.hidden, f.hasAttribute("inert")] : null);
+        const side = document.getElementById("sidebar");
+        out.sidebar = [side?.parentElement === bodyOf(ftools), ui.sidebar.element === side, Boolean(side?.querySelector("#chat")), ui.sidebar.expanded];
+        const el = standIn();
+        await tick();
+        out.rail = [el.parentElement === bodyOf(maptools), getComputedStyle(el).display];
+        el.remove();
+        return out;`, { timeout: 20000 });
+    const p2D = await p2.eval(`return [document.querySelectorAll(".drpg-foundry-window").length, document.body.classList.contains("drpg-player")];`);
+    check("D1: a player's scene controls are display: none under Stained Glass and under Monokuma Legacy, and a player has no window of Foundry's",
+        p1D.player === true && p1D.stained === "none" && p1D.legacy === "none" && p1D.frames === 0 && J(p2D) === J([0, true]), J({ p1D, p2D }));
+    check("D2: p1's layer comes back to Tokens with its select tool after a new canvas and after a render of the controls, and nothing is asked with Tokens active",
+        J(p1D.canvas) === J(["tokens", 1]) && J(p1D.render) === J(["tokens", 2]) && p1D.still === 2
+            && J(p1D.asked) === J([{ control: "tokens", tool: "select" }, { control: "tokens", tool: "select" }]), J(p1D));
+    check("D3: the GM's two windows are body children, closed (hidden and inert); Foundry tools holds Foundry's own #sidebar, chat and all, "
+        + "collapsed; a scene rail drawn into the left column is in Map tools before the next task, and the player's rule leaves it shown",
+        J(gmD.closed) === J([[true, true, true], [true, true, true]]) && J(gmD.sidebar) === J([true, true, true, false])
+            && gmD.rail[0] === true && gmD.rail[1] !== "none", J(gmD));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

@@ -14,7 +14,10 @@
      the module's own notice cards on the tile and measures the stack and the corner (E81 fix r2-H2).
      The room tile stands under the clock as room-tile.mjs builds it, with a gradient for its picture,
      and the clock has no room row (E77 C3); `?role=player` is a player's screen - no GM button, so the
-     rail keeps the button's slot - and `drpgRoomCheck()` reads where the curtain put the tile (E77 C4). -->
+     rail keeps the button's slot - and `drpgRoomCheck()` reads where the curtain put the tile (E77 C4). Since E77 C5
+     the page boots foundry-windows.mjs as the module does: on the GM's page the scene controls and the sidebar stand
+     in its two closed windows, on a player's the body carries `drpg-player` and the stylesheet hides both rails, and
+     `drpgFoundryCut()` reads that opening the windows recuts nothing. -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -500,6 +503,66 @@ A second paragraph.</p></section>
     return done();
   };
 </script>
+<script id="drpg-foundry-cut">
+  /* FOUNDRY'S WINDOWS RECUT NOTHING, MEASURED IN A BROWSER (E77 C5, 13.10.2026). R514 reads the same inside Foundry
+     and only there: headless there is no layout. Answers { ok, why, ... } as the checks above do:
+       expect   "windows" on the GM's page: both frames of foundry-windows.mjs exist, closed (`hidden` and `inert`)
+                as the page loaded, the Map tools one holding `#scene-controls` and the Foundry tools one `#sidebar`;
+                "none" on a player's: no frame, and neither rail has a box (`body.drpg-player`).
+       fit      on a desk where the curtain is cut, the notice tile fitted this pass (`--drpg-note-fit` on the body):
+                with no rail in the column `fitNoteTile` is called from the no-rail branch of `moduleLayout` alone.
+                With the room tile under the clock the fit is above `NOTE_MIN`: `roomPlacement` reserved the
+                column's drop at the wall, so a fit of the floor itself means the tile took it.
+       cuts     where the curtain is cut: both windows opened (`toggleFoundryTools(true)`) and a pass, closed and a
+                pass - no `drpgGlassCut` and the curtain's clip-path the same throughout. THE CONTROL: the clock
+                40 px taller and a pass - at least one `drpgGlassCut`, or the count could not see a cut.
+     The page is put back before it answers. */
+  window.drpgFoundryCut = async () => {
+    const g = window.__glass, fw = window.__windows, body = document.body, hud = document.getElementById("drpg-hud");
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const settle = () => new Promise(r => setTimeout(r, 450));
+    const frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id));
+    const [bar, rail] = ["#sidebar", "#scene-controls"].map(q => document.querySelector(q));
+    const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
+    const cut = Boolean(body.classList.contains("drpg-theme-stained-glass") && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", closed: null, cuts: null,
+      fit: body.style.getPropertyValue("--drpg-note-fit") || null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    if (cut && !body.classList.contains("drpg-stacked") && !out.fit) out.why.push("the notice tile was not fitted on a desk with glass");
+    if (cut && out.fit && g.LAST?.room?.place === "clock" && !(parseFloat(out.fit) > g.NOTE_MIN))
+      out.why.push(`the room tile under the clock left the notice tile its floor alone (fit ${out.fit}, NOTE_MIN ${g.NOTE_MIN})`);
+    if (out.expect === "none") {
+      if (body.classList.contains("drpg-gm")) out.why.push("the GM's page has no Foundry windows");
+      for (const e of [bar, rail]) if (e?.offsetWidth) out.why.push(`a player's #${e.id} has a box`);
+      return done();
+    }
+    if (frames.some(f => !f)) { out.why.push("one of the two windows is missing"); return done(); }
+    out.closed = frames.every(f => f.hidden && f.hasAttribute("inert") && !f.offsetWidth);
+    if (!out.closed) out.why.push("a window stands open as the page loaded");
+    if (bar?.closest(".drpg-foundry-window") !== frames[0] || rail?.closest(".drpg-foundry-window") !== frames[1])
+      out.why.push("a rail is not in its window");
+    if (!cut || !fw) return done();
+    let n = 0; const count = () => { n++; };
+    Hooks.on("drpgGlassCut", count);
+    const pass = async () => { g.refreshGlass(); await frame(); await settle(); };
+    const clip = [cur.style.clipPath];
+    fw.toggleFoundryTools(true); await pass();
+    const opened = frames.every(f => !f.hidden && f.offsetWidth > 0 && f.offsetHeight > 0);
+    clip.push(cur.style.clipPath);
+    fw.toggleFoundryTools(false); await pass();
+    clip.push(cur.style.clipPath);
+    out.cuts = { open: n, opened, same: clip.every(c => c === clip[0]), control: null };
+    const row = document.createElement("div"); row.style.height = "40px"; hud.append(row);
+    await pass();
+    out.cuts.control = n - out.cuts.open;
+    row.remove(); await pass();
+    Hooks.off("drpgGlassCut", count);
+    if (!opened) out.why.push("the windows did not open");
+    if (out.cuts.open || !out.cuts.same) out.why.push(`opening and closing the windows recut the glass (${out.cuts.open} cut(s), clip-path the same ${out.cuts.same})`);
+    if (out.cuts.control < 1) out.why.push("control: a taller clock fired no drpgGlassCut - the count cannot see a cut");
+    return done();
+  };
+</script>
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("scheme") === "light") document.documentElement.style.colorScheme = "light";
@@ -514,9 +577,13 @@ A second paragraph.</p></section>
     once(name, fn) { return this.on(name, fn); }, off(name, fn) { hooks.set(name, (hooks.get(name) ?? []).filter(f => f !== fn)); },
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
-  if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.remove("drpg-gm"); }
+  if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
   globalThis.game = { ready: true, i18n: { localize: k => k.split(".").pop(), format: (k, d) => k, has: () => false }, settings: { get: (m, k) => defaults[k], settings: new Map() }, user: { isGM: !player } };
   globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
+  /* Before the glass, as module.mjs registers it (E77 C5): the GM's two rails into their closed windows. */
+  const fw = await import("/scripts/foundry-windows.mjs");
+  window.__windows = fw;
+  fw.registerFoundryWindows();
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;
   /* applyTheme does not run here, so the harness stamps what it would: the two scale

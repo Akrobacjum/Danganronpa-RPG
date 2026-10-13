@@ -8290,6 +8290,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK foundry-windows.mjs#canvasReady#keepTokensLayer", "out of scope: asks this client's own Tokens layer back after a new canvas, at most once a second and never while it is active (E77 C5); a player's layer decides no rule"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -9047,7 +9048,7 @@ const REGRESSIONS = [
             + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
 
-    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares", async () => {
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
          * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
@@ -9076,6 +9077,11 @@ const REGRESSIONS = [
          * reads it, with a fallback for Monokuma Legacy, is a reader, not a second copy). A second formula is how a
          * height that "fits the description" would come back, and with it a recut on every new description. The fixture
          * is read again with the export gone, a second writer in room-tile.mjs and a sheet declaring the height.
+         * E77 C5 (13.10.2026) adds Foundry's windows: no rule of the three sheets whose selector names a frame of
+         * foundry-windows.mjs (`.drpg-foundry-window`, `#drpg-win-`) gives it or anything in it a `clip-path`, an
+         * `overflow` of hidden or clip, or `display: none`. The first two would cut a directory's context menu off at
+         * the frame's edge; a closed frame is the `hidden` attribute's alone, so a sheet that hid one would leave it
+         * shut whatever the GM clicked. Read on a fixture first, then on it with each of the three planted.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
         const shape = files => {
@@ -9139,6 +9145,19 @@ const REGRESSIONS = [
         must([...sheets.values()].every(text => text.length > 1000), "a stylesheet did not load - this would measure nothing");
         equal(JSON.stringify(formula(new Map([...sources].map(([file, text]) => [file, stripComments(text)])), sheets)), JSON.stringify([true, [], []]),
             "[glass.mjs exports roomPlacement and writes --drpg-room-h; the other sources naming a room variable or a second formula; the sheets declaring one]");
+        const FRAMED = /\.drpg-foundry-window\b|#drpg-win-/;
+        const CUTS = /\bclip-path\s*:\s*(?!none\b)|\boverflow(?:-[xy])?\s*:\s*(?:hidden|clip)\b|\bdisplay\s*:\s*none\b/;
+        const framed = list => [...list].flatMap(([file, text]) => [...text.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(([, sel, body]) => FRAMED.test(sel) && CUTS.test(body)).map(([, sel]) => `${file}: ${sel.trim()}`));
+        const FRAME_SHEET = "body.drpg-player #sidebar {\n    display: none;\n}\n.drpg-foundry-window:not([hidden]) {\n    position: fixed;\n    display: flex;\n}\n"
+            + "@media (max-width: 900px) {\n    .drpg-foundry-window-body > #sidebar {\n        height: 700px;\n    }\n}\n";
+        equal(JSON.stringify([framed(new Map([["danganronpa.css", FRAME_SHEET]])),
+            ...["clip-path: inset(0);", "overflow: hidden;", "display: none;"]
+                .map(cut => framed(new Map([["danganronpa.css", FRAME_SHEET.replace("height: 700px;", `height: 700px;\n        ${cut}`)]])))]),
+        JSON.stringify([[], ...Array(3).fill(["danganronpa.css: .drpg-foundry-window-body > #sidebar"])]),
+        "the window reader does not read its fixture whole, or does not see a clip-path, an overflow: hidden or a display: none on a frame's rule");
+        ok([...sheets.values()].some(text => FRAMED.test(text)), "no stylesheet styles Foundry's windows (E77 C5), and with no rule there is nothing to read");
+        equal(JSON.stringify(framed(sheets)), "[]", "[the rules naming Foundry's windows that clip them, cut off their overflow or hide them]");
         const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
         const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
         equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, [], true, true], []]),

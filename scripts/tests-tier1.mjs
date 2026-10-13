@@ -2283,6 +2283,182 @@ const INVARIANTS = [
         ok(pane?.kind === "section" && !pane.empty, `the room's pane is ${pane ? (pane.empty ? "painted empty" : pane.kind) : "missing"}`);
     }],
 
+    ["R510 - a player has no scene controls of Foundry's and keeps the Tokens layer: the stylesheet hides `#scene-controls` for body.drpg-player with !important in every theme, and the layer is asked back to Tokens with its select tool on every new canvas and every render of the controls, whenever it is another, once a second at most and never on a GM's screen", async () => {
+        /*
+         * E77 C5, 13.10.2026; the A8 design's R385 (the E77 plan's D2 gave it this number), the owner's Q4 ("u gracza
+         * usuwamy przyciski Foundry calkowicie"). Three readings. The rule, in the module's sheets with comments blanked:
+         * `body.drpg-player #scene-controls { display: none !important; }` with no theme class in the selector - read
+         * first on a fixture, and on it with the `!important` taken off and with the rule tied to Stained Glass. The
+         * road: foundry-windows.mjs `registerFoundryWindows` hooks `keepTokensLayer` to `canvasReady` and
+         * `renderSceneControls` for a player, before anything of the GM's. The ask, `askTokensLayer`, on stand-ins of
+         * `ui.controls`: Tokens already active - nothing asked; a GM on Drawings - nothing; a player on Drawings (the
+         * positive control: another layer set first) - `activate({ control: "tokens", tool: "select" })` once and the
+         * layer is Tokens; Walls half a second later - dropped, which is what keeps a Foundry that refuses the call
+         * from asking on every render it causes; Walls a second and a half later - asked. Whether `activate` takes
+         * that shape on v14 is LIVE-E77-11; computed `display: none` on a player's client in both themes is
+         * scenario 74 D.
+         */
+        const RULE = /(?:^|[{};,]\s*)body\.drpg-player #scene-controls\s*\{\s*display:\s*none\s*!important;?\s*\}/;
+        const FIX = "body.drpg-player #sidebar {\n    display: none;\n}\nbody.drpg-player #scene-controls {\n    display: none !important;\n}\n";
+        equal(JSON.stringify([FIX, FIX.replace(" !important", ""), FIX.replace("body.drpg-player #scene-controls", "body.drpg-theme-stained-glass.drpg-player #scene-controls")]
+            .map(text => RULE.test(text))), "[true,false,false]",
+            "the rule reader does not find the rule in its fixture, or does not miss the !important taken off or the rule tied to a theme");
+        const styles = await moduleStyles();
+        must(styles.length > 10000, "the module's stylesheets did not load - this would measure nothing");
+        ok(RULE.test(styles), "no rule hides Foundry's scene controls from a player in every theme with !important");
+        const FW = await import("./foundry-windows.mjs").catch(() => null);
+        ok(typeof FW?.askTokensLayer === "function", "there is no foundry-windows.mjs asking a player's layer back to Tokens");
+        const sources = new Map(await otherSources());
+        const player = bodyOf(stripComments(sources.get("foundry-windows.mjs") ?? ""), "export function registerFoundryWindows",
+            { until: "document.body.classList.add" });
+        equal(JSON.stringify(["canvasReady", "renderSceneControls"].map(hook => player.includes(`Hooks.on("${hook}", keepTokensLayer)`))), "[true,true]",
+            "[a player's keepTokensLayer hooked to canvasReady, to renderSceneControls]");
+        const asked = [];
+        const controls = name => ({ control: { name }, activate(how) { asked.push(how); this.control = { name: how.control }; } });
+        const t0 = Date.now(), drawings = controls("drawings");
+        const answers = [FW.askTokensLayer(controls("tokens"), { isGM: false }, t0), FW.askTokensLayer(controls("drawings"), { isGM: true }, t0),
+            FW.askTokensLayer(drawings, { isGM: false }, t0), FW.askTokensLayer(controls("walls"), { isGM: false }, t0 + 500),
+            FW.askTokensLayer(controls("walls"), { isGM: false }, t0 + 1500)];
+        equal(JSON.stringify([answers, drawings.control.name, asked]),
+            JSON.stringify([[false, false, true, false, true], "tokens", [{ control: "tokens", tool: "select" }, { control: "tokens", tool: "select" }]]),
+            "[asked with Tokens active, for a GM, for a player on Drawings, on Walls half a second later, a second and a half later; the layer after; what was asked]");
+    }],
+
+    ["R511 - a GM's Foundry tools are two windows of the module's that hold Foundry's own nodes: frames outside #interface with their title and close button, `#sidebar` and `#scene-controls` the same objects, a guard that puts a node back from Foundry's columns and only from there, closed meaning hidden, inert and collapsed, Foundry's own ways to open the sidebar opening the window, and the frames wearing #interface's theme", async () => {
+        /*
+         * E77 C5, 13.10.2026; the A8 design's R386 (the E77 plan's D2 gave it this number), the owner's Q5 and Q9. Its
+         * DOM clauses, on the GM's client (tier 1 runs there): the layout clause - that opening them recuts nothing -
+         * is R514, and Escape, dragging and the clamp are E77 C7's. Each frame of FOUNDRY_WINDOWS: a body child outside
+         * `#interface`, a region named by its title, an h2 and a close button with a label; `#sidebar` (and
+         * `#scene-controls`, where Foundry drew one - headless there is none) its body's child, `ui.sidebar.element`
+         * that same object. THE GUARD: `#sidebar` put into `#ui-right` comes back before the next task (the
+         * MutationObserver on `#interface`); put straight into the body - outside `#interface` - it stays there, the
+         * negative control that the guard is what moved it; `adoptFoundryNodes`, which `renderSidebar` and
+         * `renderSceneControls` run (read in the source), brings it back. CLOSED IS COLLAPSED: `setFoundryWindow`
+         * closing hides the frame with `hidden` and `inert` and leaves `ui.sidebar.expanded` false - closed AFTER an
+         * opening that expanded it, since a sidebar that starts collapsed would pass a close that collapsed nothing (the
+         * a2 mutant that dropped `collapseSidebar` from the close lived until the order was turned); opening shows it
+         * expanded. FOUNDRY'S WAYS IN: with the window closed, `ui.sidebar.changeTab` opens it, and so does
+         * `toggleExpanded()` expanding; `toggleExpanded(false)` in an open window collapses the sidebar and leaves
+         * the window open. THE THEME: a `theme-` class put on `#interface` is on both frames before the next task and
+         * a class of another name is not; taken off, gone. Everything is put back as it was found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs").catch(() => null);
+        ok(Array.isArray(FW?.FOUNDRY_WINDOWS), "there is no foundry-windows.mjs: the GM's rails stand in Foundry's columns, on the glass");
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const bar = globalThis.ui?.sidebar, side = document.getElementById("sidebar"), ui0 = document.getElementById("interface");
+        const frames = FW.FOUNDRY_WINDOWS.map(row => document.getElementById(row.id));
+        must(side && ui0, "the sidebar or #interface is missing - this would measure nothing");
+        ok(frames.every(Boolean), "the GM has no Foundry windows: its rails stand in Foundry's columns, on the glass");
+        const shape = FW.FOUNDRY_WINDOWS.map((row, i) => {
+            const f = frames[i], body = f.querySelector(":scope > .drpg-foundry-window-body"), node = document.getElementById(row.node);
+            return [f.parentElement === document.body, ui0.contains(f), f.getAttribute("role"), f.getAttribute("aria-label") === game.i18n.localize(row.title),
+                f.querySelector(":scope > header > h2")?.textContent === game.i18n.localize(row.title),
+                Boolean(f.querySelector(":scope > header > button.drpg-foundry-window-close")?.getAttribute("aria-label")), node ? node.parentElement === body : "none"];
+        });
+        equal(JSON.stringify([shape[0], shape[1].slice(0, 6), bar?.element ? bar.element === side : "no element"]),
+            JSON.stringify([[true, false, "region", true, true, true, true], [true, false, "region", true, true, true], true]),
+            "[Foundry tools: a body child, inside #interface, its role, its label, its title, its close button's label, holding #sidebar; the same for Map tools; ui.sidebar.element the node in the window]");
+        if (document.getElementById("scene-controls")) equal(shape[1][6], true, "the scene controls are not in the Map tools window");
+        const sources = new Map(await otherSources());
+        ok(/for \(const hook of \["renderSidebar", "renderSceneControls"\]\) Hooks\.on\(hook, adoptFoundryNodes\)/
+            .test(stripComments(sources.get("foundry-windows.mjs") ?? "")), "adoptFoundryNodes is not run on renderSidebar and renderSceneControls");
+        const right = document.getElementById("ui-right") ?? ui0, home = side.parentElement;
+        const open0 = frames.map(f => !f.hidden), expanded0 = bar?.expanded, cls0 = ui0.className;
+        try {
+            right.append(side);
+            await tick();
+            const guarded = side.parentElement === home;
+            document.body.append(side);
+            await tick();
+            const outside = side.parentElement === document.body;
+            const moved = FW.adoptFoundryNodes();
+            equal(JSON.stringify([guarded, outside, moved, side.parentElement === home]), "[true,true,1,true]",
+                "[back from #ui-right before the next task; left in the body, outside #interface (the negative control); adopted by adoptFoundryNodes; home again]");
+            const state = () => [!frames[0].hidden, frames[0].hasAttribute("inert"), bar?.expanded ?? null];
+            FW.setFoundryWindow("ftools", true);
+            const opened = state();
+            FW.setFoundryWindow("ftools", false);
+            const closed = state();
+            FW.setFoundryWindow("ftools", true);
+            bar?.toggleExpanded?.(false);
+            const narrowed = state();
+            FW.setFoundryWindow("ftools", false);
+            bar?.changeTab?.(bar.tabGroups?.primary ?? "chat", "primary");
+            const byTab = state();
+            FW.setFoundryWindow("ftools", false);
+            bar?.toggleExpanded?.();
+            const byToggle = state();
+            equal(JSON.stringify([closed, opened, narrowed, byTab[0], byToggle]),
+                JSON.stringify([[false, true, false], [true, false, true], [true, false, false], true, [true, false, true]]),
+                "[closed: shown, inert, expanded; opened; collapsed with Foundry's own call in the open window; changeTab with the window closed shows it; toggleExpanded() expanding with it closed]");
+            ui0.classList.add("theme-r511probe", "drpg-r511probe");
+            await tick();
+            const worn = frames.map(f => [f.classList.contains("theme-r511probe"), f.classList.contains("drpg-r511probe")]);
+            ui0.classList.remove("theme-r511probe", "drpg-r511probe");
+            await tick();
+            const shed = frames.map(f => f.classList.contains("theme-r511probe"));
+            equal(JSON.stringify([worn, shed]), JSON.stringify([[[true, false], [true, false]], [false, false]]),
+                "[each frame: the theme class put on #interface, the other class; the theme class once taken off]");
+        } finally {
+            if (side.parentElement !== home) home.append(side);
+            ui0.className = cls0;
+            frames.forEach((f, i) => FW.setFoundryWindow(FW.FOUNDRY_WINDOWS[i].key, open0[i]));
+            if (bar && typeof expanded0 === "boolean" && bar.expanded !== expanded0 && open0[0]) bar.toggleExpanded?.(expanded0);
+        }
+    }],
+
+    ["R514 - opening and closing a GM's Foundry windows recuts nothing: no drpgGlassCut and the curtain's clip-path the same, and a taller clock still cuts", async () => {
+        /*
+         * E77 C5, 13.10.2026; the layout clause of the A8 design's R386 ("never recut the curtain"), numbered apart from
+         * R511 so that its skip without a layout is a skip of this alone (the E77 plan's D9). The windows stand outside
+         * `#interface` and hold the only rails, which glass.mjs and narrow.mjs read only while they stand in Foundry's
+         * columns: both opened (`toggleFoundryTools(true)`), a pass of the glass, closed, a pass - no `drpgGlassCut` and
+         * the curtain's clip-path the same throughout. THE CONTROL: the clock 40 px taller and a pass fires one, or the
+         * count could not see a cut. audit/glass-harness.html's `drpgFoundryCut` reads the same at the sweep's 22
+         * sizes. The windows are put back as they were found.
+         */
+        const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
+        const cur = document.getElementById("drpg-curtain"), hud = document.getElementById("drpg-hud");
+        must(cur && hud && FW.foundryWindow("ftools"), "no curtain, no clock or no window - this would measure nothing");
+        const open0 = FW.FOUNDRY_WINDOWS.map(row => !FW.foundryWindow(row.key)?.hidden);
+        let cuts = 0;
+        const count = () => { cuts++; };
+        const hook = Hooks.on("drpgGlassCut", count);
+        const row = document.createElement("div");
+        try {
+            FW.toggleFoundryTools(false);
+            G.refreshGlass();
+            await wait(300);
+            cuts = 0;
+            const clip = [cur.style.clipPath];
+            FW.toggleFoundryTools(true);
+            G.refreshGlass();
+            await wait(300);
+            clip.push(cur.style.clipPath);
+            FW.toggleFoundryTools(false);
+            G.refreshGlass();
+            await wait(300);
+            clip.push(cur.style.clipPath);
+            const windows = cuts;
+            row.style.height = "40px";
+            hud.append(row);
+            G.refreshGlass();
+            await wait(300);
+            equal(JSON.stringify([windows, clip.every(c => c === clip[0]), cuts > windows]), "[0,true,true]",
+                "[cuts while the windows opened and closed, the clip-path the same, the control's taller clock cut]");
+        } finally {
+            row.remove();
+            Hooks.off("drpgGlassCut", hook);
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+            G.refreshGlass();
+        }
+    }],
+
     ["the theme tokens resolve", () => {
         const root = getComputedStyle(document.documentElement);
         for (const token of ["--drpg-ink", "--drpg-bone", "--drpg-eye", "--drpg-blood",
@@ -10568,7 +10744,9 @@ const INVARIANTS = [
         if (room.place === "clock") {
             ok(near(t.width, h.width) && near(t.left, h.left) && near(t.left + t.width / 2, h.left + h.width / 2),
                 `under the clock at ${Math.round(t.left)} ${Math.round(t.width)}, the clock at ${Math.round(h.left)} ${Math.round(h.width)}`);
-            const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
+            // a GM's rail stands in the Map tools window since E77 C5 and holds no place under the tile
+            const rail = [...document.querySelectorAll("#scene-controls > menu button.ui-control")]
+                .filter(e => e.offsetWidth > 0 && e.offsetHeight > 0 && !e.closest(".drpg-foundry-window"));
             if (rail.length) ok(Math.min(...rail.map(e => e.getBoundingClientRect().top)) - at.top >= box.y + box.h,
                 "the scene rail's first tile stands up inside the room tile's box - its slot was kept under the clock, not under the tile");
         } else {

@@ -38,6 +38,7 @@
 
 import { narrowScreen } from "./settings.mjs";
 import { error } from "./utils.mjs";
+import { inFoundryWindow } from "./foundry-windows.mjs";
 
 const COLUMN_ID = "drpg-column";
 /** The stack, for anything that has to measure it - the curtain cuts its panes to it. */
@@ -174,7 +175,8 @@ function noticesClearOfTheTools() {
     if (!notices) return;
     if (!narrowLayout()) { forgetNoticeInsets(notices); return; }
     const rail = document.querySelector("#scene-controls");
-    const r = rail?.offsetWidth ? rail.getBoundingClientRect() : null;
+    // a GM's rail in the Map tools window (E77 C5) holds no part of the wall
+    const r = rail?.offsetWidth && !inFoundryWindow(rail) ? rail.getBoundingClientRect() : null;
     const want = r ? Math.round(r.right) + EDGE : EDGE;
     const left = Math.min(Math.max(EDGE, want), Math.round(innerWidth * 0.4));
     notices.style.setProperty(NOTICES_LEFT, `${left}px`);
@@ -191,7 +193,7 @@ function forgetNoticeInsets(notices) {
 function railInset(el) {
     const tabs = document.querySelector("#sidebar-tabs");
     const host = el.offsetParent ?? document.getElementById("interface") ?? document.documentElement;
-    if (!tabs?.offsetWidth || !host) return EDGE;
+    if (!tabs?.offsetWidth || inFoundryWindow(tabs) || !host) return EDGE;
     const wall = host.getBoundingClientRect();
     const rail = tabs.getBoundingClientRect();
     const want = Math.round(wall.right - rail.left) + EDGE;
@@ -213,7 +215,7 @@ function watchColumn(column) {
        the run is taller than the screen, which is exactly what a phone does to it,
        and a rail that got wider without this would take the stack's edge back. */
     const tabs = document.querySelector("#sidebar-tabs");
-    if (tabs) columnWatch.observe(tabs);
+    if (tabs && !inFoundryWindow(tabs)) columnWatch.observe(tabs);
 }
 
 /** Every moved element back where it came from, and the column gone. */

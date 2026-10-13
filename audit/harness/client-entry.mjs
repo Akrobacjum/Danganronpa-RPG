@@ -1088,10 +1088,15 @@ globalThis.ui = {
     // Daggerheart's Fear tracker, as far as modifyResource uses it (lib/daggerheart.mjs).
     resources: { updateFear },
     chat: Object.assign(new HarnessChatLog(), { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false }),
-    sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() {}, collapse() {}, activateTab() {} },
+    /* `expanded`, `toggleExpanded` and `changeTab` as foundry-windows.mjs calls them (E77 C5): the state only, read
+       from memory of v13's Sidebar and not measured on v14 - R511 reads the wrappers against this, a table the rest. */
+    sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() { this.toggleExpanded(true); }, collapse() { this.toggleExpanded(false); }, activateTab() {},
+        expanded: false, toggleExpanded(expanded) { this.expanded = expanded ?? !this.expanded; }, changeTab(tab) { this.activeTab = tab; } },
     windows: {},
     players: { render() {}, element: document.querySelector("#players") },
-    controls: { render() {}, controls: [], activeControl: "token" },
+    /* `control` and `activate` as foundry-windows.mjs asks a player's layer back to Tokens (E77 C5; v13's shape,
+       from memory - LIVE-E77-11). */
+    controls: { render() {}, controls: [], activeControl: "token", control: { name: "tokens" }, activate({ control } = {}) { if (control) this.control = { name: control }; } },
     nav: { render() {}, element: document.querySelector("#navigation") },
     hotbar: { render() {}, element: document.querySelector("#hotbar") },
     pause: { render() {} },

@@ -7528,6 +7528,82 @@ body.drpg-player #sidebar {
     display: none;
 }
 
+/* ==========================================================================
+   FOUNDRY'S RAILS OUT OF THE COLUMNS (E77 C5, 13.10.2026; the owner's Q4, Q5, Q9)
+   --------------------------------------------------------------------------
+   A player has no scene controls in either theme ("u gracza usuwamy przyciski
+   Foundry calkowicie"); foundry-windows.mjs keeps their Tokens layer active, and
+   Foundry's keys are untouched. `!important`, as the E77 plan states it: no
+   theme's rule may lay the rail out again, and R510 reads that it carries it.
+
+   A GM gets both rails in two windows of the module's (foundry-windows.mjs):
+   body children, fixed, holding Foundry's own nodes. No rule here gives a frame,
+   or anything in one, `clip-path`, `overflow: hidden` or `display: none` (R509):
+   the first two would cut off a directory's context menu at the frame's edge, and
+   a closed frame is the `hidden` attribute's, which is why the frame's own
+   display is stated only for `:not([hidden])`. The places below are the design's
+   (P8 and P10 at 1920x1080, not measured here); E77 C7 replaces them with a
+   remembered place clamped to the screen. Rules of Foundry's that hang off
+   `#ui-right` or `#ui-left-column-1` no longer reach the nodes, so the sidebar's
+   height (the design's P9 reading) and the rail's margin are stated here. */
+body.drpg-player #scene-controls {
+    display: none !important;
+}
+.drpg-foundry-window:not([hidden]) {
+    position: fixed;
+    z-index: var(--z-index-app, 30);
+    display: flex;
+    flex-direction: column;
+    max-width: calc(100vw - 16px);
+    background: rgba(9, 8, 13, 0.88);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, #8a7fa0) 45%, transparent);
+    border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    color: #ece6f0;
+}
+#drpg-win-ftools { top: 72px; right: 420px; }
+#drpg-win-maptools { top: 187px; left: 379px; }
+.drpg-foundry-window-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 6px 3px 10px;
+    cursor: default;
+}
+.drpg-foundry-window-title {
+    flex: 1;
+    margin: 0;
+    border: 0;
+    font-size: var(--font-size-16, 1rem);
+    white-space: nowrap;
+}
+.drpg-foundry-window-close {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+.drpg-foundry-window-body > #sidebar {
+    position: relative;
+    height: min(700px, calc(100vh - 110px));
+}
+.drpg-foundry-window-body > #scene-controls {
+    position: relative;
+    margin: 0 !important;
+    padding: 6px;
+    height: auto;
+    max-height: none;
+}
+body.drpg-theme-monokuma-legacy .drpg-foundry-window:not([hidden]) {
+    background: var(--drpg-paper-alt);
+    color: var(--drpg-ink);
+    border: 2px solid var(--drpg-ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+}
+
 #ui-right-column-1 > #drpg-player-status { order: 0; }
 #ui-right-column-1 > #countdowns { order: 1; }
 

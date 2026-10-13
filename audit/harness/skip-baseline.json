@@ -13,6 +13,7 @@
     { "test": "the notice tile is always cut", "probe": "env.layout" },
     { "test": "R513 - the room tile is always cut: a fixed block at the box glass.mjs placed, in either place, its pane a section never painted empty", "probe": "env.layout" },
     { "test": "R508 - the room tile keeps its place and its box whatever the room says: the place is glass.mjs roomPlacement's from the measured F alone (under the clock when F leaves the smallest box, beside the notice tile when it does not), the tile laid out at that box, the clock's width, edge and centre and the scene rail below it under the clock, the history's button clear of its pane beside the notices, the picture on the whole pane, and a new description, the description opened or a recolour recuts nothing", "probe": "env.layout" },
+    { "test": "R514 - opening and closing a GM's Foundry windows recuts nothing: no drpgGlassCut and the curtain's clip-path the same, and a taller clock still cuts", "probe": "env.layout" },
     { "test": "a window closes without waiting for a transition that never started", "probe": "env.webAnimations" },
     { "test": "the roll window opens, locked, and a bare statistic is a reaction", "probe": "env.systemSheets" },
     { "test": "no piece of a room's outline is shorter than the line it is drawn with", "probe": "env.canvas" },
