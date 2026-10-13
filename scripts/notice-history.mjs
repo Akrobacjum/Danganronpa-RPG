@@ -339,9 +339,19 @@ export function inertCopy(html, { gm = Boolean(game.user?.isGM) } = {}) {
 const WORD_BREAKS = new Set(["p", "br", "hr", "div", "li", "dt", "dd", "tr", "td", "th", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"]);
 
 function keptWords(html, { gm = Boolean(game.user?.isGM) } = {}) {
-    const content = inertTree(html, gm).content;
-    for (const el of content.querySelectorAll("*")) if (WORD_BREAKS.has(el.localName)) el.after(" ");
-    return content.textContent.replace(/\s+/g, " ").trim();
+    return noticeWords(inertTree(html, gm).content);
+}
+
+/**
+ * The words of a node of a kept snapshot, read as `keptWords` reads a whole one: a space after each block, the
+ * whitespace run together. It writes those spaces into the node, so it is handed a snapshot drawn to be read,
+ * never one on screen. The window reads each block of a card apart with it (E77 fix r2-H4).
+ */
+export function noticeWords(node) {
+    if (node?.nodeType === 1 || node?.nodeType === 11) {
+        for (const el of node.querySelectorAll("*")) if (WORD_BREAKS.has(el.localName)) el.after(" ");
+    }
+    return String(node?.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
 /** Both steps: what the history keeps of a card's body (the module's engine cleans every `record` with it). */

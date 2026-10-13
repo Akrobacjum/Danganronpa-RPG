@@ -8600,8 +8600,8 @@ const REGRESSIONS = [
             ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); never cut to make room for this login, which is kept in memory instead (`trimValue`, R292 and R298); cleared with every section of this world by a reset that clears one of `EPOCH_GROUPS`, and by no other (R297)"],
             ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
             ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"],
-            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security)"],
-            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half)"],
+            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security). A card with no title of its own is also read through it for its row's words, as text only, once per entry (E77 fix r2-H4, `rowWords`; scenario 73's H)"],
+            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half); a row read off its card (`rowWords`) is words, set the same way"],
             ["WINDOW notice-history-app.mjs#window#search", "the query folded and matched on text; the highlight built of text nodes and `<mark>` elements whose only content is text (R296)"],
             ["WINDOW notice-history-app.mjs#window#conversation", "\"Open conversation\" calls `openMessenger` once with the entry's `link.messenger`, which the read held to an existing user; a player asking for another's thread is refused there (messenger-app.mjs `openMessenger`, R296)"]
         ];
@@ -11525,7 +11525,7 @@ const REGRESSIONS = [
             + "and on a stacked screen]");
     }],
 
-    ["R478 - the handbooks name the notice history where a player and a GM look for it, quote the window's own sentences on how long it keeps a notice, with the budgets notice-history.mjs states, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
+    ["R478 - the handbooks name the notice history where a player and a GM look for it, state how long it keeps a notice with the budgets notice-history.mjs states, tell a GM on a shared computer to clear it, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
         /*
          * E81 C15, 12.10.2026 (the A7 design's P13-0 and P13-1; the stage's doneWhen D8). Through 1.2.74 the player's
          * handbook said of the notice cards "The chat log keeps them." - which a card drawn with no chat message behind
@@ -11551,6 +11551,14 @@ const REGRESSIONS = [
          * shared-computer sentence the GM's and the same bound) - a stable token that follows the code, so a budget
          * that changes fails this until the window and, through the quotes, the books say the new number - and the
          * GM's section 16, the season reset, names the history (which reset clears it).
+         *
+         * NO LONGER QUOTED FROM THE WINDOW (E77 fix r2-H4, 13.10.2026; the owner's screenshot of 1.2.75's window). The
+         * owner had the window's two sentences taken out of its foot - how the module keeps a notice is the handbooks'
+         * to say, not the window's - so DRPG.Notices.kept and DRPG.Notices.gmNote are gone and there is nothing left to
+         * quote. The books keep the limits in their own words: the player's section 16 must name the per-sender bound
+         * (and the player's budget, which it already named), the GM's section 18 every budget, and the GM's section 19
+         * must still tell a GM on a shared computer to clear it (the owner's Q9 of 11.10.2026). That the window shows
+         * none of it is scenario 73's phase H, on a GM and a player.
          */
         const served = new Map(await moduleSources()).get("notice-history.mjs") ?? "";
         const budget = {
@@ -11565,10 +11573,8 @@ const REGRESSIONS = [
         const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
         for (const lang of ["en", "pl"]) {
             const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Notices);
-            const title = keys?.title ?? "", kept = keys?.kept ?? "";
-            const shared = /^(?:[^.]*\.\s+){2}(.+)$/.exec(keys?.gmNote ?? "")?.[1] ?? "";
-            ok(title.length > 0 && kept.length > 20 && shared.length > 40,
-                `lang/${lang}.json has no notice history title, kept sentence or shared-computer sentence - this test measured nothing`);
+            const title = keys?.title ?? "", shared = { en: "shared computer", pl: "wspólnym komputerze" }[lang];
+            ok(title.length > 0, `lang/${lang}.json has no notice history title - this test measured nothing`);
             const text = {};
             for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
@@ -11579,19 +11585,19 @@ const REGRESSIONS = [
             const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
             const reset = section(text["gm-handbook"], 16);
             measured[lang] = {
-                player: [tips.includes(`**${title}**`), tips.includes(`"${kept}"`)],
+                player: tips.includes(`**${title}**`),
                 brochure: text["player-brochure"].includes(`**${title}**`),
                 gm: [look.includes(`**${title}**`), look.includes("`game.drpg.openNotices()`")],
-                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)],
-                limits: [names(kept, budget.player, budget.perAuthor), names(shared, budget.gm, budget.perAuthor)],
+                safeword: [safeword.includes(`**${title}**`), safeword.includes(shared)],
+                limits: [names(tips, budget.player, budget.perAuthor), names(look, budget.gm, budget.player, budget.perAuthor)],
                 reset: reset.includes(`**${title}**`)
             };
-            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
+            expected[lang] = { player: true, brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
-            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold, its kept sentence quoted; the brochure: the title; "
-            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted; "
-            + `the window's kept sentence names ${budget.player} and ${budget.perAuthor}, its shared-computer sentence ${budget.gm} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
+            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold; the brochure: the title; "
+            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the shared computer; "
+            + `the player's section 16 names ${budget.player} and ${budget.perAuthor}, the GM's section 18 ${budget.gm}, ${budget.player} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
             + "the GM's section 16: the window's title in bold]");
     }],
 

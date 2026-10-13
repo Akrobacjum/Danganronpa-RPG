@@ -17201,16 +17201,18 @@ details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
 .drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-line-strong); }
 .drpg-notice-clipped { margin: 0; font-size: var(--drpg-text-xs); opacity: 0.8; }
 .drpg-notices-empty { padding: 28px 12px; text-align: center; opacity: 0.8; font-size: var(--drpg-text-sm); line-height: 1.5; }
+/* Clear at the foot's right, where a window's action stands; the line that saving stopped, when there is one, at its
+   left (E77 fix r2-H4: the paragraph that stood beside Clear is gone). */
 .drpg-notices-foot {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 10px;
     padding-top: 6px;
     border-top: 1px solid var(--drpg-line-strong);
     font-size: var(--drpg-text-xs);
 }
-.drpg-notices-foot p { margin: 0; text-align: right; opacity: 0.8; }
+.drpg-notices-foot p { margin: 0 auto 0 0; opacity: 0.8; }
 @media (pointer: coarse) {
     .drpg-notices-chips button, .drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation { min-height: 44px; }
 }
