@@ -33,8 +33,9 @@ export const LAST = { frame: null, blocks: [] };
    the fault `clearLaunchers` exists to prevent. An attribute rather than a `drpg-` class,
    because pixel-icons.css repaints the Font Awesome glyph of any `[class*="drpg-"] i.fa-*`,
    and Foundry's own tools button would match those rules (read in the sheet, not tried).
-   Exported for audit/glass-harness.html's `launchOutside` (E81 C14), which counts the corners
-   of exactly these buttons. */
+   Exported for audit/glass-harness.html's `drpgLaunchOutside` (E81 C14), which counts the corners
+   of exactly these buttons and, since E81 fix r2-H3, compares their box with the `launch` block
+   the cut was made for, to say when the cut is stale. */
 export const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
 
 /* ---- the blocks: the module's own elements, measured untransformed ------- */

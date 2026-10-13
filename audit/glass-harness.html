@@ -9,7 +9,8 @@
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
      `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
      computes it); `?theme=legacy` the other theme; `?card=1` one notice card in the tile;
-     `?scheme=light` a light-theme client. -->
+     `?scheme=light` a light-theme client. `node audit/glass-sweep.mjs` loads it at 22 sizes in
+     both themes and fails on any size that is not right (E81 fix r2-H3). -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -114,14 +115,58 @@
      0/0/0, so this counts what is drawn instead: each button's clip-path
      corners, put through the transform it wears now, against the polygons of the panes toned
      `launch` (LAST.panes, the curtain's own coordinates). A corner more than half a pixel outside
-     every one of them is one count - the half pixel is the slack the self-check's fitFails gives a
+     the button's OWN pane is one count - the half pixel is the slack the self-check's fitFails gives a
      block's box. A button with an individual rotate/translate/scale, or a clip-path that is not a polygon,
-     is not guessed at: it is listed in `unmeasured`. Returns null where no glass is drawn.
+     is not guessed at: it is listed in `unmeasured`.
+     WHY THE MOCKUP'S 2x CORNER SHOT LOOKED RIGHT AND ITS FULL SHOT DID NOT (AM-21; measured for
+     review round 2's P21 in Chromium on 13.10.2026: the E81 mockup, a design tree outside the
+     repository, at 1920x1080, read by this function at pixel density 1 and 2). Not the scale: both
+     densities read the same on each screen - the GM's five buttons and the player's three 0 corners
+     outside, the player's screen with its two outlines of E77's places 6 - and those two outlines are
+     drawn after the cut, which is why this function also calls that cut stale. The full shots' corners
+     cut out at 1x show it too: the GM's five inside, the player's two outlines across the pane's top
+     edge. C12's note put it down to the full shot being scaled down; that was a reading of the picture.
+     WHAT IT ANSWERS, AND WHEN IT IS NOT AN ANSWER (E81 fix r2-H3, 13.10.2026). As C14 wrote it, it
+     returned {launchOutside: 0, buttons: 0} for an empty or wholly hidden list - the shape of a pass,
+     the stackShapes lesson again (review round 2, P26) -, null for three different reasons (P28),
+     tested a corner against the union of the panes, so a button across two of them read as inside,
+     and read LAST.panes without asking whether that cut was still the one the buttons stand in
+     (P27). It now always returns { ok, expected, found, hidden, outside, stale, why, ... }:
+     - `expected` is the DESIGN's count, the corner's three launchers (EXPECTED, the ids the page
+       draws below as messenger-app.mjs, sfx.mjs and handbooks.mjs build them) - a constant, never
+       the length of a list built here, where one launcher missing from the DOM would lower both;
+     - `found`, how many of those three `sel` reaches in the document; `hidden`, the ids of those
+       drawn at no size or not visible;
+     - `outside`, the corners off their own pane - the `launch` pane that holds most of that
+       button's corners; null when nothing could be measured;
+     - `stale`, true when the cut is not the one the buttons stand in: the viewport is not the one
+       `LAST.frame` was cut at, or the `launch` block `LAST.blocks` records (measured with the turn
+       off, glass.mjs `moduleLayout`) is not where the launchers stand now with their turn taken
+       out. That is the module's own signature narrowed to the one block this reads, compared
+       with a pixel and a half of slack for the cut's rounding;
+     - `ok` only when all three are found, none hidden, none unmeasured, no corner outside and the
+       cut live; `why` says each reason it is not, "" when it is.
      `sel` defaults to glass.mjs's own list; a page whose glass.mjs does not export it passes one. */
   window.drpgLaunchOutside = (sel = window.__glass?.LAUNCHERS) => {
-    const panes = (window.__glass?.LAST?.panes ?? []).filter(p => p.tone === "launch");
+    const EXPECTED = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+    const g = window.__glass, why = [];
+    const out = { ok: false, expected: EXPECTED.length, found: 0, hidden: [], outside: null, stale: false, why: "",
+                  buttons: 0, corners: 0, unmeasured: [], where: [], gaps: [] };
+    const done = () => { out.why = why.join("; "); out.ok = !why.length; return out; };
+    if (!sel) { why.push("no selector: this page's glass.mjs exports no LAUNCHERS and none was passed"); return done(); }
+    const drawn = e => e.offsetWidth > 0 && e.offsetHeight > 0 && getComputedStyle(e).visibility === "visible";
+    for (const id of EXPECTED) {
+      const e = document.getElementById(id);
+      if (!e || !e.matches(sel)) continue;
+      out.found++;
+      if (!drawn(e)) out.hidden.push(id);
+    }
+    if (out.found < out.expected) why.push(`found ${out.found} of the corner's ${out.expected} launchers (missing ${EXPECTED.filter(id => !document.getElementById(id)?.matches(sel)).join(", ")})`);
+    if (out.hidden.length) why.push("hidden " + out.hidden.join(", "));
     const cur = document.getElementById("drpg-curtain");
-    if (!cur || !panes.length || !sel) return null;
+    const panes = (g?.LAST?.panes ?? []).filter(p => p.tone === "launch");
+    if (!cur) { why.push("no curtain is drawn" + (g?.glassReport ? " (" + g.glassReport() + ")" : "")); return done(); }
+    if (!panes.length) { why.push("the cut has no pane toned launch"); return done(); }
     const at = cur.getBoundingClientRect();
     const near = (poly, x, y) => {
       let inside = false;
@@ -140,29 +185,50 @@
       const len = (v, of) => v.endsWith("%") ? parseFloat(v) / 100 * of : parseFloat(v);
       return body.split(",").map(s => s.trim().split(/\s+/)).filter(xy => xy.length === 2).map(([x, y]) => [len(x, w), len(y, h)]);
     };
-    const out = { launchOutside: 0, buttons: 0, corners: 0, unmeasured: [], where: [], gaps: [] };
-    const hexes = [];
-    for (const e of document.querySelectorAll(sel)) {
-      if (!e.offsetWidth || !e.offsetHeight) continue;
+    // a button as laid out and as turned: its size and box with the transform taken out, and the matrix
+    const shape = e => {
       const cs = getComputedStyle(e);
       const m = new DOMMatrix(cs.transform === "none" ? undefined : cs.transform);
       const A = Math.abs(m.a), B = Math.abs(m.b), C = Math.abs(m.c), D = Math.abs(m.d), det = A * D - B * C;
       const r = e.getBoundingClientRect();
       // the untransformed size from the turned bounds: width = |a| w + |c| h, height = |b| w + |d| h
       const w = (r.width * D - r.height * C) / det, h = (A * r.height - B * r.width) / det;
+      // the drawn centre is the laid-out centre put through the transform about its origin, so the laid-out corner is
+      // that centre less the origin, the turned half-diagonal from the origin and the translation
+      const [ox, oy] = cs.transformOrigin.split(" ").map(parseFloat);
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2, hx = w / 2 - ox, hy = h / 2 - oy;
+      const left = cx - ox - (m.a * hx + m.c * hy) - m.e, top = cy - oy - (m.b * hx + m.d * hy) - m.f;
+      return { cs, m, det, r, w, h, cx, cy, box: { x0: left - at.left, y0: top - at.top, x1: left + w - at.left, y1: top + h - at.top } };
+    };
+    const frame = g.LAST.frame, cutBox = (g.LAST.blocks ?? []).find(b => b.cls === "launch" && b.measured);
+    if (!frame || frame.inner[0] !== innerWidth || frame.inner[1] !== innerHeight)
+      why.push(`stale: the cut is of a ${frame ? frame.inner.join("x") : "-"} viewport, this one is ${innerWidth}x${innerHeight}`);
+    else {
+      const boxes = [...document.querySelectorAll(g.LAUNCHERS ?? sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0).map(e => shape(e).box);
+      const now = boxes.length && { x: Math.min(...boxes.map(b => b.x0)), y: Math.min(...boxes.map(b => b.y0)) };
+      if (now) { now.w = Math.max(...boxes.map(b => b.x1)) - now.x; now.h = Math.max(...boxes.map(b => b.y1)) - now.y; }
+      const fmt = b => b ? `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}` : "none";
+      if (!cutBox !== !now || (now && ["x", "y", "w", "h"].some(k => Math.abs(now[k] - cutBox[k]) > 1.5)))
+        why.push(`stale: the launch pane was cut for ${fmt(cutBox)}, the launchers stand at ${fmt(now)}`);
+    }
+    out.stale = why.some(s => s.startsWith("stale"));
+    out.outside = 0;
+    const hexes = [];
+    for (const e of document.querySelectorAll(sel)) {
+      if (!drawn(e)) continue;
+      const { cs, m, det, w, h, cx, cy } = shape(e);
       const pts = corners(cs.clipPath, w, h);
       if ([cs.rotate, cs.translate, cs.scale].some(v => v && v !== "none") || Math.abs(det) < 1e-6 || !pts) { out.unmeasured.push(e.id || e.className); continue; }
       out.buttons++;
-      const cx = r.left + r.width / 2 - at.left, cy = r.top + r.height / 2 - at.top;
-      const hex = [];
+      const hex = pts.map(([x, y]) => { const dx = x - w / 2, dy = y - h / 2; return [cx - at.left + m.a * dx + m.c * dy, cy - at.top + m.b * dx + m.d * dy]; });
       hexes.push({ id: e.id || e.className, hex });
-      for (const [x, y] of pts) {
-        const dx = x - w / 2, dy = y - h / 2, X = cx + m.a * dx + m.c * dy, Y = cy + m.b * dx + m.d * dy;
-        hex.push([X, Y]);
-        out.corners++;
-        if (!panes.some(p => near(p.poly, X, Y))) { out.launchOutside++; out.where.push((e.id || e.className) + "@" + X.toFixed(1) + "," + Y.toFixed(1)); }
-      }
+      out.corners += hex.length;
+      // its own pane: the one holding most of its corners - a corner inside another pane is still off this one's glass
+      const own = panes.map(p => hex.filter(([X, Y]) => near(p.poly, X, Y)).length).reduce((best, n, i, all) => n > all[best] ? i : best, 0);
+      for (const [X, Y] of hex) if (!near(panes[own].poly, X, Y)) { out.outside++; out.where.push((e.id || e.className) + "@" + X.toFixed(1) + "," + Y.toFixed(1)); }
     }
+    if (out.unmeasured.length) why.push("unmeasured " + out.unmeasured.join(", "));
+    if (out.outside) why.push(`${out.outside} corners off their own launch pane: ${out.where.join(" ")}`);
     /* The gap between two neighbours as drawn: the shortest distance from a corner of one to a side
        of the other, both ways (the shapes are convex and apart). The owner's picture (AM-21) has
        6.00 between every pair; a pair more than 20 px apart is not a pair of neighbours. */
@@ -172,7 +238,7 @@
       const d = apart(hexes[i].hex, hexes[j].hex);
       if (d < 20) out.gaps.push({ pair: hexes[i].id + "/" + hexes[j].id, gap: +d.toFixed(2) });
     }
-    return out;
+    return done();
   };
 </script>
 <script type="module">
