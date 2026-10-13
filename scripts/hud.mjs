@@ -13,7 +13,6 @@
  *              Daily Life
  *          ◀   Afternoon   ▶            <- the chevrons are GM-only
  *              43 min in                <- how long this time of day has run
- *           Dorm · no project           <- where your student stands
  *      ♫ Beautiful Days ♫  ♫ Beautiful  <- the track this client is hearing, scrolling
  *
  * Players see the same lines without the chevrons; the clock is edited from
@@ -32,23 +31,16 @@ import { isSyncedSetting } from "./sync.mjs";
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
 import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery } from "./settings.mjs";
-// Static, and checked before adding: this file avoids static imports because it
-// sits on the render path the clock itself calls back into, so a cycle here
-// would be a load-order problem rather than a lint complaint. None of these
-// four reach hud.mjs, directly or through anything they import - eighteen
-// modules were walked to confirm it.
-import { roomOfToken, locateActor } from "./movement.mjs";
-// A leaf (config.mjs alone), so it reaches nothing that reaches hud.mjs.
-import { isMoveChange } from "./rooms.mjs";
-import { projectsAvailableIn } from "./projects.mjs";
-import { SearchTokens } from "./search-tokens.mjs";
+// The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
+// room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
+// clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
+// complaint; everything still imported below was walked for that when it was added.
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 import { renderEvents } from "./events.mjs";
-// The fifth, added when the trial's own bar was folded into this widget. Walked
-// like the four above and clean: trial-floor.mjs reaches config, settings and
+// Added when the trial's own bar was folded into this widget. Walked and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
@@ -165,29 +157,6 @@ export function registerHud() {
         window.addEventListener("resize", () => centrePauseRaster());
     });
 
-    // ---- what keeps the room block honest --------------------------------
-    //
-    // Only the three things it reads can change it, and each is watched at its
-    // own source rather than by redrawing the HUD on a timer.
-
-    // A move - but only one that crosses a boundary, and only the token this
-    // block is about. `refreshToken` fires on every frame of a drag, and the
-    // GM owns every token on the scene: a hook that redrew for "anything I am
-    // allowed to move" would repaint on a student being dragged and show the
-    // GM that student's room instead of their Monokuma's. Comparing the room
-    // before and after is the same trick movement.mjs plays with `lastRoom`.
-    Hooks.on("updateToken", (doc, changes) => {
-        // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
-        if (!isMoveChange(changes)) return;
-        const mine = viewerActor();
-        if (!mine || doc.actorId !== mine.id) return;
-
-        const room = roomOfToken(doc);
-        if (room === lastHudRoom) return;
-        lastHudRoom = room;
-        renderHud();
-    });
-
     // Module settings that do not travel the sync bus (that bus redraws the
     // HUD by name for the ones that do - a clock write was four HUD rebuilds
     // on the writing client before this asked, CORE-12).
@@ -199,7 +168,9 @@ export function registerHud() {
     });
 
     // The Projects tray redrawing means a project was created, advanced,
-    // finished or shared - any of which can change whether this room has one.
+    // finished or shared - any of which can change whether the viewer's room has
+    // one, which the room tile under the clock says and repaints for after this
+    // render (`drpgHudRendered`, room-tile.mjs).
     Hooks.on("renderDhCountdowns", () => renderHud());
 
     // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
@@ -231,13 +202,6 @@ export function stillTokenBars(app, element) {
     }
 }
 
-/**
- * The room the block was last drawn for.
- *
- * Module-scoped rather than read from the DOM: the comparison has to survive
- * the HUD being rebuilt from scratch, which it is, several times a minute.
- */
-let lastHudRoom = null;
 
 
 /*
@@ -588,11 +552,6 @@ export function renderHud() {
         if (clock.phase === "classTrial") stopElapsed();
         else hud.append(buildElapsed());
 
-        // Last, under the timer: where you are standing is the most local thing
-        // on a widget that otherwise describes the whole world.
-        const room = buildRoom();
-        if (room) hud.append(room);
-
         // And under that, what you are hearing (N-1). Rebuilt here because the whole
         // clock has just been replaced; it keeps itself up to date after that.
         lastTrackName = null;
@@ -607,6 +566,11 @@ export function renderHud() {
         // The Event panel redraws on the same triggers as the clock: it reads the
         // same settings and has no source of its own.
         renderEvents();
+        // So does the room tile under the clock (room-tile.mjs, E77 C3), which took
+        // the clock's room rows and is told rather than imported: room-tile.mjs reads
+        // `viewerActor` and `trialSlot` from this file, so an import back would be a
+        // cycle (R161). Client-local; the tile writes nothing when its room is unchanged.
+        Hooks.callAll("drpgHudRendered");
     } catch (err) {
         error("Could not render the campaign HUD", err);
     }
@@ -1319,7 +1283,9 @@ function centrePauseRaster() {
  *
  * Nothing here is new information and nothing here is a new query - every line
  * is an existing function called once more, in the one place the answer is
- * actually wanted.
+ * actually wanted. The three rows were the clock's until E77 C3 (13.10.2026)
+ * moved them, with the picture and the description, to the room tile under it
+ * (room-tile.mjs); what stays here is whose room it is.
  *
  * WHOSE ROOM. A player's own character. A GM's own Monokuma - not "no block at
  * all": a Monokuma walks the map freely, pays no movement economy and knows no
@@ -1352,94 +1318,6 @@ export function viewerActor() {
     }
 
     return ownStudent();
-}
-
-/**
- * Three rows: the room, whether it holds a project, and its search tokens.
- *
- * During a Class Trial there is no room block at all: whose floor it is belongs
- * to the Event panel (`trialCard` in events.mjs), and everybody is in the
- * courtroom anyway, so "which room are you in" has stopped being a question.
- */
-function buildRoom() {
-    try {
-        // Checked FIRST, and deliberately before `viewerActor()`: the trial block
-        // is about the trial rather than about you, so a GM with no Monokuma of
-        // their own - who gets no room block at all the rest of the time - must
-        // still see whose floor it is.
-        const trial = trialSlot();
-        // Whose floor it is belongs to the Event panel (events.mjs), in both
-        // themes since 1.2.47. The clock keeps the mode in its time row and, as
-        // in any trial, no room block - everybody is in the courtroom.
-        if (trial) return null;
-
-        const actor = viewerActor();
-        if (!actor) return null;
-
-        const place = locateActor(actor);
-        const room = place?.room ?? null;
-
-        const box = document.createElement("div");
-        box.className = "drpg-hud-room";
-        box.append(line("drpg-hud-room-name", room ?? game.i18n.localize("DRPG.Hud.roomNowhere")));
-
-        // No room, nothing true to say about projects or searching in it. The
-        // name row stays, because "you are between rooms" is itself the answer
-        // to the question the block is asked.
-        if (!room) return box;
-
-        // A GM sees every project in the room, including the secret ones -
-        // `canSee()` opens with `if (user?.isGM) return true`. That is correct
-        // and needs no branch here: one call, two roles, two right answers.
-        // The NAME is never rendered, for either of them: this widget is on
-        // screen while people share a screen, and a project's name is exactly
-        // the thing the guide keeps between its owner and the GM.
-        const projects = projectsAvailableIn(place, game.user);
-        box.append(line("drpg-hud-room-project", game.i18n.localize(projects.length
-            ? "DRPG.Hud.roomProject" : "DRPG.Hud.roomNoProject")));
-
-        box.append(buildSearchPips(room, place.scene));
-        return box;
-    } catch (err) {
-        // The HUD is the frame around the game; a room that cannot be resolved
-        // must not take the clock down with it.
-        error("Could not build the HUD's room block", err);
-        return null;
-    }
-}
-
-/**
- * The room's search tokens, as pips.
- *
- * Drawn as spans with a border-radius rather than as ● and ○, because the two
- * Unicode circles have different advance widths in the pixel font and a row
- * that mixes them staggers. A screen reader gets the number instead: three
- * dots are not a readout.
- */
-function buildSearchPips(room, scene, { idle = false } = {}) {
-    const max = SearchTokens.max;
-    // A sealed room has its three tokens sitting untouched in the store and
-    // none of them can be spent, so drawing them would be the widget promising
-    // something the sheet then refuses. Shown empty and struck through instead.
-    const sealed = SearchTokens.sealed(room, scene);
-    const left = sealed ? 0 : SearchTokens.left(room, scene);
-
-    const row = document.createElement("div");
-    row.className = `drpg-hud-room-tokens${idle ? " is-idle" : ""}${sealed ? " is-sealed" : ""}`;
-    row.setAttribute("role", "img");
-    row.setAttribute("aria-label", sealed
-        ? game.i18n.localize("DRPG.SearchTokens.sealed")
-        : game.i18n.format("DRPG.Hud.roomTokens", { left, max }));
-    row.dataset.tooltip = sealed
-        ? game.i18n.localize("DRPG.SearchTokens.sealed")
-        : game.i18n.format("DRPG.Hud.roomTokensTooltip", { left, max });
-
-    for (let i = 0; i < max; i++) {
-        const pip = document.createElement("span");
-        pip.className = i < left ? "drpg-hud-pip full" : "drpg-hud-pip";
-        row.append(pip);
-    }
-    return row;
 }
 
 const MARK_FIRST_ACTION = TIMING.elapsedMarksMinutes[0] * 60 * 1000;

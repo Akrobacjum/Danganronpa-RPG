@@ -515,6 +515,13 @@
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
       "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
     },
+    "Room": {
+      "tileLabel": "Pokój",
+      "readMore": "Czytaj dalej",
+      "readLess": "Zwiń opis",
+      "imageOpen": "Pokaż zdjęcie: {room}",
+      "imageMissing": "Zdjęcie tego pokoju się nie wczytuje."
+    },
     "Action": {
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "beat": "przebij {n}",

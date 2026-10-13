@@ -10262,7 +10262,7 @@ const INVARIANTS = [
             + "and inside; its distinct cells; a taken cell skipped one further out; every cell of the ray taken, the first anyway; a second run the same]");
     }],
 
-    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type", async () => {
+    ["R505 - a room's picture is only ever a path of this server: safeRoomImage keeps a relative path or one of this origin, of a still-picture type, and refuses every other scheme, another host, a query, a fragment, a `..` and any other type; the room tile draws the GM's words as text and a picture only through it, and opens it on this browser alone", async () => {
         /*
          * E77 C1, 13.10.2026; the A8 design's R380 (the E77 plan's D2 gave it this number; ledger V3), its
          * `safeRoomImage` clauses - E77 C3 adds the tile's (the GM's words drawn as text, no `data-tooltip`) and C8
@@ -10293,8 +10293,81 @@ const INVARIANTS = [
         equal(JSON.stringify([KEPT.map(([path]) => V.safeRoomImage(path)), REFUSED.map(path => V.safeRoomImage(path))]),
             JSON.stringify([KEPT.map(([, kept]) => kept), REFUSED.map(() => null)]),
             `[each kept path as answered] and [each refused one: null]; this page's origin is ${origin}`);
+
+        /*
+         * E77 C3, 13.10.2026: the tile's clauses (the A8 design's R380, ledger V3, V17, L2). `paintRoomTile` is handed
+         * a view on a box that is in no document - nothing on this screen is touched - with a name and a description
+         * that carry markup four ways and a paragraph break, and the GM's picture: the name and the words come back
+         * literal, with no element inside them and no element of those kinds anywhere in the box, nothing of the box
+         * carries a data-tooltip, nothing the markup would run has run, and the art layer's picture is the path. The
+         * same view with a `javascript:` picture paints no picture and no button to open one. Then `openRoomImage`
+         * against stand-ins for Foundry's ImagePopout (the harness has none), for the probe's Image (so no file is
+         * fetched, here or at a table) and for the warning, all three put back in `finally`: the probe is handed
+         * the checked path and the window gets it, the room as its title, empty controls and no `uuid`; a refused
+         * path probes and opens nothing; a picture whose probe fails to decode opens nothing and warns once; and
+         * `stripImageControls` empties the tile's window's header controls and leaves another ImagePopout's alone.
+         */
+        const T = await import("./room-tile.mjs");
+        ok(["paintRoomTile", "openRoomImage", "stripImageControls"].every(name => typeof T[name] === "function"),
+            "room-tile.mjs has no `paintRoomTile`, `openRoomImage` and `stripImageControls` - there is no tile to read");
+        if (typeof T.paintRoomTile !== "function") return;
+        const HOSTILE = "<img src=x onerror=\"window.__drpgR505 = 1\"><script>window.__drpgR505 = 2</script>"
+            + "<iframe srcdoc=\"<b>x</b>\"></iframe><b>bold</b>\n\nA second paragraph.";
+        const view = image => ({ state: "room", room: "R505 <b>Hall</b>", sceneId: "SUITER505SCENE00", description: HOSTILE, image,
+            tokens: { max: 3, left: 2, sealed: false }, project: true });
+        const read = image => {
+            const box = document.createElement("section");
+            T.paintRoomTile(box, view(image));
+            const prose = box.querySelector(".drpg-room-tile-prose"), name = box.querySelector(".drpg-room-tile-name");
+            const art = box.querySelector(".drpg-room-tile-art");
+            return [prose?.textContent === HOSTILE && prose.childElementCount === 0, name?.textContent === "R505 <b>Hall</b>" && name.childElementCount === 0,
+                box.querySelectorAll("img, script, iframe, b").length, box.querySelectorAll("[data-tooltip]").length,
+                art?.style.backgroundImage ?? null, Boolean(box.querySelector(".drpg-room-tile-open"))];
+        };
+        equal(JSON.stringify([read("worlds/suite/hall.png"), read("javascript:alert(1)//x.png"), window.__drpgR505 ?? null]),
+            JSON.stringify([[true, true, 0, 0, 'url("worlds/suite/hall.png")', true], [true, true, 0, 0, "", false], null]),
+            "the tile painted with [its words literal and bare, its name literal and bare, elements of the markup's kinds, data-tooltips, the art's picture, "
+            + "a button to open it] for the GM's picture and for a `javascript:` one, and what the markup ran");
+
+        const apps = foundry.applications.apps, before = Object.getOwnPropertyDescriptor(apps, "ImagePopout");
+        // The stand-in goes on globalThis, which the module's `new Image()` reads: in a browser that is window, and the
+        // headless harness copies jsdom's Image onto Node's own global (client-entry.mjs), so a window.Image stand-in
+        // went unread there and the paths probed came back empty (13.10.2026).
+        const RealImage = globalThis.Image, ownWarn = ui.notifications && Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const opened = [], probed = [], warned = [];
+        let decodes = true, got;
+        try {
+            Object.defineProperty(apps, "ImagePopout", { configurable: true, writable: true, value: class {
+                constructor(options) { this.options = options; opened.push(options); }
+                async render() { return this; }
+            } });
+            globalThis.Image = class {
+                set src(path) { probed.push(path); }
+                async decode() { if (!decodes) throw new Error("R505: the stand-in does not decode"); }
+            };
+            if (ui.notifications) ui.notifications.warn = text => { warned.push(text); };
+            const win = await T.openRoomImage("worlds/suite/hall.png", "R505 Hall");
+            const refused = await T.openRoomImage("javascript:alert(1)//x.png", "R505 Hall");
+            decodes = false;
+            const missing = await T.openRoomImage("worlds/suite/gone.png", "R505 Hall");
+            const mine = [{ action: "shareImage" }, { action: "another" }], theirs = [{ action: "shareImage" }];
+            T.stripImageControls(win, mine);
+            T.stripImageControls({ options: { classes: ["image-popout"] } }, theirs);
+            got = [probed, opened, refused, missing, warned, mine.length, theirs.length];
+        } finally {
+            if (before) Object.defineProperty(apps, "ImagePopout", before);
+            else delete apps.ImagePopout;
+            globalThis.Image = RealImage;
+            if (ownWarn) Object.defineProperty(ui.notifications, "warn", ownWarn);
+            else if (ui.notifications) delete ui.notifications.warn;
+        }
+        equal(JSON.stringify(got), JSON.stringify([["worlds/suite/hall.png", "worlds/suite/gone.png"], [{ src: "worlds/suite/hall.png",
+            classes: ["drpg-room-image"], window: { title: "R505 Hall", controls: [] }, showTitle: true }], null, null,
+            [game.i18n.localize("DRPG.Room.imageMissing")], 0, 1]),
+            "[the paths probed, the windows asked for, a refused path's answer, an undecodable picture's answer, the warnings, "
+            + "the tile's window's header controls left, another ImagePopout's left]");
     }],
-    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene", async () => {
+    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
          * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room) and scenario 74 the
@@ -10351,6 +10424,70 @@ const INVARIANTS = [
         const got = T.viewerRoom();
         equal(JSON.stringify([got.state, got.room, got.scene?.id ?? null, got.tokenDoc?.actorId ?? null]), JSON.stringify(want),
             `viewerRoom on this browser as [state, room, scene, the token's actor]; the viewer is ${viewer?.name ?? "nobody"}`);
+
+        /*
+         * E77 C3, 13.10.2026: the tile's DOM (the A8 design's R379; ledger V2, V19, D3). On boxes in no document, so
+         * nothing on this screen is touched, painted from `roomFacts` of the plain scenes above: the Kitchen's tile
+         * carries the Kitchen's words and picture - the positive control, read first, so the absence after it is
+         * an absence of something this reader can see - and no word or path of the Hall, of the namesake that is
+         * no room, or of the other school's Kitchen. Then every state on a box of its own, as [state, a toggle, a
+         * button for the picture, a picture on the art layer, the one heading's text, aria-hidden, a project
+         * line]. Then the toggle: opened, it stays open through a repaint of the same room, an unchanged view
+         * writes nothing, and another room closes it. Last the tile on this browser, read and not painted: its
+         * state and heading are `tileView()`'s (the GM's on the harness is the Hall, where its Monokuma stands).
+         * Which room each browser's tile shows, the GM's Room Setup reaching it and a crossing settling it are
+         * scenario 74's (they need two players and a write).
+         */
+        ok(typeof T.paintRoomTile === "function" && typeof T.tileView === "function",
+            "room-tile.mjs has no `paintRoomTile` and `tileView` - there is no tile to read");
+        if (typeof T.paintRoomTile !== "function" || typeof T.tileView !== "function") return;
+        const L = key => game.i18n.localize(key);
+        const viewOf = (room, scene, extra = {}) => {
+            const { description, image } = T.roomFacts(room, scene);
+            return { state: image ? (description ? "room" : "roomPicture") : (description ? "roomText" : "roomBare"), room, sceneId: scene.id,
+                description, image, tokens: { max: 3, left: 3, sealed: false }, project: false, ...extra };
+        };
+        const paint = view => {
+            const box = document.createElement("section");
+            T.paintRoomTile(box, view);
+            return box;
+        };
+        const kitchen = paint(viewOf("Kitchen", here)).outerHTML;
+        ok(kitchen.includes("Pots on the wall.") && kitchen.includes("worlds/suite/kitchen.webp"),
+            "the Kitchen's tile does not carry the Kitchen's own words and picture - the absence read next would measure nothing");
+        equal(JSON.stringify(["A long hall.", "worlds/suite/hall.png", "Not a room's words.", "not-a-room.webp", "other school", "other-kitchen.jpg"]
+            .filter(word => kitchen.includes(word))), "[]", "the words and paths of other rooms found on the Kitchen's tile");
+        const STATES = [
+            viewOf("Kitchen", here), { ...viewOf("Kitchen", here), state: "roomPicture", description: "", project: true },
+            { ...viewOf("Hall", here), state: "roomText", image: null }, viewOf("Cellar", here),
+            ...["nowhere", "noActor", "trial", "none"].map(state => ({ state, room: null }))
+        ];
+        const stateOf = box => [box.dataset.state, Boolean(box.querySelector(".drpg-room-tile-more")), Boolean(box.querySelector(".drpg-room-tile-open")),
+            Boolean(box.querySelector(".drpg-room-tile-art")?.style.backgroundImage), box.querySelector(".drpg-room-tile-name")?.textContent ?? null,
+            box.getAttribute("aria-hidden"), Boolean(box.querySelector(".drpg-hud-room-project"))];
+        equal(JSON.stringify(STATES.map(view => stateOf(paint(view)))), JSON.stringify([
+            ["room", true, true, true, "Kitchen", null, false], ["roomPicture", false, true, true, "Kitchen", null, true],
+            ["roomText", true, false, false, "Hall", null, false], ["roomBare", false, false, false, "Cellar", null, false],
+            ["nowhere", false, false, false, L("DRPG.Hud.roomNowhere"), null, false],
+            ["noActor", false, false, false, L("DRPG.Explain.room.noActor"), null, false],
+            ["trial", false, false, false, null, "true", false], ["none", false, false, false, null, "true", false]
+        ]), "each state's tile as [state, a toggle, a button for the picture, a picture on the art layer, the heading, aria-hidden, a project line]");
+        const box = paint(viewOf("Kitchen", here));
+        box.querySelector(".drpg-room-tile-more").click();
+        const toggle = () => [box.classList.contains("is-open"), box.querySelector(".drpg-room-tile-more")?.getAttribute("aria-expanded") ?? null,
+            box.querySelector(".drpg-room-tile-prose")?.hidden ?? null];
+        const opened = toggle(), spent = viewOf("Kitchen", here, { tokens: { max: 3, left: 2, sealed: false } });
+        const repainted = T.paintRoomTile(box, spent), kept = toggle(), again = T.paintRoomTile(box, spent);
+        T.paintRoomTile(box, viewOf("Hall", here));
+        equal(JSON.stringify([opened, repainted, kept, again, toggle()]), JSON.stringify([[true, "true", false], true, [true, "true", false], false,
+            [false, "false", true]]), "the toggle [opened, the same room repainted, still open, the unchanged view written, another room]");
+
+        const live = document.getElementById("drpg-room-tile"), view = T.tileView();
+        ok(Boolean(live), "this browser has no #drpg-room-tile - module.mjs did not build the tile");
+        if (!live) return;
+        const heading = view.room ?? { nowhere: L("DRPG.Hud.roomNowhere"), noActor: L("DRPG.Explain.room.noActor") }[view.state] ?? null;
+        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room]),
+            JSON.stringify([view.state, heading, got.room]), "this browser's tile as [state, heading] and tileView's room, against tileView and viewerRoom");
     }],
 ];
 

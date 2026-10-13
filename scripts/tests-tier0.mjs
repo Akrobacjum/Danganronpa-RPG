@@ -8065,7 +8065,9 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["HOOK fog.mjs#registerFog#updateToken:onUpdateToken", "out of scope as a judge: repaints and records a discovery on a move; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
-            ["HOOK hud.mjs#registerHud#updateToken:inline", "out of scope: redraws the HUD's own room; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
+            ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
@@ -8291,7 +8293,6 @@ const REGRESSIONS = [
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
-            ["HOOK hud.mjs#updateToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
             ["HOOK messenger-app.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK movement.mjs#preUpdateToken#onPreUpdateToken", "judged: the mover's own client vetoes a crossing (E12 C9 rewrites it as `crossingVerdict`); in the hall it returns at movement.mjs:242 (no rooms) and keeps the corpse veto (:229) [1b.1]"],
             ["HOOK movement.mjs#updateToken#onUpdateToken", "judged: a GM's move is free (`userId`), a player's is charged on the primary through rooms; the hall has none after C1, so nothing is charged (41 b)"],
@@ -8301,6 +8302,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; since E81 DZ6 the stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall, one create on a GM, and they ride it the same way - their records dropped by `forgetToken` when the stage deletes them. Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
             ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK room-tile.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK own-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK player-status.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK projects-map.mjs#canvasReady#arrow1", "out of scope: project tokens (E11 C7/C8, R346's rows); E13 adds no project token to the hall. Whether `syncProjectTokens` writes when a GM views the hall is E11's primary gate, not re-read here"],
@@ -8737,7 +8739,12 @@ const REGRESSIONS = [
          * working tree (13.10.2026, in Node) it read 33 - the nine of the picture more, 10 FIELD and 8 FORM - against
          * the 33 rows, none either side. On C2's working tree (13.10.2026, in Node) it read 38 - 6 READ, 6 WHO, 4 HOOK -
          * against the 38 rows, none either side, the same 38 keys as the parse-only census (compared key by key); on the
-         * harness (13.10.2026, this test alone, once) it passed.
+         * harness (13.10.2026, this test alone, once) it passed. E77 C3 struck three (the clock's room rows: two WHO,
+         * one HOOK) and added seven: the tile's three HOOK rows and its WHO, the picture's url and popout, and one the
+         * census planned none for - the probe that decodes the picture before the popout opens (`.src =`). On C3's
+         * working tree (13.10.2026, the harness, this test alone, once) it read 42 - 6 READ, 10 FIELD, 8 FORM, 4 WRITER,
+         * 5 WHO, 6 HOOK, 3 SRC - against the 42 rows, none either side, the same 42 keys as the parse-only census
+         * (compared key by key).
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8781,11 +8788,15 @@ const REGRESSIONS = [
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
-            ["WHO hud.mjs#registerHud#viewerActor -> which", "the HUD repaints for the viewer's own token's move only (E77 C3 moves the hook to the tile)"],
-            ["WHO hud.mjs#buildRoom#viewerActor -> which", "the viewer's own student (`ownStudent`), or a GM's Monokuma (E77 C3 moves the room block off the clock)"],
+            ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
             ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
-            ["HOOK hud.mjs#registerHud#updateToken -> which", "the viewer's own token's moves only, painted on the write before the route settles (E77 C3: the tile paints on `drpgRouteSettled`)"],
+            ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
+            ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateRegion -> which", "a repaint of `viewerRoom` (a GM's edit of the room's words or picture, or of its shape); the event chooses no room (scenario 74 A)"],
+            ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
+            ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
+            ["SRC room-tile.mjs#openRoomImage#ImagePopout -> src", "the same checked path, on this browser alone: no `uuid`, `window.controls` empty, and `stripImageControls` empties a share control or another module's on the tile's window (R505)"],
             ["HOOK narrow.mjs#registerNarrow#canvasReady -> which", "a re-layout of the stack; the event chooses no room (E77 C8 adds the tile's row)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -8943,7 +8954,7 @@ const REGRESSIONS = [
             "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
             + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
     }],
-    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room", async () => {
+    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R381 (the E77 plan's D2 gave it this number; ledger V4, D5, D7), its
          * C2 clauses, read in movement.mjs with comments blanked. The plan put R506 on tier 1; what it asks - one
@@ -8964,6 +8975,15 @@ const REGRESSIONS = [
          * of 11.10, question 1 "b": the description is the room tile's). It reads names, not data flow: a second
          * announcement through a helper is scenario 66's to count. The reader is run first on a fixture with
          * every part, and on the same fixture with the gate taken out and with the description put back.
+         * E77 C3 (13.10.2026) adds the listener's side: the room tile repaints on the announcement and never on the
+         * raw `updateToken` (which reaches a browser before a refusal and its put-back, the design's CB-8), and only
+         * for the viewer's own token (`registerRoomTile`: `tokenDoc.actorId !== viewerActor()?.id` returns); and
+         * hud.mjs, whose room rows went to the tile, listens on `updateToken` no more. Read in room-tile.mjs and
+         * hud.mjs with comments blanked, first on a fixture, then with the tile on `updateToken`, with the
+         * clock's hook put back and with the clock silent. The clock tells the tile by `drpgHudRendered` at the end
+         * of `renderHud` rather than importing it (room-tile.mjs imports hud.mjs; R161), and until this clause
+         * nothing read that line: with it taken out, this test as it stood passed (13.10.2026, once). Scenario 74
+         * B counts the paints on the mover's browser.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
@@ -9003,9 +9023,31 @@ const REGRESSIONS = [
             "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken; the REVERT answering false, a GM's move "
             + "true, a pending waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before; the card "
             + "where and the price, and no description read in movement.mjs] and the other files that announce a route");
+
+        const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
+        const listens = (tile, hud) => [
+            /\bHooks\.on\(\s*["']drpgRouteSettled["']/.test(tile) && !ON_MOVE.test(tile)
+                && /if \(!tokenDoc \|\| tokenDoc\.actorId !== viewerActor\(\)\?\.id\) return;/.test(topLevelFunction(tile, "registerRoomTile") ?? ""),
+            !ON_MOVE.test(hud),
+            /\bHooks\.callAll\(\s*["']drpgHudRendered["']\s*\)/.test(topLevelFunction(hud, "renderHud") ?? "")
+                && /\bHooks\.on\(\s*["']drpgHudRendered["']/.test(topLevelFunction(tile, "registerRoomTile") ?? "")
+        ];
+        const TILE = "export function registerRoomTile() {\n    Hooks.on(\"drpgRouteSettled\", ({ tokenDoc } = {}) => {\n"
+            + "        if (!tokenDoc || tokenDoc.actorId !== viewerActor()?.id) return;\n        refreshRoomTile();\n    });\n    Hooks.on(\"drpgHudRendered\", () => refreshRoomTile());\n}\n";
+        const HUD = "export function registerHud() {\n    Hooks.on(\"canvasReady\", () => renderHud());\n}\n"
+            + "export function renderHud() {\n    renderEvents();\n    Hooks.callAll(\"drpgHudRendered\");\n}\n";
+        equal(JSON.stringify([listens(TILE, HUD), listens(TILE.replace("drpgRouteSettled", "updateToken"), HUD),
+            listens(TILE, HUD.replace("canvasReady", "updateToken")), listens(TILE, HUD.replace("    Hooks.callAll(\"drpgHudRendered\");\n", ""))]),
+        JSON.stringify([[true, true, true], [false, true, true], [true, false, true], [true, true, false]]),
+            "the listener reader does not read its fixture whole, or does not miss the tile on updateToken, the clock's hook put back or the clock silent");
+        const tile = stripComments(sources.get("room-tile.mjs") ?? "");
+        must(/\bexport function registerRoomTile\(/.test(tile), "room-tile.mjs has no `registerRoomTile` among the module's sources - this would measure nothing");
+        equal(JSON.stringify(listens(tile, stripComments(sources.get("hud.mjs") ?? ""))), JSON.stringify([true, true, true]),
+            "[the tile repaints on drpgRouteSettled for the viewer's own token and never on updateToken; hud.mjs listens on updateToken no more; "
+            + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
 
-    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only", async () => {
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
          * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
@@ -9021,6 +9063,11 @@ const REGRESSIONS = [
          * `game.actors` is not in the list: hud.mjs reads an actor by id for the trial's speaker (read in the code,
          * 13.10.2026), which is not the viewer. The reader is run first on a fixture of the three files, and on
          * the same fixture with the GM's gate taken off the selection and with a second reader of the student.
+         * E77 C3 (13.10.2026) adds the markup clauses: room-tile.mjs, which draws another user's words, has no
+         * `innerHTML` write, no `insertAdjacentHTML(`, no `enrichHTML(` and no data-tooltip in any literal (Foundry's
+         * tooltip takes an empty one's `aria-label` through the client's `cleanHTML`, the E02-D01 hole; the tile's
+         * tooltips are `dataset.tooltipText`); and hud.mjs names `buildRoom` and `buildSearchPips` no more (the
+         * clock's room rows moved to the tile). The fixture is read again with each of the five planted.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
         const shape = files => {
@@ -9033,7 +9080,9 @@ const REGRESSIONS = [
                 /=\s*game\.user\.isGM \? canvas\?\.tokens\?\.controlled\?\.\[0\]\?\.actor \?\? null : null;/.test(subject)
                     && /return selected \?\? viewerActor\(\);/.test(subject) && [...subject.matchAll(/\.controlled\b/g)].length === 1,
                 /\bviewerActor\(\)/.test(topLevelFunction(tile, "viewerRoom") ?? ""),
-                rest
+                rest,
+                !/\.\s*innerHTML\s*[+]?=(?![=>])|\b(?:insertAdjacentHTML|enrichHTML)\s*\(|data-tooltip/.test(tile),
+                !/\b(?:buildRoom|buildSearchPips)\b/.test(hud)
             ];
         };
         const FIXTURE = new Map([
@@ -9041,20 +9090,30 @@ const REGRESSIONS = [
                 + "    return ownStudent();\n}\nfunction buildClock() {\n    const mine = viewerActor();\n}\n"],
             ["explain.mjs", "function subjectActor() {\n    const selected = game.user.isGM ? canvas?.tokens?.controlled?.[0]?.actor ?? null : null;\n"
                 + "    return selected ?? viewerActor();\n}\n"],
-            ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"]
+            ["room-tile.mjs", "export function viewerRoom() {\n    const actor = viewerActor();\n}\n"
+                + "export function paintRoomTile(tile, view) {\n    tile.replaceChildren(textNode(\"p\", \"drpg-room-tile-prose\", view.description));\n"
+                + "    tile.dataset.tooltipText = view.room;\n}\n"]
         ]);
         const planted = (file, from, to) => new Map([...FIXTURE].map(([name, text]) => [name, name === file ? text.replace(from, to) : text]));
+        const PROSE = "tile.replaceChildren(textNode(\"p\", \"drpg-room-tile-prose\", view.description));";
         equal(JSON.stringify([shape(FIXTURE), shape(planted("explain.mjs", "game.user.isGM ? canvas", "true ? canvas")),
-            shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();"))]),
-        JSON.stringify([[true, true, true, []], [true, false, true, []], [true, true, true, ["hud.mjs"]]]),
-        "the reader does not read its fixture whole, or does not miss the GM's gate taken off or a second reader of the student");
+            shape(planted("hud.mjs", "const mine = viewerActor();", "const mine = ownStudent();")),
+            ...["tile.innerHTML = view.description;", "tile.insertAdjacentHTML(\"beforeend\", view.description);",
+                "tile.append(await TextEditor.enrichHTML(view.description));", "tile.setAttribute(\"data-tooltip\", \"\");"]
+                .map(markup => shape(planted("room-tile.mjs", PROSE, markup))),
+            shape(planted("hud.mjs", "function buildClock() {", "function buildRoom() {"))]),
+        JSON.stringify([[true, true, true, [], true, true], [true, false, true, [], true, true], [true, true, true, ["hud.mjs"], true, true],
+            ...Array(4).fill([true, true, true, [], false, true]), [true, true, true, [], true, false]]),
+        "the reader does not read its fixture whole, or does not miss the GM's gate taken off, a second reader of the student, the GM's words "
+            + "drawn as markup four ways, or the clock's room rows put back");
         const sources = new Map(await otherSources());
         must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
         const files = new Map(["hud.mjs", "explain.mjs", "room-tile.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]));
         const named = [...sources].filter(([, text]) => /\bhudActor\b/.test(stripComments(text))).map(([file]) => file);
-        equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, []], []]),
+        equal(JSON.stringify([shape(files), named]), JSON.stringify([[true, true, true, [], true, true], []]),
             "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
-            + "viewerActor(); the three files' other readers of the account's character] and the files that still name hudActor");
+            + "viewerActor(); the three files' other readers of the account's character; room-tile.mjs without markup or a data-tooltip literal; "
+            + "hud.mjs without the room rows] and the files that still name hudActor");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {

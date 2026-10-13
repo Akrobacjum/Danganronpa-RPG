@@ -88,6 +88,7 @@ import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
+import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
@@ -347,6 +348,10 @@ Hooks.once("ready", () => {
     // tile too: after the theme that draws it, before the narrow layout and the
     // accessibility sweep that find it, and before the glass is cut around it.
     safely("the notice tile", ensureNoticeTile);
+    // The room tile under the clock (E77 C3), like the notice tile: before the narrow
+    // layout and the glass, which find it. Its first paint waits at the column's end
+    // until the clock's own first render, which comes after this hook, moves it.
+    safely("the room tile", () => { ensureRoomTile(); registerRoomTile(); });
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them
