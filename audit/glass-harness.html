@@ -521,10 +521,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (out.place === "clock") {
         const prev = tile.previousElementSibling, gauge = document.getElementById("players")?.getBoundingClientRect();
         out.clock = { w: [Math.round(t.width), Math.round(h.width)], left: [Math.round(t.left), Math.round(h.left)], dx: +((t.left + t.width / 2) - (h.left + h.width / 2)).toFixed(1), rail: null };
-        out.flat = { h: [b.h, Math.min(room.F, room.maxH)], players: gauge?.height ? Math.round(gauge.top - t.bottom) : null };
+        // E78 C0: the height stops at glass.mjs `roomCapH` as well (the owner's decision of 13.10.2026)
+        out.flat = { h: [b.h, Math.min(room.F, room.maxH, g.roomCapH(innerHeight, room.need))], players: gauge?.height ? Math.round(gauge.top - t.bottom) : null };
         if (prev !== hud && !(prev?.id === "drpg-floors" && prev.previousElementSibling === hud)) out.why.push("not under the clock");
         if (!near(t.width, h.width) || !near(t.left, h.left)) out.why.push(`not the clock's width and edge: ${out.clock.w} ${out.clock.left}`);
-        if (b.h !== out.flat.h[1]) out.why.push(`the box is ${b.h} high, not min(F, maxH) ${out.flat.h[1]}`);
+        if (b.h !== out.flat.h[1]) out.why.push(`the box is ${b.h} high, not min(F, maxH, cap) ${out.flat.h[1]}`);
         if (out.flat.players !== null && out.flat.players < 16) out.why.push(`the tile ends ${out.flat.players} px above #players, not 16`);
       } else {
         const sb = document.getElementById("drpg-popups")?.getBoundingClientRect();

@@ -66,7 +66,7 @@
  * cut, and the tile's place and height come from glass.mjs `flatPlacement`: the same F, from the clock's foot to the
  * player list, and the same two places. A Legacy desk expects `flat` and fails on any of: no placement, or one that is
  * not flat; a place F does not choose; a second `roomPlacement` that answers otherwise; the tile laid off its box;
- * under the clock, not under it, not its width or edge, not min(F, max) high, or less than 16 px above the player
+ * under the clock, not under it, not its width or edge, not min(F, max, cap) high, or less than 16 px above the player
  * list; beside the notices, not in the body 16 px right of the stack, level with its top, or off the screen; a new
  * description or the description opened moving the placement, while a taller clock moves it (that reading's
  * control); under the clock, `#players` made 60 px wider widening the column and the tile taking the column's width,
@@ -161,6 +161,32 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
         + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",").map(size =>
         [`${theme} ${role} ${size}`, PIN_ROW.includes(size) ? "row" : PIN_NOTES[theme].includes(size) ? "notes" : "clock"]))));
+/* THE BOX PINS (E78 C0, 13.10.2026; the owner's decision of 13.10: the room tile is too large beside the notices
+   and under Monokuma Legacy, and under Stained Glass's clock it stays exactly as it is): each desk size's room box,
+   width x height, a GM and a player alike. The 'clock' rows of Stained Glass are 1.2.76's own (this file on dcfc31b,
+   in Chromium, 13.10.2026: SWEEP GREEN, 711 s), and C0 must not move them; the 'notes' rows of Stained Glass and
+   every Legacy row are C0's, read the same day on C0's tree with the cap of glass.mjs `roomCapH` - beside the notices
+   301x376 became 301x259 at 1366x768, 1224x768 and 1300x768, 301x384 became 301x270 at 1280x800 and 1264x800,
+   301x352 and 301x321 became 301x245 (the floor at `need`) at 1280x720 and 1366x657; under Legacy 430x491 became
+   430x364 at 1920x1080, 430x310 (the floor) at ten sizes, 430x485, 430x354 and 430x404 at 2560x1440, 1680x1050 and
+   1920x1200, and 3840x2160 kept 430x491 (its maxH is below the cap). Every self-check (ov, nc, bf, eg, ff) and
+   every place read the same before and after. The harness's own room check reads the height against
+   min(F, maxH, cap) with glass.mjs's function, so these numbers are the one reading that does not go through the
+   code it checks. A box that moves is a design change: say why in the commit that moves the pin. */
+const BOX = {
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x259", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
+    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x270",
+    "stained 1224x768": "301x259", "stained 1264x800": "301x270", "stained 1300x768": "301x259", "stained 1400x900": "265x302",
+    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x245", "stained 1366x657": "301x245",
+    "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
+    "legacy 1536x864": "430x310", "legacy 1600x900": "430x310", "legacy 1680x1050": "430x354", "legacy 1280x800": "430x310",
+    "legacy 1224x768": "430x310", "legacy 1264x800": "430x310", "legacy 1300x768": "430x310", "legacy 1400x900": "430x310",
+    "legacy 3840x2160": "430x491", "legacy 1920x1200": "430x404", "legacy 1280x720": "430x310", "legacy 1366x657": "430x310"
+};
+const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
+    const [theme, size] = key.split(" ");
+    return ["gm", "player"].map(role => [`${theme} ${role} ${size}`, box]);
+}));
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -323,7 +349,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -417,12 +443,23 @@ try {
                     line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
                     if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
                     if (!pin) unpinned++;
+                    /* THE BOX PIN (E78 C0): a placed tile's width and height, as PIN_BOX records them. */
+                    const boxPin = PIN_BOX[`${theme} ${role} ${size}`], box = rc.box ? `${rc.box.w}x${rc.box.h}` : "-";
+                    if (rc.expect === "placed" || rc.expect === "flat") {
+                        line += boxPin ? (boxPin === box ? " | box pin ok" : ` | box ${box}/${boxPin}`) : " | box unpinned";
+                        if (boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
+                        if (!boxPin) unboxed++;
+                    }
                     if (control && !pinControlled.has(theme) && pin === "clock" && got === "clock") {
                         pinControlled.add(theme);
                         const v = await page.evaluate(plantPin, rc.F - rc.need + 40);
                         console.log(`  pin control ${theme.padEnd(8)} ${v.got !== pin ? "sees it" : "MISSES IT"}: a clock ${v.px} px taller reads ${v.got} (F ${v.F}) where PINS has ${pin}`
                             + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top} right ${v.check.flat.right ?? "-"}` : ""} ${String(v.check.why).slice(0, 110)}`);
                         if (v.got === pin) fails.push("pin control reads as a pass");
+                        /* and the box (E78 C0): at the other place the tile's box must not read as this size's pin */
+                        const other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-";
+                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: there the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
+                        if (!boxPin || other === boxPin) fails.push("box pin control reads as a pass");
                         if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
                     }
                     if (r.stacked) stackedRead = true;
@@ -493,6 +530,7 @@ if (control && !controlled) {
 if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
 if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }
+if (rooms && !opt("--sizes") && unboxed) { bad++; console.log(`FAIL: ${unboxed} placed line(s) of the default sizes have no box in PIN_BOX`); }
 if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }

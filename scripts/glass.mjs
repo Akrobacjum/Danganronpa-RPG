@@ -228,6 +228,21 @@ function roomSizes(w) {
   const line = 21 * t * 1.3, head = 21 * t * 1.9 + 18;
   return { need: Math.round(w / 3 + head + 4 * line), maxH: Math.round(w * 9 / 16 + head + 7 * line) };
 }
+/* THE CAP BESIDE THE NOTICES AND UNDER MONOKUMA LEGACY (E78 C0, 13.10.2026; the owner's decision of
+   13.10: the tile is too large under Legacy, "430x491 at 1920x1080 and at 1366x768", and under
+   Stained Glass where it stands beside the notice tile, "about 325x456" at 1366x768 - the sweep read
+   301x376 there; under Stained Glass's clock it stays as it is, "pod zegarem jest super"). Those two
+   places take a height of at most 364/1080 of the screen's, never less than the box's own `need`.
+   364/1080 is the accepted tile itself: its box under Stained Glass's clock at 1920x1080 was 265x364
+   in Chromium (audit/glass-sweep.mjs on 1.2.76's tree, 13.10.2026). The 'clock' place under Stained
+   Glass never calls this, and the sweep's PIN_BOX holds its boxes at 1.2.76's readings. Read on C0's
+   tree the same day: Legacy 430x491 became 430x364 at 1920x1080 and 430x310 (the floor) at 1366x768,
+   3840x2160 kept 430x491 (maxH is below the cap); beside the notices 301x376 became 301x259 at
+   1366x768 and 301x352 became 301x245 (the floor) at 1280x720. The width is unchanged. */
+const ROOM_CAP = 364 / 1080;
+export function roomCapH(H, need) {
+  return Math.max(need, Math.round(H * ROOM_CAP));
+}
 /* What the scene rail takes out of the clock's column under the tile: the slot over its first
    tile and its layers' run, read off the layer buttons themselves (their run does not depend on
    where the rail stands, so this is the same number whichever place the last pass chose). */
@@ -275,7 +290,7 @@ export function roomPlacement(W, H) {
     if (F - 24 >= need) return { place: "clock", F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(Math.min(F - 24, maxH)) };
   }
   const w = Math.round(noteW), { need, maxH } = roomSizes(w);
-  const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22));
+  const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22, roomCapH(H, need)));
   return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, x: Math.round(16 + noteW + 32 + h * ROOM_TAN), y: Math.round(H - foot - h), w, h };
 }
 /* UNDER MONOKUMA LEGACY THE SAME TWO PLACES, WITH NO CURTAIN (E77 fix r1-M1, 13.10.2026; review round
@@ -295,7 +310,8 @@ export function roomPlacement(W, H) {
    With no stack drawn yet (popup.mjs draws it at `ready`, on every desk) the tile keeps the clock's
    place at the smallest box. Readings in Chromium, audit/glass-harness.html `?theme=legacy`,
    13.10.2026, before this: the tile 430x250 at y 153 at 1920x1080, 1366x768 and 1280x720 alike;
-   audit/glass-sweep.mjs prints the place and box at every size since. */
+   audit/glass-sweep.mjs prints the place and box at every size since. Since E78 C0 both places stop at
+   `roomCapH` (above): the owner found the tile too large under this theme. */
 function flatPlacement(W, H) {
   /* `#players` IS READ WITH THE TILE OUT OF THE FLOW. Where the gauge does not stand on the floor it
      follows the column - the tile in it - and a gauge read with the tile laid out made F the tile's
@@ -326,9 +342,9 @@ function flatPlacement(W, H) {
   const right = ["#ui-right-column-1", "#sidebar"].map(q => document.querySelector(q))
     .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0 && !inFoundryWindow(e)).map(e => e.getBoundingClientRect().left);
   const x = sb ? Math.round(sb.right + 16) : 0, free = Math.round(Math.min(W, ...right) - 16 - x);
-  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH) : need) };
+  if (F >= need || !sb || free < 1) return { place: "clock", flat: true, F, need, maxH, free: sb ? free : null, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(F >= need ? Math.min(F, maxH, roomCapH(H, need)) : need) };
   const y = Math.round(sb.top), w = Math.round(Math.min(hud.width, free));
-  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y)) };
+  return { place: "notes", flat: true, F, need, maxH: roomSizes(w).maxH, free, x, y, w, h: Math.round(Math.min(roomSizes(w).maxH, H - foot - 8 - y, roomCapH(H, roomSizes(w).need))) };
 }
 /* WHO PLACES IT THERE. No curtain watches the page under this theme, so this does, and only this: a
    resize, the clock drawn again (`drpgHudRendered`), the theme applied (`refreshGlass`), and a change

@@ -11733,6 +11733,59 @@ const REGRESSIONS = [
             + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
             + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens; "
             + "how many sentences of the brochure and of the GM's section 4 put a room's search tokens, project or description on the HUD or the clock]");
+    }],
+    ["R533 - the room tile's height stops at 364/1080 of the screen's and never under its smallest box, beside the notice tile and under Monokuma Legacy only: glass.mjs roomCapH(H, need) = max(need, round(H x 364 / 1080)), roomPlacement's 'notes' height and both of flatPlacement's take it, and Stained Glass's 'clock' place never calls it", async () => {
+        /*
+         * E78 C0, 13.10.2026; the E78 plan's D1 and D2 (this number), ledger OWN-a, OWN-b and OWN-c. The owner
+         * (13.10.2026) found the room tile E77 shipped too large under Monokuma Legacy (430x491 at 1920x1080 and at
+         * 1366x768) and under Stained Glass beside the notice tile (1366x768), and right as it is under Stained Glass's
+         * clock. Two readings, neither of which needs layout.
+         * THE ARITHMETIC, at the sizes the owner named and the two ends: each pair is the box's height on 1.2.76's tree
+         * and its smallest box (`need`) as audit/glass-sweep.mjs read them in Chromium - Legacy under the clock 491 high
+         * with need 310, Stained Glass beside the notices 376 at 1366x768 and 352 at 1280x720 with the notice tile's
+         * width's need 245 - and the height each takes now is min(height, roomCapH(H, need)): 364 at 1920x1080, the floor
+         * 310 under Legacy at 1366x768, 259 beside the notices at 1366x768 and the floor 245 at 1280x720 (243 without
+         * it), 485 at 2560x1440 and 491 at 3840x2160, where the cap stands above the box's own largest. The positive
+         * control is in the same list: at 1366x768 and 1920x1080 the cap is lower than the box it replaces.
+         * THE SOURCE, read with comments blanked: in roomPlacement the branch that returns the 'clock' place names no
+         * `roomCapH`, the 'notes' height after it does; both of flatPlacement's returns do. The reader is run first on
+         * a fixture of that shape, and with the cap planted in the 'clock' branch and taken out of each of the three.
+         * The boxes themselves need layout: audit/glass-sweep.mjs pins every one per theme, role and size (PIN_BOX),
+         * Stained Glass's 'clock' boxes at 1.2.76's readings.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.roomCapH === "function", "glass.mjs exports no roomCapH - the room tile's height has no cap");
+        const capped = (h, H, need) => Math.min(h, G.roomCapH(H, need));
+        equal(JSON.stringify([capped(491, 1080, 310), capped(491, 768, 310), capped(376, 768, 245), capped(352, 720, 245),
+            capped(491, 1440, 310), capped(491, 2160, 310), G.roomCapH(1080, 310) < 491, G.roomCapH(768, 245) < 376]),
+        JSON.stringify([364, 310, 259, 245, 485, 491, true, true]),
+        "[the box under Legacy's clock at 1920x1080 and 1366x768, beside Stained Glass's notices at 1366x768 and 1280x720, under Legacy's clock "
+            + "at 2560x1440 and 3840x2160; the cap under the old box at 1920x1080 and at 1366x768]");
+        const reader = src => {
+            const room = fnSource(src, "roomPlacement"), flat = fnSource(src, "flatPlacement");
+            return [!/\broomCapH\b/.test(bodyOf(room, "if (hud) {", { until: "\n  }" })),
+                /const h = Math\.round\(Math\.min\([^;\n]*\broomCapH\(H, need\)/.test(bodyOf(room, "const w = Math.round(noteW)")),
+                /return \{ place: "clock"[^\n]*\broomCapH\(H, need\)/.test(flat),
+                /return \{ place: "notes"[^\n]*\broomCapH\(H, /.test(flat)];
+        };
+        const FIXTURE = "export function roomPlacement(W, H) {\n  if (hud) {\n    const { need, maxH } = roomSizes(hud.width);\n"
+            + "    if (F - 24 >= need) return { place: \"clock\", h: Math.round(Math.min(F - 24, maxH)) };\n  }\n"
+            + "  const w = Math.round(noteW), { need, maxH } = roomSizes(w);\n  const h = Math.round(Math.min(maxH, H / 2 - 8, roomCapH(H, need)));\n"
+            + "  return { place: \"notes\", h };\n}\nfunction flatPlacement(W, H) {\n"
+            + "  if (F >= need) return { place: \"clock\", flat: true, h: Math.round(Math.min(F, maxH, roomCapH(H, need))) };\n"
+            + "  return { place: \"notes\", flat: true, h: Math.round(Math.min(maxH, roomCapH(H, roomSizes(w).need))) };\n}\n";
+        const planted = (from, to) => { must(FIXTURE.includes(from), `the fixture has no "${from}"`); return FIXTURE.replace(from, to); };
+        equal(JSON.stringify([reader(FIXTURE),
+            reader(planted("Math.min(F - 24, maxH)", "Math.min(F - 24, maxH, roomCapH(H, need))")),
+            reader(planted("H / 2 - 8, roomCapH(H, need)", "H / 2 - 8")),
+            reader(planted("Math.min(F, maxH, roomCapH(H, need))", "Math.min(F, maxH)")),
+            reader(planted("Math.min(maxH, roomCapH(H, roomSizes(w).need))", "maxH"))]),
+        JSON.stringify([[true, true, true, true], [false, true, true, true], [true, false, true, true], [true, true, false, true], [true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not see the cap put in Stained Glass's 'clock' branch or taken out of the 'notes' height or either of Legacy's");
+        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
+        equal(JSON.stringify(reader(glass)), JSON.stringify([true, true, true, true]),
+            "[Stained Glass's 'clock' branch free of the cap; the cap in the 'notes' height; in Legacy's 'clock' return; in Legacy's 'notes' return]");
     }]
 ];
 
