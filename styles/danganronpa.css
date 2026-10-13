@@ -14160,6 +14160,15 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     filter: grayscale(1) brightness(2.1) contrast(1.05) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
 }
 
+/* What stands in for a logo that did not load (foundry-windows.mjs `buildLauncher`, E77 fix r2-H2): a Font Awesome
+   toolbox in the button's bone. The lg rung (20 px at 100 %) is chosen to sit inside the logo's 24 px box, not
+   measured against it; a rung and not a literal, as R60 asks of every size (its first form, 20px, read red there). */
+#drpg-foundry-tools > i {
+    font-size: var(--drpg-text-lg);
+    line-height: 1;
+    pointer-events: none;
+}
+
 /* ---- the scene button, and the rest of the left rail's geometry --------- */
 
 /* The scene navigation is hidden for everybody in every theme (DZ5, the

@@ -717,12 +717,17 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        focus    a text field put into the open Foundry tools (the page has no `#chat-message`), focused and typed in,
                 then the clock 40 px taller and a pass of the glass: the same field focused with its text and caret;
                 `cuts` counts that pass's `drpgGlassCut`s, so a reading where nothing was cut says so.
+       grow     Foundry tools placed at the screen's right edge (a remembered place past it, clamped), then content
+                120 px wider than the frame put in its body: two frames later the frame stands wholly on the screen and
+                off the cluster, placed again by its own ResizeObserver (E77 fix r2-H2, 13.10.2026; review round 2's cor F5: the sidebar
+                can grow after the place was taken). `raw`: the grown frame where it stood before - off the screen or
+                on the cluster, or the reading saw no growth; a screen too narrow to let the frame grow is not asked.
      The page is put back before it answers: windows closed, the setting emptied, the field and the row removed. */
   window.drpgWindowsCheck = async () => {
     const g = window.__glass, fw = window.__windows, M = 8, W = innerWidth, H = innerHeight;
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id));
-    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null };
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null, grow: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     if (out.expect === "none") return done();
     if (frames.some(f => !f) || !fw?.clampPlace) { out.why.push("a window or clampPlace is missing"); return done(); }
@@ -773,6 +778,22 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       g.refreshGlass(); await frame(); await new Promise(r => setTimeout(r, 450));
       out.focus = { kept: document.activeElement === field, text: field.value, caret: field.selectionStart, cuts: n };
       if (!out.focus.kept || out.focus.text !== "S77 typed" || out.focus.caret !== 3) out.why.push("a recut took the focus, the text or the caret from a field in Foundry tools");
+      row.remove(); field.remove();
+      fw.toggleFoundryTools(false);
+      await game.settings.set("danganronpa-rpg", "foundryWindows", { ftools: { x: W, y: M } });
+      fw.setFoundryWindow("ftools", true);
+      await frame();
+      const placed0 = rectOf(frames[0]), wide = document.createElement("div");
+      wide.style.cssText = `width: ${Math.ceil(placed0.w) + 120}px; height: 1px; flex: none;`;
+      frames[0].querySelector(":scope > .drpg-foundry-window-body")?.append(wide);
+      await frame();
+      const grown = rectOf(frames[0]);
+      wide.remove();
+      const roomy = placed0.w + 120 <= W - 2 * M;
+      const stayed = { x: placed0.x, y: placed0.y, w: grown.w, h: grown.h };
+      out.grow = { before: shown(placed0), after: shown(grown), raw: !onScreen(stayed) || !offCluster(stayed), roomy };
+      if (roomy && !out.grow.raw) out.why.push("grow: Foundry tools grown where it stood would stand on the screen and off the cluster - the reading could not see a growth");
+      if (!onScreen(grown) || !offCluster(grown)) out.why.push(`grow: Foundry tools grown after its place stands off the screen or on the cluster at ${JSON.stringify(shown(grown))}`);
     } finally {
       Hooks.off("drpgGlassCut", count);
       row.remove(); field.remove();
@@ -790,7 +811,10 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
+  /* `?windows=off` (E77 fix r2-H2): the world switch `foundryToolWindows` off, so registerFoundryWindows below builds
+     nothing and Foundry's rails stay in its columns, as a GM's page loads with the switch off. */
   const defaults = { theme: q.get("theme") === "legacy" ? "monokumaLegacy" : "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
+  if (q.get("windows") === "off") defaults.foundryToolWindows = false;
   /* A registry rather than three no-ops since E77 C4: `drpgRoomCheck` counts glass.mjs's `drpgGlassCut`. */
   const hooks = new Map();
   globalThis.Hooks = { on(name, fn) { if (!hooks.has(name)) hooks.set(name, []); hooks.get(name).push(fn); return fn; },

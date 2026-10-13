@@ -63,6 +63,19 @@
  * Foundry's own logo, `icons/fvtt.png` from Foundry's core files - the module ships no copy of it (D7) - lightened
  * by the stylesheet; whether that file is there and reads well on a v14 table is LIVE-E77-09.
  *
+ * THE WORLD SWITCH (E77 fix r2-H2, 13.10.2026; the owner's amend of 11.10, session 0 (1): 'jeden przelacznik', the
+ * emergency way back at the table). The world setting `foundryToolWindows`, on by default and the GM's to change in
+ * the module's settings, is read once here: off, a GM's page builds nothing - no frame, no launcher, no wrapper, no
+ * guard - so `#sidebar` and `#scene-controls` stay where Foundry puts them, and glass.mjs and narrow.mjs, which read
+ * a rail only outside these frames, take them as rails in Foundry's columns again. It takes effect at the next
+ * load (`requiresReload`), as the windows are built once and hold Foundry's own nodes. A player's page is the same
+ * either way: their scene controls are the stylesheet's to hide (the owner's Q4), and the Tokens layer is kept.
+ * R531 reads both states on the GM's page; scenario 74 J boots a second GM with it off.
+ *
+ * GUARDED, FOUNDRY'S CALL FIRST (E77 fix r2-H2; review round 2's Q3). The wrappers on `ui.sidebar` run the module's
+ * steps - showing and placing the frame - each in its own try that logs and goes on, and Foundry's original always
+ * runs and its answer is returned: a step of the module's that throws costs the GM a window's place, never the tab.
+ *
  * THE THEME. Foundry puts `themed theme-<interface>` on `#interface`, and the sidebar and the scene controls take
  * it from that ancestor; out of it they would take the body's `theme-<applications>`, and a dark interface with
  * light applications would light the tab bar. Each frame copies the classes from `#interface`, and again on every
@@ -72,13 +85,14 @@
  * Foundry's columns (`inFoundryWindow`), the frames are no block and stand outside `#interface`, whose changes are
  * what the curtain watches. So opening, closing and the sidebar's own growing recut nothing (R514 in a browser).
  *
- * Imports config.mjs and settings.mjs alone: glass.mjs and narrow.mjs import `inFoundryWindow` from here, and
- * neither of those two reaches them (R161 counts static imports). The corner's selector, glass.mjs's LAUNCHERS, is
+ * Imports config.mjs, settings.mjs and utils.mjs alone: glass.mjs and narrow.mjs import `inFoundryWindow` from here,
+ * and none of those three reaches them (R161 counts static imports). The corner's selector, glass.mjs's LAUNCHERS, is
  * read through a dynamic import once the windows are built, since a static one would close that cycle.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
+import { warn } from "./utils.mjs";
 
 const FRAME_CLASS = "drpg-foundry-window";
 const BODY_CLASS = "drpg-foundry-windows";
@@ -114,6 +128,7 @@ export function registerFoundryWindows() {
         Hooks.on("renderSceneControls", keepTokensLayer);
         return;
     }
+    if (!foundryWindowsOn()) return;
     document.body.classList.add(BODY_CLASS);
     for (const row of FOUNDRY_WINDOWS) buildFrame(row);
     buildLauncher();
@@ -136,6 +151,11 @@ export function registerFoundryWindows() {
     }
 }
 
+/** The world switch (see THE WORLD SWITCH): on unless the GM turned it off; a setting that cannot be read is the default. */
+export function foundryWindowsOn() {
+    try { return game.settings.get(MODULE_ID, SETTINGS.foundryToolWindows) !== false; } catch { return true; }
+}
+
 /* ONCE A SECOND AT MOST, AND NEVER IN A LOOP. `activate` renders the controls, which fires
    `renderSceneControls` again; on a Foundry where the call does not take (a name v14 does not know),
    asking on every render would ask forever. A second call within a second of the first is dropped. */
@@ -149,6 +169,11 @@ export function keepTokensLayer() {
 export function askTokensLayer(controls, user, now = Date.now()) {
     if (user?.isGM || !controls || typeof controls.activate !== "function") return false;
     if (controls.control?.name === "tokens") return false;
+    /* A template or a note is placed on its own layer, and a player reaches one only through a code road - a
+       system's chat card handing out a template, a note dropped on the canvas. Asked back to Tokens, the layer's
+       preview would go with it (review round 2's cor F3, read from memory of v13 and not measured; whether
+       Daggerheart hands players a template is LIVE-E77-16), so those two are left as they are. */
+    if (["templates", "notes"].includes(controls.control?.name)) return false;
     if (now - tokensAsked < 1000) return false;
     tokensAsked = now;
     /* `{ control, tool }` is SceneControls#activate's signature as v13 has it; read from memory and not
@@ -306,6 +331,10 @@ export function escapeFallsToWindows() {
     if (Object.values(shell?.windows ?? {}).some(app => app?.rendered)) return false;
     const apps = globalThis.foundry?.applications?.instances;
     for (const app of apps?.values?.() ?? []) if (app?.hasFrame && app.rendered) return false;
+    /* A ruler, a box select or a wall, drawing, region or template being drawn controls nothing, and Escape cancels
+       it first (review round 2's cor F1). `currentMouseManager` is the field v11-v13 hold a canvas drag in, named from
+       memory and not read on v14 (LIVE-E77-10): a Foundry without it leaves this clause out, not the windows. */
+    if (globalThis.canvas?.currentMouseManager) return false;
     return !globalThis.canvas?.activeLayer?.controlled?.length;
 }
 
@@ -331,6 +360,15 @@ function buildLauncher() {
     logo.setAttribute("src", "icons/fvtt.png");
     logo.setAttribute("alt", "");
     logo.draggable = false;
+    /* A Foundry whose core files have no `icons/fvtt.png` would leave the broken-image glyph on the button (review
+       round 2's cor F6; the glass harness serves no such file). Then a Font Awesome toolbox stands in once; the
+       button's name is its label either way. R512 fires the error. */
+    logo.addEventListener("error", () => {
+        const mark = document.createElement("i");
+        mark.className = "fa-solid fa-toolbox";
+        mark.setAttribute("inert", "");
+        logo.replaceWith(mark);
+    }, { once: true });
     btn.append(logo);
     btn.addEventListener("click", () => toggleFoundryTools());
     document.body.append(btn);
@@ -369,20 +407,25 @@ function wrapSidebar() {
         ORIGINAL.toggleExpanded = toggle;
         bar.toggleExpanded = function (expanded, ...rest) {
             const opening = (expanded ?? !this.expanded) === true;
-            if (opening) showFrame("ftools", true);
+            if (opening) windowStep(() => showFrame("ftools", true));
             const out = toggle.call(this, expanded, ...rest);
-            if (opening) placeFoundryWindow("ftools");
+            if (opening) windowStep(() => placeFoundryWindow("ftools"));
             return out;
         };
     }
     if (typeof change === "function") {
         bar.changeTab = function (...args) {
-            showFrame("ftools", true);
+            windowStep(() => showFrame("ftools", true));
             const out = change.apply(this, args);
-            placeFoundryWindow("ftools");
+            windowStep(() => placeFoundryWindow("ftools"));
             return out;
         };
     }
+}
+
+/** One of the module's steps inside Foundry's sidebar calls (see GUARDED): a throw is logged, and Foundry's call goes on. */
+function windowStep(step) {
+    try { step(); } catch (err) { warn("Foundry tools: a window step failed; Foundry's own call goes on.", err); }
 }
 
 function collapseSidebar() {

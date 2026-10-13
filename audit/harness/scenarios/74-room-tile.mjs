@@ -48,9 +48,12 @@
  *     rejects, written on the Cafeteria past setVaultRoom - after a control, roomImage answers no picture on the GM
  *     and on p1, Room Setup opens and draws the Cafeteria with none, p1's tile follows Aiko in, and setVaultRoom
  *     handed the same path warns and writes nothing.
+ *   J (the world switch, E77 fix r2-H2): with the switch of the GM's Foundry windows off, a second GM's page loads
+ *     with no windows, no launcher and no wrapped sidebar, Foundry's rails left in #interface, while the GM's running
+ *     page keeps its windows until it reloads; the switch goes back on.
  *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
  *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
- *     after it; I runs last.
+ *     after it; I and J run last.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -80,12 +83,14 @@ export const layers = ["ci"];
    r2-H1's G3, G4, C6 and phase I took it to 32 checks in 61.5 s, one run alone under the lane-A lock with no other lane
    busy on 13.10.2026; three times that is 185 s. */
 export const timeoutMs = 185000;
-export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
+/* gm2 (E77 fix r2-H2): a second GM for phase J, its id after the seeded GM's so the seeded one stays the primary GM. */
+export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true },
+    { who: "gm2", id: "USERGZ7400000000", name: "Second GM", role: 4, character: null, color: "#7a2a2a", late: true }];
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
     const ACADEMY = `const academy = game.scenes.get("${IDS.scene}");`;
     const rect = (x, y, width, height) => J([{ type: "rectangle", x, y, width, height }]);
     const MOVE = `{ teleport: true, movementAction: "displace", animate: false }`;
@@ -834,6 +839,43 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         intoI.at === "Cafeteria" && J(intoI.tile) === J({ name: "Cafeteria", state: "roomBare", art: "" }), J(intoI));
     check("I4: setVaultRoom handed the same path writes nothing and warns that the picture was not saved",
         storedI.gym === null && J(storedI.warned) === J([storedI.refused]), J(storedI));
+
+    /* ------------------------------ J. the world switch off ------------------------------ */
+    phase("J: the world switch off - a GM's page that loads then keeps Foundry's rails where Foundry puts them, with no Foundry tools");
+    /* E77 fix r2-H2 (13.10.2026; review round 2's goal AM2a, the owner's amend of 11.10: one switch as the emergency way
+       back at the table). Read on a page: the body class, the two frames, the launcher, the red GM button, where
+       `#sidebar` stands, where a stand-in `#scene-controls` put in the left column stands a task later (the guard would
+       have moved it), and whether `ui.sidebar` was wrapped. The harness's page draws `#sidebar` as a child of the body,
+       outside `#interface` (client-entry.mjs; Foundry draws it in `#ui-right`), so that is where it stays. The control first: the GM's page as it booted. Then the
+       switch is written off on that running page and gm2 connects - its page loads with the switch off. The setting
+       asks for a reload, so the GM's running page keeps its windows (the module reads the switch once, at ready). gm2
+       leaves and the switch goes back on. Whether the curtain is cut around the rails then is the glass harness's
+       `?windows=off`, in Chromium (no layout here). */
+    const RAILS = `${STAND_IN} const el = standIn(); await tick(); const side = document.getElementById("sidebar");
+        const where = node => !node ? null : node.closest(".drpg-foundry-window") ? "window" : node.closest("#interface") ? "interface"
+            : node.parentElement === document.body ? "body" : "elsewhere";
+        const out = { cls: document.body.classList.contains("drpg-foundry-windows"),
+            frames: ["drpg-win-ftools", "drpg-win-maptools"].filter(id => document.getElementById(id)).length,
+            launcher: Boolean(document.getElementById("drpg-foundry-tools")), gmButton: Boolean(document.getElementById("drpg-gm-launcher")),
+            sidebar: where(side), controls: where(el), wrapped: Boolean(ui.sidebar?.drpgWindowed) };
+        el.remove(); return out;`;
+    const onJ = await gm.eval(RAILS);
+    check("J1: the control - with the switch on, the GM's page holds both windows with #sidebar and the scene controls in them, the launcher and a wrapped sidebar",
+        J(onJ) === J({ cls: true, frames: 2, launcher: true, gmButton: true, sidebar: "window", controls: "window", wrapped: true }), J(onJ));
+    const SWITCH = value => `try { await game.settings.set("${MOD}", "foundryToolWindows", ${value}); return game.settings.get("${MOD}", "foundryToolWindows"); }
+        catch (err) { return "no switch: " + err.message; }`;
+    const offJ = await gm.eval(SWITCH(false));
+    await connect("gm2");
+    await settle(800);
+    const gm2J = await gm2.eval(RAILS);
+    const keptJ = await gm.eval(RAILS);
+    await disconnect("gm2");
+    const backJ = await gm.eval(SWITCH(true));
+    check("J2: with the switch off, a GM's page that loads has no windows, no launcher and no wrapped sidebar, #sidebar stays where the page drew it "
+        + "and the scene controls in #interface, and the red GM button stays", offJ === false
+        && J(gm2J) === J({ cls: false, frames: 0, launcher: false, gmButton: true, sidebar: "body", controls: "interface", wrapped: false }), J({ offJ, gm2J }));
+    check("J3: the GM's page that was running keeps its windows until it reloads", J(keptJ) === J(onJ), J(keptJ));
+    check("J4: the switch is back on", backJ === true, J(backJ));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

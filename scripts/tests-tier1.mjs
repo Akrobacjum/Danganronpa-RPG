@@ -2296,7 +2296,10 @@ const INVARIANTS = [
          * layer is Tokens; Walls half a second later - dropped, which is what keeps a Foundry that refuses the call
          * from asking on every render it causes; Walls a second and a half later - asked. Whether `activate` takes
          * that shape on v14 is LIVE-E77-11; computed `display: none` on a player's client in both themes is
-         * scenario 74 D.
+         * scenario 74 D. E77 fix r2-H2 (13.10.2026; review round 2's cor F3): a player on Templates or on Notes - a
+         * template a system's card hands out, a note dropped on the canvas, the only roads there once the controls
+         * are hidden - is left there, each asked more than a second after the last ask, so the throttle cannot be
+         * what answers; whether Daggerheart hands players a template is LIVE-E77-16.
          */
         const RULE = /(?:^|[{};,]\s*)body\.drpg-player #scene-controls\s*\{\s*display:\s*none\s*!important;?\s*\}/;
         const FIX = "body.drpg-player #sidebar {\n    display: none;\n}\nbody.drpg-player #scene-controls {\n    display: none !important;\n}\n";
@@ -2322,6 +2325,9 @@ const INVARIANTS = [
         equal(JSON.stringify([answers, drawings.control.name, asked]),
             JSON.stringify([[false, false, true, false, true], "tokens", [{ control: "tokens", tool: "select" }, { control: "tokens", tool: "select" }]]),
             "[asked with Tokens active, for a GM, for a player on Drawings, on Walls half a second later, a second and a half later; the layer after; what was asked]");
+        const placing = [FW.askTokensLayer(controls("templates"), { isGM: false }, t0 + 3000), FW.askTokensLayer(controls("notes"), { isGM: false }, t0 + 4500)];
+        equal(JSON.stringify([placing, asked.length]), JSON.stringify([[false, false], 2]),
+            "[asked for a player on Templates, on Notes, each past the throttle; how many asks in all]");
     }],
 
     ["R511 - a GM's Foundry tools are two windows of the module's that hold Foundry's own nodes: frames outside #interface with their title and close button, `#sidebar` and `#scene-controls` the same objects, a guard that puts a node back from Foundry's columns and only from there, closed meaning hidden, inert and collapsed, Foundry's own ways to open the sidebar opening the window, and the frames wearing #interface's theme", async () => {
@@ -2341,7 +2347,11 @@ const INVARIANTS = [
          * expanded. FOUNDRY'S WAYS IN: with the window closed, `ui.sidebar.changeTab` opens it, and so does
          * `toggleExpanded()` expanding; `toggleExpanded(false)` in an open window collapses the sidebar and leaves
          * the window open. THE THEME: a `theme-` class put on `#interface` is on both frames before the next task and
-         * a class of another name is not; taken off, gone. Everything is put back as it was found.
+         * a class of another name is not; taken off, gone. GUARDED (E77 fix r2-H2; review round 2's Q3): with a
+         * stand-in on Foundry tools' frame whose `getBoundingClientRect` throws - so showing and placing the window
+         * throw - `changeTab` to another tab and `toggleExpanded(true)` from closed: neither throws out, Foundry's
+         * original ran for each (the tab is the other one, the sidebar expanded) and the window is shown. Everything
+         * is put back as it was found.
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
         const FW = await import("./foundry-windows.mjs").catch(() => null);
@@ -2401,7 +2411,21 @@ const INVARIANTS = [
             const shed = frames.map(f => f.classList.contains("theme-r511probe"));
             equal(JSON.stringify([worn, shed]), JSON.stringify([[[true, false], [true, false]], [false, false]]),
                 "[each frame: the theme class put on #interface, the other class; the theme class once taken off]");
+            FW.setFoundryWindow("ftools", false);
+            const was = bar?.tabGroups?.primary ?? bar?.activeTab ?? "chat", other = was === "chat" ? "settings" : "chat";
+            frames[0].getBoundingClientRect = () => { throw new Error("R511's stand-in: a step of the module's that throws"); };
+            const escaped = [];
+            try { bar?.changeTab?.(other, "primary"); } catch { escaped.push("changeTab"); }
+            const tabbed = [bar?.activeTab, bar?.tabGroups?.primary].includes(other), shownByTab = !frames[0].hidden;
+            FW.setFoundryWindow("ftools", false);
+            try { bar?.toggleExpanded?.(true); } catch { escaped.push("toggleExpanded"); }
+            const expanded = bar?.expanded === true, shownByToggle = !frames[0].hidden;
+            delete frames[0].getBoundingClientRect;
+            bar?.changeTab?.(was, "primary");
+            equal(JSON.stringify([escaped, tabbed, shownByTab, expanded, shownByToggle]), JSON.stringify([[], true, true, true, true]),
+                "[with a step of the module's throwing: the calls that threw out; changeTab's tab taken, the window shown; toggleExpanded's sidebar expanded, the window shown]");
         } finally {
+            delete frames[0].getBoundingClientRect;
             if (side.parentElement !== home) home.append(side);
             ui0.className = cls0;
             frames.forEach((f, i) => FW.setFoundryWindow(FW.FOUNDRY_WINDOWS[i].key, open0[i]));
@@ -2552,7 +2576,9 @@ const INVARIANTS = [
          * dispatched on the focused element: whether its default was prevented, whether a bubbling listener on `window` -
          * where Foundry's KeyboardManager listens in v13, not read on v14 here - still saw it, and whether both windows are
          * open. THE CONTROL: with no stand-in Escape closes both, prevented and unseen by that listener; with both closed it
-         * is neither. Another module's Escape on an empty screen is LIVE-E77-10. Whatever held the focus is blurred first, or
+         * is neither. E77 fix r2-H2 (review round 2's cor F1) adds a drag in progress - a ruler, a box select, a wall
+         * being drawn - which controls nothing: a stand-in `canvas.currentMouseManager`, the field v11-v13 hold it in
+         * (from memory, LIVE-E77-10). Another module's Escape on an empty screen is LIVE-E77-10. Whatever held the focus is blurred first, or
          * a field the run left focused would read as every case; the windows and that focus are put back as they were found.
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
@@ -2579,7 +2605,8 @@ const INVARIANTS = [
             ["the main menu", () => stand(ui, "menu", { rendered: true })],
             ["a context menu", () => stand(ui, "context", { element: document.createElement("nav") })],
             ["a tour", () => foundry.nue?.Tour ? stand(foundry.nue.Tour, "tourInProgress", true) : stand(foundry, "nue", { Tour: { tourInProgress: true } })],
-            ["a selected token", () => stand(canvas, "activeLayer", { controlled: [{ id: "r517-probe" }] })]
+            ["a selected token", () => stand(canvas, "activeLayer", { controlled: [{ id: "r517-probe" }] })],
+            ["a drag in progress", () => stand(canvas, "currentMouseManager", { state: 1 })]
         ];
         const focus0 = document.activeElement;
         must(FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body"), "Foundry tools has no body to hold the text field - this would measure nothing");
@@ -2622,7 +2649,11 @@ const INVARIANTS = [
          * so headless too): the GM's button's right and Foundry tools' equal to settings' and the handbooks', their
          * bottoms two `--drpg-launch-row` over them, both the small and book tokens' size, the clip-path the chat's, and
          * the chat to each and the two to each other the gap token apart - in both themes, as the table has it and
-         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. Everything is put back as it was found.
+         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. THE LOGO THAT DOES NOT LOAD (E77 fix r2-H2;
+         * review round 2's cor F6): an `error` event on the logo leaves one inert `fa-solid fa-toolbox` in its place;
+         * jsdom loads no picture, so the event is dispatched, and at a table where the file is missing this test's
+         * faces read the icon and fail, which is LIVE-E77-09's question. The logo goes back, its one-shot listener
+         * spent. Everything is put back as it was found.
          */
         must(game.user.isGM, "the upper row is a GM's, and tier 1 runs on the GM");
         const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
@@ -2694,6 +2725,16 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson(want),
             `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
+        let fallback = null;
+        try {
+            logo?.dispatchEvent(new Event("error"));
+            const mark = tools.firstElementChild;
+            fallback = [tools.children.length, mark?.tagName ?? null, mark?.getAttribute("class") ?? null, mark?.hasAttribute("inert") ?? null, logo?.isConnected ?? null];
+        } finally {
+            if (logo && !logo.isConnected) tools.replaceChildren(logo);
+        }
+        equal(JSON.stringify(fallback), JSON.stringify([1, "I", "fa-solid fa-toolbox", true, false]),
+            "[after the logo's error: Foundry tools' children, the one's tag, its classes, inert, the logo still on the page]");
     }],
 
     ["R515 - in a browser the corner's upper row wears its own colours: Foundry tools' ring the state's accent as settings' and the handbooks' are through a change of phase, the GM's button red through it, and the GM's eye the Monokuma mask, not the plain eye pixel-icons.css paints under a drpg- class", async () => {
@@ -11072,7 +11113,9 @@ const INVARIANTS = [
          * height the clock's column has left over the notice tile's floor less the scene rail's run, against
          * `need` = width / 3 + heading + 4 lines. Measured in the glass harness in Chromium (13.10.2026, a player,
          * audit/glass-sweep.mjs prints the rest): 1920x1080 F 211 'notes', 1366x768 F -80 'notes', 2560x1440 F 441
-         * 'clock' - the design's 1920x1080 'clock' waits for E77 C5 to take the rail out of the column. Read here at
+         * 'clock' - C4's readings. Since E77 C5 took the rail out of the column, 1920x1080 reads the design's 'clock'
+         * at F 485 under Stained Glass, a GM and a player alike (audit/glass-sweep.mjs on 13.10.2026, on fix r1-M1's
+         * tree; the sweep's PINS hold the place at every size). Read here at
          * this window's size: the place agrees with F and need, a second reading of roomPlacement agrees with the
          * pass's, the tile laid out (rotations off, as the curtain measures) at the placed box within a pixel, under
          * the clock at the clock's width and left edge, beside the notices with no corner of the history's button
@@ -11314,6 +11357,72 @@ const INVARIANTS = [
                 ["monokuma-legacy", "absolute", true, true, "none", "none", "italic", true]]),
             "[theme, the toggle's position, a top and a right for it, the toggle over the picture's button, the name's "
             + "text-transform, the project line's, an old move card's description's font-style, a rule on its left edge]");
+    }],
+    ["R531 - the world switch of a GM's Foundry windows: `foundryToolWindows` a world setting in the module's settings, on by default and taking effect after a reload; on, the GM's rails stand in the two windows beside their launcher; off, registerFoundryWindows adopts and draws nothing", async () => {
+        /*
+         * E77 fix r2-H2, 13.10.2026 (review round 2's goal AM2a; the owner's amend of 11.10, session 0 (1): one switch
+         * as the emergency way back at the table). THE SETTING: registered under SETTINGS.foundryToolWindows, scope
+         * world, shown in the module's settings, a Boolean on by default that asks for a reload, its name and hint in
+         * the lang file; `foundryWindowsOn` answers false for false alone - true for true and for a setting that
+         * cannot be read. BOTH STATES on the GM's page (tier 1 runs there). On, as the page booted: both frames, the
+         * body class, `#sidebar` in Foundry tools' body and the launcher. Off - a stand-in on `game.settings.get`
+         * answering false for this key alone, so no world setting is written - with `#sidebar` put into `#ui-right`,
+         * the body class and the launcher taken off: `registerFoundryWindows()` run and read in the same task, before
+         * the guard's MutationObserver can answer - the sidebar where it was put, no body class, no launcher. THE
+         * CONTROL that this reading can see an adoption: `adoptFoundryNodes()`, the step an "on" page runs, has the
+         * sidebar back in the window. Everything is put back as it was found (the same launcher, where it stood).
+         * A second GM booted with the switch off is scenario 74 J; the curtain cut for Foundry's rails then is the
+         * glass harness's `?windows=off`, in Chromium.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.foundryToolWindows}`);
+        equal(JSON.stringify([SETTINGS.foundryToolWindows ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
+            reg?.requiresReload ?? null, [reg?.name, reg?.hint].map(key => typeof key === "string" && game.i18n.has(key))]),
+            JSON.stringify(["foundryToolWindows", "world", true, true, true, true, [true, true]]),
+            "[the setting's key, scope, shown in the settings, a Boolean, its default, asks for a reload, its name and hint in the lang file]");
+        const settings = game.settings, had = Object.getOwnPropertyDescriptor(settings, "get"), get0 = settings.get;
+        const answer = value => {
+            Object.defineProperty(settings, "get", { configurable: true, writable: true, value(module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.foundryToolWindows) { if (value instanceof Error) throw value; return value; }
+                return get0.call(this, module, key, ...rest);
+            } });
+        };
+        const putGet = () => { if (had) Object.defineProperty(settings, "get", had); else delete settings.get; };
+        const reads = [];
+        try {
+            for (const value of [true, false, undefined, new Error("R531's stand-in: a setting that cannot be read")]) {
+                answer(value);
+                try { reads.push(FW.foundryWindowsOn()); } finally { putGet(); }
+            }
+        } finally { putGet(); }
+        equal(JSON.stringify([reads, FW.foundryWindowsOn()]), JSON.stringify([[true, false, true, true], true]),
+            "[foundryWindowsOn for true, false, no value, a read that throws; for the world as it is]");
+        const side = document.getElementById("sidebar"), right = document.getElementById("ui-right") ?? document.getElementById("interface");
+        const launcher = document.getElementById("drpg-foundry-tools"), body = document.body;
+        must(side && right && launcher && FW.foundryWindow("ftools"), "the sidebar, #ui-right, the launcher or Foundry tools is missing - this would measure nothing");
+        const home = side.parentElement, next = launcher.nextSibling, cls0 = body.classList.contains("drpg-foundry-windows");
+        const on = [FW.FOUNDRY_WINDOWS.every(row => FW.foundryWindow(row.key)), cls0, home === FW.foundryWindow("ftools").querySelector(":scope > .drpg-foundry-window-body"), launcher.isConnected];
+        let off = null, control = null;
+        try {
+            right.append(side);
+            launcher.remove();
+            body.classList.remove("drpg-foundry-windows");
+            answer(false);
+            try { FW.registerFoundryWindows(); } finally { putGet(); }
+            off = [side.parentElement === right, body.classList.contains("drpg-foundry-windows"), Boolean(document.getElementById("drpg-foundry-tools"))];
+            FW.adoptFoundryNodes();
+            control = side.parentElement === home;
+        } finally {
+            putGet();
+            for (const extra of document.querySelectorAll("#drpg-foundry-tools")) if (extra !== launcher) extra.remove();
+            if (!launcher.isConnected) body.insertBefore(launcher, next?.parentElement === body ? next : null);
+            body.classList.toggle("drpg-foundry-windows", cls0);
+            if (side.parentElement !== home) home.append(side);
+        }
+        equal(JSON.stringify([on, off, control]), JSON.stringify([[true, true, true, true], [true, false, false], true]),
+            "[on: both frames, the body class, #sidebar in Foundry tools, the launcher; off, registered again: #sidebar where it was put, the body class, a launcher; "
+            + "the control: adoptFoundryNodes brings #sidebar back]");
     }],
 ];
 

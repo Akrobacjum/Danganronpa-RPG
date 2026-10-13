@@ -288,6 +288,10 @@
         "name": "Język",
         "hint": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu."
       },
+      "foundryToolWindows": {
+        "name": "Okna modułu dla paska bocznego i sterowania sceną Foundry",
+        "hint": "Włączone: pasek boczny i sterowanie sceną Foundry stoją u GMa w dwóch oknach modułu, Narzędzia Foundry i Narzędzia mapy, otwieranych przyciskiem nad podręcznikiem. Wyłączone: zostają tam, gdzie stawia je Foundry, a tego przycisku nie ma. Ekran gracza jest taki sam w obu przypadkach. Działa po przeładowaniu."
+      },
       "theme": {
         "name": "Motyw",
         "hint": "Jak moduł wygląda w tej przeglądarce. Stained Glass to obecna tożsamość: czarne, pęknięte szkło wzdłuż krawędzi ekranu, kolor w spoinach. Monokuma Legacy to poprzedni wygląd.",

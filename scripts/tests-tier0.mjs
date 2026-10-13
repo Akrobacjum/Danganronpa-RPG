@@ -9236,6 +9236,12 @@ const REGRESSIONS = [
             "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
             + "viewerActor(); the three files' other readers of the account's character; room-tile.mjs without markup or a data-tooltip literal; "
             + "hud.mjs without the room rows] and the files that still name hudActor");
+        /* E77 fix r2-H2 (13.10.2026; review round 2's cor F8): the net is cast over C5-C8's DOM writers too - Foundry's
+           windows and the launcher, and the stacked screen's rows - read with comments blanked by the same MARKUP. */
+        const writers = ["foundry-windows.mjs", "narrow.mjs"].map(file => [file, stripComments(sources.get(file) ?? "")]);
+        must(writers.every(([, text]) => text.length > 1000), "foundry-windows.mjs or narrow.mjs is not among the module's sources - this would measure nothing");
+        equal(JSON.stringify(writers.filter(([, text]) => MARKUP.test(text)).map(([file]) => file)), "[]",
+            "[foundry-windows.mjs and narrow.mjs: the ones that parse a string as markup or name a data-tooltip]");
         const OLD_GM = /\b(?:GM_SLOT|GM_DROP|tightenGmGap)\b/;
         const LOGO = /fvtt|foundry[\w./-]*logo|logo[\w./-]*foundry/i;
         const corner = list => [
@@ -11655,6 +11661,8 @@ const REGRESSIONS = [
          * the three words for what a player lost, which have no lang key (`LOST`), and the HUD's paragraph, which
          * named the room's search tokens as the clock's (`HUD`). What a player's keys do on a real
          * canvas is LIVE-E77-11, and whether Shift+C reaches the window beside other modules LIVE-E77-10, not this.
+         * E77 fix r2-H2 (13.10.2026; review round 2's goal AM2a): section 18 also names the world switch that puts
+         * Foundry's rails back where Foundry puts them, by its name in the settings.
          */
         const LOST = { en: ["drawing", "map notes", "target button"], pl: ["rysowanie", "notatki na mapie", "przycisk celowania"] };
         const CLOCK = { en: "under the clock", pl: "pod zegarem" };
@@ -11668,7 +11676,7 @@ const REGRESSIONS = [
             const words = {
                 readMore: D.Room?.readMore, describe: D.Room?.describe, project: D.Hud?.roomProject, tab: D.Vault?.tabDescription,
                 looks: D.Vault?.descriptionColumn, picture: D.Vault?.imageColumn, panel: D.Panel?.launcher,
-                tools: D.FoundryTools?.title, map: D.FoundryTools?.mapTitle, toggle: D.FoundryTools?.toggle,
+                tools: D.FoundryTools?.title, map: D.FoundryTools?.mapTitle, toggle: D.FoundryTools?.toggle, switch: D.Settings?.foundryToolWindows?.name,
                 note: /([^.]*[^.\s][^.]*\.)$/.exec(D.Vault?.descriptionNote ?? "")?.[1]?.trim()
             };
             ok(Object.values(words).every(w => typeof w === "string" && w.length > 2) && words.note.length > 40,
@@ -11693,17 +11701,17 @@ const REGRESSIONS = [
                 card: [cardSentences.length > 0, cardSentences.filter(s => s.toLowerCase().includes(words.tab.toLowerCase())).length],
                 panel: [opening.includes(`**${words.panel}**`), opening.includes(CLOCK[lang]),
                     start.split("\n").filter(line => /\bpanel\b/i.test(line) && line.includes(CLOCK[lang])).length],
-                windows: [`**${words.tools}**`, `**${words.map}**`, `**${words.toggle}**`, "**Shift+C**", "**Escape**"].map(w => look.includes(w)),
+                windows: [`**${words.tools}**`, `**${words.map}**`, `**${words.toggle}**`, "**Shift+C**", "**Escape**", `**${words.switch}**`].map(w => look.includes(w)),
                 lost: lostAt.length > 0,
                 hud: [paragraph(tips, HUD[lang][0]).length > 0, paragraph(tips, HUD[lang][0]).includes(HUD[lang][1])]
             };
-            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true], lost: true, hud: [true, false] };
+            expected[lang] = { tile: [true, true, true], tab: [true, true], publicNote: true, card: [true, 0], panel: [true, false, 0], windows: [true, true, true, true, true, true], lost: true, hud: [true, false] };
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the player's chapter 3: Read more, Description and Available project in bold; the GM's section 9: the Description row names its two columns in bold; "
             + "the GM's section 1 quotes the tab note's last sentence; section 9 has a move card sentence, and how many of them name the tab's word; "
             + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
-            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C and Escape in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens]");
+            + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens]");
     }]
 ];
 
