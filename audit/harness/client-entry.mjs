@@ -723,6 +723,22 @@ const game = {
 globalThis.game = game;
 
 /*
+ * A LIVEKIT ROOM, ONLY WHEN A SCENARIO ASKS (E78 C1, 13.10.2026; the E78 plan's 2.2). The `webrtc`
+ * block above has no `_liveKitClient`, so on every client the module reads "not LiveKit" and its
+ * voice rooms settle as unavailable - which every scenario before 75 was measured on. A scenario that
+ * needs a room calls `await __liveKit.install({ roster })` inside an eval; the shim (lib/livekit.mjs)
+ * is loaded then and not before, so a boot that does not ask is the boot it always was.
+ */
+globalThis.__liveKit = {
+    installed: false,
+    async install(options) {
+        const { installLiveKit } = await import("./lib/livekit.mjs");
+        globalThis.__liveKit = installLiveKit(options);
+        return globalThis.__liveKit.installed;
+    }
+};
+
+/*
  * DICE SO NICE'S DECISION, AS 6.3.1 MAKES IT ON EVERY CLIENT (E06 C6, 27.09.2026). main.js
  * `shouldInterceptMessage` (:458-516, read in 6.3.1's source): a new message with dice animates
  * where its content is visible, or on every client when the world's "Hide 3D dice on secret
