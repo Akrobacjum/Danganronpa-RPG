@@ -9048,7 +9048,7 @@ const REGRESSIONS = [
             + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
 
-    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them", async () => {
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them; and no source names the GM button's old rail constants (GM_SLOT, GM_DROP, tightenGmGap), and the one Foundry logo a source names is Foundry's own icons/fvtt.png", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
          * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
@@ -9082,6 +9082,13 @@ const REGRESSIONS = [
          * `overflow` of hidden or clip, or `display: none`. The first two would cut a directory's context menu off at
          * the frame's edge; a closed frame is the `hidden` attribute's alone, so a sheet that hid one would leave it
          * shut whatever the GM clicked. Read on a fixture first, then on it with each of the three planted.
+         * E77 C6 (13.10.2026) adds the corner: the GM button left the scene rail for the cluster, and with it went
+         * `GM_SLOT`, `GM_DROP` and `tightenGmGap` (glass.mjs keeps one `RAIL_SLOT` for a rail left in the column) - a
+         * source that names one again is the button's old machinery coming back. And Foundry tools wears Foundry's
+         * logo from Foundry's own core files (`icons/fvtt.png`, the decision D7: the module ships no copy of it), so
+         * every string literal of a source that names a Foundry logo - `fvtt`, or "foundry" beside "logo" - is
+         * exactly that path. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under
+         * the module's path and a logo under an assets folder planted.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
         const shape = files => {
@@ -9164,6 +9171,23 @@ const REGRESSIONS = [
             "[viewerActor exported, reading the pool and the student; subjectActor's selection for a GM only, else viewerActor(); viewerRoom asking "
             + "viewerActor(); the three files' other readers of the account's character; room-tile.mjs without markup or a data-tooltip literal; "
             + "hud.mjs without the room rows] and the files that still name hudActor");
+        const OLD_GM = /\b(?:GM_SLOT|GM_DROP|tightenGmGap)\b/;
+        const LOGO = /fvtt|foundry[\w./-]*logo|logo[\w./-]*foundry/i;
+        const corner = list => [
+            [...list].filter(([, text]) => OLD_GM.test(text)).map(([file]) => file),
+            [...new Set([...list].flatMap(([, text]) => [...text.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map(m => m[2]).filter(lit => LOGO.test(lit))))]
+        ];
+        const CORNER = new Map([["glass.mjs", "const RAIL_SLOT = 4 + 16 + 20 + 32 + 26 + 12;\n"],
+            ["foundry-windows.mjs", "logo.setAttribute(\"src\", \"icons/fvtt.png\");\nlogo.setAttribute(\"alt\", \"\");\n"]]);
+        const cornerPlanted = (file, from, to) => new Map([...CORNER].map(([name, text]) => [name, name === file ? text.replace(from, to) : text]));
+        equal(JSON.stringify([corner(CORNER), corner(cornerPlanted("glass.mjs", "const RAIL_SLOT", "const GM_DROP = 26;\nconst RAIL_SLOT")),
+            corner(cornerPlanted("foundry-windows.mjs", "icons/fvtt.png", `modules/${MODULE_ID}/assets/fvtt.png`)),
+            corner(cornerPlanted("foundry-windows.mjs", "icons/fvtt.png", "assets/foundry-logo.svg"))]),
+        JSON.stringify([[[], ["icons/fvtt.png"]], [["glass.mjs"], ["icons/fvtt.png"]],
+            [[], [`modules/${MODULE_ID}/assets/fvtt.png`]], [[], ["assets/foundry-logo.svg"]]]),
+        "the corner reader does not read its fixture whole, or does not see GM_DROP put back or a logo of the module's own");
+        equal(JSON.stringify(corner(new Map([...sources].map(([file, text]) => [file, stripComments(text)])))), JSON.stringify([[], ["icons/fvtt.png"]]),
+            "[the sources naming GM_SLOT, GM_DROP or tightenGmGap; the string literals naming a Foundry logo]");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {

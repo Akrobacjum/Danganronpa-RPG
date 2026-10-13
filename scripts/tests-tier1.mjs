@@ -2087,9 +2087,9 @@ const INVARIANTS = [
         // The Despair names' column is the longest name's.
         ok(/function fitNameColumn\(/.test(src("despair.mjs")), "the Despair name column is a guess again");
 
-        // The left rail: a player's starts where the GM's does; every control fits its strip.
+        // The left rail, where one still stands in the column: it starts under the clock (RAIL_SLOT since E77 C6); every control fits its strip.
         const glass = src("glass.mjs");
-        ok(/GM_SLOT/.test(glass), "a player's rail starts on the clock's glass again");
+        ok(/RAIL_SLOT/.test(glass), "a rail still in the column starts on the clock's glass again");
         ok(/railEnd - boxTop/.test(glass), "the tools box is bounded to all the room above the notice tile again");
         ok(/r\.bottom\) - top/.test(glass), "the strip is cut to the tiles on screen, not to the box they can fill");
     }],
@@ -2457,6 +2457,143 @@ const INVARIANTS = [
             FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
             G.refreshGlass();
         }
+    }],
+
+    ["R512 - the corner's upper row: a GM's red button and Foundry tools are children of the body in the cluster through data-drpg-cluster, with no drpg- class on them or above them, named for a screen reader, the eye and Foundry's own logo their faces; Foundry tools opens both windows and closes them, saying so in aria-pressed; and in both themes each stands on its cell two rows over settings and the handbooks, the size its token gives, the gap from the chat and from each other, with the camera dock's lift and the tab rail's clearance as well", async () => {
+        /*
+         * E77 C6, 13.10.2026; the A8 design's R387 (the E77 plan's D2 gave it this number), the owner's AM-21 variant B
+         * (mockup/grid.txt). Tier 1 runs on the GM, where both are built: gm-panel.mjs `injectLauncher` in module.mjs's
+         * ready sequence and foundry-windows.mjs `registerFoundryWindows`, both before the glass. THE BODY: each a child
+         * of the body, carrying `data-drpg-cluster` and matching glass.mjs's LAUNCHERS (so the corner's pane and its
+         * step off the tab rail count it, R475), and neither it nor an ancestor under the body wears a class with
+         * "drpg-" in it - pixel-icons.css paints any `i.fa-eye` under such an ancestor as its plain eye, over the
+         * Monokuma one (R515 reads what that does in a browser). THE FACES: the GM's `i` is exactly `fa-solid fa-eye`
+         * and inert, the button holds no text and its `aria-label` is DRPG.Panel.launcher; Foundry tools' only child is
+         * an `img` whose `src` attribute is `icons/fvtt.png` with an empty `alt`, and its `aria-label` is
+         * DRPG.FoundryTools.toggle. THE CLICK: from closed, a click opens both windows with `aria-pressed` "true", a
+         * second closes both with "false". THE CELLS, from the cascade as R474 reads the other three (`cornerGeometry`,
+         * so headless too): the GM's button's right and Foundry tools' equal to settings' and the handbooks', their
+         * bottoms two `--drpg-launch-row` over them, both the small and book tokens' size, the clip-path the chat's, and
+         * the chat to each and the two to each other the gap token apart - in both themes, as the table has it and
+         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. Everything is put back as it was found.
+         */
+        must(game.user.isGM, "the upper row is a GM's, and tier 1 runs on the GM");
+        const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
+        const gm = document.getElementById("drpg-gm-launcher"), tools = document.getElementById("drpg-foundry-tools");
+        must(gm && tools && FW.foundryWindow("ftools"), "the GM's button, Foundry tools or its window is not on the page - there is nothing to read");
+        const classed = el => { for (let n = el; n && n !== document.body; n = n.parentElement) if (/drpg-/.test(n.getAttribute("class") ?? "")) return true; return false; };
+        const eye = gm.querySelector("i"), logo = tools.querySelector("img");
+        const dom = [gm, tools].map(el => [el.parentElement === document.body, el.hasAttribute("data-drpg-cluster"), el.matches(G.LAUNCHERS), classed(el)]);
+        const faces = [eye?.getAttribute("class"), eye?.hasAttribute("inert"), gm.textContent.trim(), gm.getAttribute("aria-label") === game.i18n.localize("DRPG.Panel.launcher"),
+            tools.children.length, logo?.getAttribute("src"), logo?.getAttribute("alt"), tools.getAttribute("aria-label") === game.i18n.localize("DRPG.FoundryTools.toggle")];
+        const open0 = FW.FOUNDRY_WINDOWS.map(row => !FW.foundryWindow(row.key)?.hidden);
+        const state = () => [FW.FOUNDRY_WINDOWS.map(row => FW.foundryWindow(row.key)?.hidden === false), tools.getAttribute("aria-pressed")];
+        const clicks = [];
+        try {
+            FW.toggleFoundryTools(false);
+            clicks.push(state());
+            tools.click();
+            clicks.push(state());
+            tools.click();
+            clicks.push(state());
+        } finally {
+            FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
+        }
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
+        const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
+        const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+        const seen = {}, want = {};
+        try {
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                for (const [label, lift, clear] of [["as it is", null, null], ["lifted, cleared 37", `${Math.min(300, Math.floor(innerHeight / 2))}px`, "37px"]]) {
+                    if (lift) {
+                        body.style.setProperty(INLINE[0], lift);
+                        body.style.setProperty(INLINE[1], clear);
+                    }
+                    const { place, clip, gap } = cornerGeometry();
+                    const token = name => cascadePx(body, name);
+                    const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
+                    const U = place("drpg-gm-launcher"), T = place("drpg-foundry-tools"), row = token("--drpg-launch-row"), g = token("--drpg-launch-gap");
+                    const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`;
+                    seen[key] = {
+                        shape: [U.el, T.el].map(el => (getComputedStyle(el).clipPath ?? "none") === clip),
+                        sizes: [U.w, U.h, T.w, T.h].map(round).join(" "),
+                        cells: [U.right - S.right, U.bottom - S.bottom, T.right - B.right, T.bottom - B.bottom].map(round).join(" "),
+                        gaps: [gap(M, U), gap(M, T), gap(U, T)].map(round).join(" ")
+                    };
+                    want[key] = {
+                        shape: [true, true],
+                        sizes: [token("--drpg-launcher-small"), token("--drpg-launcher-small"), token("--drpg-launcher-book"), token("--drpg-launcher-book")].map(round).join(" "),
+                        cells: [0, 2 * row, 0, 2 * row].map(round).join(" "),
+                        gaps: [g, g, g].map(round).join(" ")
+                    };
+                    putBack();
+                }
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            putBack();
+        }
+        equal(JSON.stringify([dom, faces, clicks]), JSON.stringify([[[true, true, true, false], [true, true, true, false]],
+            ["fa-solid fa-eye", true, "", true, 1, "icons/fvtt.png", "", true],
+            [[[false, false], "false"], [[true, true], "true"], [[false, false], "false"]]]),
+            "[per button: a child of the body, data-drpg-cluster, in LAUNCHERS, a drpg- class on it or above it; the GM's eye's classes, inert, its text, "
+            + "its label; Foundry tools' children, the logo's src and alt, its label; the windows and aria-pressed closed, after a click, after a second]");
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
+            + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
+    }],
+
+    ["R515 - in a browser the corner's upper row wears its own colours: Foundry tools' ring the state's accent as settings' and the handbooks' are through a change of phase, the GM's button red through it, and the GM's eye the Monokuma mask, not the plain eye pixel-icons.css paints under a drpg- class", async () => {
+        /*
+         * E77 C6, 13.10.2026; the colour and glyph clauses of the A8 design's R387, numbered apart from R512 so that
+         * their skip without a cascade is a skip of these alone (the E77 plan's D9: headless, var() does not resolve
+         * and no ring has a colour). Under Stained Glass, with `data-drpg-measuring` on the body (no transition runs,
+         * stained-glass.css) and `drpg-eclipse` and `drpg-incident-here` off (each overrides the phase's accent), the
+         * ring colour (`border-top-color`) of settings, the handbooks, Foundry tools and the GM's button is read with
+         * `data-drpg-phase` "investigation" and again with "classTrial". Settings' changing is the control that the
+         * accent moved at all; Foundry tools' equal to settings' in each; the GM's the same in both. The messenger's
+         * ring is not read: it wore the accent in 1.2.73 and is left as it was (the E77 plan's T8). THE EYE: the GM's
+         * `i::before` has the Monokuma mask (danganronpa.css, its 24-cell path) and the `i`'s own mask-image is none;
+         * THE CONTROL: with a `drpg-probe` class on the button for one reading, pixel-icons.css's rule reaches the `i`
+         * and its own mask-image is not none - the trap R512's "no drpg- class" exists for. Everything is put back.
+         */
+        needs(env.cascade(), "the rings' colours come from var() through the cascade");
+        const ids = ["drpg-sound-launcher", "drpg-book-launcher", "drpg-foundry-tools", "drpg-gm-launcher"];
+        const els = ids.map(id => document.getElementById(id));
+        must(els.every(Boolean), "a corner button is not on the page - there is nothing to read");
+        const body = document.body, gm = els[3], eye = gm.querySelector("i");
+        must(eye, "the GM's button has no eye - there is nothing to read");
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-eclipse", "drpg-incident-here"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const phaseWas = body.getAttribute("data-drpg-phase"), measuringWas = body.hasAttribute("data-drpg-measuring");
+        const mask = style => style.maskImage || style.webkitMaskImage || "none";
+        let rings, glyph, trapped;
+        try {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, i === 0));
+            body.toggleAttribute("data-drpg-measuring", true);
+            rings = ["investigation", "classTrial"].map(phase => {
+                body.setAttribute("data-drpg-phase", phase);
+                return els.map(el => getComputedStyle(el).borderTopColor);
+            });
+            glyph = [/M23(?: |%20)5h1v1H23z/.test(mask(getComputedStyle(eye, "::before"))), mask(getComputedStyle(eye))];
+            gm.classList.add("drpg-probe");
+            trapped = mask(getComputedStyle(eye));
+        } finally {
+            gm.classList.remove("drpg-probe");
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            if (phaseWas === null) body.removeAttribute("data-drpg-phase"); else body.setAttribute("data-drpg-phase", phaseWas);
+            body.toggleAttribute("data-drpg-measuring", measuringWas);
+        }
+        const [a, b] = rings;
+        equal(JSON.stringify([a[0] !== b[0], a[1] === a[0] && b[1] === b[0], a[2] === a[0] && b[2] === b[0], a[3] === b[3], glyph, trapped !== "none"]),
+            JSON.stringify([true, true, true, true, [true, "none"], true]),
+            `[settings' ring changed with the phase; the handbooks' as settings'; Foundry tools' as settings'; the GM's the same; the eye's ::before the Monokuma mask `
+            + `and its own mask none; with a drpg- class its own mask set] - rings ${JSON.stringify(rings)}, own mask with the class ${String(trapped).slice(0, 40)}`);
     }],
 
     ["the theme tokens resolve", () => {
@@ -10943,6 +11080,29 @@ function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
 }
 
 /**
+ * The corner's buttons as the cascade places them and the drawn shape's gap between two of them (E81 C12, 12.10.2026,
+ * out of `cornerReading` in E77 C6 so that R512 reads the upper row with the same arithmetic): `place(id)` is a
+ * button's right and bottom insets and its size through `cascadePx`, `clip` the chat's clip-path and `k` its slant
+ * (null with none), `gap(a, b)` flat to flat on one row, slanted to slanted across rows, or rim to rim between circles.
+ */
+function cornerGeometry() {
+    const place = id => {
+        const el = document.getElementById(id);
+        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
+    };
+    const clip = getComputedStyle(document.getElementById("drpg-messenger-launcher")).clipPath ?? "none";
+    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
+    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
+    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
+    const gap = (a, b) => {
+        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
+        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
+        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
+    };
+    return { place, clip, k, centre, gap };
+}
+
+/**
  * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) and (c) in a browser). The three
  * buttons and the roster as the cascade places them - each one's inset from the right and from the bottom and its
  * size, through `cascadePx`, never a box: under Stained Glass the corner turns with its pane and a turned box is not
@@ -10958,20 +11118,8 @@ function cornerReading(roster, views) {
     const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
     const token = name => cascadePx(body, name);
     const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
-    const place = id => {
-        const el = document.getElementById(id);
-        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
-    };
+    const { place, clip, k, centre, gap } = cornerGeometry();
     const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
-    const clip = getComputedStyle(M.el).clipPath ?? "none";
-    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
-    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
-    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
-    const gap = (a, b) => {
-        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
-        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
-        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
-    };
     const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
     const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
     const seen = {

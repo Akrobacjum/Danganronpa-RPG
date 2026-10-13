@@ -1385,7 +1385,7 @@ export const DrpgApi = {
     perf: perfReport,
     /** The GM's two Foundry windows, 'Foundry tools' (the sidebar) and 'Map tools' (the scene
      *  controls), opened together, or closed together when either is open (E77 C5; the corner's
-     *  launcher is C6's). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */
+     *  launcher, `#drpg-foundry-tools`, since C6). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */
     toggleFoundryTools,
     /** The other half of `perf()`: instead of pricing what the module already
      *  suspects, this watches for a while and asks the browser to name the file

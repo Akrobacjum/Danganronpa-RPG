@@ -24,7 +24,7 @@ import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerActionResource } from "./resources.mjs";
-import { registerGmPanel, registerGmChrome } from "./gm-panel.mjs";
+import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
@@ -356,6 +356,10 @@ Hooks.once("ready", () => {
     // Foundry's rails out of its columns (E77 C5): a player's scene controls hidden with their Tokens
     // layer kept, a GM's sidebar and scene controls into two windows. Before the narrow layout and the
     // glass, which measure a rail only while it stands in Foundry's columns.
+    // The GM's button in the corner cluster (E77 C6): before the glass, whose first measurement
+    // would otherwise cut the corner without it (the design's P9 lesson); gm-panel's own ready
+    // hook runs after this one.
+    safely("the GM panel's button", injectLauncher);
     safely("Foundry's windows", registerFoundryWindows);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);

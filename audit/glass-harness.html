@@ -83,7 +83,6 @@
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span></div><div class="drpg-hud-room-project">Available project</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
 A second paragraph.</p></section>
-  <button id="drpg-gm-launcher"><i class="fa-solid fa-eye" inert></i><span>GM Panel</span></button>
   <div id="scene-controls"><menu id="scene-controls-layers"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu><menu id="scene-controls-tools"><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li><li><button class="ui-control"></button></li></menu></div>
   <div id="players">Monokuma · 65 ms</div>
 </div>
@@ -112,8 +111,10 @@ A second paragraph.</p></section>
      sfx.mjs and handbooks.mjs build them, appended to the body, and after them the notice tile
      as popup.mjs's `ensureNoticeTile` builds it - empty, with the history's button in its
      corner. `?card=1` puts back the one card the page used to carry, in front of the button
-     as `showPopup` would. -->
-<button type="button" id="drpg-messenger-launcher"><i class="fa-solid fa-comments" inert></i></button><button type="button" id="drpg-sound-launcher"><i inert></i></button><button type="button" id="drpg-book-launcher"><i inert></i></button>
+     as `showPopup` would. After the three, the GM's red button as gm-panel.mjs's `injectLauncher`
+     builds it since E77 C6 (a player's page removes it); Foundry tools, the fifth, is built by
+     `registerFoundryWindows` below. -->
+<button type="button" id="drpg-messenger-launcher"><i class="fa-solid fa-comments" inert></i></button><button type="button" id="drpg-sound-launcher"><i inert></i></button><button type="button" id="drpg-book-launcher"><i inert></i></button><button type="button" id="drpg-gm-launcher" data-drpg-cluster aria-label="Open the GM panel"><i class="fa-solid fa-eye" inert></i></button>
 <div id="drpg-popups"><button type="button" id="drpg-notices-corner" class="drpg-notices-corner" aria-live="off"><span class="drpg-notices-shape" inert><i></i></span></button></div>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
@@ -154,11 +155,13 @@ A second paragraph.</p></section>
        off, glass.mjs `moduleLayout`) is not where the launchers stand now with their turn taken
        out. That is the module's own signature narrowed to the one block this reads, compared
        with a pixel and a half of slack for the cut's rounding;
-     - `ok` only when all three are found, none hidden, none unmeasured, no corner outside and the
+     - `ok` only when all of them are found (the three, and on a GM's page the GM's button and
+       Foundry tools since E77 C6), none hidden, none unmeasured, no corner outside and the
        cut live; `why` says each reason it is not, "" when it is.
      `sel` defaults to glass.mjs's own list; a page whose glass.mjs does not export it passes one. */
   window.drpgLaunchOutside = (sel = window.__glass?.LAUNCHERS) => {
-    const EXPECTED = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+    const EXPECTED = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher",
+      ...(globalThis.game?.user?.isGM ? ["drpg-gm-launcher", "drpg-foundry-tools"] : [])];
     const g = window.__glass, why = [];
     const out = { ok: false, expected: EXPECTED.length, found: 0, hidden: [], outside: null, stale: false, why: "",
                   buttons: 0, corners: 0, unmeasured: [], where: [], gaps: [] };

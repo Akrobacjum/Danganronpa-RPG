@@ -28,8 +28,10 @@
  * at the first size that draws glass the sweep plants each fault the count exists to see, reads
  * it at once, and puts the page back:
  *   moved     the handbooks button 300 px up        - stale, corners outside, not ok
- *   removed   the handbooks button out of the DOM   - found 2 of 3, not ok
- *   hidden    all three launchers display: none     - three hidden, not ok
+ *   removed   the handbooks button out of the DOM   - found one fewer than expected, not ok
+ *   hidden    every expected launcher display: none - all of them hidden, not ok
+ *   gm moved  on a GM's page, the GM's button 8 px off its cell towards the wall (E77 C6) - its gaps
+ *             to the chat and to Foundry tools no longer the gap, which this file fails as unequal
  *   straddle  the launch pane cut in two through the handbooks button's centre (LAST.panes
  *             only, the page untouched) - the button lies on both halves and on neither alone:
  *             corners outside, the cut still live, not ok
@@ -119,7 +121,10 @@ catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--
 function plant(sel) {
     const read = () => window.drpgLaunchOutside(sel ?? undefined);
     const book = document.getElementById("drpg-book-launcher");
-    const three = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id));
+    /* The page's own count: three on a player's page, five on a GM's since E77 C6. */
+    const before = read(), expected = before.expected;
+    const all = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools"]
+        .map(id => document.getElementById(id)).filter(Boolean).slice(0, expected);
     const res = {};
     const show = r => ({ ok: r.ok, found: r.found, expected: r.expected, hidden: r.hidden.length, outside: r.outside, stale: r.stale, why: r.why });
     {   // moved
@@ -134,14 +139,33 @@ function plant(sel) {
         book.remove();
         const r = read();
         parent.insertBefore(book, next);
-        res.removed = { ...show(r), pass: !r.ok && r.expected === 3 && r.found === 2 && /found 2 of/.test(r.why) };
+        res.removed = { ...show(r), pass: !r.ok && r.found === expected - 1 && new RegExp(`found ${expected - 1} of`).test(r.why) };
     }
     {   // hidden
-        const was = three.map(e => [e.style.getPropertyValue("display"), e.style.getPropertyPriority("display")]);
-        three.forEach(e => e.style.setProperty("display", "none", "important"));
+        const was = all.map(e => [e.style.getPropertyValue("display"), e.style.getPropertyPriority("display")]);
+        all.forEach(e => e.style.setProperty("display", "none", "important"));
         const r = read();
-        three.forEach((e, i) => { e.style.removeProperty("display"); if (was[i][0]) e.style.setProperty("display", was[i][0], was[i][1]); });
-        res.hidden = { ...show(r), pass: !r.ok && r.expected === 3 && r.hidden.length === 3 && /hidden/.test(r.why) };
+        all.forEach((e, i) => { e.style.removeProperty("display"); if (was[i][0]) e.style.setProperty("display", was[i][0], was[i][1]); });
+        res.hidden = { ...show(r), pass: !r.ok && all.length === expected && r.hidden.length === expected && /hidden/.test(r.why) };
+    }
+    const gm = document.getElementById("drpg-gm-launcher");
+    if (gm && expected === 5) {   // gm moved: off its cell towards the wall, over the gap to Foundry tools
+        const was = gm.style.getPropertyValue("right"), pr = gm.style.getPropertyPriority("right");
+        gm.style.setProperty("right", (parseFloat(getComputedStyle(gm).right) - 8) + "px", "important");
+        const r = read();
+        gm.style.removeProperty("right"); if (was) gm.style.setProperty("right", was, pr);
+        const gaps = r.gaps.filter(g => /drpg-gm-launcher/.test(g.pair)).map(g => g.pair + " " + g.gap);
+        // the GM's pairs as read before the plant: each must read otherwise now, or be gone
+        const off = before.gaps.filter(g => /drpg-gm-launcher/.test(g.pair)).length > 0
+            && before.gaps.filter(g => /drpg-gm-launcher/.test(g.pair))
+                .every(g => !r.gaps.some(h => h.pair === g.pair && Math.abs(h.gap - g.gap) <= 0.5));
+        /* FAILED BY THE SWEEP'S OWN GAP RULE, NOT BY THE PAGE'S `ok`. The page's check reads which
+           buttons stand on the launch pane, and 8 px stays on it: measured 13.10.2026 at 1920x1080
+           under Stained Glass, `ok` true, not stale, chat-GM 1.16 and GM-tools 0.03. So the control
+           asks what a size line asks (below): not ok, fewer than two pairs, or gaps unequal. */
+        const gs = r.gaps.map(g => g.gap);
+        const failed = !r.ok || gs.length < 2 || Math.max(...gs) - Math.min(...gs) > 0.1;
+        res["gm moved"] = { ...show(r), why: r.why + " | " + gaps.join(", "), pass: failed && off };
     }
     {   // straddle
         const LAST = window.__glass.LAST, panes = LAST.panes;

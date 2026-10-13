@@ -32,8 +32,14 @@
  * `toggleExpanded` when it expands, which `expand()` and a tab's `activate()` go through - are wrapped to show the
  * frame first, synchronously, so Shift+C and any module that opens a tab open the window. Collapsing with
  * Foundry's own button inside an open window only narrows it. Escape, dragging, a remembered place and the clamp
- * to the screen are E77 C7's; the launcher is C6's, and until it `game.drpg.toggleFoundryTools()` opens and
- * closes both.
+ * to the screen are E77 C7's.
+ *
+ * THE LAUNCHER (E77 C6). `#drpg-foundry-tools` is the corner cluster's fifth button, over the book (the AM-21
+ * variant B grid): one click opens both windows, the next closes both (`toggleFoundryTools`), and `aria-pressed`
+ * says whether either is open. Like the GM's red button it is a child of the body that joins the cluster through
+ * `data-drpg-cluster` and carries no `drpg-` class (pixel-icons.css paints under any such ancestor). Its face is
+ * Foundry's own logo, `icons/fvtt.png` from Foundry's core files - the module ships no copy of it (D7) - lightened
+ * by the stylesheet; whether that file is there and reads well on a v14 table is LIVE-E77-09.
  *
  * THE THEME. Foundry puts `themed theme-<interface>` on `#interface`, and the sidebar and the scene controls take
  * it from that ancestor; out of it they would take the body's `theme-<applications>`, and a dark interface with
@@ -49,6 +55,7 @@
 
 const FRAME_CLASS = "drpg-foundry-window";
 const BODY_CLASS = "drpg-foundry-windows";
+const LAUNCHER_ID = "drpg-foundry-tools";
 /** The two frames and the node of Foundry's each one holds. */
 export const FOUNDRY_WINDOWS = [
     { key: "ftools", id: "drpg-win-ftools", node: "sidebar", title: "DRPG.FoundryTools.title" },
@@ -77,6 +84,7 @@ export function registerFoundryWindows() {
     }
     document.body.classList.add(BODY_CLASS);
     for (const row of FOUNDRY_WINDOWS) buildFrame(row);
+    buildLauncher();
     adoptFoundryNodes();
     wearInterfaceTheme();
     wrapSidebar();
@@ -148,6 +156,26 @@ function buildFrame(row) {
     document.body.append(frame);
 }
 
+/** The corner's Foundry tools button, once (see THE LAUNCHER above). */
+function buildLauncher() {
+    if (document.getElementById(LAUNCHER_ID)) return;
+    const label = game.i18n.localize("DRPG.FoundryTools.toggle");
+    const btn = document.createElement("button");
+    btn.id = LAUNCHER_ID;
+    btn.type = "button";
+    btn.dataset.drpgCluster = "";
+    btn.setAttribute("aria-label", label);
+    btn.dataset.tooltip = label;
+    btn.setAttribute("aria-pressed", "false");
+    const logo = document.createElement("img");
+    logo.setAttribute("src", "icons/fvtt.png");
+    logo.setAttribute("alt", "");
+    logo.draggable = false;
+    btn.append(logo);
+    btn.addEventListener("click", () => toggleFoundryTools());
+    document.body.append(btn);
+}
+
 /** The guard: each of Foundry's two nodes back into its frame, wherever Foundry put it. Returns how many moved. */
 export function adoptFoundryNodes() {
     let moved = 0;
@@ -202,6 +230,8 @@ function showFrame(key, open) {
     if (!frame) return;
     frame.toggleAttribute("hidden", !open);
     frame.toggleAttribute("inert", !open);
+    const anyOpen = FOUNDRY_WINDOWS.some(f => foundryWindow(f.key)?.hidden === false);
+    document.getElementById(LAUNCHER_ID)?.setAttribute("aria-pressed", String(anyOpen));
 }
 
 /** Open or close one window. Foundry tools collapses the sidebar BEFORE it hides, and expands it once shown. */

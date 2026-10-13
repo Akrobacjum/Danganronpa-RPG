@@ -26,19 +26,28 @@ import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs
 const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
- * The panel's launcher - a standalone red button above the scene controls.
+ * The panel's launcher - a red hexagon in the corner cluster (E77 C6, 13.10.2026).
  *
  * It used to be one more tool in the token toolbar, which made the single
  * most-used GM control in the module a 26th grey icon in a column of grey
- * icons (Dawid, 26.08: out of there, bigger, named, red). It sits at the TOP
- * of the left column now, above the controls: the corner a GM's eye already
- * visits for tools, but outside the toolbar's grammar - solid crimson where
- * everything below it is translucent, with a label where everything below it
- * is an icon. Red is the module's "this goes through the GM" colour, and this
- * button is the purest case of it on the screen.
+ * icons (Dawid, 26.08: out of there, bigger, named, red). From 26.08 to E77 C5
+ * it sat at the top of Foundry's left column, above the scene controls; C5 took
+ * the scene controls out of that column and into a window of their own, and C6
+ * moves the button into the corner beside the messenger (the AM-21 variant B
+ * grid: over the settings button, two rows up). It stays red where the rest of
+ * the cluster wears the accent: red is the module's "this goes through the GM"
+ * colour, and this button is the purest case of it on the screen.
  *
- * Re-injected on every scene-controls render because the left column is
- * core's and a re-render may rebuild it.
+ * A CHILD OF THE BODY, WITH NO `drpg-` CLASS ON IT OR ABOVE IT. pixel-icons.css
+ * paints any `i.fa-eye` under a `[class*="drpg-"]` ancestor as the plain eye,
+ * and that rule would win over the Monokuma eye keyed to `#drpg-gm-launcher i`.
+ * The button joins the cluster through `data-drpg-cluster` (glass.mjs's
+ * LAUNCHERS), set before it is appended - and module.mjs makes it before the
+ * glass's first measurement, which a button made in this file's own ready hook
+ * would have missed (the hook is registered later than module.mjs's).
+ *
+ * The scene-controls hook stays for the GM's chrome marks; the button itself is
+ * the module's and no render of Foundry's rebuilds it.
  */
 export function registerGmPanel() {
     Hooks.once("ready", injectLauncher);
@@ -109,25 +118,28 @@ function markGmChrome() {
     }
 }
 
-function injectLauncher() {
+/** The GM's button in the corner, once; a player gets none. Exported for module.mjs's ready sequence. */
+export function injectLauncher() {
     try {
         if (!game.user?.isGM) return;
         markGmChrome();
-
         if (document.getElementById("drpg-gm-launcher")) return;
-        const column = document.getElementById("ui-left-column-1");
-        if (!column) return;
 
         const btn = document.createElement("button");
         btn.id = "drpg-gm-launcher";
         btn.type = "button";
-        btn.dataset.tooltip = game.i18n.localize("DRPG.Panel.title");
+        btn.dataset.drpgCluster = "";
+        const label = game.i18n.localize("DRPG.Panel.launcher");
+        btn.setAttribute("aria-label", label);
+        btn.dataset.tooltip = label;
         // `fa-eye` is the fallback if the pixel mask ever fails to load - the
         // sprite itself is keyed to `#drpg-gm-launcher i` and ignores the class.
-        btn.innerHTML = `<i class="fa-solid fa-eye" inert></i>
-            <span>${game.i18n.localize("DRPG.Panel.launcher")}</span>`;
+        const eye = document.createElement("i");
+        eye.className = "fa-solid fa-eye";
+        eye.setAttribute("inert", "");
+        btn.append(eye);
         btn.addEventListener("click", () => openGmPanel());
-        column.prepend(btn);
+        document.body.append(btn);
     } catch (err) {
         error("Could not place the GM panel launcher", err);
     }

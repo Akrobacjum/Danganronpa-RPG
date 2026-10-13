@@ -525,7 +525,8 @@
     "FoundryTools": {
       "title": "Narzędzia Foundry",
       "mapTitle": "Narzędzia mapy",
-      "close": "Zamknij"
+      "close": "Zamknij",
+      "toggle": "Otwórz lub zamknij narzędzia Foundry"
     },
     "Action": {
       "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GM-a, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GM-a i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
@@ -3043,7 +3044,7 @@
     "Panel": {
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GM-a",
-      "launcher": "GM",
+      "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może otworzyć panel.",
       "noSceneNamed": "game.drpg.{fn} nie dostało sceny i nie znalazło żadnej, więc nic nie zrobiło: przekaż mu scenę.",
       "nextLabel": "Dalej",

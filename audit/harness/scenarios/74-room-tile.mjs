@@ -20,6 +20,9 @@
  *   D (Foundry's rails leave the screen, E77 C5): p1's scene controls computed `display: none` in both themes and its
  *     layer back to Tokens after a new canvas and a render of the controls; the GM's two windows closed, Foundry tools
  *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools.
+ *   E (the corner's upper row, E77 C6): on the GM's page the red GM button and Foundry tools are children of the body
+ *     in the cluster (`data-drpg-cluster`) with no `drpg-` class on them or above them, and a click on Foundry tools
+ *     opens both windows (`aria-pressed` "true") and a second closes both; p1 and p2 have neither button.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -267,6 +270,28 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, IDS, 
         + "collapsed; a scene rail drawn into the left column is in Map tools before the next task, and the player's rule leaves it shown",
         J(gmD.closed) === J([[true, true, true], [true, true, true]]) && J(gmD.sidebar) === J([true, true, true, false])
             && gmD.rail[0] === true && gmD.rail[1] !== "none", J(gmD));
+
+    /* ------------------------------ E. the corner's upper row (E77 C6) ------------------------------ */
+    phase("E: the GM's button and Foundry tools stand in the corner on the GM's page alone, and Foundry tools opens and closes both windows");
+    /* Each page as module.mjs's ready sequence left it. The click is a real `click()` on the GM's Foundry tools, which
+       runs `toggleFoundryTools` through the button's own listener; the windows are put back closed, as D read them. */
+    const gmE = await gm.eval(`const out = {}, ids = ["drpg-gm-launcher", "drpg-foundry-tools"];
+        const classed = el => { for (let n = el; n && n !== document.body; n = n.parentElement) if (/drpg-/.test(n.getAttribute("class") ?? "")) return true; return false; };
+        out.dom = ids.map(id => document.getElementById(id)).map(el => el ? [el.parentElement === document.body, el.hasAttribute("data-drpg-cluster"), classed(el)] : null);
+        const tools = document.getElementById("drpg-foundry-tools");
+        const state = () => [["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id)?.hidden === false), tools?.getAttribute("aria-pressed") ?? null];
+        out.clicks = [state()];
+        try {
+            tools?.click(); out.clicks.push(state());
+            tools?.click(); out.clicks.push(state());
+        } finally { game.drpg.toggleFoundryTools?.(false); }
+        return out;`, { timeout: 20000 });
+    const playersE = await Promise.all([p1, p2].map(page => page.eval(`return ["drpg-gm-launcher", "drpg-foundry-tools"].map(id => Boolean(document.getElementById(id)));`)));
+    check("E1: the GM's red button and Foundry tools are children of the body in the cluster, with no drpg- class on them or above them",
+        J(gmE.dom) === J([[true, true, false], [true, true, false]]), J(gmE));
+    check("E2: a click on Foundry tools opens both windows and says so in aria-pressed, and a second closes both",
+        J(gmE.clicks) === J([[[false, false], "false"], [[true, true], "true"], [[false, false], "false"]]), J(gmE));
+    check("E3: a player's page has neither the GM's button nor Foundry tools", J(playersE) === J([[false, false], [false, false]]), J(playersE));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

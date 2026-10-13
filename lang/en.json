@@ -544,7 +544,8 @@
     "FoundryTools": {
       "title": "Foundry tools",
       "mapTitle": "Map tools",
-      "close": "Close"
+      "close": "Close",
+      "toggle": "Open or close Foundry tools"
     },
     "Action": {
       "murderConfirmEclipse": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
@@ -2921,7 +2922,7 @@
     "Panel": {
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
-      "launcher": "GM",
+      "launcher": "Open the GM panel",
       "gmOnly": "Only a GM can open the panel.",
       "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
       "nextLabel": "Next",

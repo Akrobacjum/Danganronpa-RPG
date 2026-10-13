@@ -11,8 +11,8 @@
  *
  * Below the breakpoint, then, the blocks leave those columns and stack in one of
  * this module's own: full width, at the top, scrolled if it runs out of room,
- * with the board under it. Foundry's own left column - the scene controls and
- * the GM launcher - is pushed down by exactly the column's height, which is the
+ * with the board under it. Foundry's own left column - the scene controls, where
+ * they still stand in it (E77 C5) - is pushed down by exactly the column's height, which is the
  * one number that cannot be written in CSS because it depends on what is in the
  * stack today.
  *
@@ -110,7 +110,7 @@ export function applyNarrowLayout() {
 /**
  * The stack keeps clear of Foundry's own two rails, in both directions.
  *
- * DOWNWARDS: the scene controls and the GM launcher are absolutely positioned at
+ * DOWNWARDS: the scene controls (the GM launcher with them until E77 C6) are absolutely positioned at
  * the top of the interface, which is where the stack now is, so the left column
  * starts below it. The offset is the stack's measured height, which no media
  * query can know - it is the clock plus however many Monokuma rows this table has
