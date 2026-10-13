@@ -931,7 +931,7 @@
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
       "endTrialNotChapter": "The chapter is not ended - use End the chapter for the reveal and the next chapter.",
-      "endTrialScene": "The living students go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. The trial hall's tokens stay hidden.",
+      "endTrialScene": "The living students who took part go to the room you choose here, from whichever scene with rooms they stand on; a student who cannot be moved stays where they stood and you are told who. A student left unticked is not moved. The tokens the module made in the trial hall are deleted, yours hidden.",
       "endTrialRoom": "Room",
       "endTrialMoves": {
         "one": "{n} student goes to {room}.",
@@ -978,10 +978,7 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
-      "startTrialHall": {
-        "one": "The table moves to the trial hall, {hall}, and {n} token there is shown.",
-        "other": "The table moves to the trial hall, {hall}, and {n} tokens there are shown."
-      },
+      "startTrialHall": "Every browser goes to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
@@ -1897,13 +1894,9 @@
       "castUnavailable": "The trial opened and nobody in the trial hall was shown: the GMs' choice of its tokens had not reached this client yet. Show them by hand on the hall's scene.",
       "duplicateToken": "More than one token in the trial hall stands for the same character, and only the first was shown. Kept hidden: {names}.",
       "playerTokenCreated": "{user} made a token in the trial hall: {name}. It is hidden - showing the hall's tokens is the GM's - and stays where it is; the next trial treats it as any token of the hall.",
-      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. The module makes no tokens in the hall, so it stays gone - put it back by hand if the trial needs it.",
+      "playerTokenDeleted": "{user} deleted a token from the trial hall: {name}. If the module made it, it makes it again the next time the trial opens; if a GM placed it, put it back by hand if the trial needs it.",
       "hiddenPutBack": "{user} changed whether {name} is hidden in the trial hall. Showing and hiding the hall's tokens is the GM's, so it was put back as the GMs left it.",
       "noSchool": "The Class Trial ended, but no school scene is linked and the scene the trial opened from is gone, so the table stays in the trial hall and its tokens stay as they are. Activate a scene by hand.",
-      "missingTokens": {
-        "one": "The trial hall has no token for {n} student a player plays, so the trial cannot show them: {names}. Place one on the hall's scene.",
-        "other": "The trial hall has no token for {n} students players play, so the trial cannot show them: {names}. Place one for each on the hall's scene."
-      },
       "notMoved": {
         "one": "{n} living student could not be moved and stays where they stood: {names}. Move them by hand.",
         "other": "{n} living students could not be moved and stay where they stood: {names}. Move them by hand."
@@ -1920,13 +1913,13 @@
         "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
         "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
       },
-      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and shows the tokens ticked below; ending it hides them and takes the table back - End the trial to the room you choose, with the living students from every scene with rooms, any other road to the school. In the hall the module only shows and hides tokens - it creates, moves and deletes none there.",
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
       "noScene": "- none -",
-      "castHeading": "The hall's cast",
-      "reveal": "Ticked: shown when the Class Trial opens. A token left unticked stays hidden - a test token, or a player nobody should see yet.",
-      "noCast": "The hall holds no token of a student or of Monokuma yet.",
+      "castHeading": "Who takes part",
+      "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",
+      "noCast": "The world has no student or Monokuma yet.",
       "sameScene": "The school and the trial hall are the same scene. Pick two different scenes - Apply waits until then.",
       "hallInTrial": "A Class Trial is running in the linked trial hall. End the trial before you link another hall or unlink this one - Apply waits until then.",
       "hallFirstInTrial": "A Class Trial is running without a trial hall. Link one after the trial ends - Apply waits until then.",
@@ -1943,7 +1936,14 @@
       "showHall": "Show the hall",
       "backToSchool": "Back to school",
       "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
-      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and shows the tokens chosen for it."
+      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and places the tokens of the students chosen for it.",
+      "castPickHeading": "Who takes part in this trial",
+      "notPlaced": {
+        "one": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one on the hall's scene by hand.",
+        "other": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one for each on the hall's scene by hand."
+      },
+      "handPlaced": "{names}: no token in the trial hall, and the module makes none for Monokuma - place one by hand if the trial needs it.",
+      "placedByGm": "your token in the hall: shown or hidden, never deleted"
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -2806,7 +2806,8 @@
       "createItem": "Create an item",
       "createItemStays": "Create an item leaves this card open, so the other answers stay available.",
       "giveItem": "Give an existing item",
-      "keyRemnantHere": "Create a Key Remnant here"
+      "keyRemnantHere": "Create a Key Remnant here",
+      "unnamed": "unnamed request"
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",
@@ -3809,6 +3810,10 @@
         "one": "{n} more notice waits under these. Close one to see it.",
         "other": "{n} more notices wait under these. Close one to see the next."
       },
+      "moreCloseAll": {
+        "one": "{n} more notice waits. Click to close every card except the ones to read.",
+        "other": "{n} more notices wait. Click to close every card except the ones to read."
+      },
       "kind": {
         "info": "Notice",
         "error": "Refused",
@@ -3884,6 +3889,58 @@
       "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions).",
       "openFailed": "The GM store could not open on this browser: {error}. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.",
       "notOpen": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again."
+    },
+    "Notices": {
+      "title": "Notice history",
+      "keybindingHint": "Open the notices this browser showed you, to read a closed one again.",
+      "filter": {
+        "all": "All",
+        "forYou": "For you",
+        "announcements": "Announcements",
+        "players": "From players",
+        "notDone": "Not done",
+        "evidence": "Evidence",
+        "messenger": "Messenger"
+      },
+      "search": "Search notices",
+      "searchLabel": "Search the notices by their title and text",
+      "state": {
+        "shown": "On screen",
+        "unread": "Unread"
+      },
+      "sessionOnly": "Not saved: kept until this page is closed",
+      "buttonUnread": {
+        "one": "Notice history, {n} unread",
+        "other": "Notice history, {n} unread"
+      },
+      "unreadBanner": {
+        "one": "{n} unread notice",
+        "other": "{n} unread notices"
+      },
+      "newPill": "New notices - show them",
+      "chapterFold": "Chapter {chapter} ({n})",
+      "openConversation": "Open the conversation",
+      "empty": "Nothing yet. Every notice you see on screen is kept here, also the ones you close without reading.",
+      "noMatch": "No notice matches.",
+      "kept": "Kept in this browser - at most the newest 250, and 40 from any one sender - until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and the line below says when it stops.",
+      "gmNote": "Your own history: what this client showed you. Players keep theirs. It keeps at most the newest 150, and 40 from any one sender, until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log, and a card the module takes back leaves it; on a shared computer another account logged in on this browser can read it, so clear it before you hand the computer over. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and the line below says when it stops.",
+      "markRead": "Mark as read",
+      "clear": "Clear",
+      "clearTitle": "Clear the notice history?",
+      "clearBody": "Every notice this browser kept for you goes, the cards about the murder too. They do not come back.",
+      "clearYes": "Clear the history",
+      "notSaved": "This browser could not save the notice history: the notices shown from now on are kept only until this page is closed or reloaded.",
+      "clipped": "Too long to keep whole: only its text was kept.",
+      "mark": {
+        "deleted": "Deleted from the chat log",
+        "rerolled": "Rerolled",
+        "settled": "Ruled on by the GM"
+      },
+      "source": {
+        "notDone": "Not carried out",
+        "summary": "Summary of the time of day",
+        "player": "From a player"
+      }
     },
     "Case": {
       "gmOnly": "Only a GM can back up or restore the case.",
@@ -3971,7 +4028,8 @@
           "other": "{n} old rows were stamped after the moment this browser took them over - a clock that ran ahead - and were taken at that moment."
         },
         "skew": "Stamps from ahead of this browser's clock: {names}.",
-        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
+        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all, its notice history aside.",
+        "notices": "The notice history takes {notices} KB of this browser's storage besides: when the storage is full, it gives its room back to the case's stores and the private cards.",
         "lastBackup": "Last backup: {when} ({who}).",
         "neverBackedUp": "This case has never been backed up.",
         "traceOrphans": {

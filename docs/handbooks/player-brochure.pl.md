@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.74 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*Jedna strona. Moduł 1.2.75 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **Jesteś:** Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (maks. 6)**. Sanity na zerze = **Breakdown** (utrudnienie na każdym rzucie). Health na zerze = **Wounded** (o jedną akcję mniej). Rzut z Hope daje ci 1 Hope; rzut z Despair zasila Monokumę; krytyk daje 2 Hope.
 
@@ -55,7 +55,7 @@ Twoja sypialnia jest zamknięta dla innych bez klucza (klucz otwiera ją temu, k
 
 ## Komunikator i GM
 
-Przycisk w prawym dolnym rogu otwiera **Czat z GMem** - jeden wątek między tobą a każdym GMem. Wszystko, co wymaga decyzji (konkretne Observe, podpowiedź, akcja dynamiczna, propozycja projektu, Calle Ultimate i Experience), ląduje tam obok twoich wiadomości. Zakładka Notatka to twoje plany i granice przed sesją.
+Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **Czat z GM-em** - jeden wątek między tobą a każdym GM-em. Wszystko, co wymaga decyzji (konkretne Observe, podpowiedź, akcja dynamiczna, propozycja projektu, Calle Ultimate i Experience), ląduje tam obok twoich wiadomości. Zakładka Notatka to twoje plany i granice przed sesją.
 
 ## Safeword
 
@@ -73,4 +73,6 @@ W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Saf
 
 **Zębatka ustawień**, prawy dolny róg: Język (English / Polski, tylko ta przeglądarka), motyw, skala, dźwięki, ograniczone animacje, wysoki kontrast.
 
-**Przycisk z książką**, prawy dolny róg, obok tamtych dwóch: ta ulotka i Podręcznik gracza, w języku wybranym dla modułu.
+**Przycisk z książką**, prawy dolny róg pod komunikatorem, na prawo od zębatki: ta ulotka i Podręcznik gracza, w języku wybranym dla modułu.
+
+**Historia powiadomień**: przycisk ze stosem kart w prawym dolnym rogu kafelka powiadomień otwiera powiadomienia, które pokazała ci ta przeglądarka - najwyżej 250 najnowszych, do resetu sezonu, który je wyczyści; jej okno mówi, co jeszcze może je zabrać. Wyczyść ją, zanim udostępnisz ekran, a na wspólnym komputerze - zanim go oddasz.

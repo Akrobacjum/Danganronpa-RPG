@@ -2106,10 +2106,11 @@ async function undoLastCrisis({ actorId, key, before = null }) {
 
     // The chat card describing the old outcome. The replay posts its own, and
     // two contradictory accounts of one action is exactly what Reroll exists to
-    // avoid - see the note at the top of reroll.mjs about the dice.
+    // avoid - see the note at the top of reroll.mjs about the dice. Withdrawn, so it
+    // leaves every browser's notice history too (E81 C5, notice-history.mjs `noticeCardDeleted`).
     if (receipt.messageId) {
         try {
-            await game.messages.get(receipt.messageId)?.delete();
+            await game.messages.get(receipt.messageId)?.delete({ [MODULE_ID]: { withdraw: true } });
         } catch {
             // A message somebody already cleared is not a problem.
         }

@@ -7125,6 +7125,7 @@ const REGRESSIONS = [
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
+            ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
@@ -8085,7 +8086,7 @@ const REGRESSIONS = [
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken:inline", "out of scope: repaints a ring on a flag change only (remnant-ring.mjs:110-114), not on a move; not one of the plan's movement listeners"],
             // E13 C2: the trial hall's cast (R432 judges the same two for the trial).
             ["HOOK trial-scene.mjs#registerTrialScene#updateToken:watchCast", "put back on the primary: a non-GM's change to a hall cast token's `hidden` is put back to the `hidden` a GM last wrote, only when the token holds another, and told to the GMs (`castPutBack`, `castHeld`, R434; E13 fix r1-F2); every GM's client notes a GM's write; it reads no position, so a move in the hall is not its"],
-            ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: the module deletes nothing in the hall; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
+            ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             ["HOOK visibility.mjs#registerVisibility#updateToken:inline", "out of scope as a judge: re-applies who is shown on every client; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; since E12 C11 it draws through visibility.mjs `tokenShownTo`, one rule on every floor (E12 C11)"],
             ["HOOK voice.mjs#registerVoice#updateToken:inline", "out of scope as a judge: schedules the voice reconcile, which places by `locateActor` on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
@@ -8240,7 +8241,10 @@ const REGRESSIONS = [
          * 5 SOCKET, 24 SHEET, 41 HOOK, 9 STORE) on its working tree and 81 at 36f559d (12.10.2026): the scratch census
          * takes its STORE rows from its own list at any commit, and `rollSpends` and `castHeld` came in after C3b's 78. R379
          * reads the token listeners of the room roads too, keyed its own way; a commit that changes one rewrites both.
-         * And D7's line, in the source with comments blanked: trial-scene.mjs creates and deletes no document.
+         * And D7's line, in the source with comments blanked: trial-scene.mjs created and deleted no document until E81
+         * DZ6 (12.10.2026); since then it names `createEmbeddedDocuments` once and `deleteEmbeddedDocuments` once, both
+         * in `stageHall`, the create with `keepId` (the record names the id before the token exists), and no `.create(`
+         * or `.delete(` anywhere.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
@@ -8254,11 +8258,11 @@ const REGRESSIONS = [
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: a `whoAmI` answer keyed by the asker's request id; the answer is about the sender only (voice.mjs:321-326)"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137); E11 C3's gather pan rides it, and since E13 C3b so does the return from the trial's gather (`returnTheLiving`, the same `SYNC.gather` packet - no new claim)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as the `kind` row; the pan's `tokenIds` only find this client's own token, the return from the trial's as the body's"],
-            ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. Since E13 C6 the window's hall line counts the cast the entry would show through `castShownOnEntry` - C2's store and `readCast`'s held flags in one synchronous pass after the `judgedFor` above (H3), never a player's claim; a count, deciding nothing"],
+            ["SHEET trial-floor-ui.mjs#startClassTrial", "out of scope as a judgement: GM gate; it reads held (`judgedFor`, `flagsHeldNow`) and the document (`livingStudents`, `isDeceased`) for the briefing. Since E81 DZ6 the window holds the cast picker instead of E13 C6's count (`castPickerHtml` over `readCastActors`'s held flags, one synchronous pass after the `judgedFor` above, H3; never a player's claim) and stores the GM's changed ticks through `saveTrialCast` after both questions and before `setClock` (R437)"],
             ["SHEET trial-floor-ui.mjs#readTrial", "not a source: the console's read model over GM records (`isDeadForGm` and `deathRecordFor` read the GM's death record)"],
-            ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
-            ["SHEET trial-scene.mjs#leftBehind", "held: whom the return from the trial tries to carry over and, after, names to the GMs as not moved - the living on any scene but the chosen one and the hall, or played with no token outside the hall (E13 fix r1-F1) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing, and the carry it chooses for is call-world.mjs `carryAcross`'s, outside this file (D7's line) [1b.2]; R436, scenario 41 i"],
-            ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
+            ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody, and since E81 fix r1-D3 `only`, the hall's cast (`castActorIds`), so a student the GMs left unticked is not moved; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
+            ["SHEET trial-scene.mjs#leftBehind", "held: whom the return from the trial tries to carry over and, after, names to the GMs as not moved - the living on any scene but the chosen one and the hall, or played with no token outside the hall (E13 fix r1-F1), since E81 fix r1-D3 of the hall's cast alone when the return hands it (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing, and the carry it chooses for is call-world.mjs `carryAcross`'s, outside this file (D7's line) [1b.2]; R436, scenario 41 i"],
+            ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A), since E81 fix r1-D3 of the hall's cast alone (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
             ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8269,6 +8273,7 @@ const REGRESSIONS = [
             ["SHEET use-items.mjs#useItem", "out of scope: the roller's client on its own item; creative use is not a roll and the amend of 25.09 leaves it unchanged - `useItem` and `useCreatively` reach no roll's wear (R439) (E13 C8)"],
             ["SHEET use-items.mjs#rollSpends", "out of scope: a pure reader of the item and the roll it is handed, as `tierOf` is; `breakOnDespair` hands it `held`, so on a GM's road the swing's held weapon decides (R439) (E13 C8)"],
             ["SHEET use-items.mjs#discardBroken", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
+            ["SHEET trial-scene.mjs#readCastActors", "held: `flagsHeldNow(actor)` once per character of the world, in one synchronous pass, for the cast picker's default ticks (E81 DZ6; `readCast`'s two facts per actor, the Start window reading them after its `judgedFor`); a player owner is `ownerIdsOf`; it decides a tick's default, the GM's Apply or Start decides the row [1b.2]; R437"],
             ["SHEET trial-scene.mjs#readCast", "held: `flagsHeldNow(actor)` once per cast token, the whole cast in one synchronous pass before the diff (H3); under Q-E13-1 (a) only `monokuma` decides; a player owner is `ownerIdsOf` (the actor's ownership: whether a player can write it is Foundry's rule, not measured here) [1b.2]; R116"],
             ["SHEET murder-rules.mjs#wearSwing", "judged: on the GM in the incident; reads the held `weapon` (fix r2-H18) and writes through `breakOnDespair(actor, tool, roll, weapon)`; `actor.items.get` only finds the document to write. C8 changes the tier-0 rule inside `breakOnDespair`, not this road (E13 C8)"],
             ["SHEET murder-rules.mjs#undoLastCrisis", "held: `itemAsHeld` + `gmMeansWrite` (E29); a Reroll gives back C8's single use exactly as it gives back a wear (2.3's R-new) (E13 C8)"],
@@ -8281,8 +8286,8 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
-            ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
+            ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8291,9 +8296,9 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#preUpdateToken#onPreUpdateToken", "judged: the mover's own client vetoes a crossing (E12 C9 rewrites it as `crossingVerdict`); in the hall it returns at movement.mjs:242 (no rooms) and keeps the corpse veto (:229) [1b.1]"],
             ["HOOK movement.mjs#updateToken#onUpdateToken", "judged: a GM's move is free (`userId`), a player's is charged on the primary through rooms; the hall has none after C1, so nothing is charged (41 b)"],
             ["HOOK movement.mjs#canvasReady#primeRoomCache", "out of scope: primes this client's room cache for the viewed scene; on the hall it finds no rooms once C1 lands"],
-            ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). E13 creates nothing: a dropped token of a student joins the cast as any hall token does, and C2's entry report names a second token of one actor"],
+            ["HOOK movement.mjs#preCreateToken#onPreCreateToken", "out of scope: a token a player drops in the hall (TOKEN_CREATE, world permission; what this check refuses is not re-read here). A dropped token of a student is not the module's (no record names it): it joins the cast as a token the GMs placed would, is never deleted by the stage, and C2's entry report names a second token of one actor"],
             ["HOOK movement.mjs#updateToken#noteGmPosition", "judged: records a GM's placement as lawful (`gmSeen`, primary gate); C2's reveal and hide write no position; the return from the trial's gather (E13 C3b) is a GM write and lands lawful (E12 C12)"],
-            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; nothing is created in the hall (D7). Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
+            ["HOOK movement.mjs#createToken#arrow1", "judged: a created token's first position is lawful (`gmSeen`); since E13 fix r1-F1 the return from the trial creates one - a living student's copy on the scene of the room End the trial chose, carried from another scene with rooms (call-world.mjs `carryAcross`, its old id's records dropped by movement.mjs `forgetToken`, the census of the records kept by token id in its note) - and rides this as a GM's create; since E81 DZ6 the stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall, one create on a GM, and they ride it the same way - their records dropped by `forgetToken` when the stage deletes them. Foundry's own `teleportTokens` across scenes is not used nor measured (LIVE-E13-10)"],
             ["HOOK murder-rules.mjs#updateToken#arrow1", "judged: the body's discovery runs on the primary through rooms (`maybeBodyFound`); the return to the school (41 g) and the gather into the GM's room (41 i, E13 C3b) announce nothing new - a death recorded in the trial is no body (`bodiesToDiscover`), and both read 0 new body cards and `bodiesFound` unchanged"],
             ["HOOK narrow.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK own-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8304,18 +8309,18 @@ const REGRESSIONS = [
             ["HOOK remnant-icons.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK remnant-ring.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK remnant-ring.mjs#updateToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK remnants.mjs#deleteToken#arrow1", "out of scope: a Remnant token's deletion on the primary (E31); E13 deletes nothing in the hall"],
+            ["HOOK remnants.mjs#deleteToken#arrow1", "out of scope: a Remnant token's deletion on the primary (E31); the stage's delete in the hall (E81 DZ6) takes only the module's student tokens, no Remnant's"],
             ["HOOK selection.mjs#canvasReady#applySelectionColour", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sfx.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#canvasReady#selfRepair", "out of scope as a judgement: a player's own view, put right once on its first `canvasReady` after a load (`viewRepair`, R435; Q-E13-1 c): a `CAMERA_READERS` draw row, decides no rule; a GM's browser is never moved (41 f) [1b.1 which scene a client views]"],
             ["HOOK trial-floor.mjs#canvasReady#renderTrialFloor", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#updateToken#watchCast", "put back: on the primary, a non-GM `userId`'s change to a hall cast token's `hidden` is put back to what a GM last wrote (`castHeld`, fed on every GM's client by a GM `userId`'s write), only when the token holds another, and told to the GMs; the `trialCast` option exempts nothing (a writer's claim); a GM's change stands (R434, 41 a4; LIVE-E13-08)"],
-            ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: the module deletes nothing in the hall; E13 fix r1-F2, 41 a5); it joins the cast, and the next entry names a second token of one actor"],
-            ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (D7: the module creates nothing in the hall; E13 fix r2-H2, review r2 sec S2-4, 41 a7); it reads no position"],
+            ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, `trialSeats`, and a player's is not one; E13 fix r1-F2, 41 a5); it joins the cast as a token the GMs placed would, and the next entry names a second token of one actor"],
+            ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again at once: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (E13 fix r2-H2, review r2 sec S2-4, 41 a7); a token the module made is made again by the next entry's stage, one the GMs placed is not (E81 DZ6); it reads no position"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK visibility.mjs#updateToken#arrow1", "out of scope: recomputes this client's draw on `hidden` or a move (visibility.mjs:51-56); C2's reveal and hide fire it on every client, expected"],
-            ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
-            ["HOOK visibility.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide trigger it on every client, as any GM's `hidden` change does [1b.1 a hall token's hidden]"],
+            ["HOOK visibility.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
+            ["HOOK visibility.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK voice.mjs#updateToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#createToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
             ["HOOK voice.mjs#deleteToken#arrow1", "out of scope: reschedules this client's own voice room (a claim, 1b.1); E12 C9 gates the update on `isMoveChange`; in the trial C4's branch answers the main room whatever the token does [1b.1 the hall's voice room] (E13 C4)"],
@@ -8323,7 +8328,8 @@ const REGRESSIONS = [
             ["STORE settings.mjs#clock", "not a source: a world setting written only by `setClock` (clock.mjs:159); C3's `followPhase` in `reconcilePhase` (called at clock.mjs:175) is the one road in and out: every door writes the phase there and only `followPhase` activates a scene (R113)"],
             ["STORE settings.mjs#bodiesFound", "not a source: E11 C1's stamps, a world setting only a GM writes; 41 g reads them deep-equal before and after the return to the school (E13 C3's switch)"],
             ["STORE settings.mjs#sceneRoles", "not a source: a world setting (`config: false`, settings.mjs, E13 C1) read by name in rooms.mjs (`sceneRoles`, cached, dropped by its `onChange`); no writer in C1 but the GM's console and the tier-2 tests, the Scenes tab (a GM window) is C5's; whether an Assistant GM may write it is not measured (1b.1)"],
-            ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.tokenId`; a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); R433"],
+            ["STORE gm-stores.mjs#trialCast", "not a source: a GmStore (writes refused on a non-GM client), rows `{ reveal, epoch }` keyed `sceneId.actorId` since E81 DZ6 (a 1.2.74 `sceneId.tokenId` row read for the actor's first hall token until the primary's `ready` moves it, `tidyTrialHall`, R500); a past-epoch row reads absent (`castRow`) and the primary drops it (`compactGmStores`); since E81 DZ6 the choice decides whom the stage makes a token for (`stageHall`, ticked and with no token the GMs placed) as well as whom it shows; R433"],
+            ["STORE scene-flag#trialSeats", "not a source: a flag on the hall (a GM document), `{ [actorId]: { x, y, token } }` - the token the module made for that actor and has not deleted, and where it last stood (E81 DZ6). Written only by `stageHall` (`writeSeats`, a GM's client) and read by it and the primary's `ready` tidy (`tidyHallTokens`); it decides which hall tokens the stage may delete - a token whose id it does not name is never deleted, whatever its flags. A player who could write the hall's flags could name a token of the GMs' there; that a player cannot is LIVE-E81-15; R501, R436"],
             ["STORE scene-flag#trialReturnTo", "not a source: a flag on the hall (a GM document), written only by `enterTrialScene` on the GM whose phase change opened the trial; read by `trialReturnTo` only when no school is linked (Q-E13-1 b; R115)"],
             ["STORE trial-scene.mjs#trialExit", "not a source: the scene and room End the trial chose, in the memory of the GM's client that pressed it - `setTrialExit` holds only a room of a place scene and only on a GM, `closeTrial` sets it right before its phase write and drops it in a `finally`, `leaveTrialScene` takes it once; written to no document [1b.1 the return's scene and room]; R436"],
             ["STORE trial-scene.mjs#castHeld", "not a source: the `hidden` a GM last wrote on each hall cast token, in the memory of each GM's client (`watchCast` and `watchCastCreated` note a GM `userId`'s write; the rest of the linked hall is read off it at a GM's `ready` and on every change of the scene roles, `reseedCastHeld`, since E13 fix r2-H2; a hall none of those saw at the first write heard, `seedCastHeld`) - what the put-back writes, from no packet; a player's write is never noted as the GMs' (E13 fix r1-F2)"],
@@ -8348,7 +8354,7 @@ const REGRESSIONS = [
         const STORES = [["STORE settings.mjs#clock", "settings.mjs", "clock"], ["STORE settings.mjs#bodiesFound", "settings.mjs", "bodiesFound"],
             ["STORE settings.mjs#sceneRoles", "settings.mjs", "sceneRoles"], ["STORE gm-stores.mjs#trialCast", "gm-stores.mjs", "trialCast"],
             ["STORE scene-flag#trialReturnTo", "trial-scene.mjs", "trialReturnTo"], ["STORE trial-scene.mjs#trialExit", "trial-scene.mjs", "trialExit"],
-            ["STORE trial-scene.mjs#castHeld", "trial-scene.mjs", "castHeld"],
+            ["STORE trial-scene.mjs#castHeld", "trial-scene.mjs", "castHeld"], ["STORE scene-flag#trialSeats", "trial-scene.mjs", "trialSeats"],
             ["STORE token-flag#carriedFrom", "call-world.mjs", "carriedFrom"],
             ["STORE module.json#relationships", "module.json", "relationships"]];
         const censusOf = (bridge, sources) => {
@@ -8445,10 +8451,242 @@ const REGRESSIONS = [
             + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
         const scene = blankComments(new Map(sources).get("trial-scene.mjs") ?? "");
         must(scene.length, "trial-scene.mjs is not among the module's sources - D7's line would measure nothing");
-        equal(JSON.stringify([verdict, scene.match(/createEmbeddedDocuments|deleteEmbeddedDocuments|\.create\(|\.delete\(/g) ?? []]),
-            JSON.stringify([{ unclassified: [], stale: [] }, []]),
+        const stage = /^export async function stageHall\(/m.test(scene) ? fnSource(scene, "stageHall") : "";
+        const writes = text => text.match(/createEmbeddedDocuments|deleteEmbeddedDocuments|\.create\(|\.delete\(/g) ?? [];
+        equal(JSON.stringify([verdict, writes(scene), writes(stage), /createEmbeddedDocuments\("Token", data, \{ keepId: true, \.\.\.castWrite\(\) \}\)/.test(stage)]),
+            JSON.stringify([{ unclassified: [], stale: [] }, ["deleteEmbeddedDocuments", "createEmbeddedDocuments"], ["deleteEmbeddedDocuments", "createEmbeddedDocuments"], true]),
             "[a trial-room road without a census row, or a row whose road is gone - give the new one a verdict (what judges it, or the E13 commit that will) and strike the gone one; "
-            + "what trial-scene.mjs creates or deletes (D7: nothing)]");
+            + "what trial-scene.mjs creates or deletes (D7, since E81 DZ6: one delete and one create); what of it is in stageHall (all of it); the create keeps the ids the record names]");
+    }],
+
+    ["R472 - a notice road has a census row, and every row judges a road", async () => {
+        /*
+         * E81 C0, 12.10.2026; R432's twin for the notice history (census-1c.md of the E81 plan, METHOD change 1; the
+         * plan's D8 gave it this number). E81 keeps what this browser drew - a card's HTML, its title, the words of a
+         * request that was not done - in a client setting that a window draws again later, and this test keeps the list
+         * of the roads into that store closed: a new one fails until it has a row and a verdict, a row whose road is
+         * gone fails until it is struck. Eight kinds, read live in the module's files with comments blanked: SURFACE -
+         * every call of `showPopup(` or `showWaiting(` (a definition is not a call), "#showWaiting" for the second;
+         * RECORD - every call of `recordNotice(` (none at C0: C3 and C4 add them); NOTDONE - every call of `sayNotDone(`
+         * outside its own declaration; FLAG - every `cardFlag(<message>, <flag>)` and `getFlag(<scope>, <flag>)` in
+         * popup.mjs's catch-all (`onCreateChatMessage`) and in notice-history.mjs, keyed by the flag (a string by its
+         * words, a name as written); DELETE - every `game.messages.get(...)?.delete(` and `ChatMessage...deleteDocuments(`;
+         * HOOK - every `Hooks.on` of `createChatMessage`, `updateChatMessage`, `deleteChatMessage`, `drpgSecretStored` or
+         * `drpgStorageFull`, and every `addEventListener("storage"`, in popup.mjs and notice-history.mjs; STORE - the
+         * setting's five sources (this client's recorder, another tab, another account and another world in the same
+         * value, a console) once `SETTINGS.noticeHistory` exists; WINDOW - the window's four sinks once
+         * notice-history-app.mjs is among the module's files. Each place is keyed by the top-level declaration it stands
+         * in, a top-level `Hooks.on("<event>", ...)` by its event. A row holds a source, not a pair: which sinks a source
+         * reaches and what judges each pair is the census's (87 pairs). A verdict says what judges the road today; a row
+         * ending "(E81 C<n>)" names the commit that changes it, and that commit rewrites the row with the code. The
+         * census's PLANNED roads (18: the recorder's two calls, the store's five sources, the history's hooks and flags,
+         * the window's four sinks) are added by the commits that write them. It reads names and text, not data flow: a
+         * body built in one file and handed to `showPopup` through a helper is judged at the call, and text that reaches
+         * the screen without `showPopup` (the messenger's own window, the chat log) is not a road here.
+         * Measured 12.10.2026 on C0's working tree (3a4dd4f's code): this reader, run in Node on the 127 files the crawl
+         * from module.mjs reaches (all 127 non-suite files of scripts/), found the 36 sources of the parse-only census kept
+         * with the E81 plan outside the repository, none either side - 10 SURFACE, 13 NOTDONE, 8 FLAG, 3 DELETE, 2 HOOK.
+         * On the harness (12.10.2026, this test alone, once) it read the same 36 against the 36 rows, none either side.
+         * E81 C1 (12.10.2026) registered `SETTINGS.noticeHistory` and the history's `storage` listener: the five STORE
+         * sources and one HOOK more. The same reader then read 42 roads against 42 rows, none either side - 10 SURFACE,
+         * 13 NOTDONE, 8 FLAG, 3 DELETE, 3 HOOK, 5 STORE - in Node on the 128 files of the crawl and on the harness
+         * (12.10.2026, this test alone, three runs alike). E81 C3 (12.10.2026) added the recorder's call in `showPopup`:
+         * one RECORD road more, 43 against 43 rows, none either side - 10 SURFACE, 1 RECORD, 13 NOTDONE, 8 FLAG, 3 DELETE,
+         * 3 HOOK, 5 STORE - on the harness (this test alone, once, its own log line), and 43 sources in the parse-only census.
+         * E81 C4 (12.10.2026) added the call in `sayNotDone`, through a dynamic import (bridge-guards.mjs): one RECORD road
+         * more, 44 against 44 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 8 FLAG, 3 DELETE, 3 HOOK, 5 STORE, none either side - on
+         * the harness (this test alone, once, its own log line), and 44 sources in the parse-only census.
+         * E81 C5 (12.10.2026) added the history's three chat hooks (`deleteChatMessage`, `updateChatMessage`,
+         * `drpgSecretStored`) and the two flags its marks read, in `noticeCardChanged` rather than in
+         * `registerNoticeHistory` as the census's PLANNED rows had them (an exported handler R295 can call): 49 against
+         * 49 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 6 HOOK, 5 STORE, none either side - on the
+         * harness (this test alone, once, its own log line), and 49 sources in the parse-only census.
+         * E81 C6 (12.10.2026) added the history's `drpgStorageFull` hook, by which it gives way to the module's other
+         * stores: 50 against 50 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG, 3 DELETE, 7 HOOK, 5 STORE, none either
+         * side - on the harness (this test by name, once, its own log line), and 50 sources in the parse-only census.
+         * E81 C7 (12.10.2026) added notice-history-app.mjs, the window, which the crawl reaches through the dynamic imports
+         * of api.mjs and the keybinding: its four sinks, 54 against 54 rows - 10 SURFACE, 2 RECORD, 13 NOTDONE, 10 FLAG,
+         * 3 DELETE, 7 HOOK, 5 STORE, 4 WINDOW, none either side - on the harness (this test by name, once, its own log
+         * line), and 54 sources and 128 pairs, 0 unclassified and 0 stale, in the parse-only census.
+         * E81 C8 (12.10.2026) put the history's unread count on the notice tile's corner button (popup.mjs `showUnread`,
+         * through `noticeUnread`): a reading of the history and no road into it, so no row - the five SURFACE rows whose
+         * entries can be unread say what the button shows of them, and the count is R298's. Still 54 against 54.
+         * E81 fix r1-G3 (12.10.2026; review round 1's O1 and N5): C0 said "every call" and keyed a road by its
+         * declaration, so a second `showPopup` or `sayNotDone` inside a listed declaration was no new road. A road is
+         * a call site now: the second call of a key in the same declaration is "<key> (2)", the third "(3)". RECORD
+         * reads `updateNotice(` too, keyed "#updateNotice" - the other call that carries words into the store - and
+         * FLAG reads `cardMeta(` beside `cardFlag(` and `getFlag(`, the history's private-card marks reading the meta
+         * alone since the same fix. The reader, run in Node over the 128 non-suite files of scripts/ with these keys
+         * (12.10.2026, e81run/scratch/r1g3-census.mjs), read 55 roads - 11 SURFACE, 4 RECORD, 15 NOTDONE, 10 FLAG,
+         * 3 DELETE, 7 HOOK, 5 STORE: the five more are `askReroll`'s second and third refusal, the messenger hook's
+         * second card and the two `updateNotice` calls; nothing else stands twice in a declaration.
+         * Merged into the main line (12.10.2026), the body's `updateNotice` row is keyed by C9's `watchCard`, the
+         * declaration that took over `watchNotice`'s call (read in popup.mjs; the fix line was cut before C9).
+         * The reader is run first on a fixture: a call in a comment and one in a string, a call through a dynamic import
+         * under a top-level hook, a `sayNotDone` definition calling itself beside a call, a second `recordNotice` and an
+         * `updateNotice` in one declaration, both deletions and a
+         * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
+         * beside another event's and one in a file that is neither, the store and the window, and a stale row.
+         */
+        const NOTICE_CENSUS = [
+            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (R293)"],
+            ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
+            ["SURFACE day-summary.mjs#showDaySummary", "this client's own day summary, the names escaped (`showDaySummary`); kept as a summary (`source: \"summary\"`, R297) - at most 4 full ones in a section since E81 C1, the older ones clipped (R292) - and cleaned at save like every snapshot (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage)", "on a GM, a thread card that asks the GMs (`gmAsk`): the player's words in a card (`cardPreview`), kept as the thread's entry - its message and the conversation it opens - under the thread's player only when a GM's session wrote the card, else under its writer (`cardWriter`; a `thread` flag is the writer's to set, E81 fix r2-H1), an author that is no user of this world dropped (R297), and cleaned at save; a bubble appended to an open window is no card and is not kept (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE messenger-app.mjs#Hooks.on(drpgMessengerMessage) (2)", "on the thread's player, a message in their own thread that somebody else wrote (`cardWriter`): the other party's words in a card (`cardPreview`), kept as the thread's entry and cleaned at save (R297); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
+            ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
+            ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
+            ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
+            ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
+            ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, or for a refusal it is not waiting on the GM's packet's `what`, named only by a label the language file holds and else as an unnamed request (`requestLabel`, E81 fix r1-G3); the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE calls.mjs#askReroll", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE calls.mjs#askReroll (2)", "the request's own refusal (`res.reason`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "the module's marker, which any author can put on their own message; what it lets through is judged at the catch-all's SURFACE row and kept as drawn (R297), cleaned at save (R294)"],
+            ["FLAG popup.mjs#onCreateChatMessage#SECRET_FLAG", "a veiled card is drawn, and so kept, only when this login holds its words (`secretHtml`): without them nothing (R297), with them its words (73-notice-history)"],
+            ["FLAG popup.mjs#onCreateChatMessage#MESSENGER_FLAGS.thread", "a thread's card is not drawn by the catch-all; the messenger draws its own, which `showPopup` keeps (R297's gmAsk card)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupKind", "kind \"none\" draws nothing; any other is a closed list (`KINDS`) on draw, and again on read (E81 C2)"],
+            ["FLAG popup.mjs#onCreateChatMessage#gmPopup", "the author's claim widens only what a GM's own screen draws, the predicate unchanged; a GM keeps what it is shown, as its own (R297)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupForce", "honoured only from a GM writer (`cardWriter`): a player's insisted whisper draws, and so keeps, nothing on a GM (R297)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupTitle", "the author's string, drawn with textContent; kept as the entry's title (R293), which the store clips to 200 characters (R292)"],
+            ["FLAG notice-history.mjs#noticeSecretStored#rerolled", "a Reroll's mark on a private card it replaced, written by a GM into the card's meta (reroll.mjs `markReplacedCard`), read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `rerolled`, no snapshot change (R295, 73-notice-history G3)"],
+            ["FLAG notice-history.mjs#noticeSecretStored#MESSENGER_FLAGS.settled", "a GM's ruling on a private call (gm-bridge.mjs `settleCall`), written into the card's meta, read from the meta alone (`cardMeta`), which a player's packet cannot fill with it (secret.mjs `GM_META`): only the closed mark `settled`, no snapshot change (R295, 73-notice-history G3)"],
+            ["FLAG popup.mjs#onCreateChatMessage#popupTone", "a closed list (`TONES`) on draw; a tone outside it refused on read (E81 C2)"],
+            ["DELETE incident-store.mjs#retireOpeningNotices", "the module takes back the opening's request cards with its withdraw option: every browser's entry of them goes with the card (R295, 13-murder-signals)"],
+            ["DELETE murder-rules.mjs#undoLastCrisis", "a crisis taken back deletes its receipt card with the withdraw option: every browser's entry of it goes with the card (R295)"],
+            ["DELETE season-setup.mjs#deleteMessages", "the season reset deletes in batches without the withdraw option (R295): an entry stays, marked deleted, until the epoch clears every section of this world at the next read or write (R297)"],
+            ["HOOK popup.mjs#registerPopups#createChatMessage", "the catch-all's registration; the road is the catch-all's SURFACE row (R297)"],
+            ["HOOK popup.mjs#registerPopups#deleteChatMessage", "a deleted message closes its card on screen as withdrawn - `onDeleteChatMessage`, a `drpg-dismiss` and no click on its X, so the entry is not read (R295); whether the entry stays is the history's own hook"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#deleteChatMessage", "`noticeCardDeleted`: the module's withdraw option, from a GM's deletion (the user Foundry hands the hook), takes the entry out with a tombstone; any other deletion - a player's with the option, `deleteAll` in the options or not - leaves it marked deleted and an open one unread (R295, 73-notice-history B and G3)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#updateChatMessage", "`noticeCardChanged`: a GM's update (the user Foundry hands the hook) whose own changes set `rerolled` or `settled` marks the entry; a player's update, or a GM's that sets neither, marks nothing; the snapshot and the state do not move (R295, 73-notice-history G3)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgSecretStored", "`noticeSecretStored` once a private card's words and meta are stored (secret.mjs `remember`): its `rerolled` and `settled` travel in the meta, read alone - never the document's flags; only a mark (R295, 73-notice-history G3). New words on an open card are its observer's (R293)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "another of the module's stores found the storage full (`keepRoom`: the private cards, every GM store, the drawn rolls kept readable): the history gives its room back before that store's one more try - every other world's section, then the older half of this login's, the budgets halved for the session; when this world's other accounts' sections leave no room for this login's newest entry, what is left is written and this login's history is kept in memory from then on (`crowdedOut`, the window's footer saying so) - and writes nothing of anybody's text that it did not hold (R298)"],
+            ["HOOK notice-history.mjs#registerNoticeHistory#storage", "another tab's write of the setting: its copy of this login's section merged into memory, nothing written (R292); the window and the badge follow it through `onNoticeHistoryChange` (E81 C7 and C8)"],
+            ["STORE settings.mjs#noticeHistory#recorder", "written only by this client's engine (`recordNotice`) into this login's section `<world>.<user>`, within the budgets of the A7 design's 1a; `id`, `at` and the clock this client's, never the caller's (R292); `showPopup` records every card it draws since E81 C3 (R293)"],
+            ["STORE settings.mjs#noticeHistory#otherTab", "merged at every write and on the `storage` event: the union by id, one entry per message and source, nothing at or before a Clear and nothing buried (R292); drawn only through the window's render helper (E81 C2 and C7)"],
+            ["STORE settings.mjs#noticeHistory#otherAccount", "kept in the value as it was written and never read into this login's history; readable from this browser's console, the risk the owner accepted on 11.10.2026 (Q9; the GM's handbook, E81 C15); never cut to make room for this login, which is kept in memory instead (`trimValue`, R292 and R298); cleared with every section of this world by a reset that clears one of `EPOCH_GROUPS`, and by no other (R297)"],
+            ["STORE settings.mjs#noticeHistory#otherWorld", "never read; the first to go when the value is over its budget, the least recently written first (R292)"],
+            ["STORE settings.mjs#noticeHistory#console", "a raw value is read through the entry's shape every time - ids /^[A-Za-z0-9]{16}$/, closed lists of source, state and mark, a `v` other than 1 read as empty (a newer one left alone, this client's kept in memory), `link.messenger` an existing user (R292); kind and tone against popup.mjs's lists, and the html cleaned at render (E81 C2)"],
+            ["WINDOW notice-history-app.mjs#window#snapshot", "expanded lazily through the history's one road (`noticeSnapshot`: a template, both cleaning steps again, `importNode` into `div.drpg-notice-snapshot`), remembered by id; never `showPopup`, a sound or a chat message (R296; R294's window half; 30-security)"],
+            ["WINDOW notice-history-app.mjs#window#title", "the title, the text, the author's name and the time set as text nodes: markup in a stored title is shown as its characters (R294's window half)"],
+            ["WINDOW notice-history-app.mjs#window#search", "the query folded and matched on text; the highlight built of text nodes and `<mark>` elements whose only content is text (R296)"],
+            ["WINDOW notice-history-app.mjs#window#conversation", "\"Open conversation\" calls `openMessenger` once with the entry's `link.messenger`, which the read held to an existing user; a player asking for another's thread is refused there (messenger-app.mjs `openMessenger`, R296)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const NOTICE_FILES = /^(?:popup|notice-history)\.mjs$/;
+        const CALLS = /\b(showPopup|showWaiting|recordNotice|updateNotice|sayNotDone|cardFlag|cardMeta|getFlag)\s*\(/g;
+        const HOOKS = /\bHooks\.on\(\s*["'](createChatMessage|updateChatMessage|deleteChatMessage|drpgSecretStored|drpgStorageFull)["']|\baddEventListener\(\s*["'](storage)["']/g;
+        const STORE_SOURCES = ["recorder", "otherTab", "otherAccount", "otherWorld", "console"];
+        const WINDOW_SINKS = ["snapshot", "title", "search", "conversation"];
+        const censusOf = (sources, settings) => {
+            const found = [], sites = new Map();
+            const add = key => {
+                const n = (sites.get(key) ?? 0) + 1;
+                sites.set(key, n);
+                found.push(n === 1 ? key : `${key} (${n})`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                for (const m of blank.matchAll(CALLS)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    const decl = declAt(m.index), name = m[1];
+                    if (name === "showPopup" || name === "showWaiting") add(`SURFACE ${file}#${decl}${name === "showWaiting" ? "#showWaiting" : ""}`);
+                    else if (name === "recordNotice" || name === "updateNotice") add(`RECORD ${file}#${decl}${name === "updateNotice" ? "#updateNotice" : ""}`);
+                    else if (name === "sayNotDone") { if (decl !== "sayNotDone") add(`NOTDONE ${file}#${decl}`); }
+                    else if (NOTICE_FILES.test(file) && (file !== "popup.mjs" || decl === "onCreateChatMessage")) {
+                        const flag = callArgs(blank, m.index + m[0].length - 1).args[1];
+                        if (!flag) continue;
+                        const text = code.slice(flag.start, flag.end).trim();
+                        add(`FLAG ${file}#${decl}#${text.match(/^(["'`])(.*)\1$/s)?.[2] ?? text}`);
+                    }
+                }
+                for (const m of blank.matchAll(/\bmessages\??\.get\s*\(/g)) {
+                    const { close } = callArgs(blank, m.index + m[0].length - 1);
+                    if (/^\s*\??\.\s*delete\s*\(/.test(blank.slice(close + 1, close + 40))) add(`DELETE ${file}#${declAt(m.index)}`);
+                }
+                for (const m of blank.matchAll(/\bChatMessage\b[\w$.]*\.deleteDocuments\s*\(/g)) add(`DELETE ${file}#${declAt(m.index)}`);
+                if (NOTICE_FILES.test(file)) for (const m of code.matchAll(HOOKS)) add(`HOOK ${file}#${declAt(m.index)}#${m[1] ?? m[2]}`);
+            }
+            if (Object.hasOwn(settings ?? {}, "noticeHistory")) for (const source of STORE_SOURCES) add(`STORE settings.mjs#noticeHistory#${source}`);
+            if (sources.some(([file]) => file === "notice-history-app.mjs")) for (const sink of WINDOW_SINKS) add(`WINDOW notice-history-app.mjs#window#${sink}`);
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["SURFACE", "RECORD", "NOTDONE", "FLAG", "DELETE", "HOOK", "STORE", "WINDOW"];
+        const planted = censusOf([
+            ["planted.mjs", "// showPopup(\"a comment is no road\");\nexport function shown(html) {\n    return showPopup(html, { title: \"showWaiting(\" });\n}\n"
+                + "export function sayNotDone(action) {\n    return sayNotDone(action);\n}\nfunction refused() {\n    sayNotDone(\"vote.cast\", \"noGm\");\n}\n"
+                + "async function kept(entry) {\n    await recordNotice(entry);\n    recordNotice(entry);\n    updateNotice(entry.id, {});\n}\n"
+                + "Hooks.on(\"drpgMessengerMessage\", async () => (await import(\"./popup.mjs\"))\n    .showWaiting(\"...\"));\n"
+                + "export async function retire(id) {\n    await game.messages.get(id)?.delete();\n    Hooks.on(\"deleteChatMessage\", retire);\n}\n"
+                + "async function reset(ids) {\n    await ChatMessage.deleteDocuments(ids);\n    game.messages.get(ids[0]);\n}\n"],
+            ["popup.mjs", "export function registerPopups() {\n    Hooks.on(\"createChatMessage\", onCreateChatMessage);\n    Hooks.on(\"renderChatMessage\", onCreateChatMessage);\n}\n"
+                + "async function onCreateChatMessage(message) {\n    if (!message.getFlag(MODULE_ID, MESSAGE_FLAG)) return;\n    const kind = cardFlag(message, \"popupKind\") ?? \"info\";\n}\n"
+                + "function elsewhere(message) {\n    return cardFlag(message, \"popupTone\");\n}\n"],
+            ["notice-history-app.mjs", "export class NoticeHistoryApp {}\n"]
+        ], { noticeHistory: "noticeHistory" });
+        equal(JSON.stringify(planted), JSON.stringify(["SURFACE planted.mjs#shown", "NOTDONE planted.mjs#refused", "RECORD planted.mjs#kept",
+            "RECORD planted.mjs#kept (2)", "RECORD planted.mjs#kept#updateNotice",
+            "SURFACE planted.mjs#Hooks.on(drpgMessengerMessage)#showWaiting", "DELETE planted.mjs#retire", "DELETE planted.mjs#reset",
+            "FLAG popup.mjs#onCreateChatMessage#MESSAGE_FLAG", "FLAG popup.mjs#onCreateChatMessage#popupKind", "HOOK popup.mjs#registerPopups#createChatMessage",
+            ...STORE_SOURCES.map(source => `STORE settings.mjs#noticeHistory#${source}`), ...WINDOW_SINKS.map(sink => `WINDOW notice-history-app.mjs#window#${sink}`)]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(0, 3), [["SURFACE planted.mjs#shown", ""], ["NOTDONE planted.mjs#refused", ""], ["HOOK popup.mjs#registerPopups#gone", ""]])),
+            JSON.stringify({ unclassified: ["RECORD planted.mjs#kept"], stale: ["HOOK popup.mjs#registerPopups#gone"] }),
+            "the census judge does not tell a planted road without a row, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(["SURFACE", "NOTDONE", "FLAG", "DELETE", "HOOK"].every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, NOTICE_CENSUS);
+        log(`R472: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${NOTICE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a notice road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E81 commit that will) and strike the gone one");
+
+        /*
+         * WHAT A ROW PROMISES (E81 fix r2-H4, 13.10.2026; review round 2's P18 and P29). The rows above said a safeword
+         * card and a murder refusal were "kept to the season's reset", and the safeword's, the recorder's, the give-way's
+         * and the other account's rows named no case where an entry is held only in this page's memory - where the
+         * engine has two (a write that fails twice, and `trimValue` when this world's other accounts fill the value,
+         * R292 and R298). The orchestrator's decision of 13.10: every text that makes the promise says its limits or
+         * stops promising. So no row says "to the season's reset", and each of those five roads names "in memory".
+         */
+        const MEMORY = ["SURFACE safeword.mjs#showGmDetail", "SURFACE safeword.mjs#raiseCard", "RECORD popup.mjs#showPopup",
+            "HOOK notice-history.mjs#registerNoticeHistory#drpgStorageFull", "STORE settings.mjs#noticeHistory#otherAccount"];
+        const textOf = new Map(NOTICE_CENSUS);
+        equal(JSON.stringify({ promise: NOTICE_CENSUS.filter(([, text]) => /to the season's reset/.test(text)).map(([key]) => key),
+            memory: MEMORY.filter(key => !/\bin memory\b/.test(textOf.get(key) ?? "")) }), JSON.stringify({ promise: [], memory: [] }),
+            "[the census rows that still promise a notice is kept \"to the season's reset\"; the rows of the five roads that can end in memory only that do not say \"in memory\"]");
     }],
 
     ["R113 - one door in and out of the Class Trial: every road writes the phase through setClock, and only reconcilePhase's followPhase moves the table on the phase's change", async () => {
@@ -8533,6 +8771,12 @@ const REGRESSIONS = [
          * on a fixture: a declaration, a call of two, a call of three, and a third argument only in a comment. Tier 2's
          * "End the trial moves the living to the GM's room" moves the tokens; scenario 41 i drives the window on four
          * browsers. Red before C3b: no call of `gatherEveryone` handed a third argument, and there was no `returnTheLiving`.
+         * E81 DZ6 (12.10.2026): the hall is cleared by the stage, not hidden - `leaveTrialScene` activates the destination,
+         * then `stageHall` deletes the module's tokens and hides the GMs', then gathers; inside `stageHall` the record
+         * notes the seats with the ids still named, then the one delete, then the ids written null, so a stop between
+         * any two leaves the record naming at most a token that is gone (design 3.2). Red at 4f4c24b: no `stageHall`.
+         * E81 fix r1-D3 (12.10.2026; the DZ6 design's 5): the third argument also hands `only`, the hall's cast
+         * (`castActorIds`), so the gather moves nobody the GMs left unticked. Red at 3148dc0: it handed no `only`.
          */
         const code = raw => stripComments(String(raw ?? ""));
         const gathers = files => {
@@ -8567,20 +8811,24 @@ const REGRESSIONS = [
         const elsewhere = name => sources.filter(([file, raw]) => file !== "trial-scene.mjs" && file.endsWith(".mjs") && new RegExp(`\\b${name}\\b`).test(stripStrings(code(raw)))).map(([file]) => file);
         const leave = fnSource(scene, "leaveTrialScene");
         const opening = leave.split("\n").slice(1, 4).map(line => line.trim());
+        const leaving = ["destination.activate()", "stageHall(", "returnTheLiving("].map(text => leave.indexOf(text));
+        const stage = /^export async function stageHall\(/m.test(scene) ? fnSource(scene, "stageHall") : "";
+        const staging = [/await writeSeats\(hall, Object\.fromEntries\(left\.map\(token => \[token\.actorId, \{ x: token\.x, y: token\.y, token: token\.id \}\]\)\)\)/,
+            /deleteEmbeddedDocuments\(/, /token: null \}\]\)\);[\s\S]*?await writeSeats\(hall, patch\)/].map(re => stage.search(re));
         const close = fnSource(ui, "closeTrial");
         const order = ["setTrialExit({ sceneId, room })", "setClock(", "} finally {", "setTrialExit(null);"].map(text => close.indexOf(text));
         const ask = fnSource(ui, "askTrialExit"), end = fnSource(ui, "endClassTrial");
         equal(JSON.stringify([calls.map(([at, n]) => `${at}/${n}`).sort(), calls.find(([at]) => at === "trial-scene.mjs#returnTheLiving")?.[2] ?? null,
             whoCalls("returnTheLiving"), elsewhere("returnTheLiving"),
-            leave.indexOf("hideTrialTokens(") >= 0 && leave.indexOf("hideTrialTokens(") < leave.indexOf("returnTheLiving("), opening,
+            leaving.every((at, i) => at >= 0 && (i === 0 || at > leaving[i - 1])), staging.every((at, i) => at >= 0 && (i === 0 || at > staging[i - 1])), opening,
             order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), elsewhere("setTrialExit"),
             [...ask.matchAll(/action: "(\w+)"/g)].map(m => m[1]), /const exit = await askTrialExit\(notChapter\);[\s\S]*return closeTrial\(exit\);/.test(end)]),
             JSON.stringify([["call-effects.mjs#gatherEffect/2", "call-world.mjs#runPendingGather/2", "chapter.mjs#runDiscovery/2", "trial-scene.mjs#returnTheLiving/3"],
-                "{ held: flagsHeldNow, box: true }",
-                ["leaveTrialScene"], [], true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
+                "{ held: flagsHeldNow, box: true, only }",
+                ["leaveTrialScene"], [], true, true, ["const exit = trialExit;", "trialExit = null;", "if (!game.user?.isGM || !hall) return null;"],
                 true, ["trial-floor-ui.mjs"], ["ok", "cancel"], true]),
             "[every call of gatherEveryone, by its file and function, with how many arguments it hands; what returnTheLiving hands as the third; who calls returnTheLiving there, and which other file names it; "
-            + "leaveTrialScene hides the hall before it gathers; its first three lines; closeTrial holds the choice, writes the phase, and drops it in a finally, in that order; "
+            + "leaveTrialScene activates the destination, then clears the hall (stageHall), then gathers; stageHall writes the seats with the ids still named, deletes, then writes the ids null (E81 DZ6); its first three lines; closeTrial holds the choice, writes the phase, and drops it in a finally, in that order; "
             + "the files besides trial-scene.mjs naming setTrialExit; End the trial's buttons; endClassTrial hands the window's answer to closeTrial]");
     }],
 
@@ -10462,19 +10710,22 @@ const REGRESSIONS = [
                 `the ${lang} handbooks say of a rename, the stairs or a room's scene what the code does not do, a copied guide differs from its key, or an old sentence is back (each claim: [the code, ...its sentences])`);
         }
     }],
-    ["R438 - the Scenes tab, the scene navigation and the hotbar are shown to a GM in every theme and hidden for a player", async () => {
+    ["R438 - the Scenes tab is shown to a GM in every theme and hidden for a player; the scene navigation and the hotbar are hidden for everybody in every theme", async () => {
         /*
-         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab and the hotbar
-         * from everybody, the GM included, and Stained Glass alone gave the tab back to the GM - by a body class,
-         * the selector shape the rail's comment records as failing on a long-lived client - while taking the
-         * scene navigation away from the GM. Under Legacy a GM had no scene directory to build the trial hall in
-         * (D7). Each of the three is now hidden unless the element itself carries the class the GM's client puts
-         * on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides one of them
-         * either leaves out the GM's class (`:not(.drpg-gm-...)`) or has a twin - the same selector with the class
-         * on the element - that shows it; no rule hides the element WITH the class, and none shows it by a body
-         * class. The jsdom half (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
+         * E13 C7, 12.10.2026; S12-18 (plan-E13 2.3, LIVE-E13-09). The base sheet hid the Scenes tab from everybody,
+         * the GM included, and Stained Glass alone gave it back to the GM - by a body class, the selector shape the
+         * rail's comment records as failing on a long-lived client. Under Legacy a GM had no scene directory to build
+         * the trial hall in (D7). The tab is now hidden unless the element itself carries the class the GM's client
+         * puts on it (GM_CHROME in gm-panel.mjs). Read in every sheet of module.json: a rule that hides it either
+         * leaves out the GM's class (`:not(.drpg-gm-scenes)`) or has a twin - the same selector with the class on the
+         * element - that shows it; no rule hides the element WITH the class, and none shows it by a body class.
+         * E13 C7 gave the GM the scene navigation and the hotbar the same way; DZ5 (the owner, 12.10.2026, E81 fix
+         * r1-G6) hides both for everybody in every theme again: the base sheet hides each with the element alone as
+         * the subject (no class, no `:not(`), NO rule in any sheet gives either a display other than none (whatever
+         * the selector, body class or element class), and GM_CHROME neither names nor re-stamps them. The jsdom half
+         * (what a GM's and a player's client compute) is 00-boot's "GM chrome" check.
          */
-        const TARGETS = [["#hotbar", "drpg-gm-hotbar"], ["#scene-navigation", "drpg-gm-nav"], ['[data-tab="scenes"]', "drpg-gm-scenes"]];
+        const TARGETS = [['[data-tab="scenes"]', "drpg-gm-scenes"]], HIDDEN = ["#hotbar", "#scene-navigation"];
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const rules = [];
         for (const href of manifest.styles ?? []) {
@@ -10506,20 +10757,27 @@ const REGRESSIONS = [
             }
             defaults[element] = hides.some(r => r.sheet === "styles/danganronpa.css" && !/(^|\s)body\b/.test(r.sel));
         }
+        for (const element of HIDDEN) {
+            const about = rules.filter(r => r.subject.includes(element));
+            for (const r of about.filter(r => r.display !== "none")) problems.push(`${r.sheet}: "${r.sel}" shows ${element} (display: ${r.display})`);
+            defaults[element] = about.some(r => r.sheet === "styles/danganronpa.css" && r.display === "none" && r.sel === element);
+        }
         equal(JSON.stringify({ defaults, problems }),
-            JSON.stringify({ defaults: Object.fromEntries(TARGETS.map(([element]) => [element, true])), problems: [] }),
-            "the base sheet no longer hides one of the three from a player, or a rule hides it from the GM in a theme");
+            JSON.stringify({ defaults: Object.fromEntries([...TARGETS.map(([element]) => element), ...HIDDEN].map(element => [element, true])), problems: [] }),
+            "the base sheet no longer hides the Scenes tab from a player or the navigation or the hotbar from everybody, or a rule shows the navigation or the hotbar, or hides the tab from the GM, in a theme");
 
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" }).split("\n");
+        const chrome = bodyOf(panel, "const GM_CHROME = [", { until: "];" });
         const mark = fnSource(panel, "markGmChrome");
         equal(JSON.stringify({
-            stamped: TARGETS.map(([element, cls]) => chrome.some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            stamped: TARGETS.map(([element, cls]) => chrome.split("\n").some(line => line.includes(`"${cls}"`) && line.includes(element))),
+            unstamped: [...HIDDEN, "drpg-gm-hotbar", "drpg-gm-nav"].filter(name => chrome.includes(name)),
             gmOnly: /^\s*if \(!game\.user\?\.isGM\) return;/m.test(mark) && mark.indexOf("isGM") < mark.indexOf("classList.add"),
-            hooks: ["renderSidebar", "renderSceneNavigation", "renderHotbar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            hooks: ["renderSidebar"].map(hook => new RegExp(`"${hook}"[^\\n]*Hooks\\.on\\(hook, markGmChrome\\)`).test(fnSource(panel, "registerGmChrome"))),
+            unhooked: ["renderSceneNavigation", "renderHotbar"].filter(hook => panel.includes(`"${hook}"`)),
             launcher: /markGmChrome\(\)/.test(fnSource(panel, "injectLauncher"))
-        }), JSON.stringify({ stamped: [true, true, true], gmOnly: true, hooks: [true, true, true], launcher: true }),
-            "a GM's client no longer puts the class on one of the three, puts it on a player's, or stops doing it when the sidebar, the navigation or the hotbar draws again");
+        }), JSON.stringify({ stamped: [true], unstamped: [], gmOnly: true, hooks: [true], unhooked: [], launcher: true }),
+            "a GM's client no longer puts the class on the Scenes tab, puts it on a player's, stops doing it when the sidebar draws again, or names or re-stamps the navigation or the hotbar");
     }],
     ["R440 - the handbooks state the table's rule beside Start the Class Trial and in the player's trial, and name the trial hall's tab, doors and calls as the module does, in English and in Polish", async () => {
         /*
@@ -10630,6 +10888,184 @@ const REGRESSIONS = [
         }
         ok(judged > 100, `only ${judged} plural() calls with written-out data were found - this test measured nothing`);
         equal(JSON.stringify(wrong), "[]", "[every plural() call whose data does not hold the field it counts on]");
+    }],
+
+    ["R475 - the corner's glass pane and its step off the tab rail read one list of buttons, the module's three and anything marked data-drpg-cluster", async () => {
+        /*
+         * E81 C12, 12.10.2026. glass.mjs reads the corner twice: the `launch` block cuts a pane round the union of
+         * its buttons, and `clearLaunchers` moves the same buttons inboard when Foundry's tab rail reaches them. Each
+         * had its own copy of the three ids, and a button in one list and not the other is the fault `clearLaunchers`
+         * exists for: a pane cut round a button the rail still stands on, or a button moved off a pane that was not
+         * cut for it. The owner's AM-17 of 11.10 puts the GM's and Foundry tools' buttons on the same glass (E77), so
+         * the one list is open to an attribute rather than to a fourth and fifth id. Read in the source, with the
+         * comments out: neither reading can be driven headless, where the glass is not drawn.
+         */
+        const glass = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        ok(glass.length > 0, "glass.mjs was not read - this test measured nothing");
+        const list = (/\bconst LAUNCHERS = "([^"]*)";/.exec(glass)?.[1] ?? "").split(",").map(sel => sel.trim());
+        equal(JSON.stringify(list), JSON.stringify(["#drpg-messenger-launcher", "#drpg-sound-launcher", "#drpg-book-launcher", "[data-drpg-cluster]"]),
+            "[glass.mjs's one list of the corner's buttons]");
+        equal(/\{\s*cls:\s*"launch",\s*sel:\s*([^,}]+)/.exec(glass)?.[1]?.trim() ?? null, "LAUNCHERS", "[what the launch block's pane is cut round]");
+        const clear = topLevelFunction(glass, "clearLaunchers") ?? "";
+        ok(clear.length > 0, "glass.mjs no longer declares clearLaunchers() - this test reads nothing until it is pointed at the code again");
+        equal(JSON.stringify([...clear.matchAll(/querySelectorAll\(([^)]*)\)/g)].map(m => m[1].trim()).filter(arg => /launcher|cluster|LAUNCHERS/.test(arg))), JSON.stringify(["LAUNCHERS"]),
+            "[what clearLaunchers moves off the rail]");
+    }],
+
+    ["R477 - on a stacked screen the notices' insets reach the sheet as two variables, which narrow.mjs takes away off the narrow layout, and what does not fit under the stack's ceiling waits parked in both themes", async () => {
+        /*
+         * E81 C13, 12.10.2026 (the A7 design's P8-7; S12-40). Two things the cascade cannot show headless. narrow.mjs
+         * measures how far in the tool rail and the tab rail reach, and through 1.2.74 wrote them inline as `left` and
+         * `right` with `important`: that beat the Stained Glass tile's own `!important`, and every sheet with it, so
+         * narrow.css could not take the larger of the tab rail's inset and the corner buttons' width on a short
+         * screen (R476 reads that rule). Now they are `--drpg-notices-left/right`, written plain and removed off the
+         * narrow layout and when the desk comes back. And `overflowsGlass` in popup.mjs, which parks the oldest card
+         * while the shown ones overflow their box, answered only under Stained Glass: a stacked screen under Monokuma
+         * Legacy has the same ceiling and `overflow: hidden` since E81 C13 and needs the same answer. Headless no box
+         * has a height, so whether a card fits cannot be measured here (R299 (d) does, in a browser); read in the
+         * source, with the comments out.
+         */
+        const sources = await moduleSources();
+        const narrow = stripComments(sources.get("narrow.mjs") ?? ""), popup = stripComments(sources.get("popup.mjs") ?? "");
+        ok(narrow.length > 0 && popup.length > 0, "narrow.mjs or popup.mjs was not read - this test measured nothing");
+        const fn = (src, name) => topLevelFunction(src, name) ?? "";
+        const calls = (src, method) => [...src.matchAll(new RegExp(`\\.style\\.${method}\\(([^)]*)\\)`, "g"))].map(m => m[1].split(",").map(arg => arg.trim()).filter(arg => !arg.startsWith("`")).join(" "));
+        const clear = fn(narrow, "noticesClearOfTheTools"), forget = fn(narrow, "forgetNoticeInsets"), overflows = fn(popup, "overflowsGlass");
+        const seen = {
+            names: /\bconst NOTICES_LEFT = "([^"]*)", NOTICES_RIGHT = "([^"]*)";/.exec(narrow)?.slice(1) ?? null,
+            written: calls(clear, "setProperty"),
+            offNarrow: /if \(!narrowLayout\(\)\) \{ forgetNoticeInsets\(notices\); return; \}/.test(clear),
+            removed: calls(forget, "removeProperty"),
+            onDesk: /\bforgetNoticeInsets\(notices\)/.test(fn(narrow, "restoreDesk")),
+            important: /important/.test(narrow),
+            parks: ["drpg-theme-stained-glass", "drpg-stacked"].map(name => overflows.includes(`contains("${name}")`))
+        };
+        equal(JSON.stringify(seen), JSON.stringify({
+            names: ["--drpg-notices-left", "--drpg-notices-right"],
+            written: ["NOTICES_LEFT", "NOTICES_RIGHT"],
+            offNarrow: true,
+            removed: ["NOTICES_LEFT", "NOTICES_RIGHT"],
+            onDesk: true,
+            important: false,
+            parks: [true, true]
+        }), "[narrow.mjs: the two variables' names; what noticesClearOfTheTools writes, with no priority; that it takes them away off the narrow layout; "
+            + "what forgetNoticeInsets removes; that restoreDesk calls it; no `important` left in the file - popup.mjs: overflowsGlass answers under Stained Glass "
+            + "and on a stacked screen]");
+    }],
+
+    ["R478 - the handbooks name the notice history where a player and a GM look for it, quote the window's own sentences on how long it keeps a notice, with the budgets notice-history.mjs states, and the GM's section 16 says which reset clears it, in English and in Polish", async () => {
+        /*
+         * E81 C15, 12.10.2026 (the A7 design's P13-0 and P13-1; the stage's doneWhen D8). Through 1.2.74 the player's
+         * handbook said of the notice cards "The chat log keeps them." - which a card drawn with no chat message behind
+         * it (a direct `showPopup`, `sayNotDone`) never was; since E81 a closed card is read again in the notice
+         * history. And the owner accepted on 11.10.2026 (Q9) that every account's history stays in one value of a
+         * shared browser to the season's reset, readable there from the console by any account, with the GM's
+         * handbook saying so in its section 19. So this reads the books as the table is served them: the window's own
+         * title in bold where each points at it (the player's section 16, the brochure, the GM's section 18 beside
+         * `game.drpg.openNotices()`, which must be a function on game.drpg, and the GM's section 19); the window's
+         * own sentence on how long it keeps a notice, quoted in the player's section 16 (DRPG.Notices.kept); and in
+         * section 19 the sentence the window shows a GM about a shared computer (DRPG.Notices.gmNote from its third
+         * sentence on). Quoted from the lang files rather than copied here, so a window that changes its words fails
+         * this until the books follow. Each book and lang file is asserted to have loaded, so nothing passes on an
+         * empty read. Whether a reader finds the button on a screen is LIVE-E81-02, not this.
+         *
+         * THE LIMITS (E81 fix r2-H4, 13.10.2026; review round 2's P29, P19, P32 and P33). Those sentences said a notice
+         * was kept "until the season resets", and the engine keeps less: the newest 250 in a player's history and 150 in
+         * a GM's, 40 from each other user (`BUDGET`), half of each once the history gave way, a card the module takes
+         * back, and a login kept only in memory when this world's other accounts fill the value; and a reset clears it
+         * only when it clears one of `EPOCH_GROUPS`. This test read only the title and the tail of gmNote, so it held
+         * the books to whatever the window said. Now the window's two sentences must carry the budgets read from
+         * notice-history.mjs as served (the player's kept sentence its own and the per-sender bound, the GM's
+         * shared-computer sentence the GM's and the same bound) - a stable token that follows the code, so a budget
+         * that changes fails this until the window and, through the quotes, the books say the new number - and the
+         * GM's section 16, the season reset, names the history (which reset clears it).
+         */
+        const served = new Map(await moduleSources()).get("notice-history.mjs") ?? "";
+        const budget = {
+            player: /\bplayer: Object\.freeze\(\{ entries: (\d+)/.exec(served)?.[1] ?? "",
+            gm: /\bgm: Object\.freeze\(\{ entries: (\d+)/.exec(served)?.[1] ?? "",
+            perAuthor: /\bperAuthor: (\d+)/.exec(served)?.[1] ?? ""
+        };
+        ok(budget.player && budget.gm && budget.perAuthor, `notice-history.mjs states no BUDGET this test can read (${JSON.stringify(budget)}) - its limits clause measured nothing`);
+        const names = (text, ...numbers) => numbers.every(n => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(text));
+        const measured = { call: typeof game.drpg?.openNotices === "function" };
+        const expected = { call: true };
+        const section = (text, n) => text.split(/^## /m).find(part => part.startsWith(`${n}. `)) ?? "";
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json()).then(j => j.DRPG?.Notices);
+            const title = keys?.title ?? "", kept = keys?.kept ?? "";
+            const shared = /^(?:[^.]*\.\s+){2}(.+)$/.exec(keys?.gmNote ?? "")?.[1] ?? "";
+            ok(title.length > 0 && kept.length > 20 && shared.length > 40,
+                `lang/${lang}.json has no notice history title, kept sentence or shared-computer sentence - this test measured nothing`);
+            const text = {};
+            for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 1, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
+            }
+            const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
+            const reset = section(text["gm-handbook"], 16);
+            measured[lang] = {
+                player: [tips.includes(`**${title}**`), tips.includes(`"${kept}"`)],
+                brochure: text["player-brochure"].includes(`**${title}**`),
+                gm: [look.includes(`**${title}**`), look.includes("`game.drpg.openNotices()`")],
+                safeword: [safeword.includes(`**${title}**`), safeword.includes(`"${shared}"`)],
+                limits: [names(kept, budget.player, budget.perAuthor), names(shared, budget.gm, budget.perAuthor)],
+                reset: reset.includes(`**${title}**`)
+            };
+            expected[lang] = { player: [true, true], brochure: true, gm: [true, true], safeword: [true, true], limits: [true, true], reset: true };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[game.drpg.openNotices is a function; per language - the player's section 16: the window's title in bold, its kept sentence quoted; the brochure: the title; "
+            + "the GM's section 18: the title, `game.drpg.openNotices()`; the GM's section 19: the title, the window's shared-computer sentence quoted; "
+            + `the window's kept sentence names ${budget.player} and ${budget.perAuthor}, its shared-computer sentence ${budget.gm} and ${budget.perAuthor} (notice-history.mjs BUDGET); `
+            + "the GM's section 16: the window's title in bold]");
+    }],
+
+    ["R479 - each interface E81 hands to later stages says beside it which stages take it, and each CSS block of the history window says E44 removes it", async () => {
+        /*
+         * E81 C15, 12.10.2026 (the A7 design's P0-2 to P0-9 and K7; the stage's doneWhen D11 and risk RISK-f). E81 came
+         * before the stages it was designed after, so it left them small named interfaces rather than wait for them:
+         * `cleanCardHtml`, `noticeTime`, `recordNotice`, `ensureNoticeTile`, `setFloor`, the `drpgThemeApplied` hook,
+         * the tokens `--drpg-corner*`, `--drpg-launch-h`, `--drpg-stack-foot` and `--drpg-column-max`, and one small
+         * CSS block for its window in each of three sheets, which E44's window kit replaces. What keeps a later stage
+         * from writing one of them again as its own is the comment beside it naming who takes it and how; a comment
+         * that loses a stage, or a definition that walks away from its comment, breaks that without a sound. So for
+         * each this reads the nearest comment before the definition - in the module's source and in the stylesheets
+         * as served, comments kept - requires it to end at most 200 characters above the definition, and requires
+         * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
+         */
+        const sources = await moduleSources();
+        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""));
+        const files = new Map(sources);
+        for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"]) files.set(name, await sheet(name));
+        const TAKE = ["E18", "E23", "E49", "E55", "E77", "E78"];
+        const INTERFACES = [
+            ["secret.mjs", "export function cleanCardHtml(", ["E83"]],
+            ["notice-history.mjs", "export function noticeTime(", ["E66"]],
+            ["notice-history.mjs", "export const recordNotice =", ["E18", "E50", "E62", "E70"]],
+            ["popup.mjs", "export function ensureNoticeTile(", TAKE],
+            ["popup.mjs", "export function setFloor(", TAKE],
+            ["settings.mjs", "Hooks.callAll(\"drpgThemeApplied\")", ["E18", "E23"]],
+            ["danganronpa.css", "--drpg-corner:", TAKE],
+            ["danganronpa.css", "--drpg-launch-h:", TAKE],
+            ["danganronpa.css", "--drpg-stack-foot:", TAKE],
+            ["narrow.css", "--drpg-column-max:", ["E23"]],
+            ["danganronpa.css", ".application.drpg-window-notices:not(.minimized) {", ["E44"]],
+            ["stained-glass.css", "body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) {", ["E44"]],
+            ["narrow.css", "body.drpg-stacked .application.drpg-window-notices {", ["E44"]]
+        ];
+        ok([...files.values()].every(src => String(src ?? "").length > 0), "a source or a stylesheet did not load - this test measured nothing");
+        const measured = {}, expected = {};
+        for (const [file, marker, stages] of INTERFACES) {
+            const before = bodyOf(files.get(file), marker, { back: 6000 });
+            const last = /\/\*((?:[^*]|\*(?!\/))*)\*\/((?:[^/]|\/(?!\*))*)$/.exec(before);
+            measured[`${file} ${marker}`] = [last !== null && last[2].length <= 200, stages.filter(stage => !(last?.[1] ?? "").includes(stage))];
+            expected[`${file} ${marker}`] = [true, []];
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per interface: its nearest comment ends at most 200 characters above it, and the stages that comment does not name]");
     }]
 ];
 

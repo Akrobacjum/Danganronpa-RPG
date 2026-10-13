@@ -391,7 +391,7 @@ export async function runPendingGather() {
  * inside the region with no path to block, which is exactly what Monokuma's
  * announcement does to the cast.
  */
-export async function gatherEveryone(room, onScene = null, { held = null, box = false } = {}) {
+export async function gatherEveryone(room, onScene = null, { held = null, box = false, only = null } = {}) {
     /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09). A DEFERRED assembly passes its
        order's (`runPendingGather`), a body discovery the body's (chapter.mjs
        `runDiscovery`, since E05 fix r2-G3), and the immediate branch of a Call its
@@ -421,9 +421,13 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
        pass (H3) - so a `monocub` flag a player wrote since the last judgement does not walk a body
        out of its room. Every other caller hands nothing and reads the documents, as before:
        the body's gather is unchanged. */
+    /* ONLY THE CAST, WHEN THE CALLER NAMES ONE (E81 fix r1-D3, 12.10.2026; the owner's DZ6 of 12.10: the GM chooses
+       who takes part, "and whom not to move"). The return from the trial hands `only`, the actor ids of the hall's
+       cast (trial-scene.mjs `castActorIds`); a token of anybody else on the scene stays where it stands. Every other
+       caller hands none and gathers everybody, as before. */
     const read = held ?? (actor => actor);
     const tokens = [...scene.tokens].filter(t => {
-        if (t.actor?.type !== "character") return false;
+        if (t.actor?.type !== "character" || (only && !only.has(t.actorId))) return false;
         const actor = read(t.actor);
         return !isMonokuma(actor) && !(isDeadForGm(actor) && !isMonocub(actor));
     });

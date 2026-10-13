@@ -71,7 +71,8 @@ import { registerVoice } from "./voice.mjs";
 import { registerVoiceClient } from "./voice-client.mjs";
 import { registerMusic } from "./music.mjs";
 import { registerCameraView } from "./camera-view.mjs";
-import { registerPopups } from "./popup.mjs";
+import { registerPopups, ensureNoticeTile } from "./popup.mjs";
+import { registerNoticeHistory } from "./notice-history.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
@@ -129,9 +130,9 @@ Hooks.once("init", () => {
      * Projects and characters worth protecting. See relay-guard.mjs.
      */
     safely("the Daggerheart relay guard", registerRelayGuard);
-    // Before the check as well, for the GM's own sake: the stylesheet hides the Scenes tab, the
-    // scene navigation and the hotbar unless this stamps them, and a module that stops below
-    // would otherwise take them from the GM too (E13 fix r1-F3; S12-18; R470). It reads no setting.
+    // Before the check as well, for the GM's own sake: the stylesheet hides the Scenes tab unless
+    // this stamps it, and a module that stops below would otherwise take it from the GM too (E13
+    // fix r1-F3; S12-18; R470). It reads no setting.
     safely("the GM's chrome", registerGmChrome);
 
     // THREE MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
@@ -231,6 +232,7 @@ Hooks.once("init", () => {
     // is the one worth getting right.
     safely("the motion layer", registerMotion);
     safely("popups", registerPopups);
+    safely("the notice history", registerNoticeHistory);
     // After popups, before anything that opens one: every module prompt is
     // something the game is waiting on, so none of them may end up under the
     // sheet that launched them. See stacking.mjs.
@@ -341,6 +343,10 @@ Hooks.once("ready", () => {
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);
+    // The notice tile with its history button in the corner (E81 C8), on an empty
+    // tile too: after the theme that draws it, before the narrow layout and the
+    // accessibility sweep that find it, and before the glass is cut around it.
+    safely("the notice tile", ensureNoticeTile);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

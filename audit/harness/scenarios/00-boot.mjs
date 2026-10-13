@@ -162,9 +162,10 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         && booted.system === environment.system.version && environment.modules.every(m => booted.modules[m.id] === m.version),
         JSON.stringify({ environment, booted }));
 
-    /* The GM's chrome (E13 C7, 12.10.2026; S12-18; R438 reads the sheets). The Scenes tab, the
-       scene navigation and the hotbar are hidden unless the element carries the class a GM's
-       client puts on it (GM_CHROME, gm-panel.mjs). The harness draws only `#hotbar`
+    /* The GM's chrome (E13 C7, 12.10.2026; S12-18; R438 reads the sheets). The Scenes tab is
+       hidden unless the element carries the class a GM's client puts on it (GM_CHROME,
+       gm-panel.mjs); the scene navigation and the hotbar are hidden for everybody, the GM
+       included (DZ5, the owner, 12.10.2026; E81 fix r1-G6). The harness draws only `#hotbar`
        (client-entry.mjs); the other two are drawn here after the module's `ready`, their render
        hooks fired as Foundry fires them on a render, and taken away again. Read through jsdom's
        cascade in both themes: the one each client booted with, then the other (the theme is
@@ -187,9 +188,9 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         return { seen, back: game.settings.get("danganronpa-rpg", "theme") === was };`);
     const gmChrome = await chrome(gm), playerChrome = await chrome(p1);
     const themes = r => r.seen.map(s => s.theme).sort().join(",");
-    check("the GM's chrome: in both themes a GM's client shows the Scenes tab, the scene navigation and the hotbar, and a player's hides all three",
+    check("the GM's chrome: in both themes a GM's client shows the Scenes tab and hides the scene navigation and the hotbar, and a player's hides all three",
         [gmChrome, playerChrome].every(r => r.back && themes(r) === "drpg-theme-monokuma-legacy,drpg-theme-stained-glass")
-        && gmChrome.seen.every(s => s.hotbar && s.nav && s.scenes)
+        && gmChrome.seen.every(s => !s.hotbar && !s.nav && s.scenes)
         && playerChrome.seen.every(s => !s.hotbar && !s.nav && !s.scenes),
         JSON.stringify({ gm: gmChrome, p1: playerChrome }));
 
@@ -200,7 +201,7 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
        time: the hotbar as `ready` left it, then the navigation drawn and its render fired, then the Scenes tab drawn and
        the sidebar's render fired - `markGmChrome` stamps every element there is, so one hook fired before an element is
        read would answer for the others. Until the fix the chrome was registered after the check, and a GM there
-       computed all three hidden. */
+       computed all three hidden; since DZ5 only the Scenes tab is the GM's, the other two stay hidden. */
     await connect("gmoff", { modulesOff: ["avclient-livekit"] });
     await settle(300);
     const stopped = await gmoff.eval(`const drawn = [];
@@ -217,8 +218,8 @@ export async function run({ gm, gmoff, p1, p2, p3, check, note, settle, connect,
         drawn.forEach(el => el.remove());
         return read;`);
     await disconnect("gmoff");
-    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off still shows the Scenes tab, the scene navigation and the hotbar",
-        stopped.stopped === true && stopped.gm === true && stopped.hotbar && stopped.nav && stopped.scenes, JSON.stringify(stopped));
+    check("the GM's chrome when the module stops: a GM whose world has LiveKit switched off still shows the Scenes tab, and the scene navigation and the hotbar stay hidden",
+        stopped.stopped === true && stopped.gm === true && !stopped.hotbar && !stopped.nav && stopped.scenes, JSON.stringify(stopped));
 
     await settle(300);
 }

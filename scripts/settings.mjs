@@ -390,6 +390,8 @@ export const SETTINGS = {
     rollDrawWarned: "rollDrawWarned",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
     readableRolls: "readableRolls",
+    /** Every notice this browser showed each of its users, by world and user, within its budgets to the season's reset (E81 C1, notice-history.mjs). */
+    noticeHistory: "noticeHistory",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1504,6 +1506,16 @@ export function registerSettings() {
     /* The roller's own drawn rolls, so a reload still lets them read what they rolled
        (E08+E28 fix r2-H7, private-rolls.mjs `readHere`); a list of ids per world and user. */
     game.settings.register(MODULE_ID, SETTINGS.readableRolls, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    /* The notice history (E81 C1, notice-history.mjs): what this browser showed each user who logged in
+       here, by world and user, within its budgets to the season's reset. Written only by this client's engine; a registered
+       setting, so the suite's world dump reads it (R159), and held for the length of tier 2 (R473). */
+    game.settings.register(MODULE_ID, SETTINGS.noticeHistory, {
         scope: "client",
         config: false,
         type: Object,
@@ -3102,6 +3114,13 @@ export function applyTheme() {
     // The clock carries the theme's ticker and, under Monokuma Legacy, the three
     // rows the Event panel takes over; a switch redraws it so neither lingers.
     if (game.ready) import("./hud.mjs").then(m => m.renderHud?.()).catch(() => {});
+    /* `drpgThemeApplied`: the body's classes now say which theme and which layout this client draws (E81 C10,
+       12.10.2026; the A7 design's P0-9). The notice tile listens (popup.mjs `watchWidgets`): under Monokuma Legacy
+       it stands under the clock with an inline `top`, which Stained Glass clears, so a switch without a reload
+       has to give it back. Called once the classes are set and before the narrow layout, the curtain and the clock -
+       each imported above - have run, so a listener reads the classes, not the blocks' new places. An interface
+       later stages take as it is: E18 (the stack into the corner) and E23 (a clock of one height). */
+    Hooks.callAll("drpgThemeApplied");
 }
 
 /*

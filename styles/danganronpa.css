@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.74";
+    --drpg-css-version: "1.2.75";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -266,6 +266,11 @@
        edge under them; drawn on the speaker's grid for the same reason. */
     --drpg-pix-book: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h3v1h-3zM20 3h3v1h-3zM1 4h6v1h-6zM17 4h6v1h-6zM1 5h9v1h-9zM14 5h9v1h-9zM1 6h2v1h-2zM4 6h7v1h-7zM13 6h7v1h-7zM21 6h2v1h-2zM1 7h3v1h-3zM7 7h4v1h-4zM13 7h4v1h-4zM20 7h3v1h-3zM1 8h2v1h-2zM4 8h3v1h-3zM9 8h2v1h-2zM13 8h2v1h-2zM17 8h3v1h-3zM21 8h2v1h-2zM1 9h3v1h-3zM7 9h4v1h-4zM13 9h4v1h-4zM20 9h3v1h-3zM1 10h2v1h-2zM4 10h3v1h-3zM9 10h2v1h-2zM13 10h2v1h-2zM17 10h3v1h-3zM21 10h2v1h-2zM1 11h3v1h-3zM7 11h4v1h-4zM13 11h4v1h-4zM20 11h3v1h-3zM1 12h2v1h-2zM4 12h3v1h-3zM9 12h2v1h-2zM13 12h2v1h-2zM17 12h3v1h-3zM21 12h2v1h-2zM1 13h3v1h-3zM7 13h4v1h-4zM13 13h4v1h-4zM20 13h3v1h-3zM1 14h6v1h-6zM9 14h2v1h-2zM13 14h2v1h-2zM17 14h6v1h-6zM1 15h10v1h-10zM13 15h10v1h-10zM0 16h1v1h-1zM4 16h7v1h-7zM13 16h7v1h-7zM23 16h1v1h-1zM0 17h4v1h-4zM7 17h4v1h-4zM13 17h4v1h-4zM20 17h4v1h-4zM4 18h3v1h-3zM10 18h1v1h-1zM13 18h1v1h-1zM17 18h3v1h-3zM7 19h3v1h-3zM11 19h2v1h-2zM14 19h3v1h-3zM10 20h4v1h-4z'/%3E%3C/svg%3E");
 
+    /* 12x12 pixel stack of two sheets - the notice history's button in the corner of
+       the notice tile (E81 C8). Twelve cells, half the launchers' grid, because the
+       button is 28 px and not 40: one CSS pixel to a cell, sharp at that size too. */
+    --drpg-pix-history-12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h8v1H3zM3 2h1v2H3zM10 2h1v6h-1zM9 7h1v1H9zM1 4h8v1H1zM1 5h1v5H1zM8 5h1v5H8zM1 10h8v1H1zM3 6h4v1H3zM3 8h3v1H3z'/%3E%3C/svg%3E");
+
     /* 24x24 pixel line-art d12 - a dodecahedron face-on: decagon silhouette,
        pentagon face, five spokes. Drawn for the roll dialog (the two duality
        dice and the Roll button), where the system's rendered SVG dice and
@@ -279,25 +284,56 @@
 
     --drpg-edge: 22px;
 
-    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
-       The chat launcher takes its 66px from the performance gauge at the other
-       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
-       must agree. The sound launcher then takes its size and its offset FROM
-       the chat one, because it is stacked on top of it: hard-coding 52 and 66
-       in three places is how a stack ends up overlapping itself the next time
-       the gauge changes. Which is exactly what happened while this was being
-       built. */
+    /* THE THREE CORNER BUTTONS, ON ONE GRID (E81 C12, 12.10.2026).
+       The chat launcher keeps the 66 px it takes from the performance gauge at the other
+       end of the bottom edge (Dawid, 26.08) - two ends of the same line that must agree.
+       The other two are one size, 44, because the owner's grid puts them side by side
+       under it: settings at the bottom left, the handbooks at the bottom right against the
+       wall, the chat above and between them (his Q3 of 07.10 named the places; AM-18 of
+       11.10 asked for one honeycomb grid with equal gaps; AM-21 of 12.10 accepted
+       "variant B" from the grid mockup). Two hexagons touching in a triangle force the
+       pair side by side to one size, which is why the 52/40 of 1.2.74 could not stay: on
+       one lattice at those sizes the gaps came out 3.38, 8.62 and 4.50 px (grid.mjs,
+       variant A, 12.10). The chat's unread badge, which stands out of its top-right
+       corner and overlapped the 40 px book by 2 px until the other two stepped inboard (22.09),
+       clears the book by 44.9 px on the grid's hexagons and 52.6 on its circles (grid.mjs).
+       Every position below is derived from these sizes, the gap and the row, so changing
+       one size without the row it implies opens or closes a gap - which R474 and R299 (a)
+       read as a failure rather than a picture somebody has to look at. */
     --drpg-launcher: 66px;
-    --drpg-launcher-small: 52px;
-    /* THE THIRD, AND THE SMALLEST: the handbooks (Dawid, 22.09). It stands at
-       the wall with its centre level with the midpoint between the other two
-       centres, and those two step inboard by its width plus the 8 px they keep
-       between themselves. Its width alone was measured first: the circles
-       cleared by 9.7 and 16.7 px, but the chat's unread badge, which stands
-       out of its top-right corner, overlapped the book by 2. With the 8 px:
-       badge 5.5, chat 16.2, settings 23.2 (Monokuma Legacy, 1920 x 1080). */
-    --drpg-launcher-book: 40px;
-    --drpg-book-lane: calc(var(--drpg-launcher-book) + 8px);
+    --drpg-launcher-small: 44px;
+    --drpg-launcher-book: 44px;
+    /* The gap between every two neighbours, flat side to flat side under Stained Glass and
+       rim to rim between the circles of Monokuma Legacy. */
+    --drpg-launch-gap: 6px;
+    /* The handbooks' own height over the bottom line (AM-17 asked for a token of its own,
+       so a later stage can lift it without restating the chat's place): on the grid it
+       stands on the bottom line with settings. */
+    --drpg-launch-b-bottom: 0px;
+    /* THE ROW: how far the chat's centre stands over the other two's. Monokuma Legacy draws
+       circles, and two circles 6 px apart rim to rim with their centres 25 px apart across
+       (half of 44 + 6) stand sqrt(61^2 - 25^2) = 55.64 px apart down. Stained Glass draws
+       the clip-path hexagon and overrides this beside it (47.88, stained-glass.css). Not a
+       calc() of the sizes: the formula is a square root here and a slanted side's normal
+       there, and a number with its derivation beside it is the one a reader can check. */
+    --drpg-launch-row: 55.64px;
+
+    /* The notice history's button in the notice tile's bottom-right corner (E81 C8,
+       the A7 design's step 7): a 28 px shape 6 px in from the corner. `reach` is how
+       far the hit area stands out past the shape on every side - none with a mouse,
+       8 px on a touch screen, which makes the 44 px target the design asks for out of
+       the same 28 px shape (the media rule with the button's block). Tokens later stages
+       take as they are, with `ensureNoticeTile` and `setFloor` (popup.mjs; the A7 design's
+       P0-8): E18, E23, E49 and E55 use them and do not rewrite them, and E77 and E78 take
+       them over with the corner. */
+    --drpg-corner: 28px;
+    --drpg-corner-inset: 6px;
+    --drpg-corner-reach: 0px;
+    /* And the room the card under it leaves the button (E81 C9, the design's P7-5): from the
+       tile's corner, the inset, the shape and at least 6 px clear of it - or the reach, where
+       the hit area stands out further. 40 px with a mouse, 46 on a touch screen; read where it
+       is used (popup.mjs `setFloor`, the floor card's rules beside `.drpg-popup-body`). */
+    --drpg-corner-room: calc(var(--drpg-corner-inset) + var(--drpg-corner) + max(6px, var(--drpg-corner-reach)));
 
     /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
        close to the heavy, squared lettering Danganronpa sets its menus in, and
@@ -562,6 +598,41 @@
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
     --drpg-r-give:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
+}
+
+/* THE CORNER'S PLACES, DERIVED (E81 C12, 12.10.2026). Declared on `body`, not in :root,
+   because a custom property's var() is resolved where it is declared: from :root these
+   would have missed the Stained Glass row (declared on `body.drpg-theme-stained-glass`)
+   and the camera dock's lift (camera-view.mjs writes `--drpg-av-lift` inline on `body`),
+   and resolved them with the Legacy row and no lift. Measured in Chromium on the grid
+   mockup's page with these sheets (12.10): moved to :root, the Stained Glass gaps came out
+   12.77 px instead of 6, and with a 300 px lift the roster's foot stayed 292 px under the
+   chat's top, over the buttons it opens from. Headless the harness resolves an inherited
+   var() where it is read, so R474 cannot see the move there; in a browser it does.
+   Each place is from the cluster's bottom-right corner, before the edge margin:
+     the handbooks  0, `--drpg-launch-b-bottom` - at the wall, on the bottom line;
+     settings       the book's width and the gap in from the wall, on the bottom line;
+     the chat       its centre over the midpoint of the other two centres (B/2 and
+                    B + gap + S/2, so 3B/4 + gap/2 + S/4 in from the wall) and one row
+                    over their centres (S/2 + row - L/2 above the bottom line).
+   Variant B's numbers (mockup/grid.txt): chat 14, 36.88 under Stained Glass and 14, 44.64
+   under Monokuma Legacy; settings 50, 0; the handbooks 0, 0. */
+body {
+    --drpg-launch-m-right: calc(var(--drpg-launcher-book) * 0.75 + var(--drpg-launch-gap) / 2
+        + var(--drpg-launcher-small) / 4 - var(--drpg-launcher) / 2);
+    --drpg-launch-m-bottom: calc(var(--drpg-launcher-small) / 2 + var(--drpg-launch-row)
+        - var(--drpg-launcher) / 2);
+    --drpg-launch-s-right: calc(var(--drpg-launcher-book) + var(--drpg-launch-gap));
+    /* THE TWO TOKENS LATER STAGES TAKE (the A7 design's step 0, P0-8): how tall the corner
+       is from its bottom line to the chat's top - 102.88 px under Stained Glass, 110.64
+       under Monokuma Legacy - and where anything that stands over the corner starts: the
+       edge, that height, 8 px, and the camera dock's lift. The GM's roster sits on the foot
+       here (messenger.css). The A7 design has the narrow layout's notice stack take the
+       foot in C13, E18, E23, E49 and E55 read both without rewriting them, and E77 and E78,
+       which add the GM's and Foundry tools' buttons in the cells over settings and the
+       handbooks, take them over. */
+    --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
+    --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
 }
 
 /* Shared pixel-sprite plumbing.
@@ -1515,6 +1586,7 @@ body.drpg-hide-system-fear #resource-fear {
 .drpg-mini-button:focus-visible,
 .drpg-advance-button:focus-visible,
 .drpg-popup-close:focus-visible,
+.drpg-popup-more:focus-visible,
 .character-header-sheet .drpg-action-pip.gm-editable:focus-visible,
 #drpg-despair.gm-editable .drpg-despair-pip:focus-visible {
     outline: 2px solid var(--drpg-gold);
@@ -6150,6 +6222,28 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     pointer-events: auto;
     cursor: help;
 }
+/* "+N" AS A BUTTON (E81 C11, 12.10.2026; audit S11-39). While the stack holds a card that is not sticky,
+   "+N" closes every such card (popup.mjs `closeLoose`), so it is a button with the close button's target -
+   its 1.6rem height, its pointer, its hover and, in the focus list above, its ring - and keeps the label's
+   frame, which is what reads as a count. The label with the help cursor is left for a stack of sticky cards
+   only. Under Stained Glass its colour is the close button's by the title band's `:is(button, i)` rule
+   (stained-glass.css). The 44 px touch target is E63's; how it draws is not measured here (no browser). */
+.drpg-popup-title button.drpg-popup-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    box-shadow: none;
+    cursor: pointer;
+}
+.drpg-popup-title button.drpg-popup-more:hover {
+    opacity: 1;
+    background: rgba(var(--drpg-eye-rgb), 0.14);
+}
 
 .drpg-popup-close {
     flex: 0 0 auto;
@@ -7738,15 +7832,14 @@ html body {
 
 /* --- surfaces this game does not use ------------------------------------ */
 
-/* No macros for a player: every action in this game is a button on the sheet
-   or a tile in the GM panel, and the bar was 60px of screen explaining
-   nothing. The GM keeps it (E13 C7, 12.10.2026; S12-18): the repository
-   carries five macro scripts (macros/) and a GM's own macros need the bar,
-   which had gone for the GM as well. `drpg-gm-hotbar` is the element class
-   the GM's client puts on it (GM_CHROME in gm-panel.mjs), the scene
-   navigation's pattern below - hidden unless the class is there, so a client
-   the module never ran on hides it. */
-#hotbar:not(.drpg-gm-hotbar) {
+/* No macro bar for anybody: every action in this game is a button on the
+   sheet or a tile in the GM panel, and the bar was 60px of screen explaining
+   nothing. E13 C7 (12.10.2026; S12-18) gave it back to the GM by an element
+   class (`drpg-gm-hotbar`); the owner had it gone again the same day (DZ5,
+   "niepotrzebne", on a tablet), so it is hidden for everybody in every theme
+   as in 1.2.73. The five macros the repository carries (macros/) and a GM's
+   own run from the Macro Directory. */
+#hotbar {
     display: none !important;
 }
 
@@ -7872,7 +7965,9 @@ html body {
    scene the GM builds and links in Room Setup > Scenes (D7), so the GM keeps it
    in every theme (E13 C7, 12.10.2026; S12-18: until then only Stained Glass gave
    it back). A player has no tiles at all; the class is put on the button by the
-   GM's client (GM_CHROME in gm-panel.mjs), as on the scene navigation below. */
+   GM's client (GM_CHROME in gm-panel.mjs). Since DZ5 (the owner, 12.10.2026)
+   the scene navigation is hidden for the GM too, so this tab is now the GM's
+   one door to the scenes. */
 #sidebar-tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes),
 #sidebar .tabs button.ui-control[data-tab="scenes"]:not(.drpg-gm-scenes) {
     display: none !important;
@@ -8134,11 +8229,12 @@ body.drpg-theme-monokuma-legacy .tab-navigation nav.sheet-tabs a {
 }
 
 /* --- the corner launchers ------------------------------------------------ */
-/* The messenger circle sits in one corner of the bottom edge and the
+/* The messenger button sits in one corner of the bottom edge and the
    performance gauge in the other, and at 74px against the gauge's 66px the
-   two ends of the same line disagreed (Dawid, 26.08). The circle takes the
-   gauge's height - still the largest control on the player's screen, now
-   level with its opposite number. */
+   two ends of the same line disagreed (Dawid, 26.08). The button takes the
+   gauge's height - still the largest control on the player's screen. Since
+   E81 C12 it stands over the other two rather than level with the gauge: the
+   corner's grid is in the tokens at the top of this sheet. */
 #drpg-messenger-launcher {
     width: var(--drpg-launcher) !important;
     height: var(--drpg-launcher) !important;
@@ -12787,6 +12883,34 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     line-height: 1.5;
 }
 
+/* THE CARD AT THE BOTTOM OF THE TILE LEAVES THE CORNER TO THE HISTORY'S BUTTON (E81 C9; the A7
+   design's P7-5). popup.mjs `setFloor` marks the oldest card shown `drpg-popup-floor` and one
+   element of its body the tail. Under the last line, the body's own 9 px above or as much as
+   `--drpg-corner-room` asks less that line, whichever is more; on the last line, a spacer as wide
+   as the room and 4 px more, so the words stop short of the button rather than run under it, and
+   where the card ends in a table, a rule or a flex block (`-block`) a line of its own. Both themes:
+   Stained Glass states no padding of its own for the body. The floor by child combinators, so an
+   element of a card's own text that names that class reaches nothing; a tail class anywhere in the
+   tile but on the one tail `setFloor` takes off. What it costs and whether the text and the button
+   meet is measured only in a browser (R299 (b)); the design's estimate is 11.5 px more padding here
+   at 13 px type (17.5 on a touch screen), about 6 (12) under Stained Glass, and a line when the
+   last one is full. */
+#drpg-popups > .drpg-popup-floor > .drpg-popup-body {
+    padding-bottom: max(9px, calc(var(--drpg-corner-room) - 1lh));
+}
+#drpg-popups > .drpg-popup-floor .drpg-corner-tail::after {
+    content: "";
+    display: inline-block;
+    width: calc(var(--drpg-corner-room) + 4px);
+    height: 1lh;
+    vertical-align: bottom;
+}
+#drpg-popups > .drpg-popup-floor .drpg-corner-tail-block::after {
+    content: "";
+    display: block;
+    height: 1lh;
+}
+
 .drpg-popup-body :is(h3, h4) {
     margin: 0 0 4px;
     font-size: var(--drpg-text-xs);
@@ -12986,29 +13110,26 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 /* ==========================================================================
    THE SOUND LAUNCHER
    --------------------------------------------------------------------------
-   A second circle, stacked on the chat one. It takes the slot messenger.css
-   describes a few hundred lines further down as "a reserved slot above this
-   one for a button that stopped existing" - the Casebook's. The slot was right;
-   only its occupant was wrong.
+   A second button beside the chat one. Under both themes it wears the gear
+   (stained-glass.css, "the settings launcher") and opens the Look dialog - the
+   two volumes and the look of this browser (sfx.mjs) - so the owner calls it
+   settings.
 
-   Two circles stacked have to be told apart at a glance and without reading
-   either icon, so they differ in the two things the eye takes first:
-   SIZE (52 against 66) and COLOUR (bone against eye). Bone is the module's
-   neutral - this button changes nothing about the game, only about what this
-   one browser hears - and the chat's eye-violet keeps meaning "somebody may be
-   talking to you".
+   The two have to be told apart at a glance and without reading either icon,
+   so they differ in the two things the eye takes first: SIZE (44 against 66)
+   and COLOUR (bone against eye). Bone is the module's neutral - this button
+   changes nothing about the game, only about what this one browser hears and
+   sees - and the chat's eye-violet keeps meaning "somebody may be talking to
+   you".
 
-   Centred over the larger one rather than aligned to the same right edge, so
-   the two read as one stack instead of two buttons that happen to be near each
-   other.
+   It stood centred over the chat until E81 C12; on the corner's grid it stands
+   on the bottom line, under the chat's left half, with the handbooks the gap
+   to its right (the tokens at the top of this sheet).
    ========================================================================== */
 #drpg-sound-launcher {
     position: fixed;
-    /* Centred over the larger circle, and clear of it by 8px. Both derived, so
-       the stack survives the next change to either size. */
-    right: calc(var(--drpg-edge) + var(--drpg-book-lane, 0px)
-        + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
-    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px + var(--drpg-av-lift, 0px));
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right));
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-small);
     height: var(--drpg-launcher-small);
@@ -13055,16 +13176,13 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 }
 
 /* ---- the handbooks button ------------------------------------------------------
-   The smallest of the three, at the wall. Its centre is level with the midpoint of
-   the chat circle's centre (edge + L/2) and the settings circle's (edge + L + 8 +
-   S/2), which is edge + 3L/4 + 4 + S/4: derived from the same two sizes, so the
-   three stay a group when either changes. */
+   At the wall, on the bottom line beside settings, under the chat's right half (E81
+   C12; until then the smallest of the three, centred level with the midpoint of the
+   other two). Its height over the line is a token of its own, zero on the grid. */
 #drpg-book-launcher {
     position: fixed;
     right: var(--drpg-edge);
-    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) * 0.75 + 4px
-        + var(--drpg-launcher-small) / 4 - var(--drpg-launcher-book) / 2
-        + var(--drpg-av-lift, 0px));
+    bottom: calc(var(--drpg-edge) + var(--drpg-launch-b-bottom) + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-book);
     height: var(--drpg-launcher-book);
@@ -13788,54 +13906,23 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* ---- the scene button, and the rest of the left rail's geometry --------- */
 
-/* The scene navigation is the GM's - a player has one scene and no business
-   being reminded of the others. Hidden by DEFAULT and shown by the class the
-   GM's own client puts on it (GM_CHROME, gm-panel.mjs) - the fail-safe
-   direction: a client where the module never ran shows a player nothing
-   extra, and the ancestor-class trap documented on the rail above cannot
-   reopen it. */
+/* The scene navigation is hidden for everybody in every theme (DZ5, the
+   owner, 12.10.2026: "niepotrzebne"). A player has one scene and no business
+   being reminded of the others; the GM had it under Legacy by an element
+   class (`drpg-gm-nav`, E13 C7) and under Stained Glass not at all, and now
+   switches scenes from the Scenes tab, which stays the GM's (above). Its
+   dress rules (the scene buttons, the player dots) went with the class:
+   nothing shows the bar any more. */
 #scene-navigation {
-    display: none !important;
-}
-
-#scene-navigation.drpg-gm-nav {
-    display: flex !important;
-}
-
-/* Module dress for the scene buttons: transparent, red, a hairline - the
-   launcher's palette at rail volume. The player dots are hidden: who is
-   standing on which scene is the roster question again, and the corner
-   already stopped answering it (see the players gauge). */
-#scene-navigation .ui-control.scene {
-    background: transparent !important;
-    border: 1px solid rgba(var(--drpg-eye-rgb), 0.45) !important;
-    border-radius: 3px !important;
-    color: var(--drpg-eye) !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-}
-
-#scene-navigation .ui-control.scene:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.1) !important;
-    border-color: var(--drpg-eye) !important;
-    color: var(--drpg-eye-light) !important;
-}
-
-#scene-navigation .ui-control.scene.active {
-    border-color: var(--drpg-eye) !important;
-    color: var(--drpg-eye-light) !important;
-}
-
-#scene-navigation .scene-players {
     display: none !important;
 }
 
 /* The whole left flank starts where the right flank does. Measured: the
-   right column and the Despair bars sit at y=22, the left column and the
-   scene navigation at y=16 - six pixels of visible disagreement across the
-   top of the screen. Same top, same 16px side margins both flanks. */
-#ui-left-column-1,
-#scene-navigation {
+   right column and the Despair bars sit at y=22, the left column (and the
+   scene navigation, while it showed) at y=16 - six pixels of visible
+   disagreement across the top of the screen. Same top, same 16px side
+   margins both flanks. */
+#ui-left-column-1 {
     margin-top: 6px;
 }
 
@@ -16703,4 +16790,257 @@ body .application.sheet.actor.character .character-sidebar-sheet .drpg-resource-
 body .application.sheet.actor.character .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > .drpg-resource-bar {
     height: calc(0.62rem * var(--drpg-slider-scale, 1)) !important;
+}
+
+/* ---- The notice history window (E81 C7) -------------------------------------------------
+   E44 REMOVES THIS BLOCK in the commit that moves the window onto its window kit, which takes
+   over the chips, the empty state and the scroll signal (the A7 design, P10-0; E81's risk
+   RISK-f), and with it the two smaller blocks marked the same way in stained-glass.css and
+   narrow.css. Only the list scrolls: the chips, the search, the banner and the foot keep their
+   height, so the foot stays in view however long the history is - R299 (e) measures it, in a
+   browser only. An entry is never a `.drpg-popup` (the scenarios count cards by that class),
+   so a kept card's body is drawn in `.drpg-notice-snapshot` with a few rules of its own. */
+.application.drpg-window-notices:not(.minimized) {
+    max-height: calc(100vh - 16px);
+    display: flex;
+    flex-direction: column;
+}
+.drpg-window-notices .window-content { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 10px 12px; }
+.drpg-notices-body { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; }
+.drpg-notices-body > :is(.drpg-notices-chips, .drpg-notices-search, .drpg-notices-banner, .drpg-notices-new, .drpg-notices-foot) { flex: 0 0 auto; }
+.drpg-notices-body [hidden] { display: none !important; }
+.drpg-notices-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.drpg-notices-chips button {
+    height: 24px !important;
+    padding: 0 8px !important;
+    border-radius: 12px;
+    font-size: var(--drpg-text-xs);
+    border: 1px solid var(--drpg-line-strong);
+    background: transparent;
+    color: inherit;
+    white-space: nowrap;
+}
+.drpg-notices-chips button b { font-variant-numeric: tabular-nums; margin-left: 4px; opacity: 0.8; }
+.drpg-notices-chips button[aria-pressed="true"] { background: var(--drpg-bone); color: var(--drpg-ink) !important; border-color: var(--drpg-bone); }
+.drpg-notices-chips button:disabled { opacity: 0.4; }
+.drpg-notices-search { display: flex; }
+.drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; font-size: var(--drpg-text-sm); color: inherit; }
+.drpg-notices-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border-left: 3px solid var(--drpg-bone);
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    font-size: var(--drpg-text-sm);
+}
+.drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation {
+    flex: 0 0 auto;
+    height: 24px !important;
+    padding: 0 8px !important;
+    font-size: var(--drpg-text-xs);
+}
+.drpg-notices-new { align-self: center; height: 22px !important; padding: 0 10px !important; border-radius: 11px; font-size: var(--drpg-text-xs); }
+.drpg-notices-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+.drpg-notices-group { margin: 6px 0 1px; border: 0; font-size: var(--drpg-text-xs); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
+details.drpg-notices-fold > summary { cursor: pointer; font-size: var(--drpg-text-xs); text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; padding: 4px 0; }
+details.drpg-notice-entry { --seam: var(--drpg-bone); border-left: 3px solid var(--seam); background: rgba(var(--drpg-bone-rgb), 0.035); padding: 5px 8px; }
+details.drpg-notice-entry > summary { list-style: none; display: grid; grid-template-columns: 14px 1fr auto; gap: 1px 7px; align-items: start; cursor: pointer; }
+details.drpg-notice-entry > summary::-webkit-details-marker { display: none; }
+.drpg-notice-glyph {
+    width: 12px;
+    height: 12px;
+    margin-top: 2px;
+    background: currentColor;
+    opacity: 0.85;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    --drpg-px-mask: var(--drpg-px-note);
+}
+.drpg-src-public .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+.drpg-src-player .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-team); }
+.drpg-src-messenger .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-chat); }
+.drpg-src-evidence .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bullet); }
+.drpg-src-summary .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-calendar); }
+.drpg-src-safeword .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-shield); }
+.drpg-src-notDone .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-checklist); }
+.drpg-notice-title { font-weight: 700; font-size: var(--drpg-text-sm); line-height: 1.3; overflow-wrap: anywhere; }
+.drpg-notice-time { font-size: var(--drpg-text-xs); opacity: 0.75; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.drpg-notice-text {
+    grid-column: 2 / 4;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+    opacity: 0.85;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+details.drpg-notice-entry[open] .drpg-notice-text { -webkit-line-clamp: unset; }
+.drpg-notice-tags { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--drpg-text-xs); opacity: 0.8; }
+.drpg-notice-tags span { border: 1px solid var(--drpg-line-strong); padding: 0 5px; }
+.drpg-notice-entry.is-unread .drpg-notice-title::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--drpg-bone);
+    vertical-align: 1px;
+}
+.drpg-notice-entry.is-deleted :is(.drpg-notice-title, .drpg-notice-text) { text-decoration: line-through; opacity: 0.6; }
+.drpg-notice-entry.drpg-tone-hope { --seam: var(--drpg-gold); }
+.drpg-notice-entry.drpg-tone-fear { --seam: var(--drpg-crimson); }
+.drpg-notice-entry.drpg-tone-critical { --seam: var(--drpg-crimson-light); }
+.drpg-notice-entry.drpg-src-evidence { --seam: var(--drpg-evidence); }
+.drpg-notice-entry:is(.drpg-src-notDone, .drpg-src-safeword) { --seam: var(--drpg-crimson-deep); }
+.drpg-notice-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.drpg-notice-snapshot {
+    align-self: stretch;
+    margin: 6px 0 2px;
+    padding: 6px 8px;
+    border: 1px dashed var(--drpg-line-strong);
+    font-size: var(--drpg-text-sm);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.drpg-notice-snapshot :is(p, ul, ol, dl, blockquote, table) { margin: 0 0 4px; }
+.drpg-notice-snapshot img { max-width: 100%; height: auto; }
+.drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-line-strong); }
+.drpg-notice-clipped { margin: 0; font-size: var(--drpg-text-xs); opacity: 0.8; }
+.drpg-notices-empty { padding: 28px 12px; text-align: center; opacity: 0.8; font-size: var(--drpg-text-sm); line-height: 1.5; }
+.drpg-notices-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--drpg-line-strong);
+    font-size: var(--drpg-text-xs);
+}
+.drpg-notices-foot p { margin: 0; text-align: right; opacity: 0.8; }
+@media (pointer: coarse) {
+    .drpg-notices-chips button, .drpg-notices-banner button, .drpg-notices-foot button, .drpg-notice-conversation { min-height: 44px; }
+}
+
+/* ---- The notice history's button, in the notice tile's corner (E81 C8) ----------------------
+   The owner's Q3 of 07.10.2026: the button only in the tile's bottom-right corner, no fourth
+   launcher. popup.mjs keeps it the tile's last child, and it stands `position: absolute` in the
+   tile's box: out of the column the cards stack in, so it moves no card, and inside the box the
+   glass cuts, so `overflow: hidden` on Stained Glass does not clip it. The button is the hit
+   area and draws nothing; the inert shape inside it is what is drawn, the book launcher's
+   circle at 28 px. The ring is `::before`, laid out always and shown at `:focus-visible`, so
+   R299 can measure where it would fall without a keyboard. The count is `::after`, from
+   `data-unread` - bone on ink like the launchers' rings, not red: a count of notices is not an
+   alarm. Under Monokuma Legacy on a desk an empty tile has a box of its own (E81 C10, the two
+   rules after the touch screen's sizes below); on a stacked screen the button stands only with a card shown
+   (narrow.css). */
+#drpg-popups > #drpg-notices-corner {
+    --drpg-notices-badge: var(--drpg-bone);
+    position: absolute;
+    right: calc(var(--drpg-corner-inset) - var(--drpg-corner-reach));
+    bottom: calc(var(--drpg-corner-inset) - var(--drpg-corner-reach));
+    z-index: 1;
+    width: calc(var(--drpg-corner) + 2 * var(--drpg-corner-reach));
+    height: calc(var(--drpg-corner) + 2 * var(--drpg-corner-reach));
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+    color: var(--drpg-bone) !important;
+    line-height: 0;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
+#drpg-notices-corner > .drpg-notices-shape {
+    position: absolute;
+    inset: var(--drpg-corner-reach);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35);
+    pointer-events: none;
+}
+#drpg-notices-corner:hover > .drpg-notices-shape {
+    box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45);
+}
+#drpg-notices-corner > .drpg-notices-shape > i {
+    display: block;
+    width: 12px;
+    height: 12px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-history-12);
+    mask-image: var(--drpg-pix-history-12);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+#drpg-notices-corner::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--drpg-corner-reach) - 3px);
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    opacity: 0;
+    pointer-events: none;
+}
+#drpg-notices-corner:focus-visible::before { opacity: 1; }
+#drpg-notices-corner[data-unread]::after {
+    content: attr(data-unread);
+    position: absolute;
+    top: calc(var(--drpg-corner-reach) - 6px);
+    left: calc(var(--drpg-corner-reach) - 6px);
+    box-sizing: border-box;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: var(--drpg-notices-badge);
+    color: var(--drpg-ink);
+    font-size: var(--drpg-text-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+@media (pointer: coarse) {
+    :root {
+        --drpg-corner-inset: 10px;
+        --drpg-corner-reach: 8px;
+    }
+}
+/* UNDER MONOKUMA LEGACY ON A DESK THE BUTTON STANDS ALONE UNDER THE CLOCK (E81 C10, 12.10.2026; the
+   owner's Q6 of 07.10, "Zgoda" to the A7 design's recommendation: always there, with no card too).
+   The tile has no pane under this theme and was a box of no size until a card came, so it is given
+   the box of a card - `min(27rem, 92vw)`, as `.drpg-popup` is drawn - and the button's corner room
+   in height, and the button stands in its bottom-right corner as it does on a card. An empty tile
+   goes under the window layer, one below Foundry's `--z-index-app` as the evidence stage does: at
+   99990 a lone button under the clock stood over every window dragged to the top of the screen,
+   a sheet's header among them. The first card shown takes it back to 99990 (the rule at the top of
+   the file), where a notice has to be. Its `top` follows the clock and the Despair rail without a
+   card (popup.mjs `watchWidgets`). On a stacked screen neither: the button is hidden with no card
+   (narrow.css). Measured only in a browser, R299 (b); the headless half, R298 (7). */
+body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups {
+    min-width: min(27rem, 92vw);
+    min-height: var(--drpg-corner-room);
+}
+body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) {
+    z-index: calc(var(--z-index-app, 30) - 1);
 }

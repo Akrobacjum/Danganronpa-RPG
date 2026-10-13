@@ -156,5 +156,7 @@ export default [
     { files: ["audit/harness/lib/daggerheart.mjs", "audit/harness/lib/dh-dice/**/*.mjs"], languageOptions: { globals: { ...NODE, ...FOUNDRY } } },
     // The live runner's page.evaluate functions run inside Foundry's page.
     { files: ["audit/live/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
+    // The glass sweep's page.evaluate functions run inside audit/glass-harness.html.
+    { files: ["audit/glass-sweep.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }
 ];

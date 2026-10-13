@@ -25,6 +25,25 @@
    them matches and nothing in the layout changes at all.
    ========================================================================== */
 
+/* THE STACK'S CEILING IS A TOKEN (E81 C13, the A7 design's P0-5): `#drpg-column` reads it,
+   and so does the notice stack at the foot of the screen, which stands 8 px under it (below).
+   Two numbers in two places had been one fact - how far down the stack may reach - and a
+   later stage that moves it (E23's S12-05) now changes this value and nothing else. The
+   values are 1.2.74's, unchanged. */
+body.drpg-stacked { --drpg-column-max: 52dvh; }
+/* Sideways on a phone there is no height to give away, so the stack keeps more of
+   what little there is and the board gets the rest - but never so much of it that it
+   reaches the corner buttons. With 1.2.74's corner, 22 px off the bottom and 126 tall,
+   a stack of 60 % at 386 px of height reached the messenger button: measured, three
+   overlapping pairs and the Projects tray off the screen at 640 x 360. Since E81 C12 the
+   corner is `--drpg-launch-h` tall, 102.88 px under Stained Glass and 110.64 under
+   Monokuma Legacy, so at 640 x 360 and at 844 x 390 alike this ceiling ends 37.12 px above
+   the chat's top under Stained Glass and 29.36 under Monokuma Legacy (worked out from the
+   tokens, as R476 reads them; not measured in a browser). 170 is left as it was: since
+   E81 C13 the notices stand beside the buttons here, under this ceiling, rather than over
+   them. */
+body.drpg-stacked.drpg-short { --drpg-column-max: min(60dvh, calc(100dvh - 170px)); }
+
 /* The stack itself: where Foundry's columns are, over the board, scrolled rather
    than allowed to grow over the map. The shell takes no clicks - the board under
    it must stay reachable where the stack is only air - and every block in it
@@ -43,20 +62,14 @@
     flex-direction: column;
     align-items: stretch;
     gap: 4px;
-    max-height: 52dvh;
+    max-height: var(--drpg-column-max);
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
     pointer-events: none;
 }
 #drpg-column > * { pointer-events: auto; }
-/* Sideways on a phone there is no height to give away, so the stack keeps more of
-   what little there is and the board gets the rest. */
-/* ...but never so much of it that the launchers stand in the stack. They are fixed to
-   the bottom-right corner and about 150 px tall with their margin, so at 386 px of height
-   a stack of 60 % reached the messenger button - measured, three overlapping pairs and the
-   Projects tray off the screen at 640 x 360. */
-body.drpg-short #drpg-column { max-height: min(60dvh, calc(100dvh - 170px)); gap: 2px; }
+body.drpg-short #drpg-column { gap: 2px; }
 
 /* THE GAP OPENS EXACTLY WHERE THERE IS GLASS TO PUT IN IT.
    The seam between two rows of the stack runs the full width and may not reach into
@@ -176,26 +189,110 @@ body.drpg-stacked #drpg-player-status { min-height: 0; }
    reserving room in the middle of the screen. */
 body.drpg-stacked #ui-top:empty { display: none; }
 
-/* The notices come from the top of the screen, which is where the stack is now.
-   They go to the bottom instead, clear of the launchers, and take the width they
-   are given rather than the 330 px they are drawn for. */
-body.drpg-stacked #drpg-popups {
-    top: auto;
-    bottom: 96px;
-    left: 8px;
-    right: 8px;
+/* THE NOTICES ON A STACKED SCREEN (E81 C13, the A7 design's P8-7; S12-40). `drpg-stacked` is
+   any screen under 1224 px of width (`BREAKPOINTS.narrow`, settings.mjs), whatever its height;
+   `drpg-short` is one under 620 px of height, and only with `drpg-stacked` does it change
+   anything here. The notices come from the top of the screen, which is where the stack of
+   blocks is now, so they stand at the foot instead: 8 px over the corner buttons
+   (`--drpg-stack-foot`, which carries the camera dock's lift), from the tool rail's inset to
+   the tab rail's (`--drpg-notices-left/right`, measured by narrow.mjs), and no higher than
+   8 px under the stack of blocks at its tallest (`--drpg-column-max`). What does not fit
+   under that ceiling is parked, as on the Stained Glass tile (popup.mjs `overflowsGlass`), and
+   one card taller than it scrolls.
+   THE CEILING HAS A FLOOR OF 96 PX (E81 fix r2-H2, review round 2's P25). Worked out from the
+   screen alone it reached nothing: measured 13.10.2026 in Chromium on the glass harness, it was
+   252 px at 393 x 852 and 132 px at 844 x 390 as the page stands, and 0 px at both with a camera
+   dock of 300 and 195 px (min(300 px, half the screen), R299 (c)'s), so the newest card had no
+   height and the history's button stood in the corner of nothing. 96 px is a card's title and two
+   lines (the fix list's figure, kept); a stack that tall can then reach under the blocks' stack,
+   which is the lesser fault: a card that is there to be read. glass-sweep.mjs reads both.
+   Through 1.2.74 this was a plain `bottom: 96px`, and each theme beat it: Stained Glass
+   states its tile's foot and height with `!important` (stained-glass.css), so the tile kept
+   its desk foot (`--drpg-note-foot`, 100 px on the scale until glass.mjs fits it) and its
+   desk height; under Monokuma Legacy the inline `top` popup.mjs writes under the clock beat
+   `top: auto`, so the stack ran from under the clock down to 96 px off the bottom. Either
+   way it stood on the corner's buttons, 22 to 148 px off the bottom then (the A7 design's
+   114 x 126 corner; S12-40). Hence the `!important` here,
+   and the theme's own selector beside the plain one: an `!important` against an `!important`
+   is decided by specificity before order. */
+body.drpg-stacked {
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-stack-foot)));
+}
+body.drpg-stacked #drpg-popups,
+body.drpg-theme-stained-glass.drpg-stacked #drpg-popups {
+    top: auto !important;
+    bottom: var(--drpg-stack-foot) !important;
+    left: var(--drpg-notices-left, 8px) !important;
+    right: var(--drpg-notices-right, 8px) !important;
+    /* The tile has a STATED width under Stained Glass - the audit page's 330 px, on the
+       scale - and a stated width beats the left/right pair, so the tile stayed 280 px wide
+       and ran back under the sidebar's tabs. Measured at 393 x 852: 48 x 136 of it behind
+       the rail. Here the two insets decide it. */
+    width: auto;
+    max-width: none;
+    height: auto !important;
+    max-height: var(--drpg-stack-max);
+    overflow: hidden;
     transform: none;
     align-items: stretch;
 }
-body.drpg-stacked #drpg-popups > * { max-width: none; width: auto; }
-/* The tile itself has a STATED width under Stained Glass - the audit page's 330 px,
-   on the scale - and a stated width beats the left/right pair the corner rule sets,
-   so the tile stayed 280 px wide and ran back under the sidebar's tabs. Measured at
-   393 x 852: 48 x 136 of it behind the rail. Here the two insets decide it. */
-body.drpg-stacked #drpg-popups {
-    width: auto;
+/* The cards and nothing else: the history's button in the tile's corner (E81 C8) keeps the
+   size it is drawn at. One card taller than the ceiling scrolls inside itself, as it does on
+   the Stained Glass tile.
+   AND NO CARD IS SQUEEZED (E81 fix r2-H2, review round 2's P24): `flex: 0 0 auto`. A card is a
+   flex item of the tile's column, and with `overflow-y: auto` its least height is 0, so under
+   Monokuma Legacy the capped tile shrank every card it showed instead of overflowing: measured
+   13.10.2026 in Chromium on the glass harness, four cards of three lines drawn 56 px tall over
+   219 of their own at 393 x 852 (26 over 115 at 844 x 390) - four scrolling slivers - and
+   `overflowsGlass`, which adds up those heights, read that they fit, so nothing was ever parked.
+   Stained Glass was spared by its own `flex: 1 0 auto`, which this replaces on a stacked screen,
+   where the tile has no height of its own to grow into.
+   A card taller than the stack then stops at the stack's ceiling and scrolls - with
+   `box-sizing: border-box`, or the ceiling is its content's and its frame stands out of the tile:
+   a card of 400 words was 254 px in a 252 px tile at 393 x 852 under Monokuma Legacy, its foot
+   cut by the tile's `overflow: hidden`. `max-height: 100%`, the review's first proposal, caps
+   nothing here, since the tile's height is `auto`: the same card was drawn 8385 px tall
+   (Chromium, 13.10.2026; glass-sweep.mjs reads the long card inside the tile). */
+body.drpg-stacked #drpg-popups > .drpg-popup {
+    flex: 0 0 auto;
+    box-sizing: border-box;
     max-width: none;
+    width: auto;
+    max-height: var(--drpg-stack-max);
+    overflow-y: auto;
 }
+/* SIDEWAYS ON A PHONE THERE IS NO ROOM OVER THE BUTTONS, so the notices stand beside them,
+   on the screen's bottom line, as far in from the wall as the corner reaches - settings'
+   place and size, the farthest in of the three - and 24 px more. That is 140 px from the
+   wall with E81 C12's corner (the A7 design's 160 was its own formula on 1.2.74's, 114 px
+   wide). The ceiling is the same 8 px under the stack of blocks: 132 px at 844 x 390 and at
+   640 x 360 (worked out from the tokens, R476; not measured in a browser). Under Stained
+   Glass the buttons step inboard of the tab rail by `--drpg-launch-clear` (glass.mjs) and the
+   notices with them; under Monokuma Legacy they do not move. */
+body.drpg-stacked.drpg-short {
+    --drpg-stack-max: max(96px, calc(100dvh - 8px - var(--drpg-column-max) - 8px - var(--drpg-edge) - var(--drpg-av-lift, 0px)));
+}
+body.drpg-stacked.drpg-short #drpg-popups {
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px)) !important;
+    right: max(var(--drpg-notices-right, 8px),
+        calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launcher-small) + 24px)) !important;
+}
+body.drpg-theme-stained-glass.drpg-stacked.drpg-short #drpg-popups {
+    right: max(var(--drpg-notices-right, 8px),
+        calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launcher-small)
+            + var(--drpg-launch-clear, 0px) + 24px)) !important;
+}
+/* The GM's roster opens over that stack (E81 C12, the A7 design's P8-7): the cards run the
+   screen's width here and stand at 99990 (danganronpa.css, `#drpg-popups`), so at its own 71
+   the panel the GM just asked for opened under a notice. One over the cards; on a desk the
+   cards stand in the other corner and the 71 is left alone. */
+body.drpg-stacked #drpg-messenger-roster { z-index: 99991; }
+/* With no card shown the history's button is not drawn here (E81 C10; the owner's Q6 of 07.10, in
+   both themes): alone it would stand some 14 px above the messenger (the A7 design's estimate,
+   not measured), a fourth button in the corner the owner's Q3 rules out. The keybinding and
+   `game.drpg.openNotices()` stay the way in; a card brings the button back in its corner.
+   R298 (7) reads the rule, R299 (b) the button hidden. */
+body.drpg-stacked #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) > #drpg-notices-corner { display: none; }
 
 /* ---- windows -------------------------------------------------------------
    `scaleWindow` in settings.mjs already keeps a window's SIZE inside the screen
@@ -213,3 +310,13 @@ body.drpg-stacked .application {
    comes back onto a phone by itself; pinning it here would have taken dragging
    with it and answered a question Foundry had already answered. Worth a look on a
    real phone, since that clamp is the one part of this not measured here. */
+
+/* The notice history on a stacked screen (E81 C7; E44 removes this with the window's block in
+   danganronpa.css): the screen less 8 px a side at most, the chips in one row that scrolls
+   sideways, the time under the title. Its place is left to Foundry's clamp, as above. */
+body.drpg-stacked .application.drpg-window-notices { width: min(420px, calc(100vw - 16px)) !important; }
+body.drpg-stacked .drpg-notices-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body.drpg-stacked .drpg-notices-chips button { flex: 0 0 auto; }
+body.drpg-stacked details.drpg-notice-entry > summary { grid-template-columns: 14px 1fr; }
+body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
+body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }

@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, topLevelFunction, STANDING, watchLog
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1653,6 +1653,15 @@ const INVARIANTS = [
          * 22.09 (Dawid): a third corner button, the smallest, at the wall and level with
          * the seam between the chat and settings circles. It opens the Student Brochure
          * and the Player Handbook for everybody and the GM Handbook for a GM.
+         * E81 C12, 12.10.2026: the owner's grid (Q3 of 07.10, AM-18 and AM-21) moved all
+         * three, so the three readings below say the grid's version of what they said -
+         * the chat over the midpoint of the other two (it was one book and 8 px inboard
+         * of the book), the book at the wall (it was level with the midpoint of the other
+         * two centres), the chat the largest and the other two one size (the book was
+         * the smallest) - and two are new: settings on the bottom line, and the chat
+         * above it. The stage's plan asked for today's three to stay; on the grid each
+         * of them is false, so they are rewritten rather than kept. The grid's own
+         * numbers are R474's (headless) and R299 (a)'s.
          */
         const { booksFor, handbookHtml, openHandbooks } = await import("./handbooks.mjs");
         equal(booksFor({ isGM: false }).map(b => b.id).join(), "player-brochure,player-handbook",
@@ -1672,13 +1681,15 @@ const INVARIANTS = [
         const px = (el, prop) => Number.parseFloat(getComputedStyle(el)[prop]);
         const chat = document.getElementById("drpg-messenger-launcher");
         const gear = document.getElementById("drpg-sound-launcher");
-        const lane = px(chat, "right") - px(book, "right");
-        equal(Math.round(lane), Math.round(book.offsetWidth + 8), "the chat circle is not one book and 8 px inboard of the book");
-        const centre = (el) => px(el, "bottom") + el.offsetHeight / 2;
-        ok(Math.abs(centre(book) - (centre(chat) + centre(gear)) / 2) < 1,
-            "the book is not level with the midpoint of the chat and settings circles");
-        ok(book.offsetWidth < gear.offsetWidth && gear.offsetWidth < chat.offsetWidth,
-            "the book is not the smallest of the three");
+        const across = el => px(el, "right") + el.offsetWidth / 2, centre = el => px(el, "bottom") + el.offsetHeight / 2;
+        ok(Math.abs(across(chat) - (across(book) + across(gear)) / 2) < 1,
+            "the chat button is not centred over the midpoint of the book and settings");
+        ok(px(book, "right") <= Math.min(px(chat, "right"), px(gear, "right")) + 0.5, "the book is not the one at the wall");
+        ok(book.offsetWidth === gear.offsetWidth && gear.offsetWidth < chat.offsetWidth,
+            "the chat button is not the largest, or the book and settings are not one size");
+        ok(Math.abs(px(gear, "bottom") - px(book, "bottom")) < 0.5 && px(gear, "bottom") < px(chat, "bottom"),
+            "settings does not stand on the bottom line with the book");
+        ok(centre(chat) > px(gear, "bottom") + gear.offsetHeight, "the chat button does not stand above settings");
 
         // Every book in both languages ships and comes out as a handbook, with no ids
         // that could shadow Foundry's own (#chat, #players).
@@ -1937,7 +1948,7 @@ const INVARIANTS = [
         const closers = [];
         try {
             for (const n of ["R109 one", "R109 two", "R109 three", "R109 four", "R109 five"]) {
-                closers.push(showPopup(`<p>${n}</p>`, { title: "R109" }));
+                closers.push(showPopup(`<p>${n}</p>`, { title: "R109", record: false }));
                 await wait(120);
             }
             equal(all().length, 5, "a notice was dismissed to make room");
@@ -6551,7 +6562,12 @@ const INVARIANTS = [
          * before they read a hall token, the arrival judge asks before it reads the room it holds (scenario 41 b1 read that
          * room predating the link, 12.10.2026), and a character's token is taken off a scene's list by its actor only in
          * remnants.mjs `tokenFor` (after `locateActor`) and cleanup.mjs `applyMoveBody` - the victim's token on the scene
-         * `locateActor` found the cleaner on, so not `here.tokenDoc`, the cleaner's own, as plan 1.x 9 offered. The
+         * `locateActor` found the cleaner on, so not `here.tokenDoc`, the cleaner's own, as plan 1.x 9 offered. Since
+         * E81 DZ6 (12.10.2026) also by trial-scene.mjs `readTrialCast`, `saveTrialCast` and `castRowsByActor`, which read
+         * the hall's cast as the hall's cast - the token a 1.2.74 row was kept under - and never as a place. Two of them
+         * call `find?.(`, which this census did not see until then; it reads that form too since. E81 fix r1-D2 adds
+         * the stage's three, which ask the same of the hall alone: `stageHall` (who of the cast has no token there),
+         * `handPlacedActors` and `castPickerHtml` (whom the module will not make one for and the GMs placed none). The
          * tier-2 "the trial hall is no place ..." reads it on documents. Red before C1: rooms.mjs had no `sceneRole`.
          */
         const R = await import("./rooms.mjs");
@@ -6589,7 +6605,7 @@ const INVARIANTS = [
             "[`roomPieces`' first line, `isPlaceScene`'s, `sceneHoldsRooms`'; whether `placesOf` skips a scene that is no place before it reads a token, "
             + "`sceneRoomWarnings` the hall before it reads its rooms, `followsVoice` asks about the hall, and `arrivalVerdict` asks before it reads a room]");
 
-        const TAKEN = /\btokens\??\.(?:find|filter|some)\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.actorId\b/g;
+        const TAKEN = /\btokens\??\.(?:find|filter|some)(?:\?\.)?\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.actorId\b/g;
         const DECLARED = /^(?:export )?(?:async )?function (\w+)\(/gm;
         const taken = [];
         for (const [file, raw] of sources) {
@@ -6597,7 +6613,9 @@ const INVARIANTS = [
             const text = stripComments(raw);
             for (const m of text.matchAll(TAKEN)) taken.push(`${file}#${[...text.slice(0, m.index).matchAll(DECLARED)].at(-1)?.[1] ?? "(top level)"}`);
         }
-        equal(JSON.stringify([...new Set(taken)].sort()), JSON.stringify(["cleanup.mjs#applyMoveBody", "remnants.mjs#tokenFor"]),
+        equal(JSON.stringify([...new Set(taken)].sort()), JSON.stringify(["cleanup.mjs#applyMoveBody", "remnants.mjs#tokenFor",
+            "trial-scene.mjs#castPickerHtml", "trial-scene.mjs#castRowsByActor", "trial-scene.mjs#handPlacedActors", "trial-scene.mjs#readTrialCast",
+            "trial-scene.mjs#saveTrialCast", "trial-scene.mjs#stageHall"]),
             "the functions that take a character's token off a scene's list by its actor, outside `locateActor`'s walk of the place scenes");
     }],
 
@@ -6633,7 +6651,8 @@ const INVARIANTS = [
         /* And the way back (E13 C3, 12.10.2026; plan-E13 2.3's R115 rows, the owner's answer Q-E13-1 b): leaving the trial
            takes the table to the linked school, else to the scene the trial opened from (`trialReturnTo`), never to the
            hall, and with neither the GMs are told and nothing changes. Asked of plain scenes, and in the source of
-           `leaveTrialScene`: it whispers `noSchool` and returns before it activates or hides anything. Red before C3:
+           `leaveTrialScene`: it whispers `noSchool` and returns before it activates or clears anything (since E81 DZ6
+           the clearing is `stageHall`'s, which deletes the module's tokens; until then `hideTrialTokens`). Red before C3:
            there was no `leaveDestination`. Scenario 41 c, d, e and j read the return on four browsers. */
         const T = await import("./trial-scene.mjs");
         ok(typeof T.leaveDestination === "function", "trial-scene.mjs has no `leaveDestination` - leaving the trial takes the table nowhere");
@@ -6642,13 +6661,13 @@ const INVARIANTS = [
         const to = args => T.leaveDestination(args)?.id ?? null;
         must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
         const leave = fnSource(stripComments(sources.get("trial-scene.mjs")), "leaveTrialScene");
-        const [told, activates, hides] = ['"DRPG.TrialScene.noSchool"', ".activate(", "hideTrialTokens("].map(text => leave.indexOf(text));
+        const [told, activates, hides] = ['"DRPG.TrialScene.noSchool"', ".activate(", "stageHall("].map(text => leave.indexOf(text));
         const back = told >= 0 ? leave.indexOf("return null;", told) : -1;
         equal(JSON.stringify([to({ school: linked, returnTo: from, hall }), to({ returnTo: from, hall }), to({ school: hall, returnTo: hall, hall }), to({ hall }),
             leave.includes("leaveDestination({ school: schoolScene(), returnTo: trialReturnTo(hall), hall })"), told >= 0 && told < back && back < activates && activates < hides]),
             JSON.stringify(["school", "from", null, null, true, true]),
             "[the way back with a school and a scene the trial opened from, with that scene only, with only the hall named, with nothing; "
-            + "leaveTrialScene asks the school and the flag; it tells the GMs and returns before it activates, and activates before it hides]");
+            + "leaveTrialScene asks the school and the flag; it tells the GMs and returns before it activates, and activates before it clears the hall]");
     }],
     ["R116 - the trial shows the GMs' choice of the hall's cast and hides it again: only `hidden` changes, and a second run changes nothing", async () => {
         /*
@@ -6663,6 +6682,12 @@ const INVARIANTS = [
          * the world, which tokens are the cast: a token of a student is, a token of an actor of another type or of no
          * actor is not. The tier-2 "entering the trial shows the GMs' choice ..." reads it on a hall's documents, and
          * scenario 41 a, c and d through the phase on four browsers. Red before C2: there was no trial-scene.mjs.
+         * E81 DZ6 (12.10.2026; the owner chose the cast per actor): the rows are keyed by the token's ACTOR - the
+         * unticked student's row is its actor's - and a 1.2.74 row keyed by a token is read for the actor's first
+         * token only when its actor has no row (`castRow`'s fallback): a student nobody plays shown by such a row,
+         * and the first student's old "hidden" row beaten by its actor's "shown". And `castRow` itself: an actor's
+         * row, a token's row asked with and without the token, the actor's row before the token's, and a token's
+         * row of another season. Red at 0697d0f: the rows were read by token id, so the unticked student showed.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(typeof T?.castDiff === "function", "trial-scene.mjs has no `castDiff` - entering the trial shows nobody in the hall (S06-57)");
@@ -6671,8 +6696,10 @@ const INVARIANTS = [
         const token = (id, fields = {}) => ({ id, name: id, actorId: `${id}-ACTOR`, hidden: true, monokuma: false, player: false, second: false, ...fields });
         const cast = [token("PLAYED", { player: true }), token("DEAD", { player: true, deceased: true }), token("MONOKUMA", { monokuma: true }),
             token("TEST"), token("UNTICKED", { player: true }), token("LEFTSHOWN", { hidden: false }),
-            token("PLAYED2", { actorId: "PLAYED-ACTOR", player: true, second: true })];
-        const rows = { [T.castKey(HALL, "UNTICKED")]: { reveal: false, epoch: EPOCH } };
+            token("PLAYED2", { actorId: "PLAYED-ACTOR", player: true, second: true }), token("LEGACY")];
+        const rows = { [T.castKey(HALL, "UNTICKED-ACTOR")]: { reveal: false, epoch: EPOCH }, [T.castKey(HALL, "PLAYED")]: { reveal: false, epoch: EPOCH },
+            [T.castKey(HALL, "PLAYED-ACTOR")]: { reveal: true, epoch: EPOCH }, [T.castKey(HALL, "LEGACY")]: { reveal: true, epoch: EPOCH },
+            [T.castKey(HALL, "OLD")]: { reveal: true, epoch: EPOCH - 1 } };
         const after = (list, diff) => list.map(t => ({ ...t, hidden: diff.find(d => d._id === t.id)?.hidden ?? t.hidden }));
         const entry = T.castDiff(cast, { reveal: true, sceneId: HALL, rows, epoch: EPOCH });
         const inside = after(cast, entry.diff);
@@ -6681,10 +6708,16 @@ const INVARIANTS = [
         const out = T.castDiff(after(inside, exit.diff), { reveal: false, sceneId: HALL, rows, epoch: EPOCH });
         const fields = [...entry.diff, ...exit.diff].map(d => Object.keys(d).sort().join(","));
         equal(JSON.stringify([entry, again.diff, exit.diff, out.diff, [...new Set(fields)]]), JSON.stringify([
-            { diff: [{ _id: "PLAYED", hidden: false }, { _id: "DEAD", hidden: false }, { _id: "MONOKUMA", hidden: false }, { _id: "LEFTSHOWN", hidden: true }], seconds: ["PLAYED2"] },
-            [], [{ _id: "PLAYED", hidden: true }, { _id: "DEAD", hidden: true }, { _id: "MONOKUMA", hidden: true }], [], ["_id,hidden"]]),
-            "[the entry (the student played, the dead played and Monokuma shown, the test student left shown hidden, the unticked one, the test student and the second token kept hidden; the second token named), "
+            { diff: [{ _id: "PLAYED", hidden: false }, { _id: "DEAD", hidden: false }, { _id: "MONOKUMA", hidden: false }, { _id: "LEFTSHOWN", hidden: true },
+                { _id: "LEGACY", hidden: false }], seconds: ["PLAYED2"] },
+            [], [{ _id: "PLAYED", hidden: true }, { _id: "DEAD", hidden: true }, { _id: "MONOKUMA", hidden: true }, { _id: "LEGACY", hidden: true }], [], ["_id,hidden"]]),
+            "[the entry (the student played - its actor's row before its token's -, the dead played and Monokuma shown, the test student left shown hidden, the unticked one by its actor's row, "
+            + "the test student and the second token kept hidden, the student nobody plays shown by its token's 1.2.74 row; the second token named), "
             + "a second entry, the exit (the cast hidden), a second exit, the fields a change carries]");
+        const legacy = [T.castRow(rows, HALL, "UNTICKED-ACTOR", EPOCH), T.castRow(rows, HALL, "LEGACY-ACTOR", EPOCH, "LEGACY"), T.castRow(rows, HALL, "LEGACY-ACTOR", EPOCH),
+            T.castRow(rows, HALL, "PLAYED-ACTOR", EPOCH, "PLAYED"), T.castRow(rows, HALL, "OLD-ACTOR", EPOCH, "OLD")];
+        equal(JSON.stringify(legacy), JSON.stringify([{ reveal: false }, { reveal: true }, null, { reveal: true }, null]),
+            "[`castRow` of an actor's row, of a token's 1.2.74 row asked with the token and without it, of an actor with both rows, of a token's row of the season before]");
         const rule = [{}, { player: true }, { monokuma: true }, { player: true, second: true }, { monokuma: true, second: true }].map(given => T.defaultReveal(given));
         equal(JSON.stringify(rule), JSON.stringify([false, true, true, false, false]),
             "[`defaultReveal` of a student nobody plays, one a player plays, Monokuma, and a second token of each of the last two]");
@@ -6712,6 +6745,13 @@ const INVARIANTS = [
          * GMs) and its setting, this browser's own storage. Of the rule on plain rows: a row of this season reads, a row of
          * another season and a row with no `reveal` read as no row. Whether the primary drops the past season's rows is
          * the tier-2 test's (`compactGmStores`). Red before C2: there was no trial-scene.mjs.
+         * E81 DZ6 (12.10.2026): a row is an actor's. The store's `exists` (which decides when the compaction may
+         * drop an old tombstone) answers yes for a scene of this world and a "character" actor, and no for an
+         * actor of another type, a scene that is gone and a token's id; `saveTrialCast` skips an id that is not a
+         * character's; and the move of the 1.2.74 rows (`tidyTrialHall`) is the second `patchMany` and the
+         * second `dropMany` counted below (1 and 1 until then). Red at 0697d0f: `exists` read the scene's tokens.
+         * E81 fix r1-D2 (12.10.2026): the stage's record of the module's tokens (`writeSeats`) is the hall's second
+         * `setFlag`, counted on its own last - a flag of the hall, not of a token, and no store of the cast choice.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(typeof T?.castRow === "function", "trial-scene.mjs has no `castRow` - the GMs' choice is kept nowhere (S06-57, D7)");
@@ -6720,7 +6760,8 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("trial-scene.mjs")?.length, "trial-scene.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("trial-scene.mjs"));
-        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,", "settings.set(MODULE_ID, SETTINGS.sceneRoles,"]
+        const writes = ["setFlag(", "unsetFlag(", "settings.set(", "trialCastStore.patch(", "trialCastStore.patchMany(", "trialCastStore.dropMany(", "hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG,", "settings.set(MODULE_ID, SETTINGS.sceneRoles,",
+            "hall.setFlag(MODULE_ID, TRIAL_SEATS_FLAG,"]
             .map(text => code.split(text).length - 1);
         const apply = fnSource(code, "applyTrialCast");
         const [waits, reads] = ["await open()", "readCast(scene)"].map(text => apply.indexOf(text));
@@ -6729,10 +6770,18 @@ const INVARIANTS = [
         const H = "R433HALL00000000", K = T.castKey(H, "TOKEN");
         const at = (row, epoch) => T.castRow({ [K]: row }, H, "TOKEN", epoch);
         const seasons = [at({ reveal: false, epoch: 5 }, 5), at({ reveal: true, epoch: 4 }, 5), at({ reveal: true, epoch: 6 }, 5), at({ epoch: 5 }, 5), at(undefined, 5)];
+        const scene = game.scenes?.find?.(s => s.tokens?.size > 0) ?? null, character = game.actors.find(a => a.type === "character");
+        must(scene && character, "the world has no scene holding a token, or no character - the store's `exists` would be asked of nothing");
+        const other = game.actors.find(a => a.type !== "character");
+        const exists = [trialCastStore.spec.exists(T.castKey(scene.id, character.id)), trialCastStore.spec.exists(T.castKey(scene.id, other?.id ?? "R433NOSUCHACTOR")),
+            trialCastStore.spec.exists(T.castKey("R433NOSUCHSCENE", character.id)), trialCastStore.spec.exists(T.castKey(scene.id, scene.tokens.contents[0].id)),
+            /if \(game\.actors\?\.get\?\.\(actorId\)\?\.type !== "character"\) continue;/.test(fnSource(code, "saveTrialCast"))];
+        equal(JSON.stringify(exists), JSON.stringify([true, false, false, false, true]),
+            `[the store's \`exists\` of a character in ${scene.name}, of ${other ? `${other.name} (${other.type})` : "an actor that is not there"}, of a scene that is gone, of a token's id; \`saveTrialCast\` skips an id that is not a character's]`);
         equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
-            JSON.stringify([[1, 0, 1, 0, 1, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+            JSON.stringify([[2, 0, 1, 0, 2, 2, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
                 "client", [{ reveal: false }, null, null, null, null]]),
-            "[trial-scene.mjs's setFlag (the one, on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles); `applyTrialCast` waits for the store before it reads the cast; "
+            "[trial-scene.mjs's setFlag (two, both on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles), then the hall's trialSeats flag; `applyTrialCast` waits for the store before it reads the cast; "
             + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
     }],
 
@@ -6870,7 +6919,7 @@ const INVARIANTS = [
             + "a browser's own question is answered from voiceTargets, not from its token]");
     }],
 
-    ["R120 - the Scenes tab: one scene cannot hold both roles, the hall's rooms and missing students are named, and an Apply that changed nothing writes nothing", async () => {
+    ["R120 - the Scenes tab: one scene cannot hold both roles, the hall's rooms and the cast nobody places are named, and an Apply that changed nothing writes nothing", async () => {
         /*
          * E13 C5, 12.10.2026; plan-E13 2.3 (V6, R120), doneWhen 3, amend 28.09, the owner's answers Q-E13-1 d and e
          * (09.10), the A5 project's reserved R120. Until C5 no window linked the school and the hall or kept the
@@ -6879,8 +6928,10 @@ const INVARIANTS = [
          * scene. Asked of plain objects, so it reads no document and writes nothing (tier 1): Room Setup's tabs and
          * the tab it opens on; `hallRoomNames` of a hall holding a region marked as a room, one marked "not a room"
          * and an unmarked zone (amend 28.09: only the first is named); `sceneReport`'s rows for one scene in both
-         * roles, for a hall with a room, a second token of one actor, an unlinked token and one or two students
-         * without a token (the plural), for a hall with no school, and for a pair with nothing wrong;
+         * roles, for a hall with a room, a second token of one actor, an unlinked token and one or two of the cast
+         * the module makes no token for with none there (`handPlaced`, E81 DZ6; until then `missingTokens`, a plural
+         * of the students a player plays with no token there), for a hall with no school, and for a pair with nothing
+         * wrong; the `notPlaced` whisper's plural (E81 DZ6) for one and two;
          * `scenesTabWrites` for an untouched form, a changed school (a stored field the tab does not show kept), a
          * clash, a stored role whose scene is gone, a cast list of another hall, and "Prepare"; and
          * `hallPreparePatch` (Q-E13-1 d) for an unprepared scene with each tick, and a prepared one; `hallLocked` (E13 fix
@@ -6905,11 +6956,13 @@ const INVARIANTS = [
         const keys = report => report.map(row => `${row.key}${row.block ? "!" : ""}`);
         const [A, B] = [{ id: "R120SCENEA" }, { id: "R120SCENEB" }];
         const cast = [{ name: "Aiko", second: false, linked: true }, { name: "Aiko again", second: true, linked: true }, { name: "Prop", second: false, linked: false }];
-        const full = T.sceneReport({ school: A, hall: B, rooms: ["Stand"], cast, missing: ["Botan"] });
-        const two = T.sceneReport({ school: A, hall: B, missing: ["Botan", "Chie"] });
+        const full = T.sceneReport({ school: A, hall: B, rooms: ["Stand"], cast, handPlaced: ["Monokuma"] });
+        const two = T.sceneReport({ school: A, hall: B, handPlaced: ["Monokuma", "Kuma"] });
+        const unplaced = [plural("DRPG.TrialScene.notPlaced", { n: 1, names: "Monokuma" }), plural("DRPG.TrialScene.notPlaced", { n: 2, names: "Monokuma, Kuma" })];
         const reports = [keys(T.sceneReport({ school: A, hall: A })), keys(full), keys(T.sceneReport({ hall: B })), keys(T.sceneReport({ school: A, hall: B })),
-            full.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 1, names: "Botan" }),
-            two.find(row => row.key === "missingTokens")?.text === plural("DRPG.TrialScene.missingTokens", { n: 2, names: "Botan, Chie" })];
+            full.find(row => row.key === "handPlaced")?.text === game.i18n.format("DRPG.TrialScene.handPlaced", { names: "Monokuma" }),
+            two.find(row => row.key === "handPlaced")?.text === game.i18n.format("DRPG.TrialScene.handPlaced", { names: "Monokuma, Kuma" }),
+            unplaced[0].includes("Monokuma") && unplaced[1].includes("Monokuma, Kuma") && unplaced[0] !== unplaced[1]];
         const stored = { school: "R120SCENEA", trial: "R120SCENEB", zones: ["R120ZONE"] };
         const read = (over = {}) => ({ school: "R120SCENEA", trial: "R120SCENEB", drawn: { school: "R120SCENEA", trial: "R120SCENEB" },
             cast: { sceneId: "R120SCENEB", changes: {} }, prepare: null, ...over });
@@ -6964,7 +7017,7 @@ const INVARIANTS = [
 
         equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
             ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
-            [["sameScene!"], ["hallHasRooms", "missingTokens", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true],
+            [["sameScene!"], ["hallHasRooms", "handPlaced", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true, true],
             [{ roles: null, cast: null, prepare: null },
                 { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
                 { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null }, { roles: null, cast: null, prepare: null },
@@ -7002,19 +7055,23 @@ const INVARIANTS = [
          * door and its two actions are the two doors; Edit campaign's trial question carries
          * `phaseSwitchesScene`; and game.drpg has the four calls. Scenario 41 k1-k4 and d1 run them on documents and
          * windows. Red before C6: there was no `startTrialLines`.
+         * E81 DZ6 (12.10.2026): the hall line counts nothing (the window holds the ticks a count would go stale
+         * against), so it is asked with a hall and with none; the Start window draws the cast picker before it
+         * waits, and its Start stores the changed ticks after both questions (`incidentClosedFirst`,
+         * `confirmNewTrial`) and before the phase moves (`setClock`) - so a Cancel or a no stores nothing, and the
+         * entry reads the choice. Red at 0697d0f: the window counted `castShownOnEntry` and held no tick.
          */
         const T = await import("./trial-scene.mjs");
-        const { plural } = await import("./utils.mjs");
         const made = typeof T.startTrialLines === "function" && typeof T.tableDoor === "function";
         ok(made, "Start the Class Trial says nothing of the hall or the rule - trial-scene.mjs has no `startTrialLines` or `tableDoor`");
         if (!made) return;
         const hall = { id: "HALL", name: "Hall <b>" }, school = { id: "SCHOOL", name: "School" };
-        const one = T.startTrialLines({ hall, shown: 1 }), four = T.startTrialLines({ hall, shown: 4 }), none = T.startTrialLines({ hall: null, shown: 3 });
-        equal(JSON.stringify([one.table, four.table, none.table, one.rule, none.rule, four.table.includes("<b>")]),
-            JSON.stringify([plural("DRPG.Floor.startTrialHall", { n: 1, hall: "Hall &lt;b&gt;" }), plural("DRPG.Floor.startTrialHall", { n: 4, hall: "Hall &lt;b&gt;" }),
+        const one = T.startTrialLines({ hall }), none = T.startTrialLines({ hall: null });
+        equal(JSON.stringify([one.table, none.table, one.rule, none.rule, one.table.includes("<b>"), /\d/.test(one.table)]),
+            JSON.stringify([game.i18n.format("DRPG.Floor.startTrialHall", { hall: "Hall &lt;b&gt;" }),
                 game.i18n.localize("DRPG.Floor.startTrialNoHall"), game.i18n.localize("DRPG.Floor.tableRuleDead"),
-                game.i18n.localize("DRPG.Floor.tableRuleDead"), false]),
-            "[the hall line with one token and with four (the name escaped), the line with no hall, the rule with a hall and without, the raw name in the line]");
+                game.i18n.localize("DRPG.Floor.tableRuleDead"), false, false]),
+            "[the hall line (the name escaped), the line with no hall, the rule with a hall and without, the raw name in the line, a count in the line]");
         const door = args => T.tableDoor(args);
         equal(JSON.stringify([door({ running: false, hall, active: hall, back: school }), door({ running: true, hall: null, active: school, back: school }),
             door({ running: true, hall, active: school, back: school }), door({ running: true, hall, active: hall, back: school }),
@@ -7038,14 +7095,17 @@ const INVARIANTS = [
         const at = text => start.indexOf(text);
         equal(JSON.stringify([en.includes("the dead listen but do not speak in the trial"), pl.includes("umarli słuchają, ale nie mówią w rozprawie"),
             at("game.scenes.preload?.(hall.id, true)") > 0 && at("game.scenes.preload?.(hall.id, true)") < at("DialogV2.wait("),
-            at("judgedFor(") > 0 && at("judgedFor(") < at("castShownOnEntry(hall)"), at("${lines.table}") > at("DialogV2.wait("), at("${lines.rule}") > at("DialogV2.wait("),
+            at("judgedFor(") > 0 && at("judgedFor(") < at("castPickerHtml(hall") && at("castPickerHtml(hall") < at("DialogV2.wait(") && at("${castPicker}") > at("DialogV2.wait(")
+                && at("confirmNewTrial(") > at("incidentClosedFirst(") && at("saveTrialCast(hall") > at("confirmNewTrial(") && at("saveTrialCast(hall") < at("setClock(")
+                && at("castShownOnEntry(") < 0,
+            at("${lines.table}") > at("DialogV2.wait("), at("${lines.rule}") > at("DialogV2.wait("),
             /\.\.\.\(table\?\.action\s*\?\s*\[\{ action: table\.action/.test(fnSource(ui, "trialButtons")),
             /showHall: async \(\) => \{\s*const \{ showCourtroom \} = await import\("\.\/trial-scene\.mjs"\);\s*await showCourtroom\(\);/.test(ui),
             /backToSchool: async \(\) => \{\s*const \{ showSchool \} = await import\("\.\/trial-scene\.mjs"\);\s*await showSchool\(\);/.test(ui),
             /confirmCorrection\("DRPG\.Clock\.trialFromEditTitle", "DRPG\.Clock\.trialFromEdit", moves\)/.test(edit) && edit.includes('"DRPG.TrialScene.phaseSwitchesScene"'),
             ["showCourtroom", "showSchool", "trialSceneReport", "openTrialCast"].map(name => typeof game.drpg?.[name])]),
             JSON.stringify([true, true, true, true, true, true, true, true, true, true, ["function", "function", "function", "function"]]),
-            "[the rule's words in en.json and pl.json; Start preloads the hall before its window; counts the cast after the judgements; shows the hall line; shows the rule; "
+            "[the rule's words in en.json and pl.json; Start preloads the hall before its window; draws the cast picker after the judgements and before it waits, holds it, and stores the ticks after both questions and before the phase, counting nothing; shows the hall line; shows the rule; "
             + "the console's footer offers the door; its Show the hall is showCourtroom; its Back to school is showSchool; Edit campaign's trial question says where the table goes; game.drpg's four calls]");
     }],
     ["R439 - a tier 0 tool or weapon is spent by any roll it was used in, a tier 1 to 3 one only by a Despair, and the sheet draws a tier 0 one no durability track", async () => {
@@ -7141,15 +7201,17 @@ const INVARIANTS = [
             JSON.stringify([true, true, true]),
             "[init returns on the check before it registers a setting; setup returns on it first; ready announces and returns first]");
     }],
-    ["R470 - a GM keeps the Scenes tab, the scene navigation and the hotbar when the module stops at its requirements check", async () => {
+    ["R470 - a GM keeps the Scenes tab when the module stops at its requirements check", async () => {
         /*
-         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hides the three unless the element carries
+         * E13 fix r1-F3, 12.10.2026; goal S12-18's other half. The stylesheet hid the three unless the element carried
          * the class a GM's client puts on it (GM_CHROME, R438), and that was registered in `registerGmPanel`, after the
          * requirements check `init` returns on (R442) - so a world missing a required module, which C10 made likelier,
-         * took the three from its GM too. Read in module.mjs with comments blanked: `init` registers the GM's chrome
-         * after the relay guard and before the check; and in gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on
-         * `ready` and on the four renders (the scene controls', the sidebar's, the navigation's and the hotbar's), and
-         * neither function reads a setting - none is registered on that road. What a GM's client then computes is
+         * took the three from its GM too. Since DZ5 (the owner, 12.10.2026; E81 fix r1-G6) the scene navigation and
+         * the hotbar are hidden for everybody and only the Scenes tab is left of the three. Read in module.mjs with
+         * comments blanked: `init` registers the GM's chrome after the relay guard and before the check; and in
+         * gm-panel.mjs: `registerGmChrome` hooks `markGmChrome` on `ready` and on two renders (the scene controls' and
+         * the sidebar's) and on neither the navigation's nor the hotbar's - nothing of theirs is stamped any more -,
+         * and neither function reads a setting - none is registered on that road. What a GM's client then computes is
          * 00-boot's "the GM's chrome when the module stops" (a GM booted with LiveKit off); whether Foundry v14 links
          * the sheet of a module that stopped is LIVE-E13-11 (not run).
          */
@@ -7163,13 +7225,3041 @@ const INVARIANTS = [
         const register = panel.includes("export function registerGmChrome")
             ? bodyOf(panel, "export function registerGmChrome", { until: "\nfunction markGmChrome" }) : "";
         const mark = bodyOf(panel, "function markGmChrome", { length: 400 });
-        const hooked = ["renderSceneControls", "renderSidebar", "renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
+        const hooked = ["renderSceneControls", "renderSidebar"].filter(h => register.includes(`"${h}"`));
+        const dropped = ["renderSceneNavigation", "renderHotbar"].filter(h => register.includes(`"${h}"`));
         equal(JSON.stringify([at("registerRelayGuard") >= 0 && chrome > at("registerRelayGuard"), chrome >= 0 && chrome < at("if (!requirementsMet())"),
-            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
+            /Hooks\.once\("ready", markGmChrome\)/.test(register), hooked.length, dropped, /\bHooks\.on\(hook, markGmChrome\)/.test(register),
             /game\.settings|getSetting|SETTINGS\./.test(register + mark)]),
-            JSON.stringify([true, true, true, 4, true, false]),
+            JSON.stringify([true, true, true, 2, [], true, false]),
             "[the GM's chrome after the relay guard; before the requirements check; stamped at ready; the renders hooked; "
-            + "each to markGmChrome; a setting read on that road]");
+            + "the navigation's or the hotbar's render hooked; each to markGmChrome; a setting read on that road]");
+    }],
+    ["R292 - the notice history keeps what it is given within its budgets, by world and user, and another tab's copy merges in without a loss, a double or a return from the grave", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 design's A7-1 (S16-08: a card closed was a card gone). First the setting the
+         * module's own engine writes: this browser's (client scope), out of the settings window, an Object, `{}` by
+         * default. Then the engine of notice-history.mjs over a value in memory (`noticeBench`, below the list): nothing is debounced, a case
+         * flushes, and the time and the clock are the test's to move. The cases, each on a value of its own: the
+         * section's key and the entry's `id`, `at` and clock (this client's, whatever the caller passes); the
+         * clipping of a title, a text and an html over its budget, a day summary's larger one; at most 4 full day
+         * summaries in a section; the 251st entry of a player's section and the 151st of a GM's; a section's
+         * 200 000 characters; 40 entries from each author, whatever their source (E81 fix r1-G1); the value's 500 000, other worlds first and never
+         * this world's other accounts (E81 fix r1-G2: a value they alone fill keeps this login in memory); the epoch on
+         * read and on write; `open` read back as `unread`; a raw
+         * value read through the shape; two tabs of one login - the union, one entry per message and source, a
+         * withdrawn entry and a Clear that another tab's copy does not bring back, tombstones let go after ten
+         * minutes; this login's section taken out by another account written again from memory; a write that
+         * fails once and twice. What a browser's quota counts is not measured here: the budgets are JSON lengths.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.createNoticeEngine === "function", "there is no notice history: a card closed is gone, and a reload loses every card (S16-08)");
+        const setting = game.settings.settings.get(`${MODULE_ID}.noticeHistory`);
+        equal(JSON.stringify([setting?.scope ?? null, setting?.config ?? null, setting?.type === Object, setting?.default ?? null]),
+            JSON.stringify(["client", false, true, {}]), "the history's setting [scope, config, an Object, default]");
+        const U1 = "SuitePlayerOne01", U2 = "SuitePlayerTwo02", W = "suite-world", KEY = `${W}.${U1}`;
+        const at = { now: 1_000_000 }, clock = { value: { chapter: 2, day: 3, session: 4, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const bench = (store, user = U1, more = {}) => noticeBench(NH.createNoticeEngine, { store, user, world: W, at, clock, ...more });
+        const card = (n, more = {}) => ({ source: "mine", kind: "info", title: `card ${n}`, text: `text ${n}`, html: `<p>card ${n}</p>`, ...more });
+        const fresh = () => ({ raw: null, writes: 0, fail: 0 });
+        const stored = store => JSON.parse(store.raw);
+        const tick = (ms = 1000) => { at.now += ms; };
+
+        // The key, and what is this client's.
+        let store = fresh(), e = bench(store);
+        e.open();
+        const first = e.record(card(1, { at: 5, id: "ForgedIdForged00" }));
+        await e.flush();
+        const [kept] = stored(store).sections[KEY]?.entries ?? [];
+        must(kept, "the first entry was not written - nothing below would be measured");
+        equal(JSON.stringify([stored(store).v, Object.keys(stored(store).sections), kept.id === first, kept.at, kept.state, kept.clock.chapter, store.writes]),
+            JSON.stringify([1, [KEY], true, at.now, "open", 2, 1]),
+            "[the format; one section, keyed world.user; the id the record answered; `at` this client's clock, not the caller's; open; the clock's chapter; one write]");
+
+        // Clipping.
+        e = bench(fresh());
+        e.open();
+        e.record(card(1, { title: "t".repeat(300), text: "x".repeat(700) }));
+        e.record(card(2, { html: `<p>${"y".repeat(8100)}</p>` }));
+        e.record(card(3, { source: "summary", html: `<p>${"z".repeat(20000)}</p>` }));
+        e.record(card(4, { source: "summary", html: `<p>${"z".repeat(24100)}</p>` }));
+        must(e.entries().length === 4, `the clipping cases kept ${e.entries().length} entries of 4`);
+        equal(JSON.stringify(e.entries().map(x => [x.title.length, x.text.length, x.html.length > 0, x.clipped])),
+            JSON.stringify([[200, 600, true, false], [6, 6, false, true], [6, 6, true, false], [6, 6, false, true]]),
+            "[a title clipped to 200 and a text to 600; an html over 8 000 dropped and the entry clipped; a summary of 20 000 kept; one over 24 000 clipped]");
+
+        // At most 4 full day summaries.
+        e = bench(fresh());
+        e.open();
+        for (let n = 0; n < 5; n++) { tick(); e.record(card(n, { source: "summary" })); }
+        must(e.entries().length === 5, `the summary case kept ${e.entries().length} of 5`);
+        equal(JSON.stringify(e.entries().map(x => x.clipped)), JSON.stringify([true, false, false, false, false]),
+            "a fifth day summary in a section did not clip the oldest of the five");
+
+        // The 251st entry, and a GM's 151st.
+        const counts = [];
+        for (const [gm, n] of [[false, 251], [true, 151]]) {
+            e = bench(fresh(), U1, { gm });
+            e.open();
+            for (let i = 0; i < n; i++) { tick(); e.record(card(i)); }
+            counts.push(e.entries().length, e.entries()[0]?.title);
+        }
+        equal(JSON.stringify(counts), JSON.stringify([250, "card 1", 150, "card 1"]),
+            "[a player's section after 251 entries, its oldest; a GM's after 151, its oldest]");
+
+        // A section's 200 000 characters.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        for (let i = 0; i < 30; i++) { tick(); e.record(card(i, { html: `<p>${"w".repeat(7900)}</p>` })); }
+        await e.flush();
+        const big = stored(store).sections[KEY];
+        must(big?.entries?.length > 0, "the section over its characters kept nothing - nothing to measure");
+        equal(JSON.stringify([JSON.stringify(big).length <= 200000, big.entries.length < 30, big.entries.at(-1).title]),
+            JSON.stringify([true, true, "card 29"]),
+            "[a section within 200 000 characters; some of 30 entries of 8 000 gone; the newest kept]");
+
+        // 40 entries from each author, whatever their source: the public ones count against A since E81 fix r1-G1.
+        e = bench(fresh());
+        e.open();
+        const A = "SuiteAuthorAaaa1", B = "SuiteAuthorBbbb2";
+        for (let i = 0; i < 41; i++) { tick(); e.record(card(i, { source: "player", author: A })); }
+        for (let i = 0; i < 3; i++) { tick(); e.record(card(`b${i}`, { source: "player", author: B })); }
+        for (let i = 0; i < 2; i++) { tick(); e.record(card(`p${i}`, { source: "public", author: A })); }
+        const byAuthor = who => e.entries().filter(x => x.author === who).length;
+        must(e.entries().length > 0, "the author case kept nothing");
+        equal(JSON.stringify([byAuthor(A), byAuthor(B), e.entries().filter(x => x.source === "public").length,
+            e.entries().some(x => x.title === "card 0"), e.entries().some(x => x.source === "public" && x.author)]),
+            JSON.stringify([40, 3, 2, false, true]),
+            "[author A's entries after 43, its public ones among them; author B's 3; the public ones; A's oldest gone; an author kept on a card that is not a player's]");
+
+        // The whole value's 500 000: other worlds first, the least recently written first, and never this world's other
+        // accounts (E81 fix r1-G2, 12.10.2026; until then they went next): a value they alone fill is not written.
+        const epoch = NH.noticeEpoch(clock.value);
+        const filler = (touched, chars) => ({ epoch, touched, clearedAt: 0, gone: {}, entries: [], pad: "f".repeat(chars) });
+        const evicted = [];
+        for (const sections of [
+            { [`other-world.${U1}`]: filler(20, 170000), [`third-world.${U1}`]: filler(10, 170000), [`${W}.${U2}`]: filler(1, 170000) },
+            { [`${W}.${U2}`]: filler(1, 520000) }
+        ]) {
+            store = { ...fresh(), raw: JSON.stringify({ v: 1, sections }) };
+            e = bench(store);
+            e.open();
+            e.record(card("own"));
+            await e.flush();
+            evicted.push(Object.keys(stored(store).sections).sort().join(" "), store.raw.length <= 500000, e.entries().length, e.status().saving);
+        }
+        equal(JSON.stringify(evicted), JSON.stringify([`other-world.${U1} ${W}.${U1} ${W}.${U2}`, true, 1, true, `${W}.${U2}`, false, 1, false]),
+            "[over 500 000 with two other worlds and another account here: the least recently written other world goes, the account stays though older; "
+            + "with this world's other account alone over it: that section stays and nothing is written, this login's entry kept in memory, not saving]");
+
+        // The epoch: on read, and on write.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        e.record(card("before"));
+        await e.flush();
+        must(stored(store).sections[KEY]?.entries?.length === 1, "the entry before the reset was not written");
+        clock.value = { ...clock.value, resetCuts: { incident: at.now } };
+        const reread = bench(store);
+        reread.open();
+        const onRead = reread.entries().length;
+        clock.value = { ...clock.value, resetCuts: { incident: at.now, chatRest: at.now + 1 } };
+        e.record(card("after"));
+        await e.flush();
+        equal(JSON.stringify([onRead, stored(store).sections[KEY].entries.map(x => x.title), stored(store).sections[KEY].epoch === NH.noticeEpoch(clock.value)]),
+            JSON.stringify([0, ["card after"], true]),
+            "[a section written before a reset, read after it; a section written to after another reset; its epoch the clock's]");
+
+        // `open` comes back as `unread`; a raw value is read through the shape.
+        const good = { id: "SuiteEntryGood01", at: 5, messageId: null, kind: "info", tone: null, source: "mine", state: "open", mark: null, title: "kept", text: "", html: "", clipped: false, clock: {} };
+        const raws = [good, { ...good, id: "SuiteEntryRead02", state: "read" }, { ...good, id: "bad\"id\"Entry003" }, { ...good, id: "SuiteEntryBad004", source: "forged" },
+            { ...good, id: "SuiteEntryBad005", state: "shown" }, { ...good, id: "SuiteEntryBad006", messageId: "<b>" }, { ...good, id: "SuiteEntryAuth07", author: U2 }];
+        store = { ...fresh(), raw: JSON.stringify({ v: 1, sections: { [KEY]: { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: raws } } }) };
+        e = bench(store);
+        e.open();
+        const newer = bench({ ...fresh(), raw: JSON.stringify({ v: 2, sections: { [KEY]: { entries: raws } } }) });
+        newer.open();
+        equal(JSON.stringify([e.entries().map(x => [x.id, x.state, x.author ?? null]), newer.entries().length, newer.status().saving]),
+            JSON.stringify([[["SuiteEntryGood01", "unread", null], ["SuiteEntryRead02", "read", null], ["SuiteEntryAuth07", "unread", U2]], 0, false]),
+            "[open read back as unread, read as read; a quoted id, a forged source, an unknown state and a messageId of markup refused; an author kept on a card that is not a player's (E81 fix r1-G1); "
+            + "a newer format read as nothing and kept in memory only]");
+
+        // Two tabs of one login.
+        store = fresh();
+        const one = bench(store), two = bench(store);
+        one.open();
+        two.open();
+        tick(); const a = one.record(card("a"));
+        tick(); const b = two.record(card("b"));
+        await one.flush(); await two.flush(); one.external();
+        const ids = () => stored(store).sections[KEY].entries.map(x => x.id);
+        must(ids().length > 0, "neither tab wrote");
+        const union = [ids().join(), one.entries().map(x => x.id).join()];
+        const M = "SuiteMessageId01";
+        tick(); one.record(card("m1", { messageId: M }));
+        tick(); const m2 = two.record(card("m2", { messageId: M }));
+        await one.flush(); await two.flush(); one.external();
+        const upsert = [stored(store).sections[KEY].entries.filter(x => x.messageId === M).map(x => x.id).join(), one.entries().filter(x => x.messageId === M).map(x => x.id).join()];
+        one.remove(a);
+        await one.flush(); await two.flush(); two.external();
+        const buried = [ids().includes(a), two.entries().some(x => x.id === a)];
+        tick(); one.clear();
+        await one.flush(); await two.flush(); two.external();
+        const cleared = [ids().length, two.entries().length, Object.keys(stored(store).sections[KEY].gone).length > 0];
+        /* Let go at the next write: since E81 fix r1-G5 a flush with nothing changed writes nothing, so a card comes first. */
+        tick(11 * 60 * 1000); one.record(card("after")); await one.flush();
+        const tombstones = Object.keys(stored(store).sections[KEY].gone).length;
+        /* A copy older than the Clear, its tombstones let go: what is kept out now is `clearedAt` alone. */
+        const late = stored(store), STALE = "SuiteStaleCopy01";
+        late.sections[KEY].entries.push({ id: STALE, at: late.sections[KEY].clearedAt - 1, messageId: null, kind: "info", tone: null,
+            source: "mine", state: "read", mark: null, title: "stale", text: "", html: "", clipped: false, clock: {} });
+        store.raw = JSON.stringify(late);
+        one.external();
+        equal(JSON.stringify([union, upsert, buried, cleared, tombstones, one.entries().some(x => x.id === STALE)]),
+            JSON.stringify([[`${a},${b}`, `${a},${b}`], [m2, m2], [false, false], [0, 0, true], 0, false]),
+            "[both tabs' entries in the value and in the first tab, once each; one entry for a message and source, the newer; a withdrawn entry back from the tab that held it; "
+            + "a Clear undone by the other tab's copy; the tombstones after ten minutes; an entry from before the Clear in a copy read after them]");
+
+        // This login's section taken out of the value: written again from memory.
+        store = fresh();
+        e = bench(store);
+        e.open();
+        tick(); e.record(card("x"));
+        await e.flush();
+        const value = stored(store);
+        delete value.sections[KEY];
+        store.raw = JSON.stringify(value);
+        tick(); e.record(card("y"));
+        await e.flush();
+        equal(JSON.stringify(stored(store).sections[KEY]?.entries?.map(x => x.title)), JSON.stringify(["card x", "card y"]),
+            "this login's section, taken out of the value by another account's write, did not come back whole at the next write");
+
+        // A write that fails: once - the oldest quarter goes and it is written; twice - memory only, and the footer's text.
+        const failed = [];
+        for (const fail of [1, 2]) {
+            store = fresh();
+            e = bench(store);
+            e.open();
+            for (let i = 0; i < 8; i++) { tick(); e.record(card(i)); }
+            store.fail = fail;
+            await e.flush();
+            failed.push(store.raw ? stored(store).sections[KEY].entries.length : null, e.entries().length, e.status().note);
+        }
+        equal(JSON.stringify(failed), JSON.stringify([6, 6, null, null, 6, "DRPG.Notices.notSaved"]),
+            "[a write failed once: a quarter of 8 gone and the rest written; failed twice: nothing written, 6 kept in memory, the footer's text]");
+
+        /*
+         * A write only when something changed (E81 fix r1-G5; review round 1's O2). The page flushes at every hide,
+         * and at 0697d0f each flush wrote: a login that had recorded nothing found an empty section of its own
+         * written, then rewritten (both reviewers measured it), and a hide during tier 0/1 moved the setting the
+         * runner's "changed nothing" check reads. Here: two flushes with nothing recorded; one card and three
+         * flushes; the other road to an empty section - the reset's clean-up of another account's ended section,
+         * which writes; and the one write a clean page still owes: another tab's stale copy that lost this
+         * page's entry is written back, and the tab that lost nothing writes nothing.
+         */
+        const clean = [];
+        {
+            let s = fresh(), x = bench(s);
+            x.open();
+            await x.flush();
+            await x.flush();
+            clean.push(s.raw, s.writes);
+            tick(); x.record(card("once"));
+            await x.flush();
+            tick(); await x.flush();
+            await x.flush();
+            clean.push(s.writes, stored(s).sections[KEY]?.entries?.length ?? 0);
+            s = fresh();
+            s.raw = JSON.stringify({ v: 1, sections: { [`${W}.${U2}`]: { epoch: "an-ended-season", touched: 1, clearedAt: 0, gone: {}, entries: [] } } });
+            x = bench(s);
+            x.open();
+            await x.flush();
+            clean.push(s.writes, Object.keys(stored(s).sections));
+            s = fresh();
+            const tabA = bench(s), tabB = bench(s);
+            tabA.open(); tabB.open();
+            tick(); const lost = tabA.record(card("lost"));
+            await tabA.flush();
+            const stale = stored(s);
+            stale.sections[KEY].entries = [];
+            s.raw = JSON.stringify(stale);
+            const w = s.writes;
+            tabA.external();
+            await tabA.flush();
+            const repaired = [stored(s).sections[KEY].entries.map(entry => entry.id).includes(lost), s.writes - w];
+            tabB.external();
+            await tabB.flush();
+            clean.push([...repaired, s.writes - w]);
+        }
+        equal(JSON.stringify(clean), JSON.stringify([null, 0, 1, 1, 1, [], [true, 1, 1]]),
+            "[nothing recorded, flushed twice: the stored value, the writes; one card, flushed three times: the writes, its section's entries; "
+            + "the reset's clean-up of another account's section: the writes, the sections left; a stale copy that lost this tab's entry: [written back, by one write; "
+            + "the writes after the tab that lost nothing flushed]]");
+    }],
+
+    ["R297 - each account keeps what its own browser showed it: every account's section stays in the value to the season's reset, and the reset clears them all", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 design's A7-6, its accounts and its epoch (C3 and C4 add the recipients and the
+         * sensitive entries). The owner's Q9 (11.10.2026, "Bierzemy alternatywę"): on a browser two accounts share,
+         * no account's section is taken out when another logs in, and the season's reset - a reset of the clock, the
+         * incident, the cards or the rest of the chat log - clears every one, the absent account's included. Read at
+         * the value's level, as `game.settings.get` would show it, on the engine over a value in memory: the first
+         * account's section byte for byte after the second's `ready`; for every group of `RESET_GROUPS`, whether the
+         * second account's first read after a reset of that group alone clears the first's section and its own; and
+         * an account that logs in here first after the reset; a tab open across it whose next write clears as a read
+         * does. The cuts are `resetCutPatch`'s, the reset's own. The
+         * accounts share the value because the setting is this browser's (client scope), which is checked first.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.createNoticeEngine === "function", "there is no notice history: nothing is kept for any account");
+        equal(game.settings.settings.get(`${MODULE_ID}.noticeHistory`)?.scope ?? null, "client",
+            "the history is not kept in this browser: a world setting would be one value for every account of every browser");
+        const { RESET_GROUPS, resetCutPatch } = await import("./season-exceptions.mjs");
+        const groups = RESET_GROUPS.map(group => group.key);
+        must(groups.length > NH.EPOCH_GROUPS.length, `RESET_GROUPS has ${groups.length} groups - nothing to tell apart`);
+        /* The A7 design's 1c, not the module's list read back: a test that took its expectation from EPOCH_GROUPS
+           passed with "chatRest" struck from it (a mutant run while this test was written, 12.10.2026). */
+        const EPOCH = ["clock", "incident", "cards", "chatRest"];
+        equal(JSON.stringify([...NH.EPOCH_GROUPS].sort()), JSON.stringify([...EPOCH].sort()), "the reset groups whose cut moves the epoch");
+        equal(EPOCH.filter(group => !groups.includes(group)).join(", "), "", "the epoch names a group the reset does not have");
+        const U1 = "SuitePlayerOne01", U2 = "SuitePlayerTwo02", U3 = "SuiteLateComer03", W = "suite-world";
+        const at = { now: 2_000_000 }, base = { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} };
+        const clock = { value: base };
+        const bench = (store, user) => noticeBench(NH.createNoticeEngine, { store, user, world: W, at, clock });
+        const card = n => ({ source: "mine", kind: "info", title: `card ${n}`, text: "", html: `<p>card ${n}</p>` });
+        const sections = store => JSON.parse(store.raw).sections;
+
+        // Two logins: the second's `ready` leaves the first's section as it was.
+        let store = { raw: null, writes: 0, fail: 0 };
+        const first = bench(store, U1);
+        first.open();
+        first.record(card(1)); at.now++; first.record(card(2));
+        await first.flush();
+        const before = JSON.stringify(sections(store)[`${W}.${U1}`]);
+        must(JSON.parse(before)?.entries?.length === 2, "the first account's two entries were not written");
+        const second = bench(store, U2);
+        second.open();
+        at.now++; second.record(card(3));
+        await second.flush();
+        equal(JSON.stringify([JSON.stringify(sections(store)[`${W}.${U1}`]) === before, Object.keys(sections(store)).sort(), second.entries().map(x => x.title)]),
+            JSON.stringify([true, [`${W}.${U1}`, `${W}.${U2}`], ["card 3"]]),
+            "[the first account's section byte for byte after the second's ready and write; both sections in the value; the second reads only its own]");
+
+        // The reset, group by group: the second account's first read after it, the first account absent.
+        const cleared = {};
+        for (const group of groups) {
+            clock.value = base;
+            store = { raw: null, writes: 0, fail: 0 };
+            const a = bench(store, U1), b = bench(store, U2);
+            a.open(); at.now++; a.record(card("a")); await a.flush();
+            b.open(); at.now++; b.record(card("b")); await b.flush();
+            must(Object.keys(sections(store)).length === 2, `before the ${group} reset the value holds ${Object.keys(sections(store)).length} sections`);
+            at.now += 1000;
+            clock.value = { ...base, ...resetCutPatch({ groups: new Set([group]) }, base, at.now) };
+            const back = bench(store, U2);
+            back.open();
+            await back.flush();
+            cleared[group] = [!sections(store)[`${W}.${U1}`], back.entries().length === 0];
+        }
+        equal(JSON.stringify(cleared), JSON.stringify(Object.fromEntries(groups.map(group => [group, EPOCH.includes(group) ? [true, true] : [false, false]]))),
+            "[per reset group: the absent first account's section gone at the second's first read; the second's own empty] - "
+            + `the clock, the incident, the cards and the rest of the chat log clear, no other group does`);
+
+        // An account that logs in here first after the reset.
+        const late = bench(store, U3);
+        late.open();
+        await late.flush();
+        equal(JSON.stringify([late.entries().length, Object.keys(sections(store)).includes(`${W}.${U1}`)]), JSON.stringify([0, false]),
+            "[a late account's history after the reset; the first account's section, written before it]");
+
+        // A tab open across the reset that writes before it has heard of it (no `checkEpoch`): the write clears too.
+        clock.value = base;
+        store = { raw: null, writes: 0, fail: 0 };
+        const stay = bench(store, U1), across = bench(store, U2);
+        stay.open(); at.now++; stay.record(card("x")); await stay.flush();
+        across.open(); at.now++; across.record(card("y")); await across.flush();
+        at.now += 1000;
+        clock.value = { ...base, ...resetCutPatch({ groups: new Set(["incident"]) }, base, at.now) };
+        at.now++; across.record(card("z")); await across.flush();
+        equal(JSON.stringify([!sections(store)[`${W}.${U1}`], sections(store)[`${W}.${U2}`]?.entries?.map(x => x.title) ?? null]),
+            JSON.stringify([true, ["card z"]]),
+            "[an incident reset met by an open tab's write: the absent first account's section gone; the writer's own section only what it recorded after]");
+        /*
+         * The GM's diet (E81 C3; the A7 design's P3-1 and P3-4, the owner's Q0): a card is kept exactly where the
+         * catch-all draws it, so a GM keeps an announcement, a card for the GM to answer and a GM's insisted card, and
+         * no whisper of a record; a veiled card without this login's words and a `popupKind: "none"` keep nothing. A
+         * public card a player wrote is kept as the player's, from the document's author - a GM's card that names a
+         * player as its asker stays public, and carries that player for the per-author bound (E81 fix r1-G1). The messenger's `gmAsk` card the GM is raised for is kept too, as the
+         * thread's since E81 C4: its message, and the conversation the entry opens. Measured on this GM through `onCreateChatMessage` with documents made here (no world write) that
+         * `game.messages.get` answers for the length of the clause, held as R473 holds the history.
+         */
+        must(game.user?.isGM, "the diet measured here is a GM's, and the suite runs on a GM (tests.mjs refuses anyone else)");
+        needs(world.atLeast("playerAccounts", 1), "a player account to write a card as");
+        const player = game.users.find(user => !user.isGM && user.active) ?? game.users.find(user => !user.isGM);
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        ok(typeof onCreateChatMessage === "function", "popup.mjs gives no catch-all to measure a GM's diet through");
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { DrpgMessengerApp } = await import("./messenger-app.mjs");
+        const fake = (id, { author = game.user, whisper = [], flags = {}, content = `<p>${id} words</p>` } = {}) => ({
+            id, author, whisper, rolls: [], content, flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, ...flags } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        });
+        const me = game.user.id;
+        const fakes = [
+            fake("R297Announcement", {}),
+            fake("R297PlayerPublic", { author: player }),
+            fake("R297AskedByPlay1", { flags: { askedBy: player.id } }),
+            fake("R297WhisperedRec", { whisper: [player.id, me] }),
+            fake("R297GmPopupCard1", { whisper: [me], flags: { gmPopup: true } }),
+            fake("R297ForcedByGm01", { whisper: [player.id, me], flags: { popupForce: true } }),
+            fake("R297ForcedByPlay", { author: player, whisper: [player.id, me], flags: { popupForce: true } }),
+            fake("R297VeiledNoWord", { flags: { secret: true, veiled: true } }),
+            fake("R297KindNoneCard", { flags: { popupKind: "none" } })
+        ];
+        const byId = new Map(fakes.map(message => [message.id, message]));
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        const read = new Map();
+        let askLink = null;
+        await NH.holdNoticeHistory(true);
+        const realGet = game.messages.get;
+        game.messages.get = function (id, ...rest) { return byId.get(id) ?? realGet.call(this, id, ...rest); };
+        try {
+            for (const message of fakes) await onCreateChatMessage(message);
+            for (const message of fakes) {
+                read.set(message.id, NH.noticeEntries().filter(entry => entry.messageId === message.id).map(entry => [entry.source, entry.author ?? null]));
+            }
+            if (!DrpgMessengerApp.instances.has(player.id)) {
+                const ask = fake("R297GmAskCard001", { author: player, whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: "<p>R297 asks the GM</p>" });
+                const chatter = fake("R297ChatterCard1", { author: player, whisper: [player.id, me], content: "<p>R297 chatter</p>" });
+                for (const message of [ask, chatter]) {
+                    Hooks.callAll("drpgMessengerMessage", player.id, message);
+                    await until(() => NH.noticeEntries().some(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")), 500);
+                    read.set(message.id, NH.noticeEntries().filter(entry => entry.text.includes(message === ask ? "R297 asks" : "R297 chatter")).map(entry => [entry.source, entry.author ?? null]));
+                }
+                askLink = NH.noticeEntries().filter(entry => entry.text.includes("R297 asks")).map(entry => [entry.messageId, entry.link?.messenger ?? null]);
+            }
+        } finally {
+            delete game.messages.get;
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                const notice = NH.noticeEntries().find(entry => entry.id === card.dataset.drpgNotice);
+                if (byId.has(card.dataset.drpgMessage) || /R297 (asks|chatter)/.test(notice?.text ?? "")) {
+                    card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                }
+            }
+            NH.holdNoticeHistory(false);
+        }
+        must(read.has("R297GmAskCard001"), `the GM has ${player.name}'s conversation open - the messenger's card would append to it, not be drawn`);
+        equal(JSON.stringify(Object.fromEntries(read)), JSON.stringify({
+            R297Announcement: [["public", null]], R297PlayerPublic: [["player", player.id]], R297AskedByPlay1: [["public", player.id]],
+            R297WhisperedRec: [], R297GmPopupCard1: [["mine", null]], R297ForcedByGm01: [["mine", null]], R297ForcedByPlay: [],
+            R297VeiledNoWord: [], R297KindNoneCard: [], R297GmAskCard001: [["messenger", player.id]], R297ChatterCard1: []
+        }), "[a GM's kept entries per card: [source, author]] - the announcement, a player's public card, a GM's card naming a player as asker, "
+            + "a whisper of a record, gmPopup, popupForce from a GM and from a player, veiled without words, popupKind none, the messenger's gmAsk and its chatter");
+        equal(JSON.stringify(askLink), JSON.stringify([["R297GmAskCard001", player.id]]),
+            "[the messenger's gmAsk entry: [its message, the conversation it opens]]");
+
+        /*
+         * The direct calls (E81 C4, 12.10.2026; the A7 design's P4-0 and P6-0, the owner's Q4 and Q7), on the same held
+         * engine. A request not carried out (`sayNotDone`) is one entry - an error, read, titled as one, its words exactly
+         * the toast's - whoever `notify` is; `murder.cleanup` with "nothing spent" is kept like the rest (Q4), and a reason
+         * outside the closed list (what a GM's reply could send) puts none of its words in it. The GM's safeword detail
+         * (`hearSafeword` from this GM, which posts nothing) is a safeword entry with the room it names; that it is
+         * written, so that it is there after a reload, and that no player's browser holds it is scenario 73's S1, on the
+         * stored values. The public safeword card (`raiseCard`) is a safeword entry of the frozen sentence alone, which
+         * a line the caller's card gains later does not move past the observer's quarter second: the same entry on every
+         * browser, naming nobody and no time (the window draws its time of day only - E81 C7). A message appended to an
+         * open conversation (a stand-in window in `DrpgMessengerApp.instances`) is no card and keeps nothing. The trial's
+         * evidence and the day summary are read in the source with comments blanked: the one passes its source and its
+         * message, the other its source. Every card drawn here is taken down at once.
+         */
+        const { sayNotDone } = await import("./bridge-guards.mjs");
+        const S = await import("./safeword.mjs");
+        ok(typeof S.raiseCard === "function", "safeword.mjs gives the suite no public card to raise without a chat card");
+        const ids = () => new Set(NH.noticeEntries().map(entry => entry.id));
+        const since = before => NH.noticeEntries().filter(entry => !before.has(entry.id));
+        const direct = {};
+        const found = ids();
+        await NH.holdNoticeHistory(true);
+        try {
+            let before = ids();
+            const toasts = [];
+            const said = sayNotDone("murder.cleanup", "noGm", { nothingSpent: true, notify: text => toasts.push(text) });
+            await until(() => since(before).length > 0, 1000);
+            direct.cleanup = since(before).map(entry => [entry.kind, entry.source, entry.state, entry.title, entry.text === said && toasts[0] === said, entry.html]);
+            before = ids();
+            const refused = sayNotDone("vote.cast", "<b>R297 a reply's own words</b>", { notify: () => {} });
+            await until(() => since(before).length > 0, 1000);
+            direct.refused = since(before).map(entry => [entry.text === refused, entry.text.includes("R297 a reply")]);
+            /* A request's name off the list (E81 fix r1-G3; review round 1's O12): a refusal this client is not waiting
+               on is said with the GM's packet's `what`, which reached the toast and the history as written. */
+            before = ids();
+            const unnamed = sayNotDone("<b>R297 a packet's own what</b>", "refused", { notify: () => {} });
+            await until(() => since(before).length > 0, 1000);
+            direct.unnamed = since(before).map(entry => [entry.text === unnamed, entry.text.includes("R297 a packet"), entry.text.includes(game.i18n.localize("DRPG.Bridge.unnamed"))]);
+            before = ids();
+            // One kept detail per sender per window (E81 fix r1-G1): a press of this GM's a minute ago is no answer here.
+            S.safewordDetails?.delete(game.user.id);
+            await S.hearSafeword({ action: S.SAFEWORD_ACTION, room: "R297 room" }, game.user.id);
+            direct.detail = since(before).map(entry => [entry.source, entry.kind, entry.title, entry.text.includes("R297 room")]);
+            before = ids();
+            const line = S.raiseCard();
+            const first = since(before)[0] ?? null;
+            const more = document.createElement("p");
+            more.textContent = "R297 the caller's own line";
+            line.after(more);
+            await wait(600);
+            direct.banner = since(before).map(entry => [entry.source, entry.title, entry.text, entry.html === first?.html]);
+            before = ids();
+            const appended = [];
+            const had = DrpgMessengerApp.instances.get(player.id);
+            DrpgMessengerApp.instances.set(player.id, { appendMessage: message => appended.push(message.id) });
+            try {
+                Hooks.callAll("drpgMessengerMessage", player.id, fake("R297BubbleCard01", { author: player, whisper: [player.id, me], content: "<p>R297 a bubble</p>" }));
+                await settle();
+            } finally {
+                if (had) DrpgMessengerApp.instances.set(player.id, had);
+                else DrpgMessengerApp.instances.delete(player.id);
+            }
+            direct.bubble = [appended, since(before).length];
+        } finally {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (card.dataset.drpgNotice && !found.has(card.dataset.drpgNotice)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+        }
+        const sources = await moduleSources();
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised) showPopup(", { length: 500 });
+        const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
+        direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
+        const t = key => game.i18n.localize(key);
+        equal(JSON.stringify(direct), JSON.stringify({
+            cleanup: [["error", "notDone", "read", t("DRPG.Notices.source.notDone"), true, ""]],
+            refused: [[true, false]],
+            unnamed: [[true, false, true]],
+            detail: [["safeword", "error", t("DRPG.Safeword.gmTitle"), true]],
+            banner: [["safeword", t("DRPG.Safeword.banner"), t("DRPG.Safeword.announced"), true]],
+            bubble: [["R297BubbleCard01"], 0],
+            sources: [true, true]
+        }), "[sayNotDone's murder.cleanup with its own notify: [kind, source, state, title, the toast's words, html]; a reason off the list: "
+            + "[the toast's words, the reply's]; a request's name off the list: [the toast's words, the packet's, the unnamed request's label]; the GM's safeword detail: [source, kind, title, its room]; the public safeword card after the caller's "
+            + "line: [source, title, text, the first snapshot]; a bubble in an open window: [appended, kept]; the evidence's source and message, the summary's source]");
+
+        /*
+         * NOBODY'S CARDS PUSH ANOTHER ACCOUNT'S ENTRIES OUT (E81 fix r1-G1, 12.10.2026; review round 1's F1, N1, GV1,
+         * O10 and O11). The harm both reviews measured at 0697d0f: on a GM, 12 public cards of 7 800 characters from
+         * one player took all 5 of the GM's own entries, and a whisper with `gmPopup`, an evidence card, a `gmAsk`
+         * card or a safeword card took them uncounted. First the engine over a value in memory, a GM's section and a
+         * player's: this account's 5 own entries and a second author's 3, then 30 entries of 7 800 characters from one
+         * sender on each of six sources, 160 short ones from another, and 30 stubs from a third that grow to 7 800 after
+         * they are kept (a private card's words landing): every own entry and the second author's stay, and each
+         * sender keeps at most 40 entries and a quarter of the section's characters. Then six senders at that bound,
+         * more than a section holds: the own entries stay, every sender keeps its newest, the section its budget.
+         * Then this GM's held engine through the module's own roads, from one player: 13 public cards, 13 whispers
+         * with `gmPopup`, 13 evidence cards and 13 `gmAsk` cards a GM wrote in the player's thread, 7 800 characters
+         * each, and 150 public safeword cards raised from the player's chat card; and 20 safeword details with a
+         * 7 000-character room from a sender of the suite's own (`showGmDetail`, what `hearSafeword` draws; the
+         * window is that sender's, so a run a minute after another measures the same): the GM's own 5 and the second
+         * author's 3 stay, each road's newest entry carries its sender, the player keeps at most 40 entries and 25 000
+         * characters, the details kept are one and its room 120 characters. The safeword hook's own line - which
+         * player's card raised the public one - is read in the source with comments blanked. Last (O11): a plain
+         * deletion of an evidence card's and a messenger card's message takes the card off the screen and leaves
+         * its entry unread and marked deleted, as C5 made it.
+         */
+        const SECOND = "SuiteAuthorBbbb2", SENDERS = ["SuiteSenderPppp1", "SuiteSenderQqqq2", "SuiteSenderGggg3"];
+        const words = `<p>${"x".repeat(7800)}</p>`;
+        const weigh = list => list.reduce((n, entry) => n + JSON.stringify(entry).length + 1, 0);
+        const engineOf = gm => {
+            const eng = noticeBench(NH.createNoticeEngine, { store: { raw: null, writes: 0, fail: 0 }, user: "SuiteOwnerOoooo1", world: W, gm, at, clock });
+            eng.open();
+            const put = (more, html = "<p>short</p>") => {
+                at.now += 1000;
+                return eng.record({ kind: "info", title: "flood", text: "", html, ...more });
+            };
+            return { eng, put, own: [0, 1, 2, 3, 4].map(() => put({ source: "mine" })) };
+        };
+        const flood = {}, crowd = {};
+        for (const gm of [true, false]) {
+            const share = (gm ? 100000 : 200000) / 4;
+            const { eng, put, own } = engineOf(gm);
+            const second = [0, 1, 2].map(() => put({ source: "player", author: SECOND }));
+            const [heavy, many, grown] = SENDERS;
+            for (const source of ["public", "player", "mine", "messenger", "evidence", "safeword"]) {
+                for (let i = 0; i < 30; i++) put({ source, author: heavy, title: `${source} ${i}` }, words);
+            }
+            for (let i = 0; i < 160; i++) put({ source: "safeword", author: many });
+            const stubs = Array.from({ length: 30 }, () => put({ source: "mine", author: grown }));
+            for (const id of stubs) eng.update(id, { html: words });
+            const kept = new Set(eng.entries().map(entry => entry.id));
+            const of = who => eng.entries().filter(entry => entry.author === who);
+            flood[gm ? "gm" : "player"] = [own.every(id => kept.has(id)), second.every(id => kept.has(id)),
+                of(heavy).length <= 40 && weigh(of(heavy)) <= share, of(heavy).at(-1)?.title ?? null, of(many).length <= 40, weigh(of(grown)) <= share];
+
+            const six = engineOf(gm);
+            const names = Array.from({ length: 6 }, (_, n) => `SuiteCrowdSendr${n}`);
+            for (let i = 0; i < 30; i++) for (const author of names) six.put({ source: "public", author, title: `${author} ${i}` }, words);
+            const left = new Set(six.eng.entries().map(entry => entry.id));
+            crowd[gm ? "gm" : "player"] = [six.own.every(id => left.has(id)),
+                names.every(author => six.eng.entries().filter(entry => entry.author === author).at(-1)?.title === `${author} 29`),
+                weigh(six.eng.entries()) <= share * 4];
+        }
+
+        const P = await import("./popup.mjs");
+        const sender = { id: `R297Sender${String(Date.now() % 1e6).padStart(6, "0")}`, name: "R297 sender", isGM: false };
+        const fid = (tag, i) => `R297Fl${tag}${String(i).padStart(4, "0")}xxxxx`;
+        const flooded = new Map(), road = {}, owned = [], seconds = [];
+        const live = ids();
+        /* A card this clause drew is closed whether or not it was kept: a repeat of the GM's safeword detail inside
+           its window is drawn with `record: false` and carries no notice id. Left on the tile, they stood under R293's
+           tail and R298's floor card, which measure the tile on the suite's own cards (the merge of e81-fix1 into
+           e81-wip, 12.10.2026: both failed that precondition in the fast set's tiers 0-1, e81run/mergee81fix1). */
+        const cardsBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismissNew = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!cardsBefore.has(card) || (card.dataset.drpgNotice && !live.has(card.dataset.drpgNotice))) {
+                    card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                }
+            }
+        };
+        const ran = key => {
+            const entry = NH.noticeEntries().at(-1) ?? null;
+            road[key] = [entry?.source ?? null, entry?.author === player.id];
+            dismissNew();
+        };
+        let bound = null, detail = null, deleted = null, s1 = null;
+        must(!Object.hasOwn(game.messages, "get"), "game.messages already answers get for itself - the suite's stand-in would hide it");
+        /* The second author and the safeword's sender are users of the suite's own, which this world answers for while
+           the clause runs: since E81 fix r2-H1 the history keeps no author that is no user of this world. */
+        must(!Object.hasOwn(game.users, "get"), "game.users already answers get for itself - the suite's stand-in would hide it");
+        must(!DrpgMessengerApp.instances.has(player.id), `the GM has ${player.name}'s conversation open - the messenger's cards would append to it, not be drawn`);
+        await NH.holdNoticeHistory(true);
+        const getOf = game.messages.get;
+        game.messages.get = function (id, ...rest) { return flooded.get(id) ?? getOf.call(this, id, ...rest); };
+        const usersGet = game.users.get, standIns = new Map([SECOND, sender.id].map(id => [id, { id, name: id, isGM: false }]));
+        game.users.get = function (id, ...rest) { return standIns.get(id) ?? usersGet.call(this, id, ...rest); };
+        const made = (tag, i, more) => {
+            const message = fake(fid(tag, i), more);
+            flooded.set(message.id, message);
+            return message;
+        };
+        try {
+            for (let i = 0; i < 5; i++) owned.push(NH.recordNotice({ source: "mine", kind: "info", title: `R297 own ${i}`, text: "", html: `<p>R297 own ${i}</p>` }));
+            for (let i = 0; i < 3; i++) seconds.push(NH.recordNotice({ source: "player", author: SECOND, kind: "info", title: `R297 second ${i}`, text: "", html: "<p>R297 second</p>" }));
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("P", i, { author: player, content: words }));
+            ran("public");
+            for (let i = 0; i < 13; i++) await onCreateChatMessage(made("G", i, { author: player, whisper: [me], flags: { gmPopup: true }, content: words }));
+            ran("gmPopup");
+            for (let i = 0; i < 13; i++) {
+                P.showPopup(words, { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: made("E", i, { author: player }).id });
+            }
+            ran("evidence");
+            for (let i = 0; i < 13; i++) {
+                const ask = made("A", i, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: words });
+                Hooks.callAll("drpgMessengerMessage", player.id, ask);
+                await until(() => NH.noticeEntries().some(entry => entry.messageId === ask.id), 500);
+            }
+            ran("gmAsk");
+            for (let i = 0; i < 150; i++) {
+                S.raiseCard(player.id);
+                dismissNew();
+            }
+            ran("banner");
+            for (let i = 0; i < 20; i++) S.showGmDetail?.(sender, "r".repeat(7000));
+            dismissNew();
+            const after = new Set(NH.noticeEntries().map(entry => entry.id));
+            const by = who => NH.noticeEntries().filter(entry => entry.author === who);
+            bound = [owned.every(id => after.has(id)), seconds.every(id => after.has(id)), by(player.id).length <= 40, weigh(by(player.id)) <= 25000];
+            detail = by(sender.id).map(entry => [entry.source, entry.text.includes("r".repeat(120)), entry.text.includes("r".repeat(121))]);
+
+            const evidenceMessage = made("D", 1, { author: player });
+            const askMessage = made("D", 2, { whisper: [player.id, me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: "<p>R297 a deleted ask</p>" });
+            P.showPopup("<p>R297 a deleted evidence card</p>", { title: "R297 evidence", kind: "evidence", sticky: true, source: "evidence", messageId: evidenceMessage.id });
+            Hooks.callAll("drpgMessengerMessage", player.id, askMessage);
+            await until(() => NH.noticeEntries().some(entry => entry.messageId === askMessage.id), 500);
+            const gone = [evidenceMessage.id, askMessage.id];
+            const shown = gone.map(id => document.querySelector(`.drpg-popup[data-drpg-message="${id}"]`));
+            must(shown.every(Boolean), "the evidence card or the messenger card was not drawn - their deletion would be measured on nothing");
+            for (const id of gone) {
+                P.onDeleteChatMessage({ id });
+                NH.noticeCardDeleted({ id }, {});
+            }
+            deleted = [shown.map(card => card.classList.contains("leaving")),
+                gone.map(id => NH.noticeEntries().filter(entry => entry.messageId === id).map(entry => [entry.source, entry.state, entry.mark]))];
+
+            /*
+             * WHOSE A THREAD CARD IS (E81 fix r2-H1, 13.10.2026; review round 2's S1, measured by the security review in
+             * the harness at eefa79f: one `gmAsk` card a player wrote naming another player's thread was kept on the GM as
+             * that other player's and tagged with their name; 41 of them took that player's own entry; 150, each naming a
+             * made-up thread, took all 5 of the GM's own). The `thread` flag is the card's writer's to set. Here the player
+             * writes such cards to this GM: one naming the second author's thread is kept under the player; 41 leave the
+             * second author's 3 entries; 150 naming threads of no user leave this GM's own 5 and form no holder; and an
+             * author that is no user of this world, handed to `recordNotice` directly, is not kept.
+             */
+            const forge = (tag, i, thread) => {
+                const card = made(tag, i, { author: player, whisper: [me], flags: { [MESSENGER_FLAGS.gmAsk]: true }, content: `<p>R297 ${tag} ${i}</p>` });
+                Hooks.callAll("drpgMessengerMessage", thread, card);
+                return card;
+            };
+            const keptOf = card => NH.noticeEntries().filter(entry => entry.messageId === card.id);
+            const has = id => NH.noticeEntries().some(entry => entry.id === id);
+            const one = forge("S", 0, SECOND);
+            await until(() => keptOf(one).length > 0, 500);
+            s1 = { one: keptOf(one).map(entry => [entry.source, entry.author === player.id, entry.author === SECOND]) };
+            dismissNew();
+            for (let i = 0; i < 41; i++) {
+                const card = forge("T", i, SECOND);
+                if (i % 10 === 9 || i === 40) {
+                    await until(() => keptOf(card).length > 0, 500);
+                    dismissNew();
+                }
+            }
+            s1.second = seconds.every(has);
+            const nobody = i => `R297NoUser${String(i).padStart(6, "0")}`;
+            for (let i = 0; i < 150; i++) {
+                const card = forge("U", i, nobody(i));
+                if (i % 10 === 9) {
+                    await until(() => keptOf(card).length > 0, 500);
+                    dismissNew();
+                }
+            }
+            s1.own = owned.every(has);
+            s1.nobody = NH.noticeEntries().filter(entry => String(entry.author ?? "").startsWith("R297NoUser")).length;
+            const loose = NH.recordNotice({ source: "player", author: "R297NoSuchUser01", kind: "info", title: "R297 loose", text: "", html: "<p>R297 loose</p>" });
+            s1.loose = NH.noticeEntries().filter(entry => entry.id === loose).map(entry => entry.author ?? null);
+        } finally {
+            delete game.messages.get;
+            delete game.users.get;
+            dismissNew();
+            NH.holdNoticeHistory(false);
+        }
+        const hook = stripComments(sources.get("safeword.mjs") ?? "");
+        equal(JSON.stringify({ flood, crowd, bound, road, detail, hook: /else raiseCard\(message\.author && !message\.author\.isGM \? message\.author\.id : null, message\.id\)/.test(hook), deleted, s1 }), JSON.stringify({
+            flood: { gm: [true, true, true, "safeword 29", true, true], player: [true, true, true, "safeword 29", true, true] },
+            crowd: { gm: [true, true, true], player: [true, true, true] },
+            bound: [true, true, true, true],
+            road: { public: ["player", true], gmPopup: ["mine", true], evidence: ["evidence", true], gmAsk: ["messenger", true], banner: ["safeword", true] },
+            detail: [["safeword", true, false]],
+            hook: true,
+            deleted: [[true, true], [[["evidence", "unread", "deleted"]], [["messenger", "unread", "deleted"]]]],
+            s1: { one: [["messenger", true, false]], second: true, own: true, nobody: 0, loose: [null] }
+        }), "[the engine, a GM's and a player's: [own 5 kept, a second author's 3 kept, a heavy sender within 40 entries and a quarter, its newest, "
+            + "160 short within 40, grown stubs within a quarter]; six senders: [own kept, each one's newest, the section within its budget]; "
+            + "this GM through the roads: [own 5 kept, a second author's 3 kept, the player within 40 entries, within 25 000 characters]; "
+            + "each road's newest [source, carries the player]; the details kept [source, 120 of the room, 121]; the safeword hook passes its card's player and its card (E81 fix r1-G5); "
+            + "a plain deletion: [cards closing], [the entries' [source, state, mark]]; E81 fix r2-H1, a player's `gmAsk` cards naming a thread: "
+            + "one naming the second author's [source, kept under its writer, under the thread's user], 41 of them leave the second author's 3, "
+            + "150 naming no user leave this GM's own 5, the entries kept under no user, an author of no user handed to recordNotice]");
+    }],
+
+    ["R473 - the suite leaves this browser's notice history as it found it: held, a notice stays in memory and out of the setting, and the runner compares the setting across tier 2", async () => {
+        /*
+         * E81 C1, 12.10.2026; the A7 plan's 2.4 and its ledger's V22. The history is this browser's record of what it
+         * showed, and the suite shows cards (C3 records them): a tier 2 that wrote its cards into a GM's history would
+         * leave them there after the run. On the module's own engine: held, a notice is recorded, kept in memory and
+         * not written past the 400 ms debounce; let go, it is forgotten. In tests.mjs with comments blanked: the hold
+         * beside the GM store's at the start of tier 2, its release beside the GM store's, and the failing line named
+         * "the suite left this browser's notice history as it found it" after it - which is the measurement of a run;
+         * this test is what keeps it there.
+         */
+        /*
+         * ON AN ENGINE OF ITS OWN (E81 fix r1-G5, 12.10.2026; review round 1's O3 and N4). It held the module's
+         * engine for about 700 ms and read the stored text before the awaited hold, which writes what waits - red
+         * on timing, not on the hold (O3 a) - and a real notice drawn in that window was forgotten at the release
+         * (O3 b). Now the hold is measured on `noticeBench`'s engine over a value in memory: the text read after the
+         * hold, a notice recorded while held kept in memory and never written, forgotten at the release with what
+         * was there before kept; and a history kept in memory only (its writes failed) given back whole by the
+         * release - at 0697d0f the release read the setting again and the session's history was gone (N4). The
+         * module's engine is read by its source alone.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.holdNoticeHistory === "function" && typeof NH.createNoticeEngine === "function", "there is no notice history to hold, and no reading of it across the run");
+        const at = { now: 4_000_000 }, clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const note = title => ({ source: "mine", kind: "info", title, text: title, html: `<p>${title}</p>` });
+        const store = { raw: null, writes: 0, fail: 0 };
+        const engine = noticeBench(NH.createNoticeEngine, { store, user: "SuitePlayerR47301", world: "suite-world", at, clock });
+        engine.open();
+        engine.record(note("R473 before"));
+        await engine.hold(true);
+        const before = store.raw;
+        let id = null, held = null;
+        try {
+            at.now++;
+            id = engine.record(note("R473 held"));
+            await engine.flush();
+            held = [engine.entries().some(entry => entry.id === id), store.raw === before, store.writes];
+        } finally {
+            engine.hold(false);
+        }
+        must(id !== null && before !== null, "the hold wrote nothing of what waited, or refused the suite's notice - it would be measured on nothing");
+        await engine.flush();
+        const released = [engine.entries().map(entry => entry.title), store.raw === before, store.writes];
+        const lost = { raw: null, writes: 0, fail: 2 };
+        const memory = noticeBench(NH.createNoticeEngine, { store: lost, user: "SuitePlayerR47302", world: "suite-world", at, clock });
+        memory.open();
+        for (let n = 1; n <= 4; n++) { at.now++; memory.record(note(`R473 memory ${n}`)); }
+        await memory.flush();
+        at.now++; memory.record(note("R473 memory 5"));
+        await memory.hold(true);
+        at.now++; memory.record(note("R473 memory held"));
+        memory.hold(false);
+        const kept = [memory.status().saving, memory.entries().map(entry => entry.title), lost.raw];
+        const src = stripComments((await moduleSources()).get("tests.mjs") ?? "");
+        const start = bodyOf(src, "gmStoreHold(true);", { length: 2000 });
+        const release = bodyOf(src, "gmStoreHold(false);", { length: 700 });
+        equal(JSON.stringify([held, released, kept,
+            /^gmStoreHold\(true\);\s*await holdNoticeHistory\(true\);\s*noticesFound = noticeHistoryText\(\);/.test(start), /^gmStoreHold\(false\);\s*holdNoticeHistory\(false\);/.test(release),
+            /name: "the suite left this browser's notice history as it found it"/.test(release) && /outcome: "fail"/.test(release)]),
+            JSON.stringify([[true, true, 1], [["R473 before"], true, 1],
+                [false, ["R473 memory 2", "R473 memory 3", "R473 memory 4", "R473 memory 5"], null], true, true, true]),
+            "[held: the notice in memory, the stored text as the hold left it, the writes; released and flushed: the entries, the stored text unchanged, the writes; "
+            + "kept in memory only, released: saving, the entries, the stored value; "
+            + "the runner holds it beside the GM store and reads it; releases it beside the GM store; fails the run on a difference]");
+    }],
+    ["R294 - a kept notice holds only what a past card may show: what another user's markup carried in is gone through the recorder, from a value written raw into the setting and from a GM's trusted words, and the card's own text stays", async () => {
+        /*
+         * E81 C2, 12.10.2026; the A7 design's A7-3 (T2); the window's half is C7's, at the end. The harm: a
+         * card's body holds what another user wrote - a plain card's `message.content`, which the popup draws uncleaned,
+         * a GM's `trusted` private words (secret.mjs returns those as written), a trial's evidence, a day summary's
+         * names - and a history keeps it to the season's reset and draws it again. One card body carries every vector
+         * of the design's T2 beside its own text, a link, an image, a hint, a roll, a document link, a table cell and
+         * the GMs' half of a card, and it is measured on three roads: recorded by the module's own engine on this GM
+         * (held, as R473 holds it: the setting is not written), cleaned for a player, and written raw into a value
+         * that never passed the recorder (`noticeBench`'s storage, read at `open`) and drawn by `noticeSnapshot`, the
+         * window's one road. On each: the card's words kept, and no iframe, script, audio, video, svg, form control or
+         * custom element, no `data-*`, `aria-*`, `style`, `srcset`, `for`, `name`, `id` or `on*`, no foreign or
+         * `javascript:` address, no class outside `NOTICE_CLASSES`. Then the read's validation (a tone and a kind
+         * outside popup.mjs's lists, an id with a quote), `NOTICE_CLASSES` against the `class=` grep it states, and
+         * `cleanCardHtml` as secret.mjs's one cleaner, the history's first step. THE CLEANER HERE IS THE HARNESS'S
+         * STAND-IN (audit/harness/lib/futil.mjs `cleanHTML`), which keeps `data-*`, classes and buttons: what this
+         * measures is the history's own allowlist, which owes nothing to it. Foundry's real `cleanHTML` and a
+         * browser's parser are LIVE-E81-01, at a table (the plan's D5: no skip here).
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        const secret = await import("./secret.mjs");
+        must(typeof NH?.recordNotice === "function", "there is no notice history to keep a card in - nothing here would be measured");
+        const KEEP = "Suite R294 keeps this text";
+        const PNG = "data:image/png;base64,iVBORw0KGgo=";
+        const CARD = [
+            `<p class="notes">${KEEP}</p>`,
+            `<a href="https://example.com/r294">R294 link</a>`,
+            `<img src="${PNG}" alt="R294 image">`,
+            `<span data-tooltip="R294 &lt;b&gt;hint&lt;/b&gt;">R294 tip</span>`,
+            `<a class="inline-roll roll" data-formula="1d20" data-tooltip="1d20"><i class="fas fa-dice-d20"></i>R294 roll</a>`,
+            `<a class="content-link" data-link data-uuid="Actor.R294" draggable="true">R294 document</a>`,
+            `<table><tbody><tr><td colspan="2" style="color:red">R294 cell</td></tr></tbody></table>`,
+            `<div class="drpg-gm-only"><p>R294 GM prose</p></div>`,
+            `<iframe srcdoc="&lt;p&gt;R294 framed&lt;/p&gt;" src="https://www.youtube.com/embed/r294"></iframe>`,
+            `<span data-tooltip-html="&lt;img src=x onerror=alert(1)&gt;">R294 tooltip html</span>`,
+            `<span data-tooltip="" aria-label="&lt;img src=x onerror=alert(2)&gt;">R294 aria</span>`,
+            `<audio autoplay src="https://example.com/r294.mp3"></audio>`,
+            `<video autoplay poster="https://evil.example/r294.png" src="https://example.com/r294.mp4"></video>`,
+            `<p style="position:fixed;inset:0;z-index:99999" id="r294">R294 styled</p>`,
+            `<img srcset="https://evil.example/r294-set.png 1x" src="${PNG}">`,
+            `<img src="https://evil.example/r294-track.png">`,
+            `<img src="r294-missing.png" onerror="globalThis.__drpgR294 = 1">`,
+            `<svg onload="globalThis.__drpgR294 = 2"><circle r="1"></circle></svg>`,
+            `<a href="javascript:globalThis.__drpgR294 = 3">R294 js link</a>`,
+            `<document-embed uuid="JournalEntry.R294"><p>R294 embedded</p></document-embed>`,
+            `<label for="r294">R294 label</label>`,
+            `<button type="button" data-drpg-call="r294">R294 button</button>`,
+            `<form><input name="r294"></form>`,
+            `<div data-action="r294" is="r294-div" popover contenteditable="true" autofocus>R294 action</div>`,
+            `<p class="drpg-popup application fa-solid notes window-content">R294 classed</p>`,
+            `<script>globalThis.__drpgR294 = 4</script><object data="r294"></object><embed src="r294">`
+        ].join("");
+        const GONE_TAGS = /^(iframe|script|audio|video|svg|object|embed|form|input|label|button|template|style|link|meta)$/;
+        const measure = (root, gm) => {
+            const all = [...root.querySelectorAll("*")];
+            const foreign = el => ["src", "href", "poster"].some(name => /evil\.example|youtube|^\s*javascript:/i.test(el.getAttribute(name) ?? ""));
+            return {
+                kept: [KEEP, "R294 link", "R294 tip", "R294 roll", "R294 document", "R294 cell", "R294 action", "R294 classed", "R294 js link"]
+                    .filter(words => !root.textContent.includes(words)),
+                notes: root.querySelectorAll("p.notes").length,
+                link: root.querySelector('a[href="https://example.com/r294"]')?.getAttribute("rel") ?? null,
+                images: root.querySelectorAll(`img[src="${PNG}"]`).length,
+                hint: root.querySelector('[title="R294 hint"]') !== null,
+                cell: root.querySelector('td[colspan="2"]') !== null,
+                gm: root.textContent.includes("R294 GM prose"),
+                tags: all.map(el => el.localName).filter(tag => GONE_TAGS.test(tag) || tag.includes("-")),
+                attrs: all.flatMap(el => [...el.attributes].map(attr => attr.name))
+                    .filter(name => /^(data-|aria-|on)|^(style|srcset|poster|for|name|id|is|popover|contenteditable|autofocus|draggable)$/.test(name)),
+                addresses: all.filter(foreign).length,
+                classes: all.flatMap(el => [...el.classList]).filter(name => !(NH.NOTICE_CLASSES ?? []).includes(name) && !(gm && name === "drpg-gm-only")),
+                words: ["R294 framed", "R294 embedded", "R294 label", "R294 button"].filter(words => root.textContent.includes(words))
+            };
+        };
+        const expected = gm => ({ kept: [], notes: 2, link: "noopener noreferrer", images: 2, hint: true, cell: true, gm,
+            tags: [], attrs: [], addresses: 0, classes: [], words: [] });
+        const parsed = html => {
+            const template = document.createElement("template");
+            template.innerHTML = String(html ?? "");
+            return template.content;
+        };
+
+        /* The recorder: the module's engine on this GM, held, with the body as a GM's trusted card hands it over. */
+        const isGM = Boolean(game.user?.isGM);
+        let recorded = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: "R294", text: "R294", html: CARD });
+            recorded = NH.noticeEntries().find(entry => entry.id === id) ?? null;
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        must(recorded !== null, "the history refused the suite's card - the recorder's road would be measured on nothing");
+        equal(stableJson(measure(parsed(recorded.html), isGM)), stableJson(expected(isGM)),
+            "recorded by the module's engine, a card body kept what another user's markup carried in, or lost its own words");
+        ok(typeof NH.noticeSnapshot === "function" && typeof NH.cleanNoticeHtml === "function" && Array.isArray(NH.NOTICE_CLASSES),
+            "the history has no cleaning of its own to draw a kept card with");
+        equal(stableJson(measure(parsed(NH.cleanNoticeHtml(CARD, { gm: false })), false)), stableJson(expected(false)),
+            "cleaned for a player, a card body kept what another user's markup carried in, or the GMs' half of it");
+
+        /* A value written raw into the setting, as another tab or a console can: read through the shape, drawn by the window's road. */
+        const W = "suite-world", U = "SuitePlayerR29401", at = { now: 2_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const entry = (id, more = {}) => ({ id, at: 1_000_000, messageId: null, kind: "info", tone: null, source: "public", state: "read",
+            mark: null, title: "R294", text: "R294", html: CARD, clipped: false, clock: {}, ...more });
+        const store = { raw: JSON.stringify({ v: 1, sections: { [`${W}.${U}`]: { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: [
+            entry("SuiteNoticeR2941"), entry("SuiteNoticeR2942", { tone: "evil" }), entry('SuiteNotice"2943'),
+            entry("SuiteNoticeR2944", { kind: "drpg-popup" }), entry("SuiteNoticeR2945", { tone: "hope", kind: "evidence" })
+        ] } } }), writes: 0, fail: 0 };
+        const bench = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        bench.open();
+        const read = bench.entries();
+        equal(JSON.stringify(read.map(e => e.id)), JSON.stringify(["SuiteNoticeR2941", "SuiteNoticeR2945"]),
+            "read back, the raw value's entries [a plain one, a hope-toned evidence] beside a tone and a kind outside popup.mjs's lists and an id with a quote");
+        const drawn = NH.noticeSnapshot(read[0]?.html ?? "", { gm: false });
+        const drawnGm = NH.noticeSnapshot(read[0]?.html ?? "", { gm: true });
+        equal(stableJson([drawn.localName, drawn.className, measure(drawn, false), measure(drawnGm, true)]),
+            stableJson(["div", "drpg-notice-snapshot", expected(false), expected(true)]),
+            "a raw value in the setting, drawn by the window's road, showed what another user's markup carried in");
+
+        /* The lists the read holds an entry to, and the class allowlist against the grep it states. */
+        const sources = await moduleSources();
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const list = name => JSON.parse(bodyOf(popup, `const ${name} = `, { until: ";" }).replace(`const ${name} = `, ""));
+        const FORBIDDEN = /^(drpg-popup|drpg-notices-|drpg-corner-tail|application$|window-|inline-roll$|content-link$|fa-)/;
+        const grep = new Set();
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "action-rolls.mjs"]) {
+            const src = stripComments(sources.get(file) ?? "");
+            must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
+            for (const m of src.matchAll(/class=(["'])/g)) {
+                let words = "", depth = 0, quote = null;
+                for (const c of src.slice(m.index + m[0].length)) {
+                    if (depth === 0 && c === m[1]) break;
+                    if (quote) {
+                        if (c === quote) { quote = null; words += " "; } else words += c;
+                    } else if (depth === 0) {
+                        if (c === "{" && words.endsWith("$")) { depth = 1; words = `${words.replace(/\$$/, "")} `; } else words += c;
+                    } else if (`"'\``.includes(c)) {
+                        quote = c;
+                        words += " ";
+                    } else if (c === "{") depth++;
+                    else if (c === "}") depth--;
+                }
+                for (const word of words.split(/\s+/)) if (/^[A-Za-z][\w-]*$/.test(word) && !FORBIDDEN.test(word)) grep.add(word);
+            }
+        }
+        equal(stableJson([list("KINDS"), list("TONES")]), stableJson([NH.NOTICE_KINDS, NH.NOTICE_TONES]),
+            "the history's closed lists of a card's kind and tone are not popup.mjs's");
+        equal(stableJson([[...NH.NOTICE_CLASSES].sort(), NH.NOTICE_CLASSES.filter(name => FORBIDDEN.test(name) || name === "drpg-gm-only")]),
+            stableJson([[...grep].sort(), []]),
+            "NOTICE_CLASSES [the class= grep over the files that build card bodies; no frame of a card, a window or an icon]");
+
+        /* One cleaner: secret.mjs's, the history's first step at the write and at the draw, and no innerHTML write in the history. */
+        const secretSrc = stripComments(sources.get("secret.mjs") ?? "");
+        const history = stripComments(sources.get("notice-history.mjs") ?? "");
+        equal(JSON.stringify([
+            /\bsanitize\s*\(/.test(secretSrc), /^export function cleanCardHtml\(/m.test(secretSrc),
+            /cleaned\.set\(message\.id, cleanCardHtml\(entry\.html\)\)/.test(fnSource(secretSrc, "secretHtml")),
+            secret.cleanCardHtml(CARD) === (typeof foundry.utils.cleanHTML === "function" ? foundry.utils.cleanHTML(CARD) : foundry.utils.escapeHTML(CARD)),
+            /return inertCopy\(cleanCardHtml\(html\), options\)/.test(fnSource(history, "cleanNoticeHtml")),
+            /importNode\(inertTree\(cleanCardHtml\(html\), gm\)\.content, true\)/.test(fnSource(history, "noticeSnapshot")),
+            /clean: html => cleanNoticeHtml\(html\)/.test(history),
+            /\.innerHTML\s*=(?!=)|\.outerHTML\s*=(?!=)|setHTMLUnsafe|insertAdjacentHTML|createContextualFragment/.test(history)
+        ]), JSON.stringify([false, true, true, true, true, true, true, false]),
+        "[secret.mjs keeps a cleaner of another name; exports cleanCardHtml; a private card's words go through it; it is Foundry's "
+            + "cleanHTML as before; the history keeps inertCopy(cleanCardHtml(html)); draws through both again by importNode; "
+            + "the module's engine cleans every record; the history writes markup through innerHTML or its kin]");
+
+        /*
+         * WHAT A REFUSED LINK HELD, AN ATTRIBUTE NAME THE DOM REFUSES, AND A GM'S TRUSTED WORDS AS DRAWN (E81 fix r1-G4,
+         * 12.10.2026; review round 1's O5, O4 and O6). A link the allowlist refuses is kept as its words: at 0697d0f
+         * they were read before its children were cleaned, so a player kept the GMs' half inside one, an svg's text
+         * and a style's rules (early C2's reading in the harness's jsdom: "GM SECRET roll"). An element parsed with
+         * `is` beside an attribute named `"r294"` threw while it was rebuilt, and the recorder kept the card with an
+         * empty body, and the window's road drew it empty (the harness's stand-in cleaner passes that attribute on; whether Foundry's own does is
+         * LIVE-E81-01's). Then the road this test's title names: a private card whose words a GM wrote, stored
+         * `trusted` (secret.mjs hands those back as written), drawn by the catch-all on this GM - the card shows them
+         * as written, and the entry keeps them as the history cleans them, with no handler and no frame. The store is
+         * read through a stand-in for `game.settings.get` that adds the one card to what is there, for the length of
+         * the clause, and the history is held: nothing is written.
+         */
+        const LINKS = `<a class="inline-roll"><span class="drpg-gm-only">R294 GM in a roll</span> R294 roll words</a>`
+            + `<a href="javascript:void 0"><div class="drpg-gm-only">R294 GM in a js link</div>R294 js words</a>`
+            + `<a class="content-link"><svg><desc>R294 svg words</desc></svg><style>.r294-style{}</style>R294 doc words</a>`;
+        const linkWords = gm => {
+            try {
+                const text = parsed(NH.inertCopy(LINKS, { gm })).textContent;
+                return ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 svg words", "r294-style", "R294 doc words"]
+                    .filter(words => text.includes(words));
+            } catch (err) {
+                return `threw ${err.name}`;
+            }
+        };
+        const ODD = `<p>R294 before</p><p is="r294-p" "r294"=1>R294 odd names</p>`;
+        let odd = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: "R294 odd", html: ODD });
+            odd = NH.noticeEntries().find(entry => entry.id === id)?.html ?? null;
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([linkWords(false), linkWords(true), [odd?.includes("R294 before") ?? null, odd?.includes("R294 odd names") ?? null, /\bis=|r294"/.test(odd ?? ""), NH.noticeSnapshot(ODD, { gm: false }).textContent]]),
+            JSON.stringify([["R294 roll words", "R294 js words", "R294 doc words"],
+                ["R294 GM in a roll", "R294 GM in a js link", "R294 roll words", "R294 js words", "R294 doc words"], [true, true, false, "R294 beforeR294 odd names"]]),
+            "[a refused link's words kept for a player; for a GM; a card with an element parsed with `is` and an attribute named \"r294\": "
+                + "its first paragraph kept, its own words, an odd attribute kept, and the same written raw and drawn by the window's road]");
+
+        const TRUSTED_ID = "R294TrustedCard1";
+        const TRUSTED = `<p>R294 trusted words</p><img src="${PNG}" onerror="void 0"><iframe srcdoc="&lt;p&gt;R294 trusted frame&lt;/p&gt;"></iframe>`;
+        const { MESSAGE_FLAG } = await import("./utils.mjs");
+        const { onCreateChatMessage } = await import("./popup.mjs");
+        const trustedCard = {
+            id: TRUSTED_ID, author: game.user, whisper: [], rolls: [], content: secret.STUB,
+            flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true, [secret.SECRET_FLAG]: true } },
+            getFlag(scope, key) { return this.flags?.[scope]?.[key]; }
+        };
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get");
+        const realGet = game.settings.get;
+        let shown = null, keptTrusted = null;
+        await NH.holdNoticeHistory(true);
+        game.settings.get = function (scope, key, ...rest) {
+            const value = realGet.call(this, scope, key, ...rest);
+            if (scope !== MODULE_ID || key !== SETTINGS.secretCards) return value;
+            return { ...(value ?? {}), [TRUSTED_ID]: { html: TRUSTED, at: Date.now(), user: game.user.id, world: game.world?.id ?? null, trusted: true } };
+        };
+        secret.forgetSecrets();
+        try {
+            await onCreateChatMessage(trustedCard);
+            shown = document.querySelector(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"] .drpg-popup-body`)?.innerHTML ?? null;
+            keptTrusted = NH.noticeEntries().find(entry => entry.messageId === TRUSTED_ID) ?? null;
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet);
+            else delete game.settings.get;
+            secret.forgetSecrets();
+            for (const card of document.querySelectorAll(`.drpg-popup[data-drpg-message="${TRUSTED_ID}"]`)) {
+                card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([shown?.includes("onerror") ?? null, keptTrusted?.html === NH.cleanNoticeHtml(TRUSTED),
+            /onerror|<iframe|R294 trusted frame/.test(keptTrusted?.html ?? "onerror"), keptTrusted?.text ?? null]),
+        JSON.stringify([true, true, false, "R294 trusted words"]),
+        "[a GM's trusted private words drawn by the catch-all as written; the entry kept them as the history cleans them; "
+            + "the entry holds a handler or a frame; its words]");
+
+        /*
+         * THE WINDOW (E81 C7, 12.10.2026). The same card recorded on this client (held), opened in the history's
+         * window and expanded there: what `.drpg-notice-snapshot` holds is measured as above - the card's words in it
+         * (the positive control: a window that drew nothing would pass every count of what is gone) and no `data-*`,
+         * `aria-*`, `style` or `on*` under it. The title and the text carry markup of their own and are drawn as the
+         * characters they are: text nodes, no element parsed out of them, the characters all there.
+         */
+        const TITLE = `R294 <img src="r294-title.png" onerror="globalThis.__drpgR294 = 5"> title`;
+        const windows = () => [...foundry.applications.instances.values()].filter(app => app.options?.classes?.includes("drpg-window-notices"));
+        must(windows().length === 0, "the notice history window is open - close it: the suite measures a window it opened itself");
+        // No window is the module's harm, not the environment's: an assertion, so that red first reads it as one.
+        const { openNotices } = await import("./notice-history-app.mjs").catch(() => ({}));
+        ok(typeof openNotices === "function", "there is no notice history window (notice-history-app.mjs) to draw a kept card in");
+        let win = null, seen = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const id = NH.recordNotice({ source: "mine", kind: "info", title: TITLE, text: `${TITLE} text`, html: CARD });
+            win = await openNotices();
+            const details = win?.element?.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id ?? "")}"]`) ?? null;
+            must(details !== null, "the window did not list the suite's card - its snapshot would be measured on nothing");
+            details.open = true;
+            await until(() => details.querySelector(".drpg-notice-snapshot"), 1000);
+            const snapshot = details.querySelector(".drpg-notice-snapshot");
+            const part = name => details.querySelector(`summary > .drpg-notice-${name}`);
+            seen = {
+                snapshot: snapshot ? measure(snapshot, isGM) : null,
+                title: [part("title")?.textContent === TITLE, part("title")?.querySelectorAll("*").length ?? -1],
+                text: [part("text")?.textContent === `${TITLE} text`, part("text")?.querySelectorAll("*").length ?? -1]
+            };
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(seen), stableJson({ snapshot: expected(isGM), title: [true, 0], text: [true, 0] }),
+            "expanded in the window, a kept card showed what another user's markup carried in or lost its own words, or a title or text was parsed as markup");
+    }],
+    ["R293 - a card is kept as it is drawn: one entry after its body is filled, followed while the card is on screen in either host and not after, closed with the reason its reader or the code gave, and a history error never stops a card; the bottom card's tail follows its words and is never kept", async () => {
+        /*
+         * E81 C3, 12.10.2026; the A7 design's A7-2 (P3-0..P3-4); the tail clause is E81 C9's (below). On this client's module engine, held as R473 holds it, so nothing reaches the setting: a card
+         * drawn by `showPopup` is one entry whose html is the drawn body through the history's cleaning and whose
+         * words are read off that html; a change to the body is kept a quarter of a second later, on the corner
+         * stack and on the evidence stage (sticky evidence, Objection), and not once the card is gone; `observe: false`
+         * keeps the first snapshot; `record: false` and `showWaiting` keep nothing; "+N" on five cards moves no
+         * snapshot. The close's reason: the X and a click on the card read, a deletion's "withdrawn", "unseen" with
+         * `instant` (gone at once) and the function `showPopup` returns unread. A recorder that throws (a `link`
+         * whose read throws) still draws the card. `persist: "session"` on `noticeBench`'s engine: kept in memory,
+         * absent from the write. Every card drawn here is taken down at once at the end.
+         * The tail (E81 C9, 12.10.2026; the stage's V4): the card at the bottom of the corner tile marks one element of
+         * its body for the button's room (`setFloor`, R298 (6)), and the card's observer moves that mark when the
+         * words change - with `observe: false` too, the snapshot still frozen. Marking it is no change to the words:
+         * a snapshot set by hand on a card that then becomes the floor stays as it was past the quarter second, so
+         * the observer did not keep the body again; a real change after it is still kept, through the cleaning, with
+         * no class of the corner in it while the body on screen holds one. A sticky evidence card on the evidence
+         * stage gets neither class. On the suite's own cards: a card already on the tile is a precondition.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a card back from");
+        const { showPopup, showWaiting } = await import("./popup.mjs");
+        const isGM = Boolean(game.user?.isGM);
+        const drawn = [];
+        const newest = () => Array.from(document.querySelectorAll(".drpg-popup"))
+            .sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const entryOf = id => NH.noticeEntries().find(entry => entry.id === id) ?? null;
+        const draw = (html, options = {}) => {
+            const before = new Set(NH.noticeEntries().map(entry => entry.id));
+            const close = showPopup(html, options);
+            const card = newest();
+            if (card) drawn.push(card);
+            const added = NH.noticeEntries().filter(entry => !before.has(entry.id));
+            return { close, card, body: card?.querySelector(".drpg-popup-body") ?? null, added, id: added[0]?.id ?? null };
+        };
+        const kept = id => entryOf(id)?.html ?? null;
+        const follows = async (shown, words) => {
+            shown.body.insertAdjacentHTML("beforeend", `<p>${words}</p>`);
+            return until(() => entryOf(shown.id)?.text.includes(words), 2000);
+        };
+
+        await NH.holdNoticeHistory(true);
+        try {
+            /* One entry, as drawn. */
+            const BODY = `<p>R293 kept words</p><p style="color:red">R293 styled</p><div class="drpg-gm-only"><p>R293 GM half</p></div>`;
+            const a = draw(BODY, { title: "R293 title", kind: "error", tone: "fear" });
+            must(a.card !== null, "showPopup drew no card - the recorder would be measured on nothing");
+            const first = entryOf(a.id);
+            equal(JSON.stringify([a.added.length, a.card.dataset.drpgNotice === a.id, first?.html === NH.cleanNoticeHtml(a.body.innerHTML),
+                first?.html.includes("R293 styled"), first?.text, first?.title, first?.kind, first?.tone, first?.source, first?.state, first?.messageId]),
+            JSON.stringify([1, true, true, true, isGM ? "R293 kept words R293 styled R293 GM half" : "R293 kept words R293 styled",
+                "R293 title", "error", "fear", "mine", "open", null]),
+            "[entries a card adds; the card names its entry; the html is the drawn body cleaned; it holds the body's words; "
+                + "the text read off the kept html; title, kind, tone; no chat card: mine; open; no message]");
+
+            /* Followed on the corner stack and on the evidence stage, and not after the card is gone. */
+            const evidence = draw("<p>R293 evidence</p>", { kind: "evidence", sticky: true });
+            const objection = draw("<p>R293 objection</p>", { kind: "objection", sticky: true });
+            const hosts = [a, evidence, objection].map(shown => shown.card?.parentElement?.id ?? null);
+            must(hosts.join() === "drpg-popups,drpg-evidence,drpg-evidence", `the cards stood in ${hosts.join(", ")}`);
+            const followed = [await follows(a, "R293 later"), await follows(evidence, "R293 evidence later"), await follows(objection, "R293 objection later")];
+            equal(JSON.stringify([followed, kept(a.id) === NH.cleanNoticeHtml(a.body.innerHTML)]), JSON.stringify([[true, true, true], true]),
+                "[a body's change kept within 2 s on the corner stack, sticky evidence and Objection on the evidence stage; the kept html the body cleaned again]");
+
+            /* The reasons, and "unseen" with `instant` taken down at once. */
+            const reasons = {};
+            const x = draw("<p>R293 closed by X</p>");
+            x.card.querySelector(".drpg-popup-close").click();
+            reasons.x = entryOf(x.id)?.state;
+            const clicked = draw("<p>R293 clicked</p>");
+            clicked.card.click();
+            reasons.click = entryOf(clicked.id)?.state;
+            const withdrawn = draw("<p>R293 withdrawn</p>");
+            withdrawn.card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "withdrawn" } }));
+            reasons.withdrawn = entryOf(withdrawn.id)?.state;
+            const code = draw("<p>R293 closed by code</p>");
+            code.close();
+            reasons.code = entryOf(code.id)?.state;
+            evidence.card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { reason: "unseen", instant: true } }));
+            reasons.unseen = [entryOf(evidence.id)?.state, evidence.card.isConnected];
+            equal(JSON.stringify(reasons), JSON.stringify({ x: "read", click: "read", withdrawn: "unread", code: "unread", unseen: ["unread", false] }),
+                "[the state a close leaves per reason: the X, a click on the card, a deletion's event, the returned function; unseen and instant: unread and off the page at once]");
+            const gone = kept(evidence.id);
+            evidence.body.insertAdjacentHTML("beforeend", "<p>R293 after the card left</p>");
+            const frozen = draw("<p>R293 frozen</p>", { observe: false });
+            const firstFrozen = kept(frozen.id);
+            frozen.body.insertAdjacentHTML("beforeend", "<p>R293 frozen later</p>");
+            await wait(600);
+            equal(JSON.stringify([kept(evidence.id) === gone, kept(frozen.id) === firstFrozen, firstFrozen?.includes("R293 frozen")]), JSON.stringify([true, true, true]),
+                "[a card's body changed after it left the page: the snapshot unmoved past 600 ms; observe: false, the first snapshot unmoved; and it was kept]");
+
+            /* What keeps nothing: `record: false`, `showWaiting`; and "+N" moves no snapshot. */
+            const unkept = draw("<p>R293 not kept</p>", { record: false });
+            const waitingBefore = NH.noticeEntries().length;
+            const closeWaiting = showWaiting("R293 waiting");
+            const waitingCard = newest();
+            if (waitingCard) drawn.push(waitingCard);
+            const waitingAdded = NH.noticeEntries().length - waitingBefore;
+            closeWaiting();
+            const five = [1, 2, 3, 4, 5].map(n => draw(`<p>R293 stacked ${n}</p>`));
+            const atDraw = five.map(shown => kept(shown.id));
+            must(document.querySelector("#drpg-popups .drpg-popup-more") !== null, "five cards raised no \"+N\" - its snapshot rule would be measured on nothing");
+            await wait(600);
+            equal(JSON.stringify([unkept.added.length, "drpgNotice" in (unkept.card?.dataset ?? {}), waitingAdded,
+                five.map((shown, n) => kept(shown.id) === atDraw[n]), NH.noticeEntries().some(entry => entry.html.includes("drpg-popup-more"))]),
+            JSON.stringify([0, false, 0, [true, true, true, true, true], false]),
+            "[entries from record: false; its card names one; entries from showWaiting; five stacked cards' snapshots unmoved past 600 ms with \"+N\" up; a kept \"+N\"]");
+
+            /* A history that throws still draws the card. */
+            let threw = null, broken = null;
+            try {
+                broken = draw("<p>R293 drawn anyway</p>", { link: { get messenger() { throw new Error("R293's broken history"); } } });
+            } catch (err) {
+                threw = err.message;
+            }
+            equal(JSON.stringify([threw, typeof broken?.close, broken?.body?.textContent ?? null, broken?.added.length ?? null]),
+                JSON.stringify([null, "function", "R293 drawn anyway", 0]),
+                "[what showPopup threw when the recorder did; what it returned; the card's words; entries kept]");
+
+            /* A kind and a tone off popup.mjs's lists (E81 fix r1-G4; review round 1's O8): kept as the card is
+               dressed, "info" and no tone - the normalisation at the recorder, which no clause reached before. */
+            const offList = draw("<p>R293 off the lists</p>", { kind: "banana", tone: "loud" });
+            equal(JSON.stringify(offList.added.map(entry => [entry.kind, entry.tone])), JSON.stringify([["info", null]]),
+                "[the entries a card of kind \"banana\" and tone \"loud\" adds, as [kind, tone]]");
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+
+        /* The tail (E81 C9): it follows the floor card's words with `observe: false` as well, marking it keeps no
+           snapshot again, what is kept carries none of it, and the evidence stage has no floor. */
+        const tile = document.getElementById("drpg-popups");
+        must(tile !== null && !tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"),
+            "a card is on the notice tile - close it: the tail is measured on the suite's own cards");
+        const tails = () => [...tile.querySelectorAll(".drpg-corner-tail, .drpg-corner-tail-block")].map(el => el.dataset.r293 ?? el.localName);
+        const tailCards = [];
+        let tail = null;
+        /* A card that is leaving takes its place off the tile on a timer, and `unparkInto` then marks the floor again: a
+           re-pick from there would pass for the observer's (found 12.10.2026 - with the observer's re-pick removed, and
+           again with the card not watched at all, this test still came out green, because an earlier card's removal
+           landed inside the window). So each reading below waits until nothing is leaving. */
+        const settled = () => until(() => tile.querySelector(".drpg-popup.leaving") === null, 4000);
+        await NH.holdNoticeHistory(true);
+        try {
+            const frozen = draw(`<p data-r293="first">R293 tail first</p>`, { observe: false });
+            tailCards.push(frozen.card);
+            const frozenKept = kept(frozen.id), before = tails();
+            await settled();
+            frozen.body.insertAdjacentHTML("beforeend", `<ul><li data-r293="later">R293 tail later</li></ul>`);
+            const moved = await until(() => tails().join() === "later", 1000);
+            await wait(400);
+            tail = { frozen: [before, moved, kept(frozen.id) === frozenKept && Boolean(frozenKept?.includes("R293 tail first"))] };
+            frozen.close({ instant: true });
+
+            const older = draw("<p>R293 older</p>"), newer = draw(`<p data-r293="newer">R293 newer</p>`);
+            tailCards.push(older.card, newer.card);
+            await wait(400);
+            NH.updateNotice(newer.id, { html: "<p>R293 marker</p>" });
+            const marker = kept(newer.id);
+            older.close();
+            tail.handed = [newer.card?.classList.contains("drpg-popup-floor") ?? false, tails()];
+            await wait(600);
+            tail.handed.push(kept(newer.id) === marker && Boolean(marker?.includes("R293 marker")));
+            await settled();
+            newer.body.insertAdjacentHTML("beforeend", `<p data-r293="newest">R293 newest</p>`);
+            tail.handed.push(await until(() => entryOf(newer.id)?.text.includes("R293 newest"), 2000),
+                await until(() => tails().join() === "newest", 1000), /drpg-corner-tail|drpg-popup-floor/.test(kept(newer.id) ?? "drpg-corner-tail"));
+
+            const proof = draw("<p>R293 tail evidence</p>", { kind: "evidence", sticky: true });
+            tailCards.push(proof.card);
+            tail.evidence = [proof.card?.parentElement?.id ?? null,
+                document.querySelectorAll("#drpg-evidence :is(.drpg-popup-floor, .drpg-corner-tail, .drpg-corner-tail-block)").length];
+        } finally {
+            for (const card of tailCards) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify(tail), JSON.stringify({ frozen: [["first"], true, true], handed: [true, ["newer"], true, true, true, false], evidence: ["drpg-evidence", 0] }),
+            "[observe: false - the tail as drawn, on a list added to it within 1 s, the first snapshot unmoved; the older of two closed - the newer is the floor at once, "
+                + "its tail, a snapshot set by hand unmoved 600 ms after its tail was marked, a real change still kept within 2 s, its tail picked again on the new words, "
+                + "the kept html holding a tail class or the floor class; the evidence stage - where the card stood, floor and tail classes in it]");
+
+        /* `persist: "session"`: this page keeps it, the write leaves it out; and showPopup hands it on. */
+        const store = { raw: null, writes: 0, fail: 0 }, at = { now: 3_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const bench = noticeBench(NH.createNoticeEngine, { store, user: "SuitePlayerR29301", world: "suite-world", at, clock });
+        bench.open();
+        bench.record({ source: "mine", kind: "info", title: "R293 kept", text: "", html: "<p>kept</p>" });
+        at.now++;
+        bench.record({ source: "mine", kind: "info", title: "R293 this page", text: "", html: "<p>this page</p>", persist: "session" });
+        await bench.flush();
+        const popup = stripComments((await moduleSources()).get("popup.mjs") ?? "");
+        equal(JSON.stringify([bench.entries().map(entry => entry.title), JSON.parse(store.raw)?.sections?.["suite-world.SuitePlayerR29301"]?.entries?.map(entry => entry.title),
+            /recordNotice\(\{[^}]*\bpersist\b/.test(fnSource(popup, "showPopup"))]),
+        JSON.stringify([["R293 kept", "R293 this page"], ["R293 kept"], true]),
+        "[this page's entries; the written ones; showPopup hands its persist to recordNotice]");
+
+        /*
+         * Two tabs of one login (E81 fix r1-G5; review round 1's N3, measured there at 0697d0f): the same card drawn
+         * in both, closed in the older - its X reached nothing, the merge had kept the newer tab's copy, and the
+         * history said "open"; the same day summary drawn in both was kept twice. And the safeword's banner, which
+         * every tab raises from one chat card, now names that card to the history and stays when it is deleted.
+         */
+        const shared = { raw: null, writes: 0, fail: 0 }, U2 = "SuitePlayerR29302", KEY2 = `suite-world.${U2}`, MSGS = ["SuiteMessageR293", "SuiteMessageR29B"];
+        const tab = () => noticeBench(NH.createNoticeEngine, { store: shared, user: U2, world: "suite-world", at, clock });
+        const older = tab(), newer = tab();
+        older.open(); newer.open();
+        const CARD = messageId => ({ source: "public", kind: "info", title: "R293 both tabs", text: "", html: "<p>R293 both tabs</p>", messageId });
+        /* Closed in the older tab before either wrote: the merge keeps the newer copy, with the older one's state. */
+        const early = older.record(CARD(MSGS[0]));
+        at.now++; const late = newer.record(CARD(MSGS[0]));
+        older.update(early, { state: "read" });
+        await older.flush(); await newer.flush(); older.external();
+        /* Closed in the older tab after the merge: its X reaches the copy kept. */
+        at.now++; const mine = older.record(CARD(MSGS[1]));
+        at.now++; const theirs = newer.record(CARD(MSGS[1]));
+        await older.flush(); await newer.flush(); older.external();
+        const closed = older.update(mine, { state: "read" });
+        await older.flush(); newer.external();
+        /* The newer tab's cards then close by code: what was read stays read. */
+        newer.update(late, { state: "unread" });
+        newer.update(theirs, { state: "unread" });
+        await newer.flush();
+        const states = MSGS.map(id => (JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? []).filter(entry => entry.messageId === id).map(entry => entry.state));
+        older.external();
+        const SUMMARY = { source: "summary", kind: "info", title: "R293 summary", text: "R293 the day", html: "<p>R293 the day</p>" };
+        at.now++; older.record(SUMMARY);
+        at.now++; newer.record(SUMMARY);
+        await older.flush(); await newer.flush(); older.external(); await older.flush();
+        const both = JSON.parse(shared.raw)?.sections?.[KEY2]?.entries ?? [];
+        let banner = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            const S = await import("./safeword.mjs");
+            const had = new Set(NH.noticeEntries().map(entry => entry.id));
+            S.raiseCard(null, "SuiteSafeword293");
+            const card = newest();
+            banner = [NH.noticeEntries().filter(entry => !had.has(entry.id)).map(entry => [entry.source, entry.messageId]), card?.dataset.drpgMessage ?? null];
+            card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        } finally {
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify([closed, states, MSGS.map(id => both.filter(entry => entry.messageId === id).map(entry => entry.state)), both.filter(entry => entry.source === "summary").length,
+            older.entries().filter(entry => entry.source === "summary").length, banner]),
+        JSON.stringify([true, [["read"], ["read"]], [["read"], ["read"]], 1, 1, [[["safeword", "SuiteSafeword293"]], null]]),
+        "[the older tab's X after the merge moved the copy kept; each card's kept states (closed before the merge, after it) as the newer tab wrote them and at the end; the day summaries kept, written and in the older tab; "
+        + "the banner's entries [source, its chat card], the card's data-drpg-message]");
+    }],
+    ["R295 - a card the module takes back leaves the notice history, any other deletion leaves its entry marked deleted, and a Reroll or a ruling marks an entry without moving what it showed", async () => {
+        /*
+         * E81 C5, 12.10.2026; the A7 design's A7-4 (P5-0, P5-1, T3). A notice was a copy of a chat card, and the card
+         * could go after it was shown: the module takes some back (a rerolled action's old outcome, the opening's
+         * request once the roll resolved), a GM clears the log, the season's reset deletes it in batches. Before C5 the
+         * history kept every one of them as its reader had left it, and the popups' deletion hook closed the card by
+         * clicking its X - a reader's close, so a card nobody read was kept as read. Read in the source with comments
+         * blanked: the two places that take a card back delete it with the module's withdraw option and no other file
+         * passes it (the reset's `deleteMessages` deletes without it); the popups' deletion hook is a named function
+         * that clicks nothing, and the history listens on `deleteChatMessage`, `updateChatMessage` and
+         * `drpgSecretStored`, which the private-card store calls once a card's words and meta are stored. On this
+         * client's module engine, held as R473 holds it: five cards drawn for stand-in chat ids; the withdrawn one is
+         * gone from the history and closing, the one deleted without the option is kept, unread and marked deleted, its
+         * snapshot unmoved, and so is one deleted with `deleteAll` in the options (Foundry 14.365 takes that out before
+         * the hook - the design's reading of Foundry's client-backend.mjs, LIVE-E81-11 at a table - so the rule may
+         * not rest on it). `rerolled` and `settled` mark an entry and move neither its snapshot nor its state; a card
+         * with neither flag moves nothing, and a deleted entry keeps its mark. On `noticeBench`'s engine: an entry whose
+         * chat card is not in the log when the page opens is marked deleted, one whose card is there is not, and an
+         * engine that cannot read the log marks nothing; a withdrawn entry does not come back from another tab's copy.
+         * The handlers are called directly with stand-in messages, not through `Hooks.callAll`: a tier-1 test
+         * writes nothing, and every other module's deletion hook would be handed a document that is not one.
+         * A real deletion, withdrawn or cleared, on four browsers: 73-notice-history B and 13-murder-signals.
+         * ONLY A GM'S (E81 fix r1-G3, 12.10.2026; review round 1's O13, O14 and F2): at C5 the withdraw option was
+         * honoured from any deleter and a mark read off the card whoever wrote it, and this test passed no user, so
+         * it never asked who may do either. Each hook's handler is read off `registerNoticeHistory` now and called
+         * with the user Foundry hands the hook: this client, a GM, and a player (the world's first, or an id no user
+         * has where the world holds none - not a GM either way). A player's withdraw leaves the entry marked deleted;
+         * a player's update that sets `settled` or `rerolled`, and a GM's that sets neither on a card that carries
+         * one, mark nothing; and a private card's words stored with a mark on its document and none in its meta mark
+         * nothing. A player's own card on four browsers, its withdraw, its update and its meta: 73-notice-history G3.
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        must(typeof NH?.noticeEntries === "function" && typeof NH.holdNoticeHistory === "function", "there is no notice history to read a deletion back from");
+        const P = await import("./popup.mjs");
+        const sources = await moduleSources();
+        const code = file => stripComments(sources.get(file) ?? "");
+        const WITHDRAW = /messages\.get\([^)]*\)\?\.delete\(\{\s*\[MODULE_ID\]:\s*\{\s*withdraw:\s*true\s*\}\s*\}\)/;
+        const sites = [["murder-rules.mjs", "undoLastCrisis"], ["incident-store.mjs", "retireOpeningNotices"]]
+            .map(([file, fn]) => WITHDRAW.test(fnSource(code(file), fn)));
+        const passing = [...sources.keys()].filter(file => file.endsWith(".mjs") && !file.startsWith("tests") && /\bwithdraw:\s*true\b/.test(code(file))).sort();
+        equal(JSON.stringify([sites, passing, /\bwithdraw\b/.test(fnSource(code("season-setup.mjs"), "deleteMessages"))]),
+            JSON.stringify([[true, true], ["incident-store.mjs", "murder-rules.mjs"], false]),
+            "[undoLastCrisis and retireOpeningNotices delete with the withdraw option; the files that pass it; the reset's batches pass it]");
+        const popups = fnSource(code("popup.mjs"), "registerPopups"), history = fnSource(code("notice-history.mjs"), "registerNoticeHistory");
+        const remember = fnSource(code("secret.mjs"), "remember");
+        const HOOKS = ["deleteChatMessage", "updateChatMessage", "drpgSecretStored"];
+        const on = Object.fromEntries(HOOKS.map(hook => [hook, NH[new RegExp(`Hooks\\.on\\("${hook}", (\\w+)\\)`).exec(history)?.[1] ?? ""]]));
+        equal(JSON.stringify([/Hooks\.on\("deleteChatMessage", onDeleteChatMessage\)/.test(popups), /\.click\(\)/.test(popups + fnSource(code("popup.mjs"), "onDeleteChatMessage")),
+            HOOKS.map(hook => typeof on[hook] === "function"),
+            remember.indexOf('Hooks.callAll("drpgSecretStored", message)') > remember.indexOf("await saving")]),
+        JSON.stringify([true, false, [true, true, true], true]),
+        "[the popups' deletion hook is onDeleteChatMessage; it clicks a close button; the history's three hooks, each an exported handler; the private-card store tells it after the words are stored]");
+        must(game.user?.isGM, "the suite runs on a GM - a GM's deletion and update would be measured as somebody else's");
+        const GM = game.user.id, PLAYER = game.users.find(user => !user.isGM)?.id ?? "R295NotAUser0001";
+
+        const ids = { withdrawn: "R295Withdrawn001", deleted: "R295DeletedPlain", cleared: "R295ClearedAll01", rerolled: "R295RerolledCard", settled: "R295SettledCall1",
+            playerWithdrawn: "R295PlayerWithdr", playerSettled: "R295PlayerSettld", gmUntouched: "R295GmUntouched1", storedDoc: "R295StoredOnDoc1" };
+        const entryOf = messageId => NH.noticeEntries().find(entry => entry.messageId === messageId) ?? null;
+        const drawn = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            const cards = {};
+            for (const [key, messageId] of Object.entries(ids)) {
+                P.showPopup(`<p>R295 ${key} words</p>`, { title: `R295 ${key}`, messageId });
+                cards[key] = document.querySelector(`.drpg-popup[data-drpg-message="${messageId}"]`);
+                if (cards[key]) drawn.push(cards[key]);
+            }
+            must(Object.values(ids).every(entryOf) && drawn.length === 9, "the nine stand-in cards were not drawn and kept - the deletions would be measured on nothing");
+            const before = Object.fromEntries(Object.entries(ids).map(([key, messageId]) => [key, entryOf(messageId).html]));
+
+            P.onDeleteChatMessage({ id: ids.withdrawn });
+            on.deleteChatMessage({ id: ids.withdrawn }, { [MODULE_ID]: { withdraw: true } }, GM);
+            P.onDeleteChatMessage({ id: ids.deleted });
+            on.deleteChatMessage({ id: ids.deleted }, {}, GM);
+            on.deleteChatMessage({ id: ids.cleared }, { deleteAll: true }, GM);
+            on.deleteChatMessage({ id: ids.playerWithdrawn }, { [MODULE_ID]: { withdraw: true } }, PLAYER);
+            const after = key => {
+                const entry = entryOf(ids[key]);
+                return entry && [entry.state, entry.mark, entry.html === before[key]];
+            };
+            equal(JSON.stringify([after("withdrawn"), cards.withdrawn.classList.contains("leaving"), after("deleted"), cards.deleted.classList.contains("leaving"), after("cleared"),
+                after("playerWithdrawn")]),
+                JSON.stringify([null, true, ["unread", "deleted", true], true, ["unread", "deleted", true], ["unread", "deleted", true]]),
+                "[the withdrawn card's entry; its card closing; the plain deletion's entry; its card closing; the entry of a deletion with deleteAll; the entry a player's deletion with the withdraw option reached]");
+
+            const flags = more => ({ flags: { [MODULE_ID]: more } });
+            const update = (key, more, by = GM, changes = flags(more)) => on.updateChatMessage({ id: ids[key], ...flags(more) }, changes, {}, by);
+            const moved = [
+                update("rerolled", { rerolled: { from: 3, to: 9, at: 1 } }),
+                update("settled", { settled: true }),
+                update("withdrawn", { settled: true }),
+                update("deleted", { rerolled: { from: 1, to: 2, at: 1 } }),
+                update("cleared", { popupTitle: "R295 not a mark" })
+            ];
+            equal(JSON.stringify([moved, after("rerolled"), after("settled"), after("deleted"), after("cleared")]),
+                JSON.stringify([[true, true, false, false, false], ["open", "rerolled", true], ["open", "settled", true], ["unread", "deleted", true], ["unread", "deleted", true]]),
+                "[which changes moved an entry; the rerolled entry; the settled one; a deleted one a late Reroll reached; one a flag that is no mark reached]");
+            const refused = [
+                update("playerSettled", { settled: true }, PLAYER),
+                update("playerSettled", { rerolled: { from: 2, to: 12, at: 1 } }, PLAYER),
+                update("gmUntouched", { settled: true }, GM, { content: "<p>R295 an edit that sets no mark</p>" }),
+                on.drpgSecretStored({ id: ids.storedDoc, ...flags({ secret: true, settled: true, rerolled: { from: 1, to: 2, at: 1 } }) })
+            ];
+            equal(JSON.stringify([refused, after("playerSettled"), after("gmUntouched"), after("storedDoc")]),
+                JSON.stringify([[false, false, false, false], ["open", null, true], ["open", null, true], ["open", null, true]]),
+                "[which of a player's settled and rerolled, a GM's edit that sets no mark and a private card's document flags moved an entry; the player's card; the GM's edited card; the private card]");
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+
+        /* At `open`: the log decides what a deletion while the page was closed would have; another tab's copy. */
+        const store = { raw: null, writes: 0, fail: 0 }, at = { now: 5_000_000 };
+        const clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const W = "suite-world", U = "SuitePlayerR29501", HERE = "R295MessageHere1", GONE = "R295MessageGone1";
+        const card = (title, messageId) => ({ source: "mine", kind: "info", title, text: title, html: `<p>${title}</p>`, messageId });
+        const first = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        first.open();
+        first.record(card("R295 here", HERE));
+        at.now++;
+        first.record(card("R295 gone", GONE));
+        await first.flush();
+        const marksAtOpen = messageExists => {
+            const page = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock, messageExists });
+            page.open();
+            return page.entries().map(entry => [entry.title, entry.state, entry.mark]);
+        };
+        const opened = [marksAtOpen(id => id === HERE), marksAtOpen(undefined)];
+        const one = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        const two = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+        one.open();
+        two.open();
+        at.now++;
+        one.deleted(HERE, { withdraw: true });
+        await one.flush();
+        await two.flush();
+        two.external();
+        await two.flush();
+        const titles = engine => engine.entries().map(entry => entry.title);
+        equal(JSON.stringify([...opened, titles(one), titles(two), JSON.parse(store.raw).sections[`${W}.${U}`].entries.map(entry => entry.title)]),
+            JSON.stringify([[["R295 here", "unread", null], ["R295 gone", "unread", "deleted"]], [["R295 here", "unread", null], ["R295 gone", "unread", null]],
+                ["R295 gone"], ["R295 gone"], ["R295 gone"]]),
+            "[opened beside a log that holds one of the two cards; opened with no log to read; the tab that withdrew; another tab after both wrote; the stored section]");
+    }],
+    ["R298 - the notice tile has one history button from ready, its last child whatever the stack does, which closes no card and carries only an unread count, with the oldest card shown keeping its corner free, a '+N' that closes every card that is not sticky and, under Monokuma Legacy on a desk, the empty tile following the clock; and the history gives its room back to the module's other stores when the browser's storage is full, and the case's health counts it apart", async () => {
+        /*
+         * E81 C6, 12.10.2026; the A7 design's A7-7, its store clauses (1e; the stage's V14 and its risk "frees space
+         * synchronously on `drpgStorageFull` and is counted apart in the case's health" - the tile's anatomy, the floor
+         * card and '+N' are C8, C9 and C11's). One localStorage per origin holds the private cards, every GM store (the
+         * Truth Bullet and Remnant ledgers among them), the drawn rolls kept readable and, since E81, a history of up to
+         * 500 000 characters: a store that found it full lost its write while the history kept its own. Four parts.
+         * (1) The engine over a value in memory (`noticeBench`): `giveWay` writes before it returns - no await between
+         * the call and the reading - a value without another world's sections, with this world's other account's
+         * section as it was (Q9) and the newer half of this login's; then the budgets are halved for the session, so a
+         * player's section filled again keeps 125 entries, not 250; a history that had stopped saving after two failed
+         * writes still shrinks what it left stored; under the suite's hold and before `open` it writes nothing.
+         * (2) `keepRoom`: a QuotaExceededError fires `drpgStorageFull` before it answers true, any other error fires
+         * nothing and answers false - under the module's own hold, so this client's history gives back nothing.
+         * (3) The GM store's engine on fakes, as R186 builds it: a write that finds the storage full once is written on
+         * the second try with no notice; full twice, one more try only and the notice; another error, no second try.
+         * (4) In the source with comments blanked: the private cards' `write` and `keepReadable` ask `keepRoom` and set
+         * their setting once more, gm-stores.mjs hands `keepRoom` to the engine, the history listens on
+         * `drpgStorageFull` and the case's health has its info row; and `gmStoreStatus` over a stand-in storage counts
+         * the history's key in `notices`, not in `total`. What a browser's quota counts is not measured here: the
+         * lengths are JSON's. A real full storage, jsdom's: 61-gmstore-case X.
+         * (5) E81 C8, 12.10.2026; the A7 design's step 7 and the stage's V11 and D3: the tile's button, on this client.
+         * One `#drpg-notices-corner` in the whole page, the tile's last child from `ready`, with its anatomy: a button
+         * named by the history's title or its unread count, its tooltip that name, no text node, one inert shape with
+         * the glyph; the tile `aria-atomic="false"` with the role and the politeness it had. Under the suite's hold the
+         * count read, then one, nine and ten unread entries recorded: no badge, "1", "9", "9+", and every change an
+         * attribute - a MutationObserver sees no node and no text arrive, and no entry's words reach the button. Five
+         * cards, each prepended, the stack parking what does not fit and saying "+N", and one closed by its X: the same
+         * node last after each. A card that closes on any click survives an Enter and a click on the button; the click
+         * opens the window, a second click raises it rather than opening another, and closing it takes the badge away.
+         * Last, in the source with comments blanked: `ready` builds the tile through `safely` before the narrow layout
+         * and the accessibility sweep (so a tile that throws stops neither), `container()` builds it when the host is
+         * missing, and the button's count is read through `noticeUnread` and nothing that carries an entry's words.
+         * Where the button stands and how its focus ring falls need a layout: R299 (b).
+         * (6) E81 C9, 12.10.2026; the A7 design's P7-5 and the stage's V12: the card at the bottom of the tile - the
+         * oldest shown, the newest going on top - is marked `drpg-popup-floor` and one element of its body the tail,
+         * which the stylesheet gives the button's room. Two cards and nothing parked: the floor on the older (so
+         * `markParked` sets it before its early return); that one closed by code: the floor and the tail on the other
+         * at once, while the first is still leaving (`dismiss`); a card parked: the floor on the oldest card shown and
+         * never on the parked one. The tail of a body ending in a sentence after a `<b>`, in text after a `<b>` in a
+         * `<p>`, in `div > p` and `ul > li`, past an empty `<p>` and a `<br>`, and the block spacer on the body after
+         * a table and a rule; and it follows a list added to the floor card and taken away again (the card's
+         * observer). Measured on the suite's own cards, so a card already on the tile is a precondition. Whether the
+         * text then clears the button needs a layout: R299 (b).
+         * (7) E81 C10, 12.10.2026; the owner's Q6 and the stage's V18 and D2: under Monokuma Legacy on a desk the
+         * button stands alone under the clock, so the tile has to follow the clock and the Despair rail with no card
+         * coming. The harm: `top` was measured only when a card came, so a lone button kept the height the widgets had
+         * then and stood on the rail once it grew, and a switch from Stained Glass (which clears `top`) left it at the
+         * sheet's 96 px until the next card. Headless the harness's `ResizeObserver` never fires, so the suite puts a
+         * stand-in of its own on `window` for the reading, gives the clock and the rail boxes of its own
+         * (`getBoundingClientRect`, so the numbers are the suite's and not jsdom's zeros), and turns the body's theme
+         * classes to Legacy and back, firing `drpgThemeApplied` as `applyTheme` does: the tile's `top` under the clock
+         * with the widgets watched; after the clock grows (the observer's callback, as a browser calls it); after a
+         * rail drawn as a new node - a twin of the bar, or a stand-in where there is no bar - and after it grows;
+         * after it is taken away with nothing in its place (the last Monokuma gone); and back on Stained Glass, `top` cleared and nothing watched. Everything is
+         * put back and the hook fired once more for the theme as it was. Last, in the stylesheets and the source:
+         * the empty Legacy desk tile's box and its place under the window layer, the hide rule on a stacked screen,
+         * `applyTheme` firing the hook after it has set the classes, and `ensureNoticeTile` binding the watch from
+         * `ready`. Where the tile and the button then stand, and over which windows: R299 (b), in a browser.
+         * (8) E81 C11, 12.10.2026; the owner's Q2, audit S11-39, the stage's V13 and D6: '+N' closes every card that is
+         * not sticky. The harm: '+N' was a label that said "close one to see the next", so a stack that had parked
+         * notices cost one X per card. Recorded under the suite's hold, on the suite's own cards: sticky cards only,
+         * more than the stack shows - the label as it was, with `moreTip`; then cards that close on any click drawn
+         * until one is parked, and a sticky card after them, so two of them wait and '+N' stands on the oldest shown one:
+         * a button named by `moreCloseAll`, never by "close one". Pressed (a click of its own, cancelable): the click is
+         * cancelled and reaches no card - no card's own click runs -, the parked ones are gone at once and unread, the
+         * shown ones leave read, the sticky card stays on screen and open, nothing waits so no '+N' is left, and the
+         * history's button counts the two taken down unseen. Last, in the stylesheet: the button's focus ring is the
+         * close button's and its target the close button's height with a pointer. How it draws: a browser only.
+         * (9) E81 fix r1-G2 (12.10.2026; review round 1's F3, N2 and O17): (1)'s other account of this world is a
+         * 10-entry clone that never reaches the halved whole value, so it passed over a give-way that deleted such a
+         * section whole (the correctness review's bench: 199 622 characters). Here the other accounts' sections are
+         * big enough to cross it - halved after a GM's give-way (a: they alone fill it; b: they leave room for part
+         * of this login's) and whole at a player's ordinary write (c: they alone fill it; d: room for part) - and
+         * each must stay byte for byte, while this login's section is cut to what fits, oldest first, or, where
+         * nothing of it fits, is kept in memory with the history no longer saving. And `keepRoom` hears Firefox's
+         * older quota error, by its name and by its code 1014. At 27e4b34 all four lost the least recently written
+         * other section (r1g2-probe2.mjs, 12.10.2026).
+         */
+        const NH = await import("./notice-history.mjs").catch(() => null);
+        ok(typeof NH?.keepRoom === "function" && typeof NH.createNoticeEngine === "function",
+            "the notice history cannot give its room back: a full storage loses a private card or a GM store's row while the history keeps its own");
+        const J = JSON.stringify;
+        const W = "suite-world", U = "SuitePlayerR29801", KEY = `${W}.${U}`, OTHER = `${W}.SuitePlayerR29802`;
+        const at = { now: 7_000_000 }, clock = { value: { chapter: 1, day: 1, session: 1, timeOfDay: "morning", eclipse: false, seasonStartedAt: 0, resetCuts: {} } };
+        const card = n => ({ source: "mine", kind: "info", title: `R298 card ${n}`, text: `R298 text ${n}`, html: `<p>R298 card ${n}</p>` });
+        const titles = entries => entries.map(entry => entry.title);
+        const filled = async (store, n) => {
+            const e = noticeBench(NH.createNoticeEngine, { store, user: U, world: W, at, clock });
+            e.open();
+            for (let i = 1; i <= n; i++, at.now++) e.record(card(i));
+            await e.flush();
+            return e;
+        };
+        /* Another world's sections and another account's of this one beside this login's, as another browser wrote them. */
+        const crowd = (store, own) => {
+            const value = { v: 1, sections: { [KEY]: own } };
+            for (const key of ["another-world.SuitePlayerR29801", "third-world.SuitePlayerR29803"]) value.sections[key] = { epoch: "", touched: 1, clearedAt: 0, gone: {}, entries: [], pad: "R298".repeat(500) };
+            value.sections[OTHER] = structuredClone(own);
+            store.raw = J(value);
+            return store.raw.length;
+        };
+
+        const store = { raw: null, writes: 0, fail: 0, now: 0 };
+        const e = await filled(store, 10);
+        const before = crowd(store, JSON.parse(store.raw).sections[KEY]);
+        const writes = store.writes;
+        const freed = e.giveWay();
+        const given = JSON.parse(store.raw);
+        const right = [Object.keys(given.sections).sort(), titles(given.sections[KEY].entries), titles(e.entries()), given.sections[OTHER]?.entries.length ?? null,
+            store.now, store.writes - writes, freed > 0 && freed === before - store.raw.length];
+        for (let i = 1; i <= 300; i++, at.now++) e.record(card(100 + i));
+        await e.flush();
+        right.push(JSON.parse(store.raw).sections[KEY].entries.length);
+        equal(J(right), J([[OTHER, KEY].sort(), ["6", "7", "8", "9", "10"].map(n => `R298 card ${n}`), ["6", "7", "8", "9", "10"].map(n => `R298 card ${n}`), 10,
+            1, 0, true, 125]),
+            "[the sections left; this login's, stored and in memory; the other account's; written at once; written later; what it answered; a section filled after it]");
+
+        const quiet = { raw: null, writes: 0, fail: 2, now: 0 };
+        const stopped = await filled(quiet, 4);
+        crowd(quiet, { epoch: NH.noticeEpoch(clock.value), touched: 1, clearedAt: 0, gone: {}, entries: [] });
+        const stoppedSaving = stopped.status().saving;
+        stopped.giveWay();
+        const held = { raw: null, writes: 0, fail: 0, now: 0 };
+        const holding = await filled(held, 4);
+        const heldRaw = held.raw;
+        await holding.hold(true);
+        crowd(held, JSON.parse(heldRaw).sections[KEY]);
+        const crowded = held.raw;
+        const heldAnswer = holding.giveWay();
+        const unopened = { raw: heldRaw, writes: 0, fail: 0, now: 0 };
+        const shut = noticeBench(NH.createNoticeEngine, { store: unopened, user: U, world: W, at, clock });
+        equal(J([stoppedSaving, Object.keys(JSON.parse(quiet.raw).sections).sort(), quiet.now, heldAnswer, held.raw === crowded, held.now, shut.giveWay(), unopened.raw === heldRaw, unopened.now]),
+            J([false, [OTHER, KEY].sort(), 1, 0, true, 0, 0, true, 0]),
+            "[the history had stopped saving; what it left stored after giving way; written at once; under the hold: the answer, the value, writes; before open: the same]");
+
+        /* (2) keepRoom, under the module's hold: the hook is heard here, and this client's history writes nothing. */
+        await NH.holdNoticeHistory(true);
+        let heard = 0;
+        const hook = Hooks.on("drpgStorageFull", () => { heard++; });
+        let asked;
+        try {
+            const full = NH.keepRoom(new globalThis.DOMException("R298: the suite's full storage", "QuotaExceededError"));
+            const heardThen = heard;
+            asked = [full, heardThen, NH.keepRoom(new Error("R298: another failure")), NH.keepRoom(undefined), heard];
+        } finally {
+            Hooks.off("drpgStorageFull", hook);
+            await NH.holdNoticeHistory(false);
+        }
+        equal(J(asked), J([true, 1, false, false, 1]),
+            "[a full storage: the answer; the hook heard before it answered; another error; no error; the hook in all]");
+
+        /* (3) The GM store's engine on fakes: its flush asks `keepRoom` and tries once more. */
+        const G = await import("./gm-store.mjs");
+        const full = () => new globalThis.DOMException("R298: the suite's full storage", "QuotaExceededError");
+        const gmStoreWith = async failures => {
+            const kept = new Map(), flushes = [], notices = [], asked = [];
+            let tries = 0;
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R298A", isGM: () => true, isPrimary: () => true, worldId: () => "R298WORLD",
+                activeGmIds: () => ["R298A"], primaryGmId: () => "R298A", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => kept.get(k) ?? null, write: async (k, v) => { tries++; const err = failures.shift(); if (err) throw err; kept.set(k, J(v)); } },
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} },
+                notify: (level, text) => notices.push(text), text: key => key,
+                keepRoom: err => { asked.push(err?.name ?? null); return err?.name === "QuotaExceededError"; }
+            });
+            const handle = eng.define({ name: "r298", key: "r298Key", kind: "ledger", sync: true, backup: true });
+            await handle.patch("x", { v: 1 });
+            for (let i = 0; i < 4; i++) await Promise.all(flushes);
+            return [tries, asked, kept.has("r298Key"), notices];
+        };
+        equal(J([await gmStoreWith([full()]), await gmStoreWith([full(), full()]), await gmStoreWith([new Error("R298: another failure")])]),
+            J([[2, ["QuotaExceededError"], true, []], [2, ["QuotaExceededError"], false, ["DRPG.GmStore.saveFailedAlone"]],
+                [1, ["Error"], false, ["DRPG.GmStore.saveFailedAlone"]]]),
+            "[full once; full twice; another error] as [writes tried, what keepRoom was asked, stored, notices]");
+
+        /* (4) The callers in the source, and the case's count. */
+        const sources = await moduleSources();
+        const code = file => stripComments(sources.get(file) ?? "");
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const write = fnSource(code("secret.mjs"), "write"), readable = fnSource(code("private-rolls.mjs"), "keepReadable");
+        equal(J([/\bkeepRoom\(err\)/.test(write), count(write, /game\.settings\.set\(MODULE_ID, SETTINGS\.secretCards, next\)/g),
+            /\bkeepRoom\(err\)/.test(readable), count(readable, /game\.settings\.set\(MODULE_ID, SETTINGS\.readableRolls, all\)/g),
+            /configureGmStore\(\{[^}]*\bkeepRoom\b/.test(fnSource(code("gm-stores.mjs"), "openGmStores")),
+            /Hooks\.on\("drpgStorageFull", \(\) => \{ engine\.giveWay\(\); \}\)/.test(fnSource(code("notice-history.mjs"), "registerNoticeHistory")),
+            /add\("notices", "info", "DRPG\.Case\.row\.notices"/.test(fnSource(code("gm-stores.mjs"), "gmStoreHealth"))]),
+            J([true, 2, true, 2, true, true, true]),
+            "[the private cards ask keepRoom; and set twice; keepReadable asks; and sets twice; the GM stores are handed keepRoom; the history listens; the health row]");
+        const S = await import("./gm-stores.mjs");
+        // Any key of the module counts in `total`; a made-up one, because R171 flags a GM store's SETTINGS name read outside the engine.
+        const items = [[`${MODULE_ID}.r298-other`, "R298".repeat(25)], [`${MODULE_ID}.${SETTINGS.noticeHistory}`, "R298".repeat(250)], ["another-module.r298", "R298".repeat(125)]];
+        const client = { length: items.length, key: i => items[i]?.[0] ?? null, getItem: k => items.find(([key]) => key === k)?.[1] ?? null };
+        const status = S.gmStoreStatus(client);
+        equal(J([status.total, status.notices]), J([items[0][0].length + 100, items[1][0].length + 1000]),
+            "[what the module keeps without its notice history; the history] in a stand-in storage");
+
+        /* (5) The tile's button (E81 C8). */
+        const P = await import("./popup.mjs");
+        const { plural } = await import("./utils.mjs");
+        const tile = typeof P.ensureNoticeTile === "function" ? P.ensureNoticeTile() : null;
+        const button = document.getElementById("drpg-notices-corner");
+        ok(tile !== null && button !== null, "popup.mjs builds no notice tile with a history button - a closed notice has no way back from the corner");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const host = document.getElementById("drpg-popups");
+        const titleName = game.i18n.localize("DRPG.Notices.title");
+        const anatomy = {
+            id: button.id, className: button.className, type: button.type, live: button.getAttribute("aria-live"),
+            named: Boolean(button.getAttribute("aria-label")), tooltip: button.dataset.tooltip === button.getAttribute("aria-label"),
+            kids: [...button.children].map(kid => `${kid.localName}.${kid.className}${kid.hasAttribute("inert") ? "[inert]" : ""}>${[...kid.children].map(el => el.localName).join()}`),
+            text: button.textContent
+        };
+        const region = {
+            tile: tile === host, role: host.getAttribute("role"), live: host.getAttribute("aria-live"), atomic: host.getAttribute("aria-atomic"),
+            last: host.lastElementChild === button, buttons: document.querySelectorAll("#drpg-notices-corner, .drpg-notices-corner").length,
+            inCards: document.querySelectorAll(".drpg-popup .drpg-notices-corner").length
+        };
+        const badgeAt = () => [button.dataset.unread ?? null, button.getAttribute("aria-label"), button.dataset.tooltip ?? null];
+        const records = [], closers = [];
+        const watch = new MutationObserver(list => records.push(...list));
+        let seen = null, win = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            NH.markNoticesRead();
+            const badges = [badgeAt()];
+            watch.observe(button, { attributes: true, childList: true, characterData: true, subtree: true });
+            const unread = n => {
+                for (let i = 0; i < n; i++) {
+                    NH.recordNotice({ source: "mine", kind: "info", title: `R298 badge words ${i}`, text: "R298 badge text", html: "<p>R298 badge body</p>", state: "unread" });
+                }
+                badges.push(badgeAt());
+            };
+            unread(1);
+            unread(8);
+            unread(1);
+            badges.push(NH.noticeUnread());
+            records.push(...watch.takeRecords());
+            const changes = { types: [...new Set(records.map(r => r.type))], names: [...new Set(records.map(r => r.attributeName))].sort(),
+                words: /R298 badge/.test(button.outerHTML) };
+
+            /* The stack moves its cards and never the button. */
+            const stack = [];
+            const lastIsButton = () => host.lastElementChild === button && document.getElementById("drpg-notices-corner") === button;
+            for (let i = 1; i <= 5; i++) {
+                closers.push(P.showPopup(`<p>R298 stack ${i}</p>`, { title: "R298 stack", record: false }));
+                stack.push(lastIsButton());
+            }
+            await wait(150);
+            const ours = () => [...host.querySelectorAll(".drpg-popup:not(.leaving)")].filter(card => card.textContent.includes("R298 stack"));
+            stack.push(Boolean(host.querySelector(".drpg-popup-more")) && lastIsButton());
+            ours()[0]?.querySelector(".drpg-popup-close")?.click();
+            const gone = await until(() => ours().length === 4 && [...host.querySelectorAll(".drpg-popup")].every(card => !card.classList.contains("leaving")), 4000);
+            stack.push(gone && lastIsButton());
+            /* Cards come in by prepend, so the placement line of ensureNoticeTile is reached with cards on the tile only when the
+               button has drifted (the first run of this test, 12.10.2026: a mutant that put the button first, and another that put it
+               in the newest card, both stayed green for want of this). Moved to the front, asking for the tile again sets it right. */
+            host.prepend(button);
+            P.ensureNoticeTile();
+            stack.push(lastIsButton() && document.querySelectorAll(".drpg-popup .drpg-notices-corner").length === 0);
+
+            /* Pressed: no card closes, one window opens, and closing it reads what it listed. */
+            let clicked = 0;
+            closers.push(P.showPopup("<p>R298 press</p>", { title: "R298 press", record: false, onClick: () => { clicked++; } }));
+            const pressCard = [...host.querySelectorAll(".drpg-popup")].find(card => card.textContent.includes("R298 press"));
+            button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            button.click();
+            const opened = await until(() => document.querySelectorAll(".drpg-window-notices").length === 1, 3000);
+            button.click();
+            await wait(300);
+            const press = { clicked, card: Boolean(pressCard?.isConnected) && !pressCard.classList.contains("leaving"), opened,
+                windows: document.querySelectorAll(".drpg-window-notices").length, open: button.dataset.unread ?? null, last: lastIsButton() };
+            win = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? null;
+            await win?.close();
+            win = null;
+            press.closed = [button.dataset.unread ?? null, NH.noticeUnread(), button.getAttribute("aria-label")];
+            seen = { badges, changes, stack, press };
+        } finally {
+            watch.disconnect();
+            await win?.close();
+            for (const close of closers) { try { close?.(); } catch { /* already gone */ } }
+            NH.holdNoticeHistory(false);
+            await wait(400);
+            host.querySelectorAll(".drpg-popup").forEach(card => { if (/R298 (stack|press)/.test(card.textContent)) card.remove(); });
+        }
+        equal(J([anatomy, region]), J([
+            { id: "drpg-notices-corner", className: "drpg-notices-corner", type: "button", live: "off", named: true, tooltip: true,
+                kids: ["span.drpg-notices-shape[inert]>i"], text: "" },
+            { tile: true, role: "status", live: "polite", atomic: "false", last: true, buttons: 1, inCards: 0 }
+        ]), "[the button: id, class, type, aria-live, named, its tooltip its name, its children, its text; the tile: what ensureNoticeTile answers, "
+            + "role, aria-live, aria-atomic, the button last, buttons on the page, buttons in a card]");
+        equal(J(seen), J({
+            badges: [[null, titleName, titleName], ...[1, 9, 10].map(n => [n > 9 ? "9+" : String(n), plural("DRPG.Notices.buttonUnread", { n }), plural("DRPG.Notices.buttonUnread", { n })]), 10],
+            changes: { types: ["attributes"], names: ["aria-label", "data-tooltip", "data-unread"], words: false },
+            stack: [true, true, true, true, true, true, true, true],
+            press: { clicked: 0, card: true, opened: true, windows: 1, open: "9+", last: true, closed: [null, 0, titleName] }
+        }), "[the badge and the name with nothing unread, then 1, 9 and 10 unread, and the count; what changed on the button and whether an entry's words reached it; "
+            + "the button last after each of five cards, after '+N', after a card closed by its X and after it was moved to the front and the tile asked for again; a card's clicks, the window opened, windows after a second click, "
+            + "the badge while it is open, the button still last, and the badge, the count and the name after it closes]");
+
+        const ready = bodyOf(code("module.mjs"), 'Hooks.once("ready"', { until: "\n});" });
+        // The i18n keys are string literals and name a `.title` of their own: blanked, so only the code is read for an entry's fields.
+        const tileFile = code("popup.mjs"), shown = fnSource(tileFile, "showUnread").replace(/"[^"\n]*"/g, '""');
+        equal(J([
+            /safely\("the notice tile", ensureNoticeTile\);[\s\S]*safely\("the narrow layout", registerNarrow\);[\s\S]*safely\("the interface as something other than a picture", registerA11y\);/.test(ready),
+            /\btry \{\s*fn\(\);\s*\} catch\b/.test(fnSource(code("module.mjs"), "safely")),
+            /getElementById\(CONTAINER_ID\) \?\? ensureNoticeTile\(\)/.test(fnSource(tileFile, "container")),
+            /\bnoticeUnread\(\)/.test(shown), /\bnoticeEntries\b|\.(?:html|text|title)\b|textContent|innerHTML|\.append\(/.test(shown)
+        ]), J([true, true, true, true, false]),
+            "[ready builds the tile through safely before the narrow layout and the accessibility sweep; safely catches; container() builds the tile when it is missing; "
+            + "the badge reads noticeUnread; it reads an entry's words or adds a node]");
+        /* (6) The card at the bottom of the tile and its tail (E81 C9). */
+        const shownOnTile = () => [...host.querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+        must(shownOnTile().length === 0, "a card is on the notice tile - close it: the floor card is measured on the suite's own cards");
+        const floorWords = () => [...host.querySelectorAll(".drpg-popup-floor")].map(card => card.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
+        const tailsNow = () => [...host.querySelectorAll(".drpg-corner-tail, .drpg-corner-tail-block")].map(el =>
+            `${el.classList.contains("drpg-popup-body") ? "body" : el.localName}${el.dataset.r298 ? `#${el.dataset.r298}` : ""}${el.classList.contains("drpg-corner-tail-block") ? " block" : ""}`);
+        const floorClosers = [], floorSeen = {};
+        const drawFloor = html => {
+            const close = P.showPopup(html, { title: "R298 floor", record: false });
+            floorClosers.push(close);
+            return close;
+        };
+        const SHAPES = {
+            sentence: "R298 plain words <b>then bold</b>",
+            inline: "<p>R298 words <b>bold</b> and after it</p>",
+            nested: "<div><p>R298 first</p><p data-r298=\"last\">R298 last</p></div>",
+            list: "<p>R298 lead</p><ul><li>R298 one</li><li data-r298=\"last\">R298 two</li></ul>",
+            table: "<p>R298 lead</p><table><tbody><tr><td>R298 cell</td></tr></tbody></table>",
+            rule: "<p>R298 lead</p><hr>",
+            trailing: "<div><p data-r298=\"last\">R298 words</p><p> </p><br></div>",
+            /* E81 fix r2-H2 (review round 2's P10): a wrapper whose only words are not drawn holds no line - the tail is
+               the words before it, not a line of its own under the body. */
+            hidden: "<p data-r298=\"last\">R298 words</p><div><span style=\"display: none\">R298 not drawn</span></div>"
+        };
+        try {
+            const closeA = drawFloor("<p>R298 floor A</p>"), closeB = drawFloor("<p>R298 floor B</p>");
+            floorSeen.two = [host.querySelectorAll(".drpg-popup-parked").length, floorWords(), tailsNow()];
+            closeA();
+            floorSeen.leaving = [floorWords(), tailsNow()];
+            closeB({ instant: true });
+            const parking = [];
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) parking.push(drawFloor(`<p>R298 park ${i}</p>`));
+            floorSeen.parked = [Boolean(host.querySelector(".drpg-popup-parked")), floorWords(), host.querySelectorAll(".drpg-popup-floor.drpg-popup-parked").length];
+            parking.forEach(close => close({ instant: true }));
+            floorSeen.shapes = {};
+            for (const [name, html] of Object.entries(SHAPES)) {
+                const close = drawFloor(html);
+                floorSeen.shapes[name] = tailsNow();
+                close({ instant: true });
+            }
+            const closeC = drawFloor("<p data-r298=\"before\">R298 before</p>");
+            const floorBody = host.querySelector(".drpg-popup-floor > .drpg-popup-body");
+            const changed = [tailsNow()];
+            floorBody?.insertAdjacentHTML("beforeend", "<ul><li data-r298=\"later\">R298 later</li></ul>");
+            changed.push(await until(() => tailsNow().join() === "li#later", 1000) && tailsNow());
+            floorBody?.querySelector("ul")?.remove();
+            changed.push(await until(() => tailsNow().join() === "p#before", 1000) && tailsNow());
+            floorSeen.changed = changed;
+            closeC({ instant: true });
+        } finally {
+            for (const close of floorClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+        }
+        equal(J(floorSeen), J({
+            two: [0, ["R298 floor A"], ["p"]],
+            leaving: [["R298 floor B"], ["p"]],
+            parked: [true, ["R298 park 2"], 0],
+            shapes: { sentence: ["body"], inline: ["p"], nested: ["p#last"], list: ["li#last"], table: ["body block"], rule: ["body block"], trailing: ["p#last"], hidden: ["p#last"] },
+            changed: [["p#before"], ["li#later"], ["p#before"]]
+        }), "[two cards, nothing parked: cards parked, the floor card's words, the tail; the older closed by code: the floor and the tail at once; a card parked: "
+            + "it parked, the floor's words, floors on a parked card; the tail of a body ending in a sentence after a <b>, text after a <b> in a <p>, div > p, ul > li, "
+            + "a table, a rule, a <p> followed by an empty <p> and a <br>, and a <p> followed by a <div> whose only words are not drawn; the tail as drawn, after a "
+            + "list is added to the floor card and after it is taken away]");
+
+        /* (6b) PARKING COUNTS THE FLOOR'S ROOM (E81 fix r2-H2, review round 2's P9). The stack parks what does not fit by
+           adding up the cards' heights (`overflowsGlass`), and the bottom card - the oldest shown - is taller by the
+           corner's room. Parking a card, or bringing one back, changes which card that is; read before the new floor
+           had its room, the stack fitted and then overflowed by up to that room and a line. Headless nothing has a
+           height, so the cards here get one of their own for the reading: 100 px, and 30 more as the floor for the
+           one marked tall (as a card whose last line is full grows), in a tile of 215 px and its gap, on a stacked
+           screen under Monokuma Legacy (four seats, so it is room, not the seats, that parks). Three cards, the second
+           tall: the first parked, then the tall one as the new floor, the third alone; a fourth beside it; the fourth
+           closed, and the tall one, the newest parked, back only if it fits as the floor. Then the same three under
+           Stained Glass, whose two seats park the first by capacity (`trimStack`) before room is read. Each reading:
+           the cards shown, oldest first, and whether they fit as they are classed. The classes and the heights are
+           put back synchronously. */
+        const PARK_CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"];
+        const parkWas = PARK_CLASSES.map(name => document.body.classList.contains(name));
+        const heightWas = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+        const parkClosers = [], parkSeen = {};
+        try {
+            document.body.classList.remove(PARK_CLASSES[0]);
+            document.body.classList.add(PARK_CLASSES[1], PARK_CLASSES[2]);
+            const gap = Number.parseFloat(getComputedStyle(host).rowGap) || 0, room = 215 + gap;
+            Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+                configurable: true,
+                get() {
+                    if (!this.classList.contains("drpg-popup") || !/R298 fit/.test(this.textContent)) return heightWas.get.call(this);
+                    return 100 + (this.classList.contains("drpg-popup-floor") && this.querySelector("[data-r298-tall]") ? 30 : 0);
+                }
+            });
+            Object.defineProperty(host, "clientHeight", { configurable: true, get: () => room });
+            const draw = html => parkClosers.push(P.showPopup(html, { title: "R298 fit", record: false }));
+            const reading = () => {
+                const cards = shownOnTile().sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq));
+                const used = cards.reduce((sum, card) => sum + card.offsetHeight, gap * Math.max(0, cards.length - 1));
+                return [cards.map(card => card.querySelector(".drpg-popup-body")?.textContent.trim()), used <= room + 1];
+            };
+            draw("<p>R298 fit A</p>");
+            draw("<p data-r298-tall>R298 fit B</p>");
+            draw("<p>R298 fit C</p>");
+            parkSeen.three = reading();
+            draw("<p>R298 fit D</p>");
+            parkSeen.four = reading();
+            parkClosers.at(-1)({ instant: true });
+            parkSeen.closed = reading();
+            while (parkClosers.length) parkClosers.pop()({ instant: true });
+            document.body.classList.replace(PARK_CLASSES[1], PARK_CLASSES[0]);
+            draw("<p>R298 fit A</p>");
+            draw("<p data-r298-tall>R298 fit B</p>");
+            draw("<p>R298 fit C</p>");
+            parkSeen.seats = reading();
+        } finally {
+            for (const close of parkClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            delete host.clientHeight;
+            Object.defineProperty(HTMLElement.prototype, "offsetHeight", heightWas);
+            PARK_CLASSES.forEach((name, i) => document.body.classList.toggle(name, parkWas[i]));
+        }
+        equal(J(parkSeen), J({ three: [["R298 fit C"], true], four: [["R298 fit C", "R298 fit D"], true], closed: [["R298 fit C"], true], seats: [["R298 fit C"], true] }),
+            "[parking with the floor's room counted, a tile of 215 px and its gap, cards of 100 px and the tall one 30 more as the floor: three cards drawn, the "
+            + "shown ones and whether they fit; a fourth drawn; the fourth closed and the tall one tried back as the floor; the three again on the Stained Glass "
+            + "tile's two seats]");
+
+        /* (7) Monokuma Legacy on a desk: the tile follows the clock with no card (E81 C10). */
+        const hudNode = document.getElementById("drpg-hud"), bar = document.getElementById("drpg-despair");
+        must(hudNode?.parentElement, "the clock is not on screen - the tile is measured under it");
+        /* On `window` and on the global both: the same object in a browser, two in the harness, whose module code reads the global. */
+        const realObservers = [window.ResizeObserver, globalThis.ResizeObserver], observers = [];
+        window.ResizeObserver = globalThis.ResizeObserver = class {
+            constructor(callback) { Object.assign(this, { callback, targets: [], live: true }); observers.push(this); }
+            observe(el) { this.targets.push(el); }
+            unobserve(el) { this.targets = this.targets.filter(target => target !== el); }
+            disconnect() { this.live = false; this.targets = []; }
+        };
+        const watching = () => observers.filter(observer => observer.live);
+        const grow = () => watching().forEach(observer => observer.callback([], observer));
+        /* The bar is drawn again as a new node (renderDespairBar's road, or a first bar after ready), then taken away
+           with nothing in its place (no Monokuma left): `spot` holds its place until it is put back. */
+        const drawn = bar ? bar.cloneNode(false) : Object.assign(document.createElement("div"), { id: "drpg-despair" }), spot = document.createTextNode("");
+        const names = new Map([[hudNode, "clock"], [bar, "bar"], [drawn, "drawn"]]);
+        const watched = () => watching().flatMap(observer => observer.targets.map(el => names.get(el) ?? "other"));
+        const boxed = new Set();
+        const boxAt = (el, bottom) => {
+            el.getBoundingClientRect = () => ({ x: 0, y: bottom - 40, left: 0, top: bottom - 40, right: 200, width: 200, height: 40, bottom });
+            boxed.add(el);
+        };
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+        const theme = glass => {
+            document.body.classList.toggle(THEMES[0], glass);
+            document.body.classList.toggle(THEMES[1], !glass);
+            Hooks.callAll("drpgThemeApplied");
+        };
+        const lone = {};
+        try {
+            boxAt(hudNode, 150);
+            if (bar) boxAt(bar, 100);
+            theme(false);
+            lone.applied = [host.style.top, watched()];
+            boxAt(hudNode, 190);
+            grow();
+            lone.grown = host.style.top;
+            boxAt(drawn, 260);
+            if (bar) bar.replaceWith(drawn);
+            else hudNode.parentElement.append(drawn);
+            await until(() => watched().includes("drawn"), 1000);
+            lone.drawn = [host.style.top, watched()];
+            boxAt(drawn, 280);
+            grow();
+            lone.drawnGrown = host.style.top;
+            drawn.replaceWith(spot);
+            await until(() => !watched().includes("drawn"), 1000);
+            lone.gone = [host.style.top, watched()];
+            theme(true);
+            lone.glass = [host.style.top, watching().length];
+        } finally {
+            [window.ResizeObserver, globalThis.ResizeObserver] = realObservers;
+            if (drawn.isConnected) drawn.replaceWith(spot);
+            if (spot.isConnected) {
+                if (bar) spot.replaceWith(bar);
+                else spot.remove();
+            }
+            for (const el of boxed) delete el.getBoundingClientRect;
+            THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+        }
+        equal(J(lone), J({
+            applied: ["158px", bar ? ["bar", "clock"] : ["clock"]], grown: "198px", drawn: ["268px", ["drawn", "clock"]], drawnGrown: "288px", gone: ["198px", ["clock"]], glass: ["", 0]
+        }), `[${bar ? "a Despair bar on screen" : "no Despair bar"}: Legacy from Stained Glass, the tile's top and the widgets watched; the clock grown; a bar drawn as a new node, `
+            + "and grown; the bar taken away with nothing in its place; back on Stained Glass, the top and how many observers watch]");
+        const styles = await moduleStyles(), EMPTY = String.raw`#drpg-popups:not\(:has\(> \.drpg-popup:not\(\.drpg-popup-parked\)\)\)`;
+        const DESK = String.raw`body:not\(\.drpg-theme-stained-glass\):not\(\.drpg-stacked\) `;
+        const theming = fnSource(code("settings.mjs"), "applyTheme"), tiling = fnSource(tileFile, "ensureNoticeTile");
+        equal(J([
+            new RegExp(String.raw`${DESK}#drpg-popups \{[^}]*min-width: min\(27rem, 92vw\);[^}]*min-height: var\(--drpg-corner-room\);`).test(styles),
+            new RegExp(String.raw`${DESK}${EMPTY} \{[^}]*z-index: calc\(var\(--z-index-app, 30\) - 1\);`).test(styles),
+            new RegExp(String.raw`body\.drpg-stacked ${EMPTY} > #drpg-notices-corner \{[^}]*display: none;`).test(styles),
+            theming.lastIndexOf('Hooks.callAll("drpgThemeApplied")') > Math.max(theming.indexOf('"drpg-theme-stained-glass"'), theming.indexOf('"drpg-stacked"')),
+            /Hooks\.on\("drpgThemeApplied", watchWidgets\);\s*watchWidgets\(\);/.test(tiling)
+        ]), J([true, true, true, true, true]),
+            "[the empty Legacy desk tile has a card's width and the corner's height; it stands under the window layer until a card is shown; on a stacked screen "
+            + "the button is hidden with no card; applyTheme fires drpgThemeApplied after it sets the classes; ensureNoticeTile listens for it and binds the watch from ready]");
+
+        /* (8) '+N' closes every card that is not sticky (E81 C11). */
+        must(shownOnTile().length === 0, "a card is on the notice tile - close it: '+N' is measured on the suite's own cards");
+        const moreAt = () => {
+            const more = host.querySelector(".drpg-popup-more");
+            if (!more) return null;
+            const name = more.getAttribute("aria-label");
+            return [more.localName, more.getAttribute("type"), more.textContent, more.dataset.tooltip === name ? name : null,
+                more.closest(".drpg-popup")?.querySelector(".drpg-popup-body")?.textContent.trim() ?? null];
+        };
+        const looseClosers = [], drawnLoose = {}, loose = {};
+        let looseClicks = 0;
+        const drawLoose = (words, options = {}) => {
+            looseClosers.push(P.showPopup(`<p>${words}</p>`, { title: "R298 more", ...options }));
+            drawnLoose[words] = [...host.querySelectorAll(".drpg-popup")].find(card => card.textContent.includes(words)) ?? null;
+        };
+        const stateOf = words => NH.noticeEntries().find(entry => entry.id === drawnLoose[words]?.dataset.drpgNotice)?.state ?? null;
+        const whereIs = words => {
+            const card = drawnLoose[words];
+            return !card?.isConnected ? "gone" : card.classList.contains("leaving") ? "leaving" : card.classList.contains("drpg-popup-parked") ? "parked" : "shown";
+        };
+        await NH.holdNoticeHistory(true);
+        try {
+            NH.markNoticesRead();
+            /* Sticky cards only: the label. */
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) drawLoose(`R298 sticky ${i}`, { sticky: true });
+            loose.label = moreAt();
+            /* Closed by code, so unread: read again, so the badge counts what '+N' takes down and nothing else. */
+            looseClosers.splice(0).forEach(close => close({ instant: true }));
+            NH.markNoticesRead();
+            /* Cards that close on any click until one waits, then a sticky one: two wait, '+N' on the oldest shown. */
+            for (let i = 1; i <= 6 && !host.querySelector(".drpg-popup-parked"); i++) drawLoose(`R298 loose ${i}`, { onClick: () => { looseClicks++; } });
+            drawLoose("R298 stays", { sticky: true });
+            const words = Object.keys(drawnLoose).filter(w => /R298 (loose|stays)/.test(w));
+            const waiting = words.filter(w => whereIs(w) === "parked"), onScreen = words.filter(w => w !== "R298 stays" && whereIs(w) === "shown");
+            must(waiting.length === 2 && onScreen.length >= 1 && whereIs("R298 stays") === "shown",
+                `the stack did not park two loose cards with one shown beside the sticky one (${J(words.map(w => [w, whereIs(w)]))}) - '+N' is measured on that stack`);
+            loose.button = moreAt();
+            const press = new MouseEvent("click", { bubbles: true, cancelable: true });
+            host.querySelector(".drpg-popup-more")?.dispatchEvent(press);
+            loose.pressed = { cancelled: press.defaultPrevented, clicks: looseClicks, more: moreAt(), badge: button.dataset.unread ?? null, count: NH.noticeUnread() };
+            loose.cards = words.map(w => [whereIs(w), stateOf(w)]);
+            loose.expected = words.map(w => w === "R298 stays" ? ["shown", "open"] : waiting.includes(w) ? ["gone", "unread"] : ["leaving", "read"]);
+        } finally {
+            for (const close of looseClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            NH.holdNoticeHistory(false);
+            await until(() => ![...host.querySelectorAll(".drpg-popup")].some(card => card.textContent.includes("R298 ")), 3000);
+            host.querySelectorAll(".drpg-popup").forEach(card => { if (/R298 (sticky|loose|stays)/.test(card.textContent)) card.remove(); });
+        }
+        equal(J(loose), J({
+            label: ["span", null, "+1", plural("DRPG.Popup.moreTip", { n: 1 }), "R298 sticky 2"],
+            button: ["button", "button", "+2", plural("DRPG.Popup.moreCloseAll", { n: 2 }), "R298 loose 3"],
+            pressed: { cancelled: true, clicks: 0, more: null, badge: "2", count: 2 },
+            cards: loose.expected ?? [],
+            expected: loose.expected ?? []
+        }), "[sticky cards only: '+N' as tag, type, text, its tooltip its name, on which card; with loose cards parked: the same; pressed: the click cancelled, "
+            + "the cards' own clicks run, '+N' left, the history button's badge and the unread count; each card where it is and its state after, against "
+            + "parked: gone and unread, shown: leaving and read, sticky: shown and open]");
+        equal(J([
+            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-gold\);/.test(styles),
+            /\.drpg-popup-title button\.drpg-popup-more \{[^}]*height: 1\.6rem;[^}]*cursor: pointer;/.test(styles),
+            /body\.drpg-theme-stained-glass \.drpg-popup-title :is\(button, i\) \{ color:/.test(styles)
+        ]), J([true, true, true]), "[the '+N' button's focus ring is the close button's; its target the close button's height, with a pointer; under Stained Glass its colour the close button's]");
+
+        /* (9) Another account's section of this world, big enough to cross the whole value's budget, and the other quota errors. */
+        const big = (touched, chars) => ({ epoch: NH.noticeEpoch(clock.value), touched, clearedAt: 0, gone: {}, entries: [], pad: "R298".repeat(chars / 4) });
+        const shared = async (gm, n, others, give) => {
+            const lot = { raw: null, writes: 0, fail: 0, now: 0 }, user = gm ? "SuiteGmR29805001" : "SuitePlayerR2985";
+            const engine = noticeBench(NH.createNoticeEngine, { store: lot, user, world: W, gm, at, clock });
+            engine.open();
+            for (let i = 1; i <= n; i++, at.now++) engine.record({ ...card(500 + i), html: `<p>${"x".repeat(7800)}</p>` });
+            await engine.flush();
+            const value = JSON.parse(lot.raw);
+            others.forEach((chars, i) => { value.sections[`${W}.SuiteOtherR2985${i}`] = big(i + 1, chars); });
+            value.sections["another-world.SuiteOtherR29859"] = big(0, 4000);
+            lot.raw = J(value);
+            const theirs = others.map((chars, i) => J(value.sections[`${W}.SuiteOtherR2985${i}`]));
+            if (give) engine.giveWay();
+            else {
+                engine.record(card(599));
+                await engine.flush();
+            }
+            const after = JSON.parse(lot.raw).sections;
+            return [theirs.every((text, i) => J(after[`${W}.SuiteOtherR2985${i}`]) === text), Boolean(after["another-world.SuiteOtherR29859"]),
+                after[`${W}.${user}`]?.entries.length ?? null, engine.entries().length, engine.status().saving];
+        };
+        equal(J([await shared(true, 10, [190000, 60000], true), await shared(true, 10, [170000, 40000], true),
+            await shared(false, 10, [180000, 180000, 180000], false), await shared(false, 20, [200000, 200000], false)]),
+            J([[true, false, 5, 5, false], [true, false, 4, 4, true], [true, true, 10, 11, false], [true, false, 13, 13, true]]),
+            "[a GM's give-way, the others fill the halved value; leave room; a player's write, the others fill the value; leave room] as [the other accounts' sections byte for byte, another world's kept, this login's stored, in memory, saving]");
+        await NH.holdNoticeHistory(true);
+        let heardOther = 0;
+        const otherHook = Hooks.on("drpgStorageFull", () => { heardOther++; });
+        let firefox;
+        try {
+            firefox = [NH.keepRoom(new globalThis.DOMException("R298: the suite's full storage", "NS_ERROR_DOM_QUOTA_REACHED")),
+                NH.keepRoom(Object.assign(new Error("R298: the suite's full storage"), { code: 1014 })), heardOther];
+        } finally {
+            Hooks.off("drpgStorageFull", otherHook);
+            await NH.holdNoticeHistory(false);
+        }
+        equal(J(firefox), J([true, true, 2]), "[NS_ERROR_DOM_QUOTA_REACHED by its name; by its code 1014; the hook heard] as a full storage");
+    }],
+    ["R296 - the notice history window shows a kept card without showing it again: opened and every entry expanded, it plays nothing, draws no card and sends nothing, and it opens only an entry's own thread", async () => {
+        /*
+         * E81 C7, 12.10.2026; the A7 design's A7-5 (P10-3). The harm: a history that re-issued what it keeps - a
+         * sound replayed, a card drawn over the table again, a chat message sent again - would make reading an old
+         * notice a new one. Measured on this client, held as R473 holds the history (nothing reaches the setting):
+         * three entries recorded (a card body, a messenger message with its thread, an announcement with a title to
+         * search for) and opened through `game.drpg.openNotices()`, every entry expanded, the search typed and emptied
+         * with Esc, the unread banner's "Mark as read" pressed, Clear asked and refused, then asked and answered, and
+         * the window closed and opened again by the tile's corner button (E81 C8), its other way in.
+         * Across all of it the sounds started (`AudioHelper.play`, `Sound#play`, any media element's `play`), the
+         * `.drpg-popup` cards on the page, the messenger's unread badges and the chat messages about to be created
+         * are counted, and none may move. "Open conversation" is pressed with the messenger window's render held, so
+         * no thread is drawn or marked read on this client: it asks for the entry's own thread, once. Last, the
+         * window's file is read for the roads it must not take, and the keybinding and the API for being there.
+         *
+         * E81 fix r2-H1 (13.10.2026; review round 2's C2-1, goal V9b and the early review's P1-P3), in the window the
+         * button opened: a safeword entry with an author kept draws neither that user's name (in text or in an attribute)
+         * nor a time, where a player's entry draws the name; "kolo" finds "Koło"; Esc pressed inside the search's 150 ms
+         * wait leaves every entry listed once the wait is over; and a filter whose chip falls to 0 (its one entry
+         * withdrawn) draws the list again under "all" at once - with the reader out of the list, with focus on an entry's
+         * button, and with focus there and a new entry behind the pill. Red at eefa79f (13.10.2026, once): the name drawn
+         * as a tag, "kolo" listing nothing, the search firing on "zzz" under an empty box (0 listed), and the list left
+         * under the filter in all three. No time was drawn on the safeword entry there either: that clause is red only
+         * with `entryElement`'s condition taken out (measured as a mutant, 13.10.2026).
+         */
+        const NH = await import("./notice-history.mjs");
+        const { DrpgMessengerApp } = await import("./messenger-app.mjs");
+        const isGM = Boolean(game.user?.isGM);
+        if (isGM) needs(world.atLeast("playerAccounts", 1), "the conversation button needs a player's thread to name");
+        const thread = isGM ? game.users.find(user => !user.isGM)?.id : game.user.id;
+        ok(typeof game.drpg?.openNotices === "function", "game.drpg.openNotices is not there - there is no notice history window to open");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        must(!DrpgMessengerApp.instances.has(thread), "the thread the suite names is open - close it, or the button would raise it rather than ask for it");
+
+        const plays = [], undo = [];
+        const watchCall = (owner, name, label) => {
+            if (typeof owner?.[name] !== "function") return;
+            const own = Object.hasOwn(owner, name), original = owner[name];
+            owner[name] = function (...args) {
+                plays.push(label);
+                return original.apply(this, args);
+            };
+            undo.push(() => { if (own) owner[name] = original; else delete owner[name]; });
+        };
+        watchCall(foundry.audio?.AudioHelper, "play", "AudioHelper.play");
+        watchCall(foundry.audio?.Sound?.prototype, "play", "Sound#play");
+        watchCall(globalThis.HTMLMediaElement?.prototype, "play", "HTMLMediaElement#play");
+        let created = 0;
+        const createHook = Hooks.on("preCreateChatMessage", () => { created++; });
+        /* Cards are counted by the ones that were not on the page when the test began: an earlier test's card that
+         * leaves the page during the test is not a card the window took back (12.10.2026, A2: counting all `.drpg-popup`
+         * read 3 before and 2 after in the tier 0/1 run, and passed when R296 ran by name). No card closes on a timer:
+         * popup.mjs has none. A dismissed card leaves at its `transitionend`, or at `dismiss`'s backstop `SNAP()` + 1 000 ms
+         * after the dismissal; which of the two removed the card that A2 counted was not measured (E81 fix r2-H1, review
+         * P4: this said the card "times out"). */
+        const cardsBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const page = () => ({
+            cards: [...document.querySelectorAll(".drpg-popup")].filter(card => !cardsBefore.has(card)).length,
+            badges: [...document.querySelectorAll(".drpg-messenger-badge")].map(badge => badge.textContent).join()
+        });
+        const before = page();
+        const proto = DrpgMessengerApp.prototype, ownRender = Object.hasOwn(proto, "render"), realRender = proto.render;
+        const putRenderBack = () => { if (ownRender) proto.render = realRender; else delete proto.render; };
+        const { plural } = await import("./utils.mjs");
+        const asked = [];
+        let win = null, seen = null, dialog = null, ids = [], unreadAt = -1, later = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            must(undo.length > 0, "no audio road of Foundry's to watch here - a sound would go uncounted");
+            ids = [
+                NH.recordNotice({ source: "mine", kind: "info", tone: "hope", title: "R296 kept card", text: "R296 kept", html: `<p class="notes">R296 kept body</p>`, state: "unread" }),
+                NH.recordNotice({ source: "messenger", kind: "info", title: "R296 message", text: "R296 message", html: "<p>R296 message body</p>", link: { messenger: thread } }),
+                NH.recordNotice({ source: "public", kind: "info", title: "R296 Gęślą <b>found</b>", text: "R296 announced", html: "", state: "unread" })
+            ];
+            must(ids.every(Boolean), "the history refused one of the suite's notices - the window would be measured on less");
+            unreadAt = NH.noticeEntries().filter(e => e.state === "unread").length;
+            win = await game.drpg.openNotices();
+            const root = win?.element ?? null;
+            ok(root !== null, "game.drpg.openNotices() opened no window");
+            const entry = id => root.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
+            const banner = root.querySelector(".drpg-notices-banner");
+            const bannerAt = { hidden: banner?.hidden ?? null, text: banner?.querySelector("span")?.textContent ?? "" };
+            for (const details of root.querySelectorAll("details.drpg-notice-entry")) details.open = true;
+            const expanded = await until(() => ids.every(id => entry(id)?.querySelector(".drpg-notice-more")), 1000);
+            const snapshots = ids.map(id => entry(id)?.querySelectorAll(".drpg-notice-snapshot").length ?? -1);
+            const inWindow = root.querySelectorAll(".drpg-popup").length;
+
+            /* The search: folded, highlighted by text nodes, and emptied by Esc. */
+            const input = root.querySelector(".drpg-notices-search input");
+            input.value = "gesla";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            const narrowed = await until(() => root.querySelectorAll("details.drpg-notice-entry").length === 1, 1500);
+            const marks = [...root.querySelectorAll(".drpg-notice-title mark")];
+            const found = {
+                narrowed, listed: [...root.querySelectorAll("details.drpg-notice-entry")].map(d => d.dataset.drpgKey),
+                marks: marks.map(mark => mark.textContent), markup: root.querySelectorAll(".drpg-notice-title b, .drpg-notice-title mark *").length
+            };
+            input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+            found.emptied = [input.value, await until(() => root.querySelectorAll("details.drpg-notice-entry").length >= 3, 1000)];
+
+            /* "Open conversation", once, with the thread's window held from drawing. */
+            proto.render = function () { asked.push(this.playerUserId); return Promise.resolve(this); };
+            for (const details of root.querySelectorAll("details.drpg-notice-entry")) details.open = true;
+            await until(() => entry(ids[1])?.querySelector(".drpg-notice-conversation"), 1000);
+            entry(ids[1])?.querySelector(".drpg-notice-conversation")?.click();
+            putRenderBack();
+
+            /* Mark as read, then Clear: refused, then answered. */
+            root.querySelector('[data-drpg-do="markRead"]')?.click();
+            const unreadAfter = NH.noticeEntries().filter(e => ids.includes(e.id) && e.state === "unread").length;
+            const realWait = foundry.applications.api.DialogV2.wait;
+            const answers = ["cancel", "clear"];
+            foundry.applications.api.DialogV2.wait = async config => {
+                dialog = (config.buttons ?? []).filter(button => button.default).map(button => button.action);
+                return answers.shift();
+            };
+            try {
+                root.querySelector('[data-drpg-do="clear"]')?.click();
+                await until(() => answers.length === 1, 1000);
+                const keptAfterCancel = NH.noticeEntries().filter(e => ids.includes(e.id)).length;
+                root.querySelector('[data-drpg-do="clear"]')?.click();
+                await until(() => NH.noticeEntries().length === 0, 1000);
+                found.clear = [dialog, keptAfterCancel, NH.noticeEntries().length];
+            } finally {
+                foundry.applications.api.DialogV2.wait = realWait;
+            }
+
+            /* The tile's button opens the same window (E81 C8). */
+            await win?.close();
+            const corner = document.getElementById("drpg-notices-corner");
+            corner?.click();
+            const reopened = await until(() => document.querySelectorAll(".drpg-window-notices").length === 1, 3000);
+            win = [...foundry.applications.instances.values()].find(app => app.options?.classes?.includes("drpg-window-notices")) ?? win;
+            found.button = [Boolean(corner), reopened];
+            seen = { banner: bannerAt, expanded, snapshots, inWindow, found, unreadAfter };
+
+            /* E81 fix r2-H1 (13.10.2026): the window's own code, in the window the button opened. */
+            const root2 = reopened ? win?.element ?? null : null;
+            must(root2 !== null, "the tile's button opened no window - the clauses after it would be measured on nothing");
+            const listed = () => [...root2.querySelectorAll("details.drpg-notice-entry")].map(details => details.dataset.drpgKey);
+            const entryIn = id => root2.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
+            const pressed = () => root2.querySelector('[data-drpg-filter][aria-pressed="true"]')?.dataset.drpgFilter ?? null;
+            const box = root2.querySelector(".drpg-notices-search input");
+            const chip = id => root2.querySelector(`[data-drpg-filter="${id}"]`);
+            const gmId = game.users.find(user => user.isGM)?.id ?? null;
+            const withdraw = messageId => NH.noticeCardDeleted({ id: messageId }, { [MODULE_ID]: { withdraw: true } }, gmId);
+            const messenger = messageId => NH.recordNotice({ source: "messenger", kind: "info", title: "R296 Koło", text: "R296 a wheel", html: "", messageId, link: { messenger: thread } });
+            const focusIn = async id => {
+                if (!entryIn(id)) return null;
+                entryIn(id).open = true;
+                await until(() => entryIn(id)?.querySelector(".drpg-notice-conversation"), 1000);
+                entryIn(id)?.querySelector(".drpg-notice-conversation")?.focus();
+                return root2.querySelector(".drpg-notices-list")?.contains(document.activeElement) === true;
+            };
+            const again = {};
+            /* The name of whoever raised a safeword card (review round 2's C2-1) and its time (goal V9b) are drawn nowhere
+               on its entry, in text or in an attribute, though the entry keeps its author; a player's entry still draws its
+               author's name. */
+            const name = game.users.get(thread)?.name ?? null;
+            const rest = [
+                messenger("R296Withdrawn001"),
+                NH.recordNotice({ source: "player", kind: "info", title: "R296 stays", text: "R296 stays", html: "", author: thread }),
+                NH.recordNotice({ source: "safeword", kind: "error", title: "R296 safeword", text: "R296 safeword", html: "", author: thread })
+            ];
+            await until(() => rest.every(id => listed().includes(id)), 1000);
+            const said = id => {
+                const summary = entryIn(id)?.querySelector(":scope > summary");
+                return summary ? [summary.textContent, ...[summary, ...summary.querySelectorAll("*")].flatMap(node => [...node.attributes].map(a => a.value))].join("\n") : null;
+            };
+            again.named = [NH.noticeEntries().find(e => e.id === rest[2])?.author === thread, said(rest[2])?.includes(name) ?? null,
+                Boolean(entryIn(rest[2])?.querySelector(".drpg-notice-time")), said(rest[1])?.includes(name) ?? null];
+            /* Polish folding (review P3): "kolo" finds "Koło", the mark on the word as written. */
+            box.value = "kolo";
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            await until(() => listed().length === 1, 1000);
+            again.fold = [listed(), [...root2.querySelectorAll(".drpg-notice-title mark")].map(mark => mark.textContent)];
+            /* Esc inside the search's wait (review P1): the wait ends on the emptied box, not on what was typed. */
+            box.value = "zzz";
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            box.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+            await wait(450);
+            again.esc = [box.value, listed().length];
+            /* An empty search once more, so that a search still standing on "zzz" (the fault the clause above reads)
+               is not read again by the clauses below as theirs. */
+            box.dispatchEvent(new Event("input", { bubbles: true }));
+            await wait(450);
+            /* A filter whose chip falls to 0 (review P2): the list is drawn again under "all" - with the reader out of
+               the list, with focus in it, and with focus in it and a new entry behind the pill. */
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            withdraw("R296Withdrawn001");
+            await until(() => listed().length === 2, 1000);
+            again.away = [pressed(), listed()];
+            const second = messenger("R296Withdrawn002");
+            await until(() => listed().includes(second), 1000);
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            const focused = await focusIn(second);
+            withdraw("R296Withdrawn002");
+            await until(() => !listed().includes(second), 1000);
+            again.focused = [focused, pressed(), listed()];
+            const third = messenger("R296Withdrawn003");
+            await until(() => listed().includes(third), 1000);
+            chip("messenger").click();
+            await until(() => listed().length === 1, 1000);
+            const focusedToo = await focusIn(third);
+            const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R296 fresh", text: "R296 fresh", html: "" });
+            withdraw("R296Withdrawn003");
+            await until(() => listed().includes(fresh), 1000);
+            again.pill = [focusedToo, pressed(), listed()];
+            later = { again, rest, fresh };
+        } finally {
+            putRenderBack();
+            DrpgMessengerApp.instances.delete(thread);
+            await win?.close();
+            NH.holdNoticeHistory(false);
+            Hooks.off("preCreateChatMessage", createHook);
+            for (const put of undo) put();
+        }
+        equal(stableJson(seen), stableJson({
+            banner: { hidden: false, text: plural("DRPG.Notices.unreadBanner", { n: unreadAt }) }, expanded: true, snapshots: [1, 1, 0],
+            inWindow: 0, found: { narrowed: true, listed: [ids[2]], marks: ["Gęślą"], markup: 0, emptied: ["", true], clear: [["cancel"], 3, 0], button: [true, true] },
+            unreadAfter: 0
+        }), "[the unread banner; every entry expanded; a snapshot for each with a body; no card in the window; the search for 'gesla' "
+            + "(one entry, highlighted from text, emptied by Esc); Clear (Cancel the default; refused keeps all three; answered empties); "
+            + "the tile's button there and opening the window again; Mark as read]");
+        const { again = null, rest: [wheel, stays, safeword] = [], fresh = null } = later ?? {};
+        equal(stableJson(again), stableJson({
+            named: [true, false, false, true], fold: [[wheel], ["Koło"]], esc: ["", 3], away: ["all", [safeword, stays]],
+            focused: [true, "all", [safeword, stays]], pill: [true, "all", [fresh, safeword, stays]]
+        }), "E81 fix r2-H1: [a safeword entry: [its author kept, the author's name drawn on it, a time drawn on it], a player's entry: the name drawn]; "
+            + "[the search 'kolo': the entries listed, the marks]; [Esc inside the search's wait: the box, the entries listed]; a filter whose chip fell to 0: "
+            + "[the chip pressed, the entries listed] with the reader out of the list, [focus in the list, ...] with focus in it, and with a new entry behind the pill");
+        equal(stableJson({ plays, created, page: page(), asked }), stableJson({ plays: [], created: 0, page: before, asked: [thread] }),
+            "[sounds started; chat messages about to be created; the cards and messenger badges on the page; the threads the conversation button asked for]");
+
+        const sources = await moduleSources();
+        const app = stripComments(sources.get("notice-history-app.mjs") ?? "");
+        must(app.length > 0, "notice-history-app.mjs was not read - its roads would be measured on nothing");
+        const register = fnSource(stripComments(sources.get("notice-history.mjs") ?? ""), "registerNoticeHistory");
+        equal(JSON.stringify([
+            /\bshowPopup\b|\bplaySfx\b|\bChatMessage\b|\.play\(|AudioHelper|innerHTML|outerHTML|insertAdjacentHTML|setHTMLUnsafe|createContextualFragment/.test(app),
+            /\bnoticeSnapshot\(entry\.html\)/.test(app), (app.match(/\bopenMessenger\(/g) ?? []).length,
+            /game\.keybindings\.register\(MODULE_ID, "noticeHistory", \{[^}]*editable: \[\][^}]*m\.openNotices\(\)/.test(register),
+            /openNotices: \(\) => import\("\.\/notice-history-app\.mjs"\)\.then\(m => m\.openNotices\(\)\)/.test(stripComments(sources.get("api.mjs") ?? ""))
+        ]), JSON.stringify([false, true, 1, true, true]),
+        "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
+            + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
+    }],
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over it with its right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
+        /*
+         * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
+         * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
+         * screen; the design's figures are a 393 px phone and a 1366x768 desk with 250 entries. MEASURED AT THE SIZE
+         * OF THE BROWSER THAT RUNS THE SUITE, which this test cannot change: at 393 px or at 1366x768 only when that is
+         * the browser's size. A full history is recorded (held: nothing reaches the setting; a GM's section keeps 150 of
+         * the 250, its budget), the window opened, and read: its box within the screen less 8 px a side and no wider
+         * than 420 px, its foot wholly on screen while the list scrolls, and every element that draws text at 11 px or
+         * more (the module's floor, `--drpg-text-xs`). Headless there is no layout: skipped, with a row in
+         * skip-baseline.json (the plan's D6).
+         * (b), E81 C8: the tile's button, on whatever theme and layout the browser has. Square, as `--drpg-corner` draws
+         * it (narrow.css's stretch of the tile's children no longer reaches it); its focus ring, laid out while hidden
+         * (`::before`, shown at `:focus-visible`), all round its shape; and under Stained Glass, where the tile has a
+         * stated size even when it is empty, the ring wholly inside the tile - its `overflow: hidden` would cut what
+         * stands out. Read in the tile's own box (`offset*`, the button's offset parent being the fixed tile), so the
+         * pane's turn does not enter it. On a stacked screen the tile has no size of its own, so there the ring is not
+         * compared with the tile; under Monokuma Legacy on a desk it is, since E81 C10 gave the empty tile a card's box.
+         * (b), E81 C9: the card at the bottom of the tile, the one `setFloor` marks, for a card ending in a full line, in
+         * text after a `<b>`, in `div > p`, `ul > li`, a table and a rule: no line box of its text under the button's
+         * box; its height grown by the floor's room (with the floor's classes taken off and put back) by no more than
+         * `--drpg-corner-room` less a line and the body's own padding, and one line; and two one-line cards stand on
+         * the tile together, or one waits parked only where the two would not fit without that room. Read with the
+         * pane's turn taken off for the reading and put back. NEVER RUN: headless there is no layout, and E81 C9 had
+         * no browser.
+         * (b), E81 C10: the owner's Q6. On a stacked screen the button is hidden while no card is shown, so it is read
+         * hidden on the empty tile and measured beside a card of the suite's own. On a desk the body's theme classes
+         * are turned to Monokuma Legacy for the reading (firing `drpgThemeApplied` as `applyTheme` does) and back:
+         * with no card the button shown, the tile a card's width (`min(27rem, 92vw)`, read off a probe) and at least
+         * the corner's room tall, under the window layer (one below `--z-index-app`, read off a probe) and its `top`
+         * under the widgets; 99990 with a card and back under the windows once it is gone; `top` following the clock
+         * grown by 40 px with no card; and back on Stained Glass `top` cleared. A widget drawn after `ready` is
+         * R298 (7)'s, headless. NEVER RUN: E81 C10 had no browser either.
+         * (a), E81 C12: the corner's three in both themes (the classes turned as in (b) and back): R474's reading of the
+         * grid from the resolved insets - here they come back in px - with the boxes the buttons are drawn in, and the
+         * unread badge (one of the suite's own when there is none, removed after) with its box on the screen and at
+         * least the gap clear of the book's. A box, not what is painted: under Stained Glass the chat's clip-path
+         * cuts the badge, which stands out of its top-right corner, to a red sliver with no digits (Chromium 12.10, the
+         * same in 1.2.74's corner; not this commit's to change). (c), E81 C12, for a GM: the roster opened by
+         * clicking its button, run long with 120 rows of the suite's, read as it is and with a dock of 300 px (or
+         * half the window, camera-view.mjs's most) written on the body: its foot 8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the
+         * screen; over the notice cards on a stacked screen; closed by its button. At 640 x 360 only when that is the
+         * browser's size; R474 works that one out headless. The two clauses' Chromium readings of 12.10 were taken on
+         * the grid mockup's page with this commit's sheets, not by this test: NEVER RUN in a browser either.
+         * (d), E81 C13: on a stacked screen, the notice stack in both themes (the classes turned as in (b) and back), filled
+         * with the suite's own cards, unrecorded, until one waits parked or eight are shown: its box's foot 8 px over the
+         * corner's highest button, or on a short screen on the bottom line (the edge and the dock's lift) with its right
+         * edge 24 px past the widest button; its sides at the insets narrow.mjs wrote (the sheet's 8 px without them); its
+         * top at least 8 px under the blocks' stack as drawn; and the cards it shows fitting in it. Under Monokuma Legacy
+         * the inline `top` popup.mjs writes under the clock is on the tile while this reads, so a top in force shows as a
+         * box hanging from it, its foot or its top off its place. The buttons' boxes come from their insets and sizes, the tile's and the stack's from
+         * `offset*`: under Stained Glass the corner turns with its pane. Only at the browser's size; R476 works out the
+         * A7 design's four headless. NEVER RUN: E81 C13 had no browser.
+         * E81 fix r2-H2, 13.10.2026 (review round 2's P8, P7, P23, P24): (b) scrolls the floor card to its end before it
+         * reads the line boxes (a card capped at the tile kept its last line out of reach, so it read 0 with the floor's
+         * rules or without them), counts the unread badge with the button (its `::after` box, from the computed style),
+         * and reads the growth from the content, with the card neither grown into the tile nor capped at it; (a), (c)
+         * and (d) read the insets against the box they are measured from (`insetBox`); (d) adds no card a sliver and a
+         * card of 400 words inside the stack, scrolling. THIS TEST RUNS ONLY INSIDE FOUNDRY, and still has not run: at
+         * a table it is LIVE-E81-02. The same harms are measured in Chromium on the module's own sheets and popup.mjs
+         * by the glass harness's `drpgNoticeCheck`, which audit/glass-sweep.mjs runs at every size in both themes -
+         * red on the stylesheets before this fix, green on them after (the commit's numbers).
+         */
+        needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
+        const NH = await import("./notice-history.mjs");
+        must(!document.querySelector(".drpg-window-notices"), "the notice history window is open - close it: the suite measures a window it opened itself");
+        const { openNotices } = await import("./notice-history-app.mjs");
+        let win = null, seen = null;
+        await NH.holdNoticeHistory(true);
+        try {
+            for (let i = 0; i < 250; i++) {
+                NH.recordNotice({ source: i % 2 ? "mine" : "public", kind: "info", title: `R299 notice ${i}`, text: "R299 kept words ".repeat(12), html: "", state: i % 3 ? "read" : "unread" });
+            }
+            win = await openNotices();
+            const root = win?.element ?? null;
+            must(root !== null, "the window did not open");
+            const box = root.getBoundingClientRect(), foot = root.querySelector(".drpg-notices-foot")?.getBoundingClientRect();
+            const list = root.querySelector(".drpg-notices-list");
+            const small = [...root.querySelectorAll("*")]
+                .filter(el => el.offsetWidth > 0 && [...el.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim()))
+                .filter(el => Number.parseFloat(getComputedStyle(el).fontSize) < 11)
+                .map(el => `${el.localName}.${[...el.classList].join(".")} ${getComputedStyle(el).fontSize}`);
+            seen = {
+                width: box.width <= Math.min(420, window.innerWidth - 16) + 0.5, sides: box.left >= 7.5 && box.right <= window.innerWidth - 7.5,
+                foot: Boolean(foot) && foot.top >= 0 && foot.bottom <= window.innerHeight + 0.5, scrolls: list.scrollHeight > list.clientHeight,
+                small: [...new Set(small)]
+            };
+        } finally {
+            await win?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(seen), stableJson({ width: true, sides: true, foot: true, scrolls: true, small: [] }),
+            `the notice history window at ${window.innerWidth}x${window.innerHeight} [no wider than 420 px or the screen less 16; 8 px clear of each side; `
+            + "its foot on screen; the list scrolls; text under 11 px]");
+
+        /* (a) The corner's three as drawn, in both themes (E81 C12). */
+        const launchers = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id));
+        must(launchers.every(Boolean), "a corner button is not on the page - there is nothing to measure");
+        const CORNER_THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], cornerWas = CORNER_THEMES.map(name => document.body.classList.contains(name));
+        let badge = launchers[0].querySelector(".drpg-messenger-badge");
+        const madeBadge = !badge;
+        if (madeBadge) {
+            badge = document.createElement("span");
+            badge.className = "drpg-messenger-badge";
+            badge.textContent = "88";
+            launchers[0].append(badge);
+        }
+        const drawn = {}, drawnWant = {};
+        try {
+            for (const toGlass of [true, false]) {
+                document.body.classList.toggle(CORNER_THEMES[0], toGlass);
+                document.body.classList.toggle(CORNER_THEMES[1], !toGlass);
+                Hooks.callAll("drpgThemeApplied");
+                const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                const { seen: grid, want: gridWant } = cornerReading(document.createElement("div"), [{ w: innerWidth, h: innerHeight }]);
+                delete grid.roster;
+                delete gridWant.roster;
+                /* The badge in the corner's own terms: its box from the chat's border box (offset* from the padding
+                   edge, plus the frame), as insets from the right and the bottom like the buttons'. */
+                const [chat, , book] = launchers, chatRight = cascadePx(chat, "right"), chatBottom = cascadePx(chat, "bottom");
+                const badgeRight = chatRight + chat.offsetWidth - chat.clientLeft - badge.offsetLeft - badge.offsetWidth;
+                const badgeBottom = chatBottom + chat.offsetHeight - chat.clientTop - badge.offsetTop - badge.offsetHeight;
+                const bookRight = cascadePx(book, "right"), bookBottom = cascadePx(book, "bottom"), chatBox = insetBox(chat);
+                const apart = Math.max(badgeRight - (bookRight + book.offsetWidth), bookRight - (badgeRight + badge.offsetWidth),
+                    badgeBottom - (bookBottom + book.offsetHeight), bookBottom - (badgeBottom + badge.offsetHeight));
+                drawn[label] = {
+                    ...grid,
+                    boxes: launchers.map(el => `${el.offsetWidth}x${el.offsetHeight}`).join(" "),
+                    badge: { inView: innerWidth - (chatBox.right - badgeRight) >= 0 && chatBox.bottom - badgeBottom - badge.offsetHeight >= 0, clearOfBook: apart >= cascadePx(document.body, "--drpg-launch-gap") - 0.05 }
+                };
+                drawnWant[label] = {
+                    ...gridWant,
+                    boxes: launchers.map(el => `${Math.round(cascadePx(el, "width"))}x${Math.round(cascadePx(el, "height"))}`).join(" "),
+                    badge: { inView: true, clearOfBook: true }
+                };
+            }
+        } finally {
+            CORNER_THEMES.forEach((name, i) => document.body.classList.toggle(name, cornerWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+            if (madeBadge) badge.remove();
+        }
+        ok(!/NaN/.test(stableJson({ drawn, drawnWant })), `a length in the corner could not be read: ${stableJson({ drawn, drawnWant })}`);
+        equal(stableJson(drawn), stableJson(drawnWant),
+            `the corner at ${innerWidth}x${innerHeight} as drawn [per theme: R474's reading of the grid; the boxes the buttons are drawn in; the unread badge's box on the screen `
+            + "and at least the gap clear of the book's]");
+
+        /* (c) The GM's roster, opened from its button (E81 C12). */
+        if (game.user.isGM) {
+            must(!document.getElementById("drpg-messenger-roster"), "the GM's roster is open - close it: the suite opens it from its button and measures that");
+            launchers[0].click();
+            must(await until(() => document.querySelector("#drpg-messenger-roster.visible"), 2000), "the roster did not open from the messenger button");
+            const panel = document.getElementById("drpg-messenger-roster");
+            const filler = document.createElement("ul");
+            filler.innerHTML = "<li>R299 roster</li>".repeat(120);
+            panel.append(filler);
+            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift");
+            try {
+                for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
+                    if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
+                    const chat = launchers[0], foot = cascadePx(panel, "bottom");
+                    roster[label] = {
+                        foot: (foot - cascadePx(chat, "bottom") - chat.offsetHeight).toFixed(2),
+                        right: (cascadePx(panel, "right") - cascadePx(chat, "right")).toFixed(2),
+                        top: insetBox(panel).bottom - foot - panel.offsetHeight >= 8 - 0.5
+                    };
+                    if (liftWas) document.body.style.setProperty("--drpg-av-lift", liftWas);
+                    else document.body.style.removeProperty("--drpg-av-lift");
+                }
+                roster.overCards = !document.body.classList.contains("drpg-stacked") || Number(getComputedStyle(panel).zIndex) > 99990;
+            } finally {
+                filler.remove();
+                launchers[0].click();
+                await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
+            }
+            const placed = { foot: "8.00", right: "0.00", top: true };
+            equal(stableJson(roster), stableJson({ "as it is": placed, lifted: placed, overCards: true }),
+                `the GM's roster at ${innerWidth}x${innerHeight}, run long [8 px over the chat, its right edge with the chat's, its drawn top at least 8 px inside the screen; `
+                + "with a dock of 300 px or half the screen; over the notice cards on a stacked screen]");
+        }
+
+        /* (b) The tile's button and its focus ring (E81 C8). */
+        const P = await import("./popup.mjs");
+        const tile = P.ensureNoticeTile();
+        const button = document.getElementById("drpg-notices-corner"), shape = button?.querySelector(".drpg-notices-shape");
+        must(button && shape, "the tile has no history button - there is nothing to measure");
+        must(!tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), "a card is on the notice tile - close it: the tile is measured empty and with the suite's own cards");
+        const glass = document.body.classList.contains("drpg-theme-stained-glass"), stacked = document.body.classList.contains("drpg-stacked");
+        /* On a stacked screen the button is drawn only beside a card (E81 C10): read hidden first, then measured beside one. */
+        const hiddenEmpty = getComputedStyle(button).display === "none";
+        const cornerCard = stacked ? P.showPopup("<p>R299 corner</p>", { title: "R299 corner", record: false }) : null;
+        const px = value => Number.parseFloat(value) || 0;
+        let corner = null, ring = null;
+        try {
+            must(button.offsetParent === tile, "the tile's button is not laid out in the tile - there is no box to measure");
+            const ringStyle = getComputedStyle(button, "::before");
+            ring = {
+                left: button.offsetLeft + px(ringStyle.left), top: button.offsetTop + px(ringStyle.top),
+                right: button.offsetLeft + button.offsetWidth - px(ringStyle.right), bottom: button.offsetTop + button.offsetHeight - px(ringStyle.bottom)
+            };
+            const drawn = { left: button.offsetLeft + shape.offsetLeft, top: button.offsetTop + shape.offsetTop };
+            drawn.right = drawn.left + shape.offsetWidth;
+            drawn.bottom = drawn.top + shape.offsetHeight;
+            corner = {
+                hiddenEmpty,
+                square: button.offsetWidth > 0 && button.offsetWidth === button.offsetHeight && shape.offsetWidth === shape.offsetHeight,
+                ring: ringStyle.content !== "none" && ring.left < drawn.left && ring.top < drawn.top && ring.right > drawn.right && ring.bottom > drawn.bottom,
+                inTile: stacked ? null : ring.left >= 0 && ring.top >= 0 && ring.right <= tile.clientWidth && ring.bottom <= tile.clientHeight
+            };
+        } finally {
+            cornerCard?.({ instant: true });
+        }
+        equal(stableJson(corner), stableJson({ hiddenEmpty: stacked, square: true, ring: true, inTile: stacked ? null : true }),
+            `the tile's button (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, ${tile.querySelectorAll(".drpg-popup").length} cards on the tile, `
+            + `ring ${stableJson(ring)} in a ${tile.clientWidth}x${tile.clientHeight} tile) [hidden on the empty tile; square; the ring round its shape; the ring within the tile, `
+            + "on a desk]");
+        /* (b) The card at the bottom of the tile leaves the corner to the button (E81 C9). */
+        must(!tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), "a card is on the notice tile - close it: the floor card is measured on the suite's own cards");
+        const TAILS = ".drpg-corner-tail, .drpg-corner-tail-block";
+        const untail = () => tile.querySelectorAll(TAILS).forEach(el => el.classList.remove("drpg-corner-tail", "drpg-corner-tail-block"));
+        const probe = document.createElement("div");
+        probe.style.cssText = "position: absolute; visibility: hidden; height: 0; width: var(--drpg-corner-room)";
+        document.body.append(probe);
+        const room = probe.offsetWidth;
+        probe.remove();
+        const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+        const SHAPES = {
+            full: `<p>${"R299 words ".repeat(60)}</p>`,
+            inline: "<p>R299 words <b>bold</b> and after it</p>",
+            nested: "<div><p>R299 first</p><p>R299 the last of a block</p></div>",
+            list: "<p>R299 lead</p><ul><li>R299 one</li><li>R299 two</li></ul>",
+            table: "<p>R299 lead</p><table><tbody><tr><td>R299 cell</td><td>R299 cell</td></tr></tbody></table>",
+            rule: "<p>R299 lead</p><hr>"
+        };
+        const turn = [tile.style.getPropertyValue("transform"), tile.style.getPropertyPriority("transform")];
+        const floorClosers = [], floor = { crossed: {}, growth: {}, cards: null };
+        /* Upright for the reading, as the curtain's own measurements are taken: the pane's turn moves the text and the
+           button together, and a turned box's bounds are larger than the box. */
+        tile.style.setProperty("transform", "none", "important");
+        try {
+            for (const [name, html] of Object.entries(SHAPES)) {
+                const close = P.showPopup(html, { title: "R299 floor", record: false });
+                floorClosers.push(close);
+                const card = tile.querySelector(".drpg-popup-floor"), body = card?.querySelector(".drpg-popup-body");
+                const tailEl = tile.querySelector(TAILS);
+                if (!body || !tailEl) {
+                    floor.crossed[name] = floor.growth[name] = "no floor card or no tail";
+                    close({ instant: true });
+                    continue;
+                }
+                /* E81 fix r2-H2 (review round 2's P8, P7): scrolled to its end, since a card capped at the tile keeps its last
+                   line below the tile until it is, and the badge with the button - the `::after` of it, whose box
+                   getBoundingClientRect leaves out. */
+                card.scrollTop = card.scrollHeight;
+                const unreadWas = button.getAttribute("data-unread");
+                if (unreadWas === null) button.setAttribute("data-unread", "9+");
+                const texts = node => node.nodeType === Node.TEXT_NODE ? [node] : [...node.childNodes].flatMap(texts);
+                const view = card.getBoundingClientRect();
+                const words = texts(body).filter(node => node.data.trim()).flatMap(node => {
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    return [...range.getClientRects()];
+                }).filter(rect => rect.width > 0 && overlaps(rect, view));
+                const hit = button.getBoundingClientRect(), after = getComputedStyle(button, "::after");
+                const badgeAt = { left: hit.left + button.clientLeft + px(after.left), top: hit.top + button.clientTop + px(after.top) };
+                const badgeBox = after.content === "none" ? null : { ...badgeAt, right: badgeAt.left + px(after.width), bottom: badgeAt.top + px(after.height) };
+                if (unreadWas === null) button.removeAttribute("data-unread");
+                floor.crossed[name] = !badgeBox ? "no badge drawn" : words.filter(rect => overlaps(rect, hit) || overlaps(rect, badgeBox)).length;
+                const lines = Math.max(px(getComputedStyle(body).lineHeight), px(getComputedStyle(tailEl).lineHeight));
+                /* Growth from the content (P8): with the card neither grown into the tile nor capped at it, for the reading -
+                   a card that fills the tile is the tile's height with the floor's room and without it. */
+                const held = ["flex-grow", "max-height"].map(name => [name, card.style.getPropertyValue(name), card.style.getPropertyPriority(name)]);
+                card.style.setProperty("flex-grow", "0", "important");
+                card.style.setProperty("max-height", "none", "important");
+                const withFloor = card.offsetHeight;
+                card.classList.remove("drpg-popup-floor");
+                untail();
+                const without = card.offsetHeight, pad = px(getComputedStyle(body).paddingBottom), lh = px(getComputedStyle(body).lineHeight);
+                held.forEach(([name, value, priority]) => value ? card.style.setProperty(name, value, priority) : card.style.removeProperty(name));
+                P.setFloor(tile);
+                const bound = Math.max(0, room - lh - pad) + lines + 0.5;
+                floor.growth[name] = withFloor - without <= bound ? true : `${withFloor - without} px over a bound of ${bound} px`;
+                close({ instant: true });
+            }
+            const pair = [P.showPopup("<p>R299 one line</p>", { title: "R299 floor", record: false }), P.showPopup("<p>R299 another line</p>", { title: "R299 floor", record: false })];
+            floorClosers.push(...pair);
+            const ours = [...tile.querySelectorAll(".drpg-popup:not(.leaving)")].filter(card => /R299 (one|another) line/.test(card.textContent));
+            const parked = ours.filter(card => card.classList.contains("drpg-popup-parked"));
+            let fitWithout = true;
+            if (parked.length) {
+                /* One of the two was parked for want of room: whether they fit without the floor's room, as
+                   `overflowsGlass` adds them up. */
+                parked.forEach(card => card.classList.remove("drpg-popup-parked"));
+                ours.forEach(card => card.classList.remove("drpg-popup-floor"));
+                untail();
+                fitWithout = ours.reduce((sum, card) => sum + card.offsetHeight, px(getComputedStyle(tile).rowGap)) <= tile.clientHeight + 1;
+                parked.forEach(card => card.classList.add("drpg-popup-parked"));
+                P.setFloor(tile);
+            }
+            floor.cards = parked.length === 0 || !fitWithout;
+        } finally {
+            for (const close of floorClosers) { try { close({ instant: true }); } catch { /* already gone */ } }
+            if (turn[0]) tile.style.setProperty("transform", turn[0], turn[1]);
+            else tile.style.removeProperty("transform");
+        }
+        const clear = Object.fromEntries(Object.keys(SHAPES).map(name => [name, 0])), held = Object.fromEntries(Object.keys(SHAPES).map(name => [name, true]));
+        equal(stableJson(floor), stableJson({ crossed: clear, growth: held, cards: true }),
+            `the card at the bottom of the tile (${glass ? "Stained Glass" : "Monokuma Legacy"}${stacked ? ", stacked" : ""}, room ${room} px) [lines of its text under `
+            + "the button, per shape of its end; its height grown by no more than the room less a line and its own padding, and a line; two one-line cards on "
+            + "the tile together, or parked only where they would not fit without the floor's room]");
+        /* (d) The notice stack on a stacked screen (E81 C13), in both themes, with the suite's own cards. */
+        if (stacked) {
+            const column = document.getElementById("drpg-column");
+            must(column, "the screen is stacked and the blocks' stack is not on it - there is nothing to measure the notices against");
+            const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+            const short = document.body.classList.contains("drpg-short");
+            const rootPx = name => px(getComputedStyle(document.body).getPropertyValue(name));
+            const offsetTop = el => { let y = 0; for (let at = el; at; at = at.offsetParent) y += at.offsetTop; return y; };
+            const stackRead = {}, stackWant = {};
+            const closers = [];
+            try {
+                for (const toGlass of [true, false]) {
+                    document.body.classList.toggle(THEMES[0], toGlass);
+                    document.body.classList.toggle(THEMES[1], !toGlass);
+                    Hooks.callAll("drpgThemeApplied");
+                    for (let i = 0; i < 8 && !tile.querySelector(".drpg-popup-parked:not(.leaving)"); i++) {
+                        closers.push(P.showPopup(`<p>${"R299 stack words ".repeat(8)}</p>`, { title: `R299 stack ${i}`, record: false }));
+                    }
+                    const edge = rootPx("--drpg-edge"), lift = rootPx("--drpg-av-lift");
+                    /* The buttons' boxes from their own insets: under Stained Glass the corner turns with its pane. */
+                    /* Against the box their insets are measured from (P23: under Stained Glass not the window), and the
+                       tile in the window's coordinates - on a stacked screen it is not turned (narrow.css). */
+                    const buttons = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"].map(id => document.getElementById(id)).map(el => {
+                        const style = getComputedStyle(el), from = insetBox(el);
+                        return { top: from.bottom - px(style.bottom) - el.offsetHeight, reach: innerWidth - from.right + px(style.right) + el.offsetWidth };
+                    });
+                    const cornerTop = Math.min(...buttons.map(b => b.top)), reach = Math.max(...buttons.map(b => b.reach));
+                    const drawn = tile.getBoundingClientRect(), tileFrom = insetBox(tile);
+                    const box = { top: drawn.top, bottom: drawn.bottom, left: drawn.left - tileFrom.left, right: tileFrom.right - drawn.right, fromEdge: innerWidth - drawn.right, foot: tileFrom.bottom - drawn.bottom };
+                    const inset = name => px(tile.style.getPropertyValue(name)) || 8;
+                    const shown = [...tile.querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+                    /* No card a sliver (E81 fix r2-H2, review round 2's P24): drawn shorter than its own content less a line
+                       while another is shown beside it, which is what a card squeezed by the capped tile looks like. */
+                    const lineOf = el => px(getComputedStyle(el).lineHeight) || px(getComputedStyle(el).fontSize) * 1.2;
+                    const slivers = shown.length < 2 ? 0 : shown.filter(el => el.offsetHeight < el.scrollHeight - lineOf(el.querySelector(".drpg-popup-body") ?? el) - 0.5).length;
+                    const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                    stackRead[label] = {
+                        foot: short ? Math.abs(box.foot - (edge + lift)) <= 0.5 : box.bottom <= cornerTop - 8 + 0.5,
+                        beside: short ? box.fromEdge >= Math.max(inset("--drpg-notices-right"), reach + 24) - 0.5 : null,
+                        sides: Math.abs(box.left - inset("--drpg-notices-left")) <= 0.5 && (short || Math.abs(box.right - inset("--drpg-notices-right")) <= 0.5),
+                        underColumn: box.top >= offsetTop(column) + column.offsetHeight + 8 - 0.5,
+                        fits: shown.length > 0 && shown.reduce((sum, el) => sum + el.offsetHeight, px(getComputedStyle(tile).rowGap) * (shown.length - 1)) <= tile.clientHeight + 1,
+                        slivers
+                    };
+                    while (closers.length) closers.pop()({ instant: true });
+                    /* One card taller than the stack (P24's other road): inside the tile, scrolling. */
+                    closers.push(P.showPopup(`<p>${"R299 long words ".repeat(400)}</p>`, { title: "R299 long", record: false }));
+                    const long = tile.querySelector(".drpg-popup:not(.leaving):not(.drpg-popup-parked)"), longBox = long?.getBoundingClientRect(), tileBox = tile.getBoundingClientRect();
+                    stackRead[label].long = long ? { inTile: longBox.top >= tileBox.top - 0.5 && longBox.bottom <= tileBox.bottom + 0.5, scrolls: long.scrollHeight > long.clientHeight + 1 } : "not shown";
+                    stackWant[label] = { foot: true, beside: short ? true : null, sides: true, underColumn: true, fits: true, slivers: 0, long: { inTile: true, scrolls: true } };
+                    while (closers.length) closers.pop()({ instant: true });
+                }
+            } finally {
+                for (const close of closers) { try { close({ instant: true }); } catch { /* already gone */ } }
+                THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+                Hooks.callAll("drpgThemeApplied");
+            }
+            equal(stableJson(stackRead), stableJson(stackWant),
+                `the notice stack at ${innerWidth}x${innerHeight}${short ? ", short" : ""} [per theme, with the suite's cards until one waits parked: its foot 8 px over the `
+                + "corner's highest button, or on the bottom line on a short screen; beside the buttons there, 24 px past the widest; its sides at narrow.mjs's insets; "
+                + "its top 8 px under the blocks' stack at least; the cards shown fitting in it; none of them a sliver; a card of 400 words inside it, scrolling]");
+        }
+        /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
+           whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
+        if (stacked) return;
+        const measure = document.createElement("div");
+        measure.style.cssText = "position: absolute; visibility: hidden; height: 0; z-index: calc(var(--z-index-app, 30) - 1); width: min(27rem, 92vw)";
+        document.body.append(measure);
+        const underWindows = getComputedStyle(measure).zIndex, cardWidth = measure.offsetWidth;
+        measure.remove();
+        const widgetTop = () => {
+            const bottom = Math.max(0, ...["#drpg-despair", "#drpg-hud"].map(sel => document.querySelector(sel)?.getBoundingClientRect()).filter(box => box?.height > 0).map(box => box.bottom));
+            return `${Math.round(bottom ? bottom + 8 : 96)}px`;
+        };
+        const THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], themeWas = THEMES.map(name => document.body.classList.contains(name));
+        const theme = toGlass => {
+            document.body.classList.toggle(THEMES[0], toGlass);
+            document.body.classList.toggle(THEMES[1], !toGlass);
+            Hooks.callAll("drpgThemeApplied");
+        };
+        const clock = document.getElementById("drpg-hud"), clockWas = clock?.style.getPropertyValue("min-height") ?? "";
+        const lone = {};
+        let loneCard = null;
+        try {
+            theme(false);
+            await until(() => tile.style.top === widgetTop(), 2000);
+            lone.empty = {
+                shown: getComputedStyle(button).display !== "none" && button.offsetWidth > 0, width: Math.abs(tile.offsetWidth - cardWidth) <= 0.5,
+                tall: tile.offsetHeight >= room - 0.5, under: getComputedStyle(tile).zIndex === underWindows, top: tile.style.top === widgetTop()
+            };
+            loneCard = P.showPopup("<p>R299 lone</p>", { title: "R299 lone", record: false });
+            lone.card = getComputedStyle(tile).zIndex;
+            loneCard({ instant: true });
+            lone.after = await until(() => getComputedStyle(tile).zIndex === underWindows, 2000);
+            if (clock) {
+                const before = tile.style.top;
+                clock.style.setProperty("min-height", `${clock.offsetHeight + 40}px`, "important");
+                await until(() => tile.style.top !== before, 2000);
+                lone.grown = tile.style.top !== before && tile.style.top === widgetTop();
+            }
+            theme(true);
+            lone.glass = tile.style.top;
+        } finally {
+            loneCard?.({ instant: true });
+            if (clock) {
+                if (clockWas) clock.style.setProperty("min-height", clockWas);
+                else clock.style.removeProperty("min-height");
+            }
+            THEMES.forEach((name, i) => document.body.classList.toggle(name, themeWas[i]));
+            Hooks.callAll("drpgThemeApplied");
+        }
+        const shownAlone = { shown: true, width: true, tall: true, under: true, top: true };
+        equal(stableJson(lone), stableJson({ empty: shownAlone, card: "99990", after: true, ...(clock ? { grown: true } : {}), glass: "" }),
+            `the lone button under Monokuma Legacy on a desk (a ${cardWidth}x${room} box, under the windows at ${underWindows}) [with no card: shown, the tile a card's width, `
+            + "the corner's room tall, under the window layer, its top under the widgets; the tile's z-index with a card; under the windows again after it; the top after the "
+            + "clock grew with no card; back on Stained Glass, the top]");
+    }],
+    ["R474 - the three corner buttons stand on the grid their tokens describe, in both themes: each the size its token gives, square; settings and the handbooks on the bottom line with the handbooks at the wall; the chat over the midpoint of the two; every two neighbours the gap apart, flat side to flat side or rim to rim; the corner as tall as --drpg-launch-h; with the camera dock's lift and the tab rail's clearance as well; and the GM's roster 8 px over the chat with its right edge, its top 8 px inside the screen (also at 640 x 360 headless), and over the notice cards on a stacked screen", async () => {
+        /*
+         * E81 C12, 12.10.2026: the owner's grid (AM-18 of 11.10, variant B accepted in AM-21 of 12.10), read from the
+         * cascade so it runs headless - R299 (a) and (c) read the same and the boxes as drawn, but only in a browser.
+         * Every expectation comes from the tokens, not from the mockup's numbers (the plan's D1): sizes, the gap, the
+         * edge, the book's height, `--drpg-launch-h`. The rows (`--drpg-launch-row`, 47.88 and 55.64) are the one
+         * input the test does not recompute; that is the point of it - change a size or the gap without the row it
+         * implies and the gaps here stop being the gap. Both themes are put on the body for the reading and back
+         * (synchronously, no hook fired: nothing is drawn in between), and each is read twice: as the table has it,
+         * and with `--drpg-av-lift` at 300 px (or half the window, the most camera-view.mjs ever lifts: the 640 x 360
+         * reading is made unlifted, as a 300 px dock there is not a screen anybody has) and `--drpg-launch-clear` at
+         * 37 px written on the body and put back, so a
+         * rule that forgets the camera dock or the tab rail is read moving away from the others. The roster is the
+         * GM's own when it is open, otherwise one made for the reading and removed. Its ceiling is worked out at the
+         * window's size and, headless, where the values come back unresolved, at 640 x 360 too; in a browser they
+         * come back in px for the window that runs the suite and nothing else. Over the cards: a stacked screen's
+         * notice cards stand at 99990 (danganronpa.css `#drpg-popups`, R299 (b) reads that number with a card); the
+         * reading is made with `drpg-stacked` on the body, put there for it on a desk.
+         */
+        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+        must(ids.every(id => document.getElementById(id)), "a corner button is not on the page - there is nothing to read");
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
+        const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
+        let roster = document.getElementById("drpg-messenger-roster");
+        const made = !roster;
+        if (made) {
+            roster = document.createElement("div");
+            roster.id = "drpg-messenger-roster";
+            body.append(roster);
+        }
+        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(document.getElementById(ids[0])).right.trim());
+        const views = [{ w: innerWidth, h: innerHeight }, ...(resolved ? [] : [{ w: 640, h: 360 }])];
+        const seen = {}, want = {};
+        let overCards = null;
+        try {
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                for (const [label, lift, clear] of [["as it is", null, null], ["lifted, cleared 37", `${Math.min(300, Math.floor(innerHeight / 2))}px`, "37px"]]) {
+                    if (lift) {
+                        body.style.setProperty(INLINE[0], lift);
+                        body.style.setProperty(INLINE[1], clear);
+                    }
+                    const reading = cornerReading(roster, lift ? views.slice(0, 1) : views);
+                    seen[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.seen;
+                    want[`${glass ? "Stained Glass" : "Monokuma Legacy"}, ${label}`] = reading.want;
+                    putBack();
+                }
+            }
+            body.classList.add(CLASSES[2]);
+            overCards = Number(getComputedStyle(roster).zIndex) > 99990;
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            putBack();
+            if (made) roster.remove();
+        }
+        /* Both sides are read through the same parser, so a value it could not read would be "NaN" on both and equal. */
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length in the corner could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson({ ...seen, overCards }), stableJson({ ...want, overCards: true }),
+            `the corner at ${innerWidth}x${innerHeight}${resolved ? "" : " and 640x360"} [per theme and reading: the shape; the sizes; the book's right and bottom; `
+            + "settings' bottom; the three gaps; the chat's centre off the midpoint; the chat above both; the corner's height; the roster's foot over the chat, "
+            + "its right edge against the chat's, its top at least 8 px in - and the roster over the cards on a stacked screen]");
+    }],
+    ["R476 - the notice stack on a stacked screen stands clear of the corner buttons and of the blocks' stack, in both themes: its foot 8 px over the buttons, or on a short screen beside them on the bottom line, 24 px past the widest; its sides at the insets narrow.mjs measures; never at the inline top popup.mjs writes under the clock; its ceiling 8 px under the blocks' stack at its tallest, from the token both read; and a card under the same ceiling scrolls", async () => {
+        /*
+         * E81 C13, 12.10.2026: the A7 design's P8-7 (S12-40), read from the cascade so it runs headless - R299 (d)
+         * reads the drawn boxes with the module's own cards, but only in a browser. Through 1.2.74 each theme beat
+         * the stack's plain `bottom: 96px` (narrow.css says how) and it stood on the corner's buttons. Every
+         * expectation comes from the tokens and the buttons' own insets, never from a figure: the foot over the
+         * highest button's top, the right edge past the widest button's reach, the ceiling against the blocks'
+         * stack's `top` and `max-height`. Headless the values come back unresolved and are worked out at the A7
+         * design's four stacked sizes - 393 x 852 and 820 x 1180, and 844 x 390 and 640 x 360 with `drpg-short` -
+         * and in a browser they come back in px for the window that runs the suite, read with `drpg-short` off and
+         * on. Both themes, each read twice: with no insets on the tile (the sheet's 8 px gutter) and the body as the
+         * table has it, and with the tool and tab rails' insets narrow.mjs writes (61 and 56 px), the tab rail's
+         * clearance (37 px, glass.mjs) and a camera dock's lift (100 px) - so a rule that forgets one of them is read
+         * moving away from the others. An inline `top` such as popup.mjs
+         * writes under the clock is on the tile for every reading; what the cascade makes of it is read headless
+         * only, since a browser resolves `top` to the box. The classes, the body's and the tile's inline values are
+         * put back synchronously, no hook fired; the blocks' stack is the page's when the screen is stacked,
+         * otherwise one made for the reading, and the card is one of the test's, parked, removed after.
+         * ONE READING IS LEFT TO THE BROWSER: the tile's `left` under Stained Glass. jsdom 30.0.1 drops the priority
+         * of a declaration whose value holds a var() (a rule's `left: var(--a, 8px) !important` reads back with
+         * priority "", `top: 4px !important` with "important"; probed 12.10.2026), so headless the theme's plain
+         * `left: 16px !important` beats this sheet's and the reading says 16 where a browser draws the inset. The
+         * same loss is harmless elsewhere here: the theme's own var() values lose theirs too, and the plain
+         * `top: auto` and `height: auto` keep it. Under Monokuma Legacy `left` is read.
+         * E81 fix r2-H2 (review round 2's P24, P25): the ceiling never under 96 px - a short screen with the dock's
+         * 100 px left it 32 px at 844 x 390 and 640 x 360 (worked out: the glass harness reads 132 at both without a
+         * dock, Chromium 13.10.2026), so there the stack reaches under the blocks' stack by what
+         * the 96 px take, and `under` says by how much - and a card that does not shrink, its frame inside its
+         * ceiling (`flex-shrink` 0, `box-sizing: border-box`). What those do to drawn cards is glass-sweep.mjs's
+         * reading, in Chromium on the glass harness, and R299 (d)'s inside Foundry.
+         */
+        const host = document.getElementById("drpg-popups");
+        const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
+        must(host && ids.every(id => document.getElementById(id)), "the notice tile or a corner button is not on the page - there is nothing to read");
+        const body = document.body;
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const BODY = ["--drpg-av-lift", "--drpg-launch-clear"], bodyWas = BODY.map(name => body.style.getPropertyValue(name));
+        const HOST = ["--drpg-notices-left", "--drpg-notices-right", "top"], hostWas = HOST.map(name => [host.style.getPropertyValue(name), host.style.getPropertyPriority(name)]);
+        const putBack = () => {
+            BODY.forEach((name, i) => bodyWas[i] ? body.style.setProperty(name, bodyWas[i]) : body.style.removeProperty(name));
+            HOST.forEach((name, i) => hostWas[i][0] ? host.style.setProperty(name, ...hostWas[i]) : host.style.removeProperty(name));
+        };
+        let column = document.getElementById("drpg-column");
+        const madeColumn = !column;
+        if (madeColumn) {
+            column = document.createElement("div");
+            column.id = "drpg-column";
+            (document.getElementById("interface") ?? body).prepend(column);
+        }
+        const card = document.createElement("div");
+        card.className = "drpg-popup drpg-popup-parked";
+        const resolved = /^-?[\d.]+px$/.test(getComputedStyle(document.getElementById(ids[0])).right.trim());
+        const views = resolved
+            ? [false, true].map(short => ({ w: innerWidth, h: innerHeight, short }))
+            : [[393, 852, false], [820, 1180, false], [844, 390, true], [640, 360, true]].map(([w, h, short]) => ({ w, h, short }));
+        const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+        const seen = {}, want = {};
+        try {
+            host.prepend(card);
+            host.style.setProperty("top", "123px");
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                body.classList.add(CLASSES[2]);
+                for (const view of views) {
+                    body.classList.toggle(CLASSES[3], view.short);
+                    for (const [label, insets, clear, lift] of [["no insets", null, null, null], ["the rails' insets, cleared 37, lifted 100", [61, 56], "37px", "100px"]]) {
+                        host.style.removeProperty(HOST[0]);
+                        host.style.removeProperty(HOST[1]);
+                        if (insets) {
+                            host.style.setProperty(HOST[0], `${insets[0]}px`);
+                            host.style.setProperty(HOST[1], `${insets[1]}px`);
+                            body.style.setProperty(BODY[0], lift);
+                            body.style.setProperty(BODY[1], clear);
+                        }
+                        const px = (el, prop) => cascadePx(el, prop, view);
+                        const edge = px(body, "--drpg-edge"), up = px(body, "--drpg-av-lift") || 0;
+                        const buttons = ids.map(id => document.getElementById(id)).map(el => ({ right: px(el, "right"), bottom: px(el, "bottom"), w: px(el, "width"), h: px(el, "height") }));
+                        const top = Math.max(...buttons.map(b => b.bottom + b.h)), reach = Math.max(...buttons.map(b => b.right + b.w));
+                        const bottom = px(host, "bottom"), ceiling = px(host, "max-height");
+                        const [left, right] = insets ?? [8, 8];
+                        const key = `${glass ? "Stained Glass" : "Monokuma Legacy"}, ${view.w}x${view.h}${view.short ? " short" : ""}, ${label}`;
+                        seen[key] = {
+                            top: resolved ? null : getComputedStyle(host).top,
+                            foot: round(view.short ? bottom - (edge + up) : bottom - top),
+                            left: glass && !resolved ? null : round(px(host, "left")),
+                            right: round(px(host, "right")),
+                            under: round(view.h - bottom - ceiling - (px(column, "top") + px(column, "max-height"))),
+                            height: resolved ? null : getComputedStyle(host).height,
+                            card: [round(px(card, "max-height")), getComputedStyle(card).overflowY, getComputedStyle(card).flexShrink, getComputedStyle(card).boxSizing]
+                        };
+                        want[key] = {
+                            top: resolved ? null : "auto",
+                            foot: round(view.short ? 0 : 8),
+                            left: glass && !resolved ? null : round(left),
+                            right: round(view.short ? Math.max(right, reach + 24) : right),
+                            under: round(Math.min(8, view.h - bottom - 96 - (px(column, "top") + px(column, "max-height")))),
+                            height: resolved ? null : "auto",
+                            card: [round(ceiling), "auto", "0", "border-box"]
+                        };
+                        putBack();
+                        host.style.setProperty("top", "123px");
+                    }
+                }
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+            card.remove();
+            putBack();
+            if (madeColumn) column.remove();
+        }
+        /* Both sides are read through the same parser, so a value it could not read would be "NaN" on both and equal. */
+        ok(!/NaN/.test(stableJson({ seen, want })), `a length of the notice stack could not be read: ${stableJson({ seen, want })}`);
+        equal(stableJson(seen), stableJson(want),
+            `the notice stack on a stacked screen${resolved ? ` at ${innerWidth}x${innerHeight}` : " at 393x852, 820x1180, 844x390 and 640x360"} [per theme, size and reading: `
+            + "the inline top not in force; the foot 8 px over the highest button, or on the bottom line beside them on a short screen; the left and right insets, "
+            + "the right on a short screen 24 px past the widest button at least; the ceiling 8 px under the blocks' stack at its tallest, or 96 px where "
+            + "that leaves less; the height left to the cards; a card's ceiling the stack's, it scrolls, it does not shrink and its frame is inside the ceiling]");
+    }],
+    ["R500 - a cast row kept by a hall token under 1.2.74 moves to its actor once: the actor's first token in the hall decides, its season kept, and any other key and a second run are left alone", async () => {
+        /*
+         * E81 DZ6, 12.10.2026 (the owner: the GM chooses the cast per actor, "kto bierze udział, a kogo nie
+         * przenosić"; the DZ6 design's R474, renumbered R500 for the second fix line). Until DZ6 the GMs' choice was a
+         * row per hall token, `${hallId}.${tokenId}`; it is now a row per actor, and a world that chose under 1.2.74
+         * keeps its choice through trial-scene.mjs `castRowsByActor`, whose answer the primary's `ready` writes
+         * (`tidyTrialHall`: a fill that never overwrites an actor's row, then a drop; the tier-2 "a 1.2.74 cast row
+         * kept by a hall token ..." drives it on a store). Asked of plain rows: a hall with two tokens of one student
+         * (the first's row "hidden", the second's "shown" - the trial never read a second token's row), a second
+         * student's token with a row of the season before, a token row with no `reveal`, a row an actor already holds
+         * in another hall beside a token row of the same actor there, a key naming a token of another scene, and a key
+         * of a scene not handed. Read: what is filled by actor, what is dropped, and a second run over what a store
+         * holds after the first (the actor's own row kept, as `fillOnly` keeps it). Red at 0697d0f: there was no
+         * `castRowsByActor`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.castRowsByActor === "function", "trial-scene.mjs has no `castRowsByActor` - a cast chosen under 1.2.74 is lost to the per-actor choice");
+        if (typeof T.castRowsByActor !== "function") return;
+        const scenes = {
+            HALL: [{ id: "TA1", actorId: "ALPHA" }, { id: "TB1", actorId: "BETA" }, { id: "TA2", actorId: "ALPHA" }, { id: "TN1", actorId: "NOROW" }],
+            OTHER: [{ id: "TB2", actorId: "BETA" }]
+        };
+        const rows = {
+            "HALL.TA1": { reveal: false, epoch: 9 }, "HALL.TA2": { reveal: true, epoch: 9 }, "HALL.TB1": { reveal: true, epoch: 8 }, "HALL.TN1": { epoch: 9 },
+            "OTHER.BETA": { reveal: false, epoch: 9 }, "OTHER.TB2": { reveal: true, epoch: 9 }, "HALL.TB2": { reveal: true, epoch: 9 }, "GONE.TX": { reveal: true, epoch: 9 }
+        };
+        const first = T.castRowsByActor(rows, scenes);
+        const held = Object.fromEntries(Object.entries(rows).filter(([key]) => !first.old.includes(key)));
+        for (const [key, row] of Object.entries(first.mapped)) if (!(key in held)) held[key] = row;
+        const second = T.castRowsByActor(held, scenes);
+        equal(JSON.stringify([first, second, held["OTHER.BETA"]]), JSON.stringify([
+            { mapped: { "HALL.ALPHA": { reveal: false, epoch: 9 }, "HALL.BETA": { reveal: true, epoch: 8 }, "OTHER.BETA": { reveal: true, epoch: 9 } },
+                old: ["HALL.TA1", "HALL.TA2", "HALL.TB1", "HALL.TN1", "OTHER.TB2"] },
+            { mapped: {}, old: [] }, { reveal: false, epoch: 9 }]),
+            "[the first run: the first token's row by its actor (not the second token's), a past season's row with its season, the token row of an actor that holds a row "
+            + "(filled only where none is), every token row dropped and no other key; a second run over what the store then holds; the actor's own row kept]");
+    }],
+
+    ["R501 - the stage's plan: a token is the module's only when the hall's record names it, so the GM's are shown or hidden and never removed, a standing made token is used again, and Monokuma is never made", async () => {
+        /*
+         * E81 DZ6, 12.10.2026 (the DZ6 design's R475, renumbered R501 for the second fix line; design 3.1-3.2, the
+         * orchestrator's Q1-Q3). The stage (trial-scene.mjs `stageHall`) makes the cast's tokens in the hall when the
+         * trial opens and deletes them when it ends, and `stagePlan` decides which, before anything is written. The
+         * harm it guards is a deleted token the GMs placed: a token is the module's only when its id is in the hall's
+         * `trialSeats` record. Asked of plain rows: Aiko with two tokens the GMs placed and a made one of an earlier
+         * trial; Botan with a made token standing; Chie with none; Monokuma, ticked, with none; Daichi unticked, with a
+         * made token and one of the GMs'; Gin, ticked, whose recorded token is gone; Fumi unticked, with a token the
+         * GMs placed that carries a `made` mark (a flag anybody could write) and an empty record; and a prop whose actor
+         * is no "character". Read: the plan into the trial and out of it. Red at 4f4c24b: there was no `stagePlan`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.stagePlan === "function", "trial-scene.mjs has no `stagePlan` - the stage cannot tell the module's tokens from the GMs'");
+        if (typeof T.stagePlan !== "function") return;
+        const cast = [{ actorId: "AIKO", in: true }, { actorId: "BOTAN", in: true }, { actorId: "CHIE", in: true }, { actorId: "MONO", monokuma: true, in: true },
+            { actorId: "DAICHI", in: false }, { actorId: "GIN", in: true }, { actorId: "FUMI", in: false }];
+        const tokens = [{ id: "GA1", actorId: "AIKO", cast: true }, { id: "GA2", actorId: "AIKO", cast: true }, { id: "MA", actorId: "AIKO", cast: true },
+            { id: "MB", actorId: "BOTAN", cast: true }, { id: "MD", actorId: "DAICHI", cast: true }, { id: "GD", actorId: "DAICHI", cast: true },
+            { id: "FX", actorId: "FUMI", cast: true, made: true }, { id: "PROP", actorId: "TABLE", cast: false }];
+        const seats = { AIKO: { x: 0, y: 0, token: "MA" }, BOTAN: { x: 100, y: 0, token: "MB" }, DAICHI: { x: 200, y: 0, token: "MD" },
+            GIN: { x: 300, y: 0, token: "GONE" }, FUMI: { x: null, y: null, token: null } };
+        const plans = [T.stagePlan({ cast, tokens, seats, into: true }), T.stagePlan({ cast, tokens, seats, into: false }),
+            T.stagePlan({ cast, tokens, seats: {}, into: true })];
+        equal(JSON.stringify(plans), JSON.stringify([
+            { remove: ["MA", "MD"], create: ["CHIE", "GIN"], show: ["GA1", "MB"], hide: ["GA2", "GD", "FX"] },
+            { remove: ["MA", "MB", "MD"], create: [], show: [], hide: ["GA1", "GA2", "GD", "FX"] },
+            { remove: [], create: ["CHIE", "GIN"], show: ["GA1", "MB"], hide: ["GA2", "MA", "MD", "GD", "FX"] }]),
+            "[into: the GMs' first token of Aiko shown, her second hidden and the made one removed; Botan's made token used again; Chie and Gin (whose recorded token is gone) made, "
+            + "Monokuma not; unticked Daichi's made token removed and the GMs' hidden; Fumi's marked token hidden, never removed; the prop untouched - out: every made token removed, "
+            + "every GM token hidden - into with no record: nothing removed, every token the GMs'.]");
+    }],
+
+    ["R502 - where the stage makes a token: the remembered seat, kept inside the scene, else a ring of grid cells round the hall's centre, a taken cell skipped, the same every time", async () => {
+        /*
+         * E81 DZ6, 12.10.2026 (the DZ6 design's R476, renumbered R502 for the second fix line; design 3.3). The
+         * stage makes a token at its actor's seat in the hall's record - where the module's token of the last trial
+         * stood - and with none on a ring, so a first trial does not stack the cast in one corner. Asked of plain
+         * numbers on a 3000x2000 rect at (500, 300), grid 100: a seat inside, one outside (clamped so the whole token
+         * is in the rect), no rect; the ring of four by hand (the first at the top: centre (2000, 1300), radius
+         * 2000/3, so (2000, 633.3) snapped to (2000, 600); the second at the right, (2666.7, 1300) to (2600, 1300));
+         * a ring of eight - every cell on the grid, inside, distinct; the first with its cell taken (one cell
+         * further out, (2000, 500)) and with every cell of its ray taken (its own cell anyway); and a second run of
+         * the eight. Red at 4f4c24b: there was no `seatFor`.
+         */
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.seatFor === "function", "trial-scene.mjs has no `seatFor` - the stage has nowhere to put a token");
+        if (typeof T.seatFor !== "function") return;
+        const rect = { x: 500, y: 300, width: 3000, height: 2000 }, grid = 100;
+        const at = (args = {}) => T.seatFor({ rect, grid, count: 4, ...args });
+        const eight = () => Array.from({ length: 8 }, (_, index) => T.seatFor({ rect, grid, index, count: 8 }));
+        const ring = eight();
+        const onGrid = ring.every(({ x, y }) => x % grid === 0 && y % grid === 0 && x >= rect.x && y >= rect.y
+            && x <= rect.x + rect.width - grid && y <= rect.y + rect.height - grid);
+        const ray = new Set(Array.from({ length: 6 }, (_, step) => `2000,${600 - 100 * step}`));
+        equal(JSON.stringify([at({ seat: { x: 1500, y: 400 } }), at({ seat: { x: 9999, y: -50 } }), T.seatFor({ index: 2, grid, rect: null }),
+            at({ index: 0 }), at({ index: 1 }), onGrid, new Set(ring.map(({ x, y }) => `${x},${y}`)).size,
+            at({ index: 0, taken: new Set(["2000,600"]) }), at({ index: 0, taken: ray }), JSON.stringify(eight()) === JSON.stringify(ring)]),
+            JSON.stringify([{ x: 1500, y: 400 }, { x: 3400, y: 300 }, { x: 200, y: 0 }, { x: 2000, y: 600 }, { x: 2600, y: 1300 }, true, 8,
+                { x: 2000, y: 500 }, { x: 2000, y: 600 }, true]),
+            "[a seat inside kept; one outside clamped into the rect; with no rect a line along the top; the ring's first two cells by hand; the ring of eight on the grid "
+            + "and inside; its distinct cells; a taken cell skipped one further out; every cell of the ray taken, the first anyway; a second run the same]");
     }],
 ];
 
@@ -7222,5 +10312,162 @@ const LITERAL_KEYS = [
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`)
 ];
+
+/*
+ * The notice history's engine over a value in memory (R292, R297; E81 C1): `store.raw` is the stored text as
+ * localStorage would hold it, `store.writes` counts the writes and `store.fail` makes that many writes throw.
+ * Nothing is debounced - a test flushes - and the time and the clock are the caller's objects to move. Ids are
+ * numbered across every engine made here, so two tabs never draw the same one. The html is kept as given unless
+ * the caller hands the bench a cleaner (E81 C2): the store's tests weigh lengths, and R294 measures the cleaning
+ * on the module's own engine. `messageExists` is the chat log the engine reads at `open` (E81 C5, R295); without
+ * one nothing is marked deleted there. `store.now` counts the writes made before the call returns (giving way, E81 C6,
+ * R298), apart from `store.writes`.
+ */
+let noticeIds = 0;
+function noticeBench(createNoticeEngine, { store, user, world, gm = false, at, clock, clean = html => html, messageExists }) {
+    return createNoticeEngine({
+        worldId: () => world, userId: () => user, isGM: () => gm, now: () => at.now,
+        randomId: () => `SuiteNotice${String(++noticeIds).padStart(5, "0")}`,
+        clock: () => clock.value, userExists: () => true, clean, messageExists,
+        storage: {
+            read: () => store.raw,
+            write: async value => {
+                if (store.fail > 0) { store.fail--; throw new Error("the suite's full storage"); }
+                store.raw = JSON.stringify(value);
+                store.writes++;
+            },
+            writeNow: value => {
+                store.raw = JSON.stringify(value);
+                store.now = (store.now ?? 0) + 1;
+            }
+        },
+        timers: { set: () => 0, clear: () => {} },
+        log: { warn: () => {}, debug: () => {} }
+    });
+}
+
+/**
+ * The box a fixed element's insets are measured from, in the window's coordinates (E81 fix r2-H2, 13.10.2026; review
+ * round 2's P23; R299 (a), (c) and (d)). R299 read the corner's insets against the window, and under Stained Glass that
+ * is not their containing block - an ancestor carries a filter, and glass.mjs records the two 9 px apart on the right
+ * (`LAUNCH_CLEAR`) -, so a first red in a browser could have been that offset. A fixed probe beside the element, with
+ * no insets of its own, covers the same block. In a browser only; R299 has not run in one (LIVE-E81-02).
+ */
+function insetBox(el) {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position: fixed; inset: 0; visibility: hidden; pointer-events: none";
+    (el.parentElement ?? document.body).append(probe);
+    const box = probe.getBoundingClientRect();
+    probe.remove();
+    return box;
+}
+
+/**
+ * A length as the cascade gives it, in px (E81 C12, 12.10.2026; R474, R299 (a) and (c)). In a browser
+ * `getComputedStyle` resolves an inset or a size to px and this only parses it. Headless, jsdom hands a
+ * standard property back as written - "calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right))" - so
+ * every var() is replaced by the element's own custom property (the harness substitutes those) or its
+ * fallback, and the calc() is worked out here: + - * /, brackets, calc(), min() and max(), px, and the
+ * viewport units against `view` - the window's, unless the reading is for another size. A unitless
+ * number counts as a factor; a keyword, an unknown unit or a var() left over is NaN, which fails every
+ * comparison it reaches.
+ */
+function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
+    const style = getComputedStyle(el);
+    let text = String((prop.startsWith("--") ? style.getPropertyValue(prop) : style[prop]) ?? "").trim();
+    for (let i = 0; i < 16 && text.includes("var("); i++) {
+        text = text.replace(/var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)/, (all, name, fallback) => style.getPropertyValue(name).trim() || (fallback ?? "").trim());
+    }
+    const tokens = text.match(/\d*\.?\d+(?:e-?\d+)?[a-z%]*|(?:calc|min|max)\(|[()+\-*/,]|[^\s()+\-*/,]+/gi) ?? [];
+    const unit = { "": 1, px: 1, vh: view.h / 100, dvh: view.h / 100, svh: view.h / 100, lvh: view.h / 100, vw: view.w / 100, dvw: view.w / 100 };
+    let at = 0;
+    const atom = () => {
+        const token = tokens[at++] ?? "";
+        if (token === "(" || token === "calc(") { const value = sum(); return tokens[at++] === ")" ? value : NaN; }
+        if (token === "min(" || token === "max(") {
+            const args = [sum()];
+            while (tokens[at] === ",") { at++; args.push(sum()); }
+            return tokens[at++] === ")" ? Math[token.slice(0, 3)](...args) : NaN;
+        }
+        if (token === "-") return -atom();
+        const number = /^(\d*\.?\d+(?:e-?\d+)?)([a-z%]*)$/i.exec(token);
+        return number && number[2].toLowerCase() in unit ? Number(number[1]) * unit[number[2].toLowerCase()] : NaN;
+    };
+    const product = () => {
+        let value = atom();
+        while (tokens[at] === "*" || tokens[at] === "/") value = tokens[at++] === "*" ? value * atom() : value / atom();
+        return value;
+    };
+    const sum = () => {
+        let value = product();
+        while (tokens[at] === "+" || tokens[at] === "-") value = tokens[at++] === "+" ? value + product() : value - product();
+        return value;
+    };
+    const value = sum();
+    return at === tokens.length ? value : NaN;
+}
+
+/**
+ * THE CORNER'S GRID, READ BACK (E81 C12, 12.10.2026; R474 headless, R299 (a) and (c) in a browser). The three
+ * buttons and the roster as the cascade places them - each one's inset from the right and from the bottom and its
+ * size, through `cascadePx`, never a box: under Stained Glass the corner turns with its pane and a turned box is not
+ * the button - set beside what the tokens say they should be. Every entry is a pair of strings rounded to 0.01 px or
+ * a truth, so one `equal` shows the whole reading against the whole expectation.
+ * The shape is the drawn one: the clip-path's hexagon (its slanted sides read off the polygon: from the top vertex
+ * to (100%, k), so a side stands 0.25 / |(k, 0.5)| of the size from the centre, along that normal) or, with no
+ * clip-path, Monokuma Legacy's circle. A pair on one row faces flat to flat, a pair across rows slanted to slanted.
+ * `roster` is the panel to read (the caller's: a temporary one, or the GM's own); `views` the window sizes its
+ * ceiling is worked out at - the window's own in a browser, where the value comes back already resolved.
+ */
+function cornerReading(roster, views) {
+    const body = document.body, glass = body.classList.contains("drpg-theme-stained-glass");
+    const token = name => cascadePx(body, name);
+    const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
+    const place = id => {
+        const el = document.getElementById(id);
+        return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
+    };
+    const M = place("drpg-messenger-launcher"), S = place("drpg-sound-launcher"), B = place("drpg-book-launcher");
+    const clip = getComputedStyle(M.el).clipPath ?? "none";
+    const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
+    const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
+    const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
+    const gap = (a, b) => {
+        const dx = Math.abs(centre(a).x - centre(b).x), dy = Math.abs(centre(a).y - centre(b).y);
+        if (k === null) return clip === "none" ? Math.hypot(dx, dy) - (a.w + b.w) / 2 : NaN;
+        return dy < 0.5 ? dx - (a.w + b.w) / 2 : (dx * k + dy * 0.5) / norm - 0.25 * (a.w + b.w) / norm;
+    };
+    const edge = token("--drpg-edge"), lift = token("--drpg-av-lift") || 0, clear = glass ? token("--drpg-launch-clear") || 0 : 0;
+    const L = token("--drpg-launcher"), s = token("--drpg-launcher-small"), b = token("--drpg-launcher-book"), g = token("--drpg-launch-gap");
+    const seen = {
+        shape: glass ? (k === null ? clip : "hexagon") : clip,
+        sizes: [M.w, M.h, S.w, S.h, B.w, B.h].map(round).join(" "),
+        wall: [B.right, B.bottom].map(round).join(" "),
+        line: round(S.bottom),
+        gaps: [gap(M, S), gap(M, B), gap(S, B)].map(round).join(" "),
+        centred: round(centre(M).x - (centre(S).x + centre(B).x) / 2),
+        above: centre(M).y > S.bottom + S.h && centre(M).y > B.bottom + B.h,
+        height: round(M.bottom + M.h - S.bottom),
+        roster: {
+            foot: round(cascadePx(roster, "bottom") - (M.bottom + M.h)),
+            right: round(cascadePx(roster, "right") - M.right),
+            /* A ceiling below zero is none (CSS clamps it); the parser does not, so it is clamped here. */
+            top: views.map(view => view.h - cascadePx(roster, "bottom", view) - Math.max(0, cascadePx(roster, "max-height", view)))
+                .map(top => (top >= 8 - 0.05 ? "8 or more" : round(top))).join(" ")
+        }
+    };
+    const want = {
+        shape: glass ? "hexagon" : "none",
+        sizes: [L, L, s, s, b, b].map(round).join(" "),
+        wall: [edge + clear, edge + token("--drpg-launch-b-bottom") + lift].map(round).join(" "),
+        line: round(edge + lift),
+        gaps: [g, g, g].map(round).join(" "),
+        centred: round(0),
+        above: true,
+        height: round(token("--drpg-launch-h")),
+        roster: { foot: round(8), right: round(0), top: views.map(() => "8 or more").join(" ") }
+    };
+    return { seen, want };
+}
 
 export { INVARIANTS };

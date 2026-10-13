@@ -122,6 +122,8 @@
  *      are on their way, and another while the primary's queue is held and it leaves; each is put
  *      back, at the new primary's ready and by the GM that is primary after it. (J5, after J4: the
  *      reset's cut leaves no character without a mark.)
+ *   X  a full browser storage (E81 C6): a GM store's write that finds it full is kept on its second
+ *      try once the notice history gave its room back, and the case's health counts the history apart.
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -2213,5 +2215,111 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         w2 === w0.agility + 3 && w3?.primary === true && w3.agility === w0.agility && w3.rows === 1 && w3.mark === w0.agility && w4 === w0.agility,
         J({ w2, w3, w4 }), { flow: "sheet-audit" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W"], gm: IDS.gm };
+    phase("X: a GM store that finds this browser's storage full takes the notice history's room, and the case's health counts the history apart", { flow: "gm-store" });
+    /* E81 C6 (12.10.2026). jsdom's localStorage holds 5 000 000 code units of keys and values (its `storageQuota`
+       default; the harness sets none) and throws QuotaExceededError past them, as a browser does past its own quota.
+       gma's storage is filled to within 1 500 of that: its notice history given another world's section of 400 000
+       characters, as another world on this server would leave it, and a key no module setting claims taking the
+       rest. Then p3's pre-session note of 20 000 characters, under the GM stores' hold so that nothing of it is sent:
+       before C6 its write failed and the note was kept in memory only, with the GM told; now the history gives its
+       room back - that world's section - and the store is written on its second try. Put back after: the key, the
+       history's value as it was, p3's note row as it was. */
+    const HX = `const NH = await import("${repoUrl}/scripts/notice-history.mjs"); const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { MODULE_ID } = await import("${repoUrl}/scripts/config.mjs");
+        const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        const HKEY = MODULE_ID + "." + SETTINGS.noticeHistory, NKEY = MODULE_ID + "." + SETTINGS.gmNotes, FILL = "e81-c6-61x-filler", AWAY = "e81-c6-another-world.${IDS.gm}";
+        const used = () => { let n = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += k.length + localStorage.getItem(k).length; } return n; };`;
+    let x1 = null, x2 = null;
+    try {
+        x1 = await gma.eval(`${HX}
+            globalThis.__xHistory = localStorage.getItem(HKEY);
+            let value = null;
+            try { value = JSON.parse(globalThis.__xHistory); } catch { value = null; }
+            if (value?.v !== 1 || !value.sections) value = { v: 1, sections: {} };
+            value.sections[AWAY] = { epoch: "", touched: 1, clearedAt: 0, gone: {}, entries: [], pad: "w".repeat(400000) };
+            localStorage.setItem(HKEY, JSON.stringify(value));
+            localStorage.setItem(FILL, "f".repeat(Math.max(0, 5000000 - used() - FILL.length - 1500)));
+            const free = 5000000 - used();
+            E.gmStoreHold(true);
+            globalThis.__xNote = structuredClone(S.noteStore.get("${IDS.p3}"));
+            await S.noteStore.patch("${IDS.p3}", { text: "E81 C6 61 X " + "n".repeat(20000), updatedAt: Date.now(), byGm: true });
+            await E.gmStoresIdle();
+            const history = JSON.parse(localStorage.getItem(HKEY) ?? "null");
+            return { free, kept: (localStorage.getItem(NKEY) ?? "").includes("E81 C6 61 X"), away: Boolean(history?.sections?.[AWAY]),
+                saving: NH.noticeHistoryStatus().saving };`, { timeout: 30000 });
+        x2 = await gma.eval(`${HX}
+            const status = S.gmStoreStatus();
+            let all = 0, history = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i), size = k.length + localStorage.getItem(k).length;
+                if (k.startsWith(MODULE_ID + ".")) all += size;
+                if (k === HKEY) history = size;
+            }
+            const row = (await S.gmStoreHealth())?.rows?.find(r => r.id === "notices") ?? null;
+            return { total: status.total, notices: status.notices ?? null, all, history, row: row && [row.level, row.key, row.data?.notices] };`, { timeout: 30000 });
+    } finally {
+        await gma.eval(`${HX} localStorage.removeItem(FILL);
+            if (globalThis.__xNote) await S.noteStore.patch("${IDS.p3}", globalThis.__xNote, { whole: true }); else await S.noteStore.drop("${IDS.p3}");
+            await E.gmStoresIdle();
+            E.gmStoreHold(false);
+            if (globalThis.__xHistory === null) localStorage.removeItem(HKEY); else if (globalThis.__xHistory !== undefined) localStorage.setItem(HKEY, globalThis.__xHistory);
+            delete globalThis.__xHistory; delete globalThis.__xNote;
+            return true;`, { timeout: 30000 });
+    }
+    check("X1: a GM store's write that finds this browser's storage full is kept on its second try, after the notice history gave back another world's section",
+        x1?.free < 2000 && x1.kept === true && x1.away === false && x1.saving === true, J(x1), { flow: "gm-store" });
+    check("X2: the case's health counts the notice history apart: not in what the module keeps, and in an info row of its own",
+        x2?.history > 0 && x2.total === x2.all - x2.history && x2.notices === x2.history
+            && J(x2.row) === J(["info", "DRPG.Case.row.notices", Math.round(x2.history / 1024)]), J(x2), { flow: "gm-store" });
+
+    /* E81 fix r1-G2 (12.10.2026; review round 1's O16, F3 and N2). R298 reads the private cards' retry in the source
+       only; here it runs. gma's storage is filled as for X1, its notice history given another world's section of
+       400 000 characters again and two other accounts' sections of this world of 130 000 each - after X1's give-way the
+       history keeps half of 500 000, which those two alone pass. Then a private card of 20 000 characters to gma
+       itself: its write finds the storage full, the history gives its room back - that world's section, and nothing
+       of the two accounts', so it keeps its own history in memory from then on - and the card is written on its
+       second try. At 27e4b34 the give-way deleted the less recently written of the two. X is the scenario's last
+       phase: the history stays unsaved on gma for the rest of this run. Put back after: the key, the card, the
+       history's value as it was. */
+    let x3 = null;
+    try {
+        x3 = await gma.eval(`${HX}
+            const { postSecret } = await import("${repoUrl}/scripts/secret.mjs");
+            const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+            const CKEY = MODULE_ID + "." + SETTINGS.secretCards, WORLD = game.world.id;
+            const OTHERS = [WORLD + ".e81g2OtherUser01", WORLD + ".e81g2OtherUser02"];
+            globalThis.__x3History = localStorage.getItem(HKEY);
+            let value = null;
+            try { value = JSON.parse(globalThis.__x3History); } catch { value = null; }
+            if (value?.v !== 1 || !value.sections) value = { v: 1, sections: {} };
+            value.sections[AWAY] = { epoch: "", touched: 1, clearedAt: 0, gone: {}, entries: [], pad: "w".repeat(400000) };
+            OTHERS.forEach((key, i) => { value.sections[key] = { epoch: NH.noticeEpoch(getClock()), touched: i + 1, clearedAt: 0, gone: {}, entries: [], pad: "o".repeat(130000) }; });
+            const theirs = OTHERS.map(key => JSON.stringify(value.sections[key]));
+            localStorage.setItem(HKEY, JSON.stringify(value));
+            localStorage.setItem(FILL, "f".repeat(Math.max(0, 5000000 - used() - FILL.length - 1500)));
+            const free = 5000000 - used();
+            let heard = 0;
+            const hook = Hooks.on("drpgStorageFull", () => { heard++; });
+            let message = null;
+            try {
+                message = await postSecret({ content: "<p>E81 r1-G2 61 X3 " + "s".repeat(20000) + "</p>", whisper: [game.user.id] });
+            } finally {
+                Hooks.off("drpgStorageFull", hook);
+            }
+            globalThis.__x3Message = message?.id ?? null;
+            const history = JSON.parse(localStorage.getItem(HKEY) ?? "null");
+            return { free, heard, kept: (localStorage.getItem(CKEY) ?? "").includes("E81 r1-G2 61 X3"), away: Boolean(history?.sections?.[AWAY]),
+                others: OTHERS.map((key, i) => JSON.stringify(history?.sections?.[key] ?? null) === theirs[i]), saving: NH.noticeHistoryStatus().saving };`, { timeout: 30000 });
+    } finally {
+        await gma.eval(`${HX} localStorage.removeItem(FILL);
+            if (globalThis.__x3Message) await game.messages.get(globalThis.__x3Message)?.delete();
+            if (globalThis.__x3History === null) localStorage.removeItem(HKEY); else if (globalThis.__x3History !== undefined) localStorage.setItem(HKEY, globalThis.__x3History);
+            delete globalThis.__x3History; delete globalThis.__x3Message;
+            return true;`, { timeout: 30000 });
+    }
+    check("X3: a private card that finds this browser's storage full is kept on its second try, and the notice history's give-way leaves this world's other accounts' sections byte for byte, keeping its own in memory",
+        x3?.free < 2000 && x3.heard >= 1 && x3.kept === true && x3.away === false && J(x3.others) === J([true, true]) && x3.saving === false,
+        J(x3), { flow: "gm-store" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X"], gm: IDS.gm };
 }

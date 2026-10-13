@@ -508,7 +508,17 @@ body.drpg-theme-stained-glass[data-drpg-turning] :is(#scene-controls, #sidebar-t
     will-change: transform;
 }
 
-/* ---- the launchers: rings 66 and 52 px, the seam colour on the ring ---------- */
+/* ---- the launchers: hexagons 66 and 44 px, the seam colour on the ring ---------- */
+/* THE GRID'S ROW UNDER THIS CLIP-PATH (E81 C12, grid.mjs 12.10.2026). The hexagon below
+   is squashed into a square box, so its slanted sides stand 0.43625 x size from its centre
+   along a normal of (0.48861, 0.87252) - not a regular hexagon's 0.43301 at 60 degrees.
+   Two hexagons sharing a slanted side 6 px apart with centres 25 px apart across (half of
+   44 + 6) are a row of (6 + 0.43625 x 110 - 0.48861 x 25) / 0.87252 = 47.88 px apart down.
+   Monokuma Legacy's circles need 55.64 (danganronpa.css); every place in the corner is
+   derived from this one number and the sizes, and a new clip-path needs a new row. */
+body.drpg-theme-stained-glass {
+    --drpg-launch-row: 47.88px;
+}
 body.drpg-theme-stained-glass #drpg-messenger-launcher,
 body.drpg-theme-stained-glass #drpg-sound-launcher,
 body.drpg-theme-stained-glass #drpg-book-launcher {
@@ -1034,11 +1044,11 @@ body.drpg-theme-stained-glass #countdowns {
     body.drpg-theme-stained-glass * { transition-duration: 0s !important; }
 }
 
-/* ---- the scene navigation, the Scenes tab and the hotbar are the base sheet's: shown to the GM and
-   hidden for a player by the element classes the GM's client stamps (danganronpa.css; GM_CHROME in
+/* ---- the scene navigation, the Scenes tab and the hotbar are the base sheet's (danganronpa.css): the
+   navigation and the hotbar hidden for everybody (DZ5, the owner, 12.10.2026), the Scenes tab shown to
+   the GM and hidden for a player by the element class the GM's client stamps (GM_CHROME in
    gm-panel.mjs). Until E13 C7 (12.10.2026; S12-18) the theme took the navigation out of the clock's
-   pane for the GM too and gave the Scenes tab back to the GM alone; both now follow every theme. Where
-   the navigation lands beside the clock's pane under the glass is not measured here (LIVE-E13-09). */
+   pane for the GM too and gave the Scenes tab back to the GM alone; both now follow every theme. */
 
 /* ---- the Projects tray: the chrome face like the rest of the rail, and a pane the size of the clock's,
    so the two top corners of the glass weigh the same */
@@ -1118,27 +1128,24 @@ body.drpg-theme-stained-glass #drpg-book-launcher {
 /* AND THEY STEP INBOARD OF FOUNDRY'S TAB RAIL WHEN IT REACHES THEM.
    `--drpg-launch-clear` is written by `clearLaunchers` in glass.mjs, which measures the
    rail's run and its band; it is zero on every screen where the rail ends above these
-   buttons, and the whole reason it is a variable rather than an inline style is that the
-   sound button's own offset is a formula this sheet owns (centred over the larger circle)
-   and should not be restated in a script. */
+   buttons, and the whole reason it is a variable rather than an inline style is that each
+   button's own offset is a formula of the corner's grid (danganronpa.css) and should not
+   be restated in a script. */
 body.drpg-theme-stained-glass #drpg-messenger-launcher {
-    right: calc(var(--drpg-edge, 16px) + var(--drpg-book-lane, 0px) + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right) + var(--drpg-launch-clear, 0px));
 }
 body.drpg-theme-stained-glass #drpg-sound-launcher {
-    right: calc(var(--drpg-edge) + var(--drpg-book-lane, 0px)
-        + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2
-        + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge) + var(--drpg-launch-s-right) + var(--drpg-launch-clear, 0px));
 }
 /* The handbooks button goes with them: it is the one at the wall. */
 body.drpg-theme-stained-glass #drpg-book-launcher {
     right: calc(var(--drpg-edge) + var(--drpg-launch-clear, 0px));
 }
-/* AND THE ROSTER GOES WITH ITS BUTTON. It is pinned to the wall on its own (`right: 16px`
-   in messenger.css, "with the button it sits on") which stopped being true the moment the
-   button could move: the panel would have opened over the wall with its button a hundred
-   pixels to the left of it. */
+/* AND THE ROSTER GOES WITH ITS BUTTON. Its right edge is the messenger's (messenger.css),
+   which stopped being the whole story the moment the button could move: without the
+   clearance the panel would open a rail's width to the right of the button it came from. */
 body.drpg-theme-stained-glass #drpg-messenger-roster {
-    right: calc(16px + var(--drpg-book-lane, 0px) + var(--drpg-launch-clear, 0px));
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-m-right) + var(--drpg-launch-clear, 0px));
 }
 body.drpg-theme-stained-glass #drpg-messenger-launcher:hover,
 body.drpg-theme-stained-glass #drpg-sound-launcher:hover,
@@ -3281,7 +3288,11 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
    under the text. `align-content: start`, stated rather than left to the default, so
    the choice is on the page: the plate still covers the pane, the words begin at its top.
    Still a BLOCK container, not a flex or grid one: those change the formatting
-   context the prose is in, and adjacent paragraph margins would stop collapsing. */
+   context the prose is in, and adjacent paragraph margins would stop collapsing -
+   and the corner's spacer (E81 C9) is a line box's last piece, which a flex body
+   would make an item of its own. The card at the bottom of the tile takes the base
+   sheet's floor rules as they are (danganronpa.css, after `.drpg-popup-body`): this
+   theme states no padding for the body, so the 9 px there are this plate's too. */
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
     flex: 1 1 auto;
     align-content: start;
@@ -3393,6 +3404,26 @@ body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimiz
 body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) .window-content {
     overflow: hidden;
 }
+/* The notice history (E81 C7) scrolls its list and nothing else, so its foot stays in view: the
+   panel rule's scrolling content would carry the foot off with the list. Its own ceiling is the
+   design's 16 px rather than the panels' 24. E44 removes this with the window's block in
+   danganronpa.css. */
+body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) {
+    max-height: calc(100vh - 16px);
+}
+body.drpg-theme-stained-glass .application.drpg-panel.drpg-window-notices:not(.minimized) .window-content {
+    overflow: hidden;
+    max-height: none;
+}
+body.drpg-theme-stained-glass .drpg-window-notices .drpg-notice-title { font-family: "Special Elite", serif; font-weight: 400; letter-spacing: 0.02em; }
+body.drpg-theme-stained-glass .drpg-window-notices :is(.drpg-notice-text, .drpg-notice-time, .drpg-notices-foot, .drpg-notices-group, .drpg-notices-chips button, .drpg-notices-banner, .drpg-notices-empty) {
+    font-family: "VT323", monospace;
+    font-size: calc(var(--drpg-text-sm) * 1.15);
+}
+body.drpg-theme-stained-glass .drpg-notice-entry.drpg-tone-hope { --seam: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-notice-entry.drpg-tone-fear { --seam: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass .drpg-notice-entry.drpg-src-evidence { --seam: var(--drpg-sg-evidence); }
+body.drpg-theme-stained-glass .drpg-notice-entry:is(.drpg-src-notDone, .drpg-src-safeword) { --seam: var(--drpg-sg-gm); }
 /* A book needs two levels of heading, and the panel rule gives h2 and h3 one: the same 13 px
    capitals. The section keeps them; a subsection reads as a title in the prose face with the
    base sheet's short bar under it. Bold takes the time of day's accent here rather than gold. */
@@ -4817,3 +4848,25 @@ body.drpg-theme-stained-glass .drpg-panel :is(.dialog-form, .standard-form) > fo
    What settled it was measuring WHICH item overflows rather than which one looks long: it
    is the recipient list, 277 px of a 226 px cell, and the name is 76. The rule lives in the
    base sheet because the markup and the clip are Foundry's and Legacy has them too. */
+
+/* The notice history's button (E81 C8) wears the launchers' hexagon and their seam colour, at
+   its own 28 px: the same shape on the same glass as the three buttons on the right. The focus
+   ring is the same hexagon 3 px larger, filled with the accent and laid behind the shape, so it
+   shows as a 3 px band round it - a clipped border would be cut at every corner. */
+body.drpg-theme-stained-glass #drpg-notices-corner > .drpg-notices-shape {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgba(7, 7, 10, 0.55);
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+    box-shadow: none;
+}
+body.drpg-theme-stained-glass #drpg-notices-corner:is(:hover, :focus-visible) > .drpg-notices-shape {
+    border-color: var(--drpg-glass-accent);
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #drpg-notices-corner::before {
+    border: none;
+    border-radius: 0;
+    background: var(--drpg-glass-accent);
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}

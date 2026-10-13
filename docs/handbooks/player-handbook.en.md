@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.74, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.75, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -648,7 +648,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 
 Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living to a room the GM picks. Your character's token in the hall is the GM's to place, show and hide. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
+When the GM has set up a trial hall, opening the trial takes your screen to it and ending it takes you back to the school - the living who took part to a room the GM picks. In the trial the module places your character's token in the hall and removes it afterwards; the GM chooses who takes part. Everybody is in one voice room for the trial, the dead too, and the table's rule is that **the dead listen but do not speak in the trial**.
 
 The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 
@@ -726,7 +726,7 @@ Monokumas themselves - the GM side - have no actions and no Hope, walk through w
 
 ## 14. The messenger and asking for rulings
 
-The button in the bottom-right corner opens **GM Chat**: one thread between you and every GM. There is no player-to-player text channel - in-room talk is voice.
+The largest of the three buttons in the bottom-right corner, the one on top, opens **GM Chat**: one thread between you and every GM. There is no player-to-player text channel - in-room talk is voice.
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. If no GM answers, nothing is spent.
 
@@ -770,11 +770,11 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.
 
-**The messenger** (bottom-right) has two tabs: *Chat*, your GM Chat thread, and *Note*, the pre-session note.
+**The messenger**, the largest of the three corner buttons, stands over the other two and has two tabs: *Chat*, your GM Chat thread, and *Note*, the pre-session note.
 
-**The book** beside it, the smallest of the three corner buttons, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
+**The book**, under it at the bottom right against the edge of the screen, the size of the gear on its left, opens the handbooks in the game: this Player Handbook and the Student Brochure, in the language you picked for the module. The contents list on the left jumps to any section.
 
-**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back. A "waiting for the GM" card closes itself when the answer arrives. The chat log keeps them. During an Eclipse a summary of the time of day opens for you.
+**Cards and popups:** results of your actions arrive as notice cards, and a card stays until you close it - a click on it, or its X for evidence and other cards that must be read. The newest goes on top and pushes the older ones down; when there are more than fit, the rest wait underneath behind a "+N" beside the close button, and closing a card brings the next one back; a click on "+N" closes every card at once, except the ones you must read. A "waiting for the GM" card closes itself when the answer arrives. A closed card can be read again: the stack-of-cards button in the bottom-right corner of the notice tile (with Monokuma Legacy on a computer, under the clock, even with no card on screen; on a narrow screen, at the bottom-right corner of the lowest card while a card is on screen) opens the **Notice history** - the notices this browser showed you, the cards about a murder too, the newest of them and 250 at most. Its window says how long, and what else can take them: "Kept in this browser - at most the newest 250, and 40 from any one sender - until a season reset that clears the clock, the incident, this module's cards or the rest of the chat log; a card the module takes back leaves it. When this browser runs short of room, or other accounts' histories on it fill its share, it keeps fewer or stops saving, and the line below says when it stops." A key in Foundry's Controls opens it too, once you bind one. **Clear** in its window empties it: do that before you share your screen. On a shared computer another account logged in on this browser can read your history, so clear it before you hand the computer over. During an Eclipse a summary of the time of day opens for you.
 
 **The Look dialog:** the gear in the bottom-right corner opens settings that are this browser's own - nobody else sees or hears the difference:
 - **Language** - English or Polski for the module's windows, cards and sheet. Separate from Foundry's own language on purpose. Takes effect after a reload. The glossary stays English in both.

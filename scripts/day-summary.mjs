@@ -113,6 +113,9 @@ export async function showDaySummary() {
      * the map, takes no focus, and sticky means it waits to be closed rather
      * than fading under somebody still reading. The per-action cards it sums
      * up are already in the chat log, so the record needs no second message.
+     * The summary itself was gone once closed; since E81 C4 it is kept in this
+     * browser's notice history as a summary (the A7 design's P4-0): the four
+     * newest whole, the older ones by their words alone (notice-history.mjs, R292).
      */
-    showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true });
+    showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true, source: "summary" });
 }

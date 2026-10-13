@@ -448,9 +448,17 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
         if (!cardFlag(message, MESSENGER_FLAGS.gmAsk)) return;
         // The words, not the stub: a thread card is a private card now and
         // its text lands a moment after the document does.
+        const writer = cardWriter(message);
         showPopup(cardPreview(await wordsOf(message)), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
-            onClick: () => openMessenger(playerUserId)
+            onClick: () => openMessenger(playerUserId),
+            ...keptAsMessenger(message, playerUserId),
+            /* Kept under the thread's player only when a GM's session wrote the card - the bridge posts some of
+               these for a player (E81 fix r1-G1) - and under its writer otherwise, as `noticeSource` (popup.mjs)
+               reads a card's writer: the `thread` flag is the writer's to set, so taken as the author it let one
+               player's cards fill another's share of this GM's history and carry that player's name (E81 fix
+               r2-H1, review round 2's S1). The writer is handed on, not looked up again by the message's id. */
+            author: writer?.isGM ? (isThreadUser(playerUserId) ? playerUserId : null) : writer?.id ?? null
         });
         return;
     }
@@ -464,9 +472,22 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
 
     showPopup(cardPreview(await wordsOf(message)), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
-        onClick: () => openMessenger(playerUserId)
+        onClick: () => openMessenger(playerUserId),
+        ...keptAsMessenger(message, playerUserId)
     });
 });
+
+/*
+ * THE CARD IS KEPT, THE BUBBLE IS NOT (E81 C4; the A7 design's P4-0). Both cards above are kept in
+ * this browser's notice history as the thread's - the message they came from, and the conversation
+ * the history's entry opens (`link`). A message appended to a window that is open is no card and is
+ * not kept: the window is the conversation, and the thread holds it (R297). Its message also makes a deletion in
+ * the chat log take the card off every screen it is on (popup.mjs `onDeleteChatMessage`, E81 C5), and a plain
+ * deletion leaves the kept entry unread and marked deleted (R297, E81 fix r1-G1; the review's O11).
+ */
+function keptAsMessenger(message, playerUserId) {
+    return { source: "messenger", messageId: message?.id ?? null, link: { messenger: playerUserId } };
+}
 
 // A card that changed while a window is open redraws in place. A card that
 // changed while it is closed needs nothing: the window builds from the

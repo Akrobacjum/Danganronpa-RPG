@@ -62,6 +62,7 @@ import { murderState, incidentAudienceIds } from "./murder.mjs";
 // only to match words against a card's prose.
 import { readDuality } from "./despair-award.mjs";
 import { cardFlag } from "./secret.mjs";
+import { keepRoom } from "./notice-history.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
 
 export function registerPrivateRolls() {
@@ -1591,7 +1592,13 @@ async function keepReadable(messageId) {
         const ids = (Array.isArray(all[readableKey()]) ? all[readableKey()] : []).filter(id => id !== messageId);
         ids.push(messageId);
         all[readableKey()] = ids.slice(-READABLE_KEPT);
-        await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+        } catch (err) {
+            // A full storage: the notice history gives its room back, and the ids are written once more (E81 C6).
+            if (!keepRoom(err)) throw err;
+            await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+        }
     } catch (err) {
         debug("Could not keep a drawn roll readable after a reload", err);
     }

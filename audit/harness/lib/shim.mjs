@@ -311,9 +311,16 @@ export function buildDocumentClasses(ctx) {
             }
             return results;
         }
+        /* `deleteAll` IS HOW A CHAT LOG IS CLEARED (E81 C5, 12.10.2026): Foundry's `Messages#flush`, which
+           the chat log's Clear button calls, is `deleteDocuments([], { deleteAll: true })` - every document
+           of the collection whatever ids it is handed (Foundry's own source, not in this repository and not
+           re-read here). The harness deleted none, so a cleared log could not be driven. One
+           delete per document here, each through `delete` as a single deletion goes; what the hook is
+           handed of the option is client-entry.mjs `applyRemote`'s. */
         static async deleteDocuments(ids = [], context = {}) {
-            for (const id of ids) {
-                const doc = ctx.gameRef().collections.get(this.documentName)?.get(id);
+            const collection = ctx.gameRef().collections.get(this.documentName);
+            for (const id of context?.deleteAll === true ? [...(collection?.keys() ?? [])] : ids) {
+                const doc = collection?.get(id);
                 if (doc) await doc.delete(context);
             }
             return [];
@@ -477,6 +484,14 @@ export function buildDocumentClasses(ctx) {
         get prototypeToken() { return this._source.prototypeToken ?? { name: this.name, texture: { src: this.img } }; }
         get token() { return null; }
         get isToken() { return false; }
+        /* E81 DZ6: `stageHall` builds a made token from this (trial-scene.mjs). Foundry's own merges the
+           prototype token with the data asked for and answers an unsaved TokenDocument; this is the shim's
+           model of that - the prototype, the actor's id, the data on top, and a `toObject` - not a measurement
+           of Foundry's (LIVE-E81-14, a check for a real table). */
+        async getTokenDocument(data = {}) {
+            const src = { ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
+            return { toObject: () => U.deepClone(src) };
+        }
         getActiveTokens(linked = false, document = false) {
             const g = ctx.gameRef();
             const out = [];

@@ -783,7 +783,8 @@ export const DrpgApi = {
     /** The trial hall and the school (E13 C6). Inside a running trial the table taken to the hall (its cast
      *  shown by the GMs' choice) or back to the school (the cast hidden), the phase unchanged - the console's
      *  "Show the hall" and "Back to school"; GM only. `trialSceneReport()` answers the linked scenes, the
-     *  active one, the hall's tokens the next entry shows and the Scenes tab's warnings (GM only, else null);
+     *  active one, the cast's hall tokens shown now, the tokens the module made there (E81 DZ6) and the
+     *  Scenes tab's warnings (GM only, else null);
      *  `openTrialCast()` opens Room Setup on its Scenes tab, where the cast is chosen. */
     showCourtroom: (...a) => import("./trial-scene.mjs").then(m => m.showCourtroom(...a)),
     showSchool: (...a) => import("./trial-scene.mjs").then(m => m.showSchool(...a)),
@@ -813,6 +814,10 @@ export const DrpgApi = {
     /** The safeword, for anyone: no character, no sheet, no reason asked.
      *  The same confirmation the sheet's button opens (COMM-11). */
     safeword: () => import("./safeword.mjs").then(m => m.safewordDialog()),
+
+    /** The notice history: every card this browser showed this login, to read again (E81 C7).
+     *  The same window as the keybinding's; there is no default key. */
+    openNotices: () => import("./notice-history-app.mjs").then(m => m.openNotices()),
 
     /** Promote the traces, call everyone in, and hold the game there. */
     discoverBody,

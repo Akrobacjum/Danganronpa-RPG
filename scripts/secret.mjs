@@ -208,8 +208,12 @@ const ASKED_BY = "askedBy";
  * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
  * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
  * Nor who asked a GM to post a card (`ASKED_BY`): that is the GM's to say (E08+E28 fix r2-H5).
+ * Nor a ruling's or a Reroll's mark on a card (`settled`, gm-bridge.mjs `settleCall`; `rerolled`,
+ * reroll.mjs `markReplacedCard`): both are a GM's to write, and every browser's notice history marks its
+ * entry by them (E81 fix r1-G3, 12.10.2026; review round 1's O14 - a player's own card could carry
+ * "Ruled on by the GM"). No test or scenario sends either in a player's meta (read 12.10.2026).
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {
@@ -365,7 +369,7 @@ function sendWords(readers, packet, { clean = false } = {}) {
     const html = String(packet.html ?? "");
     const byWords = new Map();
     for (const id of readers) {
-        const words = clean ? sanitize(wordsFor(id, html)) : wordsFor(id, html);
+        const words = clean ? cleanCardHtml(wordsFor(id, html)) : wordsFor(id, html);
         byWords.set(words, [...(byWords.get(words) ?? []), id]);
     }
     for (const [words, recipients] of byWords) {
@@ -382,8 +386,20 @@ function sendWords(readers, packet, { clean = false } = {}) {
  */
 const KEEP_PINNED = 2000;
 
-/** HTML a browser will not run, from HTML somebody else wrote. */
-function sanitize(html) {
+/**
+ * HTML a browser will not run, from HTML somebody else wrote.
+ *
+ * AN INTERFACE (E81 C2, 12.10.2026). This was `sanitize`, private to this file;
+ * it is exported under this name, with its body as it was, because the notice
+ * history (notice-history.mjs) cleans every snapshot it keeps through the same
+ * function a private card's words go through - including a plain card's
+ * `message.content`, which the popup draws uncleaned. E83's fixes of the
+ * cleaning (the E02 verification's D01 and D13) are to change only this body:
+ * every caller here and the history keep the call. What a snapshot may hold
+ * beyond what this lets through is the history's own allowlist (`inertCopy`),
+ * which does not wait for them.
+ */
+export function cleanCardHtml(html) {
     const text = String(html ?? "");
     try {
         if (typeof foundry.utils.cleanHTML === "function") return foundry.utils.cleanHTML(text);
@@ -426,7 +442,21 @@ async function write(next) {
     cache = next;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.secretCards, next);
-    } catch (err) {
+    } catch (failed) {
+        let err = failed;
+        /* A FULL STORAGE TAKES THE NOTICE HISTORY'S ROOM FIRST (E81 C6): `keepRoom` has the history give
+           back its room before it answers, and the store is written once more. Imported here rather than
+           at the top, because notice-history.mjs imports this file (its cleaner) and a static import back
+           is the cycle R161 fails. */
+        try {
+            const { keepRoom } = await import("./notice-history.mjs");
+            if (keepRoom(err)) {
+                await game.settings.set(MODULE_ID, SETTINGS.secretCards, next);
+                return;
+            }
+        } catch (again) {
+            err = again;
+        }
         error("Could not keep a private card", err);
         cache = null;
         /* OUT LOUD FOR A GM (S11-28). The usual cause is a full localStorage, and
@@ -459,7 +489,7 @@ export function secretHtml(message) {
     if (!entry || typeof entry.html !== "string") return null;
     if (entry.user && entry.user !== game.user?.id) return null;
     if (entry.trusted) return entry.html;
-    if (!cleaned.has(message.id)) cleaned.set(message.id, sanitize(entry.html));
+    if (!cleaned.has(message.id)) cleaned.set(message.id, cleanCardHtml(entry.html));
     return cleaned.get(message.id);
 }
 
@@ -472,10 +502,20 @@ export function secretHtml(message) {
 export function cardFlag(message, key) {
     const own = typeof message?.getFlag === "function" ? message.getFlag(MODULE_ID, key) : message?.flags?.[MODULE_ID]?.[key];
     if (own !== undefined && own !== null) return own;
-    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return own;
+    return cardMeta(message, key) ?? own;
+}
+
+/**
+ * One of a private card's flags from the meta that came with its words alone, never the document's -
+ * for this user only, as `cardFlag` reads it; undefined for a card that is not private or whose words
+ * this browser does not hold. The notice history's marks read here (notice-history.mjs
+ * `noticeSecretStored`, E81 fix r1-G3): the document's flags are its author's to write.
+ */
+export function cardMeta(message, key) {
+    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return undefined;
     const entry = read()[message.id];
-    if (!entry || (entry.user && entry.user !== game.user?.id)) return own;
-    return entry.meta?.[key] ?? own;
+    if (!entry || (entry.user && entry.user !== game.user?.id)) return undefined;
+    return entry.meta?.[key];
 }
 
 /**
@@ -565,7 +605,7 @@ export function contentOf(message) {
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
 async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined) {
-    const words = trusted ? html : sanitize(html);
+    const words = trusted ? html : cleanCardHtml(html);
 
     cleaned.delete(id);
     // New words for a card keep the facts it was posted with (`updateSecret` sends none).
@@ -606,6 +646,10 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
     const message = game.messages?.get(id);
     const thread = cardFlag(message, "thread");
     if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
+    /* The words and their meta are this browser's now (E81 C5): a private card's `rerolled` and `settled`
+       travel here and not on the document, so the notice history reads its marks after this, not on
+       `updateChatMessage` (notice-history.mjs `noticeSecretStored`). */
+    if (message) Hooks.callAll("drpgSecretStored", message);
 }
 
 /** A card the store must never age out: a messenger thread's. */
@@ -697,7 +741,7 @@ export async function postSecret(data = {}) {
 
 /**
  * `postSecret`, and `postAsked`'s card with `clean`: each reader's copy of the words is
- * cleaned as it is cut (`sanitize`), since its readers keep a GM's words as written.
+ * cleaned as it is cut (`cleanCardHtml`), since its readers keep a GM's words as written.
  */
 async function post(data, { clean = false } = {}) {
     const { veiled: asked = false, summary: rawSummary = null, ...rest } = data ?? {};
@@ -739,7 +783,7 @@ async function post(data, { clean = false } = {}) {
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
         const own = wordsFor(game.user.id, html);
-        await remember(message.id, clean ? sanitize(own) : own, at, pin, game.user.isGM, summary, meta);
+        await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 

@@ -26,6 +26,18 @@ export const CHECKS = [];
 /** What the last pass measured: the frame and every block. `drpgGlassDebug()` in the console prints it. */
 export const LAST = { frame: null, blocks: [] };
 
+/* THE CORNER'S BUTTONS, ONE LIST FOR THE PANE AND FOR THE RAIL'S CLEARANCE (E81 C12). The
+   module's three, and anything that marks itself `data-drpg-cluster`: the owner's AM-17 of
+   11.10 puts the GM's and Foundry tools' buttons on the same piece of glass (E77), and a
+   button that is in the pane but not moved off the tab rail - or the other way round - is
+   the fault `clearLaunchers` exists to prevent. An attribute rather than a `drpg-` class,
+   because pixel-icons.css repaints the Font Awesome glyph of any `[class*="drpg-"] i.fa-*`,
+   and Foundry's own tools button would match those rules (read in the sheet, not tried).
+   Exported for audit/glass-harness.html's `drpgLaunchOutside` (E81 C14), which counts the corners
+   of exactly these buttons and, since E81 fix r2-H3, compares their box with the `launch` block
+   the cut was made for, to say when the cut is stale. */
+export const LAUNCHERS = "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
+
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
@@ -47,7 +59,7 @@ const BLOCKS = [
      to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
      `--drpg-note-w`, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
-  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
+  { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
      user is about to change: click a scene control and Foundry opens its tools beside it (the
@@ -575,9 +587,10 @@ function pinRightColumn() {
 }
 /* THE MODULE'S OWN BUTTONS DO NOT STAND IN FOUNDRY'S TAB RAIL.
    ---------------------------------------------------------------------------
-   The messenger circle and the sound button are pinned to the bottom-right corner, and
-   so is Foundry's tab rail - which grows downward with the number of tabs. On a short
-   screen with a full sidebar the two meet: measured 16.09 on the glass harness at
+   The messenger circle and the sound button when this was measured - the book beside
+   them since 22.09, the three on one grid since E81 C12 - are pinned to the bottom-right
+   corner, and so is Foundry's tab rail - which grows downward with the number of tabs.
+   On a short screen with a full sidebar the two meet: measured 16.09 on the glass harness at
    1366x768 with a fifteen-tab rail, the launchers sat at x 1278..1344, y 620..746 and
    the rail's last two tiles at x 1280..1331, y 626..668. The module's buttons were drawn
    over Foundry's, which is the collision the 1.2.47 audit recorded and did not fix.
@@ -602,7 +615,7 @@ function clearLaunchers() {
   if (!themeOn() || narrowLayout()) { drop(); return; }
   const rail = document.getElementById("sidebar-tabs");
   const box = rail && rail.offsetWidth ? tileButtons(rail).map(e => e.getBoundingClientRect()) : [];
-  const buttons = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher")]
+  const buttons = [...document.querySelectorAll(LAUNCHERS)]
     .filter(e => e.offsetWidth);
   if (!box.length || !buttons.length) { drop(); return; }
   const top = Math.min(...box.map(q => q.top)), bottom = Math.max(...box.map(q => q.bottom));
@@ -1342,8 +1355,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          cut once and never recut, whatever arrives in it - but its element must still turn with
          its pane, or the cards stand upright inside a tilted piece of glass (1.2.38). The rule
          is keyed to the SELECTOR and computed from the fixed box, so it holds even though the
-         element is not measured and may not exist yet: popup.mjs builds the stack on the first
-         card of the session, long after the glass was cut. */
+         element is not measured and may not exist yet. Since E81 C8 popup.mjs builds the tile at
+         `ready`, with the history's button in its corner and before the glass is cut, but the rule
+         does not lean on that: a tile removed and rebuilt by `container()` turns all the same. */
       if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
       if (!b.el) continue;
       for (const e of b.els) {
@@ -1642,6 +1656,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          family - it is one upper quad, and the tiles' shard is cut from that. The same
          applies to the skip above: a strip is dropped only when even the tiles cannot stand
          in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen).
+
+         WHAT THE SKIP LEAVES BARE (E81 C14, Chromium, audit/glass-harness.html, 12.10.2026).
+         Nothing else is cut over that stretch of wall, and the self-check counts it. At 1280x720
+         the clock's pane meets the left wall at 311 and the notice tile's at 440 - 129 px, under
+         the 160 - so the left strip is not cut and `edgeGaps` reads 16 (the wall's samples from
+         316 to 436, every 8 px). It read 16 on the harness before C14 as well, and the E81
+         mockup's notes give 16 on 1.2.74's harness and on every layout they tried. The tile's
+         pane met the wall at 440, 488 and 520 at 720, 768 and 800 px of height - the height less
+         280 - so with this harness's clock the strip should be cut again from about 751 px (worked
+         out from those three, not measured there). Covering that stretch is a change to the
+         partition, and it is not made here.
 
          WHY THE RAIL USED TO STRADDLE, AND THE THREE CUTS THAT STOPPED IT (10.09).
 

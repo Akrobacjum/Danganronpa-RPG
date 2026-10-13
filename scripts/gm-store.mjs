@@ -65,7 +65,7 @@
  * IMPORTS config.mjs AND NOTHING ELSE. settings.mjs reads its leaves through
  * this file, and utils.mjs imports settings.mjs, so the GM predicates, the clock
  * and the log come in through `configureGmStore` (gm-stores.mjs wires them at
- * ready) - R161 fails a static import cycle and any second spelling of "a GM who
+ * ready), and so does notice-history.mjs's `keepRoom` (E81 C6) - R161 fails a static import cycle and any second spelling of "a GM who
  * is connected" outside `activeGmIds`.
  *
  * TESTABLE WITHOUT A TABLE. The engine is `createGmStoreEngine(env)`: everything
@@ -656,7 +656,8 @@ export function gmsRefusal(packet, ctx) {
  * or null, write(key, value) -> Promise }, readLegacy(key), now(), timers { set,
  * clear }, clock() -> the campaign clock, log { warn, error, debug },
  * notify(level, text, opts), onHydrated(worldId) (optional), upgradeMark() ->
- * the world's upgrade mark or null (optional).
+ * the world's upgrade mark or null (optional), keepRoom(err) -> true when the
+ * write `err` stopped may be tried once more (optional; E81 C6).
  */
 export function createGmStoreEngine(env) {
     const stores = new Map();      // name -> { spec, handle, worlds: Map<wid, W>, lastRaw, writing, flushTimer, flushing, waiters }
@@ -780,7 +781,15 @@ export function createGmStoreEngine(env) {
                 }
                 st.writing = true;
                 try {
-                    await env.storage.write(st.spec.key, { v: FORMAT, worlds: value.worlds });
+                    const next = { v: FORMAT, worlds: value.worlds };
+                    try {
+                        await env.storage.write(st.spec.key, next);
+                    } catch (err) {
+                        /* A full storage takes the notice history's room first (E81 C6): `keepRoom` has
+                           it given back before it answers, and the store is written once more. */
+                        if (!env.keepRoom?.(err)) throw err;
+                        await env.storage.write(st.spec.key, next);
+                    }
                 } finally {
                     st.writing = false;
                 }
@@ -1597,6 +1606,7 @@ const deps = {
     primaryGmId: () => null,
     getClock: () => ({}),
     clockKey: "clock",
+    keepRoom: () => false,
     warn: (...a) => console.warn(`${MODULE_ID} |`, ...a),
     error: (...a) => console.error(`${MODULE_ID} |`, ...a),
     debug: () => {},
@@ -1635,6 +1645,7 @@ const engine = createGmStoreEngine({
     log: { warn: (...a) => deps.warn(...a), error: (...a) => deps.error(...a), debug: (...a) => deps.debug(...a) },
     notify: (level, text, opts) => ui.notifications?.[level]?.(text, opts),
     text: (key, data) => deps.text?.(key, data) ?? null,
+    keepRoom: err => deps.keepRoom(err),
     onHydrated: (wid, how) => { for (const fn of hydratedHooks) fn(wid, how); }
 });
 const hydratedHooks = [];

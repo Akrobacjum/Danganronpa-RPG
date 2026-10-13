@@ -112,18 +112,24 @@ export async function startClassTrial() {
 
     /* WHERE THE TABLE GOES, AND ITS RULE (E13 C6, 12.10.2026; plan-E13 C6, D8, doneWhen 4). Since C3 the
        phase takes every browser to the trial hall, and this window said nothing of it; it now names the
-       hall and how many of its tokens the trial will show, or that none is linked and the table stays
-       (trial-scene.mjs `startTrialLines`), and the table's rule "the dead listen but do not speak in the
-       trial" as one sentence beside the button. The count is the entry's own rule over the cast as the
-       GMs hold it (`castShownOnEntry`: `readCast` in one synchronous pass after `judgedFor` above, H3),
-       never a player's claim. The hall's textures are asked for on every connected client while the GM
+       hall, or that none is linked and the table stays (trial-scene.mjs `startTrialLines`), and the
+       table's rule "the dead listen but do not speak in the trial" as one sentence beside the button.
+       WHO TAKES PART (E81 DZ6, 12.10.2026; the owner: "kto bierze udział, a kogo nie przenosić"): with a
+       hall linked the window holds the cast picker the Scenes tab draws (`castPickerHtml`), an actor a
+       tick, prefilled from the GMs' stored choice or `defaultReveal` over the flags as the GMs hold them
+       (`readCastActors`, one synchronous pass after `judgedFor` above, H3); until then it counted the
+       tokens the entry would show, a number that goes stale as soon as a tick moves. Start stores the
+       ticks the GM changed (`readCastPicker`, as the tab's Apply) only after both questions below said
+       yes and before the phase moves, so the entry reads them; Cancel, or a no to either question,
+       stores nothing and starts nothing. The hall's textures are asked for on every connected client while the GM
        reads (`Scenes#preload` with `push`), not awaited: what that saves at a table is not measured
        (the harness keeps the call and loads nothing, LIVE-E13-02's ground). R437, scenario 41 k1. */
     const { trialScene } = await import("./rooms.mjs");
-    const { castShownOnEntry, startTrialLines } = await import("./trial-scene.mjs");
+    const { castPickerHtml, readCastPicker, saveTrialCast, startTrialLines } = await import("./trial-scene.mjs");
     const hall = trialScene();
     if (hall) Promise.resolve(game.scenes.preload?.(hall.id, true)).catch(err => error("Could not preload the trial hall", err));
-    const lines = startTrialLines({ hall, shown: hall ? castShownOnEntry(hall).length : 0 });
+    const lines = startTrialLines({ hall });
+    const castPicker = hall ? castPickerHtml(hall, { heading: "DRPG.TrialScene.castPickHeading" }) : "";
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Floor.startTrial") },
@@ -138,9 +144,11 @@ export async function startClassTrial() {
             </ul>
             <p class="notes">${game.i18n.localize("DRPG.Floor.startTrialNote")}</p>
             <p>${lines.rule}</p>
+            ${castPicker}
         </form>`),
         buttons: [
-            { action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"), default: true },
+            { action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"), default: true,
+                callback: (e, b, d) => ({ cast: readCastPicker(d.element) }) },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
@@ -149,6 +157,8 @@ export async function startClassTrial() {
     if (!result || result === "cancel") return null;
     if (!(await incidentClosedFirst())) return null;
     if (!(await confirmNewTrial())) return null;
+    const picked = result.cast;
+    if (hall && picked?.sceneId === hall.id && Object.keys(picked.changes ?? {}).length) await saveTrialCast(hall, picked.changes);
 
     // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
     // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw

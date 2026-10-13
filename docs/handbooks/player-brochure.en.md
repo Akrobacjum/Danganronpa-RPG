@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.74 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*One page. Module 1.2.75 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **You are:** an Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (max 6)**. Sanity at zero = **Breakdown** (disadvantage on every roll). Health at zero = **Wounded** (one action fewer). Rolls with Hope give you 1 Hope; rolls with Despair feed Monokuma; a critical gives 2 Hope.
 
@@ -55,7 +55,7 @@ Your bedroom is locked to others without a key (a key opens it for whoever holds
 
 ## The messenger and the GM
 
-The button bottom-right opens **GM Chat** - one thread between you and every GM. Anything that needs a ruling (a specific Observe, a hint, a Dynamic action, a project proposal, Ultimate and Experience Calls) lands there next to your own messages. The Note tab holds your pre-session plans and boundaries.
+The largest of the three buttons bottom-right, the one on top, opens **GM Chat** - one thread between you and every GM. Anything that needs a ruling (a specific Observe, a hint, a Dynamic action, a project proposal, Ultimate and Experience Calls) lands there next to your own messages. The Note tab holds your pre-session plans and boundaries.
 
 ## The safeword
 
@@ -73,4 +73,6 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 
 **Settings gear**, bottom-right: Language (English / Polski, this browser only), theme, scale, sounds, reduced motion, high contrast.
 
-**Book button**, bottom-right, beside the other two: this brochure and the Player Handbook, in the language you picked for the module.
+**Book button**, bottom-right under the messenger, right of the gear: this brochure and the Player Handbook, in the language you picked for the module.
+
+**Notice history**: the stack-of-cards button in the bottom-right corner of the notice tile opens the notices this browser showed you - the newest 250 at most, until a season reset clears them; its window says what else can take them. Clear it before you share your screen, and on a shared computer before you hand it over.

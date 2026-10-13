@@ -1,13 +1,21 @@
 /**
- * Danganronpa RPG - the trial hall: the table taken to it and back, and which of its tokens the trial shows.
+ * Danganronpa RPG - the trial hall: the table taken to it and back, and who stands in it for the trial.
  * ---------------------------------------------------------------------------
- * THE HALL IS SET ONCE, AND THE MODULE ONLY SHOWS AND HIDES IN IT (E13 C2,
- * 12.10.2026; plan-E13 3.3, decision D7, audit S06-57). The GM builds the hall
- * scene with a token for everybody who may stand in it, links it (rooms.mjs
- * `sceneRoles`), and chooses which of those tokens a trial shows. Opening the
- * trial shows the chosen ones and closing it hides them all; the module creates
- * no token in the hall, deletes none and moves none. The design before D7 placed
- * and cleared seats (A5's `ensureTrialTokens`, `clearTrialTokens`): gone with it.
+ * THE HALL IS SET ONCE, AND THE TRIAL'S TOKENS LAST ONE TRIAL (E13 C2, 12.10.2026;
+ * plan-E13 3.3, audit S06-57; E81 DZ6, the owner's decision of 12.10.2026, which
+ * moved D7 to its option 1). The GM builds the hall scene, links it (rooms.mjs
+ * `sceneRoles`), and chooses who takes part. Opening the trial gives each of them
+ * one token in the hall: a token the GM placed there is shown; else one the module
+ * made earlier and never took away (an interrupted trial) is used again; else the
+ * module makes one from the actor's prototype at the seat it last stood on, or on
+ * a ring round the hall's centre (`seatFor`). Closing it saves where the module's
+ * tokens stood, deletes them and hides the GM's. `stageHall` is the one place this
+ * file creates or deletes a document - one create and one delete call (R432) - and
+ * a token is the module's only by its id in the hall's flag `trialSeats`, never by
+ * a flag of its own or an option of the write (`stagePlan`). Until DZ6 the module
+ * created, moved and deleted no token in the hall (D7) and named the students the
+ * hall had no token for; the design before D7 placed and cleared seats (A5's
+ * `ensureTrialTokens`, `clearTrialTokens`).
  *
  * THE CAST is the hall's tokens whose actor is a "character" - a student,
  * Monokuma among them. An NPC token, a prop, a token with no actor, is never the
@@ -18,7 +26,11 @@
  * own player. So the choice is a row of a GM store (gm-stores.mjs
  * `trialCastStore`), `{ reveal, epoch }`, written only on a GM's client (the
  * store refuses anywhere else), and a row of another season reads as no row
- * (decision D12). A token with no row is decided by `defaultReveal`: Monokuma
+ * (decision D12). Since E81 DZ6 (12.10.2026; the owner: "kto bierze udział, a
+ * kogo nie przenosić") a row is an actor's, keyed `${hallId}.${actorId}`, and
+ * the GM ticks actors, not tokens; a 1.2.74 row keyed by a hall token is read
+ * for that token's actor until the primary GM's `ready` moves it to the actor's
+ * key (`castRowsByActor`, `tidyTrialHall`). A token with no row is decided by `defaultReveal`: Monokuma
  * shown, a student a player owns shown - the dead and a Monocub too (the owner's
  * answer Q-E13-1 a, 09.10.2026: the dead stand in the hall under the dead
  * overlay, immovable by the corpse veto), a student nobody plays hidden (a test
@@ -77,8 +89,8 @@
  * named the rest, calling a move across scenes unmeasured. It is built now and measured headless: a
  * living student with no token on the chosen scene has the token the module reads as where they stand
  * (movement.mjs `locateActor`: place scenes only, so never the hall) carried over - a copy made there
- * and the old token deleted, by call-world.mjs `carryAcross`, so this file still creates and deletes
- * nothing (D7's line, R432) - and then gathered into the room with the rest. Which token, for a
+ * and the old token deleted, by call-world.mjs `carryAcross`, not by this file (whose one create and
+ * one delete are `stageHall`'s, R432) - and then gathered into the room with the rest. Which token, for a
  * student with tokens on two scenes with rooms: `locateActor`'s, the one every rule already reads as
  * theirs; the fix list asked for "the one on the scene they last stood on lawfully", and no record
  * answers that (review r2 cor F): movement.mjs `gmHistory` stamps a time, but only on the places a GM
@@ -161,9 +173,18 @@ function castWrite() {
     return { [MODULE_ID]: { trialCast: true } };
 }
 
-/** The store's key for one hall token. */
-export function castKey(sceneId, tokenId) {
-    return `${sceneId}.${tokenId}`;
+/**
+ * The store's key for one actor's choice in one hall (E81 DZ6): `${hallId}.${actorId}`. Until 1.2.74 the
+ * second half was a hall token's id; such a row is read through `castRow`'s `legacyTokenId` and moved by
+ * `tidyTrialHall`.
+ */
+export function castKey(sceneId, actorId) {
+    return `${sceneId}.${actorId}`;
+}
+
+/** Every actor the cast can hold, ticked or not: each "character" of the world, a student or Monokuma, in the world's order. */
+export function castActors() {
+    return game.actors?.filter?.(actor => actor.type === "character") ?? [];
 }
 
 /** Whether a hall token is the module's to show and hide: its actor is a student or Monokuma. */
@@ -177,43 +198,99 @@ export function castTokens(scene) {
 }
 
 /**
- * One token's stored choice, `{ reveal }`, or null: no row, a row of another season, or a row that
- * says nothing. Reads only what it is handed (R116 asks it of plain rows).
+ * One actor's stored choice, `{ reveal }`, or null: no row, a row of another season, or a row that
+ * says nothing. The actor's row first; failing that, when `legacyTokenId` is given (the actor's first
+ * token in the hall), the 1.2.74 row of that token (E81 DZ6) - so a world not yet tidied, or a 1.2.74
+ * backup restored after its `ready` (gm-store.mjs `mergeIn`), reads as it was chosen. Reads only what
+ * it is handed (R116 asks it of plain rows).
  */
-export function castRow(rows, sceneId, tokenId, epoch = seasonEpoch()) {
-    const row = rows?.[castKey(sceneId, tokenId)];
-    if (!row || row.epoch !== epoch || typeof row.reveal !== "boolean") return null;
-    return { reveal: row.reveal };
+export function castRow(rows, sceneId, actorId, epoch = seasonEpoch(), legacyTokenId = null) {
+    const read = key => {
+        const row = rows?.[key];
+        return row && row.epoch === epoch && typeof row.reveal === "boolean" ? { reveal: row.reveal } : null;
+    };
+    return read(castKey(sceneId, actorId)) ?? (legacyTokenId ? read(castKey(sceneId, legacyTokenId)) : null);
 }
 
-/** The hall's stored choice this season, `{ tokenId: reveal }`: the tokens with no row are absent. */
+/** The hall's stored choice this season, `{ actorId: reveal }` over `castActors`: the actors with no row are absent. */
 export function readTrialCast(scene, { rows = trialCastStore.entries(), epoch = seasonEpoch() } = {}) {
     const out = {};
-    for (const token of castTokens(scene)) {
-        const row = castRow(rows, scene.id, token.id, epoch);
-        if (row) out[token.id] = row.reveal;
+    if (!scene?.id) return out;
+    for (const actor of castActors()) {
+        const row = castRow(rows, scene.id, actor.id, epoch, scene.tokens?.find?.(token => token.actorId === actor.id)?.id ?? null);
+        if (row) out[actor.id] = row.reveal;
     }
     return out;
 }
 
 /**
- * Store the GMs' choice for the hall's tokens: `{ tokenId: true | false | null }`, null dropping the row
- * (back to `defaultReveal`). A GM's client only - the store refuses anywhere else. Shows and hides
- * nothing: the choice is read when the trial opens. Answers whether anything was written.
+ * Store the GMs' choice for the hall's cast: `{ actorId: true | false | null }`, null dropping the row
+ * (back to `defaultReveal`) and the 1.2.74 row of the actor's first hall token with it, which `castRow`
+ * would read otherwise. An id that is not a "character" actor of this world is skipped (E81 DZ6; until
+ * then an id that was not a token of the hall). A GM's client only - the store refuses anywhere else.
+ * Shows and hides nothing: the choice is read when the trial opens. Answers whether anything was written.
  */
 export async function saveTrialCast(scene, choice = {}) {
     if (!game.user?.isGM || !scene?.id) return false;
     const epoch = seasonEpoch();
     const rows = {};
     const gone = [];
-    for (const [tokenId, reveal] of Object.entries(choice ?? {})) {
-        if (!scene.tokens?.get?.(tokenId)) continue;
-        if (reveal === null) gone.push(castKey(scene.id, tokenId));
-        else if (typeof reveal === "boolean") rows[castKey(scene.id, tokenId)] = { reveal, epoch };
+    for (const [actorId, reveal] of Object.entries(choice ?? {})) {
+        if (game.actors?.get?.(actorId)?.type !== "character") continue;
+        if (reveal === null) {
+            gone.push(castKey(scene.id, actorId));
+            const legacy = scene.tokens?.find?.(token => token.actorId === actorId)?.id;
+            if (legacy && trialCastStore.has(castKey(scene.id, legacy))) gone.push(castKey(scene.id, legacy));
+        } else if (typeof reveal === "boolean") rows[castKey(scene.id, actorId)] = { reveal, epoch };
     }
     if (Object.keys(rows).length) await trialCastStore.patchMany(rows);
     if (gone.length) await trialCastStore.dropMany(gone);
     return Boolean(Object.keys(rows).length || gone.length);
+}
+
+/**
+ * The 1.2.74 rows moved to their actors (E81 DZ6), decided before anything is written: `mapped`, the
+ * rows to fill by actor key, and `old`, the token-keyed keys to drop. Handed the store's rows and, by
+ * scene id, the scene's cast tokens `{ id, actorId }` in the hall's order. A key whose second half is a
+ * token of its scene is old; its row goes to that token's actor only when it is the actor's FIRST token
+ * there, the one token whose row the trial ever read (`castShows` reads no row for a second one), with
+ * its `reveal` and its season as they were. Any other key - an actor's already, or of a scene not
+ * handed - is left as it is, so a second run finds nothing. Pure (R500 asks it of plain rows).
+ */
+export function castRowsByActor(rows, scenes) {
+    const mapped = {};
+    const old = [];
+    for (const [key, row] of Object.entries(rows ?? {})) {
+        const dot = key.indexOf(".");
+        const tokens = dot > 0 ? scenes?.[key.slice(0, dot)] : null;
+        const token = tokens?.find?.(t => t.id === key.slice(dot + 1));
+        if (!token) continue;
+        old.push(key);
+        if (tokens.find(t => t.actorId === token.actorId) !== token || typeof row?.reveal !== "boolean") continue;
+        mapped[castKey(key.slice(0, dot), token.actorId)] = { reveal: row.reveal, epoch: row.epoch };
+    }
+    return { mapped, old };
+}
+
+/**
+ * The cast's rows moved from tokens to actors once (E81 DZ6), on the primary GM's `ready` after the
+ * store has heard the other GMs: `castRowsByActor` over every scene a row names, then one fill that
+ * never overwrites a row already written by actor (`fillOnly`) and one drop of the old keys. A second
+ * run maps nothing and writes nothing. Answers `{ mapped, dropped }`, or null off the primary.
+ */
+export async function tidyTrialHall() {
+    if (!game.user?.isGM || !isPrimaryGm()) return null;
+    await trialCastStore.whenHydrated();
+    const rows = trialCastStore.entries();
+    const scenes = {};
+    for (const key of Object.keys(rows)) {
+        const sceneId = key.split(".")[0], scene = game.scenes?.get?.(sceneId);
+        if (scene && !(sceneId in scenes)) scenes[sceneId] = castTokens(scene).map(token => ({ id: token.id, actorId: token.actorId }));
+    }
+    const { mapped, old } = castRowsByActor(rows, scenes);
+    if (Object.keys(mapped).length) await trialCastStore.patchMany(mapped, { fillOnly: true });
+    if (old.length) await trialCastStore.dropMany(old);
+    return { mapped: Object.keys(mapped).length, dropped: old.length };
 }
 
 /**
@@ -249,6 +326,19 @@ export function readCast(scene) {
 }
 
 /**
+ * The cast as the GMs hold it, per actor (E81 DZ6): every `castActors` actor with its id, its name, the
+ * `monokuma` flag as the primary holds it and whether a player owns it - `readCast`'s two facts, read the
+ * same way, in ONE synchronous pass (H3). The cast picker's rows, so an actor is ticked or not whether
+ * or not the hall holds a token of it.
+ */
+export function readCastActors() {
+    return castActors().map(actor => ({
+        id: actor.id, name: actor.name ?? actor.id,
+        monokuma: Boolean(flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.monokuma)), player: ownerIdsOf(actor).length > 0
+    }));
+}
+
+/**
  * What one open or close changes: `{ diff, seconds }`. `diff` holds `{ _id, hidden }` for every cast
  * token whose `hidden` differs from what it should be - on the way in the stored row, else
  * `defaultReveal`; on the way out hidden - and nothing else, so a second run on the same hall finds
@@ -266,31 +356,18 @@ export function castDiff(cast, { reveal, sceneId, rows = {}, epoch = seasonEpoch
 }
 
 /**
- * Whether the way in shows one cast token (`readCast`'s row): the GMs' stored row of this season,
- * else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it,
- * and so does the Start window's count (`castShownOnEntry`), so the window cannot promise a number
- * the entry does not show.
+ * Whether the way in shows one cast token (`readCast`'s row): the GMs' stored row of this season for
+ * its actor (E81 DZ6; the token's own 1.2.74 row as `castRow`'s fallback, this being the actor's first
+ * token), else `defaultReveal` - and a second token of one actor never by a row. Pure: `castDiff` asks it.
  */
 export function castShows(token, { sceneId, rows = {}, epoch = seasonEpoch() } = {}) {
-    const row = token.second ? null : castRow(rows, sceneId, token.id, epoch);
+    const row = token.second ? null : castRow(rows, sceneId, token.actorId, epoch, token.id);
     return row ? row.reveal : defaultReveal(token);
 }
 
 /**
- * The hall's cast tokens the way in would show now, as `readCast` reads them (one synchronous pass,
- * H3) against the store this GM holds: the Start window's count (E13 C6). A store not yet hydrated on
- * this GM counts without the GMs' rows, while the entry would then show nobody and tell the GMs
- * (`applyTrialCast`; read in the code, not measured) - a count, never a decision.
- */
-export function castShownOnEntry(scene) {
-    if (!scene?.tokens) return [];
-    const rows = trialCastStore.entries();
-    return readCast(scene).filter(token => castShows(token, { sceneId: scene.id, rows }));
-}
-
-/**
  * Show the cast (`reveal`) or hide it, on a GM's client: one `updateEmbeddedDocuments` with only the
- * rows that change, no create, no delete, no position (D7). The way in waits for the store as an
+ * rows that change, no create, no delete, no position (`stageHall`, its one caller, does those). The way in waits for the store as an
  * answer key does (gm-stores.mjs `answerKeysOpen`, at most `TIMING.gmStoreOpenMs`): a store still not
  * hydrated could be missing an untick, so then nobody is shown and the GMs are told - showing a
  * hidden player is the one mistake a GM cannot take back by hand in time. Hiding needs no choice.
@@ -316,8 +393,187 @@ export async function applyTrialCast(scene, { reveal = true, open = () => answer
     };
 }
 
-export const revealTrialTokens = (scene = trialScene()) => applyTrialCast(scene, { reveal: true });
-export const hideTrialTokens = (scene = trialScene()) => applyTrialCast(scene, { reveal: false });
+/** The hall's flag naming, per actor, the token the module made for the trial and where it last stood (E81 DZ6). */
+export const TRIAL_SEATS_FLAG = "trialSeats";
+
+/**
+ * The hall's record, `{ [actorId]: { x, y, token } }` (E81 DZ6, the orchestrator's Q1 of 12.10.2026): `token`
+ * is the id of the token the module made for that actor and has not deleted yet, else null; `x`/`y` where
+ * it last stood, else null. A flag of the hall scene, not a GM store: the season reset cuts the
+ * `trialFloor` stores (season-setup.mjs) before its clock step leaves the trial, and that leave needs
+ * the record to know what to delete. Read as plain rows, so a malformed entry names no token.
+ */
+export function readSeats(hall) {
+    const raw = hall?.getFlag?.(MODULE_ID, TRIAL_SEATS_FLAG);
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [actorId, seat] of Object.entries(raw)) {
+        if (!seat || typeof seat !== "object") continue;
+        const placed = Number.isFinite(seat.x) && Number.isFinite(seat.y);
+        out[actorId] = { x: placed ? seat.x : null, y: placed ? seat.y : null, token: typeof seat.token === "string" && seat.token ? seat.token : null };
+    }
+    return out;
+}
+
+/**
+ * One write of the record, `patch` by actor, merged into what the hall holds - no key is ever removed,
+ * a token is set to null. That Foundry v14's `setFlag` merges a partial object is not measured here
+ * (LIVE-E81-16); the harness's update does, and the tier-2 stage test reads the record after. A GM's
+ * write, gated here as well as in `stageHall`, its one caller, so R220's census judges it where it stands.
+ */
+async function writeSeats(hall, patch) {
+    if (!game.user?.isGM) return;
+    if (Object.keys(patch).length) await hall.setFlag(MODULE_ID, TRIAL_SEATS_FLAG, patch);
+}
+
+/**
+ * What one stage does to the hall, decided before anything is written (E81 DZ6; R501): `remove` (token
+ * ids to delete), `create` (actor ids to make a token for, in the cast's order), `show` and `hide` (the
+ * ids of the tokens that stand after it, as `applyTrialCast` will leave them). Handed `cast`, per actor
+ * `{ actorId, monokuma, in }`; `tokens`, per hall token `{ id, actorId, cast }` (`cast`: its actor is a
+ * "character"); `seats`, `readSeats`'s record; and `into`. A token is the module's when its id is in the
+ * record and only then - whatever its flags, its actor or the option it was written with - so `remove`
+ * never holds a token the GM placed. Into, for each actor in the cast: the GM's first token shown and a
+ * second hidden; else the module's token still standing, shown again; else, but never for Monokuma, a
+ * create. The module's token of an actor the GM placed one for, or of one not in the cast (unticked, or
+ * no longer a "character"), goes. The GM's tokens of the rest are hidden. Out: every token of the
+ * module's goes and every token of the GM's is hidden. Pure.
+ */
+export function stagePlan({ cast = [], tokens = [], seats = {}, into = true } = {}) {
+    const recorded = new Set(Object.values(seats ?? {}).map(seat => seat?.token).filter(id => typeof id === "string" && id));
+    const made = tokens.filter(token => recorded.has(token.id));
+    const placed = tokens.filter(token => !recorded.has(token.id) && token.cast);
+    const taking = new Map((into ? cast : []).filter(row => row.in).map(row => [row.actorId, row]));
+    const plan = { remove: [], create: [], show: [], hide: [] };
+    for (const token of placed) {
+        const first = placed.find(other => other.actorId === token.actorId) === token;
+        (taking.has(token.actorId) && first ? plan.show : plan.hide).push(token.id);
+    }
+    for (const token of made) {
+        const kept = taking.has(token.actorId) && !placed.some(other => other.actorId === token.actorId)
+            && made.find(other => other.actorId === token.actorId) === token;
+        (kept ? plan.show : plan.remove).push(token.id);
+    }
+    const standing = new Set(tokens.filter(token => plan.show.includes(token.id)).map(token => token.actorId));
+    for (const row of taking.values()) if (!row.monokuma && !standing.has(row.actorId)) plan.create.push(row.actorId);
+    return plan;
+}
+
+/**
+ * Where the module makes one actor's token (E81 DZ6; R502): its remembered `seat` when it has one,
+ * moved inside `rect` (the hall's `sceneRect`) if it lies outside; with none, the `index`-th of `count`
+ * places on a ring round the rect's centre - radius the larger of two cells and a third of the shorter
+ * side, the first at the top, clockwise - its top-left corner snapped to the grid. A cell already
+ * `taken` (`"x,y"`: the hall's tokens and the seats given before it) sends it one cell further out on
+ * its ray, at most `count` times; then it takes the ring's cell anyway. With no rect, a line along the
+ * top. The index is the actor's place in the world's order, so one world seats its cast the same way
+ * every time. Pure.
+ */
+export function seatFor({ seat = null, index = 0, count = 1, rect = null, grid = 100, taken = new Set() } = {}) {
+    const size = grid > 0 ? grid : 100;
+    if (!(rect?.width > 0 && rect?.height > 0)) return { x: size * index, y: 0 };
+    const clamp = (value, low, span) => Math.min(Math.max(value, low), low + Math.max(span - size, 0));
+    const inside = (x, y) => ({ x: clamp(x, rect.x, rect.width), y: clamp(y, rect.y, rect.height) });
+    if (Number.isFinite(seat?.x) && Number.isFinite(seat?.y)) return inside(seat.x, seat.y);
+    const n = Math.max(count, 1), angle = -Math.PI / 2 + index * 2 * Math.PI / n;
+    const cx = rect.x + rect.width / 2, cy = rect.y + rect.height / 2;
+    const snap = value => Math.round((value - size / 2) / size) * size;
+    const ring = Math.max(2 * size, Math.min(rect.width, rect.height) / 3);
+    const at = step => inside(snap(cx + (ring + step * size) * Math.cos(angle)), snap(cy + (ring + step * size) * Math.sin(angle)));
+    for (let step = 0; step <= n; step++) {
+        const spot = at(step);
+        if (!taken.has(`${spot.x},${spot.y}`)) return spot;
+    }
+    return at(0);
+}
+
+/**
+ * The hall staged for the trial (`into`) or cleared after it, on a GM's client (E81 DZ6): the one place
+ * this file creates or deletes a token. The way in waits for the store as `applyTrialCast` did
+ * (`answerKeysOpen`): unopened, nothing is made, deleted or shown and the GMs are told. Then, in this
+ * order: the record notes where each token to go stands, its id still named; ONE delete of `stagePlan`'s
+ * `remove` (movement.mjs's memory of each dropped, as `carryAcross` does); ONE record write - the deleted
+ * set to null, each create's id (made here) and seat; ONE create, from the actor's prototype
+ * (`getTokenDocument`, `actorLink` forced, so what the trial spends stays on the actor - LIVE-E81-14),
+ * with `keepId`; the record put right for a create whose id was not kept; `applyTrialCast`'s show and
+ * hide; and the GMs told by name of anybody in the cast left with no token (Monokuma, whom the module
+ * never makes, or a create that failed). Every stop between two steps leaves the record naming at most
+ * a token that is gone, which the next stage drops and makes again - never a token of the module's the
+ * record does not name. The create's `trialCast` option is a mark for a log, never read as a pass.
+ * Answers `applyTrialCast`'s `{ shown, hidden, seconds }` with `made` and `removed` (token ids) and
+ * `notPlaced` (actor ids), or null when nothing was judged.
+ */
+export async function stageHall(hall, { into = true, open = () => answerKeysOpen({ store: trialCastStore }) } = {}) {
+    if (!game.user?.isGM || !hall?.tokens) return null;
+    if (into && await open() !== "open") {
+        await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.castUnavailable")}</p>`);
+        return null;
+    }
+    const seats = readSeats(hall);
+    const stored = into ? readTrialCast(hall) : {};
+    const rows = into ? readCastActors().map(actor => ({ actorId: actor.id, name: actor.name, monokuma: actor.monokuma,
+        in: actor.id in stored ? stored[actor.id] : defaultReveal(actor) })) : [];
+    const plan = stagePlan({ cast: rows, seats, into,
+        tokens: hall.tokens.contents.map(token => ({ id: token.id, actorId: token.actorId, cast: isCastToken(token) })) });
+    const seatOf = id => Object.keys(seats).find(actorId => seats[actorId].token === id);
+    const left = plan.remove.map(id => hall.tokens.get(id)).filter(Boolean).map(token => ({ id: token.id, actorId: seatOf(token.id), x: token.x, y: token.y }));
+    await writeSeats(hall, Object.fromEntries(left.map(token => [token.actorId, { x: token.x, y: token.y, token: token.id }])));
+    if (left.length) {
+        await hall.deleteEmbeddedDocuments("Token", left.map(token => token.id), castWrite());
+        const { forgetToken } = await import("./movement.mjs");
+        for (const token of left) forgetToken(token.id);
+    }
+    const patch = Object.fromEntries(left.map(token => [token.actorId, { x: token.x, y: token.y, token: null }]));
+    const rect = hall.dimensions?.sceneRect ?? null, grid = hall.grid?.size ?? hall.dimensions?.size ?? 100;
+    const taken = new Set(hall.tokens.contents.map(token => `${token.x},${token.y}`));
+    const order = castActors().map(actor => actor.id);
+    const data = [];
+    for (const actorId of plan.create) {
+        const actor = game.actors.get(actorId);
+        const spot = seatFor({ seat: seats[actorId], index: order.indexOf(actorId), count: order.length, rect, grid, taken });
+        try {
+            const doc = await actor.getTokenDocument({ x: spot.x, y: spot.y, hidden: false, actorLink: true });
+            const token = { ...doc.toObject(), _id: foundry.utils.randomID(), actorId, x: spot.x, y: spot.y, hidden: false, actorLink: true };
+            data.push(token);
+            taken.add(`${spot.x},${spot.y}`);
+            patch[actorId] = { x: spot.x, y: spot.y, token: token._id };
+        } catch (err) {
+            error(`Could not make ${actor?.name ?? actorId}'s token for the trial hall`, err);
+        }
+    }
+    await writeSeats(hall, patch);
+    let made = [];
+    if (data.length) {
+        try {
+            made = await hall.createEmbeddedDocuments("Token", data, { keepId: true, ...castWrite() }) ?? [];
+        } catch (err) {
+            error("Could not make the cast's tokens in the trial hall", err);
+        }
+    }
+    await writeSeats(hall, Object.fromEntries(made.filter(doc => patch[doc.actorId] && patch[doc.actorId].token !== doc.id)
+        .map(doc => [doc.actorId, { ...patch[doc.actorId], token: doc.id }])));
+    const cast = await applyTrialCast(hall, { reveal: into, open: async () => "open" });
+    const notPlaced = rows.filter(row => row.in && !hall.tokens.find(token => token.actorId === row.actorId));
+    if (notPlaced.length) {
+        const names = notPlaced.map(row => esc(row.name)).join(", ");
+        await whisperToGms(`<p>${plural("DRPG.TrialScene.notPlaced", { n: notPlaced.length, names })}</p>`);
+    }
+    return { ...(cast ?? { shown: [], hidden: [], seconds: [] }), made: made.map(doc => doc.id), removed: left.map(token => token.id),
+        notPlaced: notPlaced.map(row => row.actorId) };
+}
+
+/**
+ * The module's tokens a trial left in the hall, taken out on the primary GM's `ready` (E81 DZ6): out of
+ * a trial, when the linked hall's record names a token that still stands, the stage out runs - a GM who
+ * closed the browser between the table leaving the hall and the delete. In a trial nothing: the next
+ * entry uses them again. Answers `stageHall`'s answer, or null when there was nothing to do.
+ */
+export async function tidyHallTokens(hall = trialScene()) {
+    if (!game.user?.isGM || !isPrimaryGm() || !hall?.tokens || getClock().phase === "classTrial") return null;
+    const recorded = new Set(Object.values(readSeats(hall)).map(seat => seat.token).filter(Boolean));
+    if (!hall.tokens.find(token => recorded.has(token.id))) return null;
+    return stageHall(hall, { into: false });
+}
 
 /**
  * The phase's step for the table, called last by clock.mjs `reconcilePhase` on the GM whose
@@ -351,40 +607,51 @@ export function leaveDestination({ school = null, returnTo = null, hall = null }
 }
 
 /**
- * The students a player plays who have no token in the hall, so the trial cannot show them: the
- * students `defaultReveal` shows, the dead among them (Q-E13-1 a). By name, in the world's order.
+ * The cast actors the module will not make a token for and the hall holds none of: Monokuma, ticked as
+ * the GMs' choice has him (else `defaultReveal`), with no token there - the Scenes tab's `handPlaced` row
+ * (E81 DZ6; until then `studentsWithoutHallToken`, every student a player plays with no hall token).
  */
-export function studentsWithoutHallToken(hall) {
-    const here = new Set((hall?.tokens?.contents ?? []).map(token => token.actorId));
-    return game.actors.filter(actor => actor.type === "character" && !here.has(actor.id) && ownerIdsOf(actor).length > 0);
+export function handPlacedActors(hall) {
+    if (!hall?.tokens) return [];
+    const stored = readTrialCast(hall);
+    return readCastActors().filter(actor => actor.monokuma && (actor.id in stored ? stored[actor.id] : defaultReveal(actor))
+        && !hall.tokens.find(token => token.actorId === actor.id));
 }
 
 /**
- * Into the trial, on a GM: note the scene the table leaves (the hall's `trialReturnTo`), show the
- * cast, tell the GMs whom the hall has no token for, then activate the hall - the cast is shown
- * before anybody arrives. No hall linked, nothing. Answers what it did, or null.
+ * Who takes part in the hall's trial, as a set of actor ids (E81 fix r1-D3; the DZ6 design's 5): every
+ * `castActors` actor ticked as the GMs' stored choice has it, else as `defaultReveal` does - the rule
+ * `stageHall` makes the tokens by, read the same way. The return from the trial moves, carries and names
+ * these alone: a student the GMs left unticked had no token in the hall and is not brought out of it.
+ */
+export function castActorIds(hall) {
+    const stored = readTrialCast(hall);
+    return new Set(readCastActors().filter(actor => (actor.id in stored ? stored[actor.id] : defaultReveal(actor))).map(actor => actor.id));
+}
+
+/**
+ * Into the trial, on a GM: note the scene the table leaves (the hall's `trialReturnTo`), stage the
+ * hall (`stageHall`: the cast's tokens made or shown, the GMs told of anybody left without one), then
+ * activate the hall - the tokens stand before anybody arrives (whether a player's browser draws them
+ * before the hall is not measured). No hall linked, nothing. Answers what it did, or null.
  */
 export async function enterTrialScene(hall = trialScene()) {
     if (!game.user?.isGM || !hall) return null;
     const left = game.scenes?.active ?? null;
     if (left && left.id !== hall.id) await hall.setFlag(MODULE_ID, TRIAL_RETURN_FLAG, left.id);
-    const cast = await revealTrialTokens(hall);
-    const missing = studentsWithoutHallToken(hall);
-    if (missing.length) {
-        const names = missing.map(actor => esc(actor.name)).join(", ");
-        await whisperToGms(`<p>${plural("DRPG.TrialScene.missingTokens", { n: missing.length, names })}</p>`);
-    }
+    const cast = await stageHall(hall, { into: true });
     if (hallIsDark(hall)) await whisperToGms(`<p>${game.i18n.localize("DRPG.TrialScene.hallDark")}</p>`);
     const activated = !hall.active;
     if (activated) await hall.activate();
-    return { hall: hall.id, left: left?.id ?? null, cast, missing: missing.map(actor => actor.id), activated };
+    return { hall: hall.id, left: left?.id ?? null, cast, activated };
 }
 
 /**
  * Out of the trial, on a GM: activate the scene the GM chose at End the trial (`setTrialExit`,
  * taken once - on the first line, so a close that returns early leaves nothing held either), else
- * the one `leaveDestination` names, then hide the hall's cast, then gather the living into the
- * chosen room. With nowhere to go the GMs are told and nothing changes - the table stays in the
+ * the one `leaveDestination` names, then clear the hall (`stageHall`: the module's tokens saved and
+ * deleted, the GM's hidden) - the table has left before its tokens go - then gather the living into
+ * the chosen room. With nowhere to go the GMs are told and nothing changes - the table stays in the
  * hall with its cast shown, as the trial left it (Q-E13-1 b). No hall linked, nothing.
  */
 export async function leaveTrialScene(hall = trialScene()) {
@@ -399,29 +666,42 @@ export async function leaveTrialScene(hall = trialScene()) {
     }
     const activated = !destination.active;
     if (activated) await destination.activate();
-    const cast = await hideTrialTokens(hall);
+    const cast = await stageHall(hall, { into: false });
     const gathered = chosen ? await returnTheLiving(chosen, exit.room, hall) : null;
     return { destination: destination.id, cast, activated, gathered };
 }
 
 /**
- * The living students into the room `room` of `scene`, after the trial (the owner's f, 09.10, and item 1 of
- * 10.10): first the living with no token there carried over from the scene with rooms they stand on
- * (`carryTheLiving`), then the body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in
+ * The living students who took part into the room `room` of `scene`, after the trial (the owner's f, 09.10, and
+ * item 1 of 10.10; since E81 fix r1-D3 the cast only - `castActorIds`, read once after `judgedFor`, as the DZ6
+ * decision of 12.10 has it: whom the GM chose out is neither moved nor named): first the living with no token
+ * there carried over from the scene with rooms they stand on (`carryTheLiving`), then the body's gather (call-world.mjs `gatherEveryone`) on that scene - random points in
  * the room, as a body's gather places them - with each actor read as the GMs hold it (`flagsHeldNow`, once the
  * judgements in flight are in: `judgedFor`) and, when the region cannot teleport, the room's box for the
- * fallback. Called from `leaveTrialScene` alone, after the hall's cast is hidden, so a hall token is never among
- * the moved (R436). Then one whisper to the GMs: how many went, the living the return could not move
+ * fallback. Called from `leaveTrialScene` alone, after the stage has cleared the hall, so a hall token is never
+ * among the moved (R436). Then one whisper to the GMs: how many went, the living the return could not move
  * (`leftBehind`), those a carry left on both scenes, and the living left with a token on another scene, the ones
  * whose every token in the room is hidden apart (`standingTwice`). Answers
  * `{ room, moved, carried, left, others, hidden, twice }`, the last five by actor id.
+ *
+ * The cast is read here, after the stage has cleared the hall, and not before it as the DZ6 design's 5 wrote:
+ * the stage writes nothing `castActorIds` reads - the store's rows and the actors stay as they were, and the
+ * tokens it deletes are the module's, which no 1.2.74 row was kept under (read in the code, 12.10.2026) - and
+ * after `judgedFor` the `monokuma` flags it reads through `readCastActors` are the settled ones, as every
+ * other read here.
  */
 export async function returnTheLiving(scene, room, hall = trialScene()) {
     await judgedFor(...game.actors.filter(actor => actor.type === "character").map(actor => actor.id));
-    const { carried, twice } = await carryTheLiving(scene, room, hall);
-    const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true });
-    const left = await leftBehind(scene, hall);
-    const { others, hidden } = await standingTwice(scene, hall, twice);
+    /* The cast's rows, once the store holds them, as `tidyTrialHall` reads them: a store not yet hydrated
+       answers no rows, and `castActorIds` then reads `defaultReveal` for everybody - Monokuma and the students
+       a player owns - in place of the GMs' tick (E81 fix r2-H1, review P15; its last clause in the tier-2 test
+       "End the trial moves the living to the GM's room ..."). */
+    await trialCastStore.whenHydrated();
+    const only = castActorIds(hall);
+    const { carried, twice } = await carryTheLiving(scene, room, hall, only);
+    const moved = await gatherEveryone(room, scene, { held: flagsHeldNow, box: true, only });
+    const left = await leftBehind(scene, hall, only);
+    const { others, hidden } = await standingTwice(scene, hall, twice, only);
     const names = actors => actors.map(actor => esc(actor.name)).join(", ");
     const lines = [plural("DRPG.Floor.endTrialMoves", { n: moved, room: esc(room) })];
     if (left.length) lines.push(plural("DRPG.TrialScene.notMoved", { n: left.length, names: names(left) }));
@@ -438,14 +718,14 @@ export async function returnTheLiving(scene, room, hall = trialScene()) {
  * (call-world.mjs `carryAcross`): the token `locateActor` reads as where they stand, which is never the hall's
  * (no rooms) nor one on a scene with no rooms. Answers `{ carried, twice }`, in the world's order: the carried, and
  * the students a carry left on both scenes - its copy could not be taken back. A student whose carry was taken back
- * is in neither, and `leftBehind` names them after.
+ * is in neither, and `leftBehind` names them after. `only`, the cast's actor ids, as `leftBehind` takes it.
  */
-async function carryTheLiving(scene, room, hall) {
+async function carryTheLiving(scene, room, hall, only = null) {
     const carried = [], twice = [];
     const region = roomRegions(scene, room)[0];
     if (!region) return { carried, twice };
     const { locateActor } = await import("./movement.mjs");
-    for (const actor of await leftBehind(scene, hall)) {
+    for (const actor of await leftBehind(scene, hall, only)) {
         const place = locateActor(actor);
         if (!place || place.scene.id === scene.id || place.scene.id === hall?.id) continue;
         const done = await carryAcross(place.tokenDoc, scene, region);
@@ -458,20 +738,21 @@ async function carryTheLiving(scene, room, hall) {
 /**
  * The living students with no token on `destination` the return owes an answer to (the owner's item 1 of 10.10):
  * living by the gather's own rule as the GMs hold them - not Monokuma, not dead unless a Monocub - with a token on
- * any scene but the destination and the hall, or played by a player (`ownerIdsOf`, as `studentsWithoutHallToken`
- * reads it) with none there. Before the return carries them these are whom it tries; after, whom it could not
+ * any scene but the destination and the hall, or played by a player (`ownerIdsOf`) with none there. Before the return carries them these are whom it tries; after, whom it could not
  * move. A student standing only on a scene with no rooms was neither moved nor named until review r1 (cor A):
  * the scenes were read through `isPlaceScene`. A student nobody plays whose only token is in the hall is not
- * named: hiding the cast is what the hall gets. In the world's order.
+ * named: hiding the cast is what the hall gets. In the world's order. With `only` (a set of actor ids: the
+ * return hands the cast, E81 fix r1-D3) nobody outside it; without, every student - the suite's `fenceHeld`
+ * asks so, for whom the return could carry under any choice.
  */
-export async function leftBehind(destination, hall = trialScene()) {
+export async function leftBehind(destination, hall = trialScene(), only = null) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     const actorsOn = scene => [...(scene?.tokens ?? [])].map(token => token.actorId);
     const here = new Set(actorsOn(destination));
     const elsewhere = new Set(game.scenes.filter(scene => scene.id !== destination.id && scene.id !== hall?.id).flatMap(actorsOn));
     return game.actors.filter(actor => {
-        if (actor.type !== "character" || here.has(actor.id)) return false;
+        if (actor.type !== "character" || here.has(actor.id) || (only && !only.has(actor.id))) return false;
         if (!elsewhere.has(actor.id) && !ownerIdsOf(actor).length) return false;
         const held = flagsHeldNow(actor);
         return !isMonokuma(held) && !(isDeadForGm(held) && !isMonocub(held));
@@ -483,9 +764,10 @@ export async function leftBehind(destination, hall = trialScene()) {
  * the hall (review r2 cor A), living by the gather's own rule as the GMs hold them, as `leftBehind` reads it -
  * `flagsHeldNow(actor)` once per student in one synchronous pass. Answers `{ others, hidden }`: `hidden` those whose
  * every token on `destination` is hidden while one elsewhere is shown - a player sees only the one left behind -
- * and `others` the rest; the students in `skip` (a carry left on both, named on their own line) in neither.
+ * and `others` the rest; the students in `skip` (a carry left on both, named on their own line) in neither, nor,
+ * when `only` is handed (the cast's actor ids, E81 fix r1-D3), anybody outside it.
  */
-export async function standingTwice(destination, hall = trialScene(), skip = []) {
+export async function standingTwice(destination, hall = trialScene(), skip = [], only = null) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     const byActor = scenes => {
@@ -497,7 +779,7 @@ export async function standingTwice(destination, hall = trialScene(), skip = [])
     const skipped = new Set(skip.map(actor => actor.id));
     const others = [], hidden = [];
     for (const actor of game.actors) {
-        if (actor.type !== "character" || skipped.has(actor.id) || !here.has(actor.id) || !away.has(actor.id)) continue;
+        if (actor.type !== "character" || skipped.has(actor.id) || (only && !only.has(actor.id)) || !here.has(actor.id) || !away.has(actor.id)) continue;
         const held = flagsHeldNow(actor);
         if (isMonokuma(held) || (isDeadForGm(held) && !isMonocub(held))) continue;
         const veiled = here.get(actor.id).every(token => token.hidden) && away.get(actor.id).some(token => !token.hidden);
@@ -538,9 +820,9 @@ export async function nameUnfinishedCarries() {
  * THE START WINDOW AND THE CONSOLE SAY WHERE THE TABLE GOES (E13 C6, 12.10.2026; plan-E13 C6, decision
  * D8, doneWhen 4). Start the Class Trial said the phase moves and the trial is announced, and nothing
  * about the scene: since C3 every browser is taken to the hall, and a GM read that only on the screen
- * after the click. Its window now names the hall and how many of its tokens the trial will show
- * (`castShownOnEntry`, the entry's own rule), or that no hall is linked and the table stays, and the
- * table's rule of D8 - the dead listen but do not speak in the trial - as one sentence beside the
+ * after the click. Its window now names the hall, or that no hall is linked and the table stays,
+ * (until E81 DZ6 with how many of its tokens the trial would show; since then with who takes part,
+ * the cast picker's ticks), and the table's rule of D8 - the dead listen but do not speak in the trial - as one sentence beside the
  * button. Before this the window said neither: R437 and scenario 41 k1 read it red at C5's tree.
  *
  * THE TWO DOORS INSIDE A TRIAL. A GM who wants the school back for a moment in the middle of a trial
@@ -554,13 +836,14 @@ export async function nameUnfinishedCarries() {
  */
 
 /**
- * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name with the
- * count of tokens it will show, or that none is linked - and `rule`, the table's rule of D8. Pure
- * over `{ hall, shown }` (R437 asks it of plain objects); the hall's name is escaped.
+ * The Start window's two lines (E13 C6): `table`, where the table goes - the hall by name, or that
+ * none is linked - and `rule`, the table's rule of D8. The count of tokens shown went with E81 DZ6:
+ * the window holds the ticks it would have counted, and a count drawn once goes stale as they change.
+ * Pure over `{ hall }` (R437 asks it of plain objects); the hall's name is escaped.
  */
-export function startTrialLines({ hall = null, shown = 0 } = {}) {
+export function startTrialLines({ hall = null } = {}) {
     return {
-        table: hall ? plural("DRPG.Floor.startTrialHall", { n: shown, hall: esc(hall.name ?? "") })
+        table: hall ? game.i18n.format("DRPG.Floor.startTrialHall", { hall: esc(hall.name ?? "") })
             : game.i18n.localize("DRPG.Floor.startTrialNoHall"),
         rule: game.i18n.localize("DRPG.Floor.tableRuleDead")
     };
@@ -609,7 +892,9 @@ export async function showSchool(hall = trialScene()) {
 
 /**
  * The two scenes as the GM's API reads them (E13 C6): the school, the hall and the active scene by
- * id, the hall's tokens the next entry would show, and the Scenes tab's warnings (`scenesReportOf`).
+ * id, the hall's cast tokens shown now (until E81 DZ6 the ones the next entry would show), the tokens
+ * the module made there and has not deleted (`made`, by the hall's record), and the Scenes tab's
+ * warnings (`scenesReportOf`).
  * On a GM, after the judgements in flight are in (`judgedFor`, as `returnTheLiving`); null elsewhere.
  */
 export async function trialSceneReport() {
@@ -618,7 +903,8 @@ export async function trialSceneReport() {
     const school = schoolScene(), hall = trialScene();
     return {
         school: school?.id ?? null, hall: hall?.id ?? null, table: game.scenes?.active?.id ?? null,
-        shown: castShownOnEntry(hall).map(token => token.id),
+        shown: castTokens(hall).filter(token => !token.hidden).map(token => token.id),
+        made: (hall?.tokens?.filter?.(token => Object.values(readSeats(hall)).some(seat => seat.token === token.id)) ?? []).map(token => token.id),
         warnings: scenesReportOf(school, hall).map(({ key, text, block }) => ({ key, text, block }))
     };
 }
@@ -771,9 +1057,11 @@ export async function watchCast(tokenDoc, changed, options, userId) {
  * made (`castHeld`). One a player makes - a drag from the Actors tab, where the world grants players
  * TOKEN_CREATE - holds no tick in the store, so hidden is the GMs' choice for it: every GM notes it
  * so, and the primary hides it if it was made shown and tells the GMs (review r1 sec B: C2 only told
- * them, and the token stood shown on every browser for the rest of the trial). Hidden, not deleted
- * (D7: the module deletes nothing in the hall). It joins the cast as any hall token does, and the
- * next entry names it if it is a second token of its actor. Scenario 41 a5.
+ * them, and the token stood shown on every browser for the rest of the trial). Hidden, not deleted:
+ * the record of the module's own tokens (`trialSeats`) does not name it, so no stage ever deletes it
+ * (E81 DZ6). It joins the cast as a token the GM placed does - at the next entry it stands in for its
+ * actor instead of a made one, and is named if it is a second token of its actor. A token the stage
+ * makes is a GM's create and is noted as made shown. Scenario 41 a5.
  */
 async function watchCastCreated(tokenDoc, options, userId) {
     if (!game.user?.isGM) return;
@@ -795,10 +1083,10 @@ async function watchCastCreated(tokenDoc, options, userId) {
 /**
  * The `deleteToken` watcher on the hall, on the primary GM's client (E13 fix r2-H2, review r2 sec
  * S2-4): a cast token a player deleted - where the world grants players TOKEN_DELETE, which this
- * module does not read - is whispered to the GMs, as a player's drop is. It is not made again (D7:
- * the module creates nothing in the hall), so the GMs put it back by hand if the trial needs it. Its
- * row in `castHeld` stays, unread unless a token of that id stands in the hall again; R432 holds this
- * file to no delete call at all. Until the fix a player's delete of their own student's hall token took the GMs' choice
+ * module does not read - is whispered to the GMs, as a player's drop is. Since E81 DZ6 a token the
+ * module made is made again at the next entry (its record names an id that is gone); one the GMs
+ * placed is put back by hand. Its row in `castHeld` stays, unread unless a token of that id stands in
+ * the hall again. Until the fix a player's delete of their own student's hall token took the GMs' choice
  * off every browser and nobody was told; the harness refused every player's delete, so the road had
  * never run. Scenario 41 a7.
  */
@@ -823,8 +1111,8 @@ async function watchCastDeleted(tokenDoc, options, userId) {
  * scenario 41 a and the suite wrote the setting and `saveTrialCast` from a console. Room Setup's
  * last tab (vault.mjs `ROOM_SETUP_TABS`) does it now: a select for the school and one for the
  * hall, the hall's cast with a tick each, what is wrong with the pair (`sceneReport`), and
- * "Prepare the hall". It warns and places nothing (D7): a student with no token in the hall is
- * named, never given one. Room Setup opens on it when its scene holds no room (Q-E13-1 e).
+ * "Prepare the hall". The tokens are the trial's to make (E81 DZ6, `stageHall`); the tab names
+ * only Monokuma ticked with no token in the hall, the one the module never makes. Room Setup opens on it when its scene holds no room (Q-E13-1 e).
  *
  * WHAT THE GM CHANGED, NOT WHAT THE FORM SAYS. A select or a tick counts only when it differs from
  * what the window drew (`data-drawn`, `defaultChecked`), as the Fog tab's boxes do (vault.mjs
@@ -849,11 +1137,12 @@ export function hallRoomNames(hall) {
 /**
  * What the Scenes tab warns of, as rows `{ key, text, block }` - `block` holds Apply. Handed the
  * school and the hall (a scene, or anything with an `id`) and what the hall holds: `rooms`, the
- * names of its room regions; `cast`, `readCast`'s rows with `linked`; `missing`, the names of the
- * students a player plays with no token in it; `dark`, `hallIsDark`'s answer. Reads nothing else
- * (R120 asks it of plain objects).
+ * names of its room regions; `cast`, `readCast`'s rows with `linked`; `handPlaced`, the names of the
+ * cast the module makes no token for and the hall holds none of (`handPlacedActors`; E81 DZ6, until
+ * then `missing`, the students a player plays with no token in it); `dark`, `hallIsDark`'s answer.
+ * Reads nothing else (R120 asks it of plain objects).
  */
-export function sceneReport({ school = null, hall = null, rooms = [], cast = [], missing = [], dark = false } = {}) {
+export function sceneReport({ school = null, hall = null, rooms = [], cast = [], handPlaced = [], dark = false } = {}) {
     const rows = [];
     const row = (key, text, block = false) => rows.push({ key, text, block });
     const names = list => list.map(name => esc(name)).join(", ");
@@ -861,7 +1150,7 @@ export function sceneReport({ school = null, hall = null, rooms = [], cast = [],
     if (!school?.id) row("noSchoolLinked", game.i18n.localize("DRPG.TrialScene.noSchoolLinked"));
     if (!hall?.id) return rows;
     if (rooms.length) row("hallHasRooms", game.i18n.format("DRPG.TrialScene.hallHasRooms", { names: names(rooms) }));
-    if (missing.length) row("missingTokens", plural("DRPG.TrialScene.missingTokens", { n: missing.length, names: names(missing) }));
+    if (handPlaced.length) row("handPlaced", game.i18n.format("DRPG.TrialScene.handPlaced", { names: names(handPlaced) }));
     const seconds = cast.filter(token => token.second).map(token => token.name);
     if (seconds.length) row("duplicateInHall", game.i18n.format("DRPG.TrialScene.duplicateInHall", { names: names(seconds) }));
     const unlinked = cast.filter(token => token.linked === false).map(token => token.name);
@@ -884,13 +1173,13 @@ export function hallIsDark(hall) {
 /**
  * `sceneReport` of two scenes as they are: the hall's room names, its cast as the GMs hold it
  * (`readCast`) with whether each token is linked to its actor - the dead overlay and a player's
- * ownership are read off the actor, so an unlinked token shows neither - and the students a player
- * plays with no token there (`studentsWithoutHallToken`, the entry whisper's list).
+ * ownership are read off the actor, so an unlinked token shows neither - and the cast the module
+ * makes no token for with none there (`handPlacedActors`).
  */
 export function scenesReportOf(school, hall) {
     const cast = hall ? readCast(hall).map(token => ({ ...token, linked: Boolean(hall.tokens.get(token.id)?.actorLink) })) : [];
     return sceneReport({ school, hall, rooms: hallRoomNames(hall), cast,
-        missing: hall ? studentsWithoutHallToken(hall).map(actor => actor.name) : [], dark: hallIsDark(hall) });
+        handPlaced: handPlacedActors(hall).map(actor => actor.name), dark: hallIsDark(hall) });
 }
 
 function reportHtml(school, hall) {
@@ -899,27 +1188,35 @@ function reportHtml(school, hall) {
 }
 
 /**
- * The hall's cast with a "reveal in the trial" tick each: ticked as the GMs' stored choice has it,
- * else as `defaultReveal` does; a second token of one actor drawn off, as a trial never shows it.
- * The box carries the hall's id, so a list drawn for another hall is not read as this one's.
+ * Who takes part, with a tick per actor (E81 DZ6; until then a tick per hall token): every actor
+ * `castActors` names, ticked as the GMs' stored choice has it, else as `defaultReveal` does. An actor
+ * the GMs placed a token of in the hall is noted so (`placedByGm`: that token is used, never deleted);
+ * Monokuma with no token there gets the line the Scenes tab shows (`handPlaced`). One builder for the
+ * Scenes tab and the Start window, which hands its own `heading`. The box carries the hall's id, so a
+ * list drawn for another hall is not read as this one's.
  */
-export function castPickerHtml(hall) {
+export function castPickerHtml(hall, { heading = "DRPG.TrialScene.castHeading" } = {}) {
     if (!hall?.tokens) return "";
     const stored = readTrialCast(hall);
-    const rows = readCast(hall).map(token => {
-        const reveal = token.second ? false : token.id in stored ? stored[token.id] : defaultReveal(token);
-        return `<li><label><input type="checkbox" name="cast:${esc(token.id)}"${reveal ? " checked" : ""}${
-            token.second ? " disabled" : ""} /> ${esc(token.name)}</label></li>`;
+    const recorded = new Set(Object.values(readSeats(hall)).map(seat => seat.token));
+    const placed = new Set(hall.tokens.filter(token => !recorded.has(token.id)).map(token => token.actorId));
+    const actors = readCastActors();
+    const note = `<span class="notes" data-drpg-cast-note="placedByGm">${game.i18n.localize("DRPG.TrialScene.placedByGm")}</span>`;
+    const rows = actors.map(actor => {
+        const reveal = actor.id in stored ? stored[actor.id] : defaultReveal(actor);
+        return `<li><label><input type="checkbox" name="cast:${esc(actor.id)}"${reveal ? " checked" : ""} /> ${esc(actor.name)}</label>${placed.has(actor.id) ? ` ${note}` : ""}</li>`;
     });
+    const hand = actors.filter(actor => actor.monokuma && !hall.tokens.find(token => token.actorId === actor.id)).map(actor => esc(actor.name));
     return `<div data-drpg-cast="${esc(hall.id)}">
-        <h4>${game.i18n.localize("DRPG.TrialScene.castHeading")}</h4>
+        <h4>${game.i18n.localize(heading)}</h4>
         <p class="notes">${game.i18n.localize("DRPG.TrialScene.reveal")}</p>
         ${rows.length ? `<ul class="drpg-cast-list">${rows.join("")}</ul>`
             : `<p class="notes">${game.i18n.localize("DRPG.TrialScene.noCast")}</p>`}
+        ${hand.length ? `<p class="notes" data-drpg-cast-note="handPlaced">${game.i18n.format("DRPG.TrialScene.handPlaced", { names: hand.join(", ") })}</p>` : ""}
     </div>`;
 }
 
-/** The ticks the GM changed in a cast list, `{ sceneId, changes: { tokenId: reveal } }`, or null when none is drawn. */
+/** The ticks the GM changed in a cast list, `{ sceneId, changes: { actorId: reveal } }`, or null when none is drawn. */
 export function readCastPicker(root) {
     const box = root?.querySelector?.("[data-drpg-cast]");
     if (!box) return null;
@@ -1089,9 +1386,11 @@ export async function prepareTrialScene(scene, { playlist = false, voice = false
 /**
  * Apply the Scenes tab on a GM, after Room Setup's own checks passed: the roles when they moved,
  * the cast's changed ticks (`saveTrialCast`), then - when the linked hall or its choice changed -
- * the hall's tokens as the phase wants them: out of the trial the whole cast hidden, so the hall
- * rests until a trial opens; in the trial with the hall active the new choice, one diff
- * (`applyTrialCast`); in the trial with another scene active nothing. A change of the hall itself in
+ * the hall as the phase wants it (`stageHall`): out of the trial cleared - any token of the module's
+ * a trial left deleted, the GM's hidden - so the hall rests until a trial opens; in the trial with
+ * the hall active staged again for the new choice at once (the newly ticked made, the unticked
+ * module's tokens deleted; the orchestrator's Q5 of 12.10.2026); in the trial with another scene
+ * active nothing. A change of the hall itself in
  * a running trial never reaches here: Room Setup refuses it first (`hallLocked`).
  * Then "Prepare the hall". Answers what it did, or null off a GM.
  */
@@ -1110,8 +1409,8 @@ export async function applyScenesTab(read) {
     const relinked = done.roles && (stored.trial ?? null) !== (writes.roles.trial ?? null);
     if (hall && (relinked || done.cast)) {
         const trial = getClock().phase === "classTrial";
-        if (!trial) done.shown = await hideTrialTokens(hall);
-        else if (hall.active) done.shown = await revealTrialTokens(hall);
+        if (!trial) done.shown = await stageHall(hall, { into: false });
+        else if (hall.active) done.shown = await stageHall(hall, { into: true });
     }
     if (writes.prepare && hall) done.prepared = await prepareTrialScene(hall, writes.prepare);
     return done;
@@ -1124,6 +1423,10 @@ export function registerTrialScene() {
     Hooks.once("canvasReady", selfRepair);
     Hooks.once("ready", nameUnfinishedCarries);
     Hooks.once("ready", reseedCastHeld);
+    Hooks.once("ready", () => {
+        tidyTrialHall().catch(err => error("Could not move the trial hall's cast to its actors", err))
+            .then(() => tidyHallTokens()).catch(err => error("Could not take the trial's tokens out of the hall", err));
+    });
     // A world whose roles were never written makes the Setting document on its first write: `createSetting` in Foundry.
     for (const hook of ["updateSetting", "createSetting"]) {
         Hooks.on(hook, setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.sceneRoles}`) reseedCastHeld(); });

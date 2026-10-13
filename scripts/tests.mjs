@@ -60,6 +60,7 @@ import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
 import { gmStoreHold, gmStoresIdle, gmStoreHandles, gmCopyNames, gmCopySpec } from "./gm-store.mjs";
 import { MODULE_ID } from "./config.mjs";
+import { holdNoticeHistory } from "./notice-history.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
 registerSuite([[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]]);
@@ -186,6 +187,11 @@ async function confirmTier2(confirmed) {
     });
 }
 
+/** The notice history as this browser stores it, the text itself: "" where nothing is stored. */
+function noticeHistoryText() {
+    return game.settings.storage?.get?.("client")?.getItem?.(`${MODULE_ID}.noticeHistory`) ?? "";
+}
+
 /*
  * WHICH TESTS `only` MEANS (E30, 24.09.2026). It was a piece of the name, lower-
  * cased, so `only: "R15"` ran R15 and R150-R155 with it - seven tests where one
@@ -289,6 +295,7 @@ async function runSuite(tier, only = null) {
     const writes = watchWrites(() => running);
     // The world's scene links while tier 2 holds them empty (below), put back in the `finally`.
     let heldRoles = null;
+    let noticesFound = null;
     try {
         lines.push("TIER 0 - module-wide regression (source is read, not called)");
         for (const entry of pick(REGRESSIONS)) {
@@ -363,6 +370,17 @@ async function runSuite(tier, only = null) {
              * hello, which re-exchanges with the other GMs.
              */
             gmStoreHold(true);
+            /*
+             * SO IS THIS BROWSER'S NOTICE HISTORY (E81 C1, 12.10.2026; the A7 plan's 2.4). It is the record of
+             * what this browser showed its user, and tier 2 shows cards: held, what a test records stays in
+             * memory and is forgotten at the release, and the setting is not written. Its stored text is read
+             * once the hold has written whatever was waiting, and again after the release below; a
+             * difference fails the run. A write the release itself schedules (a season's reset tier 2 left on
+             * the clock) lands after that reading, and tier 2's own restore check is the one that sees the clock.
+             * R473 holds this code to its shape and the hold to its promise.
+             */
+            await holdNoticeHistory(true);
+            noticesFound = noticeHistoryText();
             /*
              * THE WORLD'S SCENE LINKS ARE HELD EMPTY FOR THE RUN (E13 fix r2-H3, 12.10.2026; review r2
              * cor C). Since E13 C3 every write of the classTrial phase takes the table into the linked
@@ -464,6 +482,14 @@ async function runSuite(tier, only = null) {
         writes.stop();
         // Released whatever happened above; a hold the suite never took is released as a no-op.
         gmStoreHold(false);
+        holdNoticeHistory(false);
+        if (noticesFound !== null) {
+            const left = noticeHistoryText();
+            record({ tier: 2, name: "the suite left this browser's notice history as it found it", assertions: null,
+                ...(left === noticesFound
+                    ? { outcome: "pass" }
+                    : { outcome: "fail", message: `the stored notice history was ${noticesFound.length} characters of JSON and is ${left.length}` }) });
+        }
         if (heldRoles) {
             try {
                 await game.settings.set(MODULE_ID, "sceneRoles", heldRoles);

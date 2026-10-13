@@ -25,6 +25,10 @@
  * layer. In the module's six sheets that leaves 28 `@media` blocks (all feature
  * queries), one `@container` and one `@supports` that never apply here.
  *
+ * Nor does it keep `!important` on a declaration whose value holds a var(): such a rule's
+ * `getPropertyPriority` reads "" (jsdom 30.0.1, probed 12.10.2026 for R476), so a theme's plain
+ * `!important` beats it here where a browser would weigh the two by specificity.
+ *
  * What jsdom does not do is substitute `var()`: a custom property that is built
  * from another comes back as its source text, and a standard property that uses
  * one comes back as "var(--x)". So the wrapped `getPropertyValue` substitutes

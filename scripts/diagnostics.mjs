@@ -1145,7 +1145,8 @@ export async function diagnoseGmStores() {
                     ? `  ← ${s.census.reasons.notPrimary} old row(s) left for the primary's browser, which this is now: game.drpg.gmStoreReclaim("${s.name}")` : "")}`);
     }
     const status = gmStoreStatus();
-    lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
+    lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`
+        + `, and its notice history ${Math.round(status.notices / 1024)} KB besides (it gives way when the storage is full)`);
     // The traps' two stores and what is armed (traps.mjs `diagnoseTraps`, E04).
     try {
         const { diagnoseTraps } = await import("./traps.mjs");
