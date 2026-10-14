@@ -542,6 +542,9 @@
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}"
     },
+    "Passage": {
+      "engineOff": "Secret passages cannot open here: every token stops at their walls. Check for an update of Danganronpa RPG, or turn off the modules that change how tokens move."
+    },
     "Room": {
       "tileLabel": "Room",
       "readMore": "Read more",

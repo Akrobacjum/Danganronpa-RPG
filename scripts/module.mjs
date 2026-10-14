@@ -64,7 +64,7 @@ import { registerRollDialog } from "./roll-dialog.mjs";
 import { registerForcedRolls } from "./forced-roll.mjs";
 import { registerEclipse } from "./eclipse.mjs";
 import { registerPreSessionNote } from "./pre-session-note.mjs";
-import { registerPassages } from "./passages.mjs";
+import { registerPassages, registerPassageMovement } from "./passages.mjs";
 import { registerPassagesGm } from "./passages-gm.mjs";
 import { registerMonokuma } from "./monokuma.mjs";
 import { registerMessenger } from "./messenger.mjs";
@@ -298,6 +298,12 @@ Hooks.once("setup", () => {
     safely("the GM's draw of a player's roll", registerRollDraw);
     // And a roll thrown while no GM was connected (E08+E28 C18): stamped as it is created, and asked of the GMs.
     safely("the rolls thrown with no GM connected", registerUnwitnessedRolls);
+    /*
+     * The secret passages' way through a wall (E79 C2): Foundry's move backend extended so a token
+     * passes where its character knows a passage. At `setup`, after every module's `init` has put
+     * its own class there, so the passages extend whatever stands in that place by now.
+     */
+    safely("the secret passages' way through a wall", registerPassageMovement);
 });
 
 Hooks.once("ready", () => {

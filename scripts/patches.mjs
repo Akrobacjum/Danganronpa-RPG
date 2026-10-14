@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Eleven places reach into Foundry's or Daggerheart's objects and put a
+ * Twelve places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
@@ -196,6 +196,21 @@ export const PATCHES = [
                 ours: sheets.length ? armed === sheets.length : null,
                 note: `${armed} of ${sheets.length} open character sheets carry it`
             };
+        }
+    },
+    {
+        target: "CONFIG.Canvas.polygonBackends.move._identifyEdges",
+        owner: "foundry",
+        file: "passages.mjs",
+        why: "A token's move passes a secret passage its character knows: the wall's edge is cut there, for a move and nothing else (E79 C2).",
+        when: "always, from setup; when the class cannot be extended, never, and a GM is told at every load",
+        probe: () => {
+            const Move = CONFIG.Canvas?.polygonBackends?.move;
+            let proto = Move?.prototype ?? null, ours = false;
+            for (; proto && proto !== Object.prototype && !ours; proto = Object.getPrototypeOf(proto)) {
+                ours = Object.hasOwn(proto, "_identifyEdges") && Boolean(proto._identifyEdges?.[Symbol.for("drpgPassages")]);
+            }
+            return { present: typeof Move?.prototype?._identifyEdges === "function", ours };
         }
     }
 ];

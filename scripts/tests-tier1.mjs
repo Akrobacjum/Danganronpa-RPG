@@ -13449,6 +13449,127 @@ const INVARIANTS = [
             through(1234, 350, 1234, 450), through(1232, 350, 1232, 450)]), J([true, false, true, false, true, false]),
         "[across, along, 0.5 px short, 2 px short, 0.5 px past its end, 2.5 px past it]");
     }],
+    ["R556 - a token's move passes only the passages its own character knows: the move polygon's edge of a passage's wall, found by the wall's id, is cut around the stretch on the token's scene and floor, a sliver dropped and a stretch off the wall's line ignored; sight, light and sound, another character, another scene, another floor, no token and another wall on the same line stay whole; a throw leaves the walls whole; the move backend is extended once, and a GM is told when it could not be", async () => {
+        /*
+         * E79 C2, 14.10.2026; the E79 plan's A10-3. passages.mjs puts `PassageMovePolygon` in the place of Foundry's move
+         * backend at `setup`; its `_identifyEdges()` asks Foundry's and then `clipPassages`. The harms: a wall a token
+         * passes that its character does not know (another character of the same player, another scene, another floor),
+         * a passage open to an eye, a lamp or a sound, another wall that happens to lie on the passage's line opened with
+         * it, a half-cut polygon after a throw, and a backend wrapped twice. Run on polygons, edges and copies of the
+         * suite's own (`known`, in the copy's shape), and on a backend table of its own: nothing of this world is read
+         * but the live backend's PATCHES row and Foundry's sight backend. What a real Foundry's sweep does with the cut
+         * edges is a live row owed to the stage's AUDIT 9.2; scenario 76 B drives the harness's backend through `testCollision`.
+         */
+        const L = await import("./passages.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const J = v => JSON.stringify(v);
+        const MARK = Symbol.for("drpgPassages");
+        const r = n => Math.round(n * 1000) / 1000;
+        const cut = (wall, open) => {
+            const pieces = L.cutSegment(wall, open);
+            return pieces && pieces.map(p => [r(p.x1), r(p.y1), r(p.x2), r(p.y2)]);
+        };
+        const W = { x1: 1100, y1: 400, x2: 1400, y2: 400 };
+        const S1 = { x1: 1234.5, y1: 400, x2: 1300.5, y2: 400 };
+        equal(J([cut(W, [S1]), cut(W, [{ x1: 1300.5, y1: 400, x2: 1234.5, y2: 400 }]),
+            cut({ x1: 0, y1: 0, x2: 300, y2: 400 }, [{ x1: 60, y1: 80, x2: 180, y2: 240 }]),
+            cut(W, [{ x1: 1100, y1: 400, x2: 1400, y2: 400 }]), cut(W, [{ x1: 1100, y1: 400, x2: 1200, y2: 400 }]),
+            cut(W, [{ x1: 1150, y1: 400, x2: 1200, y2: 400 }, { x1: 1300, y1: 400, x2: 1350, y2: 400 }]),
+            cut(W, [{ x1: 1100.3, y1: 400, x2: 1300, y2: 400 }]), cut(W, [{ x1: 1350, y1: 400, x2: 1500, y2: 400 }]),
+            cut(W, [{ x1: 1150, y1: 405, x2: 1200, y2: 405 }]), cut(W, [])]),
+        J([[[1100, 400, 1234.5, 400], [1300.5, 400, 1400, 400]], [[1100, 400, 1234.5, 400], [1300.5, 400, 1400, 400]],
+            [[0, 0, 60, 80], [180, 240, 300, 400]], [], [[1200, 400, 1400, 400]],
+            [[1100, 400, 1150, 400], [1200, 400, 1300, 400], [1350, 400, 1400, 400]], [[1300, 400, 1400, 400]], [[1100, 400, 1350, 400]],
+            null, null]),
+        "[the middle, the stretch drawn backwards, a slanted wall, the whole wall, at an end, two on one wall, a 0.3 px sliver, past the wall's end, 5 px off its line, none]");
+
+        class Edge {
+            constructor(a, b, options = {}) {
+                this.a = a;
+                this.b = b;
+                Object.assign(this, options);
+                this.intersections = [];
+            }
+        }
+        const fields = { type: "wall", direction: 0, light: 20, move: 20, sight: 10, sound: 20, threshold: null };
+        const edgeOf = (id, w, E = Edge) => new E({ x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }, { id, object: { id }, ...fields });
+        const known = {
+            R556PA: { sceneId: "R556S", level: null, passageWallId: "R556W1", passageSeg: S1, actorIds: ["R556A"] },
+            R556PB: { sceneId: "R556S", level: "R556L2", passageWallId: "R556W3", passageSeg: { x1: 500, y1: 100, x2: 550, y2: 100 }, actorIds: ["R556A"] }
+        };
+        const polygon = ({ type = "move", actor = "R556A", scene = "R556S", tokenLevel = "R556L1", level, source = true, drpgPassages, E = Edge } = {}) => ({
+            config: { type, ...(source ? { source: { object: { document: { actor: actor && { id: actor }, parent: { id: scene }, level: tokenLevel } } } } : {}),
+                ...(level === undefined ? {} : { level }), ...(drpgPassages ? { drpgPassages } : {}) },
+            edges: new Set([edgeOf("R556W1", W, E), edgeOf("R556W2", W, E), edgeOf("R556W3", { x1: 400, y1: 100, x2: 700, y2: 100 }, E)])
+        });
+        const run = (options, k = known) => {
+            const p = polygon(options), before = [...p.edges];
+            const n = L.clipPassages(p, { known: k });
+            return { n, ids: [...p.edges].map(e => e.id).sort(), p, before };
+        };
+        const mine = run();
+        equal(J([mine.n, mine.ids]), J([1, ["R556W1#p1", "R556W1#p2", "R556W2", "R556W3"]]),
+            "[walls cut, the edges] for the knower's token on the passage's scene, on floor L1 - the wrong wall, the other floor's passage or the wall on the same line was cut");
+        const [p1, p2] = [...mine.p.edges].filter(e => e.id.startsWith("R556W1#"));
+        const old = mine.before[0];
+        equal(J([p1 instanceof Edge, [p1.a, p1.b, p2.a, p2.b], [p1.type, p1.direction, p1.light, p1.move, p1.sight, p1.sound, p1.threshold],
+            p1.object === old.object, p1.intersections]),
+        J([true, [{ x: 1100, y: 400 }, { x: 1234.5, y: 400 }, { x: 1300.5, y: 400 }, { x: 1400, y: 400 }], [old.type, 0, 20, 20, 10, 20, null], true, []]),
+        "[the edge's class, the pieces' ends, the wall's fields, the same wall object, no intersections] - a cut edge is not its wall's");
+        ok(mine.before.slice(1).every(e => mine.p.edges.has(e)), "an edge the cut did not touch was replaced");
+        const tally = options => { const { n, ids } = run(options); return [n, ids.filter(id => id.includes("#")).length]; };
+        equal(J([tally({ level: "R556L2" }), tally({ tokenLevel: null }), tally({ actor: "R556B" }), tally({ scene: "R556S2" }),
+            tally({ source: false }), tally({ actor: null }), tally({ type: "sight" }), tally({ type: "light" }), tally({ type: "sound" })]),
+        J([[2, 4], [2, 4], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]),
+        "[the move's own floor L2, a token on no floor, another character of the player, another scene, no token, a token with no character, sight, light, sound] - [walls cut, pieces]");
+        const asked = run({ source: false, drpgPassages: [{ id: "R556PX", wallId: "R556W2", ...S1 }] });
+        equal(J([asked.n, asked.ids]), J([1, ["R556W1", "R556W2#p1", "R556W2#p2", "R556W3"]]),
+            "the frame's own stretches (`drpgPassages`) do not cut their wall alone");
+        const open = run({}, { R556PA: { ...known.R556PA, passageSeg: { ...W } } });
+        equal(J([open.n, open.ids]), J([1, ["R556W2", "R556W3"]]), "a passage the whole length of its wall does not take the wall away");
+        class Bad extends Edge {
+            constructor(a, b, options) {
+                if (String(options?.id).includes("#")) throw new Error("R556 planted");
+                super(a, b, options);
+            }
+        }
+        const broken = run({ E: Bad });
+        equal(J([broken.n, broken.ids, broken.before.every(e => broken.p.edges.has(e))]), J([0, ["R556W1", "R556W2", "R556W3"], true]),
+            "a cut that threw left the move polygon's walls cut or partly gone");
+
+        // The install: once, over a class with `_identifyEdges`, and only in the move's place.
+        class Base {
+            _identifyEdges() {
+                this.edges = new Set([edgeOf("R556W1", W)]);
+                return "R556 found";
+            }
+        }
+        const table = { move: Base, sight: Base };
+        const installed = L.installPassageMovement(table), Passage = table.move;
+        const second = L.installPassageMovement(table);
+        const swept = type => {
+            const p = new table.move();
+            p.config = { type, drpgPassages: [{ id: "R556PX", wallId: "R556W1", ...S1 }] };
+            return [p._identifyEdges(), [...p.edges].map(e => e.id)];
+        };
+        const empty = {}, bare = { move: class {} };
+        equal(J([installed, Passage !== Base && Passage.prototype instanceof Base, Boolean(Passage[MARK]), table.sight === Base,
+            second, table.move === Passage, swept("move"), swept("sight"),
+            L.installPassageMovement(empty), Object.keys(empty), L.installPassageMovement(bare), L.installPassageMovement(null)]),
+        J([true, true, true, true, true, true, ["R556 found", ["R556W1#p1", "R556W1#p2"]], ["R556 found", ["R556W1"]],
+            false, [], false, false]),
+        "[installed, a subclass, marked, sight left alone, a second install, not wrapped twice, a move swept, a sight swept, no class, untouched, no _identifyEdges, no table]");
+        equal(J([L.engineOffNotice({ cut: false, user: { isGM: true } }), L.engineOffNotice({ cut: false, user: { isGM: false } }),
+            L.engineOffNotice({ cut: true, user: { isGM: true } }), L.engineOffNotice({ cut: null, user: { isGM: true } })]),
+        J(["DRPG.Passage.engineOff", null, null, null]),
+        "[a GM with no cut, a player, a GM with the cut, before setup] - who is told the passages cannot open");
+
+        // This browser's own backend, as the module left it at setup.
+        const row = PATCHES.find(p => p.file === "passages.mjs");
+        equal(J([row?.owner ?? null, row?.probe?.() ?? null]), J(["foundry", { present: true, ours: true }]),
+            "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
+        ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
+    }],
 ];
 
 /**

@@ -13,7 +13,7 @@ import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./
 import { readVersions } from "./lib/versions.mjs";
 import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
 import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, modifyResource, updateFear } from "./lib/daggerheart.mjs";
-import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
+import { HooksImpl, Collection, buildDocumentClasses, buildPolygonBackends, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
@@ -1158,10 +1158,16 @@ const MESSAGE_MODES = {
     self: { label: "Self Roll", icon: "fa-solid fa-user" }
 };
 
+function polygonBackends() {
+    const { ClockwiseSweepPolygon } = buildPolygonBackends();
+    return { sight: ClockwiseSweepPolygon, light: ClockwiseSweepPolygon, sound: ClockwiseSweepPolygon, move: ClockwiseSweepPolygon };
+}
+
 globalThis.CONFIG = {
     debug: { hooks: false },
     // Foundry's own selection colours (CONTROLLED is its orange).
-    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl },
+    /* One class for each polygon type (shim.mjs buildPolygonBackends, E79 C2). */
+    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl, polygonBackends: polygonBackends() },
     DH: {
         id: "daggerheart",
         // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,

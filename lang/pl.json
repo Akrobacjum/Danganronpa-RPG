@@ -523,6 +523,9 @@
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
       "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
     },
+    "Passage": {
+      "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów."
+    },
     "Room": {
       "tileLabel": "Pokój",
       "readMore": "Czytaj dalej",

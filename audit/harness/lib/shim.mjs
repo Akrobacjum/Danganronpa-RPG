@@ -936,6 +936,82 @@ export function buildDocumentClasses(ctx) {
     return classes;
 }
 
+/* ============================== Polygon backends ========================= */
+
+/*
+ * FOUNDRY'S MOVE BACKEND, AS FAR AS A WALL TEST GOES (E79 C2, 14.10.2026). Until C2 the harness had
+ * no `CONFIG.Canvas.polygonBackends`, so fog-doorways.mjs `nothingInTheWay` answered "clear" for
+ * every ray and passages.mjs found no class to extend. Written from the shape the design read in
+ * Foundry 14.365 on 11.10.2026 (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; a live row is owed to the stage's AUDIT 9.2), not
+ * copied from its source: `testCollision(origin, dest, { mode, ...config })` rounds both ends to
+ * whole pixels, builds an instance, `initialize`s it and asks `_testCollision`, which gathers the
+ * edges with `_identifyEdges()` into `this.edges`, a Set of `Edge`s whose id is their wall's.
+ *
+ * What it gathers: the walls of the scene on screen whose restriction for the polygon's type is not
+ * NONE, less an open door; with a `level` in the config, only the walls on that floor, and without
+ * one every wall. What it leaves out, and so answers more "clear" than Foundry: a one-way wall
+ * (`dir`), a limited sense's second wall, a threshold, the scene's boundary and a token's own
+ * shape. One class answers every type here.
+ */
+export function buildPolygonBackends() {
+    class Edge {
+        constructor(a, b, { id, object, type = "wall", direction = 0, light = 20, move = 20, sight = 20, sound = 20, threshold = null } = {}) {
+            this.a = { x: a.x, y: a.y };
+            this.b = { x: b.x, y: b.y };
+            Object.assign(this, { id, object, type, direction, light, move, sight, sound, threshold });
+            this.intersections = [];
+        }
+        clone() {
+            const { id, object, type, direction, light, move, sight, sound, threshold } = this;
+            return new Edge(this.a, this.b, { id, object, type, direction, light, move, sight, sound, threshold });
+        }
+    }
+    const hit = (A, B, e) => {
+        const rx = B.x - A.x, ry = B.y - A.y, sx = e.b.x - e.a.x, sy = e.b.y - e.a.y;
+        const den = rx * sy - ry * sx;
+        if (!den) return null;
+        const t = ((e.a.x - A.x) * sy - (e.a.y - A.y) * sx) / den;
+        const u = ((e.a.x - A.x) * ry - (e.a.y - A.y) * rx) / den;
+        if (!(t > 0 && t <= 1 && u >= 0 && u <= 1)) return null;
+        return { x: A.x + t * rx, y: A.y + t * ry, t0: t, edge: e };
+    };
+    class ClockwiseSweepPolygon {
+        static testCollision(origin, destination, { mode = "all", ...config } = {}) {
+            const round = p => ({ x: Math.round(p.x), y: Math.round(p.y) });
+            const polygon = new this();
+            polygon.initialize(round(origin), config);
+            return polygon._testCollision({ A: round(origin), B: round(destination) }, mode);
+        }
+        initialize(origin, config = {}) {
+            this.origin = origin;
+            this.config = { type: "sight", ...config };
+            this.edges = new Set();
+        }
+        _identifyEdges() {
+            const type = this.config.type, level = this.config.level ?? null;
+            for (const wall of globalThis.canvas?.scene?.walls ?? []) {
+                const c = wall.c;
+                if (!Array.isArray(c) || c.length < 4) continue;
+                if ((wall[type] ?? 20) === 0) continue;
+                if (wall.door > 0 && wall.ds === 1) continue;
+                if (level !== null && typeof wall.includedInLevel === "function" && !wall.includedInLevel(level)) continue;
+                this.edges.add(new Edge({ x: c[0], y: c[1] }, { x: c[2], y: c[3] }, {
+                    id: wall.id, object: { id: wall.id, document: wall }, type: "wall", direction: wall.dir ?? 0,
+                    light: wall.light ?? 20, move: wall.move ?? 20, sight: wall.sight ?? 20, sound: wall.sound ?? 20
+                }));
+            }
+        }
+        _testCollision(ray, mode) {
+            this._identifyEdges();
+            const hits = [...this.edges].map(e => hit(ray.A, ray.B, e)).filter(Boolean).sort((p, q) => p.t0 - q.t0);
+            if (mode === "any") return hits.length > 0;
+            if (mode === "closest") return hits[0] ?? null;
+            return hits;
+        }
+    }
+    return { Edge, ClockwiseSweepPolygon };
+}
+
 /* ============================== Roll ===================================== */
 
 /*

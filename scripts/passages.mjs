@@ -19,8 +19,9 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { primaryGmId, error } from "./utils.mjs";
+import { primaryGmId, warn, error } from "./utils.mjs";
 import { passageCopy, passageMapStore, passageAccessStore } from "./gm-stores.mjs";
+import { levelOf } from "./rooms.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -70,9 +71,12 @@ export function knownPassages() {
     return isPlain(copy) ? copy : {};
 }
 
-/** The known passages on one scene, `[{ id, ...row }]`, on one floor when one is named (a row on no floor in particular is on each). */
-export function secretRowsOn(sceneId, level = null) {
-    return Object.entries(knownPassages())
+/**
+ * The known passages on one scene, `[{ id, ...row }]`, on one floor when one is named (a row on no floor in
+ * particular is on each). `known` is the suite's (R556): rows of its own in the copy's shape.
+ */
+export function secretRowsOn(sceneId, level = null, { known = knownPassages() } = {}) {
+    return Object.entries(isPlain(known) ? known : {})
         .filter(([, row]) => row?.sceneId === sceneId && onLevelOf(row, level))
         .map(([id, row]) => ({ id, ...row }));
 }
@@ -83,10 +87,10 @@ export function secretRowsOn(sceneId, level = null) {
  * so, and a GM's browser, which reads the GMs' records, passes `mastermind` (passages-gm.mjs
  * `isMastermindActor`).
  */
-export function openSegmentsFor(actor, sceneId, level = null, { mastermind = false } = {}) {
+export function openSegmentsFor(actor, sceneId, level = null, { mastermind = false, known = knownPassages() } = {}) {
     const actorId = typeof actor === "string" ? actor : actor?.id;
     if (!actorId) return [];
-    return secretRowsOn(sceneId, level)
+    return secretRowsOn(sceneId, level, { known })
         .filter(row => mastermind || (Array.isArray(row.actorIds) && row.actorIds.includes(actorId)))
         .map(row => segmentOf(row.id, row)).filter(Boolean);
 }
@@ -119,6 +123,180 @@ export function crossingVia(route, actor, sceneId, level = null, { mastermind = 
         if (segments.some(seg => stepCrosses(points[i - 1], points[i], seg))) return "passage";
     }
     return null;
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * THE WAY THROUGH (E79 C2): this browser's move backend, cut where its own token may pass.
+ *
+ * Foundry asks one class whether a token's move meets a wall: `CONFIG.Canvas.polygonBackends.move`, a
+ * ClockwiseSweepPolygon whose `_identifyEdges()` gathers the walls a move or a collision test reads - the
+ * drag, the ruler, the keyboard and `testCollision` alike, as the design read Foundry 14.365 on 11.10.2026
+ * (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; not readable here; a live row is owed to the stage's AUDIT 9.2). At `setup` this module
+ * puts a subclass in its place, `PassageMovePolygon`, whose `_identifyEdges()` asks Foundry's first and then
+ * replaces the edge of a passage's wall with the pieces of it on either side of the passage - for a move
+ * polygon only, and only where the moving token's own character knows the passage. Sight, light and sound
+ * are other polygons: none of them is cut, so a passage is a wall to every eye and every lamp.
+ *
+ * FAILS CLOSED, both ways. If the class cannot be extended at `setup` - another Foundry, another module's
+ * class in the way - nothing is cut, the Debug log says so and a GM is told at every load
+ * (`DRPG.Passage.engineOff`); and a cut that throws for one move leaves that move's walls whole. A passage
+ * that does not open costs a player a moment at a wall the GM can walk them through; a wall that opened
+ * for the wrong token is the secret gone.
+ *
+ * What it reads: this browser's own copy (`knownPassages`) - so a token passes only where this browser was
+ * told its character may, and a console that writes its own copy changes only its own walls, which the
+ * GMs' audit of every landed move judges from the GMs' records (C4). PATCHES (patches.mjs) has its row.
+ * ------------------------------------------------------------------------------------------------------------ */
+
+const PASSAGE_MARK = Symbol.for("drpgPassages");
+
+/** A piece of a cut wall shorter than this, in pixels, is left out (the design's 0.5 px): no sliver of wall stands in a passage's mouth. */
+const SLIVER = 0.5;
+
+/**
+ * What is left of a wall, `{ x1, y1, x2, y2 }`, once the stretches `open` are taken out of it:
+ * `[{ x1, y1, x2, y2 }]` in the wall's own direction, none when the passages cover all of it - or
+ * null when no stretch lies on this wall, so the caller keeps the wall as it is. A stretch counts
+ * only where both its ends are within `tolerance` pixels of the wall's line (a wall moved since the
+ * passage was made is not cut: C5 marks that passage broken); the part of it past the wall's ends
+ * is ignored. Pieces under half a pixel are dropped. Pure.
+ */
+export function cutSegment(wall, open, tolerance = PASSAGE_TOLERANCE) {
+    const dx = wall.x2 - wall.x1, dy = wall.y2 - wall.y1, len = Math.hypot(dx, dy);
+    if (!(len > 0)) return null;
+    const along = (x, y) => ((x - wall.x1) * dx + (y - wall.y1) * dy) / (len * len);
+    const away = (x, y) => Math.abs((x - wall.x1) * dy - (y - wall.y1) * dx) / len;
+    const gaps = [];
+    for (const seg of Array.isArray(open) ? open : []) {
+        const xy = [seg?.x1, seg?.y1, seg?.x2, seg?.y2].map(Number);
+        if (!xy.every(Number.isFinite)) continue;
+        if (away(xy[0], xy[1]) > tolerance || away(xy[2], xy[3]) > tolerance) continue;
+        const [t1, t2] = [along(xy[0], xy[1]), along(xy[2], xy[3])].sort((a, b) => a - b);
+        const from = Math.max(0, t1), to = Math.min(1, t2);
+        if (to > from) gaps.push([from, to]);
+    }
+    if (!gaps.length) return null;
+    gaps.sort((a, b) => a[0] - b[0]);
+    const pieces = [];
+    let at = 0;
+    for (const [from, to] of gaps) {
+        if (from > at) pieces.push([at, from]);
+        at = Math.max(at, to);
+    }
+    if (at < 1) pieces.push([at, 1]);
+    return pieces.filter(([a, b]) => (b - a) * len >= SLIVER).map(([a, b]) => ({
+        x1: wall.x1 + a * dx, y1: wall.y1 + a * dy, x2: wall.x1 + b * dx, y2: wall.y1 + b * dy
+    }));
+}
+
+/**
+ * The stretches a move polygon may pass, `[{ id, wallId, x1, y1, x2, y2 }]`: those its caller hands
+ * in as `config.drpgPassages` (the frame's question, C3), else those the moving token's own character
+ * knows on the token's own scene and floor - `config.source.object` is the token whose move Foundry is
+ * testing. No token, no character: nothing (a doorway's test in fog-doorways.mjs names none). The
+ * Mastermind's token passes every passage on its player's browser because the copy names the
+ * Mastermind as each one's knower (passages-gm.mjs `passageCopyFor`). On a GM's browser the GMs'
+ * records name each knower, and the Mastermind passes only what it was granted: the Mastermind is
+ * passages-gm.mjs's to tell (`isMastermindActor`), which this leaf does not import.
+ */
+export function passageSegmentsFor(config, { known } = {}) {
+    if (Array.isArray(config?.drpgPassages)) {
+        return config.drpgPassages.map(seg => segmentOf(seg?.id ?? null, { passageWallId: seg?.wallId, passageSeg: seg }))
+            .filter(seg => seg?.wallId);
+    }
+    const tokenDoc = config?.source?.object?.document ?? null;
+    const actor = tokenDoc?.actor ?? null, sceneId = tokenDoc?.parent?.id ?? null;
+    if (!actor || !sceneId) return [];
+    const level = config.level ?? levelOf(tokenDoc);
+    return openSegmentsFor(actor, sceneId, level, known === undefined ? {} : { known });
+}
+
+/* The first cut that threw is logged, once a load: the next moves fail closed in silence. */
+let cutFailed = false;
+
+/**
+ * Cut a move polygon's walls where its token may pass: each edge of a passage's wall (the edge whose
+ * id is the wall's) is replaced by what `cutSegment` leaves of it, each a new edge of the same class
+ * with the same fields, `<wallId>#p1`, `#p2`, ..., and none of the old edge's intersections. Every
+ * other polygon - sight, light, sound - and every other wall is left as Foundry built it. The new
+ * edges are all made before any old one is taken out, so a throw leaves the polygon whole. Answers
+ * how many walls were cut. `known` is the suite's (R556).
+ */
+export function clipPassages(polygon, { known } = {}) {
+    const config = polygon?.config, edges = polygon?.edges;
+    if (config?.type !== "move" || typeof edges?.delete !== "function" || typeof edges?.add !== "function") return 0;
+    try {
+        const byWall = new Map();
+        for (const seg of passageSegmentsFor(config, { known })) byWall.set(seg.wallId, [...(byWall.get(seg.wallId) ?? []), seg]);
+        if (!byWall.size) return 0;
+        const swaps = [];
+        for (const edge of edges) {
+            const open = byWall.get(edge?.id);
+            if (!open || !edge.a || !edge.b) continue;
+            const pieces = cutSegment({ x1: edge.a.x, y1: edge.a.y, x2: edge.b.x, y2: edge.b.y }, open);
+            if (!pieces) continue;
+            const { object, type, direction, light, move, sight, sound, threshold } = edge;
+            swaps.push([edge, pieces.map((p, i) => new edge.constructor({ x: p.x1, y: p.y1 }, { x: p.x2, y: p.y2 },
+                { id: `${edge.id}#p${i + 1}`, object, type, direction, light, move, sight, sound, threshold }))]);
+        }
+        for (const [edge, fresh] of swaps) {
+            edges.delete(edge);
+            for (const piece of fresh) edges.add(piece);
+        }
+        return swaps.length;
+    } catch (err) {
+        if (!cutFailed) warn("Secret passages: a wall could not be cut for a move, so it stays whole", err);
+        cutFailed = true;
+        return 0;
+    }
+}
+
+/** `Base` with the passages cut out of what its `_identifyEdges()` gathers: the class `installPassageMovement` puts in Foundry's place. */
+export function passageMovePolygon(Base) {
+    class PassageMovePolygon extends Base {
+        _identifyEdges(...args) {
+            const found = super._identifyEdges(...args);
+            clipPassages(this);
+            return found;
+        }
+    }
+    PassageMovePolygon[PASSAGE_MARK] = true;
+    PassageMovePolygon.prototype._identifyEdges[PASSAGE_MARK] = true;
+    return PassageMovePolygon;
+}
+
+/**
+ * Put `PassageMovePolygon` in `backends.move`'s place, over whatever class stands there (another
+ * module's included). Answers whether the move backend cuts the passages now: false, changing nothing,
+ * when there is no class or it has no `_identifyEdges()` to extend, or the place cannot be written. A
+ * class that is already ours, or a subclass of it, is left alone. `backends` is the suite's (R556);
+ * the module's is Foundry's, at `setup`.
+ */
+export function installPassageMovement(backends) {
+    const Base = backends?.move;
+    if (typeof Base !== "function" || typeof Base.prototype?._identifyEdges !== "function") return false;
+    if (Base[PASSAGE_MARK]) return true;
+    try {
+        const Passage = passageMovePolygon(Base);
+        backends.move = Passage;
+        return backends.move === Passage;
+    } catch {
+        return false;
+    }
+}
+
+/* Whether this browser's move backend cuts the passages: null until `setup`, then the install's answer. */
+let movementCut = null;
+
+/** At `setup`: the move backend's install, logged when it could not be made. */
+export function registerPassageMovement() {
+    movementCut = installPassageMovement(CONFIG?.Canvas?.polygonBackends);
+    if (!movementCut) warn("Secret passages: Foundry's move backend could not be extended, so no token passes through one on this browser");
+}
+
+/** The key a GM is told at load when the move backend could not be extended, or null: nobody else, and nothing when it was. */
+export function engineOffNotice({ cut = movementCut, user = game.user } = {}) {
+    return cut === false && user?.isGM ? "DRPG.Passage.engineOff" : null;
 }
 
 /**
@@ -182,6 +360,8 @@ export function requestPassages(primary = primaryGmId({ arriving })) {
 /** At ready, on a player's browser: the copy's listener, and its ask - now and whenever a primary GM's world has loaded. */
 export function registerPassages() {
     Hooks.once("ready", () => {
+        const off = engineOffNotice();
+        if (off) ui.notifications.warn(game.i18n.localize(off));
         if (game.user.isGM) return;
         game.socket.on(SOCKET_EVENT, (payload, senderId) => {
             onPassageRows(payload, senderId).catch(err => error("Could not keep this browser's secret passages", err));

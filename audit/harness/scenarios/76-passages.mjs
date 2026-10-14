@@ -28,7 +28,11 @@
  *   wire and console; p3's world is the world as found but for the GM's new wall, after the create and after
  *   the grant; every copy the GM sends names one player; a copy p2 forges for p3 is refused; and an ask with
  *   junk fields from p2 is answered to p2 alone, with p2's own copy, which holds nothing.
- * B (C2): the client's cut on the harness's minimal move backend. C (C3): the gap and the veto.
+ * B (C2): the client's cut, on the harness's minimal move backend (lib/shim.mjs buildPolygonBackends). Every client's
+ *   move backend is the module's, and none was told the passages cannot open; on p1 Aiko's token passes her
+ *   passage and is stopped beside it, while sight and a move with no token are stopped in it; every other token -
+ *   another character's on p1, p2 and the GM's, Aiko's own on p2, Chie's on p3 - is stopped in it, and on the GM's
+ *   browser Aiko's passes as on p1. C (C3): the gap and the veto.
  * D (C4): the GM's audit. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
@@ -168,6 +172,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
         J({ baseHits, scenes: (d3.world?.Scene ?? []).length, settings: Object.keys(JSON.parse(baseline).settings).length }));
 
     await phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
+    await phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -237,4 +242,47 @@ async function phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
     const copy2 = await known(p2, repoUrl);
     check("A: an ask from p2 with junk fields is answered to p2 alone, once, and p2's copy still holds nothing",
         answers.length === 1 && J(answers[0].to) === J([IDS.p2]) && J(copy2) === "{}", J({ answers, copy2 }));
+}
+
+const PHASE_B = "B: the client's cut - the move backend lets Aiko's token through her passage on p1, and nobody else's on any browser";
+
+/* Phase A's wall runs 1100-1400 at y 400 and its passage 1234.5-1300.5 (the marker): a step down across the
+   passage's middle, one across the wall beside it, the same through the passage for sight, and for a move with no
+   token - each asked of `CONFIG.Canvas.polygonBackends` on one client with one seeded token, as Foundry asks it
+   for a token's move (`source.object`, the placeable; the design's reading of 14.365, a live row is owed to the stage's AUDIT 9.2). True is "a
+   wall is in the way". */
+const crossing = (client, tokenId) => client.eval(`
+    const backends = CONFIG.Canvas.polygonBackends, object = canvas.tokens.get(${J(tokenId)}) ?? null;
+    const hit = (x, type, source) => backends[type].testCollision({ x, y: 350 }, { x, y: 450 },
+        { type, mode: "any", ...(source ? { source: { object } } : {}) });
+    return { scene: canvas.scene?.id ?? null, token: Boolean(object), through: hit(1267.5, "move", true), beside: hit(1150, "move", true),
+        sight: hit(1267.5, "sight", true), bare: hit(1267.5, "move", false) };`);
+
+async function phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
+    phase(PHASE_B, { flow: "secret-passages" });
+    /* The install, on every client: the PATCHES row's own probe, and no notification that the passages cannot open. */
+    const installs = {};
+    for (const [name, client] of Object.entries({ gm, p1, p2, p3 })) {
+        installs[name] = await client.eval(`
+            const { PATCHES } = await import("${repoUrl}/scripts/patches.mjs");
+            const told = globalThis.__notifications.filter(n => n.msg === game.i18n.localize("DRPG.Passage.engineOff")).length;
+            return { ...(PATCHES.find(p => p.file === "passages.mjs")?.probe?.() ?? {}), told };`);
+    }
+    check("B: on every client the move backend is the module's (the PATCHES row's probe), and nobody was told the passages cannot open",
+        Object.values(installs).every(r => J(r) === J({ present: true, ours: true, told: 0 })), J(installs));
+
+    const aiko = "TOKAIKO000000000", botan = "TOKBOTAN00000000", chie = "TOKCHIE000000000";
+    const on1 = await crossing(p1, aiko);
+    check("B: on p1 Aiko's token passes her passage and is stopped by the wall beside it; sight, and a move with no token, are stopped in the passage",
+        J(on1) === J({ scene: IDS.scene, token: true, through: false, beside: true, sight: true, bare: true }), J(on1));
+    /* The other roads: another character's token, Aiko's own on a browser whose copy is empty, and the GM's records,
+       which name Aiko alone. A token cut here that its browser's copy does not name is the passage on the wrong side. */
+    const whole = { scene: IDS.scene, token: true, through: true, beside: true, sight: true, bare: true };
+    const others = { p2Botan: await crossing(p2, botan), p2Aiko: await crossing(p2, aiko), p3Chie: await crossing(p3, chie),
+        p1Botan: await crossing(p1, botan), gmBotan: await crossing(gm, botan) };
+    check("B: every other token is stopped in the passage - Botan's on p2 and p1, Aiko's on p2, Chie's on p3, Botan's on the GM's - as a move with no token is",
+        Object.values(others).every(r => J(r) === J(whole)), J(others));
+    const gmAiko = await crossing(gm, aiko);
+    check("B: on the GM's browser, which reads the GMs' records, Aiko's token passes her passage and is stopped beside it, as on p1",
+        J(gmAiko) === J({ ...whole, through: false }), J(gmAiko));
 }

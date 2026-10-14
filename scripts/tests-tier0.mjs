@@ -9279,7 +9279,8 @@ const REGRESSIONS = [
          * a read), a member `.teleport` or `.movementAction`, and the string "displace" (exempt); ACT - the strings
          * "token.sendBack" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy) and
          * "passage.share" (record and copy); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
-         * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen); SCENE - `canvas.scene` or `canvas.edges`
+         * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen), and in those two a member `.edges` as
+         * well, a move polygon's walls (E79 C2); SCENE - `canvas.scene` or `canvas.edges`
          * in movement-audit.mjs (judge), which has no row and fails by design: the audit reads the token's own scene;
          * STORE - a `defineGmStore(` (record) or `defineGmCopy(` (copy) whose spec's `name` starts with "passage"; SET -
          * `SETTINGS.minePassages`'s three sources (the primary GM's push, a console's value, a stale copy; screen) and
@@ -9288,7 +9289,8 @@ const REGRESSIONS = [
          * the hooks that read a moved token, the options a revert and the GM's fallback gather carry, and the bridge's
          * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road. E79 C1 adds 12: the three
          * records and the copy (STORE), the copy's three sources (SET), the ask and the copy on both ends (ACT) and the
-         * wall a GM's new passage is held to (WALLS).
+         * wall a GM's new passage is held to (WALLS). E79 C2 adds 1: the move polygon's walls a token's own passages cut
+         * (WALLS).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9341,7 +9343,9 @@ const REGRESSIONS = [
             ["ACT passages-gm.mjs#onPassageRequest#passage.request -> copy", "judged on the primary GM with `senderOf` (a GM's ask is not answered); the answer is that user's copy alone, built from the records once the other GMs' are in (R555; 76 A)"],
             ["ACT passages-gm.mjs#pushPassageCopies#passage.rows -> screen", "the primary GM's push, to each player with `recipients` naming that player alone (R555, R560; 76 A)"],
             ["ACT passages.mjs#onPassageRows#passage.rows -> screen", "CLAIM: refused unless addressed to this user and sent by the primary GM; 76 A forges one from p2 and p3 refuses it (R555)"],
-            ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"]
+            ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"],
+            // ---- the way through (E79 C2)
+            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit judges the landed move (E79 C4)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };
@@ -9387,7 +9391,8 @@ const REGRESSIONS = [
                 }
                 if (AUDIT_FILES.test(file)) {
                     const sink = file === "movement-audit.mjs" ? "judge" : "screen";
-                    for (const m of blank.matchAll(/(?<!\.)\.\s*walls(?![\w$])/g)) add("WALLS", file, declAt(m.index), null, [sink]);
+                    const member = sink === "judge" ? /(?<!\.)\.\s*walls(?![\w$])/g : /(?<!\.)\.\s*(?:walls|edges)(?![\w$])/g;
+                    for (const m of blank.matchAll(member)) add("WALLS", file, declAt(m.index), null, [sink]);
                 }
                 if (file === "movement-audit.mjs") {
                     for (const m of blank.matchAll(/(?<![\w$.])canvas\s*\??\.\s*(scene|edges)(?![\w$])/g)) add("SCENE", file, declAt(m.index), m[1], ["judge"]);
@@ -9428,7 +9433,7 @@ const REGRESSIONS = [
                 + "function handleSendback(payload) {\n    return sendBack(payload, { ignoreWalls: true });\n}\n"],
             ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = tokenDoc.parent.walls;\n    return canvas.scene?.id ?? canvas?.edges;\n}\n"],
             ["passages.mjs", "export function requestPassages() {\n    game.socket.emit(\"module.danganronpa-rpg\", { action: 'passage.request' });\n}\n"
-                + "export function clipPassages(scene, wanted) {\n    return wanted.ignoreWalls ? [] : scene?.walls;\n}\n"],
+                + "export function clipPassages(polygon, wanted) {\n    return wanted.ignoreWalls ? [] : polygon?.edges;\n}\n"],
             ["passages-gm.mjs", "Hooks.on(\"updateWall\", onWallChanged);\nconst ACTION_PASSAGE_SHARE = \"passage.share\";\n"],
             ["gm-stores.mjs", "export const passageMapStore = defineGmStore({\n    name: \"passageMap\", key: SETTINGS.passageMap\n});\n"
                 + "export const passageCopy = defineGmCopy({ name: \"passages\", key: SETTINGS.minePassages });\n"
