@@ -33,7 +33,11 @@
  * GM's Despair and speaks with that GM's voice, not two separate assignments
  * to keep in sync. A token dragged off every mapped room sends that GM back
  * to the main room. (There is no "listen in by hand" any more - Dawid, 13.09:
- * LiveKit shows the listener's tile to the room, so it was never a secret.)
+ * LiveKit shows the listener's tile to the room, so it was never a secret.
+ * Since E78 the voice tile takes that dock off the screen, and what shows a
+ * listener now is the number on the tile's speaker button: every participant
+ * of the viewer's own LiveKit room, silent ones included - voice-tile.mjs
+ * `channelCount`, R550, E78 fix r1-G1.)
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";

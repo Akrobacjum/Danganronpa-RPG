@@ -51,6 +51,13 @@
  * microphone on that write itself, in push-to-talk too (LiveKitAVClient.ts:797-808, external; LIVE-E78-02). The
  * module never calls `toggleAudio` (R544). The speaker button shows how many people share this browser's Room and
  * is struck while Foundry's "mute all" is on, and opens the list.
+ * WHO IS LISTENING (E78 fix r1-G1, 14.10.2026; the review's SEC-R1-1). The dock drew a camera view for every
+ * participant of the Room, so a listener who never spoke was still on screen - which is what the owner's rule of 13.09
+ * against listening in by hand (voice.mjs's header) rests on. With the dock out of sight the speaker button's number
+ * is that signal: `channelCount` counts every remote participant of this browser's Room, silent or speaking, mapped
+ * to a user of this world or not (C4 counted only the mapped ones, so a participant avclient-livekit maps to nobody
+ * listened unseen), and the number stands on the button without a click, on the tile and in the stacked row, after
+ * every connect and disconnect (R550, scenario 75 phase F). Names stay the mapped participants' only (the list).
  *
  * THE LIST 'Who you hear' (E78 C5, 14.10.2026; the design's step 7, the owner's Q0 and Q4). The speaker button opens
  * `#drpg-voice-list`, a dialog beside the tile (not a pane: it cuts nothing of the curtain), one row per remote
@@ -534,8 +541,8 @@ export function voiceStep(watch = live, gone = null) {
         watch.phase = "holding";
         schedule(watch, "hold", HOLD_MS, () => startFade(watch));
     }
-    paintSpeaker(watch, ready.filter(id => id !== watch.shown).length);
-    watch.controls?.(watch);
+    paintSpeaker(watch, ready.filter(id => id !== watch.shown).length, gone);
+    watch.controls?.(watch, gone);
 }
 
 /** The hold is over: fade the portrait, then clear it - at once when the fade is 0 ms (reduced motion). */
@@ -607,9 +614,10 @@ function voicePortrait(who) {
  *
  * @param {object} watch
  * @param {number} [more]  the other audible speakers past the sticky rule
+ * @param {object} [gone]  a participant the Room has just said left, not counted
  * @returns {boolean}
  */
-function paintSpeaker(watch, more = 0) {
+function paintSpeaker(watch, more = 0, gone = null) {
     const tile = watch.tile;
     const face = tile?.querySelector(".drpg-voice-tile-face");
     if (!face) return false;
@@ -618,7 +626,7 @@ function paintSpeaker(watch, more = 0) {
     const image = voicePortrait(who);
     const next = {
         state: watch.room?.state !== "connected" ? "offline" : who ? "speaking" : "silent",
-        inChannel: String(channelCount(watch)),
+        inChannel: String(channelCount(watch, gone)),
         fading: Boolean(who) && watch.phase === "fading",
         name: who?.name ?? "",
         image,
@@ -662,11 +670,21 @@ function paintSpeaker(watch, more = 0) {
     return true;
 }
 
-/** How many people this browser shares its Room with: the remote participants mapped to a user. */
-function channelCount(watch) {
+/**
+ * How many people this browser shares its Room with: every remote participant, whether or not they speak and whether
+ * or not avclient-livekit maps them to a user of this world - each of them hears this room (E78 fix r1-G1). `gone`,
+ * a participant the Room has just said left, is not counted whether or not the Room still holds it (livekit-client's
+ * order is not read here, as in `voiceStep`).
+ *
+ * @param {object} watch
+ * @param {object} [gone]
+ * @returns {number}
+ */
+function channelCount(watch, gone = null) {
     const room = watch.room;
     if (room?.state !== "connected") return 0;
-    return [...(room.remoteParticipants?.values?.() ?? [])].filter(p => participantUser(watch.client, p, room)).length;
+    return [...(room.remoteParticipants?.values?.() ?? [])]
+        .filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant).length;
 }
 
 /**
@@ -809,12 +827,17 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
     return true;
 }
 
-/** Both buttons of the watch's tile, and its list while it is open, from this browser's facts now. */
-export function paintControls(watch = live) {
+/**
+ * Both buttons of the watch's tile, and its list while it is open, from this browser's facts now.
+ *
+ * @param {object} [watch]
+ * @param {object} [gone]  a participant the Room has just said left (`voiceStep`), not counted
+ */
+export function paintControls(watch = live, gone = null) {
     if (!watch?.tile) return;
     try {
         paintMic(watch.tile, micState());
-        paintSpeakerButton(watch.tile, { count: channelCount(watch), muteAll: watch.muteAll() });
+        paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
         error("Could not draw the voice tile's buttons", err);
@@ -1086,7 +1109,9 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
         .sort((a, b) => String(a.who.name).localeCompare(String(b.who.name)));
 
     putAttr(list.querySelector(".drpg-voice-list-muteall"), "aria-pressed", String(watch.muteAll() === true));
-    putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0);
+    // "Nobody else is in your channel" only when nobody is: a participant mapped to no user has no row, and is still
+    // there (E78 fix r1-G1).
+    putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0 || channelCount(watch) > 0);
     const rows = new Map([...body.children].map(row => [row.dataset.userId, row]));
     for (const [id, row] of rows) if (!ids.includes(id)) row.remove();
     people.forEach(({ id, user, who }, at) => {

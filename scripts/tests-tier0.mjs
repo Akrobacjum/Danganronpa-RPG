@@ -8963,7 +8963,8 @@ const REGRESSIONS = [
          * second place; this does not). The sinks: text (a name drawn as text), src (a portrait URL this client
          * fetches), which (which participant is drawn as which user, and who is shown speaking), volume, mic (the
          * viewer's own microphone), block (a GM's block of a microphone for everybody), dock (whether the camera
-         * dock is on screen), room (the LiveKit room this client stands in). Fourteen kinds, read live in the
+         * dock is on screen), room (the LiveKit room this client stands in), listeners (how many share the viewer's
+         * Room, which the hidden dock no longer shows). Fifteen kinds, read live in the
          * module's files with comments blanked, each place keyed by the top-level declaration it stands in (a
          * top-level `Hooks.on("<event>", ...)` by its event): WHO - every call of `displayNameFor(` (text) or
          * `voiceIdentity(` (text and src), not inside its own declaration; PEER - every call of
@@ -8981,7 +8982,8 @@ const REGRESSIONS = [
          * voice-panel.mjs, every sink that parses a string as markup, R503's list and `createElement("template")`
          * (text), which has no row and fails by design; STORE - `SETTINGS.voicePeerMutes`'s three sources (this
          * browser's own value, a console's, a stale one; volume) and WORLD - `SETTINGS.voiceTile`'s one (the GM's
-         * switch; dock), once each key exists.
+         * switch; dock), once each key exists; LISTEN - every call of `channelCount(` in voice.mjs, voice-client.mjs,
+         * voice-tile.mjs, voice-panel.mjs and camera-view.mjs, not inside its own declaration (listeners).
          * At C1 the module has five roads, census-1c.md's five pairs at dcfc31b, which E78 C0 did not move: the dock's
          * name plate (WHO), the three writers of the room voice-client.mjs stands in (SOCKET), and reconcileNow's
          * `toggleAudio(true)` (MIC) - the harm S16-10 names. E78 C2 removed that call and its row, leaving four; R544
@@ -9001,6 +9003,10 @@ const REGRESSIONS = [
          * has no road: 'Mute for me' is the volume set to 0, because avclient-livekit writes an element's `muted` from
          * `muteAll` at every attach (the design's reading, external). Measured 14.10.2026: the parse-only census at a
          * scratch commit of C5's scripts/ read 31 pairs against these 24 keys, none either side.
+         * E78 fix r1-G1 (14.10.2026; the review's SEC-R1-1) added the kind LISTEN and its three rows: the harm "somebody
+         * listening whom the viewer cannot see", which the WORLD row did not judge - it judges the dock's sound, and the
+         * dock's camera views were the only thing that showed a silent listener. LISTEN is the suite's own: the parse-only
+         * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9045,7 +9051,11 @@ const REGRESSIONS = [
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
             ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player is not measured here (LIVE-E78-06; R539)"],
-            ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541)"]
+            // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
+            ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
+            ["LISTEN voice-tile.mjs#paintSpeaker -> listeners", "the same count, written only as the tile's `data-in-channel` (no text, nothing a stylesheet draws); what the table sees is the button's (R550)"],
+            ["LISTEN voice-tile.mjs#paintList -> listeners", "'Nobody else is in your channel' is drawn only when the count is 0: a participant mapped to no user has no row and is still there (R550)"],
+            ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541); this row judges the sound only: who is listening, which the dock's camera views showed, is the LISTEN rows' (E78 fix r1-G1)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VOICE_FILES = /^(?:voice|voice-client|voice-tile|voice-panel|camera-view)\.mjs$/;
@@ -9055,7 +9065,7 @@ const REGRESSIONS = [
         const STORE_SOURCES = ["self", "console", "stale"], WORLD_SOURCES = ["gm"];
         const FIELD_SINKS = { WHO: { displayNameFor: ["text"], voiceIdentity: ["text", "src"] }, HOLD: { micHold: ["mic"], moduleHoldsMic: ["block"] } };
         const KIND_SINKS = { PEER: ["which"], SPEAK: ["which"], SIGNAL: ["which"], CLIENT: ["volume", "mic"], ELEM: ["volume"], MIC: ["mic"],
-            BLOCK: ["block"], SOCKET: ["room"], SRC: ["src"], MARKUP: ["text"], STORE: ["volume"], WORLD: ["dock"] };
+            BLOCK: ["block"], SOCKET: ["room"], SRC: ["src"], MARKUP: ["text"], STORE: ["volume"], WORLD: ["dock"], LISTEN: ["listeners"] };
         const censusOf = (sources, settings) => {
             const found = [];
             const add = (kind, file, decl, field) => {
@@ -9084,6 +9094,7 @@ const REGRESSIONS = [
                 if (VOICE_FILES.test(file)) for (const m of blank.matchAll(new RegExp(String.raw`\.\s*(muted|volume)${ASSIGN}`, "g"))) add("ELEM", file, declAt(m.index), m[1]);
                 for (const m of calls("toggleAudio")) add("MIC", file, declAt(m.index), null);
                 for (const m of calls("micHold|moduleHoldsMic")) if (!(file === "voice.mjs" && declAt(m.index) === m[1])) add("HOLD", file, declAt(m.index), m[1]);
+                if (VOICE_FILES.test(file)) for (const m of calls("channelCount")) add("LISTEN", file, declAt(m.index), null);
                 for (const m of code.matchAll(/BROADCAST_AUDIO/g)) {
                     if (blank[m.index] === " " || /\.\s*$/.test(blank.slice(Math.max(0, m.index - 4), m.index))) add("BLOCK", file, declAt(m.index), null);
                 }
@@ -9119,7 +9130,7 @@ const REGRESSIONS = [
             }
             return { unclassified, stale: [...rows].filter(key => !used.has(key)) };
         };
-        const KINDS = ["WHO", "PEER", "SPEAK", "SIGNAL", "CLIENT", "ELEM", "MIC", "HOLD", "BLOCK", "SOCKET", "SRC", "MARKUP", "STORE", "WORLD"];
+        const KINDS = ["WHO", "PEER", "SPEAK", "SIGNAL", "CLIENT", "ELEM", "MIC", "HOLD", "LISTEN", "BLOCK", "SOCKET", "SRC", "MARKUP", "STORE", "WORLD"];
         const planted = censusOf([
             ["camera-view.mjs", "function displayNameFor(user) {\n    return user?.name ?? \"\";\n}\nfunction relabel(box, user) {\n    box.textContent = displayNameFor(user);\n"
                 + "    box.querySelector(\"audio\").volume = 1;\n}\n"],
@@ -9136,6 +9147,7 @@ const REGRESSIONS = [
                 + "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n    await game.webrtc.client.toggleAudio(on);\n}\n"
                 + "function setPeerVolume(audio, v) {\n    audio.volume = v;\n}\n"
                 + "async function toggleBlock(user) {\n    if (moduleHoldsMic(user)) return;\n    await user.update({ \"permissions.BROADCAST_AUDIO\": false });\n}\n"
+                + "function channelCount(watch) {\n    return watch.room.remoteParticipants.size;\n}\nfunction paintControls(watch) {\n    return channelCount(watch);\n}\n"
                 + "Hooks.on(\"rtcSettingsChanged\", () => { ui.webrtc.setUserIsSpeaking = null; });\n"]
         ], { voicePeerMutes: "voicePeerMutes", voiceTile: "voiceTile" });
         equal(JSON.stringify(planted), JSON.stringify([
@@ -9148,6 +9160,7 @@ const REGRESSIONS = [
             "CLIENT voice-tile.mjs#toggleOwnMic -> volume", "CLIENT voice-tile.mjs#toggleOwnMic -> mic",
             "ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "MIC voice-tile.mjs#toggleOwnMic -> mic",
             "HOLD voice-tile.mjs#paintMic#micHold -> mic", "HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block",
+            "LISTEN voice-tile.mjs#paintControls -> listeners",
             "BLOCK voice-tile.mjs#toggleBlock -> block", "SRC voice-tile.mjs#paintSpeaker#url -> src", "MARKUP voice-tile.mjs#paintSpeaker#innerHTML -> text",
             ...STORE_SOURCES.map(source => `STORE settings.mjs#voicePeerMutes#${source} -> volume`), "WORLD settings.mjs#voiceTile#gm -> dock"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
@@ -9164,6 +9177,8 @@ const REGRESSIONS = [
             `the census read ${count("HOLD")} HOLD and ${count("CLIENT")} CLIENT - the microphone's hold (micState) and its one client write (toggleOwnMic) have no road`);
         // E78 C5's own: the GM's block (BLOCK in toggleBlock), 0 at C4's runtime - an assertion, for the same reason.
         ok(count("BLOCK") > 0, `the census read ${count("BLOCK")} BLOCK - the GM's block of a microphone (toggleBlock) has no road`);
+        // E78 fix r1-G1's own: with the dock out of sight nothing else shows a listener who never speaks.
+        ok(count("LISTEN") > 0, `the census read ${count("LISTEN")} LISTEN - nothing on the tile counts who is in the viewer's Room`);
         must(["WHO", "SOCKET", "PEER", "SPEAK", "SRC", "STORE", "WORLD", "HOLD", "CLIENT", "BLOCK"].every(kind => count(kind) > 0),
             `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
         const verdict = judge(found, VOICE_TILE_CENSUS);

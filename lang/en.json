@@ -344,7 +344,7 @@
       },
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
-        "hint": "Off brings Foundry's camera dock back for everyone."
+        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Off brings Foundry's camera dock back for everyone."
       }
     },
     "SearchTokens": {

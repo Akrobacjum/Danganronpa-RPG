@@ -340,7 +340,7 @@
       },
       "voiceTile": {
         "name": "Kafel głosu zamiast doku kamer",
-        "hint": "Wyłączone przywraca wszystkim dok kamer Foundry."
+        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Wyłączone przywraca wszystkim dok kamer Foundry."
       },
       "highContrast": {
         "name": "Wysoki kontrast",

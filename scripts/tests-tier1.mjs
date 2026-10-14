@@ -12853,6 +12853,64 @@ const INVARIANTS = [
             + "speech and loss 2 s later; the second's speech; no client and a Room without `on`], the hook in registerVoiceTile, attachRoom in refreshVoiceTile");
     }],
 
+    ["R550 - who is listening is on the voice tile without a click: the speaker button's number counts every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, and follows each connect and disconnect whichever order the Room tells it in; the list says nobody else is there only when nobody is", async () => {
+        /*
+         * E78 fix r1-G1, 14.10.2026; the review's SEC-R1-1 (major). The owner's rule of 13.09 against listening in by
+         * hand (voice.mjs's header) rested on the camera dock, which draws a view for every participant of the Room;
+         * the voice tile takes the dock off the screen (C3), and C4's number on the speaker button counted only the
+         * participants avclient-livekit maps to a user of this world - so a participant it maps to nobody stood in the
+         * Room unseen. The harm read here, on a bench (`voiceTileRig`, its watch painting the buttons with
+         * `paintControls` as the screen's tile does): two accounts and a participant mapped to nobody stand silent in
+         * the viewer's Room, the button never clicked. Then they leave one by one - the first with the Room's
+         * `participantDisconnected` before the Room lets it go (livekit-client's order is not read by the module, as
+         * `voiceStep` says), the others as the harness's shim does it - and the list, opened while only the unmapped
+         * participant is left, must not say that nobody else is there. The real screen - the dock hidden, the button
+         * in the stacked row and its computed display, on p1 - is scenario 75's phase F.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's in the viewer's Room");
+        const V = await import("./voice-tile.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const rig = voiceTileRig(V, [b, d], { controls: (watch, gone) => V.paintControls(watch, gone) });
+        const room = rig.makeRoom([b.id, d.id]);
+        const button = rig.tile.querySelector(".drpg-voice-speaker"), badge = button.querySelector(".drpg-voice-count");
+        const read = () => [badge.hidden ? "-" : badge.textContent, rig.read().channel, button.getAttribute("aria-expanded")];
+        const alone = () => {
+            const list = rig.watch.list;
+            return list ? [list.querySelectorAll(".drpg-voice-row").length, !list.querySelector(".drpg-voice-list-alone").hidden] : null;
+        };
+        const stranger = { identity: "drpg-r550-mapped-to-nobody", isLocal: false };
+        const seen = [];
+        document.body.append(rig.tile);
+        try {
+            V.attachRoom(rig.clientOf(room), rig.watch);
+            seen.push(read());
+            room.remoteParticipants.set(stranger.identity, stranger);
+            room.emit("participantConnected", stranger);
+            seen.push(read());
+            const first = room.remoteParticipants.get(b.id);
+            room.emit("participantDisconnected", first);
+            seen.push(read());
+            room.remoteParticipants.delete(b.id);
+            rig.leave(room, d.id);
+            seen.push(read());
+            V.openVoiceList(rig.watch);
+            seen.push(alone());
+            rig.leave(room, stranger.identity);
+            seen.push(read(), alone());
+        } finally {
+            V.closeVoiceList(rig.watch, { focus: false });
+            rig.watch.list?.remove();
+            V.detachRoom(rig.watch);
+            rig.tile.remove();
+        }
+        equal(JSON.stringify(seen), JSON.stringify([["2", "2", "false"], ["3", "3", "false"], ["2", "2", "false"], ["1", "1", "false"], [0, false],
+            ["-", "0", "true"], [0, true]]),
+        "[the speaker's number (\"-\" hidden), the tile's data-in-channel and the button's aria-expanded: two accounts silent in the Room, never "
+            + "clicked; a participant mapped to nobody joins; the first account's departure told before the Room lets it go; the second's as the "
+            + "shim tells it | the list open with only the unmapped participant left: its rows and whether it says nobody else is there | the "
+            + "unmapped participant gone: the number, and the list]");
+    }],
+
     ["R541 - the camera dock is out of sight and its sound stays: with `drpg-dock-hidden` on the body `#camera-views` and a camera popout compute `display: none` while they and their `<audio>` stay in the document; the dock is hidden only while the tile is available and `voiceTile` is on, a world setting of the GM's, on by default; off brings it back", async () => {
         /*
          * E78 C3, 13.10.2026; the A9 design's R394 (T6; the E78 plan's D2 gave it this number), the owner's Q9: the dock

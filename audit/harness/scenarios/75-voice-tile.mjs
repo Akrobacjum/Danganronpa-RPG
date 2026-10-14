@@ -57,6 +57,13 @@
  *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count. The check asks
  *   for what E19 will make true - the room kept, nobody in the main room hearing p2 - and stays an expected red
  *   while it measured the kill, the room before, the secret and p1's open list in the main room.
+ * F (E78 fix r1-G1; the review's SEC-R1-1 and the goal's S16-10 (d)): with the dock hidden. p1 in the main room with
+ *   the GM and p2, nobody speaking: the number on the speaker, in the tiles' row and drawn without a click, says 2; a
+ *   participant avclient-livekit maps to no user (put in p1's Room by hand) makes it 3, and their leaving 2. Then the
+ *   four a player reached only through the dock before E78 - their microphone, a volume, the microphone device and
+ *   the mode - each found on screen and used: the tile's microphone, p2's slider in 'Who you hear', and the gear (the
+ *   corner's `#drpg-sound-launcher`) with its Voice section, two devices put on p1's AVClient for the phase (the
+ *   shim names none). Each writes p1's own A/V settings; the GM's and p2's are as they were. All put back after.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -69,7 +76,8 @@ export const layers = ["ci"];
    14.10.2026, under the harness lock): 18 checks in 6.7-6.9 s, 10.7 s of wall time in the one run that was timed - it stands still.
    With phase D (C6, two green runs on 14.10.2026, under the harness lock):
    20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. With phase E (C7, two green runs on 14.10.2026, under the harness lock):
-   21 checks, 1 of them the expected red, in 8.4-8.6 s - it stands. */
+   21 checks, 1 of them the expected red, in 8.4-8.6 s - it stands. With phase F (E78 fix r1-G1, one green run on 14.10.2026, under
+   the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -593,4 +601,98 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || ""),
         J({ victim, heard }),
         { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true });
+
+    phase("F: with the dock hidden, p1 sees who is in p1's Room without a click, and reaches p1's microphone, a volume, the microphone device and the mode from the tile and the gear");
+    // E78 fix r1-G1 (the review's SEC-R1-1 and the goal's S16-10 (d)). p1 back in the main room with the GM and p2,
+    // nobody speaking; a participant avclient-livekit maps to no user of this world is put in p1's Room by hand (the
+    // shim's `join` takes users only) and taken out again before anything reconnects.
+    const fBefore = [await gm.eval(snap), await p2.eval(snap)];
+    const f = await p1.eval(`${micJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const settings = game.webrtc.settings, me = game.user.id, p2Id = "${IDS.p2}", av = game.webrtc.client;
+        const button = () => document.querySelector("#drpg-voice-tile .drpg-voice-speaker");
+        const seen = () => {
+            const el = button(), badge = el?.querySelector(".drpg-voice-count");
+            return { count: badge && !badge.hidden ? badge.textContent : "", shown: badge ? getComputedStyle(badge).display !== "none" : false,
+                button: el ? getComputedStyle(el).display !== "none" : false, row: el?.closest("#drpg-tile-row") ? true : false,
+                expanded: el?.getAttribute("aria-expanded") ?? null };
+        };
+        const list = () => document.getElementById("drpg-voice-list");
+        const panel = () => document.querySelector(".drpg-window-look form fieldset.drpg-voice-panel");
+        const client = () => JSON.parse(JSON.stringify(settings.client ?? {}));
+        __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])} });
+        const serial = __liveKit.read().serial;
+        await game.webrtc.connect();
+        await until(() => __liveKit.read().serial !== serial && __liveKit.read().state === "connected");
+        await until(() => seen().count === "2");
+        const out = { installed: true, dock: dock(), silent: seen(), before: client() };
+        const room = lk.liveKitRoom, nobody = { identity: "s75-mapped-to-nobody", sid: "PA_s75", isLocal: false, isSpeaking: false, audioLevel: 0, fvttUserId: null };
+        room.remoteParticipants.set(nobody.identity, nobody);
+        room.emit("participantConnected", nobody);
+        await until(() => seen().count === "3", 1000);
+        out.unmapped = seen();
+        room.remoteParticipants.delete(nobody.identity);
+        room.emit("participantDisconnected", nobody);
+        await until(() => seen().count === "2", 1000);
+        out.left = seen();
+
+        const windows = globalThis.__dialogWindows, sources = Object.getOwnPropertyDescriptor(av, "getAudioSources");
+        const was = { muted: settings.client.users?.[me]?.muted ?? false, volume: settings.client.users?.[p2Id]?.volume,
+            audioSrc: settings.client.audioSrc, mode: settings.client.voice?.mode };
+        const reached = {};
+        try {
+            document.querySelector("#drpg-voice-tile .drpg-voice-mic")?.click();
+            reached.mute = await until(() => settings.client.users?.[me]?.muted === true);
+            button()?.click();
+            await until(() => list()?.hidden === false);
+            const slider = list()?.querySelector('.drpg-voice-row[data-user-id="' + p2Id + '"] .drpg-voice-row-volume');
+            if (slider) {
+                slider.value = "0.2";
+                slider.dispatchEvent(new Event("change"));
+            }
+            reached.volume = await until(() => typeof settings.client.users?.[p2Id]?.volume === "number" && settings.client.users[p2Id].volume !== was.volume);
+            if (list()?.hidden === false) button()?.click();
+            // The shim names no device (C's reading); two are put on p1's AVClient for this phase, as a browser that
+            // has allowed the microphone lists them.
+            Object.defineProperty(av, "getAudioSources", { configurable: true, writable: true, value: async () => ({ "s75-mic-a": "Mic A", "s75-mic-b": "Mic B" }) });
+            globalThis.__dialogWindows = true;
+            document.getElementById("drpg-sound-launcher")?.click();
+            await until(() => Boolean(panel()));
+            const mic = panel()?.querySelector("select[name='voice:audioSrc']");
+            if (mic) {
+                mic.value = "s75-mic-b";
+                mic.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            reached.device = await until(() => settings.client.audioSrc === "s75-mic-b");
+            const ptt = panel()?.querySelector("[name='voice:mode'][value='" + (was.mode === "ptt" ? "always" : "ptt") + "']");
+            if (ptt) {
+                ptt.checked = true;
+                ptt.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            reached.mode = await until(() => (settings.client.voice?.mode ?? "always") !== (was.mode ?? "always"));
+            out.used = client();
+        } finally {
+            const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
+            closeOpen("drpg-window-look");
+            globalThis.__dialogWindows = windows;
+            if (sources) Object.defineProperty(av, "getAudioSources", sources);
+            else delete av.getAudioSources;
+            if (list()?.hidden === false) button()?.click();
+            settings.set("client", "users." + me + ".muted", was.muted);
+            if (was.volume === undefined) settings.set("client", "users." + p2Id + ".volume", 1);
+            else settings.set("client", "users." + p2Id + ".volume", was.volume);
+            settings.set("client", "audioSrc", was.audioSrc ?? "default");
+            settings.set("client", "voice.mode", was.mode ?? "always");
+        }
+        out.reached = reached;
+        return out;`, { timeout: 30000 });
+    const fAfter = [await gm.eval(snap), await p2.eval(snap)];
+    const onScreen = count => ({ count, shown: true, button: true, row: true, expanded: "false" });
+    check("F: with the dock hidden p1 sees who is in p1's Room without a click - the number on the speaker in the tiles' row says 2 for the GM and p2 silent, 3 while a participant mapped to no user is in the Room, 2 when they leave",
+        f.installed === true && f.dock?.hidden === true && f.dock.display === "none"
+            && J(f.silent) === J(onScreen("2")) && J(f.unmapped) === J(onScreen("3")) && J(f.left) === J(onScreen("2")),
+        J({ dock: f.dock, silent: f.silent, unmapped: f.unmapped, left: f.left }));
+    check("F: with the dock hidden p1 reaches the four from the tile and the gear - p1's microphone on the tile, p2's volume in 'Who you hear', the microphone device and the mode in the gear's Voice section - each used and written in p1's own settings; the GM's and p2's are as they were",
+        J(f.reached) === J({ mute: true, volume: true, device: true, mode: true }) && J(fAfter) === J(fBefore),
+        J({ reached: f.reached, used: f.used, before: f.before, othersBefore: fBefore, othersAfter: fAfter }));
 }
