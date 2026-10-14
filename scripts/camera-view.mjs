@@ -187,11 +187,14 @@ function displayNameFor(user) {
  * `avatar`, else `null`. Never a token's art, and never a character this
  * account was not already named by: the portrait cannot be another's (R542).
  * Read by the voice tile (E78 C3) and the list (C6) as text and a checked path.
+ * `faces` is both candidates in that order, empty ones left out (E78 fix h76-HF1, round 1's sec SEC-R1-4):
+ * the tile draws the first its check accepts, so a character still on Foundry's default `.svg`, which the
+ * check refuses, no longer hides an account's avatar that passes (measured by the review: no portrait).
  */
 export function voiceIdentity(user) {
     if (!user) return null;
     const actor = voiceActorFor(user);
-    return { name: nameFor(user, actor), img: actor?.img || user.avatar || null };
+    return { name: nameFor(user, actor), img: actor?.img || user.avatar || null, faces: [actor?.img, user.avatar].filter(Boolean) };
 }
 
 /**

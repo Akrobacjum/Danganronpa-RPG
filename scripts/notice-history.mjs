@@ -54,7 +54,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getClock, moduleLanguage } from "./settings.mjs";
-import { debug, warn, error } from "./utils.mjs";
+import { debug, warn, error, forgeAsset } from "./utils.mjs";
 import { cleanCardHtml, cardMeta } from "./secret.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 
@@ -236,7 +236,10 @@ function imageAllowed(src) {
     if (!text) return false;
     if (IMAGE_DATA.test(text)) return true;
     const url = addressOf(text);
-    return Boolean(url) && /^https?:$/.test(url.protocol) && url.origin === addressOf("")?.origin;
+    // This page's files, or on The Forge its Assets Library's (E78 fix h76-HF1, 14.10.2026; read in the code: an
+    // `<img>` of that host, where The Forge keeps a game's pictures, was dropped from the history). The one rule
+    // `safeRoomImage` reads, `forgeAsset`; R546 reads both.
+    return Boolean(url) && /^https?:$/.test(url.protocol) && (url.origin === addressOf("")?.origin || forgeAsset(url));
 }
 
 function linkAllowed(a) {

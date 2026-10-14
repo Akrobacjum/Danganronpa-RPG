@@ -36,6 +36,35 @@ export function debug(...args) {
     if (on) console.debug(`${MODULE_ID} |`, ...args);
 }
 
+/**
+ * Whether `url` (a parsed URL) is a file of The Forge's Assets Library while this game runs on The Forge
+ * (E78 fix h76-HF1, 14.10.2026). The one origin a picture may come from besides this page's: The Forge
+ * serves a user's files from `https://assets.forge-vtt.com/<the user's id>/...` and its file picker hands
+ * out those absolute URLs, so every room picture a GM picked there was refused as another host (the
+ * owner's report on 1.2.76, 13.10). Read from The Forge's own guide (forums.forge-vtt.com/t/98008), not
+ * measured: this repository has no Forge page, so `ForgeVTT.usingTheForge` and `ASSETS_LIBRARY_URL_PREFIX`
+ * are read as that guide names them, the prefix only for its origin, and the guide's host when the field
+ * is no URL. One origin, `https:` only, never a pattern of hosts; off The Forge always false. Read by
+ * vault.mjs `safeRoomImage` (the room picture and the voice tile's portraits) and notice-history.mjs
+ * `imageAllowed` - the module's two checks of "a picture of this game's files".
+ *
+ * @param {URL} url
+ * @returns {boolean}
+ */
+export function forgeAsset(url) {
+    const forge = globalThis.ForgeVTT;
+    if (forge?.usingTheForge !== true || url?.protocol !== "https:") return false;
+    let origin = "https://assets.forge-vtt.com";
+    if (typeof forge.ASSETS_LIBRARY_URL_PREFIX === "string") {
+        try {
+            origin = new URL(forge.ASSETS_LIBRARY_URL_PREFIX).origin;
+        } catch {
+            // Not a URL: the guide's host stands.
+        }
+    }
+    return url.origin === origin;
+}
+
 /* ==========================================================================
  * THIS SESSION'S FAILURES
  * --------------------------------------------------------------------------

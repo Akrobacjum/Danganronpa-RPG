@@ -11173,6 +11173,96 @@ const INVARIANTS = [
             + "the tile's window's header controls left, another ImagePopout's left, [the window's heading reads the room's name, "
             + "elements in it, what the name's markup ran]]");
     }],
+    ["R546 - on The Forge a picture of its Assets Library is a picture of this game: safeRoomImage keeps it as its full address under every other refusal, the room tile, the voice tile, its list and the notice history draw it; off The Forge it is refused; a voice is drawn with the first of its two portraits the check accepts", async () => {
+        /*
+         * E78 fix h76-HF1, 14.10.2026. The owner, at the table on The Forge on 1.2.76: every picture Room Setup was
+         * given was refused, whatever its format ("the picture was not saved"). The Forge serves a user's files from
+         * `https://assets.forge-vtt.com/<the user's id>/...` and its file picker hands out those absolute URLs (its
+         * guide, forums.forge-vtt.com/t/98008); `safeRoomImage` took this page's origin only. The exact path the
+         * owner's picker wrote was not obtained, so the rows rest on the prefix's origin alone. `globalThis.ForgeVTT`
+         * is a stand-in `{ usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX }`, put back in `finally`; what The Forge's
+         * own object holds at a table is the LIVE-E78 row. With it: (1) `safeRoomImage` keeps two Library pictures
+         * as their full address (a `:443` answered without it) and two of R505's KEPT rows as before; it refuses
+         * another host, a host that only starts with the Library's, `http:` to the Library, a query, a fragment, a
+         * `..`, a `%2f`, a gif, an svg and a name with a password; every answer is a fixed point; a prefix that is no
+         * URL keeps the guide's host, and an `http:` prefix opens no `http:` picture. (2) The room tile painted on a box in no document: the art layer and the narrow
+         * row's thumbnail. (3) The voice tile's bench (`voiceTileRig`, as R536's) with a speaker whose character's
+         * picture is in the Library: the tile's art layer and the art of their row in the list 'Who you hear'. (4)
+         * `noticeSnapshot` keeps an `<img>` of it. Then with `usingTheForge` false and with no `ForgeVTT`: the same
+         * readings refuse it. Last, round 1's sec SEC-R1-4 (the same chain of candidates): a character still on
+         * Foundry's default `icons/svg/mystery-man.svg` with an account avatar that passes is drawn with the avatar,
+         * on the tile and in the list. Room Setup's Apply and `setVaultRoom` storing a Library picture, and a
+         * player's tile drawing it, are scenario 74's phase K (they write the world).
+         * Red at fe867b4: every Library row refused, nothing drawn, the avatar behind the svg not drawn.
+         */
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's to stand as the speaker");
+        const V = await import("./vault.mjs"), T = await import("./room-tile.mjs"), VT = await import("./voice-tile.mjs");
+        const { noticeSnapshot } = await import("./notice-history.mjs");
+        const [b] = game.users.filter(user => user.id !== game.user.id && !user.isGM);
+        const LIB = "https://assets.forge-vtt.com/", HALL = `${LIB}r546user/rooms/hall.png`, DORM = `${LIB}r546user/rooms/Dorm%20A.webp`;
+        const FACE = `${LIB}r546user/faces/aiko.webp`, AVATAR = "worlds/suite/r546-avatar.webp";
+        const origin = new URL(document.baseURI).origin;
+        const KEPT = [[HALL, HALL], [DORM, DORM], ["https://assets.forge-vtt.com:443/r546user/rooms/hall.png", HALL],
+            ["  worlds/suite/rooms/hall.webp  ", "worlds/suite/rooms/hall.webp"], [`${origin}/worlds/suite/hall.jpg`, "/worlds/suite/hall.jpg"]];
+        const REFUSED = ["https://evil.example/r546user/hall.png", "https://assets.forge-vtt.com.evil.example/hall.png",
+            "http://assets.forge-vtt.com/r546user/hall.png", `${HALL}?v=2`, `${HALL}#top`, `${LIB}r546user/../hall.png`, `${LIB}r546user%2fhall.png`,
+            `${LIB}r546user/hall.gif`, `${LIB}r546user/plan.svg`, "https://name:word@assets.forge-vtt.com/r546user/hall.png"];
+        const judge = path => { try { return V.safeRoomImage(path); } catch (err) { return `throws ${err?.name}`; } };
+        const roomTile = image => {
+            const box = document.createElement("section");
+            T.paintRoomTile(box, { state: "room", room: "R546 Hall", sceneId: "SUITER546SCENE00", description: "R546", image,
+                tokens: { max: 3, left: 2, sealed: false }, project: true });
+            return [box.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? null, box.querySelector(".drpg-room-tile-thumb > img")?.getAttribute("src") ?? null];
+        };
+        // The list's settings and mutes as R538's, writing nothing: the row is painted and read, never changed.
+        const settings = { client: { muteAll: false, users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+        const LIST = { settings: () => settings, mutes: { read: () => ({}), write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false };
+        const voice = (img, avatar) => {
+            const userOf = id => (id === b.id ? { id, name: "R546 account", isGM: false, avatar, character: { name: "R546 Speaker", img } } : null);
+            const rig = voiceTileRig(VT, [b], { fade: () => 840, userOf, ...LIST });
+            const room = rig.makeRoom([b.id]);
+            VT.attachRoom(rig.clientOf(room), rig.watch);
+            rig.speak(room, [b.id]);
+            rig.advance(250);
+            const list = VT.openVoiceList(rig.watch);
+            const row = list?.querySelector(`.drpg-voice-row[data-user-id="${b.id}"] .drpg-voice-row-art`);
+            const read = [rig.read().art || "none", row ? row.style.getPropertyValue("background-image") || "none" : "no row"];
+            VT.closeVoiceList(rig.watch, { focus: false });
+            list?.remove();
+            return read;
+        };
+        const notice = () => noticeSnapshot(`<p>R546 <img src="${FACE}" alt="Aiko"></p>`, { gm: false }).querySelector("img")?.getAttribute("src") ?? null;
+        const readings = () => [judge(HALL), roomTile(HALL), voice(FACE, null), notice()];
+        const had = Object.getOwnPropertyDescriptor(globalThis, "ForgeVTT");
+        const forge = value => Object.defineProperty(globalThis, "ForgeVTT", { configurable: true, writable: true, value });
+        const every = [...KEPT.map(([path]) => path), ...REFUSED];
+        let on, fallback, off, gone, avatar;
+        try {
+            forge({ usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: LIB });
+            on = [KEPT.map(([path]) => judge(path)), REFUSED.map(judge), every.filter(path => judge(judge(path)) !== judge(path)), readings()];
+            fallback = [[7, HALL], ["no address", HALL], ["http://assets.forge-vtt.com/", "http://assets.forge-vtt.com/r546user/rooms/hall.png"]]
+                .map(([prefix, path]) => {
+                    forge({ usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: prefix });
+                    return judge(path);
+                });
+            forge({ usingTheForge: false, ASSETS_LIBRARY_URL_PREFIX: LIB });
+            off = readings();
+            delete globalThis.ForgeVTT;
+            gone = readings();
+            avatar = voice("icons/svg/mystery-man.svg", AVATAR);
+        } finally {
+            if (had) Object.defineProperty(globalThis, "ForgeVTT", had);
+            else delete globalThis.ForgeVTT;
+        }
+        const NONE = [null, ["", null], ["none", "none"], null];
+        equal(JSON.stringify([on, fallback, off, gone, avatar]), JSON.stringify([
+            [KEPT.map(([, kept]) => kept), REFUSED.map(() => null), [], [HALL, [`url("${HALL}")`, HALL], [`url("${FACE}")`, `url("${FACE}")`], FACE]],
+            [HALL, HALL, null], NONE, NONE, [`url("${AVATAR}")`, `url("${AVATAR}")`]]),
+            "on The Forge [each kept path as answered], [each refused one: null], [the paths whose answer is not its own answer], [safeRoomImage, the room tile's "
+            + "art and thumbnail, the voice tile's art and its row's in the list, the notice history's img, for a Library picture]; [a Library picture with a "
+            + "prefix that is a number and one that is no URL; an http: one with an http: prefix]; [the four readings with usingTheForge false]; [with no ForgeVTT]; [the voice tile's and the "
+            + "list's art for a character on Foundry's default svg with an avatar that passes]");
+    }],
     ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
@@ -12310,7 +12400,9 @@ const INVARIANTS = [
          * account's name with none set), and an account with no character (against the copy). In the source, comments
          * stripped: `voiceIdentity` and `voiceActorFor` read no token or texture, and `displayNameFor` and
          * `voiceIdentity` both go through `voiceActorFor` - one actor, two surfaces.
-         * Red before C2: camera-view.mjs exported no `voiceIdentity`.
+         * Red before C2: camera-view.mjs exported no `voiceIdentity`. E78 fix h76-HF1 (14.10.2026) adds `faces`, the
+         * character's picture and the avatar in that order with empty ones left out - the voice tile draws the
+         * first its check accepts (R546) - to the copy and to the three plain accounts' readings.
          */
         const C = await import("./camera-view.mjs");
         ok(typeof C.voiceIdentity === "function", "camera-view.mjs has no `voiceIdentity` - the voice tile has no name or portrait to ask for");
@@ -12329,7 +12421,7 @@ const INVARIANTS = [
                 actor = game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER")) ?? null;
                 name = actor?.name ?? user.name;
             }
-            return { name, img: actor?.img || user.avatar || null };
+            return { name, img: actor?.img || user.avatar || null, faces: [actor?.img, user.avatar].filter(Boolean) };
         };
         const token = { texture: { src: "r542-token.webp" } };
         const assigned = { id: "R542ASSIGNED0000", name: "r542-account", isGM: false, avatar: "r542-avatar.webp",
@@ -12348,8 +12440,9 @@ const INVARIANTS = [
             JSON.stringify(C.voiceIdentity(nobody)) === JSON.stringify(reference(nobody)), C.voiceIdentity(null),
             /token|texture/i.test(identity + actorOf),
             /voiceActorFor\(user\)/.test(fnSource(camera, "displayNameFor")), /voiceActorFor\(user\)/.test(identity)]),
-        JSON.stringify([[], { name: "R542 Assigned", img: "r542-portrait.webp" }, { name: "R542 Assigned", img: "r542-avatar.webp" },
-            { name: "R542 GM", img: null }, true, null, false, true, true]),
+        JSON.stringify([[], { name: "R542 Assigned", img: "r542-portrait.webp", faces: ["r542-portrait.webp", "r542-avatar.webp"] },
+            { name: "R542 Assigned", img: "r542-avatar.webp", faces: ["r542-avatar.webp"] },
+            { name: "R542 GM", img: null, faces: [] }, true, null, false, true, true]),
         "[the accounts of this world whose voice name or portrait is not the dock's; an assigned character with a portrait; one without; a GM with no "
             + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
             + "voiceIdentity through voiceActorFor]");

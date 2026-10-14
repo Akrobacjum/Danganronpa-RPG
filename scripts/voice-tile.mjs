@@ -586,6 +586,21 @@ function cancel(watch, slot) {
 const painted = new WeakMap();
 
 /**
+ * A voice's portrait: the first of `voiceIdentity`'s `faces` that `safeRoomImage` accepts, else `null` (E78 fix
+ * h76-HF1, 14.10.2026). Until then the tile judged `img` alone, the character's picture before the avatar, so a
+ * character on Foundry's default `.svg` (refused) drew no face though the avatar would pass (round 1's sec
+ * SEC-R1-4, measured there). On The Forge `safeRoomImage` also takes the Assets Library, so a face kept there is
+ * drawn (R546). The tile and the list read it alike.
+ */
+function voicePortrait(who) {
+    for (const path of who?.faces ?? []) {
+        const image = safeRoomImage(path);
+        if (image) return image;
+    }
+    return null;
+}
+
+/**
  * Draw the watch's speaker on its tile: the name as `textContent`, the portrait as a checked path in the art
  * layer's `url()`, '+N' for the others this browser hears speaking, and the state the stylesheets read. Writes
  * only the fields that differ from what the tile shows; returns whether it wrote anything.
@@ -600,7 +615,7 @@ function paintSpeaker(watch, more = 0) {
     if (!face) return false;
     const user = watch.shown ? watch.userOf(watch.shown) : null;
     const who = user ? voiceIdentity(user) : null;
-    const image = who?.img ? safeRoomImage(who.img) : null;
+    const image = voicePortrait(who);
     const next = {
         state: watch.room?.state !== "connected" ? "offline" : who ? "speaking" : "silent",
         inChannel: String(channelCount(watch)),
@@ -1079,7 +1094,7 @@ export function paintList(watch = live, { holds = user => moduleHoldsMic(user) }
         if (body.children[at] !== row) body.insertBefore(row, body.children[at] ?? null);
         const name = String(who.name ?? "");
         putText(row.querySelector(".drpg-voice-row-name"), name);
-        const image = who.img ? safeRoomImage(who.img) : null;
+        const image = voicePortrait(who);
         const art = row.querySelector(".drpg-voice-row-art");
         if (paintedArt.get(art) !== image) {
             paintedArt.set(art, image);
