@@ -81,8 +81,14 @@
  * outside it close the list and give the focus back to the speaker button; Tab stays inside it.
  *
  * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
- * and set an element's volume only in `setPeerVolume`. Where the tile stands is an interim rule in danganronpa.css
- * until E78 C6 cuts it a pane of the curtain.
+ * and set an element's volume only in `setPeerVolume`.
+ *
+ * Where the tile stands (E78 C6): under Stained Glass, a fixed block of the curtain's (glass.mjs `voice-block`) at
+ * the right wall under the Projects tray, with a pane of its own and its portrait on the whole pane (`seatVoiceArt`
+ * moves the art layer to the body, so the layer is kept by the tile here rather than looked up in its face); on a
+ * stacked screen, a part of the tiles' row beside the room tile (narrow.mjs `tileRow`); under Monokuma Legacy, the
+ * interim corner in danganronpa.css. Nothing a speaker changes recuts the glass: the curtain is told only when the
+ * tile is built or goes.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -94,6 +100,8 @@ import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
 import { error, plural } from "./utils.mjs";
+import { refreshGlass, seatVoiceArt } from "./glass.mjs";
+import { tileRow } from "./narrow.mjs";
 
 const TILE_ID = "drpg-voice-tile";
 
@@ -126,6 +134,9 @@ let live = null;
 
 /** Each tile's watch, so a tile's speaker button opens its own list (the suite builds tiles of its own). */
 const watches = new WeakMap();
+
+/** Each tile's portrait layer, which glass.mjs `seatVoiceArt` may have moved out of the tile onto its pane. */
+const arts = new WeakMap();
 
 /** The list's id on the screen's tile. */
 const LIST_ID = "drpg-voice-list";
@@ -212,8 +223,19 @@ export function ensureVoiceTile() {
         tile = buildVoiceTile();
         tile.id = TILE_ID;
     }
-    if (!tile.isConnected) document.body.append(tile);
+    if (!tile.isConnected) {
+        /* In the tiles' row on a stacked screen, as room-tile.mjs puts its own; else in the body, where the curtain
+           seats it. A new block of the curtain's: one cut for it, and none after (scenario 75 phase D). */
+        (tileRow() ?? document.body).append(tile);
+        recutForTile();
+    }
     return tile;
+}
+
+/* The curtain's pane for the tile (glass.mjs `voice-block`) is cut when the tile comes or goes, and only while a
+   curtain stands: at `ready` the curtain is mounted after the tile (module.mjs) and finds it there. */
+function recutForTile() {
+    if (document.body.classList.contains("drpg-curtain-on")) refreshGlass();
 }
 
 /**
@@ -239,6 +261,7 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
     const face = textNode("div", "drpg-voice-tile-face", "");
     face.hidden = true;
     const art = textNode("div", "drpg-voice-tile-art", "");
+    art.hidden = true;
     art.setAttribute("aria-hidden", "true");
     const plate = textNode("div", "drpg-voice-tile-plate", "");
     const more = textNode("span", "drpg-voice-tile-more", "");
@@ -246,6 +269,7 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
     plate.append(textNode("span", "drpg-voice-tile-speaking", game.i18n.localize("DRPG.Voice.tile.speaking")),
         textNode("span", "drpg-voice-tile-name", ""), more);
     face.append(art, plate);
+    arts.set(tile, art);
 
     const mic = miniButton("drpg-voice-mic", "mic", game.i18n.localize("DRPG.Voice.mic.mute"));
     mic.setAttribute("aria-pressed", "false");
@@ -590,20 +614,24 @@ function paintSpeaker(watch, more = 0) {
     if (!changed.length) return false;
     painted.set(tile, next);
 
+    const art = arts.get(tile) ?? null;
     if (changed.includes("state")) {
         tile.dataset.state = next.state;
         face.hidden = !who;
+        if (art) art.hidden = !who;
         const nobody = tile.querySelector(".drpg-voice-tile-nobody");
         if (nobody) nobody.hidden = Boolean(who);
     }
     if (changed.includes("inChannel")) tile.dataset.inChannel = next.inChannel;
-    if (changed.includes("fading")) tile.classList.toggle("is-fading", next.fading);
+    if (changed.includes("fading")) {
+        tile.classList.toggle("is-fading", next.fading);
+        art?.classList.toggle("is-fading", next.fading);
+    }
     if (changed.includes("name")) {
         const name = face.querySelector(".drpg-voice-tile-name");
         if (name) name.textContent = next.name;
     }
     if (changed.includes("image")) {
-        const art = face.querySelector(".drpg-voice-tile-art");
         if (image) art?.style.setProperty("background-image", `url("${cssString(image)}")`);
         else art?.style.removeProperty("background-image");
     }
@@ -1277,7 +1305,11 @@ function dropVoiceTile() {
     live?.list?.remove();
     detachRoom(live);
     live = null;
-    document.getElementById(TILE_ID)?.remove();
+    const tile = document.getElementById(TILE_ID);
+    if (!tile) return;
+    tile.remove();
+    seatVoiceArt();
+    recutForTile();
 }
 
 /**

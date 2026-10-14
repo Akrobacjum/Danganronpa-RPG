@@ -2290,6 +2290,107 @@ const INVARIANTS = [
         ok(pane?.kind === "section" && !pane.empty, `the room's pane is ${pane ? (pane.empty ? "painted empty" : pane.kind) : "missing"}`);
     }],
 
+    ["R545 - the voice tile is always cut: a fixed block settled at the right wall under the tray, its pane a section of its own holding the tile's turned corners and no other pane holding them, the glass to its left left open (`voice-left`), and no spare strip at a right wall with no rail (S12-95)", async () => {
+        /*
+         * E78 C6, 14.10.2026; the prep's R545, beside R513. jsdom lays nothing out, so this does not wait for a cut on
+         * the screen: `cutBoxes` hands the desk's cut the blocks a Chromium glass harness measured for a player at
+         * 1920x1080 on 14.10 (`LAST.blocks`, the voice block at its placement before it is settled), on a host with no
+         * rails. Measured that day in Chromium, the same call on the live blocks gave the live cut's sections and the
+         * live voice box to the pixel at 1920x1080, 1366x768 and 1280x720 (one pixel short at 1280x720 for a GM, whose
+         * corner pane stands higher and whose rails the empty host does not have). The controls: the same blocks
+         * without the voice block cut no voice pane and leave nothing open; the readers below count a pane laid over
+         * `voice-left` and a strip shard at the right wall. The shard is read on the cut without the voice tile as well,
+         * and that is the reading that sees S12-95: with the spare band put back, a shard stood at 1791..1920 x 263..642 there,
+         * under the tray, and none with the tile, whose pane takes that glass (14.10.2026).
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const W = 1920, H = 1080;
+        const blocks = [["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h }));
+        const inside = (P, x, y) => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length];
+            const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.5) continue;
+            if (s && Math.sign(cr) !== s) return false; s = Math.sign(cr); } return true; };
+        const bb = P => ({ x0: Math.min(...P.map(q => q[0])), x1: Math.max(...P.map(q => q[0])), y0: Math.min(...P.map(q => q[1])), y1: Math.max(...P.map(q => q[1])) });
+        // points of an open area more than 3 px from its edges, every 8 px, that some pane covers
+        const covered = (area, panes) => { const b = bb(area); let n = 0;
+            const clear = (x, y) => area.every((a, i) => { const c = area[(i + 1) % area.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1;
+                return Math.abs((c[0] - a[0]) * (y - a[1]) - (c[1] - a[1]) * (x - a[0])) / L > 3; });
+            for (let x = b.x0; x <= b.x1; x += 8) for (let y = b.y0; y <= b.y1; y += 8)
+                if (inside(area, x, y) && clear(x, y) && panes.some(p => inside(p.poly, x, y))) n++;
+            return n; };
+        const rightShards = panes => panes.filter(p => p.shard && bb(p.poly).x1 > W / 2).length;
+        const bare = G.cutBoxes(W, H, blocks.filter(b => b.cls !== "voice-block"));
+        equal(JSON.stringify([bare.panes.some(p => p.tone === "voice-block"), bare.voice, bare.open.length]), "[false,null,0]",
+            "[a voice pane, a voice box, open areas] without the voice block - the readers below would say yes to anything");
+        const cut = G.cutBoxes(W, H, blocks), mine = cut.panes.filter(p => p.tone === "voice-block"), v = cut.voice;
+        ok(mine.length === 1 && mine[0].kind === "section" && !mine[0].empty,
+            `the voice tile has ${mine.length} pane(s)${mine[0] ? ", the first " + (mine[0].empty ? "painted empty" : mine[0].kind) : ""}`);
+        ok(v && v.y >= 67 + 91 && v.w === 194 && v.h > 100, `the voice tile is settled at ${JSON.stringify(v)}, the tray ending at 158`);
+        const turn = cut.rotations.find(r => r.sel === "#drpg-voice-tile");
+        const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(turn?.transform ?? "")?.[1] ?? "0"), [ox, oy] = (turn?.origin ?? "0px 0px").split(" ").map(parseFloat);
+        if (v && mine.length) {
+            const P = [v.x + ox, v.y + oy], cs = Math.cos(phi), sn = Math.sin(phi);
+            // each corner 2 px in towards the middle, turned as the tile is turned
+            const corners = [[v.x + 2, v.y + 2], [v.x + v.w - 2, v.y + 2], [v.x + v.w - 2, v.y + v.h - 2], [v.x + 2, v.y + v.h - 2]]
+                .map(([x, y]) => [P[0] + (x - P[0]) * cs - (y - P[1]) * sn, P[1] + (x - P[0]) * sn + (y - P[1]) * cs]);
+            ok(corners.every(([x, y]) => x <= W && inside(mine[0].poly, x, y)), `a corner of the turned tile is off its pane: ${JSON.stringify(corners.map(c => c.map(Math.round)))}`);
+            // settled at the wall: the turned top-right corner 6 px from the screen's edge (VOICE_WALL), floored to a pixel
+            const wall = P[0] + (v.x + v.w - P[0]) * cs - (v.y - P[1]) * sn;
+            ok(wall > W - 6 - 1.5 && wall <= W - 6 + 0.01, `the turned tile's top-right corner is at x ${wall.toFixed(1)}, not ${W - 6}`);
+            const others = corners.filter(([x, y]) => cut.panes.some(p => p !== mine[0] && inside(p.poly, x, y)));
+            ok(!others.length, `${others.length} corner(s) of the voice tile on another pane`);
+        }
+        const left = cut.open.find(a => a.name === "voice-left");
+        ok(left, "nothing is left open to the left of the voice tile");
+        if (left) {
+            equal(JSON.stringify([covered(left.poly, [{ poly: left.poly }]) > 0, covered(left.poly, cut.panes)]), "[true,0]",
+                "[a pane laid over voice-left is counted, the points of voice-left the cut covers]");
+        }
+        equal(JSON.stringify([rightShards([{ shard: true, poly: [[W - 40, 300], [W, 300], [W, 600], [W - 40, 600]] }]), rightShards(bare.panes), rightShards(cut.panes)]), "[1,0,0]",
+            "[a shard at the right wall is counted, the shards at a right wall with no rail without the voice tile, and with it]");
+    }],
+
+    ["R543 - the voice tile on the curtain keeps its box whatever is said, fills its pane and wears the game state's colour: the tile stands at the box the cut settled, a long name moves nothing, the portrait is cut to the pane's own outline, the caption's brush is `--drpg-glass-accent`, no pane covers `voice-left` and no spare strip stands at a right wall with no rail", async () => {
+        const G = await import("./glass.mjs");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
+        needs(env.desk(), "a stacked screen places the voice tile in the tiles' row, not on the curtain (scenario 75 D)");
+        // E78 C6, 14.10.2026; the design's R396 (A9-9). R545 cuts the same shape headless; this reads it on the screen.
+        const tile = document.getElementById("drpg-voice-tile");
+        ok(tile, "there is no voice tile on the screen");
+        if (!tile) return;
+        const v = G.LAST.voice, pane = (G.LAST.panes || []).find(p => p.tone === "voice-block");
+        ok(v && pane?.kind === "section" && !pane.empty, `the voice tile's pane is ${pane ? pane.kind : "missing"}, its box ${JSON.stringify(v)}`);
+        if (!v || !pane) return;
+        const box = () => [tile.offsetLeft, tile.offsetTop, tile.offsetWidth, tile.offsetHeight].join(",");
+        equal([tile.dataset.place, box()].join(" "), `wall ${v.x},${v.y},${v.w},${v.h}`, "the tile's place and box against the cut's");
+        const name = tile.querySelector(".drpg-voice-tile-name"), said = name?.textContent ?? "", before = box(), checks = G.CHECKS.length;
+        if (name) name.textContent = "R543 ".repeat(40);
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const after = box();
+        if (name) name.textContent = said;
+        equal(after, before, "a long name moved the voice tile");
+        ok(G.CHECKS.length === checks || G.CHECKS.slice(checks).every(c => c.same), "a long name recut the curtain");
+        const art = document.getElementById("drpg-voice-art");
+        ok(art?.parentElement === document.body, "the voice tile's portrait is not on the curtain's pane");
+        if (art) {
+            const b = art.getBoundingClientRect(), n = (/polygon\((.*)\)/.exec(art.style.clipPath)?.[1] ?? "").split(",").filter(Boolean).length;
+            ok(Math.abs(b.left - pane.x0) <= 1 && Math.abs(b.top - pane.y0) <= 1 && Math.abs(b.right - pane.x1) <= 1 && Math.abs(b.bottom - pane.y1) <= 1,
+                `the portrait is at ${[b.left, b.top, b.right, b.bottom].map(Math.round)}, its pane at ${[pane.x0, pane.y0, pane.x1, pane.y1]}`);
+            equal(n, pane.poly.length, "the portrait's outline against its pane's corners");
+        }
+        const plate = tile.querySelector(".drpg-voice-tile-plate");
+        equal(plate && getComputedStyle(plate).getPropertyValue("--brush").trim(), getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim(),
+            "the caption's brush against the game state's colour");
+        const check = G.CHECKS.at(-1);
+        ok((G.LAST.open || []).some(a => a.name === "voice-left") && check?.openFails === 0, `voice-left is ${check ? check.openFails + " point(s) covered" : "unread"}`);
+        const railed = (document.getElementById("sidebar-tabs")?.offsetWidth ?? 0) > 0;
+        ok(railed || !(G.LAST.panes || []).some(p => p.shard && p.x1 > G.LAST.frame.W / 2), "a spare strip shard stands at a right wall with no rail");
+    }],
+
     ["R510 - a player has no scene controls of Foundry's and keeps the Tokens layer: the stylesheet hides `#scene-controls` for body.drpg-player with !important in every theme, and the layer is asked back to Tokens with its select tool on every new canvas and every render of the controls, whenever it is another, once a second at most and never on a GM's screen", async () => {
         /*
          * E77 C5, 13.10.2026; the A8 design's R385 (the E77 plan's D2 gave it this number), the owner's Q4 ("u gracza
@@ -12349,7 +12450,9 @@ const INVARIANTS = [
          * The readings, each `[portrait, name, face shown, fading]`: speaking; 1499 ms after the Room's list empties;
          * 1500 ms; 1500 + 839 ms; 1500 + 890 ms. Then a MutationObserver's records over 5.2 s of speech with 200 ms
          * pauses (none). A second speaker 300 ms into a fade: at 249 ms the first, fading; at 250 ms the second, not
-         * fading. That second speaker back 300 ms into their own fade: what changed on the tile (its class alone). Reduced motion: at
+         * fading. That second speaker back 300 ms into their own fade: what changed on the tile (its class and
+         * the portrait layer's, which has worn `is-fading` itself since E78 C6 because `seatVoiceArt` may have moved it
+         * out of the tile onto the pane; nothing else, 14.10.2026). Reduced motion: at
          * 1499 ms shown, at 1500 ms gone, never fading. Last, the portrait's check: three paths `safeRoomImage` refuses
          * (a `javascript:` URL, another origin, a quote and a bracket that would close the CSS string) - the name is
          * drawn and the art layer stays empty; the first reading above is the control that a path it accepts is drawn.
@@ -12445,7 +12548,7 @@ const INVARIANTS = [
                 [["first", nameB, true, false], ["first", nameB, true, false], ["first", nameB, true, true], ["first", nameB, true, true], ["none", "", false, false]],
                 0,
                 [["first", nameB, true, true], ["second", nameD, true, false]],
-                [["second", nameD, true, false], ["drpg-voice-tile class"]],
+                [["second", nameD, true, false], ["drpg-voice-tile class", "drpg-voice-tile-art class"]],
                 [["first", nameB, true, false], ["none", "", false, false]],
                 [["none", nameB], ["none", nameB], ["none", nameB]],
                 true]),

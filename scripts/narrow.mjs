@@ -56,10 +56,11 @@ const STACKED = ["#drpg-hud", "#drpg-tile-row", "#drpg-despair", "#ui-right-colu
  * already (the sweep's screenshot, 13.10.2026) - so here the tile is one row of 44 px: the picture as a
  * 78x44 thumbnail, the name, the search tokens and a button for the description, which opens in a window (room-tile.mjs). The row is
  * this file's own element and a block of the curtain's (`tiles-row`, measured, glass.mjs); its members are
- * moved into it as the clock is moved into the stack, and back. E78's voice tile is meant to join it.
+ * moved into it as the clock is moved into the stack, and back. Since E78 C6 the voice tile is its second member,
+ * on the row's right (narrow.css): the portrait as 32 px, the name and '+N', and its two buttons at 44 px.
  */
 const ROW_ID = "drpg-tile-row";
-const ROW_MEMBERS = ["#drpg-room-tile"];
+const ROW_MEMBERS = ["#drpg-room-tile", "#drpg-voice-tile"];
 
 /** Where each moved element came from, so a resize back to a desk can undo it. */
 const HOMES = new Map();
@@ -268,7 +269,8 @@ function watchColumn(column) {
  * the stack and went to the end of the left column instead of above the tile. A member of the row
  * with no home recorded - the tile room-tile.mjs put there itself - goes to the left column rather
  * than out with the row, and `ensureRoomTile` sets it under the clock at the clock's next render,
- * which `applyTheme` asks for straight after this.
+ * which `applyTheme` asks for straight after this. The voice tile voice-tile.mjs put there goes to
+ * the body instead (E78 C6), where the curtain's next pass seats it.
  */
 function restoreDesk() {
     for (const [el, home] of [...HOMES].reverse()) {
@@ -278,7 +280,8 @@ function restoreDesk() {
     }
     HOMES.clear();
     const row = document.getElementById(ROW_ID);
-    if (row?.children.length) (document.getElementById("ui-left-column-1") ?? document.body).append(...row.children);
+    // the voice tile stands in the body on a desk (voice-tile.mjs `ensureVoiceTile`), where the curtain seats it
+    for (const el of [...(row?.children ?? [])]) (el.id === "drpg-voice-tile" ? document.body : document.getElementById("ui-left-column-1") ?? document.body).append(el);
     row?.remove();
     columnWatch?.disconnect();
     columnWatch = null;

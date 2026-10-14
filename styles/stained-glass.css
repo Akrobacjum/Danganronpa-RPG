@@ -1081,6 +1081,7 @@ body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #sidebar-tabs,
 body.drpg-theme-stained-glass #drpg-hud,
 body.drpg-theme-stained-glass #drpg-room-tile,
+body.drpg-theme-stained-glass #drpg-voice-tile,
 body.drpg-theme-stained-glass #drpg-tile-row,
 body.drpg-theme-stained-glass #drpg-despair,
 body.drpg-theme-stained-glass #drpg-events,
@@ -1243,6 +1244,28 @@ body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate::before {
     opacity: var(--brush-on, 0);
     filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
 }
+/* ON ITS PANE (E78 C6, 14.10.2026): the box glass.mjs `seatVoiceTile` wrote, settled against the
+   tray's column, in place of the base sheet's interim corner; the face is no plate there, the
+   pane is its glass, and the portrait is the layer `seatVoiceArt` clipped to that pane, which
+   fades as the face does (the owner's Q7). */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"] {
+    left: var(--drpg-voice-x);
+    top: var(--drpg-voice-y);
+    right: auto;
+    bottom: auto;
+    width: var(--drpg-voice-w);
+    height: var(--drpg-voice-h);
+}
+body.drpg-curtain-on #drpg-voice-tile[data-place] .drpg-voice-tile-face {
+    background: transparent;
+    border-color: transparent;
+}
+body.drpg-theme-stained-glass > #drpg-voice-art {
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+body.drpg-theme-stained-glass > #drpg-voice-art.is-fading { opacity: 0; }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
@@ -2819,6 +2842,7 @@ body[data-drpg-measuring] #scene-controls,
 body[data-drpg-measuring] #sidebar-tabs,
 body[data-drpg-measuring] #drpg-hud,
 body[data-drpg-measuring] #drpg-room-tile,
+body[data-drpg-measuring] #drpg-voice-tile,
 body[data-drpg-measuring] #drpg-tile-row,
 body[data-drpg-measuring] #drpg-gm-launcher,
 body[data-drpg-measuring] #drpg-despair,

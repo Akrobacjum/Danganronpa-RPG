@@ -45,7 +45,13 @@
  *   writes nothing, the GM told why; drawn again it is disabled with that line. The gear's window
  *   (`openLookDialog`, real windows) has the Voice section on p1 - the shim names no device, so the
  *   microphone's line and the mode - and push to talk writes p1's `voice.mode`; on p3 there is none.
- * D (C6) comes with its commit: the curtain's cut (the plan's 2.2).
+ * D (C6): where the tile stands. The harness's screen is 1024 px wide, a stacked one, and jsdom cuts no curtain
+ *   (its canvas is 0 px wide), so this reads the stacked half: on p1 the voice tile is in `#drpg-tile-row` beside the
+ *   room tile, unstamped, its portrait inside its face and nothing of it on the body; a speaker shown and the list
+ *   opened move it nowhere; the GM's `voiceTile` off takes it out of the row and on builds it there again (the
+ *   road `ensureVoiceTile` takes, not the body). The desk's half - the box at the right wall, the portrait on its
+ *   pane, `voice-left` open, no drpgGlassCut for a speaker, a name, the fade or the list - needs a curtain that
+ *   cuts: R543 at a table and the glass sweep's `drpgVoiceCheck` in Chromium; R545 cuts the shape headless.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78 rows and the owner's T1 (lib/livekit.mjs's header).
@@ -55,7 +61,9 @@ export const layers = ["ci"];
    run 4.2-4.3 s from the cluster's start to its end. 60 s is 73's bound for a scenario of four clients and a few evals; a phase that
    adds minutes raises it with a reading of its own. With phase B (C4, two green runs on 14.10.2026, under the harness lock): the
    cluster's 12 checks in 4.4-4.5 s, 8.3-8.6 s of wall time with the boot - the bound stands. With phase C (C5, three green runs on
-   14.10.2026, under the harness lock): 18 checks in 6.7-6.9 s, 10.7 s of wall time in the one run that was timed - it stands still. */
+   14.10.2026, under the harness lock): 18 checks in 6.7-6.9 s, 10.7 s of wall time in the one run that was timed - it stands still.
+   With phase D (C6, two green runs on 14.10.2026, under the harness lock):
+   20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -484,4 +492,39 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else; choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
         J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
         J({ gearP1, gearP3 }));
+
+    phase("D: where the tile stands - on a stacked screen in the tiles' row beside the room tile, its portrait inside it, moved by no speaker and no list, built there again after the GM's switch");
+    const rowJs = `
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const until = async (test, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end && !test()) await sleep(25); return test(); };
+        const where = () => {
+            const tile = document.getElementById("drpg-voice-tile"), face = tile?.querySelector(".drpg-voice-tile-face");
+            return { stacked: document.body.classList.contains("drpg-stacked"), tile: tile?.parentElement?.id ?? null,
+                room: document.getElementById("drpg-room-tile")?.parentElement?.id ?? null, place: tile?.dataset.place ?? null,
+                art: face?.firstElementChild?.classList.contains("drpg-voice-tile-art") ?? false, loose: Boolean(document.getElementById("drpg-voice-art")) };
+        };`;
+    const d = await p1.eval(`${rowJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        await until(() => where().tile === "drpg-tile-row");
+        const out = { installed: true, at: where() };
+        __liveKit.speak(["${IDS.gm}"]);
+        await until(() => document.querySelector("#drpg-voice-tile .drpg-voice-tile-face")?.hidden === false);
+        document.querySelector("#drpg-voice-tile .drpg-voice-speaker")?.click();
+        await sleep(100);
+        out.spoken = where();
+        (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        __liveKit.speak([]);
+        return out;`, { timeout: 15000 });
+    const want = { stacked: true, tile: "drpg-tile-row", room: "drpg-tile-row", place: null, art: true, loose: false };
+    check("D: on p1's stacked screen the voice tile is in the tiles' row beside the room tile, unstamped, its portrait inside it and nothing of it on the body; a speaker shown and the list opened move nothing",
+        d.installed === true && J(d.at) === J(want) && J(d.spoken) === J(want), J(d));
+    const again = async value => {
+        await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceTile", ${value}); return true;`);
+        return p1.eval(`${rowJs}
+            await until(() => Boolean(document.getElementById("drpg-voice-tile")) === ${value});
+            return where();`);
+    };
+    const gone = await again(false), back = await again(true);
+    check("D: the GM's voiceTile off takes the tile out of p1's row; on builds it in the row again, not on the body",
+        gone.tile === null && gone.room === "drpg-tile-row" && J(back) === J(want), J({ gone, back }));
 }

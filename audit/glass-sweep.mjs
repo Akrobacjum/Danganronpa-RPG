@@ -116,6 +116,13 @@
  * that wall, so the strip is cut however short; C5's sweep reads 0. `--known 1280x720:eg=16` (or
  * any `<size>:<key>=<n>`) still exempts exactly that reading.
  *
+ * THE VOICE TILE (E78 C6, 14.10.2026). The page's `drpgVoiceCheck` fails a size on any of: on a desk with glass, the
+ * tile not at the box the cut settled, its pane missing or painted empty, the portrait not on the body at the pane's box
+ * and outline, a pane over `voice-left`, a strip shard at a right wall with no rail, a long name, the face or the fade
+ * firing a drpgGlassCut (the control: the tile taken away and back fires one each way); stacked, the tile and the room
+ * tile not both in the row, the portrait not inside the tile, the tile off the screen. Once per run (`--no-voice` drops
+ * it all) the page is loaded without Foundry's sidebar tabs, and again with glass.mjs's spare band put back (S12-95).
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
@@ -140,7 +147,7 @@ const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
-const windows = !args.includes("--no-windows");
+const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice");
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
@@ -349,7 +356,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -488,6 +495,17 @@ try {
                     }
                 }
             }
+            if (voices) {
+                const vc = await page.evaluate(() => window.drpgVoiceCheck?.() ?? null);
+                if (!vc) fails.push("the page defines no drpgVoiceCheck");
+                else {
+                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box ? ` ${vc.box} open ${vc.open} shards ${vc.shards}` : "")
+                        + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "");
+                    if (!vc.ok) fails.push("voice: " + vc.why);
+                    if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
+                    if (vc.expect === "wall") voiceRead = true;
+                }
+            }
             if (windows) {
                 const fc = await page.evaluate(() => window.drpgFoundryCut?.() ?? null);
                 if (!fc) fails.push("the page defines no drpgFoundryCut");
@@ -518,7 +536,38 @@ try {
             await page.close();
         }
     }
+    /* NO SPARE STRIP AT A RIGHT WALL WITH NO RAIL (E78 C6, S12-95). The harness's page always has Foundry's
+       sidebar tabs, and the curtain is not recut for a rail taken away from a page already loaded (CLAUDE.md), so
+       the page is loaded without them - the response rewritten - once as it is and once with glass.mjs's
+       no-rail branch put back to the spare band (the control). Without the voice tile too: the shard stood under
+       the tray, where the voice tile's pane now drops it (14.10.2026, the desk's cut on 1920x1080 blocks: the shard
+       1791..1920 x 263..642 without the tile, none with it), so a page with the tile could not see the shard
+       come back. Read at 1920x1080 for a player, Stained Glass. */
+    if (voices && control && themes.includes("stained")) {
+        const railless = async patch => {
+            const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+            const fix = { page: false, glass: !patch };
+            await page.route(/glass-harness\.html/, async route => { const res = await route.fetch(), t = await res.text();
+                const body = t.replace(/<nav id="sidebar-tabs">[\s\S]*?<\/nav>/, "").replace(/<section id="drpg-voice-tile"[\s\S]*?<\/section>/, "");
+                fix.page = !body.includes('id="sidebar-tabs"') && !body.includes('id="drpg-voice-tile"'); await route.fulfill({ response: res, body }); });
+            if (patch) await page.route(/scripts\/glass\.mjs/, async route => { const res = await route.fetch(), t = await res.text();
+                const body = t.replace("railed || !side ? tb : null", "tb"); fix.glass = body !== t; await route.fulfill({ response: res, body }); });
+            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}role=player`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const got = await page.evaluate(() => ({ rail: Boolean(document.getElementById("sidebar-tabs")), cut: Boolean(window.__glass?.LAST?.panes?.length),
+                shards: (window.__glass?.LAST?.panes ?? []).filter(p => p.shard && p.x1 > innerWidth / 2).length }));
+            await page.close();
+            return { ...got, ...fix };
+        };
+        const [as, back] = [await railless(false), await railless(true)];
+        const said = v => `rail and voice tile ${v.rail ? "STILL THERE" : "gone"}, ${v.cut ? "cut" : "NOT CUT"}, ${v.shards} shard(s) at the right`;
+        console.log(`  S12-95 no rail: ${said(as)} | control, the spare band back${back.glass ? "" : " (NOT PATCHED)"}: ${said(back)}`);
+        if (!as.page || as.rail || !as.cut || as.shards) { bad++; console.log("FAIL: S12-95 - a right wall with no rail has a spare strip shard, or the page was not read without its rail"); }
+        if (!back.glass || !back.cut || back.shards < 1) { bad++; console.log("FAIL: S12-95's control - the spare band put back shows no shard, so the reading cannot see one"); }
+    }
 } finally { await browser.close(); srv?.kill(); }
+if (voices && !opt("--sizes") && !voiceRead) { bad++; console.log("FAIL: the voice check never read a tile at the wall (no desk drew glass)"); }
 /* THE LAUNCHERS' CONTROLS UNDER MONOKUMA LEGACY (E77 fix r2-H3, 13.10.2026; fix r1-M1's open line). They plant faults
    on the launch pane, and under Legacy no curtain is mounted, so there is no pane to plant them on: a Legacy-only sweep
    ended red here on every run since r1-M1 for a reason nobody was going to fix. Not applicable is now an answer read off

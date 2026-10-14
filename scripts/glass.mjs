@@ -74,6 +74,11 @@ const BLOCKS = [
      block with something on it is painted as glass, not as the empty tile's stripes. No place
      (no tile, or a stacked screen, where the tile is in `tiles-row` above), no box, no pane. */
   { cls: "room-block", sel: "#drpg-room-tile", fixed: true, solid: true, fallback: () => ROOM.box },
+  /* THE VOICE TILE IS NOT MEASURED EITHER (E78 C6, 14.10.2026; the A9 design's step 4). Its box is
+     `voicePlacement`'s, from the tray's capacity and the notice tile's width, and `buildColumn`
+     settles it against the tray's column, whose tail it is whatever band its midpoint falls in.
+     No tile, a stacked screen or Monokuma Legacy: no box, no pane. */
+  { cls: "voice-block", sel: "#drpg-voice-tile", fixed: true, solid: true, fallback: (W, H, r) => voicePlacement(W, H, r.tray) },
   { cls: "launch", sel: LAUNCHERS, union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
@@ -439,6 +444,100 @@ export function seatRoomArt() {
   if (cur.nextElementSibling !== art) cur.after(art);
 }
 const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...poly.map(q => q[1])), x1: Math.max(...poly.map(q => q[0])), y1: Math.max(...poly.map(q => q[1])) });
+/* ---- the voice tile: a fixed block at the right wall under the Projects tray (E78 C6) ---------
+   The A9 design's step 4 and the owner's Q5 of 11.10.2026: a portrait upright at the right wall
+   under the tray and not joined to it, 0.6 of the notice tile's width and 1.45 times as tall as
+   it is wide, its rotated top corner 6 px from the wall, its top 24 px under the tray's CAPACITY
+   - five rows, danganronpa.css's own cap - so a project added or folded away never moves it, and
+   its foot at least 52 px above the corner's buttons. Like the room tile it is not measured: no
+   name, no portrait and no speaker can recut the glass (the A9 design's verify line, scenario 75
+   phase D). It is cut a pane of its own in the tray's column (`buildColumn`'s tail), and the
+   column's glass to the left of that pane is not cut at all: Q16, "Na lewo od voice chatu nie
+   powinno byc zadnego szkla", the area `voice-left` the self-check keeps empty (`OPEN_AREAS`). */
+const VOICE = { box: null };
+const VOICE_VARS = ["--drpg-voice-x", "--drpg-voice-y", "--drpg-voice-w", "--drpg-voice-h"];
+const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOICE_FOOT = 52;
+/** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
+export const OPEN_AREAS = [];
+/* The tray at five rows, wherever it stands now: its own top to the header's foot, and the list's
+   `max-height` (border-box, so its paddings are in it). A tray with no list - folded, or the
+   fallback box - is its box. */
+function trayCapacity(tray) {
+  const el = document.getElementById("countdowns"), list = el?.querySelector(".countdowns-container");
+  const head = el?.querySelector(".countdowns-header");
+  if (!el || !list || !head) return tray.h;
+  const cs = getComputedStyle(list), max = parseFloat(cs.maxHeight);
+  if (!Number.isFinite(max)) return tray.h;
+  const pad = cs.boxSizing === "border-box" ? 0 : parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  return Math.max(tray.h, Math.ceil(head.getBoundingClientRect().bottom - el.getBoundingClientRect().top + max + pad));
+}
+const voiceWall = W => W - (PIN.rail ?? 0);
+/**
+ * The voice tile's box for a W x H screen, or null where it has no place on the curtain (no tile, a
+ * stacked screen, which puts it in the tiles' row, or Monokuma Legacy). Upright here; `buildColumn`
+ * settles it against its column's turn (`settleVoice`).
+ */
+export function voicePlacement(W, H, tray) {
+  if (!tray || !document.getElementById("drpg-voice-tile") || narrowLayout()) return null;
+  if (!document.body.classList.contains("drpg-theme-stained-glass")) return null;
+  const w = Math.round(VOICE_WIDE * noteTile().w * uiScale()), y = Math.round(tray.y + trayCapacity(tray) + VOICE_SEAM);
+  return { x: voiceWall(W) - VOICE_WALL - w, y, w, h: Math.round(VOICE_TALL * w) };
+}
+/* THE TILE TURNS WITH ITS COLUMN, so its place is settled once the turn is known: the right column
+   turns clockwise about its top left corner (sn >= 0, `buildColumn`), its top right corner is the
+   one nearest the wall and its bottom right the lowest. x puts that top corner VOICE_WALL from the
+   wall; the height is cut where the foot would come within VOICE_FOOT of `floor`, the top of the
+   corner buttons' pane under it. */
+function settleVoice(b, W, { px, py, cs, sn }, floor) {
+  const x1 = px + (voiceWall(W) - VOICE_WALL - px + (b.y - py) * sn) / cs;
+  const x = Math.floor(x1 - b.w);
+  const h = Math.min(Math.round(VOICE_TALL * b.w), Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (b.y - py)));
+  return { ...b, x, h };
+}
+/* The tile is in the body (voice-tile.mjs) and stands at the settled box over the curtain, at the
+   curtain's own index and later in the tree, as the room tile beside the notices does. */
+function seatVoiceTile(box) {
+  const body = document.body, tile = document.getElementById("drpg-voice-tile");
+  if (!box || !tile) {
+    VOICE_VARS.forEach(k => body.style.removeProperty(k));
+    if (tile) { if (tile.dataset.place) delete tile.dataset.place; tile.style.zIndex = ""; }
+    return;
+  }
+  const vars = { "--drpg-voice-x": box.x, "--drpg-voice-y": box.y, "--drpg-voice-w": box.w, "--drpg-voice-h": box.h };
+  for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v + "px");
+  if (tile.dataset.place !== "wall") tile.dataset.place = "wall";
+  tile.style.zIndex = document.getElementById("drpg-curtain")?.style.zIndex ?? "";
+}
+/* THE PORTRAIT LIES ON THE TILE'S WHOLE PANE (the owner's Q17, "niech wypelnia caly kawalek
+   szkla"), as the room tile's picture does (`seatRoomArt`): the tile's art layer moved to the body
+   after the curtain, sized to the pane's bounds and clipped to its polygon. Unlike the room's, the
+   layer is built once with the tile and repainted in place (voice-tile.mjs keeps it by the tile), so
+   a new speaker moves nothing here. With no pane it goes back into the tile's face. */
+export function seatVoiceArt() {
+  const tile = document.getElementById("drpg-voice-tile");
+  const art = tile?.querySelector(".drpg-voice-tile-art") ?? document.getElementById("drpg-voice-art");
+  if (!art) return;
+  const cur = document.getElementById("drpg-curtain");
+  const pane = curtains.length && cur && VOICE.box ? (LAST.panes || []).find(p => p.tone === "voice-block") : null;
+  const face = tile?.querySelector(".drpg-voice-tile-face");
+  if (!pane || !face) {
+    if (!face) { art.remove(); return; }
+    if (art.parentElement !== face) {
+      art.removeAttribute("id");
+      for (const k of ["position", "left", "top", "width", "height", "clip-path", "z-index", "inset"]) art.style.removeProperty(k);
+      face.prepend(art);
+    }
+    return;
+  }
+  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
+  art.id = "drpg-voice-art";
+  const set = { position: "fixed", inset: "auto", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
+    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
+  for (const [k, v] of Object.entries(set)) art.style.setProperty(k, v);
+  const room = document.getElementById("drpg-room-art");
+  const after = room && room.previousElementSibling === cur ? room : cur;
+  if (after.nextElementSibling !== art) after.after(art);
+}
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip
@@ -1120,7 +1219,7 @@ export function debugGlass() {
      neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
      means it was cut for something else, or the block moved after it was cut. */
   const live = {};
-  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-room-tile", "#drpg-player-status", "#countdowns"]) {
+  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-room-tile", "#drpg-player-status", "#countdowns", "#drpg-voice-tile"]) {
     const r = document.querySelector(sel)?.getBoundingClientRect();
     if (r) live[sel] = [Math.round(r.left), Math.round(r.right), Math.round(r.width), Math.round(r.height), getComputedStyle(document.querySelector(sel)).transform === "none" ? "upright" : "tilted"];
   }
@@ -1142,7 +1241,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      tablet screenshot shows behind the clock and the tray. The lift is small (a panel's
      pane must still read as the calmest thing on the screen) and it is paid for by the
      black layer in `paintGlass`, which is thinner over content than over filler. */
-  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", "tiles-row": "#0d0b16", launch: "#0d0b16" };
+  const TONE = { hud: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", "room-block": "#0d0b16", "voice-block": "#0d0b16", "tiles-row": "#0d0b16", launch: "#0d0b16" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
@@ -1521,6 +1620,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     // block the module re-renders from scratch wears it the moment it appears; a union of several
     // elements gets inline styles, because each has its own origin
     const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
+    /* THE VOICE TILE IS THE TRAY COLUMN'S TAIL (E78 C6). It takes no part in the column's tilt or
+       width - those are the tray's and the status strip's, as they were before it - and is settled
+       against them here: its x against the turn, its height against the corner's pane under it
+       (`settleVoice`). It turns with the column like every fixed block. */
+    const tail = c.tail ? (c.tail = settleVoice(c.tail, W, { px, py, cs, sn }, c.floor ?? H)) : null;
+    if (tail) {
+      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h };
+      ROT.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
+    }
     for (const b of c.items) {
       /* A FIXED BLOCK IS STILL A BLOCK ON THE GLASS. Its box is a constant - the notice tile is
          cut once and never recut, whatever arrives in it - but its element must still turn with
@@ -1573,7 +1681,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     };
     let X0 = c.x0 - px - padSide(-1), X1 = c.x1 - px + padSide(1);
     const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
-    const Yf = band === "top" ? c.y1 - py + PAD_FAR : c.y0 - py - PAD_FAR;
+    const Yf = band === "top" ? (tail ? tail.y + tail.h : c.y1) - py + PAD_FAR : c.y0 - py - PAD_FAR;
+    /* the seam between the tray's pane and the voice tile's, halfway down the 24 px under the tray's
+       capacity; Xc is the voice pane's left edge, PAD_SIDE left of the tile */
+    const tray = c.items[c.items.length - 1];
+    const Yseam = tail ? ((tray.y + tray.h) + tail.y) / 2 - py : null, Xc = tail ? tail.x - px - PAD_SIDE : null;
     // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
     // pushed past the screen edge by the gap and by the swing of the rotation, so no bare wedge is left
     /* A COLUMN AT A WALL ALWAYS HUGS IT. This used to stand down on a side where a rail
@@ -1614,8 +1726,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const edgeY = band === "top" ? 0 : H;
     const at = (X) => { const q = rot(X, 0); return { x0: q[0] + s * (edgeY - q[1]), s, edgeY }; };
     c.rayL = at(X0); c.rayR = at(X1);
-    c.farL = rot(X0, Yf); c.farR = rot(X1, Yf);
-    c.far = { p: c.farL, d: [cs, sn] };
+    /* WITH A TAIL, TWO FAR EDGES. The fillers beside the column and the rings under it read the
+       tray's pane, which ends at the seam, so they are cut as they were before the voice tile had
+       a pane; the strip down the wall starts under the voice pane, so `far` is that pane's foot. */
+    const Yd = tail ? Yseam : Yf;
+    c.farL = rot(X0, Yd); c.farR = rot(X1, Yd);
+    c.far = { p: tail ? rot(Xc, Yf) : c.farL, d: [cs, sn] };
     c.depthL = Math.abs(c.farL[1] - edgeY); c.depthR = Math.abs(c.farR[1] - edgeY);
     c.s = s; c.phi = phi; c.rot = rot; c.px = px; c.py = py; c.cs = cs; c.sn = sn;
     c.corners = [rot(c.x0 - px, c.y0 - py), rot(c.x1 - px, c.y0 - py), rot(c.x1 - px, c.y1 - py), rot(c.x0 - px, c.y1 - py)].filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
@@ -1628,8 +1744,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
       const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
     }
+    let below = null;
+    if (tail && piece) { const pt = rot(0, Yseam); [below, piece] = split(piece, pt[0], pt[1], -sn, cs); }
     c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
     if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r && !c.items[c.items.length - 1].solid;
+    /* Under the seam the voice tile's pane runs from PAD_SIDE left of the tile to the wall, and what
+       is left of it is cut away and not pushed: bare map, the area `voice-left`, which the
+       self-check keeps empty of every pane (Q16). */
+    if (below) {
+      const q = rot(Xc, Yseam);
+      const [right, left] = split(below, q[0], q[1], cs, sn);
+      push(right, tail.cls, "section", 0);
+      if (left) OPEN_AREAS.push({ name: "voice-left", poly: left });
+    }
   };
 
   /* filler between two rays of one band: a pencil of rays interpolated between the
@@ -1953,7 +2080,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
           for (const [yy, tilt] of [[box.y0 - 14, -0.10], [box.y1 + 14, 0.10]]) pieces = pieces.flatMap(pp => split(pp, wall, yy, -tilt, dir).filter(Boolean));
           const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
           const k = pieces.findIndex(pp => inside(pp, cx, cy));
-          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) shard.plain = box.real !== false; }
+          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) { shard.plain = box.real !== false; shard.shard = true; } }
         }
         let y = y0 + (y0 === yTop ? 320 + rnd() * 160 : 120 + rnd() * 200);
         while (y < y1 - 60) {
@@ -1963,7 +2090,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         }
         for (const pp of pieces) push(pp, null, "strip", 9);
       };
-      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid, tb);
+      /* NO SPARE SHARD AT A RIGHT WALL WITH NO RAIL (E78 C6, S12-95). With no tab rail the band
+         `tb` is the default box above, and the shard cut for it was painted as a rail's that is
+         not there - the dotted spare strip at the right wall, under a player's tray and a GM's
+         since E77 C5 put the sidebar in a window. Where the voice tile stands it would be the
+         glass under its pane. The strip itself stays: it is what covers the wall. */
+      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid, railed || !side ? tb : null);
       cutFamily(lowerQ, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
     }
     return tiles;
@@ -2192,18 +2324,36 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     return kept;
   }
 
+  /* The top of whatever bottom column stands under the voice tile, over the tile's width out to the
+     wall: its pane's far edge, which leans, read at both ends. Nothing under it: the screen's foot. */
+  const voiceFloor = (bot, v, W, H) => {
+    let y = H;
+    for (const c of bot) {
+      if (c.x1 < v.x - PAD_SIDE) continue;
+      const [fx, fy] = c.far.p, [dx, dy] = c.far.d;
+      for (const x of [v.x - PAD_SIDE, W]) y = Math.min(y, fy + (x - fx) * dy / dx);
+    }
+    return y;
+  };
   function curtainShapes(host, W, H, rnd, boxes, FW) {
+    VOICE.box = null; OPEN_AREAS.length = 0;
+    // a stacked layout is a different shape and gets a different cut; see stackShapes
+    if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
+    return deskShapes(host, W, H, rnd, boxes, FW);
+  }
+  /* the desk's cut, on its own since E78 C6 so `cutBoxes` can ask for it on a screen the
+     harness lays out 1024 px wide, which is a stacked one */
+  function deskShapes(host, W, H, rnd, boxes, FW) {
     const panes = [];
     /* what every cutter reads and writes: the panes so far, the frame, the seed's
        stream, the rails' bands once they are measured, and the needles placed */
     const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [] };
     ctx.push = (poly, tone, kind, rank) => pushPane(ctx, poly, tone, kind, rank);
 
-    // a stacked layout is a different shape and gets a different cut; see stackShapes
-    if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
-
-    const top = columnsOf(boxes.filter(b => b.y + b.h / 2 < H / 2));
-    const bot = columnsOf(boxes.filter(b => b.y + b.h / 2 >= H / 2));
+    /* the voice tile is not a column's member by its midpoint: it is the tray's column's tail */
+    const voice = boxes.find(b => b.cls === "voice-block") ?? null, banded = boxes.filter(b => b !== voice);
+    const top = columnsOf(banded.filter(b => b.y + b.h / 2 < H / 2));
+    const bot = columnsOf(banded.filter(b => b.y + b.h / 2 >= H / 2));
 
     /* THE RAILS' BANDS ARE KNOWN BEFORE THE COLUMNS ARE CUT, AND THE COLUMNS RESPECT THEM.
        A column near a wall runs its pane INTO the wall so no bare wedge is left there
@@ -2219,8 +2369,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       right: railBox(host, cv, W, "#sidebar-tabs", 1, null),
     };
     ctx.railBands = railBands;
-    top.forEach(c => buildColumn(ctx, c, top, "top"));
+    /* THE BOTTOM BAND IS CUT FIRST AND FILED SECOND (E78 C6). The voice tile's foot is settled
+       against the corner's pane, which only exists once the bottom columns are cut; the panes are
+       put back in the order they were always in, top first, so nothing painted per pane moves. */
     bot.forEach(c => buildColumn(ctx, c, bot, "bottom"));
+    const cutFirst = panes.splice(0);
+    const trayCol = voice ? top.find(c => c.items.some(b => b.cls === "tray")) : null;
+    if (trayCol) { trayCol.tail = voice; trayCol.floor = voiceFloor(bot, voice, W, H); }
+    top.forEach(c => buildColumn(ctx, c, top, "top"));
+    panes.push(...cutFirst);
 
     /* How far down each band is the strip's alone - see the note in `pushPane`. Read after
        the sections exist and before the first filler is cut, because it is a fact about the
@@ -2413,6 +2570,25 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; c.style.cssText = LAYER; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
+  /* THE CUT, FOR A TEST THAT HAS NO CANVAS (E78 C6, 14.10.2026; R545).
+     jsdom lays nothing out, so the curtain never cuts headless - `curtainGeometry` stops at a
+     canvas 0 px wide - and "the voice tile is always cut" would be a test skipped everywhere it
+     runs but a browser. This hands the desk's cut (`deskShapes`, whatever the screen is) the boxes a test names (the shape of
+     `LAST.blocks`, each given its BLOCKS entry's selector), on a host with no rails, and gives
+     back the panes, the voice tile's settled box and the areas left open. What it changes on the
+     way - the rotations, the voice box, the open areas - is put back, so a cut on the screen
+     keeps its own. */
+  export function cutBoxes(W, H, boxes, seed = 1) {
+    const rot = ROT.splice(0), voice = VOICE.box, open = OPEN_AREAS.splice(0);
+    try {
+      const given = boxes.map(b => ({ sel: BLOCKS.find(k => k.cls === b.cls)?.sel ?? null, ...b }));
+      VOICE.box = null; OPEN_AREAS.length = 0;
+      const panes = deskShapes(document.createElement("div"), W, H, rng(seed), given, W);
+      return { panes, voice: VOICE.box && { ...VOICE.box }, open: OPEN_AREAS.map(a => ({ ...a })), rotations: ROT.map(r => ({ sel: r.sel, origin: r.origin, transform: r.transform })) };
+    } finally {
+      ROT.length = 0; ROT.push(...rot); VOICE.box = voice; OPEN_AREAS.length = 0; OPEN_AREAS.push(...open);
+    }
+  }
   function curtainGeometry(job) {
     const el = job.el, host = document, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
@@ -2533,9 +2709,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     }
     applyRotations();
     // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
-    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0; const ncv = [];
+    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0, openFails = 0; const ncv = [];
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
-    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.items) {
+    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.tail ? [...col.items, col.tail] : col.items) {
       /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
          This used to accept a pane toned for ANY member of the merged column, so a block that
          had been absorbed into a neighbour's pane and lost its own passed the check by standing
@@ -2552,7 +2728,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
     for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
-    CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: d.length, same });
+    /* C4 (E78 C6): an area the cut leaves open on purpose holds no glass - `voice-left`, Q16. Every
+       8 px inside it, 3 px clear of its edges, where a seam is shared with the panes around it. */
+    const clear = (P, x, y) => P.every((a, i) => { const b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / L > 3; });
+    for (const o of OPEN_AREAS) {
+      const bb = bbox(o.poly);
+      for (let x = Math.ceil(bb.x0); x < bb.x1; x += 8) for (let y = Math.ceil(bb.y0); y < bb.y1; y += 8)
+        if (inside(o.poly, x, y) && clear(o.poly, x, y) && panes.some(p => inside(p.poly, x, y))) openFails++;
+    }
+    CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, openFails, sig: d.length, same });
     // kept on the job so a pass that finds the same signature can republish it rather than
     // cut the whole partition again only to say what this one already says (see above)
     job.check = CHECKS[CHECKS.length - 1];
@@ -2562,7 +2746,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        test against the real shapes does, and that is what the tile-containment probe runs.
        A bounding box cannot answer it: the panes lean, so their boxes overlap even when the
        panes do not. Nothing is printed from here - `debugGlass` maps these to tone strings. */
-    LAST.panes = panes.map(p => { const bb = bbox(p.poly); return { kind: p.kind, tone: p.tone || null, plain: !!p.plain, empty: !!p.empty, poly: p.poly, x0: Math.round(bb.x0), y0: Math.round(bb.y0), x1: Math.round(bb.x1), y1: Math.round(bb.y1) }; });
+    LAST.panes = panes.map(p => { const bb = bbox(p.poly); return { kind: p.kind, tone: p.tone || null, plain: !!p.plain, shard: !!p.shard, empty: !!p.empty, poly: p.poly, x0: Math.round(bb.x0), y0: Math.round(bb.y0), x1: Math.round(bb.x1), y1: Math.round(bb.y1) }; });
+    LAST.voice = VOICE.box && { ...VOICE.box };
+    LAST.open = OPEN_AREAS.map(o => ({ name: o.name, poly: o.poly }));
+    seatVoiceTile(VOICE.box);
     LAST.tiles = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && { yTop: Math.round(v.yTop), yCtl: Math.round(v.yCtl), wTop: Math.round(v.wTop), angle: +v.angle.toFixed(3) }]));
     if (!same) job.painted = false;
     return true;
@@ -2768,6 +2955,10 @@ function unmount() {
   ROOM.place = ROOM.box = null; LAST.room = null;
   seatRoomTile(document.getElementById("drpg-room-tile"), null);
   seatRoomArt();
+  // and the voice tile back to its sheet's place, its portrait back in its face (E78 C6)
+  VOICE.box = null; LAST.voice = null; OPEN_AREAS.length = 0;
+  seatVoiceTile(null);
+  seatVoiceArt();
   globalThis.Hooks?.callAll?.("drpgGlassCut", { room: null });
   document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
@@ -3025,6 +3216,7 @@ function rebuildAll() {
            the fast path of an identical one fire nothing. */
         if (!wasPainted || !check?.same) {
           seatRoomArt();
+          seatVoiceArt();
           globalThis.Hooks?.callAll?.("drpgGlassCut", { room: LAST.room ? { ...LAST.room } : null });
         }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }

@@ -131,9 +131,10 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
 <div id="drpg-popups"><button type="button" id="drpg-notices-corner" class="drpg-notices-corner" aria-live="off"><span class="drpg-notices-shape" inert><i></i></span></button></div>
 <!-- The voice tile as voice-tile.mjs's `buildVoiceTile` builds it (E78 C3), appended to the body after the
      corner and showing one speaker: the portrait (a gradient here, as the room tile's), the plate with the
-     caption and the name. It is a plain fixed element until C6 cuts the curtain around it, so the sweep's
-     readings do not move with it; the microphone and speaker buttons are C4's and are not drawn here. -->
-<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span></section>
+     caption and the name, and since E78 C6 the microphone and speaker buttons (C4's) in its corner. The
+     curtain cuts it a pane at the right wall under the tray (glass.mjs `voice-block`, C6); on a stacked
+     screen narrow.mjs moves it into the tiles' row. `drpgVoiceCheck` below reads both. -->
+<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" inert></i></button></div></section>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
 <script id="drpg-launch-check">
@@ -468,6 +469,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     fw.toggleFoundryTools(false); await frame();
     return res;
   }
+  /* the glow after a picture on the curtain, with the voice tile's portrait between them since E78 C6 (both lie under it) */
+  const glowAfter = art => { const n = art.nextElementSibling; return (n?.id === "drpg-voice-art" ? n.nextElementSibling : n)?.classList.contains("curtain-glow") ?? false; };
   window.drpgRoomCheck = async ({ cuts = true } = {}) => {
     const g = window.__glass, body = document.body, tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud");
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -669,10 +672,82 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         z: [cs.zIndex, cur.style.zIndex], under: art.previousElementSibling?.id || art.previousElementSibling?.className || null, picture: cs.backgroundImage !== "none" };
       if (out.art.box.some((v, i) => !near(v, out.art.pane[i], 1.5))) out.why.push(`the picture at ${out.art.box} and its pane at ${out.art.pane}`);
       if (out.art.points !== pane.poly.length) out.why.push(`the picture is clipped to ${out.art.points} points, its pane has ${pane.poly.length}`);
-      if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !art.nextElementSibling?.classList.contains("curtain-glow")) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
+      if (out.art.z[0] !== out.art.z[1] || art.previousElementSibling !== cur || !glowAfter(art)) out.why.push(`the picture is not laid between the curtain and its glow (${out.art.z}, after ${out.art.under})`);
       if (!out.art.picture) out.why.push("the picture's layer has no picture");
     }
     if (cuts) await readCuts();
+    return done();
+  };
+  /* THE VOICE TILE (E78 C6, 14.10.2026). On a desk with glass: the tile at the box the cut settled (`LAST.voice`,
+     `data-place="wall"`), its pane a section not painted empty, the portrait (`#drpg-voice-art`) on the body at the
+     pane's own box and cut to its outline, `voice-left` open (the self-check's `openFails` 0), no strip shard at a
+     right wall with no rail (S12-95; the sweep's control takes the rail away). With `cuts`: a long name, the face
+     hidden and shown and the fade, then a pass, fire no drpgGlassCut - and the control, the tile taken away and
+     put back, fires one each way. Stacked: the tile in `#drpg-tile-row` with the room tile, its portrait inside
+     it, nothing of it on the body, the row inside the screen. Without glass: no place stamped, no portrait moved. */
+  window.drpgVoiceCheck = async ({ cuts = true } = {}) => {
+    const g = window.__glass, body = document.body, tile = document.getElementById("drpg-voice-tile"), W = innerWidth;
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pass = async () => { g.refreshGlass(); await frame(); await new Promise(r => setTimeout(r, 450)); };
+    const near = (a, b, d = 1) => Math.abs(a - b) <= d;
+    const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
+    const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
+    const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
+    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "wall" : "none", box: null, pane: null, art: null, open: null, shards: null, cuts: null, row: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    if (!tile) { out.why.push("no #drpg-voice-tile on the page"); return done(); }
+    const loose = document.getElementById("drpg-voice-art"), own = tile.querySelector(".drpg-voice-tile-face > .drpg-voice-tile-art");
+    if (out.expect === "row") {
+      const row = document.getElementById("drpg-tile-row"), t = tile.getBoundingClientRect();
+      out.row = { parent: tile.parentElement?.id ?? null, room: document.getElementById("drpg-room-tile")?.parentElement?.id ?? null, box: [t.left, t.top, t.width, t.height].map(Math.round) };
+      if (out.row.parent !== "drpg-tile-row" || out.row.room !== "drpg-tile-row") out.why.push(`the voice tile is in ${out.row.parent}, the room tile in ${out.row.room}, not both in the row`);
+      if (loose || !own) out.why.push("the portrait is not inside the tile");
+      if (t.left < 0 || t.right > W + 0.5 || t.width < 44 || t.height < 44) out.why.push(`the tile is at ${out.row.box} on a screen ${W} wide`);
+      if (row && row.getBoundingClientRect().right > W + 0.5) out.why.push("the row runs off the screen");
+      return done();
+    }
+    if (out.expect === "none") {
+      if (tile.dataset.place || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} and its portrait ${own ? "inside" : "moved"}`);
+      return done();
+    }
+    const v = g.LAST.voice, pane = g.LAST.panes.find(p => p.tone === "voice-block"), check = g.CHECKS.at(-1);
+    out.box = v && `${v.x},${v.y} ${v.w}x${v.h}`;
+    out.pane = pane && [pane.x0, pane.y0, pane.x1, pane.y1];
+    if (!v || pane?.kind !== "section" || pane.empty) { out.why.push(`the voice pane is ${pane ? pane.kind + (pane.empty ? " painted empty" : "") : "missing"}, the box ${out.box}`); return done(); }
+    const box = [tile.offsetLeft, tile.offsetTop, tile.offsetWidth, tile.offsetHeight];
+    if (tile.dataset.place !== "wall" || !box.every((n, i) => near(n, [v.x, v.y, v.w, v.h][i]))) out.why.push(`the tile is ${tile.dataset.place ?? "unstamped"} at ${box} and settled at ${out.box}`);
+    if (!loose || loose.parentElement !== body || own) out.why.push("the portrait is not on the curtain's pane");
+    else if (!glowAfter(loose) || ![cur, document.getElementById("drpg-room-art")].includes(loose.previousElementSibling)) out.why.push("the portrait is not laid between the curtain and its glow");
+    else {
+      const b = loose.getBoundingClientRect(), n = (/polygon\((.*)\)/.exec(loose.style.clipPath)?.[1] ?? "").split(",").filter(Boolean).length;
+      out.art = [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom), n];
+      if (!(near(b.left, pane.x0) && near(b.top, pane.y0) && near(b.right, pane.x1) && near(b.bottom, pane.y1)) || n !== pane.poly.length)
+        out.why.push(`the portrait is at ${out.art} and its pane at ${out.pane} with ${pane.poly.length} corners`);
+    }
+    out.open = (g.LAST.open || []).some(a => a.name === "voice-left") ? check?.openFails ?? null : "none";
+    if (out.open !== 0) out.why.push(`voice-left is ${out.open === "none" ? "not left open" : out.open + " point(s) covered"}`);
+    const railed = (document.getElementById("sidebar-tabs")?.offsetWidth ?? 0) > 0;
+    out.shards = g.LAST.panes.filter(p => p.shard && p.x1 > W / 2).length;
+    if (!railed && out.shards) out.why.push(`${out.shards} strip shard(s) at a right wall with no rail`);
+    if (!cuts) return done();
+    let n = 0; const count = () => { n++; };
+    Hooks.on("drpgGlassCut", count);
+    const name = tile.querySelector(".drpg-voice-tile-name"), face = tile.querySelector(".drpg-voice-tile-face"), said = name?.textContent;
+    if (name) name.textContent = "A speaker with a much longer name than any ".repeat(3);
+    if (face) face.hidden = true; await pass(); if (face) face.hidden = false;
+    tile.classList.add("is-fading"); loose.classList.add("is-fading"); await pass();
+    tile.classList.remove("is-fading"); loose.classList.remove("is-fading"); if (name) name.textContent = said;
+    await pass();
+    out.cuts = { speech: n, same: Boolean(g.CHECKS.at(-1)?.same), control: null };
+    const parent = tile.parentElement, next = tile.nextSibling;
+    tile.remove(); await pass();
+    const gone = n - out.cuts.speech;
+    if (!loose.isConnected) face?.prepend(loose);   // a cut with no tile drops the portrait it seated
+    parent.insertBefore(tile, next); await pass();
+    out.cuts.control = [gone, n - out.cuts.speech - gone];
+    Hooks.off("drpgGlassCut", count);
+    if (out.cuts.speech || !out.cuts.same) out.why.push(`a long name, the face and the fade recut the glass (${out.cuts.speech} cut(s), same ${out.cuts.same})`);
+    if (out.cuts.control.some(k => k < 1)) out.why.push(`control: the tile taken away and back fired ${out.cuts.control} drpgGlassCut - the count cannot see a cut`);
     return done();
   };
 </script>
