@@ -8962,6 +8962,46 @@ const REGRESSIONS = [
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
 
+    ["R571 - no file of the module takes a window's timer or fetch as a value: each is called where it is named, so a browser never runs it on another object", async () => {
+        /*
+         * The hotfix to 1.2.78, 14.10.2026. bridge-guards.mjs's `createWaiter` held
+         * `clock = { set: setTimeout, clear: clearTimeout }` from 1.2.62 to 1.2.77 and called
+         * `clock.set(...)`: a browser runs a window method only on the window, so at the owner's
+         * table every request a player's client waited on threw before it was sent (the action
+         * grid, every statistic drawn on the GM). Node and jsdom run it on anything, so no
+         * headless run saw it; the harness's timers refuse since (client-entry.mjs), and R570
+         * arms the waiter's clock. This reads every file of the module, comments and literals
+         * blanked, for one of these names neither called nor asked `typeof` - kept in an object,
+         * handed on, or read off `window` or `globalThis` without a call. A property of another
+         * object of the same name (`x.fetch`), and a key of an object literal (`{ setTimeout: ... }`,
+         * voice-tile.mjs's own clock), are not the window's and are not read.
+         * THE CONTROL: the 1.2.77 spelling is found, and a call, a `typeof` and `?.()` are not.
+         */
+        const NAMES = "setTimeout|clearTimeout|setInterval|clearInterval|requestAnimationFrame|cancelAnimationFrame|queueMicrotask|fetch|structuredClone";
+        const taken = text => {
+            const code = blankLiterals(blankComments(text));
+            const found = [];
+            for (const m of code.matchAll(new RegExp(`(\\btypeof\\s+|(?:\\b(?:window|globalThis|self)\\s*)?\\.\\s*|)\\b(${NAMES})\\b(?!\\s*(?:\\?\\.)?\\s*\\()`, "g"))) {
+                const before = m[1];
+                if (/^typeof/.test(before)) continue;
+                if (before.startsWith(".")) continue;
+                const end = m.index + m[0].length;
+                if (/[{,]\s*$/.test(code.slice(Math.max(0, m.index - 40), m.index)) && /^\s*:/.test(code.slice(end, end + 8))) continue;
+                found.push(`${m[2]} at line ${lineAt(code, m.index)}`);
+            }
+            return found;
+        };
+        const files = await otherSources();
+        const problems = files.flatMap(([file, text]) => taken(text).map(where => `${file}: ${where}`));
+        const control = [
+            taken("export function createWaiter({ clock = { set: setTimeout, clear: clearTimeout } } = {}) {}").length,
+            taken("const later = window.requestAnimationFrame;").length,
+            taken("setTimeout(fn, 1); clearTimeout(id); if (typeof fetch === \"function\") requestAnimationFrame?.(fn); x.fetch; window.setTimeout(fn); const c = { setTimeout: (f, ms) => setTimeout(f, ms) };").length
+        ];
+        equal(JSON.stringify({ read: files.length > 100, problems, control }), JSON.stringify({ read: true, problems: [], control: [2, 1, 0] }),
+            "[over 100 module files read, a window function taken as a value in them, the control's three counts]");
+    }],
+
     ["R534 - a voice-tile road has a census row, and every row judges a road", async () => {
         /*
          * E78 C1, 13.10.2026; R503's twin for the voice tile (census-1c.md of the E78 plan, METHOD change 1; the
