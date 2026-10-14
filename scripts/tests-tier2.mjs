@@ -9978,7 +9978,12 @@ const SCENARIOS = [
             out.late = took();
             let at = Date.now();
             await ask(foundry.utils.randomID());
-            out.never = [...took(), Date.now() - at >= TIMING.rollRecordRetryMs];
+            // One millisecond short still waited. Node times the pause on its monotonic clock and
+            // `Date.now` reads the wall clock, each cut to whole milliseconds on its own, so a full
+            // wait can read one short: 65 of 3000 20 ms timeouts did on Node 22.22.2 (14.10.2026),
+            // none read two short. The 1.2.77 release run (38557127125) read this one short once; by
+            // how much it did not record, and a wall clock stepped mid-wait could read more.
+            out.never = [...took(), Date.now() - at >= TIMING.rollRecordRetryMs - 1];
             putBack = D.standInSeam("changed");
             await ask(null);
             out.changed = took();
