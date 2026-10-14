@@ -163,6 +163,60 @@ export const mastermindStore = defineGmStore({
 });
 
 /**
+ * THE SECRET PASSAGES (E79 C1, 1.2.78; the E79 plan's 1b.1, decisions D2 and D38). A secret
+ * passage is a stretch of a wall that a character who knows it may pass, and everything about
+ * it is the GMs': where it is (`passageMapStore`), who knows it (`passageAccessStore`), what was
+ * done with it (`passageLogStore`), and each player's copy of the open passages their own
+ * characters know (`passageCopy`, below the offers'). None of it is world data, which reaches
+ * every browser: no Wall, Region, Scene or world setting holds a passage. Written by
+ * passages-gm.mjs on a GM's browser; the engine refuses a player's write.
+ *
+ * THE MAP: a row per passage, keyed `<sceneId>.<random id>` so that `exists` answers by the
+ * scene alone - `{ sceneId, level, shape, passageWallId, passageSeg: { x1, y1, x2, y2 }, rooms,
+ * state, startAccess }`. `shape` is "wall" in E79 ("tunnel" is E80's, the owner's Q4); `state`
+ * is secret, closed (the GMs' Close, the owner's Q5: who knows it is kept, and the copies leave
+ * it out) or broken (its wall moved or went: C5). No reset group: a season's reset takes who
+ * knows a passage, never the passage.
+ */
+export const passageMapStore = defineGmStore({
+    name: "passageMap", key: SETTINGS.gmPassageMap,
+    kind: "ledger", backup: true, sync: true,
+    afterRestore: () => import("./passages-gm.mjs").then(m => m.retellPassages()),
+    exists: key => Boolean(game.scenes?.has(String(key).split(".")[0]))
+});
+
+/**
+ * WHO KNOWS A PASSAGE: a cell per `<passageId>/<actorId>`, `{ how, by, at }` - how the character
+ * learnt it first ("gm" or "start"; "shown" is C7's, "built" and "found" E80's) and when, both
+ * written fill-only, so learning it again keeps them; and `by`, a split field `{ <who>: at }` to
+ * which a second grant, on this GM's browser or another's, adds its own key. Beside the cells a
+ * `touch/<actorId>` row per character, stamped whenever what that character's owners may hold
+ * changes: its stamp is that character's part of every copy (passages-gm.mjs `passageCopyFor`).
+ * Cut by the reset's "passages" group.
+ */
+export const passageAccessStore = defineGmStore({
+    name: "passageAccess", key: SETTINGS.gmPassageAccess,
+    kind: "ledger", split: ["by"], resetGroup: "passages", backup: true, sync: true,
+    afterRestore: () => import("./passages-gm.mjs").then(m => m.retellPassages()),
+    exists: key => {
+        const [head, actorId = ""] = String(key).split("/");
+        return Boolean(game.actors?.has(actorId)) && (head === "touch" || Boolean(game.scenes?.has(head.split(".")[0])));
+    }
+});
+
+/**
+ * WHAT WAS DONE WITH THE PASSAGES: the GMs' log, a row per create, grant, revoke, close, open and
+ * delete - `{ at, what, passageId, actorId, by }` - the newest 200 kept (passages-gm.mjs
+ * `PASSAGE_LOG_ROWS`). Its `exists` answers no for every key, as the rolls' does: a row's key is
+ * no document. Cut by the reset's "passages" group.
+ */
+export const passageLogStore = defineGmStore({
+    name: "passageLog", key: SETTINGS.gmPassageLog,
+    kind: "ledger", resetGroup: "passages", backup: true, sync: true,
+    exists: () => false
+});
+
+/**
  * The upgrade day's clear, still undecided (H4): the store's pick is older than a
  * clear some GM's old store held. `{ pick, clearedAt, pickedAt }`, or null. The same
  * on every GM once the record has merged. While it stands, no player is told they
@@ -786,6 +840,20 @@ export const offerCopy = defineGmCopy({
         import("./level-up.mjs").then(m => m.redrawOwnSheets())
             .catch(err => error("The Level Up button could not be drawn again after a reset", err));
     }
+});
+
+/**
+ * A PLAYER'S SECRET PASSAGES (E79 C1): `{ passageId: { sceneId, shape, level, passageWallId,
+ * passageSeg, actorIds } }`, the open passages this user's own characters know (the Mastermind's
+ * player: every open passage, the owner's Q7), `actorIds` only this user's own - no name, no room
+ * and nothing of who else knows it. Sent by the primary GM alone, addressed to this user, and
+ * taken by the offers' rule (`offersCombine`): a stamp per character this user owns, so a copy
+ * that lost a row - revoked, closed, broken, deleted, or the Mastermind moved on - is replaced
+ * whole by the newer answer.
+ */
+export const passageCopy = defineGmCopy({
+    name: "passages", key: SETTINGS.minePassages, from: "passageAccess", resetGroup: "passages", fallback: {},
+    combine: offersCombine
 });
 
 /**

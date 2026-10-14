@@ -23,7 +23,11 @@
  *   be taken back and which the later phases leave out by phase. Then p3's world as found - the
  *   world-secrets rule's scan (`worldScan`, lib/canary.mjs) with no hit, and the walls, the regions,
  *   the scenes' flags and the module's world settings p3 holds - is kept for phases A, E and G.
- * A (C1): the GM creates a passage and grants p1: p1's copy holds exactly that row, p2 and p3 none.
+ * A (C1): the GM creates a passage on a wall it has just drawn, then grants Aiko (p1's). p1's copy holds
+ *   exactly that row; p2 and p3 read neither the marker nor the passage's id on any surface outside phase 0's
+ *   wire and console; p3's world is the world as found but for the GM's new wall, after the create and after
+ *   the grant; every copy the GM sends names one player; a copy p2 forges for p3 is refused; and an ask with
+ *   junk fields from p2 is answered to p2 alone, with p2's own copy, which holds nothing.
  * B (C2): the client's cut on the harness's minimal move backend. C (C3): the gap and the veto.
  * D (C4): the GM's audit. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
  *
@@ -81,13 +85,21 @@ const sizes = dump => Object.fromEntries(Object.entries(surfaces(dump)).map(([s,
 
 /* What p3 holds of walls, regions, the scenes' flags and the module's world settings: tokens are left out on
    purpose - every phase moves them, and a passage is not a token's. */
-const worldPrint = dump => J({
-    scenes: (dump?.world?.Scene ?? []).map(s => ({ id: s?._id, walls: s?.walls ?? [], regions: s?.regions ?? [], flags: s?.flags ?? {} })),
+const worldPrint = (dump, { without = null } = {}) => J({
+    scenes: (dump?.world?.Scene ?? []).map(s => ({ id: s?._id, walls: (s?.walls ?? []).filter(w => w?._id !== without), regions: s?.regions ?? [], flags: s?.flags ?? {} })),
     settings: Object.fromEntries(Object.entries(dump?.settings?.world ?? {}).filter(([key]) => key.startsWith("danganronpa-rpg.")))
 });
 
-export async function run({ gm, p1, check, phase, settle, dump, IDS }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
     phase(PHASE0);
+    /* The GM's load migration is waited for before anything is read (E79 C1, 14.10.2026). Its writes - the unstamped
+       harness world opens the students' sheets - reach p3 as world changes. In a2.sh's first queue (three lanes) one
+       run read phase A's "p3's world as found" different on both prints, and its log shows the migration's line after
+       phase A had begun; run alone, the scenario read 12/12 twice and the line comes before phase 0's checks. The
+       cause is read from that log order, not reproduced under load. Awaited, the baseline is the world once the load
+       has finished writing (15-held and 65-season wait for it the same way). */
+    await gm.eval(`await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad(); return true;`);
+    await settle(300);
     /* Planted on p1's client alone: the scene's source and p1's User changed in memory (`_source`, no update, so
        nothing reaches the world or the other browsers), a world value in p1's own settings map, the two storages,
        the page, a notification and a console line; then a packet the GM sends to p1 and nobody else. */
@@ -154,4 +166,75 @@ export async function run({ gm, p1, check, phase, settle, dump, IDS }) {
         baseHits.length === 0 && (d3.world?.Scene ?? []).length >= 2
             && Object.keys(JSON.parse(baseline).settings).length > 0,
         J({ baseHits, scenes: (d3.world?.Scene ?? []).length, settings: Object.keys(JSON.parse(baseline).settings).length }));
+
+    await phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
+}
+
+const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
+
+/* What a browser holds of the passages as the module reads them: the copy on a player's, the GMs' records on a GM's. */
+const known = (client, repoUrl) => client.eval(`const { knownPassages } = await import("${repoUrl}/scripts/passages.mjs"); return knownPassages();`);
+
+async function phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline }) {
+    phase(PHASE_A, { flow: "secret-passages" });
+    const from = socketTraffic.length;
+    /* A wall of the GM's own map, drawn for the passage, and the passage on a stretch of it starting at the marker. */
+    const made = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]);
+        return wall?.id ?? null;`);
+    await settle(300);
+    const id = await gm.eval(`return await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, wallId: ${J(made)},
+        seg: { x1: ${MARK}, y1: 400, x2: 1300.5, y2: 400 } });`);
+    await settle(400);
+    const created3 = await dump("p3");
+    const granted = await gm.eval(`return await game.drpg.passages.grant(${J(id)}, ${J(IDS.aiko)});`);
+    await settle(600);
+    check("A: the GM's console makes a passage on its new wall and grants it to Aiko",
+        typeof made === "string" && typeof id === "string" && id.startsWith(`${IDS.scene}.`) && granted === true, J({ made, id, granted }));
+
+    const copy1 = await known(p1, repoUrl);
+    const row = { sceneId: IDS.scene, shape: "wall", level: null, passageWallId: made,
+        passageSeg: { x1: MARK, y1: 400, x2: 1300.5, y2: 400 }, actorIds: [IDS.aiko] };
+    check("A: p1's copy holds exactly the passage Aiko knows - its scene, shape, floor, wall, stretch and knower, and nothing else",
+        J(copy1) === J({ [id]: row }), J(copy1));
+
+    const d2 = await dump("p2"), d3 = await dump("p3");
+    const idRe = new RegExp(String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const seen = d => ({ marker: probe(d, { skip: PHASE0 }), id: probe(d, { skip: PHASE0, re: idRe }) });
+    const on2 = seen(d2), on3 = seen(d3);
+    const copies = [await known(p2, repoUrl), await known(p3, repoUrl)];
+    check("A: p2 and p3 read neither the marker nor the passage's id on any surface (walls, regions, scenes, documents, settings, the client store, the storages, the wire, the page, the notifications, the console), and their copies hold nothing",
+        total(on2.marker) + total(on2.id) + total(on3.marker) + total(on3.id) === 0 && J(copies) === J([{}, {}]), J({ on2, on3, copies }));
+    const hits = [...worldScan(created3), ...worldScan(d3)];
+    const prints = [worldPrint(created3, { without: made }), worldPrint(d3, { without: made })];
+    check("A: p3's world is the world as found, after the create and after the grant, but for the GM's new wall - and the world-secrets scan finds nothing",
+        hits.length === 0 && prints.every(p => p === baseline), J({ hits, same: prints.map(p => p === baseline) }));
+    const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
+    const unaddressed = rows.filter(t => !Array.isArray(t.to) || t.to.length !== 1 || t.from !== "gm");
+    check("A: every copy the GM sent in this phase names one player, and Aiko's player was sent hers",
+        rows.length > 0 && unaddressed.length === 0 && rows.some(t => J(t.to) === J([IDS.p1])), J(rows));
+
+    /* A copy p2 forges for p3, at another number (4321.5), stamped far ahead for p3's own Chie: p3 is not to take it. */
+    const forged = { [`${IDS.scene}.forged76`]: { sceneId: IDS.scene, shape: "wall", level: null, passageWallId: made,
+        passageSeg: { x1: 4321.5, y1: 400, x2: 4400.5, y2: 400 }, actorIds: [IDS.chie] } };
+    await p2.eval(`game.socket.emit("module.danganronpa-rpg", { action: "passage.rows", userId: ${J(IDS.p3)}, passages: ${J(forged)},
+        stamps: { ${J(IDS.chie)}: 9e15 } }, { recipients: [${J(IDS.p3)}] }); return true;`);
+    await settle(400);
+    const after3 = await dump("p3");
+    const forgedOn3 = probe({ settings: after3.settings, storage: after3.storage }, { re: /(?<![\d.])4321\.5(?!\d)/g });
+    const copy3 = await known(p3, repoUrl);
+    const reached = (after3.wire ?? []).some(w => J(w).includes("4321.5"));
+    check("A: a copy p2 forges for p3 reaches p3 and is refused - p3's copy, client store and storages hold none of it",
+        reached && J(copy3) === "{}" && total(forgedOn3) === 0, J({ reached, copy3, forgedOn3 }));
+
+    /* An ask with junk fields - another user, a character, a passage - answered about its sender alone. */
+    const asked = socketTraffic.length;
+    await p2.eval(`game.socket.emit("module.danganronpa-rpg", { action: "passage.request", userId: ${J(IDS.p3)}, actorId: ${J(IDS.aiko)},
+        passageId: ${J(id)}, passages: ${J(forged)} }, { recipients: [${J(IDS.gm)}] }); return true;`);
+    await settle(600);
+    const answers = socketTraffic.slice(asked).filter(t => t.action === "passage.rows");
+    const copy2 = await known(p2, repoUrl);
+    check("A: an ask from p2 with junk fields is answered to p2 alone, once, and p2's copy still holds nothing",
+        answers.length === 1 && J(answers[0].to) === J([IDS.p2]) && J(copy2) === "{}", J({ answers, copy2 }));
 }

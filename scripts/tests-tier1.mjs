@@ -5722,7 +5722,9 @@ const INVARIANTS = [
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
             ["truth-bullets.mjs", "retellBulletRefs"],
             // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
-            ["call-effects.mjs", "retellConfusions"]];
+            ["call-effects.mjs", "retellConfusions"],
+            // E79 C1: the passages' map and who knows each, which each player's copy of their secret passages is made of.
+            ["passages-gm.mjs", "retellPassages"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -13247,6 +13249,205 @@ const INVARIANTS = [
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
             + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
+    }],
+    ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-1 (its reset half is C8's). A secret passage is the GMs' alone:
+         * three GM stores (gm-stores.mjs `passageMapStore`, `passageAccessStore`, `passageLogStore`) written by
+         * passages-gm.mjs. The harms: a row that holds more than the map needs (a player's copy is cut from it), a
+         * second GM's grant lost in the merge, the log growing without end, and a reset that takes the passages
+         * themselves. Run on two engines of the suite's own (`createGmStoreEngine`), whose stores are the real
+         * specs under other names, and with two students of this world, whom `grantPassage` asks for: nothing of
+         * this world is written. Measured on the C1 tree: two GMs granting one cell at once both stay in `by`, and
+         * the merge keeps the newer `how` - "the first `how` kept" holds on one browser (fill-only), not across two
+         * GMs writing in the same moment, which the plan's A10-1 does not separate.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students of this world are granted a passage on the suite's own engines");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const { RESET_STEPS } = await import("./season-setup.mjs");
+        const J = v => JSON.stringify(v);
+
+        const specs = [S.passageMapStore, S.passageAccessStore, S.passageLogStore].map(h => h.spec);
+        equal(J([specs.map(s => [s.name, s.kind, s.backup, s.sync, s.resetGroup ?? null, s.split ?? null]),
+            [G.gmCopySpec("passages")?.from, G.gmCopySpec("passages")?.resetGroup, G.gmCopySpec("passages")?.combine === S.offersCombine]]),
+        J([[["passageMap", "ledger", true, true, null, null], ["passageAccess", "ledger", true, true, "passages", ["by"]],
+            ["passageLog", "ledger", true, true, "passages", null]], ["passageAccess", "passages", true]]),
+        "the three records' specs (name, kind, backup, sync, reset group, split) and the copy's (made of, reset group, offersCombine)");
+        equal(J([RESET_GROUPS.filter(g => g.key === "passages").length, RESET_STEPS.includes("passages")]), J([1, true]),
+            "the reset's \"passages\" group is not one group and one step");
+
+        const scene = { id: "R554SCENE" }, wall = { id: "R554WALL", c: [100, 400, 500, 400] };
+        const [s1, s2] = studentActors().slice(0, 2).map(a => a.id);
+        const built = P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen", 7], level: "R554LEVEL", startAccess: [s1, s1] });
+        equal(J(built), J({ row: { sceneId: "R554SCENE", level: "R554LEVEL", shape: "wall", passageWallId: "R554WALL",
+            passageSeg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen"], state: "secret", startAccess: [s1] } }),
+        "a new passage's row does not hold exactly the map's fields");
+        equal(J([P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 402, x2: 300, y2: 400 } }).refused ?? null,
+            P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 200, y2: 400 } }).refused ?? null,
+            P.passageRowFor(scene, wall).row?.passageSeg, P.passageRowFor(scene, { id: "R554GONE" }).refused ?? null]),
+        J(["the stretch is not on that wall.", "the stretch needs two different ends.", { x1: 100, y1: 400, x2: 500, y2: 400 }, "no such wall on that scene."]),
+        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall) and no wall");
+
+        let t = 7_000_000;
+        const engineFor = self => G.createGmStoreEngine({
+            selfId: () => self, isGM: () => true, isPrimary: () => self === "R554GMA", worldId: () => "R554WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R554GMA", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const storesOf = (eng, tag) => {
+            const def = (h, name) => eng.define({ ...h.spec, name: `r554${name}`, key: `r554${name}${tag}`, afterRestore: undefined, exists: undefined });
+            return { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+                mastermind: eng.define({ name: "r554mm", key: `r554mm${tag}`, kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        };
+        const A = storesOf(engineFor("R554GMA"), "A"), B = storesOf(engineFor("R554GMB"), "B");
+        const id = "R554SCENE.r554p1", cell1 = `${id}/${s1}`, cell2 = `${id}/${s2}`;
+        await A.map.patch(id, built.row);
+        await B.map.mergeIn(A.map.section(), { source: "sync" });
+        equal(G.stableJson(B.map.get(id)), G.stableJson(built.row), "a second GM's map does not hold the row the first wrote");
+
+        // Two GMs at once: GM A grants s1, GM B grants s2 and s1 (shown), neither having merged the other's.
+        equal(J([await P.grantPassage(id, s1, { how: "gm", by: "R554GMA", stores: A }), (t += 5, await P.grantPassage(id, s2, { how: "gm", by: "R554GMB", stores: B })),
+            await P.grantPassage(id, s1, { how: "shown", by: "R554GMB", stores: B })]), J([true, true, true]), "a grant on the suite's engines was refused");
+        const touched1 = A.access.newest(`touch/${s1}`);
+        await A.access.mergeIn(B.access.section(), { source: "sync" });
+        await B.access.mergeIn(A.access.section(), { source: "sync" });
+        const cellsOf = h => Object.fromEntries(Object.entries(h.access.entries()).filter(([k]) => k.startsWith(`${id}/`)));
+        equal(G.stableJson(cellsOf(A)), G.stableJson(cellsOf(B)), "two GMs' cells do not read the same once each has the other's");
+        equal(J([Object.keys(cellsOf(A)).sort(), Object.keys(A.access.get(cell1)?.by ?? {}).sort(), A.access.get(cell1)?.how, A.access.get(cell2)?.how]),
+            J([[cell1, cell2].sort(), ["R554GMA", "R554GMB"], "shown", "gm"]),
+            "[the cells after the merge, the GMs in s1's `by`, s1's `how` (the newer of two at once), s2's `how`]");
+        // On one browser, a later grant keeps the first `how` and its time, and adds its GM to `by`.
+        const at1 = A.access.get(cell1)?.at;
+        t += 5;
+        await P.grantPassage(id, s1, { how: "gm", by: "R554GMC", stores: A });
+        equal(J([A.access.get(cell1)?.how, A.access.get(cell1)?.at === at1, Object.keys(A.access.get(cell1)?.by ?? {}).sort(), A.access.newest(`touch/${s1}`) > touched1]),
+            J(["shown", true, ["R554GMA", "R554GMB", "R554GMC"], true]),
+            "[a second grant's `how`, its time, `by` and the character's touch stamp] - the first `how` was replaced, `by` lost a GM or nothing told the owners");
+
+        // The log: 2 rows of s1's grants, then 200 of s2's grants and revokes - the two oldest go.
+        for (let i = 0; i < 100; i++) {
+            t += 1;
+            await P.revokePassage(id, s2, { stores: A });
+            await P.grantPassage(id, s2, { by: "R554GMA", stores: A });
+        }
+        const rows = P.passageLog({ stores: A });
+        equal(J([Object.keys(A.log.entries()).length, rows.length, rows[0]?.what, rows[0]?.actorId === s2, rows.some(r => r.actorId === s1)]),
+            J([P.PASSAGE_LOG_ROWS, 200, "grant", true, false]),
+            "[rows held, rows listed, the newest row's kind, its student, any of s1's two left] - the log does not keep exactly its newest 200");
+    }],
+
+    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-2 and D9. What a player's browser learns of a passage is its copy
+         * (gm-stores.mjs `passageCopy`), cut for that user by `passageCopyFor` and sent by `pushPassageCopies`. The
+         * harms: a passage on a browser whose characters do not know it, a copy naming somebody else's character or a
+         * room, a row that stays after its knower forgot it (D9: revoking the last passage empties the copy), a packet
+         * every browser receives, and a copy another player or a GM that is not the primary can hand a browser. Run on
+         * an engine of the suite's own, with characters and users of its own: nothing of this world is read or written
+         * but this browser's own user. The weighing is `offersCombine`'s own (`passageCopy`'s combine): each copy
+         * after a change is held against the one before it.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 8_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R555GM", isGM: () => true, isPrimary: () => true, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R555GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r555${name}`, key: `r555${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r555mm", key: "r555mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const user = (id, { gm = false, active = true } = {}) => ({ id, isGM: gm, active });
+        const users = [user("R555GM", { gm: true }), user("R555U1"), user("R555U2"), user("R555U3"), user("R555U4"), user("R555U5", { active: false })];
+        const actor = (id, owner, { monokuma = false } = {}) => ({ id, type: "character",
+            getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || u?.id === owner) });
+        const actors = [actor("R555A1", "R555U1"), actor("R555A2", "R555U2"), actor("R555MK", "R555U3", { monokuma: true }), actor("R555MM", "R555U4")];
+        const [, U1, U2, U3, U4] = users;
+        const row = n => ({ sceneId: "R555SCENE", level: null, shape: "wall", passageWallId: `R555WALL${n}`,
+            passageSeg: { x1: 1234.5, y1: 100 * n, x2: 1300.5, y2: 100 * n }, rooms: ["R555 Kitchen"], state: "secret", startAccess: [] });
+        const [P1, P2, P3, P4] = [1, 2, 3, 4].map(n => `R555SCENE.r555p${n}`);
+        await stores.map.patchMany({ [P1]: row(1), [P2]: row(2), [P3]: { ...row(3), state: "closed" }, [P4]: { ...row(4), state: "broken" } });
+        const cells = { [`${P1}/R555A1`]: 1, [`${P1}/R555A2`]: 1, [`${P1}/R555MK`]: 1, [`${P2}/R555A2`]: 1, [`${P3}/R555A1`]: 1, [`${P4}/R555A1`]: 1, [`${P3}/R555A2`]: 1 };
+        await stores.access.patchMany(Object.fromEntries(Object.keys(cells).map(k => [k, { how: "gm", at: 1, by: { R555GM: 1 } }])));
+        await stores.access.patchMany(Object.fromEntries(["R555A1", "R555A2", "R555MK"].map(a => [`touch/${a}`, { at: 1 }])));
+        const copy = u => P.passageCopyFor(u, { stores, actors });
+        const ids = c => Object.keys(c.value).sort();
+        const taken = (held, next) => S.offersCombine(held, next) !== null;
+
+        const c1 = copy(U1), c2 = copy(U2);
+        equal(J([ids(c1), c1.value[P1]?.actorIds, Object.keys(c1.value[P1] ?? {}).sort(), Object.keys(c1.stamps), c1.stamps.R555A1 > 0]),
+            J([[P1], ["R555A1"], ["actorIds", "level", "passageSeg", "passageWallId", "sceneId", "shape"], ["R555A1"], true]),
+            "[p1's passages, its knowers, a row's fields, the characters stamped, a stamp] - a closed or broken passage, somebody else's character or a field beyond the copy's");
+        equal(J([ids(c2), c2.value[P1]?.actorIds, c2.value[P2]?.actorIds, J(c2).includes("R555 Kitchen")]), J([[P1, P2], ["R555A2"], ["R555A2"], false]),
+            "[p2's passages, their knowers, a room's name in the copy]");
+        const plain4 = copy(U4);
+        equal(J([copy(U3), plain4]), J([{ value: {}, stamps: {} }, { value: {}, stamps: { R555MM: 0 } }]),
+            "a Monokuma's owner or a student's who knows nothing and is not the Mastermind holds a passage");
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const c4 = copy(U4);
+        equal(J([ids(c4), c4.value[P1]?.actorIds, c4.value[P2]?.actorIds, taken(plain4, c4)]),
+            J([[P1, P2], ["R555MM"], ["R555MM"], true]), "[the Mastermind's owner's passages, their knowers, the copy taken] - not every open passage");
+
+        // The push: each player who is here, addressed to them alone; an unchanged copy is not sent twice unless asked for.
+        const sent = [], told = new Map();
+        const socket = { emit: (event, packet, options) => sent.push({ event, packet, options }) };
+        const push = (only = null, force = false) => P.pushPassageCopies(only, { force, stores, actors, users, socket, told });
+        const n1 = push(), n2 = push(), n3 = push(null, true), n4 = push(["R555U1"], true);
+        equal(J([n1, n2, n3, n4, sent.slice(0, n1).map(s => s.packet.userId)]), J([4, 0, 4, 1, ["R555U1", "R555U2", "R555U3", "R555U4"]]),
+            "[sent, again unchanged, forced, forced to p1 alone, to whom] - a GM, an absent player or nobody was sent a copy");
+        const unaddressed = sent.filter(s => s.event !== `module.${MODULE_ID}` || s.packet.action !== "passage.rows"
+            || J(s.options?.recipients) !== J([s.packet.userId]));
+        equal(J(unaddressed.map(s => s.packet.userId)), "[]", "a copy went out without its recipients naming its user alone");
+        equal(J(sent[0].packet.passages), J(c1.value), "the copy pushed to p1 is not p1's copy");
+
+        // Each change drops the row from the copies it was in, and each new copy is taken over the one before.
+        const before = { 1: copy(U1), 2: copy(U2), 4: copy(U4) };
+        equal(await P.revokePassage(P1, "R555A1", { stores }), true, "a revoke was refused");
+        const r1 = copy(U1);
+        equal(J([ids(r1), taken(before[1], r1), ids(copy(U2))]), J([[], true, [P1, P2]]),
+            "[p1's passages after the last was revoked, the copy taken, p2's] (D9)");
+        equal(await P.closePassage(P2, { stores }), true, "a Close was refused");
+        const k2 = copy(U2), k4 = copy(U4);
+        equal(J([ids(k2), taken(before[2], k2), ids(k4), taken(before[4], k4), Object.hasOwn(stores.access.entries(), `${P2}/R555A2`)]),
+            J([[P1], true, [P1], true, true]), "[p2's after the Close, taken, the Mastermind's, taken, the cell kept]");
+        equal(await P.openPassage(P2, { stores }), true, "an Open was refused");
+        equal(J(ids(copy(U2))), J([P1, P2]), "an opened passage did not come back to its knower's copy");
+        const o2 = copy(U2), o4 = copy(U4);
+        equal(await P.deletePassage(P1, { stores }), true, "a Delete was refused");
+        const d2 = copy(U2), d4 = copy(U4);
+        equal(J([ids(d2), taken(o2, d2), ids(d4), taken(o4, d4), Object.keys(stores.access.entries()).filter(k => k.startsWith(`${P1}/`))]),
+            J([[P2], true, [P2], true, []]), "[p2's after the Delete, taken, the Mastermind's, taken, the deleted passage's cells]");
+        await stores.mastermind.patch(G.RECORD, { actorId: null });
+        const m4 = copy(U4);
+        equal(J([ids(m4), taken(d4, m4)]), J([[], true]), "the Mastermind's former owner still holds the passages, or the copy that drops them is refused");
+
+        // The receiver's rule: addressed to this user, and sent by the primary GM.
+        const me = { id: "R555U1", isGM: false };
+        const people = new Map([["R555GM", { isGM: true }], ["R555GM2", { isGM: true }], ["R555U2", { isGM: false }]]);
+        const refusal = (payload, sender, who = me) => L.passageRowsRefusal(payload, sender, { me: who, users: people, primary: "R555GM" });
+        equal(J([refusal({ userId: "R555U1" }, "R555GM"), refusal({ userId: "R555U1" }, "R555GM2"), refusal({ userId: "R555U1" }, "R555U2"),
+            refusal({ userId: "R555U2" }, "R555GM"), refusal({ userId: "R555GM" }, "R555GM", { id: "R555GM", isGM: true })]),
+        J([null, "not sent by the primary GM", "not sent by a GM", "addressed to somebody else", "a GM's browser keeps no copy"]),
+        "[the primary's to p1, another GM's, a player's, the primary's to p2, any to a GM] - a copy is taken from somebody other than the primary GM");
+
+        // A step goes through a passage's stretch within 1 px of it, and never along it.
+        const seg = { x1: 1234.5, y1: 400, x2: 1300.5, y2: 400 };
+        const through = (ax, ay, bx, by) => L.stepCrosses({ x: ax, y: ay }, { x: bx, y: by }, seg);
+        equal(J([through(1250, 350, 1250, 450), through(1240, 380, 1300, 380), through(1250, 350, 1250, 399.5), through(1250, 350, 1250, 398),
+            through(1234, 350, 1234, 450), through(1232, 350, 1232, 450)]), J([true, false, true, false, true, false]),
+        "[across, along, 0.5 px short, 2 px short, 0.5 px past its end, 2.5 px past it]");
     }],
 ];
 

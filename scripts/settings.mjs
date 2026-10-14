@@ -74,6 +74,16 @@ export const SETTINGS = {
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
     /**
+     * THE SECRET PASSAGES (E79 C1, 1.2.78): three GM stores (gm-stores.mjs) - where each
+     * passage is and its state (`passageMapStore`), who knows each one (`passageAccessStore`)
+     * and what was done with them (`passageLogStore`) - and nothing in world data: a wall,
+     * a region, a scene or a world setting reaches every browser. This user's own copy is
+     * `minePassages` (`passageCopy`, below `mineFog`).
+     */
+    gmPassageMap: "gmPassageMap",
+    gmPassageAccess: "gmPassageAccess",
+    gmPassageLog: "gmPassageLog",
+    /**
      * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
      * day a darkening covers, or null - public, since the card that fires it is.
      *
@@ -798,6 +808,12 @@ export const SETTINGS = {
      */
     mineFog: "mineFog",
     legacyDiscoveryMine: "discoveryMine",
+    /**
+     * The secret passages this user's own characters know, as the primary GM sent them
+     * (E79 C1; gm-stores.mjs `passageCopy`): `{ passageId: { sceneId, shape, level,
+     * passageWallId, passageSeg, actorIds } }`, open rows only, no name and no room.
+     */
+    minePassages: "minePassages",
     /**
      * Rooms, not sight lines, decide what a player can see.
      *
@@ -2126,6 +2142,34 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onDeathsChange()
+    });
+    // The secret passages (E79 C1): the GMs' three stores, and a player's copy of their own. A
+    // change of the copy is told to whatever this browser draws or cuts from it by
+    // `drpgPassagesChanged`; the primary watches the stores' keys (passages-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageMap, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageAccess, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageLog, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.minePassages, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgPassagesChanged")
     });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {

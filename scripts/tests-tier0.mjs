@@ -383,7 +383,9 @@ const REGRESSIONS = [
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
-            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor"
+            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
+            // E79 C1 (1.2.78): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
+            "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -5889,8 +5891,14 @@ const REGRESSIONS = [
         const named = [...E.gmStoreHandles().map(h => [`the store ${h.name}`, h.spec.resetGroup]),
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
-        const strays = named.filter(([, group]) => !groups.has(group)).map(([what, group]) => `${what} (${group})`);
+        /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). */
+        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+        const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
+            .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
+        const unlisted = Object.keys(UNCUT).filter(what => !named.some(([w, group]) => w === what && group === undefined));
+        ok(!unlisted.length, `kept out of every reset, and gone or given a group since - take it off the list: ${unlisted.join(", ")}`);
         // The owner's Q4: a reset withdraws the Level Ups on offer by its cut alone, and sends nothing to draw that.
         ok(typeof E.gmCopySpec("offers")?.onCut === "function", "an owner's copy of the offers is cut by a reset and nothing draws the sheet again");
 
@@ -9278,7 +9286,9 @@ const REGRESSIONS = [
          * `SETTINGS.moveAudit`'s one (the GM's choice; mode), once each key exists.
          * At C0 the module has 21 roads, census-1c.md's 21 pairs at 32fd204 (15 HOOK, 5 OPT, 1 ACT), none of E79's own:
          * the hooks that read a moved token, the options a revert and the GM's fallback gather carry, and the bridge's
-         * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road.
+         * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road. E79 C1 adds 12: the three
+         * records and the copy (STORE), the copy's three sources (SET), the ask and the copy on both ends (ACT) and the
+         * wall a GM's new passage is held to (WALLS).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9318,7 +9328,20 @@ const REGRESSIONS = [
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
-            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`); `handleSendback` writes REVERT and SENT_BACK on the GM, and a lawful send-back is never stopped by a wall (E79 C4)"]
+            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`); `handleSendback` writes REVERT and SENT_BACK on the GM, and a lawful send-back is never stopped by a wall (E79 C4)"],
+            // ---- the GMs' records of the passages and each player's copy (E79 C1)
+            ["STORE gm-stores.mjs#passageMapStore#passageMap -> record", "GM only: written by passages-gm.mjs on a GM's browser, refused by the engine on a player's; no reset group (a cut never wipes the map, R177 says why); `exists` refuses a row whose scene is gone (R554)"],
+            ["STORE gm-stores.mjs#passageAccessStore#passageAccess -> record", "GM only; cells `passageId/actorId` with `how` and `at` kept from the first grant and `by` a split field each GM adds to, `touch/actorId` stamps, the reset's \"passages\" group; two GMs' cells merged cell by cell (R554)"],
+            ["STORE gm-stores.mjs#passageLogStore#passageLog -> record", "GM only; the newest 200 rows (`PASSAGE_LOG_ROWS`); the reset's \"passages\" group (R554)"],
+            ["STORE gm-stores.mjs#passageCopy#passages -> copy", "the addressed copy: only rows `secret` a character this user owns knows (the Mastermind's owner: every one), `actorIds` only the user's own, a Monokuma nothing; sent with `recipients` (R555, R560)"],
+            ["SET settings.mjs#minePassages#primary -> screen", "taken only from the primary GM and addressed to this user (`onPassageRows`, `replyForMe`'s rule and the primary's), cut to this world's scenes and the characters the packet stamps (R555; 76 A)"],
+            ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (E79 C4) judges every landed move on the walls from the GMs' records, never from a copy"],
+            ["SET settings.mjs#minePassages#stale -> screen", "replaced on `ready` and `drpgPrimaryReady` by the primary's answer to `passage.request`, and on every change by its push (R555)"],
+            ["ACT passages.mjs#requestPassages#passage.request -> copy", "the player's ask carries no field the GM reads: it is answered about Foundry's sender"],
+            ["ACT passages-gm.mjs#onPassageRequest#passage.request -> copy", "judged on the primary GM with `senderOf` (a GM's ask is not answered); the answer is that user's copy alone, built from the records once the other GMs' are in (R555; 76 A)"],
+            ["ACT passages-gm.mjs#pushPassageCopies#passage.rows -> screen", "the primary GM's push, to each player with `recipients` naming that player alone (R555, R560; 76 A)"],
+            ["ACT passages.mjs#onPassageRows#passage.rows -> screen", "CLAIM: refused unless addressed to this user and sent by the primary GM; 76 A forges one from p2 and p3 refuses it (R555)"],
+            ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };
@@ -9440,6 +9463,83 @@ const REGRESSIONS = [
             + `against ${PASSAGE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
         equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
+    }],
+
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, and room-tile.mjs does not import the passages", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
+         * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
+         * a Wall (a secret door, `door: 2`, or a wall the module creates), a flag or an un-addressed packet is a
+         * passage every player's console can read. Read here, in every module file outside the suite's own with
+         * comments blanked: a `door:` of 2 or `CONST.WALL_DOOR_TYPES.SECRET` written anywhere; a
+         * `createEmbeddedDocuments("Wall"`; a `socket.emit` whose packet names a `passage.*` or `move.sentBack` action
+         * without `recipients: [` in its options; a `setFlag(` whose arguments name a passage; `passageSeg` or
+         * `passageWallId` in a file other than the records' three (gm-stores.mjs, passages.mjs, passages-gm.mjs); an
+         * import of passages.mjs, static or `import()`, of a file but rooms, the GM stores, settings, utils and config
+         * (the leaf movement.mjs reads from C3, which must not read movement.mjs back); and room-tile.mjs importing
+         * either passages file (a room's tile names no passage). What it does not read: a packet built in a variable
+         * before the emit (R201 holds every emit to its recipients), a flag written through `update` with a computed
+         * key, and a passage's numbers under other names - scenario 76's probe looks for the 1234.5 marker on every
+         * surface instead. The reader is run first on planted source, one fault of each rule and a clean twin.
+         */
+        const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
+        const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
+        const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
+        const rulesOf = sources => {
+            const broken = [];
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const at = (rule, i) => broken.push(`${rule} ${file}:${lineAt(code, i)}`);
+                for (const m of blank.matchAll(/(?<![\w$.])door\s*:\s*(?:2(?![\w.])|CONST\s*\.\s*WALL_DOOR_TYPES\s*\.\s*SECRET\b)/g)) at("secretDoor", m.index);
+                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) if (blank[m.index] !== " ") at("wallCreated", m.index);
+                for (const m of blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const packet = args[1] ? code.slice(args[1].start, args[1].end) : "";
+                    const options = args[2] ? blank.slice(args[2].start, args[2].end) : "";
+                    if (/(["'])(?:passage\.\w+|move\.sentBack)\1/.test(packet) && !/\brecipients\s*:\s*\[/.test(options)) at("unaddressed", m.index);
+                }
+                for (const m of blank.matchAll(/\.\s*setFlag\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    if (args.length && /passage/i.test(code.slice(m.index, close))) at("flag", m.index);
+                }
+                if (!RECORDS.has(file)) for (const m of code.matchAll(/\b(?:passageSeg|passageWallId)\b/g)) at("geometry", m.index);
+                for (const m of code.matchAll(IMPORTS)) {
+                    if (blank[m.index] === " ") continue;
+                    const target = m[2] ?? m[4];
+                    if (file === "passages.mjs" && !LEAF.has(target)) at(`leaf:${target}`, m.index);
+                    if (file === "room-tile.mjs" && /^passages(?:-gm)?\.mjs$/.test(target)) at(`tile:${target}`, m.index);
+                }
+            }
+            return broken;
+        };
+        const planted = rulesOf([
+            ["walls.mjs", "export async function plant(scene, wall) {\n    // door: 2 and createEmbeddedDocuments(\"Wall\" in a comment write nothing\n"
+                + "    const said = 'createEmbeddedDocuments(\"Wall\", [{ door: 2 }])';\n"
+                + "    await scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1], door: 2 }]);\n"
+                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"],
+            ["send.mjs", "export function send(userId) {\n    game.socket.emit(EVENT, { action: \"passage.rows\", userId }, { recipients: [userId] });\n"
+                + "    game.socket.emit(EVENT, { action: \"passage.rows\", userId });\n    game.socket.emit(EVENT, { action: 'move.sentBack' }, { recipients: \"all\" });\n"
+                + "    game.socket.emit(EVENT, { action: \"fog.request\" });\n}\n"],
+            ["flags.mjs", "export function keep(actor, row) {\n    actor.setFlag(MODULE_ID, \"seen\", true);\n"
+                + "    return actor.setFlag(MODULE_ID, \"passages\", { seg: row.passageSeg });\n}\n"],
+            ["passages.mjs", "import { MODULE_ID } from \"./config.mjs\";\nimport { canCross } from \"./movement.mjs\";\n"
+                + "const later = () => import(\"./rooms.mjs\");\nconst said = 'import(\"./fog.mjs\")';\n"],
+            ["room-tile.mjs", "import { roomFacts } from \"./rooms.mjs\";\nimport { knownPassages } from \"./passages.mjs\";\n"],
+            ["passages-gm.mjs", "const row = { passageSeg: { x1: 1 }, passageWallId: \"w\" };\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
+            "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "leaf:movement.mjs passages.mjs:2",
+            "tile:passages.mjs room-tile.mjs:2"]),
+        "the source rules do not read the planted fixture as planted - the module would be read wrong too");
+
+        const sources = await otherSources();
+        const names = new Set(sources.map(([file]) => file));
+        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs"].every(f => names.has(f)),
+            "a file these rules read is not among the module's sources - the rules would read nothing of it");
+        const broken = rulesOf(sources);
+        log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, or an import the leaf or the room tile must not have");
     }],
 
 

@@ -1158,7 +1158,7 @@ async function deleteMessages(ids) {
  * nothing and is no exception, so the window has no box for it and nothing remembers it.
  */
 export const RESET_STEPS = Object.freeze([
-    "incident", "seals", "projects", "mastermind", "deaths",
+    "incident", "seals", "projects", "mastermind", "passages", "deaths",
     "remnants", "bullets", "trialFloor", "trialProgress", "bodyFound", "discovered", "searchTokens",
     "keyPlan", "eclipseMoves", "motive", "rules", "assembly",
     "items", "advancement", "actions", "despair", "overflow", "doors", "stashesFound",
@@ -1449,6 +1449,9 @@ async function wipeSeason(plan) {
             const { clearMastermind } = await import("./mastermind.mjs");
             await clearMastermind();
         },
+        // Who knows each secret passage and the GMs' log of them (E79 C1): the cut written first takes both on
+        // every GM and every player's copy, and this tells the players their copies again. The passages stay.
+        passages: () => import("./passages-gm.mjs").then(m => m.passagesAfterReset()),
 
         deaths: async () => {
             await everyStudent("deaths");

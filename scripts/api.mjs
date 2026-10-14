@@ -248,6 +248,7 @@ import {
     clamp,
     log
 } from "./utils.mjs";
+import { createPassage, grantPassage, revokePassage, closePassage, openPassage, deletePassage, listPassages, passageLog } from "./passages-gm.mjs";
 
 /*
  * A SHORTHAND WITH NO SCENE SAYS SO (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4). Since
@@ -1448,6 +1449,23 @@ export const DrpgApi = {
 
     resolveThreshold,
     clamp,
+
+    /* ---- secret passages (E79) ------------------------------------------- */
+
+    /** A GM's, from the console until the GMs' tab (C5): a passage on a wall, who knows it, Close and Open, and the
+     *  log. `create({ sceneId, wallId, seg, rooms, level, startAccess })` answers the id; the rest answer whether it
+     *  was done, and a refusal says why in the console. Kept by the GMs alone and sent to a player only as the
+     *  passages their own characters know. */
+    passages: {
+        create: params => createPassage(params),
+        grant: (passageId, actorId) => grantPassage(passageId, actorId),
+        revoke: (passageId, actorId) => revokePassage(passageId, actorId),
+        close: passageId => closePassage(passageId),
+        open: passageId => openPassage(passageId),
+        delete: passageId => deletePassage(passageId),
+        list: () => listPassages(),
+        log: () => passageLog()
+    },
 
     settings: {
         keys: SETTINGS,
