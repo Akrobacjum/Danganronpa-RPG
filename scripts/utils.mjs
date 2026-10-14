@@ -36,6 +36,7 @@ export function debug(...args) {
     if (on) console.debug(`${MODULE_ID} |`, ...args);
 }
 
+/* global ForgeVTT -- The Forge's own object, read by `forgeAsset` below and nowhere else. */
 /**
  * Whether `url` (a parsed URL) is a file of The Forge's Assets Library while this game runs on The Forge
  * (E78 fix h76-HF1, 14.10.2026). The one origin a picture may come from besides this page's: The Forge
@@ -48,11 +49,24 @@ export function debug(...args) {
  * vault.mjs `safeRoomImage` (the room picture and the voice tile's portraits) and notice-history.mjs
  * `imageAllowed` - the module's two checks of "a picture of this game's files".
  *
+ * THE NAME, NOT A PROPERTY OF THE PAGE (E78 fix r2-H2, 14.10.2026; review round 2's SEC-R2-1). This read
+ * `globalThis.ForgeVTT` until then. A class declared at the top of a classic script is a name every
+ * script can read and not a property of the global object: in a fresh realm beside such a class R546
+ * read `typeof ForgeVTT` "function", `globalThis.ForgeVTT` undefined, and this function false for a
+ * Library picture while it read the property. The name covers both shapes, since a property of the
+ * global object is a name too; a page with neither throws, and so does a class not yet initialised,
+ * hence the `try`. Which shape The Forge's own object has is not measured here (LIVE-E78-11 asks it).
+ *
  * @param {URL} url
  * @returns {boolean}
  */
 export function forgeAsset(url) {
-    const forge = globalThis.ForgeVTT;
+    let forge;
+    try {
+        forge = ForgeVTT;
+    } catch {
+        // No such name on this page, or one not yet initialised: not The Forge.
+    }
     if (forge?.usingTheForge !== true || url?.protocol !== "https:") return false;
     let origin = "https://assets.forge-vtt.com";
     if (typeof forge.ASSETS_LIBRARY_URL_PREFIX === "string") {

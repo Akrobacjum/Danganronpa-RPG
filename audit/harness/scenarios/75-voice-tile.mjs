@@ -52,6 +52,11 @@
  *   road `ensureVoiceTile` takes, not the body). The desk's half - the box at the right wall, the portrait on its
  *   pane, `voice-left` open, no drpgGlassCut for a speaker, a name, the fade or the list - needs a curtain that
  *   cuts: R543 at a table and the glass sweep's `drpgVoiceCheck` in Chromium; R545 cuts the shape headless.
+ *   Since E78 fix r2-H2 (verify E78-15, "z sygnaturą cięcia") this phase also reads the cut's signature as R545
+ *   does, through glass.mjs `cutBoxes` on R545's blocks: the voice tile's one pane, a section, its settled box
+ *   under the tray and `voice-left` open, the same after a speaker and the list, and none of it without the voice
+ *   block. So the ci set carries the signature twice, here and in R545 (tier 1, in 01's suite); what neither can
+ *   read without a layout - no recut on the screen - is the sweep's.
  * E (C7): a known leak, A9-K3 in known-leaks.json, until E19. p2's character, standing in the Cafeteria's room,
  *   killed in secret (`killCharacter`, revived quietly after): `voiceTargets` sends p2 to the main room at once,
  *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count. The check asks
@@ -77,7 +82,8 @@ export const layers = ["ci"];
    With phase D (C6, two green runs on 14.10.2026, under the harness lock):
    20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. With phase E (C7, two green runs on 14.10.2026, under the harness lock):
    21 checks, 1 of them the expected red, in 8.4-8.6 s - it stands. With phase F (E78 fix r1-G1, one green run on 14.10.2026, under
-   the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. */
+   the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
+   green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -532,6 +538,34 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const want = { stacked: true, tile: "drpg-tile-row", room: "drpg-tile-row", place: null, art: true, loose: false };
     check("D: on p1's stacked screen the voice tile is in the tiles' row beside the room tile, unstamped, its portrait inside it and nothing of it on the body; a speaker shown and the list opened move nothing",
         d.installed === true && J(d.at) === J(want) && J(d.spoken) === J(want), J(d));
+    /* THE CUT SIGNATURE (E78 fix r2-H2, 14.10.2026; verify E78-15): jsdom cuts no curtain, so this asks glass.mjs
+       `cutBoxes` for the desk's cut of R545's blocks (a player at 1920x1080 as a Chromium glass harness measured them on
+       14.10, the voice block at its placement before it is settled), on p1, before and after a speaker is shown and
+       the list opened: the voice tile's panes, its settled box and whether `voice-left` is left open. The control:
+       the same blocks without the voice block. That nothing on the screen is recut by a speaker or the list is the
+       glass sweep's `drpgVoiceCheck` in Chromium; this is the half the ci set carries. */
+    const sig = await p1.eval(`${rowJs}
+        const G = await import("${repoUrl}/scripts/glass.mjs");
+        const blocks = [["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]]
+            .map(([cls, x, y, w, h]) => ({ cls, x, y, w, h }));
+        const sign = list => {
+            const cut = G.cutBoxes(1920, 1080, list), mine = cut.panes.filter(p => p.tone === "voice-block");
+            return { panes: mine.map(p => p.kind + (p.empty ? " empty" : "")), box: cut.voice && [cut.voice.x, cut.voice.y, cut.voice.w, cut.voice.h],
+                left: cut.open.some(a => a.name === "voice-left") };
+        };
+        const before = sign(blocks);
+        __liveKit.speak(["${IDS.gm}"]);
+        await until(() => document.querySelector("#drpg-voice-tile .drpg-voice-tile-face")?.hidden === false);
+        document.querySelector("#drpg-voice-tile .drpg-voice-speaker")?.click();
+        await sleep(100);
+        const open = Boolean(document.querySelector(".drpg-voice-list:not([hidden])")), after = sign(blocks);
+        (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        __liveKit.speak([]);
+        return { before, open, after, control: sign(blocks.filter(b => b.cls !== "voice-block")) };`, { timeout: 15000 });
+    check("D: the cut signature headless (cutBoxes, R545's blocks): one voice pane, a section, the tile settled under the tray and voice-left open - the same after a speaker and the list; without the voice block none of it",
+        J(sig.before.panes) === J(["section"]) && sig.before.box?.[1] >= 158 && sig.before.left === true && sig.open === true
+        && J(sig.after) === J(sig.before) && J(sig.control) === J({ panes: [], box: null, left: false }), J(sig));
     const again = async value => {
         await gm.eval(`await game.settings.set("danganronpa-rpg", "voiceTile", ${value}); return true;`);
         return p1.eval(`${rowJs}

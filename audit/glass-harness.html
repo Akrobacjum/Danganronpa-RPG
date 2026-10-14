@@ -766,6 +766,96 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     }
     return { read, why };
   };
+  /* THE LIST 'WHO YOU HEAR' ON THE SCREEN (E78 fix r2-H2, 14.10.2026; verify E78-8 and doneWhen E78-9, which gave
+     it to the sweep, and neither this page nor the sweep opened it until then). voice-tile.mjs's own `openVoiceList`,
+     `paintList` and its placement, not a copy: the module is imported here, which pulls in most of the module, so the
+     Foundry names its files read at load that this page does not define stand in for that import only and are taken
+     away after it (each one a no-op that answers anything, never stricter than Foundry). The list opens for a stand-in
+     of the tile at the tile's own box (no id, no class: the curtain does not know it), with eight people in its room,
+     a list of 336 px in Chromium on 14.10.2026, and a pass of the glass. It fails a list outside the screen and any
+     drpgGlassCut from its opening. `push` and `recut` are the sweep's controls: the list moved 40 px past the right
+     edge, and the tile taken away and back while the list is open. Answers { box, rows, cuts, why }. */
+  window.drpgVoiceList = async ({ push = false, recut = false } = {}) => {
+    const why = [], tile = document.getElementById("drpg-voice-tile"), g = window.__glass;
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pass = async () => { g.refreshGlass(); await frame(); await new Promise(r => setTimeout(r, 450)); };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    const added = [];
+    const lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; added.push([owner, key]); } };
+    const Base = class {};
+    lend(foundry, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(foundry, k, any());
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    let VT;
+    try { VT = await import("/scripts/voice-tile.mjs"); } catch (err) { why.push(`voice-tile.mjs did not load here: ${err}`); }
+    for (const [owner, key] of added.reverse()) delete owner[key];
+    if (!VT) return { box: null, rows: 0, cuts: null, why };
+    const names = ["Kiyotaka Ishimaru", "Celestia Ludenberg", "Byakuya Togami", "Aoi Asahina", "Sakura Ogami", "Hifumi Yamada", "Leon Kuwata", "Chihiro Fujisaki"];
+    const users = new Map(names.map((name, i) => { const id = `DRPGLIST${i}`.padEnd(16, "0"); return [id, { id, name, isGM: false, avatar: null, character: null }]; }));
+    const had = { users: game.users, actors: game.actors, id: game.user.id };
+    game.users = Object.assign(users, { contents: [...users.values()], filter: f => [...users.values()].filter(f), find: f => [...users.values()].find(f) });
+    game.actors = Object.assign([], { contents: [] });
+    game.user.id = "DRPGVIEWER000000";
+    const t = tile.getBoundingClientRect(), stand = document.createElement("section"), speaker = document.createElement("button");
+    stand.style.cssText = `position:fixed;left:${t.left}px;top:${t.top}px;width:${t.width}px;height:${t.height}px;visibility:hidden;pointer-events:none`;
+    speaker.className = "drpg-voice-speaker";
+    stand.append(speaker);
+    document.body.append(stand);
+    const room = { state: "connected", localParticipant: { identity: game.user.id, isLocal: true }, activeSpeakers: [], on() { return this; }, off() { return this; },
+      remoteParticipants: new Map([...users.keys()].map(id => [id, { identity: id, isLocal: false }])) };
+    const watch = VT.voiceWatch(stand, { dock: () => [] });
+    let n = 0, list = null; const count = () => { n++; };
+    const out = { box: null, rows: 0, cuts: null, why };
+    try {
+      VT.attachRoom({ liveKitRoom: room, getParticipantFVTTUser: p => users.get(p.identity) }, watch);
+      Hooks.on("drpgGlassCut", count);
+      list = VT.openVoiceList(watch);
+      const parent = tile.parentElement, next = tile.nextSibling, art = document.getElementById("drpg-voice-art");
+      if (recut) tile.remove();
+      await pass();
+      if (recut) {
+        if (art && !art.isConnected) tile.querySelector(".drpg-voice-tile-face")?.prepend(art);   // a cut with no tile drops the portrait it seated
+        parent.insertBefore(tile, next);
+      }
+      if (push && list) list.style.left = `${innerWidth - 40}px`;
+      const b = list?.getBoundingClientRect();
+      out.box = b && [b.left, b.top, b.width, b.height].map(Math.round);
+      out.rows = list?.querySelectorAll(".drpg-voice-row").length ?? 0;
+      out.cuts = n;
+      if (!b || out.rows !== names.length) why.push(`the list opened with ${out.rows} of ${names.length} rows`);
+      else if (b.left < 0 || b.top < 0 || b.right > innerWidth + 0.5 || b.bottom > innerHeight + 0.5) why.push(`the list is at ${out.box} on a screen ${innerWidth}x${innerHeight}`);
+      if (n) why.push(`opening the list fired ${n} drpgGlassCut`);
+    } finally {
+      Hooks.off("drpgGlassCut", count);
+      VT.closeVoiceList(watch, { focus: false });
+      watch.detach?.();
+      list?.remove();
+      stand.remove();
+      Object.assign(game, { users: had.users, actors: had.actors });
+      game.user.id = had.id;
+      if (recut) await pass();
+    }
+    return out;
+  };
+  /* THE CAPTION IN THE GAME STATE'S COLOUR (E78 fix r2-H2, 14.10.2026; verify E78-13 and doneWhen E78-3, which only
+     R543 read, skipped headless and never run in a browser). Under Stained Glass the brush under the name is the
+     plate's `::before`, painted `--drpg-glass-accent` (the owner's Q18: the stained glass's edges); its computed colour
+     is read against that colour resolved on a probe. Under Monokuma Legacy the stylesheet draws no brush (the rule is
+     stained-glass.css's alone), so the reading is "none" there and judges nothing. Answers { want, got } or "none". */
+  const voiceBrush = tile => {
+    const plate = tile.querySelector(".drpg-voice-tile-plate");
+    if (!plate) return "no plate";
+    const brush = getComputedStyle(plate, "::before");
+    if (brush.content === "none") return "none";
+    const probe = document.createElement("i");
+    probe.style.color = "var(--drpg-glass-accent)";
+    document.body.append(probe);
+    const want = getComputedStyle(probe).color;
+    probe.remove();
+    return { want, got: brush.backgroundColor };
+  };
   /* THE VOICE TILE (E78 C6, 14.10.2026). On a desk with glass: the tile at the box the cut settled (`LAST.voice`,
      `data-place="wall"`) in the form it chose (`data-fit`, fix r2-H1), what it holds whole (`drpgVoiceParts` above),
      its pane a section not painted empty, the portrait (`#drpg-voice-art`) on the body at the pane's own box and cut
@@ -773,7 +863,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      (S12-95; the sweep's control takes the rail away). With `cuts`: a long name, the face hidden and shown and the
      fade, then a pass, fire no drpgGlassCut - and the control, the tile taken away and put back, fires one each way. Stacked: the tile in `#drpg-tile-row` with the room tile, its portrait inside
      it, nothing of it on the body, the row inside the screen. Without glass: no place stamped, no portrait moved. */
-  window.drpgVoiceCheck = async ({ cuts = true } = {}) => {
+  window.drpgVoiceCheck = async ({ cuts = true, list = cuts } = {}) => {
     const g = window.__glass, body = document.body, tile = document.getElementById("drpg-voice-tile"), W = innerWidth;
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const pass = async () => { g.refreshGlass(); await frame(); await new Promise(r => setTimeout(r, 450)); };
@@ -781,8 +871,17 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const cur = document.getElementById("drpg-curtain"), at = cur?.getBoundingClientRect();
     const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
     const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
-    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "wall" : "none", box: null, fit: null, parts: null, pane: null, art: null, open: null, shards: null, cuts: null, row: null };
-    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "wall" : "none", box: null, fit: null, parts: null, pane: null, art: null, open: null, shards: null, cuts: null, row: null, brush: null, list: null };
+    /* the caption's brush and the list, read last on every form (E78 fix r2-H2) */
+    const done = async () => {
+      if (tile) {
+        out.brush = voiceBrush(tile);
+        if (glass && (typeof out.brush !== "object" || out.brush.got !== out.brush.want))
+          out.why.push(`the caption's brush is ${typeof out.brush === "object" ? out.brush.got : out.brush}, the game state's colour ${typeof out.brush === "object" ? out.brush.want : "-"}`);
+        if (list) { out.list = await window.drpgVoiceList(); out.why.push(...out.list.why); }
+      }
+      out.ok = !out.why.length; out.why = out.why.join("; "); return out;
+    };
     if (!tile) { out.why.push("no #drpg-voice-tile on the page"); return done(); }
     const loose = document.getElementById("drpg-voice-art"), own = tile.querySelector(".drpg-voice-tile-face > .drpg-voice-tile-art");
     if (out.expect === "row") {
@@ -796,6 +895,20 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     }
     if (out.expect === "none") {
       if (tile.dataset.place || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} and its portrait ${own ? "inside" : "moved"}`);
+      /* WHERE NO CURTAIN IS CUT (E78 fix r2-H2, 14.10.2026): under Monokuma Legacy every desk line read "voice ok none"
+         and nothing of the tile was measured - its box (163x188 at the right wall over the corner's foot, the base
+         sheet's) and what it holds. Now: inside the screen, whole (`drpgVoiceParts`), and over none of the module's
+         blocks on this page. Measured in Chromium on 14.10.2026 at 1920x1080, 1366x768, 1366x560 and 1280x720, GM and
+         player: 163x188, whole, over none of them. The sweep's control pushes it 150 px under the screen's foot. */
+      const t = tile.getBoundingClientRect(), H = innerHeight;
+      out.box = [t.left, t.top, t.width, t.height].map(Math.round).join(",");
+      if (t.left < 0 || t.top < 0 || t.right > W + 0.5 || t.bottom > H + 0.5 || t.width < 44 || t.height < 44) out.why.push(`the tile is at ${out.box} on a screen ${W}x${H}`);
+      const parts = window.drpgVoiceParts(tile);
+      out.parts = parts.read; out.why.push(...parts.why);
+      const meet = (p, q) => p.left < q.right - 1 && q.left < p.right - 1 && p.top < q.bottom - 1 && q.top < p.bottom - 1;
+      const over = ["drpg-room-tile", "drpg-notices-corner", "drpg-hud", "drpg-player-status", "drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher",
+        "drpg-gm-launcher", "drpg-foundry-tools"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
+      if (over.length) out.why.push(`the tile lies over ${over.join(", ")}`);
       return done();
     }
     const v = g.LAST.voice, pane = g.LAST.panes.find(p => p.tone === "voice-block"), check = g.CHECKS.at(-1);

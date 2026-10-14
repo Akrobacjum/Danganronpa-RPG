@@ -127,6 +127,13 @@
  * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
  * control, once per run: the tile forced 15 px tall, and the speaker's glyph stripped of its mask. 1366x600 and
  * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
+ * Since E78 fix r2-H2 (14.10.2026; the verify ledger's E78-8, E78-13, doneWhen E78-3 and E78-9) every size also opens
+ * the list 'Who you hear' (the page's `drpgVoiceList`: voice-tile.mjs's own list, eight rows) and fails it outside the
+ * screen or firing a drpgGlassCut, reads the caption's brush against the game state's colour under Stained Glass
+ * ("none" under Monokuma Legacy, which draws no brush), and where no curtain is cut - every Legacy desk - reads the
+ * tile's box and what it holds, which until then read "voice ok none" and measured nothing. Their controls, once per
+ * run: the list 40 px past the right edge, the tile taken away and back while the list is open, the brush another
+ * colour (with `plantVoice`), and the Legacy tile 150 px under the screen's foot (`plantVoiceNone`).
  *
  * STANDING STILL (E78 fix h76-HF2, 14.10.2026). The owner saw the status strip jump about once a second on 1.2.76, and
  * this sweep came out GREEN on 1.2.76 at four sizes: every reading here is of a moment, and the fault was a loop. Each
@@ -429,7 +436,29 @@ async function plantVoice() {
         if (was) i.style.setProperty("--drpg-px-mask", was);
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
     }
+    {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
+        const plate = tile.querySelector(".drpg-voice-tile-plate");
+        plate.style.setProperty("--brush", "rgb(1, 2, 3)");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        plate.style.removeProperty("--brush");
+        res.brush = { ok: r.ok, why: r.why, pass: !r.ok && /caption's brush/.test(r.why) };
+    }
+    for (const k of ["push", "recut"]) {   // the list past the edge; a cut while it is open (E78 fix r2-H2)
+        const r = await window.drpgVoiceList({ [k]: true });
+        const why = r.why.join("; ");
+        res[k] = { ok: !r.why.length, why, pass: k === "push" ? /on a screen/.test(why) : /fired [1-9]/.test(why) };
+    }
     return res;
+}
+
+/* Runs in the page: where no curtain is cut (Monokuma Legacy), the tile 150 px under the screen's foot must fail
+   (E78 fix r2-H2). */
+async function plantVoiceNone() {
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom");
+    tile.style.setProperty("bottom", "-150px");
+    const r = await window.drpgVoiceCheck({ cuts: false });
+    if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
+    return { off: { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) } };
 }
 
 /* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
@@ -474,7 +503,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, idleRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -645,12 +674,23 @@ try {
                 if (!vc) fails.push("the page defines no drpgVoiceCheck");
                 else {
                     const pr = vc.parts;
-                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box ? ` ${vc.box} ${vc.fit} open ${vc.open} shards ${vc.shards}` : "")
+                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box && vc.expect === "wall" ? ` ${vc.box} ${vc.fit} open ${vc.open} shards ${vc.shards}` : "")
                         + (pr ? ` plate ${pr.plate?.join(",") ?? "-"} name ${pr.name?.join("/") ?? "-"} buttons ${pr.buttons.map(b => b?.join(",") ?? "-").join(" ")}` : "")
-                        + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "");
+                        + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "")
+                        + (vc.expect === "none" && vc.box ? ` box ${vc.box}` : "")
+                        + ` brush ${vc.brush && typeof vc.brush === "object" ? (vc.brush.got === vc.brush.want ? "state" : vc.brush.got) : vc.brush ?? "-"}`
+                        + (vc.list ? ` list ${vc.list.box?.join(",") ?? "-"} rows ${vc.list.rows} cuts ${vc.list.cuts}` : "");
                     if (!vc.ok) fails.push("voice: " + vc.why);
                     if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
                     if (vc.expect === "wall") voiceRead = true;
+                    if (control && !voiceNoneControlled && vc.expect === "none" && theme === "legacy" && !r.stacked) {
+                        voiceNoneControlled = true;
+                        const ctl = await page.evaluate(plantVoiceNone);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("voice control " + k + " reads as a pass");
+                        }
+                    }
                     if (control && !voiceControlled && vc.expect === "wall") {
                         voiceControlled = true;
                         const ctl = await page.evaluate(plantVoice);

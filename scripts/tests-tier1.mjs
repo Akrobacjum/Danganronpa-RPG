@@ -11373,6 +11373,44 @@ const INVARIANTS = [
             + "art and thumbnail, the voice tile's art and its row's in the list, the notice history's img, for a Library picture]; [a Library picture with a "
             + "prefix that is a number and one that is no URL; an http: one with an http: prefix]; [the four readings with usingTheForge false]; [with no ForgeVTT]; [the voice tile's and the "
             + "list's art for a character on Foundry's default svg with an avatar that passes]");
+
+        /* THE OTHER SHAPE (E78 fix r2-H2, 14.10.2026; review round 2's SEC-R2-1). Everything above plants the property
+           form, `globalThis.ForgeVTT`. A class declared at the top of a classic script is a name every script reads and
+           no property of the global object, and a page cannot take such a declaration back once it is made - so it is
+           not planted on this page, where it would stand for every module until a reload. `forgeAsset`'s own source,
+           comments stripped, runs instead in a fresh realm beside such a class: Node's `vm` headless, a hidden frame's
+           classic script in a browser (the road is named in the message). Asked there: the name's type, whether the
+           global object has it as a property, and `forgeAsset` for a Library picture and for another host, with
+           `usingTheForge` true and then false. Red at 60741cf: the Library picture refused on The Forge (false), the
+           property read alone. The frame's road has not run at a table (this repository has no Foundry page): a page
+           that forbids a frame's inline script reads "the frame ran no script" here and fails, a fact to record. */
+        const forgeText = fnSource(stripComments((await moduleSources()).get("utils.mjs")), "forgeAsset").replace(/^export /, "");
+        const realm = async on => {
+            const src = `class ForgeVTT { static usingTheForge = ${on}; static ASSETS_LIBRARY_URL_PREFIX = ${JSON.stringify(LIB)}; }\n${forgeText}\n`
+                + `globalThis.__r546 = [typeof ForgeVTT, globalThis.ForgeVTT === undefined, forgeAsset(new URL(${JSON.stringify(HALL)})), `
+                + `forgeAsset(new URL("https://evil.example/r546user/hall.png"))];`;
+            const vm = await import("node:vm").catch(() => null);
+            if (vm) {
+                const box = { URL };
+                vm.runInNewContext(src, box);
+                return ["vm", box.__r546];
+            }
+            const frame = document.createElement("iframe");
+            frame.hidden = true;
+            document.body.append(frame);
+            try {
+                const script = frame.contentDocument.createElement("script");
+                script.textContent = src;
+                frame.contentDocument.body.append(script);
+                return ["a frame", frame.contentWindow.__r546 ?? "the frame ran no script"];
+            } finally {
+                frame.remove();
+            }
+        };
+        const [road, bound] = await realm(true), [, boundOff] = await realm(false);
+        equal(JSON.stringify([bound, boundOff]), JSON.stringify([["function", true, true, false], ["function", true, false, false]]),
+            `in a fresh realm (${road}) beside a class ForgeVTT, as a classic script declares it: [the name's type, no property of the global object, `
+            + "a Library picture kept, another host refused] with usingTheForge true; the same with it false");
     }],
     ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
         /*
@@ -12572,6 +12610,40 @@ const INVARIANTS = [
         "[the accounts of this world whose voice name or portrait is not the dock's; an assigned character with a portrait; one without; a GM with no "
             + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
             + "voiceIdentity through voiceActorFor; a player whose character they only observe, as with none, and their name; a GM's character that answers no]");
+
+        /* EVERY SURFACE, NOT THE TILE ALONE (E78 fix r2-H2, 14.10.2026; review round 2's "G2 moved"). The reviewer set p2's
+           `character` to p3's student in p1's memory at 853fa52 and read her name on p2's row in 'Who you hear', its
+           slider ("Volume: Chie Mori"), its mute ("Mute Chie Mori for you") and the GM's block tip, while the block
+           wrote p2's account, and HF1's `faces` put her portrait first. All of them read `voiceIdentity`, so G2's
+           ownership test in `voiceActorFor` covers them; this reads them, so that a fix on the tile's road alone cannot
+           pass. The observer above, under the id of an account of this world, speaks on R536's bench (`voiceTileRig`)
+           and a GM's list is opened (the block drawn, no hold asked); each surface must name them as with no character
+           and draw no portrait of the observed one. Red with G2's test taken out of `voiceActorFor`, and with that
+           test moved into the tile's road alone (the mutants m1 and m2 of r2h2.mut.py, 14.10.2026). */
+        const VT = await import("./voice-tile.mjs");
+        const account = game.users.get(observer.id) ?? game.users.find(user => !user.isGM && user.id !== game.user.id);
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's to stand as the speaker");
+        const speaker = { ...observer, id: account.id }, own = reference({ ...speaker, character: null }).name;
+        const listSettings = { client: { muteAll: false, users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
+        const rig = voiceTileRig(VT, [account], { fade: () => 840, userOf: id => (id === account.id ? speaker : null), settings: () => listSettings,
+            mutes: { read: () => ({}), write: async () => {} }, proximity: () => false, gm: () => true, muteAll: () => false });
+        const room = rig.makeRoom([account.id]);
+        VT.attachRoom(rig.clientOf(room), rig.watch);
+        rig.speak(room, [account.id]);
+        rig.advance(250);
+        const list = VT.openVoiceList(rig.watch);
+        VT.paintList(rig.watch, { holds: () => null });
+        const row = list?.querySelector(`.drpg-voice-row[data-user-id="${account.id}"]`);
+        const surfaces = row ? [rig.read().name, row.querySelector(".drpg-voice-row-name")?.textContent,
+            row.querySelector(".drpg-voice-row-volume")?.getAttribute("aria-label"), row.querySelector(".drpg-voice-row-mute")?.getAttribute("aria-label"),
+            row.querySelector(".drpg-voice-row-block")?.getAttribute("aria-label"),
+            [rig.read().art, row.querySelector(".drpg-voice-row-art")?.style.getPropertyValue("background-image")].some(art => /r542-theirs/.test(art ?? ""))] : "no row";
+        VT.closeVoiceList(rig.watch, { focus: false });
+        list?.remove();
+        equal(JSON.stringify(surfaces), JSON.stringify([own, own, game.i18n.format("DRPG.Voice.list.volume", { name: own }),
+            game.i18n.format("DRPG.Voice.list.muteFor", { name: own }), game.i18n.format("DRPG.Voice.list.gmBlock", { name: own }), false]),
+            "a speaker whose character they only observe: [the tile's name, their row's name in 'Who you hear', its slider's label, its mute's tip, "
+            + "the GM's block tip, the observed character's portrait on the tile or the row]");
 
         /* E78 C5: the gear's Voice section (voice-panel.mjs; the owner's Q8 and Q11) and the pre-season row. The section
            is built from facts the suite hands in - an AVClient whose device lists are the suite's, an A/V settings object
