@@ -1194,6 +1194,30 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     width: var(--drpg-room-w);
     margin: 0;
 }
+/* BESIDE THE NOTICES THE BOX IS A LANDSCAPE ONE (E78 fix h76-HF4, 14.10.2026): half the height C0's
+   pane stood there, 301x150 at 1366x768 and 301x143 at 1280x720 (glass.mjs `roomNotesH`), where the
+   name, the pips and the project line stacked under the toggle left the open description 37 and 30
+   px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
+   the name, the project line under them, and the description, open, fills what is above them from
+   the tile's top, clear of the toggle by its width on each side rather than under it. */
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 8px;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-prose {
+    grid-area: 1 / 1 / 2 / -1;
+    align-self: stretch;
+    margin: 6px 30px 4px;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-name { grid-area: 2 / 2; }
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-tokens {
+    grid-area: 2 / 3;
+    margin-top: 0;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-project { grid-area: 3 / 1 / 4 / -1; }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
     isolation: isolate;

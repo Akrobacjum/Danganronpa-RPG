@@ -231,7 +231,7 @@ const ROOM_VARS = ["--drpg-room-h", "--drpg-room-w", "--drpg-room-x", "--drpg-ro
 function roomSizes(w) {
   const t = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
   const line = 21 * t * 1.3, head = 21 * t * 1.9 + 18;
-  return { need: Math.round(w / 3 + head + 4 * line), maxH: Math.round(w * 9 / 16 + head + 7 * line) };
+  return { need: Math.round(w / 3 + head + 4 * line), maxH: Math.round(w * 9 / 16 + head + 7 * line), low: Math.round(head + 3 * line) };
 }
 /* THE CAP BESIDE THE NOTICES AND UNDER MONOKUMA LEGACY (E78 C0, 13.10.2026; the owner's decision of
    13.10: the tile is too large under Legacy, "430x491 at 1920x1080 and at 1366x768", and under
@@ -243,10 +243,24 @@ function roomSizes(w) {
    Glass never calls this, and the sweep's PIN_BOX holds its boxes at 1.2.76's readings. Read on C0's
    tree the same day: Legacy 430x491 became 430x364 at 1920x1080 and 430x310 (the floor) at 1366x768,
    3840x2160 kept 430x491 (maxH is below the cap); beside the notices 301x376 became 301x259 at
-   1366x768 and 301x352 became 301x245 (the floor) at 1280x720. The width is unchanged. */
+   1366x768 and 301x352 became 301x245 (the floor) at 1280x720. The width is unchanged. Beside the notices
+   that was not what the eye read, and E78 fix h76-HF4 halves it: `roomNotesH` below. */
 const ROOM_CAP = 364 / 1080;
 export function roomCapH(H, need) {
   return Math.max(need, Math.round(H * ROOM_CAP));
+}
+/* BESIDE THE NOTICES, HALF OF WHAT C0 LEFT THE EYE (E78 fix h76-HF4, 14.10.2026; the owner on C0's shot
+   at 1366x768, 13.10: "ok 2x za duzy", read as "polowa wysokosci" - the same width, half the height).
+   C0 shrank the box (301x376 to 301x259) and not what the eye reads: the curtain ran the tile's pane
+   from PAD_FAR over the box down to the screen's edge, so the pane stood h + the gauge's foot +
+   PAD_FAR tall - 339 at 1224x768 and 1300x768, 350 at 1280x800, 325 at 1280x720 (upright), 370
+   at 1366x768 and 356 at 1366x657 (where it leaned 6 degrees; its bounds, Chromium, the glass
+   harness, 14.10.2026). The pane now ends PAD_FAR under the box (`buildColumn`), so the box is half
+   that run less the two pads: `h0` is C0's height (`roomPlacement`'s cap chain), the result the
+   tile's. Never under `low`, the laid-out content's own floor (`roomSizes`): the name's row with
+   the pips beside it, the project line and two lines of the open description. */
+export function roomNotesH(h0, foot, low) {
+  return Math.round(Math.max(low, (h0 + foot + PAD_FAR) / 2 - 2 * PAD_FAR));
 }
 /* What the scene rail takes out of the clock's column under the tile: the slot over its first
    tile and its layers' run, read off the layer buttons themselves (their run does not depend on
@@ -294,9 +308,9 @@ export function roomPlacement(W, H) {
     const { need, maxH } = roomSizes(hud.width);
     if (F - 24 >= need) return { place: "clock", F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(Math.min(F - 24, maxH)) };
   }
-  const w = Math.round(noteW), { need, maxH } = roomSizes(w);
-  const h = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22, roomCapH(H, need)));
-  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, x: Math.round(16 + noteW + 32 + h * ROOM_TAN), y: Math.round(H - foot - h), w, h };
+  const w = Math.round(noteW), { need, maxH, low } = roomSizes(w);
+  const h0 = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22, roomCapH(H, need))), h = roomNotesH(h0, foot, low);
+  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, h0, x: Math.round(16 + noteW + 32 + h0 * ROOM_TAN), y: Math.round(H - foot - h), w, h };
 }
 /* UNDER MONOKUMA LEGACY THE SAME TWO PLACES, WITH NO CURTAIN (E77 fix r1-M1, 13.10.2026; review round
    1's cor F6 and goal row G8; the A8 design's P16-0). Until this the tile stood under the clock at the
@@ -1607,7 +1621,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const { W, H, FW, push } = ctx;
     const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
     const s0 = field(cx, FW, band);
-    let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+    /* THE ROOM TILE BESIDE THE NOTICES IS A PANE OF ITS BOX, UPRIGHT (E78 fix h76-HF4, 14.10.2026). A column
+       of the bottom band runs its pane down to the screen's foot, and so did the room tile's in its 'notes'
+       place - the only block a bottom column holds alone besides the notice tile: C0 shrank the box and the
+       pane stayed 362x370 at 1366x768, which is what the owner measured off the shot. Its pane ends PAD_FAR
+       under the box (the split below) and the glass under it is a plain pane, as it is between the columns.
+       It stands upright as P11 draws it (design-4). What tilted it was C0's shorter box: the gap off the
+       notice tile is 32 + h x tan 8 (`roomPlacement`), 84.8 px at 1.2.76's 376 and 68.4 at C0's 259, so
+       the tile moved 16 px left and its midpoint, 535.5 at 1366x768, left the upright zone below (from
+       546.4 there); it leaned 6 degrees at 1366x768 and 1366x657 and at no other 'notes' size (Chromium,
+       the glass harness, 14.10.2026) - one pass, not a write measured again in a loop. Under the clock it
+       is a member of the clock's column, in the top band, and none of this touches it. */
+    const boxed = band === "bottom" && c.items.length === 1 && c.items[0].cls === "room-block";
+    let theta = boxed || Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
     // a neighbour too close forbids the tilt that would swing the pane into it
     for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - FILL_MIN) / Math.max(h, 1))); }
     const s = Math.sign(s0) * Math.tan(theta);
@@ -1743,6 +1769,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const pt = rot(0, Ydiv);
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
       const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
+    }
+    if (boxed && piece) {
+      const pt = rot(0, PAD_FAR), [under, over] = split(piece, pt[0], pt[1], -sn, cs);
+      if (under) push(under, null, "sector");
+      piece = over;
     }
     let below = null;
     if (tail && piece) { const pt = rot(0, Yseam); [below, piece] = split(piece, pt[0], pt[1], -sn, cs); }

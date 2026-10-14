@@ -2353,6 +2353,75 @@ const INVARIANTS = [
             "[a shard at the right wall is counted, the shards at a right wall with no rail without the voice tile, and with it]");
     }],
 
+    ["R549 - the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and stands upright, the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
+        /*
+         * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices
+         * "dalej jest ok 2x za duzy", read as half the height. C0 had shrunk the box (301x376 to 301x259), but the
+         * curtain cut the tile's pane from 10 px over the box down to the screen's foot: 362x370 at 1366x768 in
+         * Chromium (the glass harness, 14.10.2026), leaning 6 degrees - what the owner measured off the shot.
+         * THE HARM, cut headless: `cutBoxes` (R545's road) hands the desk's cut the blocks the glass harness measured
+         * for a player at 1366x768 on HF4's tree (`LAST.blocks`), the notice and room tiles fixed as BLOCKS has them;
+         * the same call gave the live cut's two panes to the pixel that day (373,538..698,708 and 0,389..365,768).
+         * At the parent the room's pane ends at 768 whatever the box. Now it ends 10 px (PAD_FAR) under the box,
+         * 12 px either side of it, upright (P11, design-4; C0's 6 degrees came from the tile's midpoint crossing the
+         * upright zone's edge, 0.1 of the screen off its middle, when C0 moved it 16 px left), the glass under it is
+         * a plain pane down to the foot, and the notice tile still leans its 8 degrees: the room keeps C0's left edge
+         * (32 + h0 x tan 8 off the notice tile, h0 C0's height), and the gap is what limits the notice tile's lean.
+         * THE CONTROLS: the same blocks with the room tile under the clock at 1920x1080 (R545's) cut no short pane and
+         * the room leans with its column there; each reader below is read on a planted shape first.
+         * THE HEIGHT, pure: roomNotesH(h0, foot, low) at the sweep's 'notes' sizes, with C0's height and the gauge's
+         * foot (70 px) as the sweep read them - half C0's upright run (h0 + foot + 10) less the two pads.
+         * THE SOURCE: roomPlacement's 'clock' branch and flatPlacement name no roomNotesH. The boxes and the panes need
+         * layout: audit/glass-sweep.mjs pins both per size (PIN_BOX, PIN_PANE) and its drpgRoomCheck reads the content.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const fixed = ["note-block", "room-block"];
+        const given = list => list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: fixed.includes(cls) }));
+        const bb = P => ({ x0: Math.min(...P.map(q => q[0])), x1: Math.max(...P.map(q => q[0])), y0: Math.min(...P.map(q => q[1])), y1: Math.max(...P.map(q => q[1])) });
+        const W = 1366, H = 768, box = { x: 385, y: 548, w: 301, h: 150 };
+        const cut = G.cutBoxes(W, H, given([["hud", 16, 22, 265, 180], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 91],
+            ["note-block", 16, 446, 301, 252], ["room-block", box.x, box.y, box.w, box.h], ["voice-block", 1179, 253, 181, 262], ["launch", 1250, 643, 94, 103]]));
+        const toFoot = P => bb(P).y1 >= H - 2;
+        const turnOf = (c, sel) => { const t = c.rotations.find(r => r.sel === sel)?.transform ?? "missing"; return t === "none" ? 0 : parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(t)?.[1] ?? "NaN"); };
+        equal(JSON.stringify([toFoot([[0, 400], [10, 400], [10, H], [0, H]]), toFoot([[0, 400], [10, 400], [10, 700], [0, 700]])]), "[true,false]",
+            "[a pane ending at the screen's foot, one ending above it] - the reader below would say yes to anything");
+        const room = cut.panes.filter(p => p.tone === "room-block");
+        ok(room.length === 1, `the room tile has ${room.length} pane(s)`);
+        if (room.length !== 1) return;
+        const r = bb(room[0].poly);
+        ok(!toFoot(room[0].poly), `the room's pane beside the notices runs to the screen's foot (y ${Math.round(r.y0)}..${Math.round(r.y1)}), as C0 cut it`);
+        equal(JSON.stringify([r.x0, r.y0, r.x1, r.y1].map(Math.round)), JSON.stringify([box.x - 12, box.y - 10, box.x + box.w + 12, box.y + box.h + 10]),
+            "the room's pane is not the box with 12 px either side and 10 px over and under it");
+        equal(turnOf(cut, "#drpg-room-tile"), 0, "the room tile beside the notices turns");
+        const under = cut.panes.filter(p => !p.tone && (b => b.y0 >= r.y1 - 1 && b.x0 >= r.x0 - 1 && b.x1 <= r.x1 + 1)(bb(p.poly)));
+        ok(under.length === 1 && toFoot(under[0].poly) && under[0].kind === "sector", `the glass under the room's pane: ${under.length} plain pane(s)${under[0] ? " to y " + Math.round(bb(under[0].poly).y1) : ""}`);
+        ok(Math.abs(Math.abs(turnOf(cut, "#drpg-popups")) - 8 * Math.PI / 180) < 1e-9, `the notice tile leans ${(turnOf(cut, "#drpg-popups") * 180 / Math.PI).toFixed(2)} degrees, not C0's 8`);
+        // the control: under the clock (R545's 1920x1080 blocks) the room is the clock's column's and leans with it, its pane uncut
+        const clock = G.cutBoxes(1920, 1080, given([["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]]));
+        const up = clock.panes.find(p => p.tone === "room-block");
+        ok(up && turnOf(clock, "#drpg-room-tile") !== 0 && Math.round(bb(up.poly).y0) === 208,
+            `under the clock the room's pane ${up ? "begins at y " + Math.round(bb(up.poly).y0) + ", not 208, or" : "is missing, or"} the tile stands upright`);
+        // the height: half the run C0's pane had, less the two pads, never under the content's floor
+        ok(typeof G.roomNotesH === "function", "glass.mjs exports no roomNotesH");
+        if (typeof G.roomNotesH !== "function") return;
+        const sizes = [[259, 70], [270, 70], [245, 70]], hs = sizes.map(([h0, foot]) => G.roomNotesH(h0, foot, 122));
+        equal(JSON.stringify([...hs, G.roomNotesH(245, 70, 160)]), "[150,155,143,160]",
+            "[the box beside the notices at 1366x768, 1224x768 and 1300x768 (C0 259); at 1280x800 and 1264x800 (C0 270); at 1280x720 and 1366x657 (C0 245); the floor above it]");
+        ok(hs.every((h, i) => Math.abs((h + 20) / (sizes[i][0] + sizes[i][1] + 10) - 0.5) < 0.01), `the panes ${hs.map(h => h + 20)} are not half of C0's runs`);
+        const reader = src => {
+            const place = fnSource(src, "roomPlacement");
+            return [!/\broomNotesH\b/.test(bodyOf(place, "if (hud) {", { until: "\n  }" })), /h = roomNotesH\(h0, foot, low\)/.test(place),
+                /x: Math\.round\(16 \+ noteW \+ 32 \+ h0 \* ROOM_TAN\)/.test(place), !/\broomNotesH\b/.test(fnSource(src, "flatPlacement"))];
+        };
+        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
+        equal(JSON.stringify([reader(glass), reader(glass.replace("32 + h0 * ROOM_TAN", "32 + h * ROOM_TAN"))]), "[[true,true,true,true],[true,true,false,true]]",
+            "[Stained Glass's 'clock' branch free of roomNotesH, the 'notes' height roomNotesH's, the room at C0's left edge, Legacy free of it; the edge planted from the new height]");
+    }],
+
     ["R543 - the voice tile on the curtain keeps its box whatever is said, fills its pane and wears the game state's colour: the tile stands at the box the cut settled, a long name moves nothing, the portrait is cut to the pane's own outline, the caption's brush is `--drpg-glass-accent`, no pane covers `voice-left` and no spare strip stands at a right wall with no rail", async () => {
         const G = await import("./glass.mjs");
         needs(env.glass(), "this measures Stained Glass");

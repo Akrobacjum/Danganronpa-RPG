@@ -179,12 +179,17 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
    1920x1200, and 3840x2160 kept 430x491 (its maxH is below the cap). Every self-check (ov, nc, bf, eg, ff) and
    every place read the same before and after. The harness's own room check reads the height against
    min(F, maxH, cap) with glass.mjs's function, so these numbers are the one reading that does not go through the
-   code it checks. A box that moves is a design change: say why in the commit that moves the pin. */
+   code it checks. A box that moves is a design change: say why in the commit that moves the pin.
+   E78 fix h76-HF4 (14.10.2026; the owner on C0's shot, 13.10: beside the notices "ok 2x za duzy", half the height)
+   moved the seven 'notes' rows of Stained Glass, and only those: 301x259 became 301x150 at 1366x768, 1224x768 and
+   1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
+   (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
+   move, and the sweep read them so on that tree. */
 const BOX = {
-    "stained 1920x1080": "265x364", "stained 1366x768": "301x259", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
-    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x270",
-    "stained 1224x768": "301x259", "stained 1264x800": "301x270", "stained 1300x768": "301x259", "stained 1400x900": "265x302",
-    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x245", "stained 1366x657": "301x245",
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x150", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
+    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x155",
+    "stained 1224x768": "301x150", "stained 1264x800": "301x155", "stained 1300x768": "301x150", "stained 1400x900": "265x302",
+    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x143", "stained 1366x657": "301x143",
     "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
     "legacy 1536x864": "430x310", "legacy 1600x900": "430x310", "legacy 1680x1050": "430x354", "legacy 1280x800": "430x310",
     "legacy 1224x768": "430x310", "legacy 1264x800": "430x310", "legacy 1300x768": "430x310", "legacy 1400x900": "430x310",
@@ -194,6 +199,16 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
     const [theme, size] = key.split(" ");
     return ["gm", "player"].map(role => [`${theme} ${role} ${size}`, box]);
 }));
+/* THE PANE PINS (E78 fix h76-HF4, 14.10.2026). C0 pinned the box, and the box was not what the owner saw: beside the
+   notices the curtain cut the room's pane from 10 px over the box down to the screen's foot, and that pane - 362x370
+   at 1366x768, leaning 6 degrees - is the tile the owner measured off C0's shot ("about 330 x 370"). So the 'notes'
+   sizes pin the pane too, its bounds' width x height as the page's LAST.panes has them: C0's read 362x370 at 1366x768
+   and 1366x657 (370 and 356 high, leaning), 325x339 at 1224x768 and 1300x768, 325x350 at 1280x800 and 1264x800 and
+   325x325 at 1280x720 (upright); after HF4 each is the box and 10 px over and under it, upright, and as wide as at
+   C0 where it stood upright. `plantPane` is the control: the pane run to the foot again with the box as it is, which
+   is exactly what C0 left, must fail the room check. */
+const PANE = { "1366x768": "325x170", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "325x163" };
+const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -314,6 +329,33 @@ async function plantRoom() {
     return res;
 }
 
+/* Runs in the page: the room pane's controls beside the notices (E78 fix h76-HF4), each read at once and put back. */
+async function plantPane() {
+    const g = window.__glass, tile = document.getElementById("drpg-room-tile"), res = {};
+    const pane = (g.LAST.panes || []).find(p => p.tone === "room-block"), H = document.getElementById("drpg-curtain").getBoundingClientRect().height;
+    {   // to the foot: the room's pane run down to the screen's edge with the box as it is - C0's cut
+        const was = [pane.poly, pane.y1];
+        pane.poly = pane.poly.map(([x, y]) => [x, y > pane.y0 + 1 ? H : y]); pane.y1 = H;
+        const r = await window.drpgRoomCheck({ cuts: false });
+        [pane.poly, pane.y1] = was;
+        res.foot = { ok: r.ok, why: r.why, pass: !r.ok && /screen's foot/.test(r.why) };
+    }
+    {   // turned: the tile leaning 6 degrees, as C0 drew it at 1366x768
+        tile.style.setProperty("transition", "none", "important"); tile.style.setProperty("transform", "rotate(0.1047rad)", "important");
+        const r = await window.drpgRoomCheck({ cuts: false });
+        tile.style.removeProperty("transform"); void getComputedStyle(tile).transform; tile.style.removeProperty("transition");
+        res.turned = { ok: r.ok, why: r.why, pass: !r.ok && /turns/.test(r.why) };
+    }
+    {   // crowded: the pips laid on the name's cell
+        const pips = tile.querySelector(".drpg-hud-room-tokens");
+        pips.style.setProperty("grid-area", "2 / 2", "important");
+        const r = await window.drpgRoomCheck({ cuts: false });
+        pips.style.removeProperty("grid-area");
+        res.crowded = { ok: r.ok, why: r.why, pass: !r.ok && /the name on the pips|the pips on the name/.test(r.why) };
+    }
+    return res;
+}
+
 /* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
    over a max-height), so F falls 40 px short of the smallest box; the place read and the room check run at that
    other place (under Legacy the only reading of its place beside the notices: no size of the sweep reaches it), and
@@ -356,7 +398,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -437,7 +479,8 @@ try {
                         ? `${rc.expect === "flat" ? "flat " : ""}${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
                         : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
                             + (rw.over ? ` over ${rw.over.got}/${rw.over.control}/${rw.over.first}` : "") : "unplaced")
-                        + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
+                        + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}`
+                            + ` pane ${rc.notes.pane?.join("x") ?? "-"} under ${rc.notes.under ?? "-"} open ${rc.notes.open?.box?.join("x") ?? "-"} ${rc.notes.open?.lines ?? "-"} lines` : "")
                         + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top} right ${rc.flat.right ?? "-"}`) : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
@@ -456,6 +499,20 @@ try {
                         line += boxPin ? (boxPin === box ? " | box pin ok" : ` | box ${box}/${boxPin}`) : " | box unpinned";
                         if (boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
                         if (!boxPin) unboxed++;
+                    }
+                    /* THE PANE PIN (E78 fix h76-HF4): beside the notices, the room pane's bounds as PIN_PANE records them. */
+                    const panePin = PIN_PANE[`${theme} ${role} ${size}`], paneGot = rc.notes?.pane ? rc.notes.pane.join("x") : "-";
+                    if (panePin || rc.notes) {
+                        line += panePin ? (panePin === paneGot ? " | pane pin ok" : ` | pane ${paneGot}/${panePin}`) : " | pane unpinned";
+                        if (panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
+                    }
+                    if (control && !paneControlled && rc.notes) {
+                        paneControlled = true;
+                        const ctl = await page.evaluate(plantPane);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  pane control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("pane control " + k + " reads as a pass");
+                        }
                     }
                     if (control && !pinControlled.has(theme) && pin === "clock" && got === "clock") {
                         pinControlled.add(theme);
@@ -581,6 +638,7 @@ if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }
 if (rooms && !opt("--sizes") && unboxed) { bad++; console.log(`FAIL: ${unboxed} placed line(s) of the default sizes have no box in PIN_BOX`); }
 if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
+if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);

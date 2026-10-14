@@ -12079,7 +12079,8 @@ const REGRESSIONS = [
          * it), 485 at 2560x1440 and 491 at 3840x2160, where the cap stands above the box's own largest. The positive
          * control is in the same list: at 1366x768 and 1920x1080 the cap is lower than the box it replaces.
          * THE SOURCE, read with comments blanked: in roomPlacement the branch that returns the 'clock' place names no
-         * `roomCapH`, the 'notes' height after it does; both of flatPlacement's returns do. The reader is run first on
+         * `roomCapH`, the 'notes' height after it does; both of flatPlacement's returns do. Since E78 fix h76-HF4 that
+         * height is `h0`, C0's, which `roomNotesH` halves for the box beside the notices (R549). The reader is run first on
          * a fixture of that shape, and with the cap planted in the 'clock' branch and taken out of each of the three.
          * The boxes themselves need layout: audit/glass-sweep.mjs pins every one per theme, role and size (PIN_BOX),
          * Stained Glass's 'clock' boxes at 1.2.76's readings.
@@ -12095,13 +12096,13 @@ const REGRESSIONS = [
         const reader = src => {
             const room = fnSource(src, "roomPlacement"), flat = fnSource(src, "flatPlacement");
             return [!/\broomCapH\b/.test(bodyOf(room, "if (hud) {", { until: "\n  }" })),
-                /const h = Math\.round\(Math\.min\([^;\n]*\broomCapH\(H, need\)/.test(bodyOf(room, "const w = Math.round(noteW)")),
+                /const h0 = Math\.round\(Math\.min\([^;\n]*\broomCapH\(H, need\)/.test(bodyOf(room, "const w = Math.round(noteW)")),
                 /return \{ place: "clock"[^\n]*\broomCapH\(H, need\)/.test(flat),
                 /return \{ place: "notes"[^\n]*\broomCapH\(H, /.test(flat)];
         };
         const FIXTURE = "export function roomPlacement(W, H) {\n  if (hud) {\n    const { need, maxH } = roomSizes(hud.width);\n"
             + "    if (F - 24 >= need) return { place: \"clock\", h: Math.round(Math.min(F - 24, maxH)) };\n  }\n"
-            + "  const w = Math.round(noteW), { need, maxH } = roomSizes(w);\n  const h = Math.round(Math.min(maxH, H / 2 - 8, roomCapH(H, need)));\n"
+            + "  const w = Math.round(noteW), { need, maxH } = roomSizes(w);\n  const h0 = Math.round(Math.min(maxH, H / 2 - 8, roomCapH(H, need)));\n"
             + "  return { place: \"notes\", h };\n}\nfunction flatPlacement(W, H) {\n"
             + "  if (F >= need) return { place: \"clock\", flat: true, h: Math.round(Math.min(F, maxH, roomCapH(H, need))) };\n"
             + "  return { place: \"notes\", flat: true, h: Math.round(Math.min(maxH, roomCapH(H, roomSizes(w).need))) };\n}\n";

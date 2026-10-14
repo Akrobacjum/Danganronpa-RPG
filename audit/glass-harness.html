@@ -409,7 +409,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        clock    under the clock: the tile's width and left edge are the clock's and so is its centre (dx), and both
                 turn by the same angle - one column; the scene rail's first tile below the tile's box (rail, px).
        notes    beside the notices: the foot level with the notice tile's, the gap 32 + h x tan 8 deg off its edge,
-                and the corner of the history's button (A7) on no part of the room's pane.
+                and the corner of the history's button (A7) on no part of the room's pane. Since E78 fix h76-HF4
+                (14.10.2026) h there is `h0`, the height C0 gave the box, so the notice tile leans as it did at C0;
+                the pane ends 10 px (PAD_FAR) under the box, never at the screen's foot, and stands upright (P11);
+                and what is written on the tile - the name, the pips, the project line, the toggle - lies inside
+                the box and on no other part of it, closed and with 400 words of description open, which then
+                shows at least two lines and scrolls (`pane`, `under`, `content`, `open`).
        row      on a stacked screen (E77 C8, 13.10.2026): the tile in narrow.mjs's `#drpg-tile-row`, a child of the
                 stack, with no place and no `LAST.room`; the row 44 px high as laid out, the thumbnail 78x44, the
                 words' button 44x44, the desk's picture layer, its button, the toggle and the words not drawn (no box, and
@@ -483,6 +488,38 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : glass ? "unplaced" : "flat", place: tile?.dataset.place ?? null,
       F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    /* WHAT IS WRITTEN ON THE TILE BESIDE THE NOTICES FITS ITS BOX (E78 fix h76-HF4, 14.10.2026). Read with the turn
+       off: each part inside the box (a pixel of slack) and no two overlapping, closed, then with 400 words of
+       description open over the picture - the description at least two of its lines tall, scrolling - and put back. */
+    function readContent() {
+      const box = tile.getBoundingClientRect(), q = sel => tile.querySelector(sel);
+      const rect = e => { const r = e?.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
+      const parts = { name: q(".drpg-room-tile-name"), pips: q(".drpg-hud-room-tokens"), project: q(".drpg-hud-room-project"), toggle: q(".drpg-room-tile-more") };
+      const res = { why: [], open: null };
+      const read = (list, when) => {
+        const rs = Object.entries(list).map(([k, e]) => [k, rect(e)]);
+        for (const [k, r] of rs) {
+          if (!r) res.why.push(`${when}: no ${k} drawn`);
+          else if (r.left < box.left - 1 || r.top < box.top - 1 || r.right > box.right + 1 || r.bottom > box.bottom + 1) res.why.push(`${when}: the ${k} outside the box`);
+        }
+        for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+          const [a, ra] = rs[i], [b, rb] = rs[j];
+          if (ra && rb && Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left) > 1 && Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top) > 1) res.why.push(`${when}: the ${a} on the ${b}`);
+        }
+        if (tile.scrollHeight > tile.clientHeight + 1) res.why.push(`${when}: the tile overflows (${tile.scrollHeight} > ${tile.clientHeight})`);
+      };
+      read(parts, "closed");
+      const prose = q(".drpg-room-tile-prose");
+      if (!prose) { res.why.push("no description"); return res; }
+      const was = [prose.textContent, prose.hidden, tile.classList.contains("is-open")];
+      prose.textContent = "Words. ".repeat(400); prose.hidden = false; tile.classList.add("is-open");
+      const pr = rect(prose), line = parseFloat(getComputedStyle(prose).lineHeight) || 1;
+      res.open = { box: pr ? [Math.round(pr.width), Math.round(pr.height)] : null, lines: pr ? +(pr.height / line).toFixed(1) : 0, scrolls: prose.scrollHeight > prose.clientHeight + 1 };
+      read({ ...parts, description: prose }, "open");
+      if (res.open.lines < 2 || !res.open.scrolls) res.why.push(`open: the description ${res.open.lines} lines tall${res.open.scrolls ? "" : ", not scrolling"}`);
+      [prose.textContent, prose.hidden] = was; tile.classList.toggle("is-open", was[2]);
+      return res;
+    }
     /* A new name and description and the description opened, then a pass: no cut; the control and a recolour after. */
     async function readCuts() {
       let n = 0; const count = () => { n++; };
@@ -633,6 +670,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     body.classList.add("drpg-reduced-motion");
     for (const e of [tile, hud]) { e.style.setProperty("transition", "none", "important"); e.style.setProperty("transform", "none", "important"); }
     const t = tile.getBoundingClientRect(), h = hud.getBoundingClientRect();
+    const content = out.place === "notes" ? readContent() : null;
     /* The turn comes back with the transition still off and read once, or the clock and the tile
        would ease back from upright and a screenshot taken next would show them upright. */
     for (const e of [tile, hud]) { e.style.removeProperty("transform"); void getComputedStyle(e).transform; e.style.removeProperty("transition"); }
@@ -652,7 +690,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     } else {
       const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
       const lean = Math.tan(8 * Math.PI / 180);
-      out.notes = { foot: [Math.round(b.y + b.h), note ? note.y + note.h : null], gap: note ? +(b.x - (note.x + note.w)).toFixed(1) : null, want: +(32 + b.h * lean).toFixed(1), corner: null };
+      out.notes = { foot: [Math.round(b.y + b.h), note ? note.y + note.h : null], gap: note ? +(b.x - (note.x + note.w)).toFixed(1) : null, want: +(32 + room.h0 * lean).toFixed(1), corner: null,
+        pane: [pane.x1 - pane.x0, pane.y1 - pane.y0], under: Math.round(pane.y1 - (b.y + b.h)), turn: turn[0], content: content.why.join("; "), open: content.open };
+      if (pane.y1 >= (at?.height ?? innerHeight) - 2) out.why.push(`the room's pane runs to the screen's foot (y ${pane.y0}..${pane.y1})`);
+      else if (!near(pane.y1, b.y + b.h + 10, 1.5)) out.why.push(`the room's pane ends ${out.notes.under} px under the box, not 10`);
+      if (!/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(turn[0])) out.why.push(`the tile beside the notices turns (${turn[0]})`);
+      if (content.why.length) out.why.push(...content.why);
       if (!note || !near(b.y + b.h, note.y + note.h, 1.5)) out.why.push(`the foot ${out.notes.foot[0]} is not the notice tile's ${out.notes.foot[1]}`);
       if (out.notes.gap == null || !near(out.notes.gap, out.notes.want, 1.5)) out.why.push(`the gap ${out.notes.gap} off the notice tile is not ${out.notes.want}`);
       if (!corner || !corner.width) out.why.push("no history button to keep free");
