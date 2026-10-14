@@ -142,6 +142,33 @@ if (!globalThis.requestAnimationFrame) {
     globalThis.requestAnimationFrame = fn => setTimeout(() => fn(performance.now()), 16);
     globalThis.cancelAnimationFrame = id => clearTimeout(id);
 }
+/*
+ * A WINDOW'S OWN FUNCTIONS REFUSE ANY OTHER RECEIVER, as a browser's do (14.10.2026).
+ * `setTimeout` and its kin are methods of the Window interface: called with `this` an
+ * object that is not the window - `clock.set(fn, ms)` where `clock = { set: setTimeout }`
+ * - a browser throws ("'setTimeout' called on an object that does not implement interface
+ * Window." in Firefox, "Illegal invocation" in Chromium). Node's and jsdom's ignore their
+ * receiver, so here such a call ran. Measured at the owner's table on 1.2.77 (The Forge,
+ * Foundry v14 365, Firefox): bridge-guards.mjs's `createWaiter` kept exactly that default
+ * clock from 1.2.62 (E31), and every request a player's client waited on threw at its
+ * first `clock.set` - the action grid said "could not be completed" and a statistic
+ * clicked on the sheet, drawn on the GM since 1.2.67, rolled nothing. Every headless run
+ * since passed, through this gap. Bare calls (`this` undefined), `window.x(...)` and
+ * `globalThis.x(...)` pass, as in a browser, where null and undefined stand for the window.
+ */
+{
+    const strict = (name, fn, owner) => function (...args) {
+        if (this !== undefined && this !== null && this !== globalThis && this !== dom.window) {
+            throw new TypeError(`'${name}' called on an object that does not implement interface Window.`);
+        }
+        return fn.apply(owner, args);
+    };
+    for (const k of ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "requestAnimationFrame",
+        "cancelAnimationFrame", "queueMicrotask", "fetch", "structuredClone"]) {
+        if (typeof globalThis[k] === "function") globalThis[k] = strict(k, globalThis[k], undefined);
+        if (typeof dom.window[k] === "function") dom.window[k] = strict(k, dom.window[k], dom.window);
+    }
+}
 window.matchMedia ??= q => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent() { return false; } });
 globalThis.matchMedia = window.matchMedia;
 window.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };

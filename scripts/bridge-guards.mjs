@@ -1630,6 +1630,19 @@ export function replyForMe(payload, senderId) {
 }
 
 /**
+ * The waiter's clock in a browser: the window's own timers, called as functions.
+ * `{ set: setTimeout }` would call them as `clock.set(...)`, with the clock as
+ * `this`, and a browser refuses a window method on any other object ("'setTimeout'
+ * called on an object that does not implement interface Window." in Firefox,
+ * "Illegal invocation" in Chromium); Node and jsdom ignore the receiver. That was
+ * the default from 1.2.62 (E31) to 1.2.77: every request a player's client waited
+ * on threw before it was sent, measured at the owner's table on 14.10.2026 (the
+ * action grid and every statistic drawn on the GM). The harness's timers refuse
+ * the same way since (client-entry.mjs), and R570 arms and clears this clock.
+ */
+export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms), clear: id => clearTimeout(id) });
+
+/**
  * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
  * asks once more for what is still waiting when a GM's world has loaded.
  *
@@ -1640,7 +1653,7 @@ export function replyForMe(payload, senderId) {
  * @param {(action: string, reason: string, opts: {nothingSpent: boolean}) => void} deps.notify  the one message
  * @param {(senderId: string) => boolean} deps.fromGm  was a reply sent by a GM
  */
-export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: setTimeout, clear: clearTimeout },
+export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_CLOCK,
     newId = () => foundry.utils.randomID(), report = (text, err) => error(text, err) } = {}) {
     // Waiting for an answer, by request id.
     const pending = new Map();

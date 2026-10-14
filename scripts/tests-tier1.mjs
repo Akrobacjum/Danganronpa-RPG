@@ -4442,6 +4442,47 @@ const INVARIANTS = [
         equal(w.waiter.waiting(), 0, "a request is still waiting after this test");
     }],
 
+    ["R570 - the bridge's waiter waits on this browser's own timers: built with no clock, a request is sent, answered and timed out, and its clock arms and clears", async () => {
+        /*
+         * The hotfix to 1.2.78, 14.10.2026. R165 drives `createWaiter` with a clock of its own,
+         * so the clock the module's one waiter is built with was never run by the suite: from
+         * 1.2.62 to 1.2.77 it was `{ set: setTimeout, clear: clearTimeout }`, and a browser
+         * refuses `clock.set(...)` (a window method on another object). At the owner's table
+         * every request a player's client waited on threw before it was sent - the action grid
+         * said "could not be completed" and a statistic drawn on the GM rolled nothing. Here the
+         * waiter is built as the module builds it, with fakes for the socket and the message
+         * only and no clock, in this browser (headless, the harness's timers refuse another
+         * receiver as a browser's do, client-entry.mjs). A "reply" request is sent, answered and
+         * settles with its answer; an "ack" request nobody answers settles as noAnswer, which
+         * only its clock can do, said once; nothing is reported as a throw. Then WINDOW_CLOCK
+         * itself: a timer it arms fires, and one it clears does not. R571 reads the source.
+         */
+        const { createWaiter, WINDOW_CLOCK } = await import("./bridge-guards.mjs");
+        const sent = [], said = [], reported = [];
+        const waiter = createWaiter({
+            emit: (packet, to) => sent.push({ packet, to }),
+            gmIds: () => ["R570GM"],
+            me: () => ({ id: "R570ME", isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`),
+            fromGm: id => id === "R570GM",
+            report: (text, err) => reported.push(`${text}: ${err?.message ?? err}`)
+        });
+        const reply = (action, extra = {}) => waiter.onReply({ action, userId: "R570ME", requestId: sent.at(-1)?.packet.requestId, ...extra }, "R570GM");
+        const answered = waiter.request("r570.reply", {}, { ackMs: 40, timeoutMs: 200, settle: "reply" });
+        reply("bridge.ack");
+        reply("bridge.done", { value: { answer: 7 } });
+        const answer = await answered;
+        const silent = await waiter.request("r570.ack", {}, { ackMs: 40, timeoutMs: 200, settle: "ack" });
+        let fired = 0, cleared = 0;
+        WINDOW_CLOCK.set(() => { fired += 1; }, 10);
+        WINDOW_CLOCK.clear(WINDOW_CLOCK.set(() => { cleared += 1; }, 10));
+        await new Promise(resolve => WINDOW_CLOCK.set(resolve, 80));
+        equal(JSON.stringify({ answer, silent, sent: sent.length, said, reported, fired, cleared }), JSON.stringify({
+            answer: { ok: true, value: { answer: 7 } }, silent: { ok: false, reason: "noAnswer" }, sent: 2,
+            said: ["r570.ack noAnswer"], reported: [], fired: 1, cleared: 0 }),
+            "[the answered request, the unanswered one, packets sent, messages said, throws reported, the armed and the cleared timer]");
+    }],
+
     ["R166 - a search is recorded on the scene its guard judged, not the one the packet names", async () => {
         /*
          * E31, 25.09.2026; the design's W1. A player's search token is spent on the

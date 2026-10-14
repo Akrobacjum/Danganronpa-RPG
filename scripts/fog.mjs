@@ -55,7 +55,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
-import { roomOfToken, boundsOf, ROOM_FLAGS } from "./movement.mjs";
+import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
@@ -3619,12 +3619,24 @@ async function onUpdateToken(tokenDoc, changes) {
     // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
     if (!isMoveChange(changes)) return;
 
+    // And once more where the token comes to rest (movement.mjs `whenAtRest`; the owner's report of
+    // 14.10.2026 there): a Monokuma dragged into a new room on a v14 table kept the old room's fog and
+    // played no arrival until a second drag inside it, the hook having read the room before the drag
+    // ended. Both halves below change nothing when the room is the one already read: the local one
+    // compares the set of rooms (`lastMineSignature`), `recordDiscovery` returns on a room it holds.
+    whenAtRest(tokenDoc).then(() => reactToMove(tokenDoc)).catch(err => debug("Fog: could not read a move at rest", err));
+
     // Wait for the token to actually stop. v14 delivers a move as a series of
     // updates along the path, and repainting on each one rebuilt the fog three
     // or four times per step - each rebuild starting its own cross-fade, and
     // fades that overlap are what made the map flicker while walking.
     if (tokenDoc.movement?.pending?.waypoints?.length) return;
 
+    await reactToMove(tokenDoc);
+}
+
+/** What a move of the token changes here: this viewer's fog and arrival, and the primary GM's ledger. */
+async function reactToMove(tokenDoc) {
     // Local half: MY view depends on where MY characters are standing right
     // now, whoever moved. Repainting here is what makes a player's own
     // crossing light their new room up instantly, rather than waiting on the
