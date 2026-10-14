@@ -9976,9 +9976,16 @@ const SCENARIOS = [
             lateWrite = new Promise(resolve => setTimeout(resolve, 150)).then(() => record(late));
             await ask(late);
             out.late = took();
-            let at = Date.now();
+            let at = performance.now();
             await ask(foundry.utils.randomID());
-            out.never = [...took(), Date.now() - at >= TIMING.rollRecordRetryMs];
+            // Timed on `performance.now` and one millisecond short still waited. The 1.2.77 release
+            // run (38557127125) read this wait short on `Date.now`, by how much it did not record. Node
+            // times the pause on its monotonic clock, truncated to the millisecond, and `Date.now`
+            // reads the wall clock, which can also be stepped mid-wait. Measured on Node 22.22.2
+            // (14.10.2026): of 3000 20 ms timeouts, 52 to 65 read 19 on `Date.now` and none less, and
+            // `performance.now` read no wait under 19.169; of 1500 400 ms ones, none read under 400 on
+            // `Date.now`. In Node `performance.now` reads the timer's own clock: no step, the truncation only.
+            out.never = [...took(), performance.now() - at >= TIMING.rollRecordRetryMs - 1];
             putBack = D.standInSeam("changed");
             await ask(null);
             out.changed = took();
@@ -9993,9 +10000,9 @@ const SCENARIOS = [
             out.kept = game.settings.get(MODULE_ID, SETTINGS.rollDrawWarned) === version;
             putBack();
             putBack = null;
-            at = Date.now();
+            at = performance.now();
             await ask(null);
-            out.live = [...took(), Date.now() - at < TIMING.rollRecordRetryMs];
+            out.live = [...took(), performance.now() - at < TIMING.rollRecordRetryMs];
         } finally {
             Hooks.off("createChatMessage", watch);
             putBack?.();
