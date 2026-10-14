@@ -55,9 +55,13 @@
  *   J (the world switch, E77 fix r2-H2): with the switch of the GM's Foundry windows off, a second GM's page loads
  *     with no windows, no launcher and no wrapped sidebar, Foundry's rails left in #interface, while the GM's running
  *     page keeps its windows until it reloads; the switch goes back on.
+ *   L (a drag the hook reads before it ends, the owner's report of 14.10.2026): on the browser that judges it, the GM's
+ *     Monokuma dragged from the Hall to the Cafeteria and p1's Aiko from Dorm A into B's Porch with the hook reading the
+ *     drag's start, then Aiko back by a last update that still carries a waypoint pending - each tile names the new room
+ *     once the token stands, and each of Aiko's crossings costs one action, once.
  *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
  *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
- *     after it; I, K and J run last.
+ *     after it; I, K and J run last, and L after them.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -85,8 +89,9 @@ export const layers = ["ci"];
    line's fast set on 13.10.2026; three times that is 125 s. E77 fix r1-G3's phase H took it to 14 checks in 52.0 s, one
    run alone under the lane-A lock beside two other lanes' scenarios on 13.10.2026; three times that is 156 s. E77 fix
    r2-H1's G3, G4, C6 and phase I took it to 32 checks in 61.5 s, one run alone under the lane-A lock with no other lane
-   busy on 13.10.2026; three times that is 185 s. */
-export const timeoutMs = 185000;
+   busy on 13.10.2026; three times that is 185 s. Phases K and J since, and phase L (the owner's report of 14.10.2026), took it
+   to 41 checks in 81.9 s, one run alone on 14.10.2026; three times that is 246 s. */
+export const timeoutMs = 246000;
 /* gm2 (E77 fix r2-H2): a second GM for phase J, its id after the seeded GM's so the seeded one stays the primary GM. */
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true },
     { who: "gm2", id: "USERGZ7400000000", name: "Second GM", role: 4, character: null, color: "#7a2a2a", late: true }];
@@ -947,6 +952,65 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         && J(gm2J) === J({ cls: false, frames: 0, launcher: false, gmButton: true, sidebar: "body", controls: "interface", wrapped: false }), J({ offJ, gm2J }));
     check("J3: the GM's page that was running keeps its windows until it reloads", J(keptJ) === J(onJ), J(keptJ));
     check("J4: the switch is back on", backJ === true, J(backJ));
+
+    /* ------------------------------ L. a drag the hook reads before it ends ------------------------------ */
+    phase("L: a drag whose update the hook reads before the token stands - the tile, the price and the announcement follow it at rest");
+    /* The owner's report of 14.10.2026 (1.2.77 at a v14 table): the GM's Monokuma dragged into another room kept the old
+       room's tile and played no arrival, and nothing counted, until a second drag inside the new room. Which of two
+       readings the table gave is not measured (movement.mjs `whenAtRest`, LIVE-E78-14), so both are stood in here, on the
+       browser that judges the move: (b) the token's position read at the hook is still the drag's start, its movement
+       "pending" until it is let go 400 ms later; (a) the drag's last update still carries a waypoint pending, its movement
+       "stopped". Without movement.mjs's re-read at rest L1-L3 fail as the owner saw: the tile keeps the room left and no
+       action is charged (one run of each, 14.10.2026). The fog's own re-read (fog.mjs `onUpdateToken`) needs a canvas to
+       show anything and is not read here. */
+    const HELDL = (token, room, held) => `${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = academy.tokens.get("${token}"), to = M.positionIn("${room}", t), from = { x: t.x, y: t.y };
+        const settled = []; const spy = ({ tokenDoc, accepted }) => { if (tokenDoc?.id === "${token}") settled.push([accepted, read()?.name ?? null]); };
+        Hooks.on("drpgRouteSettled", spy);
+        let holding = true;
+        ${held === "origin" ? `Object.defineProperty(t, "x", { get() { return holding ? from.x : this._source.x; }, configurable: true });
+        Object.defineProperty(t, "y", { get() { return holding ? from.y : this._source.y; }, configurable: true });
+        Object.defineProperty(t, "movement", { get() { return { state: holding ? "pending" : "completed", pending: { waypoints: [] } }; }, configurable: true });`
+        : `Object.defineProperty(t, "movement", { value: { state: "stopped", pending: { waypoints: [{ x: to.x, y: to.y }] } }, configurable: true });`}
+        try {
+            await t.update({ x: to.x, y: to.y });
+            await new Promise(r => setTimeout(r, 150));
+            const atHook = read()?.name ?? null;
+            await new Promise(r => setTimeout(r, 250));
+            holding = false;
+            const end = Date.now() + 6000;
+            while (read()?.name !== "${room}" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 2500));
+            return { atHook, atRest: read()?.name ?? null, room: M.roomOfToken(t), settled };
+        } finally { delete t.x; delete t.y; delete t.movement; Hooks.off("drpgRouteSettled", spy); }`;
+    const STANDL = `${ACADEMY} const M = await import("${repoUrl}/scripts/movement.mjs"), A = await import("${repoUrl}/scripts/actions.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        for (const [id, room] of [["TOKMONOKUMA00000", "Hall"], ["TOKAIKO000000000", "Dorm A"]]) {
+            const t = academy.tokens.get(id); if (M.roomOfToken(t) !== room) await t.update(M.positionIn(room, t), ${MOVE}); }
+        await game.drpg.setActions(aiko, 2); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        await new Promise(r => setTimeout(r, 2000));
+        return { actions: game.drpg.actionsLeft(aiko), free: A.hasFreeMove(aiko) };`;
+    const ACTIONSL = `await new Promise(r => setTimeout(r, 800)); return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`;
+    const standL = await gm.eval(STANDL, { timeout: 30000 });
+    const gmL = await gm.eval(HELDL("TOKMONOKUMA00000", "Cafeteria", "origin"), { timeout: 30000 });
+    check("L1: the GM drags its Monokuma from the Hall to the Cafeteria, the hook reading the drag's start - the GM's tile names the Hall "
+        + "at the hook and the Cafeteria once the token stands, and a route is announced there",
+    gmL.atHook === "Hall" && gmL.atRest === "Cafeteria" && gmL.room === "Cafeteria" && gmL.settled.some(([ok, name]) => ok === true && name === "Cafeteria"),
+    J({ standL, gmL }));
+    const p1bL = await p1.eval(HELDL("TOKAIKO000000000", "74 Porch", "origin"), { timeout: 30000 });
+    const afterbL = await gm.eval(ACTIONSL, { timeout: 30000 });
+    check("L2: p1 drags Aiko from Dorm A into phase B's Porch the same way, with two actions and the free move spent - p1's tile names "
+        + "the Porch at rest and the crossing costs one action, once",
+    standL.free === false && standL.actions === 2 && p1bL.atHook === "Dorm A" && p1bL.atRest === "74 Porch" && afterbL === 1
+        && p1bL.settled.filter(([ok, name]) => ok === true && name === "74 Porch").length === 1,
+    J({ standL, p1bL, afterbL }));
+    const p1aL = await p1.eval(HELDL("TOKAIKO000000000", "Dorm A", "pending"), { timeout: 30000 });
+    const afteraL = await gm.eval(ACTIONSL, { timeout: 30000 });
+    check("L3: p1 drags Aiko back to Dorm A by an update that still carries a waypoint pending, its movement stopped - nothing moves at the "
+        + "hook, and at rest p1's tile names Dorm A and the crossing costs the other action, once",
+    p1aL.atHook === "74 Porch" && p1aL.atRest === "Dorm A" && afteraL === 0
+        && p1aL.settled.filter(([ok, name]) => ok === true && name === "Dorm A").length === 1,
+    J({ p1aL, afteraL }));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

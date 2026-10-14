@@ -110,6 +110,51 @@ const awaitingQuiet = new Map();
 const ROUTE_QUIET_MS = 1500;
 
 /**
+ * The token at rest (owner's report, 14.10.2026, on 1.2.77 at a v14 table): a GM's Monokuma dragged into
+ * another room kept the old room's tile and fog, and played no arrival, until a second drag inside the new
+ * room; a player's crossing may be the same. The update hook read the room before the drag ended: either
+ * the token's position at the hook (`roomOfToken`) or a last update still marked with waypoints pending,
+ * which this file and fog.mjs pass over as a step of a drag in flight. Which of the two it was is not
+ * measured - the harness answers the destination at the hook and no pending step at a drag's end, so it
+ * passes either way (LIVE-E78-14) - and the fix does not choose: once the token stands still, its room is
+ * read again (`recheckAtRest`, fog.mjs `onUpdateToken`), and only a room that differs from the one the hook
+ * recorded, or a route left pending, does anything.
+ *
+ * At rest: no movement animation of its placeable running (`Token#movementAnimationPromise`, v13+), no
+ * movement under way (`movement.state` "pending" or "paused"), and no waypoints pending unless the movement
+ * says it ended ("completed" or "stopped"); `AT_REST_MAX_MS` bounds the wait, after which the token is read
+ * where it stands. `AT_REST_GRACE_MS` after it, for an update already on its way (a harness drag's last
+ * step reaches the hook within it: scenario 74 issues it as the pending mark is taken off).
+ */
+const AT_REST_MAX_MS = 3000;
+const AT_REST_POLL_MS = 100;
+const AT_REST_GRACE_MS = 250;
+
+const pause = ms => new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+
+function stillMoving(tokenDoc) {
+    if (tokenDoc.object?.movementAnimationPromise) return true;
+    const state = tokenDoc.movement?.state ?? null;
+    if (state === "pending" || state === "paused") return true;
+    if (state === "completed" || state === "stopped") return false;
+    return Boolean(tokenDoc.movement?.pending?.waypoints?.length);
+}
+
+/** Resolves once the token stands still (`stillMoving`), or after `AT_REST_MAX_MS`, then `AT_REST_GRACE_MS` more. */
+export async function whenAtRest(tokenDoc) {
+    const until = Date.now() + AT_REST_MAX_MS;
+    while (tokenDoc && stillMoving(tokenDoc) && Date.now() < until) {
+        const animation = tokenDoc.object?.movementAnimationPromise;
+        if (animation) await Promise.race([Promise.resolve(animation).catch(() => null), pause(until - Date.now())]);
+        await pause(AT_REST_POLL_MS);
+    }
+    await pause(AT_REST_GRACE_MS);
+}
+
+/** Each token's move updates as this browser received them, so a re-read at rest knows whether a newer one came. */
+const moveTurns = new Map();
+
+/**
  * Where a token stands, to be put back to: x and y, and its floor when it has one (E12 C9). A
  * refused climb that put back x and y alone left the token upstairs, and a send-back that names
  * no floor is the one the GM's record (`positionOf`) matches only on a scene of one floor.
@@ -1458,26 +1503,51 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
  * it names a room the character never entered. Scenario 66 W2-W4 counts the announcements on the mover's
  * browser and two others, scenario 74 C on a co-owner's; R506 reads that this is the one place that fires it.
  */
-async function onUpdateToken(tokenDoc, changes, options, userId) {
+async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = false } = {}) {
     restartQuiet(tokenDoc.id);
+    const turn = atRest || !isMoveChange(changes) ? 0 : (moveTurns.get(tokenDoc.id) ?? 0) + 1;
+    if (turn) moveTurns.set(tokenDoc.id, turn);
     const route = {};
     let accepted;
     try {
-        accepted = await judgeMove(tokenDoc, changes, options, userId, route);
+        accepted = await judgeMove(tokenDoc, changes, options, userId, route, { atRest });
     } catch (err) {
         error("Movement charge failed", err);
     } finally {
         if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
+    if (turn) recheckAtRest(tokenDoc, changes, options, userId, turn).catch(err => error("Movement re-read at rest failed", err));
     if (accepted === false && putBack.has(tokenDoc.id)) return;
     if (accepted === true || accepted === false) Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted });
 }
 
 /**
+ * The move judged once more where the token came to rest (`whenAtRest`, whose note has the owner's report of
+ * 14.10.2026), as the same update - a GM's, a put-back or a player's - and announced as it would have been: when no newer move of the token reached this browser meanwhile, no put-back is on its way, and the
+ * character's room is not the one its update recorded (`lastRoom`) or a step of its drag is still noted
+ * (`pathRooms`) with no last step behind it. A route left pending waits `ROUTE_QUIET_MS` from its last
+ * update first, as a co-owner's wait for quiet does, so a drag whose last step is merely slow is not cut in
+ * two. Everywhere else - every route the hook read where it ended, every route of the harness - it finds
+ * the room recorded and does nothing.
+ */
+async function recheckAtRest(tokenDoc, changes, options, userId, turn) {
+    await whenAtRest(tokenDoc);
+    const id = tokenDoc.id;
+    if (pathRooms.has(id)) await pause(ROUTE_QUIET_MS);
+    if (moveTurns.get(id) !== turn || putBack.has(id) || unsettled.has(id)) return;
+    if (tokenDoc.actor?.type !== "character" || !lastRoom.has(id)) return;
+    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === lastRoom.get(id)) return;
+    debug(`Route of ${tokenDoc.name} read again at rest: recorded ${lastRoom.get(id) ?? "no room"}, `
+        + `standing in ${roomOfToken(tokenDoc) ?? "no room"}.`);
+    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true });
+}
+
+/**
  * Whether a token's update stands: true, false when it was refused or put back, undefined when there is
  * no route to announce here (`onUpdateToken`). `route` is the update's own mark, should it mark one.
+ * `atRest` (`recheckAtRest`) judges the token where it stands, its waypoints pending or not.
  */
-async function judgeMove(tokenDoc, changes, options, userId, route = {}) {
+async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRest = false } = {}) {
     // Our own revert: record where it landed, charge nothing.
     if (options?.[REVERT]) {
         endQuiet(tokenDoc.id);
@@ -1531,7 +1601,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}) {
        `onPreUpdateToken` already works per segment (it is not gated here),
        so adjacency and locks were never fooled by a multi-waypoint route -
        only the price was. */
-    if (tokenDoc.movement?.pending?.waypoints?.length) {
+    if (!atRest && tokenDoc.movement?.pending?.waypoints?.length) {
         notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
         return;
     }
