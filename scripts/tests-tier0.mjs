@@ -8260,6 +8260,9 @@ const REGRESSIONS = [
          * DZ6 (12.10.2026); since then it names `createEmbeddedDocuments` once and `deleteEmbeddedDocuments` once, both
          * in `stageHall`, the create with `keepId` (the record names the id before the token exists), and no `.create(`
          * or `.delete(` anywhere.
+         * E78 C2 (13.10.2026) added three declarations to voice.mjs that read a death, Monocub or Monokuma flag - `micHold`,
+         * `moduleHoldsMic` and the `accountRow` both ask - and this reader found them, and nothing else, without a row on
+         * its working tree (a Node run of the SHEET part); none of them judges a move, a token or a trial seat.
          * The reader is run first on a fixture: a packet of the family and of none, an inline socket arrow, a named and
          * two inline token listeners beside another event's, a held reader of trial-scene.mjs beside one whose flag is
          * only in a comment, a store and a stale row.
@@ -8280,6 +8283,9 @@ const REGRESSIONS = [
             ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A), since E81 fix r1-D3 of the hall's cast alone (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
             ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
+            ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
+            ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
+            ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
             ["SHEET use-items.mjs#readiedItems", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8939,6 +8945,363 @@ const REGRESSIONS = [
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
     }],
 
+    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock", async () => {
+        /*
+         * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
+         * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
+         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
+         * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
+         * builders are given against the sprites the generated sheet states (tools/pixel-icons.py). The drawn mask is
+         * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
+         */
+        const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
+        const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
+            "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
+    }],
+
+    ["R534 - a voice-tile road has a census row, and every row judges a road", async () => {
+        /*
+         * E78 C1, 13.10.2026; R503's twin for the voice tile (census-1c.md of the E78 plan, METHOD change 1; the
+         * plan's D2 gave it this number). E78 draws, on every player's screen, who is speaking in that player's own
+         * LiveKit room - a name and a portrait somebody else chose - and writes a user's volume and local mute in
+         * this browser, the viewer's own microphone and, for a GM, Foundry's block of a microphone for everybody.
+         * The harms: a name drawn as markup, a portrait fetched from anywhere but a checked path, somebody shown
+         * speaking whom the viewer cannot hear, the module moving a microphone, a volume, a mute or a block written
+         * for somebody other than the one who chose it, and the GM's block undoing a hold the module keeps. This
+         * test keeps the list of the roads to those closed: a new one fails until it has a row and a verdict, a row
+         * whose road is gone fails until it is struck.
+         * A row is a pair, "<kind> <file>#<declaration>[#<field>] -> <sink>", keyed exactly as the parse-only census
+         * of the E78 plan keys its verdicts (S/e78-design/census.mjs and census-verdicts.mjs, kept outside the
+         * repository), so the two can be compared key by key; a row ending "-> *" judges every sink of its source.
+         * One key is one road however many places of it a declaration holds - the census's rule (R503 numbers a
+         * second place; this does not). The sinks: text (a name drawn as text), src (a portrait URL this client
+         * fetches), which (which participant is drawn as which user, and who is shown speaking), volume, mic (the
+         * viewer's own microphone), block (a GM's block of a microphone for everybody), dock (whether the camera
+         * dock is on screen), room (the LiveKit room this client stands in), listeners (how many share the viewer's
+         * Room, which the hidden dock no longer shows). Fifteen kinds, read live in the
+         * module's files with comments blanked, each place keyed by the top-level declaration it stands in (a
+         * top-level `Hooks.on("<event>", ...)` by its event): WHO - every call of `displayNameFor(` (text) or
+         * `voiceIdentity(` (text and src), not inside its own declaration; PEER - every call of
+         * `getParticipantFVTTUser(` (which); SPEAK - the string "activeSpeakersChanged" and the member
+         * `.ActiveSpeakersChanged` (which); SIGNAL - `.settings.activity` and `setUserIsSpeaking`, called or
+         * assigned (which: Foundry's table-wide signal, which names speakers in rooms the viewer cannot hear - the
+         * plan's rule is none, so it has no row and fails by design); CLIENT - every `.set("client", ...)`, Foundry's
+         * A/V client settings (volume and mic); ELEM - an assignment to `.muted` or `.volume` in voice.mjs,
+         * voice-client.mjs, voice-tile.mjs, voice-panel.mjs and camera-view.mjs (volume); MIC - every call of
+         * `toggleAudio(` (mic); HOLD - every call of `micHold(` (mic) or `moduleHoldsMic(` (block), voice.mjs's
+         * own declarations of either aside; BLOCK - a string or a member naming `BROADCAST_AUDIO` (block); SOCKET -
+         * an assignment to `desired` in voice-client.mjs (room); SRC - in voice-tile.mjs, voice-panel.mjs,
+         * camera-view.mjs and glass.mjs's declarations named *Voice*, an assignment to `.src` or `.backgroundImage`
+         * and a `setProperty(` whose value is a template with `url(` (src); MARKUP - in voice-tile.mjs and
+         * voice-panel.mjs, every sink that parses a string as markup, R503's list and `createElement("template")`
+         * (text), which has no row and fails by design; STORE - `SETTINGS.voicePeerMutes`'s three sources (this
+         * browser's own value, a console's, a stale one; volume) and WORLD - `SETTINGS.voiceTile`'s one (the GM's
+         * switch; dock), once each key exists; LISTEN - every call of `channelCount(` in voice.mjs, voice-client.mjs,
+         * voice-tile.mjs, voice-panel.mjs and camera-view.mjs, not inside its own declaration (listeners).
+         * At C1 the module has five roads, census-1c.md's five pairs at dcfc31b, which E78 C0 did not move: the dock's
+         * name plate (WHO), the three writers of the room voice-client.mjs stands in (SOCKET), and reconcileNow's
+         * `toggleAudio(true)` (MIC) - the harm S16-10 names. E78 C2 removed that call and its row, leaving four; R544
+         * keeps `toggleAudio(` out of everything but `toggleOwnMic` (C4), so MIC has no row until C4's. The census's
+         * 19 PLANNED roads come with C3, C4 and C5, each commit moving its rows in with its code. A verdict ending
+         * "(E78 C<n>)" names the commit that changes it. E78 C3 moved its eight in (twelve rows): the voice tile's
+         * participant, speakers, name and portrait (PEER, SPEAK, WHO, SRC) and the two settings (STORE, WORLD).
+         * E78 C4 moved two in (fourteen rows): the microphone button's hold (HOLD, keyed by `micState`, the declaration
+         * that asks `micHold`, where the plan named it `paintMic`) and the viewer's own mute (CLIENT). The plan's third
+         * C4 row, MIC in `toggleOwnMic`, has no road: `toggleOwnMic` calls no `toggleAudio` (the design's P6), so MIC
+         * stays without a row and any call of it is a road this table does not judge.
+         * E78 C5 moved the last seven planned roads in and added three (twenty-four rows): the list's names and portraits
+         * (WHO, and SRC keyed `paintList#url`, the census's name for the plan's `paintList#src`), the volume (CLIENT and ELEM
+         * in `setPeerVolume`), the GM's block (HOLD in `paintList` and `toggleBlock`, BLOCK in `toggleBlock`), and three
+         * CLIENT roads the plan had not named: Foundry's "mute all" (`toggleMuteAll`), the unhide of a user hidden in the
+         * dock (`unhidePeer`) and the gear's Voice section (`writeVoiceSetting`). The plan's "ELEM applyPeerMutes#muted"
+         * has no road: 'Mute for me' is the volume set to 0, because avclient-livekit writes an element's `muted` from
+         * `muteAll` at every attach (the design's reading, external). Measured 14.10.2026: the parse-only census at a
+         * scratch commit of C5's scripts/ read 31 pairs against these 24 keys, none either side.
+         * E78 fix r1-G1 (14.10.2026; the review's SEC-R1-1) added the kind LISTEN and its three rows: the harm "somebody
+         * listening whom the viewer cannot see", which the WORLD row did not judge - it judges the dock's sound, and the
+         * dock's camera views were the only thing that showed a silent listener. LISTEN is the suite's own: the parse-only
+         * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
+         * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
+         * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
+         * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
+         * text naming `BROADCAST_AUDIO` (the census reads plain strings only).
+         * Measured 13.10.2026 on C1's working tree: this reader, run in Node on every scripts/*.mjs outside the
+         * suite's own files, found the five roads against the five rows, none either side - the same five keys as
+         * the parse-only census at the same tree (compared key by key). On C2's working tree (13.10.2026) the same run
+         * found the four roads against the four rows. On C3's (13.10.2026) the suite's own run on the harness read 13
+         * roads against the 12 rows (WHO's `voiceIdentity` is one row for its two sinks), none either side, and the
+         * parse-only census at a scratch commit of the same scripts/ the same 13 pairs, kind by kind.
+         * The reader is run first on a fixture: one road of each kind, a `toggleAudio(` in a comment and one in a
+         * string, a second call of a key in one declaration, two optional calls (`?.(`), `micHold`'s call inside its own declaration in
+         * voice.mjs, `displayNameFor`'s declaration beside its call, a top-level hook, and the two settings; then
+         * the judge on a planted table with a road without a row, a "-> *" row and a stale key.
+         */
+        const VOICE_TILE_CENSUS = [
+            // ---- the dock's name plate (camera-view.mjs)
+            ["WHO camera-view.mjs#relabel#displayNameFor -> text", "the name is set as `textContent` and its tooltip escaped with `foundry.utils.escapeHTML` (Foundry draws a `data-tooltip` as markup); the actor is the user's own - `user.character` when the user owns it (a GM's always; E78 fix r1-G2, R542), a Monokuma the GM pools, or an owned character (`displayNameFor`); E78 C2's `voiceIdentity` names the same actor"],
+            // ---- the room this client stands in (voice-client.mjs)
+            ["SOCKET voice-client.mjs#onVoiceSocket -> room", "only the primary GM's packet is applied (`senderId !== primaryGmId()` returns; the sender is Foundry's second argument, not a packet field), and only one addressed to this user; E78 C2's `desiredRoom` reads the value and writes none"],
+            ["SOCKET voice-client.mjs#applyBreakout -> room", "called from `applyAndReport` (the primary GM's packet) and `applyLocally` (voice.mjs `assignUserToRoom` on the GM's own client); the value is the room the GM's reconcile chose"],
+            ["SOCKET voice-client.mjs#forgetDesiredRoom -> room", "clears to `undefined`; called by voice.mjs on the voice reset"],
+            // ---- the voice tile (voice-tile.mjs, E78 C3) and its two settings
+            ["PEER voice-tile.mjs#participantUser -> which", "only a remote participant this client's own LiveKit Room holds (the viewer's own and anybody the Room does not hold is nobody); the user is avclient-livekit's mapping (external), and a participant with no user of this world is not drawn (R535)"],
+            ["SPEAK voice-tile.mjs#attachRoom -> which", "the own Room's `activeSpeakersChanged` only, never `settings.activity`; every listener leaves the old Room before the new one is attached, and an event of a Room the watch no longer follows changes nothing (R535, R540)"],
+            ["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", "the name as `textContent`; the portrait, a path the speaker's own account sets (their character's `img`, which its owner writes, or their avatar), only through `voicePortrait` - the first of the two `safeRoomImage` accepts (vault.mjs, the room tile's check: this page's files, or on The Forge its Assets Library) - and `cssString` into the art layer's `url()`; none accepted draws no portrait (R542 names the actor, R536 the paint, R546 The Forge and the second candidate)"],
+            ["SRC voice-tile.mjs#paintSpeaker#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes; never a URL from a packet"],
+            ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me', a client setting read and written only by the list (E78 C5): a mute is the volume set to 0 with the volume before kept here, so it moves only this browser's sound (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#console -> volume", "`peerMutes` clamps on read: an object only, ids that are users of this world, volumes that are numbers clamped to 0..1; anything else is no mute, and a mute counts only while the volume is 0 (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#stale -> volume", "`peerMutes` skips an id that is not a user of this world on read, and the next write is of the read record, so it drops it (R538)"],
+            // ---- E78 C4: the microphone button (voice-tile.mjs)
+            ["HOLD voice-tile.mjs#micState#micHold -> mic", "the viewer's own facts only: `micHold` reads the room the primary GM sent this browser, its own A/V state and its own characters, never GmStore (R537's spy and source reading); grey only for its `held`"],
+            ["CLIENT voice-tile.mjs#toggleOwnMic -> *", "writes `users.<self>.muted` (`game.user.id`) and nothing else, on the viewer's own click or key, only in the states the viewer may change; as Foundry's own dock does (R537, R544)"],
+            // ---- E78 C5: the list 'Who you hear' (voice-tile.mjs) and the gear's Voice section (voice-panel.mjs)
+            ["WHO voice-tile.mjs#paintList#voiceIdentity -> *", "as paintSpeaker: the name as `textContent` and in labels set as attributes, the portrait only through `voicePortrait` (`safeRoomImage`, R546) and `cssString`; rows only for remote participants of the own Room mapped to a user of this world (R542, R538)"],
+            ["SRC voice-tile.mjs#paintList#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes, set only when it changes; never a URL from a packet"],
+            ["CLIENT voice-tile.mjs#setPeerVolume -> *", "writes this browser's `users.<id>.volume` only for a remote participant of the own Room, a number clamped to 0..1 (R538)"],
+            ["ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "only that participant's own `<audio>` elements in Foundry's dock and its camera popouts (`foundryDock`, E78 fix r1-G2; R535), the same clamped value, never `muted` (R538)"],
+            ["CLIENT voice-tile.mjs#toggleMuteAll -> *", "this browser's `muteAll`, flipped on the viewer's click, as the dock's own button writes it (R538)"],
+            ["CLIENT voice-tile.mjs#unhidePeer -> *", "`users.<id>.blocked` false only, for a remote participant of the own Room, on the viewer's click (R538)"],
+            ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
+            ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
+            ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
+            ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player, and whether the block holds against the blocked player's own browser (their own User document, or a microphone that publishes anyway), which decides the list's 'for everyone', are not measured here (LIVE-E78-06; R539)"],
+            // ---- E78 fix r1-G1: who is listening, with the dock out of sight (voice-tile.mjs)
+            ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
+            ["LISTEN voice-tile.mjs#paintSpeaker -> listeners", "the same count, written only as the tile's `data-in-channel` (no text, nothing a stylesheet draws); what the table sees is the button's (R550)"],
+            ["LISTEN voice-tile.mjs#paintList -> listeners", "'Nobody else is in your channel' is drawn only when the count is 0: a participant mapped to no user has no row and is still there (R550)"],
+            ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541); this row judges the sound only: who is listening, which the dock's camera views showed, is the LISTEN rows' (E78 fix r1-G1)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const VOICE_FILES = /^(?:voice|voice-client|voice-tile|voice-panel|camera-view)\.mjs$/;
+        const PAINT_FILES = /^(?:voice-tile|voice-panel|camera-view)\.mjs$/, NEW_FILES = /^(?:voice-tile|voice-panel)\.mjs$/;
+        const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
+        const ASSIGN = String.raw`\s*(?:[-+*/%&|^]|\*\*|<<|>>>?|&&|\|\||\?\?)?=(?![=>])`;
+        const STORE_SOURCES = ["self", "console", "stale"], WORLD_SOURCES = ["gm"];
+        const FIELD_SINKS = { WHO: { displayNameFor: ["text"], voiceIdentity: ["text", "src"] }, HOLD: { micHold: ["mic"], moduleHoldsMic: ["block"] } };
+        const KIND_SINKS = { PEER: ["which"], SPEAK: ["which"], SIGNAL: ["which"], CLIENT: ["volume", "mic"], ELEM: ["volume"], MIC: ["mic"],
+            BLOCK: ["block"], SOCKET: ["room"], SRC: ["src"], MARKUP: ["text"], STORE: ["volume"], WORLD: ["dock"], LISTEN: ["listeners"] };
+        const censusOf = (sources, settings) => {
+            const found = [];
+            const add = (kind, file, decl, field) => {
+                const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`;
+                for (const sink of FIELD_SINKS[kind]?.[field] ?? KIND_SINKS[kind]) if (!found.includes(`${base} -> ${sink}`)) found.push(`${base} -> ${sink}`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                const declared = at => /\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, at - 24), at));
+                const calls = names => [...blank.matchAll(new RegExp(String.raw`(?<![\w$])(${names})\s*(?:\?\.\s*)?\(`, "g"))].filter(m => !declared(m.index));
+                for (const m of calls("displayNameFor|voiceIdentity")) if (declAt(m.index) !== m[1]) add("WHO", file, declAt(m.index), m[1]);
+                for (const m of calls("getParticipantFVTTUser")) add("PEER", file, declAt(m.index), null);
+                for (const m of code.matchAll(/(["'])activeSpeakersChanged\1/g)) if (blank[m.index + 1] === " ") add("SPEAK", file, declAt(m.index), null);
+                for (const m of blank.matchAll(/\.\s*ActiveSpeakersChanged\b/g)) add("SPEAK", file, declAt(m.index), null);
+                for (const m of blank.matchAll(/\.\s*settings\s*\??\.\s*activity\b/g)) add("SIGNAL", file, declAt(m.index), "activity");
+                for (const m of blank.matchAll(new RegExp(String.raw`(?<![\w$])setUserIsSpeaking(?:\s*(?:\?\.\s*)?\(|${ASSIGN})`, "g"))) add("SIGNAL", file, declAt(m.index), "setUserIsSpeaking");
+                for (const m of code.matchAll(/(?<![\w$])set\s*\(\s*(["'])client\1/g)) if (blank[m.index] === "s") add("CLIENT", file, declAt(m.index), null);
+                if (VOICE_FILES.test(file)) for (const m of blank.matchAll(new RegExp(String.raw`\.\s*(muted|volume)${ASSIGN}`, "g"))) add("ELEM", file, declAt(m.index), m[1]);
+                for (const m of calls("toggleAudio")) add("MIC", file, declAt(m.index), null);
+                for (const m of calls("micHold|moduleHoldsMic")) if (!(file === "voice.mjs" && declAt(m.index) === m[1])) add("HOLD", file, declAt(m.index), m[1]);
+                if (VOICE_FILES.test(file)) for (const m of calls("channelCount")) add("LISTEN", file, declAt(m.index), null);
+                for (const m of code.matchAll(/BROADCAST_AUDIO/g)) {
+                    if (blank[m.index] === " " || /\.\s*$/.test(blank.slice(Math.max(0, m.index - 4), m.index))) add("BLOCK", file, declAt(m.index), null);
+                }
+                if (file === "voice-client.mjs") {
+                    for (const m of blank.matchAll(new RegExp(String.raw`(?<![\w$.])(?<!\b(?:let|const|var)\s+)desired${ASSIGN}`, "g"))) add("SOCKET", file, declAt(m.index), null);
+                }
+                const paints = decl => PAINT_FILES.test(file) || (file === "glass.mjs" && /Voice/.test(decl));
+                if (PAINT_FILES.test(file) || file === "glass.mjs") {
+                    for (const m of blank.matchAll(/\.\s*(src|backgroundImage)\s*[+]?=(?![=>])/g)) if (paints(declAt(m.index))) add("SRC", file, declAt(m.index), m[1]);
+                    for (const m of blank.matchAll(/\bsetProperty\s*\(/g)) {
+                        if (!paints(declAt(m.index))) continue;
+                        const value = callArgs(blank, m.index + m[0].length - 1).args[1];
+                        const text = value ? code.slice(value.start, value.end).trim() : "";
+                        if (text.startsWith("`") && /url\(/.test(text)) add("SRC", file, declAt(m.index), "url");
+                    }
+                }
+                if (NEW_FILES.test(file)) {
+                    for (const m of blank.matchAll(MARKUP_SINKS)) add("MARKUP", file, declAt(m.index), m[1] ?? m[2] ?? m[3] ?? m[4]);
+                    for (const m of code.matchAll(/\bcreateElement\s*\(\s*["'`]template["'`]/g)) if (blank[m.index] === "c") add("MARKUP", file, declAt(m.index), "template");
+                }
+            }
+            if (Object.hasOwn(settings ?? {}, "voicePeerMutes")) for (const source of STORE_SOURCES) add("STORE", "settings.mjs", "voicePeerMutes", source);
+            if (Object.hasOwn(settings ?? {}, "voiceTile")) for (const source of WORLD_SOURCES) add("WORLD", "settings.mjs", "voiceTile", source);
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), used = new Set(), unclassified = [];
+            for (const key of found) {
+                const star = key.replace(/ -> \w+$/, " -> *");
+                if (rows.has(key)) used.add(key);
+                else if (rows.has(star)) used.add(star);
+                else unclassified.push(key);
+            }
+            return { unclassified, stale: [...rows].filter(key => !used.has(key)) };
+        };
+        const KINDS = ["WHO", "PEER", "SPEAK", "SIGNAL", "CLIENT", "ELEM", "MIC", "HOLD", "LISTEN", "BLOCK", "SOCKET", "SRC", "MARKUP", "STORE", "WORLD"];
+        const planted = censusOf([
+            ["camera-view.mjs", "function displayNameFor(user) {\n    return user?.name ?? \"\";\n}\nfunction relabel(box, user) {\n    box.textContent = displayNameFor(user);\n"
+                + "    box.querySelector(\"audio\").volume = 1;\n}\n"],
+            ["voice.mjs", "export function micHold(user, again = false) {\n    return again ? null : micHold(user, true);\n}\n"
+                + "// game.webrtc.client.toggleAudio(true) in a comment is no road\nasync function reconcileNow() {\n    const said = \"toggleAudio(true)\";\n"
+                + "    await game.webrtc.client.toggleAudio(true);\n    await game.webrtc.client.toggleAudio?.(false);\n}\n"],
+            ["voice-client.mjs", "let desired;\nfunction onVoiceSocket(payload) {\n    if (desired === payload.room) return;\n    desired = payload.room;\n}\n"],
+            ["voice-tile.mjs", "export function participantUser(client, p) {\n    return client.getParticipantFVTTUser?.(p);\n}\n"
+                + "export function attachRoom(room) {\n    room.on(\"activeSpeakersChanged\", paintSpeaker);\n    room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, paintSpeaker);\n"
+                + "    return game.webrtc.settings.activity;\n}\n"
+                + "function paintSpeaker(el, user, path) {\n    el.textContent = voiceIdentity(user).name;\n    el.style.setProperty(\"--drpg-voice-art\", `url(\"${path}\")`);\n"
+                + "    el.innerHTML = \"<b>planted</b>\";\n}\n"
+                + "function paintMic(user) {\n    return micHold(user);\n}\n"
+                + "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n    await game.webrtc.client.toggleAudio(on);\n}\n"
+                + "function setPeerVolume(audio, v) {\n    audio.volume = v;\n}\n"
+                + "async function toggleBlock(user) {\n    if (moduleHoldsMic(user)) return;\n    await user.update({ \"permissions.BROADCAST_AUDIO\": false });\n}\n"
+                + "function channelCount(watch) {\n    return watch.room.remoteParticipants.size;\n}\nfunction paintControls(watch) {\n    return channelCount(watch);\n}\n"
+                + "Hooks.on(\"rtcSettingsChanged\", () => { ui.webrtc.setUserIsSpeaking = null; });\n"]
+        ], { voicePeerMutes: "voicePeerMutes", voiceTile: "voiceTile" });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "WHO camera-view.mjs#relabel#displayNameFor -> text", "ELEM camera-view.mjs#relabel#volume -> volume",
+            "MIC voice.mjs#reconcileNow -> mic",
+            "SOCKET voice-client.mjs#onVoiceSocket -> room",
+            "WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> text", "WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> src",
+            "PEER voice-tile.mjs#participantUser -> which", "SPEAK voice-tile.mjs#attachRoom -> which",
+            "SIGNAL voice-tile.mjs#attachRoom#activity -> which", "SIGNAL voice-tile.mjs#Hooks.on(rtcSettingsChanged)#setUserIsSpeaking -> which",
+            "CLIENT voice-tile.mjs#toggleOwnMic -> volume", "CLIENT voice-tile.mjs#toggleOwnMic -> mic",
+            "ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "MIC voice-tile.mjs#toggleOwnMic -> mic",
+            "HOLD voice-tile.mjs#paintMic#micHold -> mic", "HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block",
+            "LISTEN voice-tile.mjs#paintControls -> listeners",
+            "BLOCK voice-tile.mjs#toggleBlock -> block", "SRC voice-tile.mjs#paintSpeaker#url -> src", "MARKUP voice-tile.mjs#paintSpeaker#innerHTML -> text",
+            ...STORE_SOURCES.map(source => `STORE settings.mjs#voicePeerMutes#${source} -> volume`), "WORLD settings.mjs#voiceTile#gm -> dock"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(4, 7), [["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", ""], ["MIC voice.mjs#gone -> mic", ""]])),
+            JSON.stringify({ unclassified: ["PEER voice-tile.mjs#participantUser -> which"], stale: ["MIC voice.mjs#gone -> mic"] }),
+            "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        // The kinds the module has a road of since E78 C4 (C2 removed the MIC road and with it MIC from this list). The
+        // two the microphone button added are an assertion of their own: at C3's runtime they read 0 and a precondition
+        // would have been the first failure, which the A2 verdict does not count as the harm (14.10.2026).
+        ok(count("HOLD") > 0 && count("CLIENT") > 0,
+            `the census read ${count("HOLD")} HOLD and ${count("CLIENT")} CLIENT - the microphone's hold (micState) and its one client write (toggleOwnMic) have no road`);
+        // E78 C5's own: the GM's block (BLOCK in toggleBlock), 0 at C4's runtime - an assertion, for the same reason.
+        ok(count("BLOCK") > 0, `the census read ${count("BLOCK")} BLOCK - the GM's block of a microphone (toggleBlock) has no road`);
+        // E78 fix r1-G1's own: with the dock out of sight nothing else shows a listener who never speaks.
+        ok(count("LISTEN") > 0, `the census read ${count("LISTEN")} LISTEN - nothing on the tile counts who is in the viewer's Room`);
+        must(["WHO", "SOCKET", "PEER", "SPEAK", "SRC", "STORE", "WORLD", "HOLD", "CLIENT", "BLOCK"].every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, VOICE_TILE_CENSUS);
+        log(`R534: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${VOICE_TILE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a voice-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E78 commit that will) and strike the gone one");
+    }],
+
+    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
+        /*
+         * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
+         * never moves a microphone". Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
+         * `game.webrtc.client.toggleAudio(true)` to undo the GM's own mute (the design read it as a no-op in
+         * avclient-livekit 0.6.8; external, not re-read here) - R534's MIC row, gone with it. And the tile E78 C3 draws
+         * shows who is speaking in the viewer's own LiveKit room; Foundry's table-wide signal (`settings.activity`,
+         * `setUserIsSpeaking`) names speakers in rooms the viewer cannot hear, so the module reads neither (1b.2).
+         * Read in every scripts/*.mjs outside the suite's own files, comments blanked and literals blanked where a call
+         * is looked for, each place keyed "<file>#<top-level declaration>" (a top-level hook is "(top level)"):
+         *   - every `.settings.activity` and every `setUserIsSpeaking` - none;
+         *   - every call of `toggleAudio(` and every `.set("client", ...)` whose key names `muted` (Foundry's own
+         *     `users.<id>.muted`) outside a declaration named `toggleOwnMic` - none; inside it (E78 C4), every such write
+         *     names `${game.user.id}` in its key - the viewer's own - and there is one, so the clause reads a write that
+         *     exists. `toggleOwnMic` calls no `toggleAudio` either (the design's P6: Foundry's dock writes the setting and
+         *     avclient-livekit acts on it), so since C4 the module calls it nowhere - this clause would still pass a
+         *     call inside `toggleOwnMic`, and scenario 75's B reads the shim's record of calls, which stays empty;
+         *   - the declarations of `micHold` and `moduleHoldsMic` - one each, exported, in voice.mjs: the button (C4) and
+         *     the GM's block (C5) ask the one answer, not a copy (R537 holds what it answers);
+         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it: the account's voice
+         *     character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the reconcile
+         *     places.
+         * Red at the parent, measured: the toggle in `voice.mjs#reconcileNow` (voice.mjs:783 there), no `micHold` or
+         * `moduleHoldsMic`, and the ranking inline in `voice.mjs#voiceTargets`; green on C2's working tree (a Node run of
+         * this test's body on both trees, 13.10.2026). E78 C3 and C4 extend it (the prep's R544 row).
+         * The reader is run first on a fixture: one place of each kind, a toggle in a comment and one in a string, the
+         * allowed toggle and write in `toggleOwnMic` beside a write of another user's mute there (E78 C4), a client write
+         * of a volume beside one of a mute, a top-level hook, a second ranking, and a `moduleHoldsMic` that is not exported.
+         */
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const ALLOWED = "toggleOwnMic";
+        const scan = sources => {
+            const out = { activity: [], speaking: [], toggles: [], muted: [], own: [], holds: [], ranks: [], asks: false };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, exported: /^export\b/.test(m[0]) }));
+                const topAt = at => tops.findLast(t => t.at <= at);
+                const declAt = at => topAt(at)?.name ?? "(top level)";
+                const place = at => `${file}#${declAt(at)}`;
+                for (const m of blank.matchAll(/\.\s*settings\s*\??\.\s*activity\b/g)) out.activity.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])setUserIsSpeaking\b/g)) out.speaking.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])toggleAudio\s*(?:\?\.\s*)?\(/g)) if (declAt(m.index) !== ALLOWED) out.toggles.push(place(m.index));
+                for (const m of blank.matchAll(/(?<![\w$])set\s*\(/g)) {
+                    const [scope, key] = callArgs(blank, m.index + m[0].length - 1).args;
+                    if (!scope || !/^\s*(["'])client\1\s*$/.test(code.slice(scope.start, scope.end))) continue;
+                    const keyText = key ? code.slice(key.start, key.end) : "";
+                    if (!/muted/.test(keyText)) continue;
+                    if (declAt(m.index) !== ALLOWED) out.muted.push(place(m.index));
+                    else if (/\$\{\s*game\.user\.id\s*\}/.test(keyText)) out.own.push(place(m.index));
+                    else out.muted.push(`${place(m.index)} (not the viewer's own)`);
+                }
+                for (const [i, top] of tops.entries()) {
+                    if (top.name === "micHold" || top.name === "moduleHoldsMic") out.holds.push(`${file}#${top.name}#${top.exported ? "export" : "local"}`);
+                    if (file === "voice.mjs" && top.name === "voiceTargets") {
+                        out.asks = /(?<![\w$])voiceRowFor\s*\(/.test(blank.slice(top.at, tops[i + 1]?.at ?? blank.length));
+                    }
+                }
+                for (const m of blank.matchAll(/\.\s*claim\s*>\s*[\w$.]+\.\s*claim\b/g)) out.ranks.push(place(m.index));
+            }
+            return out;
+        };
+        const planted = scan([
+            ["voice.mjs", "export function micHold() {\n    return null;\n}\nfunction moduleHoldsMic() {\n    return null;\n}\n"
+                + "export function voiceRowFor(rows) {\n    let held = null;\n    for (const row of rows) if (!held || row.claim > held.claim) held = row;\n    return held;\n}\n"
+                + "export async function voiceTargets() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "// game.webrtc.client.toggleAudio(true) in a comment moves nothing\nasync function reconcileNow() {\n    const said = \"toggleAudio(true)\";\n"
+                + "    await game.webrtc.client.toggleAudio(true);\n}\n"],
+            ["voice-tile.mjs", "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n"
+                + "    game.webrtc.settings.set(\"client\", `users.${other}.muted`, true);\n"
+                + "    await game.webrtc.client.toggleAudio?.(on);\n}\n"
+                + "function listen() {\n    return game.webrtc.settings.activity;\n}\n"
+                + "Hooks.on(\"rtcSettingsChanged\", () => { ui.webrtc.setUserIsSpeaking = null; });\n"
+                + "function unmute(id) {\n    game.webrtc.settings.set(\"client\", `users.${id}.muted`, false);\n}\n"
+                + "function setVolume(id, v) {\n    game.webrtc.settings.set(\"client\", `users.${id}.volume`, v);\n}\n"
+                + "function rank(a, b) {\n    return a.claim > b.claim;\n}\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify({
+            activity: ["voice-tile.mjs#listen"], speaking: ["voice-tile.mjs#(top level)"], toggles: ["voice.mjs#reconcileNow"],
+            muted: ["voice-tile.mjs#toggleOwnMic (not the viewer's own)", "voice-tile.mjs#unmute"], own: ["voice-tile.mjs#toggleOwnMic"],
+            holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#local"],
+            ranks: ["voice.mjs#voiceRowFor", "voice-tile.mjs#rank"], asks: true }),
+            "the reader does not read the planted fixture as planted - the live reading below would measure the wrong places");
+
+        const sources = await otherSources();
+        must(sources.some(([file]) => file === "voice.mjs"), "voice.mjs is not among the module's sources - this would measure nothing");
+        const live = scan(sources);
+        log(`R544: ${live.toggles.length} toggle(s) and ${live.muted.length} mute write(s) outside ${ALLOWED}, `
+            + `${live.activity.length + live.speaking.length} read(s) of the table-wide signal, ranking in ${live.ranks.join(", ") || "nothing"}`);
+        equal(JSON.stringify(live), JSON.stringify({
+            activity: [], speaking: [], toggles: [], muted: [], own: ["voice-tile.mjs#toggleOwnMic"],
+            holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#export"], ranks: ["voice.mjs#voiceRowFor"], asks: true }),
+            "[a read of Foundry's table-wide speaking signal; a `toggleAudio(` call, or a client `muted` write, outside `toggleOwnMic` - the module moving "
+            + "a microphone; a write there of a key that is not the viewer's own, or no write there at all; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
+            + "`voiceTargets` not asking it]");
+    }],
+
     ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {
         /*
          * E77 C1, 13.10.2026; the A8 design's R382 (the E77 plan's D2 gave it this number; ledger V5). The tier-2
@@ -9099,7 +9462,7 @@ const REGRESSIONS = [
             + "renderHud fires drpgHudRendered and the tile listens to it]");
     }],
 
-    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them; and no source names the GM button's old rail constants (GM_SLOT, GM_DROP, tightenGmGap), and the one Foundry logo a source names is Foundry's own icons/fvtt.png", async () => {
+    ["R509 - one viewer: hud.mjs, explain.mjs and room-tile.mjs take the character a screen is about only from viewerActor, the one function there that reads the account's character, its owned student or its Monokuma's pool, and the Explain window takes a selected token for a GM only; room-tile.mjs writes no markup and hud.mjs keeps no room rows; and the room tile's box has one formula, glass.mjs `roomPlacement`, the one writer of its variables, which no stylesheet declares; and no stylesheet clips Foundry's windows, cuts off their overflow or hides them; and no source names the GM button's old rail constants (GM_SLOT, GM_DROP, tightenGmGap), and no source names a Foundry logo", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R384 (the E77 plan's D2 gave it this number; ledger V10, D5, D7), its
          * first clause - E77 C3 adds the markup (room-tile.mjs without innerHTML, insertAdjacentHTML, enrichHTML,
@@ -9140,11 +9503,12 @@ const REGRESSIONS = [
          * shut whatever the GM clicked. Read on a fixture first, then on it with each of the three planted.
          * E77 C6 (13.10.2026) adds the corner: the GM button left the scene rail for the cluster, and with it went
          * `GM_SLOT`, `GM_DROP` and `tightenGmGap` (glass.mjs keeps one `RAIL_SLOT` for a rail left in the column) - a
-         * source that names one again is the button's old machinery coming back. And Foundry tools wears Foundry's
-         * logo from Foundry's own core files (`icons/fvtt.png`, the decision D7: the module ships no copy of it), so
-         * every string literal of a source that names a Foundry logo - `fvtt`, or "foundry" beside "logo" - is
-         * exactly that path. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under
-         * the module's path and a logo under an assets folder planted.
+         * source that names one again is the button's old machinery coming back. And no string literal of a source
+         * names a Foundry logo - `fvtt`, or "foundry" beside "logo": Foundry tools wore Foundry's own logo from
+         * Foundry's core files (`icons/fvtt.png`, the decision D7: the module ships no copy of it) until E78 fix
+         * h76-HF3 (14.10.2026) gave it the module's pixel anvil (R548), and since then the one literal this allowed is
+         * gone too. Both read with comments blanked, on a fixture first and with a GM_DROP, a logo under the
+         * module's path and a logo under an assets folder planted.
          */
         const READS = /\bgame\.user\.character\b|\bownStudent\(|\bpoolUserFor\(|\.controlled\b/;
         const MARKUP = new RegExp([/\.\s*(?:inner|outer)HTML\s*[+]?=(?![=>])/, /\.\s*html\s*\(/, /\bDOMParser\b/, /\bcreateElement\s*\(\s*["'`]template["'`]/, /data-tooltip/,
@@ -9257,7 +9621,7 @@ const REGRESSIONS = [
         JSON.stringify([[[], ["icons/fvtt.png"]], [["glass.mjs"], ["icons/fvtt.png"]],
             [[], [`modules/${MODULE_ID}/assets/fvtt.png`]], [[], ["assets/foundry-logo.svg"]]]),
         "the corner reader does not read its fixture whole, or does not see GM_DROP put back or a logo of the module's own");
-        equal(JSON.stringify(corner(new Map([...sources].map(([file, text]) => [file, stripComments(text)])))), JSON.stringify([[], ["icons/fvtt.png"]]),
+        equal(JSON.stringify(corner(new Map([...sources].map(([file, text]) => [file, stripComments(text)])))), JSON.stringify([[], []]),
             "[the sources naming GM_SLOT, GM_DROP or tightenGmGap; the string literals naming a Foundry logo]");
     }],
 
@@ -11733,6 +12097,60 @@ const REGRESSIONS = [
             + "the GM's section 3: its first paragraph names the launcher's label and not the clock, and how many lines of section 1 put a panel under the clock; "
             + "the GM's section 18: Foundry tools, Map tools, the launcher's label, Shift+C, Escape and the world switch's name in bold; the player's section 16: one paragraph with the three lost tools, and the HUD's paragraph there, which names no search tokens; "
             + "how many sentences of the brochure and of the GM's section 4 put a room's search tokens, project or description on the HUD or the clock]");
+    }],
+    ["R533 - the room tile's height stops at 364/1080 of the screen's and never under its smallest box, beside the notice tile and under Monokuma Legacy only: glass.mjs roomCapH(H, need) = max(need, round(H x 364 / 1080)), roomPlacement's 'notes' height and both of flatPlacement's take it, and Stained Glass's 'clock' place never calls it", async () => {
+        /*
+         * E78 C0, 13.10.2026; the E78 plan's D1 and D2 (this number), ledger OWN-a, OWN-b and OWN-c. The owner
+         * (13.10.2026) found the room tile E77 shipped too large under Monokuma Legacy (430x491 at 1920x1080 and at
+         * 1366x768) and under Stained Glass beside the notice tile (1366x768), and right as it is under Stained Glass's
+         * clock. Two readings, neither of which needs layout.
+         * THE ARITHMETIC, at the sizes the owner named and the two ends: each pair is the box's height on 1.2.76's tree
+         * and its smallest box (`need`) as audit/glass-sweep.mjs read them in Chromium - Legacy under the clock 491 high
+         * with need 310, Stained Glass beside the notices 376 at 1366x768 and 352 at 1280x720 with the notice tile's
+         * width's need 245 - and the height each takes now is min(height, roomCapH(H, need)): 364 at 1920x1080, the floor
+         * 310 under Legacy at 1366x768, 259 beside the notices at 1366x768 and the floor 245 at 1280x720 (243 without
+         * it), 485 at 2560x1440 and 491 at 3840x2160, where the cap stands above the box's own largest. The positive
+         * control is in the same list: at 1366x768 and 1920x1080 the cap is lower than the box it replaces.
+         * THE SOURCE, read with comments blanked: in roomPlacement the branch that returns the 'clock' place names no
+         * `roomCapH`, the 'notes' height after it does; both of flatPlacement's returns do. Since E78 fix h76-HF4 that
+         * height is `h0`, C0's, from which `roomNotesH` takes the box beside the notices (R549). The reader is run first on
+         * a fixture of that shape, and with the cap planted in the 'clock' branch and taken out of each of the three.
+         * The boxes themselves need layout: audit/glass-sweep.mjs pins every one per theme, role and size (PIN_BOX),
+         * Stained Glass's 'clock' boxes at 1.2.76's readings.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.roomCapH === "function", "glass.mjs exports no roomCapH - the room tile's height has no cap");
+        const capped = (h, H, need) => Math.min(h, G.roomCapH(H, need));
+        equal(JSON.stringify([capped(491, 1080, 310), capped(491, 768, 310), capped(376, 768, 245), capped(352, 720, 245),
+            capped(491, 1440, 310), capped(491, 2160, 310), G.roomCapH(1080, 310) < 491, G.roomCapH(768, 245) < 376]),
+        JSON.stringify([364, 310, 259, 245, 485, 491, true, true]),
+        "[the box under Legacy's clock at 1920x1080 and 1366x768, beside Stained Glass's notices at 1366x768 and 1280x720, under Legacy's clock "
+            + "at 2560x1440 and 3840x2160; the cap under the old box at 1920x1080 and at 1366x768]");
+        const reader = src => {
+            const room = fnSource(src, "roomPlacement"), flat = fnSource(src, "flatPlacement");
+            return [!/\broomCapH\b/.test(bodyOf(room, "if (hud) {", { until: "\n  }" })),
+                /const h0 = Math\.round\(Math\.min\([^;\n]*\broomCapH\(H, need\)/.test(bodyOf(room, "const w = Math.round(noteW)")),
+                /return \{ place: "clock"[^\n]*\broomCapH\(H, need\)/.test(flat),
+                /return \{ place: "notes"[^\n]*\broomCapH\(H, /.test(flat)];
+        };
+        const FIXTURE = "export function roomPlacement(W, H) {\n  if (hud) {\n    const { need, maxH } = roomSizes(hud.width);\n"
+            + "    if (F - 24 >= need) return { place: \"clock\", h: Math.round(Math.min(F - 24, maxH)) };\n  }\n"
+            + "  const w = Math.round(noteW), { need, maxH } = roomSizes(w);\n  const h0 = Math.round(Math.min(maxH, H / 2 - 8, roomCapH(H, need)));\n"
+            + "  return { place: \"notes\", h };\n}\nfunction flatPlacement(W, H) {\n"
+            + "  if (F >= need) return { place: \"clock\", flat: true, h: Math.round(Math.min(F, maxH, roomCapH(H, need))) };\n"
+            + "  return { place: \"notes\", flat: true, h: Math.round(Math.min(maxH, roomCapH(H, roomSizes(w).need))) };\n}\n";
+        const planted = (from, to) => { must(FIXTURE.includes(from), `the fixture has no "${from}"`); return FIXTURE.replace(from, to); };
+        equal(JSON.stringify([reader(FIXTURE),
+            reader(planted("Math.min(F - 24, maxH)", "Math.min(F - 24, maxH, roomCapH(H, need))")),
+            reader(planted("H / 2 - 8, roomCapH(H, need)", "H / 2 - 8")),
+            reader(planted("Math.min(F, maxH, roomCapH(H, need))", "Math.min(F, maxH)")),
+            reader(planted("Math.min(maxH, roomCapH(H, roomSizes(w).need))", "maxH"))]),
+        JSON.stringify([[true, true, true, true], [false, true, true, true], [true, false, true, true], [true, true, false, true], [true, true, true, false]]),
+        "the reader does not read its fixture whole, or does not see the cap put in Stained Glass's 'clock' branch or taken out of the 'notes' height or either of Legacy's");
+        const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
+        must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
+        equal(JSON.stringify(reader(glass)), JSON.stringify([true, true, true, true]),
+            "[Stained Glass's 'clock' branch free of the cap; the cap in the 'notes' height; in Legacy's 'clock' return; in Legacy's 'notes' return]");
     }]
 ];
 

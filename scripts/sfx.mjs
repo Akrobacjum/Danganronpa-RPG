@@ -1183,13 +1183,16 @@ export function renderSoundLauncher() {
  *
  * Zero is a state somebody puts themselves in and then forgets, and "the module
  * went quiet" is a bug report nobody enjoys chasing. Both sliders down, because
- * one of the two at zero is an ordinary preference.
+ * one of the two at zero is an ordinary preference. Or Foundry's "mute all" of
+ * the voices on (E78 C5, the A9 design's step 8): with the camera dock out of
+ * sight its own struck button is too, and this is the button a player looks at
+ * when nobody can be heard. voice-tile.mjs calls this on `rtcSettingsChanged`.
  */
 export function refreshSoundLauncher() {
     const button = document.getElementById(LAUNCHER_ID);
     if (!button) return;
     button.classList.toggle("drpg-muted",
-        sfxVolume("sound") <= 0 && sfxVolume("music") <= 0);
+        (sfxVolume("sound") <= 0 && sfxVolume("music") <= 0) || game.webrtc?.settings?.client?.muteAll === true);
 }
 
 /** The two sliders. The whole of the window for a player - see `openSoundDialog`. */

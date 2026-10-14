@@ -40,7 +40,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import { ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomPieces, roomFlag, roomNames, placeScenes,
@@ -374,7 +374,15 @@ const ROOM_IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
  *
  * What it does not settle: what the server answers to the path - a redirect to elsewhere is no reading of
  * the string (LIVE-E77-03) - and S3 sources, which are another host and refused (the Description tab's note
- * says so).
+ * names what can be picked: this game's files, or on The Forge the Assets Library).
+ *
+ * THE FORGE (E78 fix h76-HF1, 14.10.2026; the owner's report on 1.2.76: every picture refused there, whatever
+ * its format). While the game runs on The Forge one more origin passes, its Assets Library's (utils.mjs
+ * `forgeAsset`, `https:` only), under every other refusal above; such a URL is answered as its full address,
+ * origin and path, since its path alone would read as this page's. Off The Forge it is refused as before.
+ * Since E78 C3 this also judges paths a player writes - the voice tile's portraits, a character's `img` its
+ * owner sets and the account's avatar (voice-tile.mjs `voicePortrait`) - so on The Forge a player's portrait
+ * may be any file of that host, which every browser of their voice room then fetches.
  */
 export function safeRoomImage(path) {
     if (typeof path !== "string") return null;
@@ -391,7 +399,8 @@ export function safeRoomImage(path) {
     // origin is the one `document.baseURI` resolves to, as notice-history.mjs's `imageAllowed` reads it:
     // the headless harness's clients have a `document` and no global `location` (measured 13.10, every
     // path was refused while this read `globalThis.location`).
-    if (!/^https?:$/.test(url.protocol) || url.origin !== new URL(document.baseURI).origin || url.search || url.hash) return null;
+    const here = url.origin === new URL(document.baseURI).origin;
+    if (!/^https?:$/.test(url.protocol) || !(here || forgeAsset(url)) || url.search || url.hash) return null;
     const type = url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
     if (!ROOM_IMAGE_TYPES.has(type)) return null;
     /* THE ANSWER IS READ AGAIN (E77 fix r1-G1, round 1's sec F1). An absolute URL of this origin whose path
@@ -401,7 +410,9 @@ export function safeRoomImage(path) {
        judged it once and drew it. The answer is kept only when it resolves to the very URL judged; `%2f` and
        `%5c` are refused above because a server that decodes them before it routes would read the same
        empty segment (not measured on Foundry's server; no file this module offers carries either). */
-    const answer = /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
+    /* The Assets Library's answer is its origin and path (E78 fix h76-HF1): a name or a password in the URL
+       makes the re-read below differ, so it is refused rather than answered without them. */
+    const answer = !here ? `${url.origin}${url.pathname}` : /^[a-z][a-z0-9+.-]*:/i.test(text) ? url.pathname : text;
     /* The re-read can throw (E77 fix r2-H1, review round 2's sec F1): after the empty segment comes what the URL
        parser will not take as a host - a port that is no number or out of range, a space or `%20`, an unclosed
        `[`, a bare `%` - and `new URL` rejects the answer (measured 13.10.2026 in Node at 2babd4c: 18 of 18 such

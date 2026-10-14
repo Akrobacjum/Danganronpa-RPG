@@ -414,9 +414,10 @@ function textNode(tag, className, text) {
 /**
  * A path as the body of a double-quoted CSS string: a quote, a backslash or a line break is written as its
  * hex escape, so a path cannot end the string or the `url()`. `safeRoomImage` already refuses anything but a
- * picture on this server; this is the second lock, on the one sink that is a string of CSS.
+ * picture on this server; this is the second lock, on the one sink that is a string of CSS. The voice tile's
+ * portrait (voice-tile.mjs, E78 C3) goes through the same two locks.
  */
-function cssString(path) {
+export function cssString(path) {
     return String(path).replace(/["\\\n\r\f]/g, c => `\\${c.charCodeAt(0).toString(16)} `);
 }
 

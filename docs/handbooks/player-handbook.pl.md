@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.76, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.77, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -141,6 +141,10 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 ### Głos
 
 Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
+
+**Kafel głosu.** Gdy jesteś w głosie, doku kamer Foundry nie ma na twoim ekranie: zastępuje go mały kafel - pod Stained Glass szyba witrażu przy prawej krawędzi, pod tacką Projects; pod Monokuma Legacy przy prawej krawędzi, nad przyciskami w rogu; na wąskim ekranie w rzędzie obok kafelka pokoju. Pokazuje portret i imię tego, kogo słyszysz mówiącego w twoim własnym kanale głosowym, i nikogo spoza niego, a chwilę po tym, jak ktoś przestanie mówić, gaśnie. Razem z dokiem odchodzą jego obrazy z kamer, jakość połączenia i okna wyskakujące; jeśli GM wyłączy kafel, dok wraca. Na kaflu są dwa przyciski:
+- **Mikrofon** wycisza i włącza twój własny mikrofon, niczyj inny; to samo robi klawisz w sterowaniu Foundry, gdy go przypiszesz. Przekreślony - jest wyciszony: przez ciebie albo przez GMa, gdy widać na nim małą kłódkę (**GM zablokował twój mikrofon.**). Szary i przekreślony - trzyma go gra: podczas Eclipse, z powodem pod spodem. Kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego. Z małą kropką - nie jesteś połączony z głosem albo głos działa w osobnym oknie. Świeci, gdy twój mikrofon niesie twój głos. Przy trybie naciśnij, aby mówić nosi **PTT**: przytrzymaj klawisz, żeby mówić. Monocub podczas Eclipse zachowuje mikrofon i dostaje informację, że do powrotu światła nikt go nie słyszy.
+- **Głośnik** pokazuje, ile innych osób jest w twoim kanale - każdą, która cię słyszy, mówiącą czy nie - i otwiera **Kogo słyszysz**: każdą z nich z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Wszystko to jest tylko twoje - nikt inny nie słyszy różnicy - i ta przeglądarka to pamięta. Escape albo kliknięcie obok zamyka listę.
 
 > [!TIP]
 > Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4).
@@ -785,6 +789,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Skala interfejsu** (80% do 140%), a pod Stained Glass **puls szkła**, **nazwa stanu za zegarem** i **szkło rozmywa mapę** (pierwsze do wyłączenia, gdy ekran się przycina).
 - **Ograniczone animacje** i **wysoki kontrast**, pod oboma motywami; każde z nich idzie też za systemem operacyjnym, gdy ten o nie prosi.
 - **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
+- **Głos**, gdy jesteś w głosie - twój mikrofon i wyjście dźwięku, tryb mikrofonu (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia. Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
 > [!NOTE]
 > **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to **Rzut publiczny** GMa z panelu GMa (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).

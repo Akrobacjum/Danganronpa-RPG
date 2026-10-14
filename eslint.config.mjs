@@ -154,6 +154,8 @@ export default [
     { files: ["audit/harness/client-entry.mjs"], languageOptions: { globals: { window: "readonly", document: "readonly" } } },
     // Daggerheart's roll pipeline as the harness models it runs inside a client, whose shim puts Foundry's names on globalThis.
     { files: ["audit/harness/lib/daggerheart.mjs", "audit/harness/lib/dh-dice/**/*.mjs"], languageOptions: { globals: { ...NODE, ...FOUNDRY } } },
+    // The LiveKit shim runs inside a client, where the harness has put Foundry's names and jsdom's document on globalThis (E78 C1).
+    { files: ["audit/harness/lib/livekit.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     // The live runner's page.evaluate functions run inside Foundry's page.
     { files: ["audit/live/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     // The glass sweep's page.evaluate functions run inside audit/glass-harness.html.

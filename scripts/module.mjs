@@ -89,6 +89,7 @@ import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
+import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
@@ -250,6 +251,9 @@ Hooks.once("init", () => {
     // After popups, because the safeword raises one. This is the safety tool -
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);
+    // The voice tile's microphone key (E78 C4): Foundry takes keybindings only in `init`; the tile itself is drawn
+    // at `ready`, and the key does nothing in a world without voice.
+    safely("the microphone's key", () => registerVoiceKeybinding());
     safely("a Confusion's armed Calls", registerConfusionCopy);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
@@ -361,6 +365,9 @@ Hooks.once("ready", () => {
     // hook runs after this one.
     safely("the GM panel's button", injectLauncher);
     safely("Foundry's windows", registerFoundryWindows);
+    // The voice tile instead of the camera dock (E78 C3): before the narrow layout and the glass,
+    // so that they find it once E78 C6 makes it one of their blocks; until then neither measures it.
+    safely("the voice tile", registerVoiceTile);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

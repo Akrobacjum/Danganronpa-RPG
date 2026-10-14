@@ -341,6 +341,10 @@
       "voiceEnabled": {
         "name": "Regional voice (needs LiveKit AVClient)",
         "hint": "Every mapped room becomes its own LiveKit channel - you hear only whoever stands in the room with you. Needs avclient-livekit installed, active and pointed at a working server. Off by default."
+      },
+      "voiceTile": {
+        "name": "Voice tile instead of the camera dock",
+        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Off brings Foundry's camera dock back for everyone."
       }
     },
     "SearchTokens": {
@@ -1756,11 +1760,11 @@
       "descriptionColumn": "What it looks like",
       "descriptionPlaceholder": "e.g. Long tables, a serving hatch, and a smell of bleach nobody can place.",
       "descriptionIntro": "Describe in your own words what each room looks like, and add a picture if you want. Whoever stands in a room sees it on their room tile.",
-      "descriptionNote": "Plain text, shown as typed; an empty line starts a new paragraph. Pictures come only from this server's files (not from S3). Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and traces.",
+      "descriptionNote": "Plain text, shown as typed; an empty line starts a new paragraph. Pictures come only from this game's files, or on The Forge from your Assets Library. Every browser holds the descriptions and pictures of all rooms, so keep a room's secrets in its stashes and traces.",
       "imageColumn": "Picture",
       "imagePick": "Choose a picture",
       "imageClear": "Remove the picture",
-      "imageRefused": "{room}: the picture was not saved. Only a picture from this server's files can be used: jpg, png, webp or avif.",
+      "imageRefused": "{room}: the picture was not saved. Pick a jpg, png, webp or avif from this game's files, or on The Forge from your Assets Library.",
       "tabFog": "Fog",
       "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
@@ -3015,6 +3019,7 @@
       },
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Cast",
+      "checksAvVideo": "This world sends video nobody watches: set the A/V mode to audio only.",
       "seasonChecks": "Pre-season checks",
       "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
@@ -3380,6 +3385,59 @@
         "other": "{n} players sent back to the main voice room."
       },
       "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "tile": {
+        "label": "Voice",
+        "speaking": "Speaking",
+        "nobody": "Nobody is speaking",
+        "more": {
+          "one": "and {n} more speaking",
+          "other": "and {n} more speaking"
+        }
+      },
+      "mic": {
+        "mute": "Mute your microphone",
+        "unmute": "Turn your microphone back on",
+        "ptt": "Push to talk: hold {key} to speak",
+        "pttNoKey": "Push to talk: choose a key for it in Foundry's controls.",
+        "pttBadge": "PTT",
+        "keybinding": "Mute or unmute your microphone"
+      },
+      "held": {
+        "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
+        "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
+        "gmBlock": "The GM blocked your microphone.",
+        "external": "Voice is in its own window - use the controls there.",
+        "offline": "You are not connected to voice."
+      },
+      "list": {
+        "open": "Who you hear",
+        "count": {
+          "one": "You hear {n} person in your channel",
+          "other": "You hear {n} people in your channel"
+        },
+        "alone": "Nobody else is in your channel.",
+        "muteAll": "Mute everybody for you",
+        "volume": "Volume: {name}",
+        "muteFor": "Mute {name} for you",
+        "unmuteFor": "Hear {name} again",
+        "hidden": "Hidden earlier in the camera dock: you do not hear them.",
+        "unhide": "Show and listen",
+        "gmBlock": "Block {name}'s microphone for everyone",
+        "gmUnblock": "Unblock {name}'s microphone",
+        "gmHeld": "You cannot block this microphone now.",
+        "gmSecretDead": "This death is still a secret: a block would give it away."
+      },
+      "panel": {
+        "legend": "Voice",
+        "mic": "Microphone",
+        "micNote": "Allow the browser to use your microphone, then open this window again to choose one.",
+        "output": "Sound output",
+        "mode": "Microphone mode",
+        "modeAlways": "Always on",
+        "modePtt": "Push to talk",
+        "pttKey": "Push-to-talk key: {key}",
+        "pttChange": "Change the key"
+      },
       "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },
     "States": {

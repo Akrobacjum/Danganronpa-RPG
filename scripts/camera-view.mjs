@@ -63,9 +63,19 @@ export function registerCameraView() {
      * dock rendering (somebody joins, leaves, turns a camera on), the window
      * resizing, and the dock being hidden - which `renderCameraViews` also
      * reports, as a render with nothing visible in it.
+     *
+     * The second listener was `collapseCameraViews`, which Foundry 14 does not
+     * call: the A9 design read v14's files on 11.10 (its CB-3 and REL7; external,
+     * not re-read here) and found no such hook. E78 C2 put Foundry's own
+     * `rtcSettingsChanged` in its place, as the design proposed: the dock's
+     * position and whether it is hidden are A/V client settings, and the design
+     * read that hook as the one Foundry calls when they change (equally not
+     * re-read; the harness's LiveKit shim fires it for its own writes, which
+     * says nothing about Foundry). Measuring once more than needed costs one
+     * `getBoundingClientRect`.
      */
     Hooks.on("renderCameraViews", () => measureCameraDock());
-    Hooks.on("collapseCameraViews", () => measureCameraDock());
+    Hooks.on("rtcSettingsChanged", () => measureCameraDock());
     Hooks.on("ready", () => measureCameraDock());
     window.addEventListener("resize", () => measureCameraDock());
 }
@@ -82,8 +92,12 @@ export function registerCameraView() {
  * height: a dock that does not reach the bottom edge is not standing on the
  * things this is trying to lift, and a dock taller than the space below them
  * would lift them further than it needs to.
+ *
+ * Exported for the voice tile (E78 C3), which hides the dock by a body class
+ * and measures again when it does: a hidden dock computes `display: none`,
+ * so it reads as zero here.
  */
-function measureCameraDock() {
+export function measureCameraDock() {
     try {
         const dock = document.querySelector("#camera-views, .camera-views");
         let lift = 0;
@@ -155,27 +169,69 @@ function onRenderCameraViews(app, element) {
 /**
  * The name this person should be shown under.
  *
- * An explicit `user.character` is a statement and always wins. Failing that a
- * GM is named by their Monokuma - the actor whose Despair pool points at them,
- * the same relationship voice.mjs uses to decide which room they follow - and
+ * An explicit `user.character` wins when the user owns it (`voiceActorFor`).
+ * Failing that a GM is named by their Monokuma - the actor whose Despair pool
+ * points at them, the same relationship voice.mjs uses to decide which room
+ * they follow - and
  * then by their pool label, which is what the Despair widget already shows.
+ */
+function displayNameFor(user) {
+    return nameFor(user, voiceActorFor(user));
+}
+
+/**
+ * The name and the portrait a voice surface shows for this person (E78 C2,
+ * 13.10.2026): `{ name, img }`, or `null` without a user. The name is
+ * `displayNameFor`'s - both go through `voiceActorFor`, so the dock's nameplate
+ * and the voice tile cannot name two different characters for one account -
+ * and the portrait is that same actor's `img`, else the account's own
+ * `avatar`, else `null`. Never a token's art, and never a character a player
+ * does not own: the portrait cannot be another's (R542, E78 fix r1-G2).
+ * Read by the voice tile (E78 C3) and the list (C6) as text and a checked path.
+ * `faces` is both candidates in that order, empty ones left out (E78 fix h76-HF1, round 1's sec SEC-R1-4):
+ * the tile draws the first its check accepts, so a character still on Foundry's default `.svg`, which the
+ * check refuses, no longer hides an account's avatar that passes (measured by the review: no portrait).
+ */
+export function voiceIdentity(user) {
+    if (!user) return null;
+    const actor = voiceActorFor(user);
+    return { name: nameFor(user, actor), img: actor?.img || user.avatar || null, faces: [actor?.img, user.avatar].filter(Boolean) };
+}
+
+/**
+ * The character a person is named by, or `null`: `user.character`, then a GM's
+ * Monokuma, then a player's first owned character.
+ *
+ * A player's `user.character` counts only when that player owns the actor
+ * (Foundry's `testUserPermission(user, "OWNER")`, the ownership test D2's layer
+ * one judges with; a GM's always counts). E78 fix r1-G2, 14.10.2026, round 1's
+ * SEC-R1-2: the reviewer set p2's `character` to p3's student in p1's memory and
+ * p1's voice tile drew that student's name and portrait while p2 spoke - the
+ * dock's name plate had read the field the same way since before E78. Whether
+ * Foundry's server lets a player write their own `character` to an actor they do
+ * not own is not measured here (no Foundry source in this checkout, and its site
+ * is not reachable from this machine); the check holds either way (R542).
  *
  * The ownership search is for PLAYERS only: `testUserPermission(gm, "OWNER")`
  * is true for every actor in the world, so running it for a GM returns
  * whichever character happens to be first in the collection.
  */
-function displayNameFor(user) {
-    if (user.character?.name) return user.character.name;
+function voiceActorFor(user) {
+    const assigned = user.character;
+    if (assigned?.name && (user.isGM || assigned.testUserPermission?.(user, "OWNER") === true)) return assigned;
 
     if (user.isGM) {
-        const mine = game.actors.find(a =>
-            a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === user.id);
-        return mine?.name ?? poolLabel(user);
+        return game.actors.find(a =>
+            a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === user.id) ?? null;
     }
 
-    const owned = game.actors.find(a =>
-        a.type === "character" && a.testUserPermission(user, "OWNER"));
-    return owned?.name ?? user.name;
+    return game.actors.find(a =>
+        a.type === "character" && a.testUserPermission(user, "OWNER")) ?? null;
+}
+
+/** The actor's name, else a GM's pool label or a player's account name. */
+function nameFor(user, actor) {
+    return actor?.name ?? (user.isGM ? poolLabel(user) : user.name);
 }
 
 /** Which of the two nameplate strings Foundry is currently rendering. */

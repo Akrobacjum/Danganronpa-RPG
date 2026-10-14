@@ -30,6 +30,18 @@
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the trace token placed in the Gym was on p1, p2 and p3; the remnant.note and remnant.subject markers were on none of them (72-canary and 10-murder)"
     },
     {
+      "id": "A9-K3",
+      "findings": ["S16-10"],
+      "class": "answer-key",
+      "severity": "high",
+      "what": "A character killed in secret leaves the voice room they stood in for the main room at the kill, not at the discovery, so before anybody has found the body every player in the main room sees the victim's name and face on the voice tile whenever the victim speaks, with no click, and the victim's name in the list 'Who you hear' with its speaking dot, and the speaker's count grow; and in the room the victim left, the count falls and the victim's row disappears at the kill.",
+      "closes": "E19",
+      "detectedBy": [
+        {"scenario": "75-voice-tile", "check": "E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count, or sees them speak on the voice tile"}
+      ],
+      "measuredAt": "E78 C7 on e78wt2 (C6's tree over b344d24), 14.10.2026: on the primary GM, voiceTargets put p2 in the Cafeteria's room before p2's character was killed in secret and in the main room after it ('dead, and not back as a Monocub - the main room'); p1, in the main room with whom that reading sends there, had p2 in the list 'Who you hear' and the speaker's count at 1"
+    },
+    {
       "id": "foundry-hidden-tokens",
       "findings": ["S07-46"],
       "class": "metadata",

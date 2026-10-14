@@ -33,18 +33,22 @@
  * GM's Despair and speaks with that GM's voice, not two separate assignments
  * to keep in sync. A token dragged off every mapped room sends that GM back
  * to the main room. (There is no "listen in by hand" any more - Dawid, 13.09:
- * LiveKit shows the listener's tile to the room, so it was never a secret.)
+ * LiveKit shows the listener's tile to the room, so it was never a secret.
+ * Since E78 the voice tile takes that dock off the screen, and what shows a
+ * listener now is the number on the tile's speaker button: every participant
+ * of the viewer's own LiveKit room, silent ones included - voice-tile.mjs
+ * `channelCount`, R550, E78 fix r1-G1.)
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, getClock, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
 import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
@@ -468,10 +472,7 @@ export async function voiceTargets() {
     const rows = [];
     for (const actor of game.actors.filter(a => a.type === "character")) {
         const monokuma = isMonokuma(actor);
-        // A student's voice follows their active owner; a Monokuma's follows
-        // whichever GM its Despair pool is pointed at - the same relationship,
-        // read from the same setting, not a second one.
-        const user = monokuma ? poolUserFor(actor) : activeOwnerOf(actor);
+        const user = voiceUserOf(actor, monokuma);
         rows.push({
             actor, monokuma, user: user ?? null,
             ...voiceClaim({
@@ -486,19 +487,11 @@ export async function voiceTargets() {
     const claims = new Map();
     for (const row of rows) {
         if (!row.user?.active) continue;
-
         if (!claims.has(row.user.id)) claims.set(row.user.id, []);
         claims.get(row.user.id).push(row);
-
-        const held = byUser.get(row.user.id);
-        // Strongest claim wins; ties go to the lowest actor id, so the answer is
-        // the same on every client and the same on every pass.
-        if (!held
-            || row.claim > held.claim
-            || (row.claim === held.claim && row.actor.id < held.actor.id)) {
-            byUser.set(row.user.id, row);
-        }
     }
+    // In the order each account's first row came, as the inline ranking this replaced filled it (E78 C2).
+    for (const userId of claims.keys()) byUser.set(userId, voiceRowFor(rows, userId));
 
     // An Eclipse silences PEOPLE, not characters. Everyone else in this file is
     // reached through the character they own, so an account with no character -
@@ -523,6 +516,135 @@ export async function voiceTargets() {
     }
 
     return { rows, byUser, contested, eclipse, trial };
+}
+
+/**
+ * Which of an account's characters speaks for it: of the `rows` whose user is `userId` and connected, the strongest
+ * claim, ties to the lowest actor id; `null` when there is none (E78 C2, 13.10.2026).
+ *
+ * The ranking `voiceTargets` ran inline until E78, moved here unchanged, so that the two questions E78 asks about one
+ * account - does the module hold this viewer's microphone (`micHold`), may a GM block this person (`moduleHoldsMic`) -
+ * are asked of the same character the reconcile places, not of a second idea of "their character". R537 holds it
+ * equal to the inline loop on E13's trial rows and R544 that nothing else in scripts/ ranks.
+ */
+export function voiceRowFor(rows, userId) {
+    let held = null;
+    for (const row of rows) {
+        if (!row.user?.active || row.user.id !== userId) continue;
+        // Strongest claim wins; ties go to the lowest actor id, so the answer is
+        // the same on every client and the same on every pass.
+        if (!held
+            || row.claim > held.claim
+            || (row.claim === held.claim && row.actor.id < held.actor.id)) {
+            held = row;
+        }
+    }
+    return held;
+}
+
+/**
+ * Whether the module holds THIS browser's own microphone, and why: `null`, or `{ reason, held }` (E78 C2, 13.10.2026;
+ * the owner's answers Q1 and Q15 of 11.10).
+ *
+ * Q1: the microphone button is grey and struck through only when the MODULE silences the player, with the reason;
+ * a GM's block by hand and a lost connection look different, because neither is the module (Q15, the design's P6).
+ * So `held` is true for the module's own reasons and for nothing else:
+ *   - "external": avclient-livekit sends this browser's audio from its own window (`useExternalAV`) - not held;
+ *   - "offline": no LiveKit Room in this browser, or one that is not connected - not held;
+ *   - "eclipse": HELD - the primary GM put this account alone in its Eclipse room (`voiceClaim`), where nobody hears
+ *     it. Never a GM: the GMs share one Eclipse room;
+ *   - "gmBlock": a GM blocked this microphone for everybody (Foundry's `canBroadcastAudio`) - a person's choice, not
+ *     held; the module's own reason is named first when both stand;
+ *   - "eclipseHeard": a Monocub in its Eclipse room - alone there today too, so the tile must not pretend somebody
+ *     hears it, but a Monocub is never held (the design's P6), so this is a line of information.
+ * The dead are not held here: until the incident ends, the body is found or the GM says so, a dead student talks in
+ * the room they died in (Q2), and E19 and E67 add "deadAlone" and "deadMuted" with that timing (plan D7).
+ *
+ * From this browser's own facts only - the room the primary GM sent it (`desiredRoom`), its own A/V state, its own
+ * characters and the flags on them - and never from GmStore: on a player `isDeadForGm` and `pendingDeath` read the
+ * player's copy of the GMs' records (`readMine`), and the incident's state is completed from the GMs' cast store.
+ * Every fact can be handed in, as `voiceClaim`'s are, so R537 asks it the table of states without a world to write;
+ * left out, each is read here. Whether Foundry 14.365 and avclient-livekit 0.6.8 name `canBroadcastAudio`,
+ * `useExternalAV` and the Room's `state` as read below is the A9 design's reading of their files on 11.10 (external,
+ * not re-read here); each read is guarded, so a renamed `canBroadcastAudio` or `useExternalAV` reads as not blocked
+ * and not external, and a renamed Room or `state` as offline.
+ */
+export function micHold({ user = game.user, room = desiredRoom(), external = externalAV(), connected = roomConnected(),
+    canBroadcastAudio = broadcastAllowed(user), actors } = {}) {
+    if (!user) return null;
+    if (external) return { reason: "external", held: false };
+    if (!connected) return { reason: "offline", held: false };
+    const eclipse = !user.isGM && room === eclipseRoomFor(user);
+    // Inside its Eclipse room the voice character is the account's lowest actor id, as `voiceRowFor` ranks every
+    // claim of an Eclipse alike; `silenced` and `locate` are never asked there.
+    const voice = eclipse ? accountRow(user, { actors, eclipse: true, silenced: () => false })?.actor : null;
+    const monocub = Boolean(voice && isDeceased(voice) && voice.getFlag?.(MODULE_ID, FLAGS.monocub));
+    if (eclipse && !monocub) return { reason: "eclipse", held: true };
+    if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
+    if (eclipse) return { reason: "eclipseHeard", held: false };
+    return null;
+}
+
+/**
+ * On a GM's client, whether the module holds ANOTHER account's microphone, so that the GM's block for everybody
+ * (E78 C5, Foundry's `BROADCAST_AUDIO`) neither lifts nor reveals it: `null`, or `{ reason, held: true }` (E78 C2,
+ * 13.10.2026; the owner's answer Q4 of 11.10: the GM's block is never offered on a microphone the module holds, nor for
+ * a death kept secret).
+ *   - "secretDead": the account's voice character is dead in the GMs' records and not on its sheet (`isDeadForGm`
+ *     without `isDeceased`) - a block drawn on it would tell the table what the GMs keep.
+ * E67 adds "deadMuted". The Eclipse, a lost connection and avclient-livekit's own window are the other browser's
+ * facts and mean nothing here. `null` on a player's client, where `isDeadForGm` reads only that player's copy.
+ * The voice character is `voiceTargets`' (`voiceClaim`, `voiceRowFor`), asked without where anybody stands: outside
+ * an Eclipse and the trial a living character outranks a dead one wherever either stands (CLAIM), so only whether
+ * every character of the account is dead decides, and which one then is the lowest id; in an Eclipse and the trial
+ * nobody is located at all. The facts can be handed in, as `micHold`'s.
+ */
+export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = getClock().phase === "classTrial",
+    dead = isDeadForGm } = {}) {
+    if (!game.user?.isGM || !user) return null;
+    const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead) });
+    const actor = row?.actor;
+    if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
+    return null;
+}
+
+/**
+ * One account's voice row, as `voiceTargets` builds and ranks it, from the characters whose voice is this account's
+ * (`voiceUserOf`) - or the `actors` handed in - with nobody located (`micHold`, `moduleHoldsMic` say why that is the
+ * same answer for their questions).
+ */
+function accountRow(user, { actors, eclipse = false, trial = false, silenced }) {
+    const mine = actors ?? game.actors.filter(a => a.type === "character" && voiceUserOf(a, isMonokuma(a))?.id === user.id);
+    const rows = mine.map(actor => {
+        const monokuma = isMonokuma(actor);
+        return { actor, monokuma, user, ...voiceClaim({ user, monokuma, eclipse, trial,
+            silenced: () => !monokuma && silenced(actor), locate: () => null }) };
+    });
+    return voiceRowFor(rows, user.id);
+}
+
+/** avclient-livekit's own setting for a browser that sends its audio from the LiveKit web client (the design's reading). */
+function externalAV() {
+    try {
+        return game.settings.settings?.has?.(`${AV_MODULE}.useExternalAV`) === true
+            && game.settings.get(AV_MODULE, "useExternalAV") === true;
+    } catch {
+        return false;
+    }
+}
+
+/** This browser's LiveKit Room, connected - the Room the voice tile (E78 C3) reads speakers from. */
+function roomConnected() {
+    return game.webrtc?.client?._liveKitClient?.liveKitRoom?.state === "connected";
+}
+
+/**
+ * Foundry's answer for this user's microphone, from the user's A/V row (`getUser`), as the design read it; a GM's
+ * block clears it. No row, or a row without the field (the harness's LiveKit shim has none), reads as not blocked.
+ * Not `user.can(...)` beside it: that would be a second reader of the block's permission, a BLOCK road of R534's.
+ */
+function broadcastAllowed(user) {
+    return game.webrtc?.settings?.getUser?.(user?.id)?.canBroadcastAudio ?? true;
 }
 
 /**
@@ -773,18 +895,15 @@ async function reconcileNow({ force = false } = {}) {
                 if (!didChange) continue;
                 changed += 1;
 
-                // Walking your own Monokuma INTO a room means "let me talk to
-                // these players" - undo a mute you may still be wearing from the
-                // main room, so arriving does not silently leave you unheard. Only on the
-                // actual transition, not on every later pass while you are still
-                // standing there - a mute you choose mid-conversation must stick.
-                if (row.monokuma && row.room && userId === game.user.id) {
-                    try {
-                        await game.webrtc.client.toggleAudio(true);
-                    } catch {
-                        // Not fatal - the room switch itself already succeeded.
-                    }
-                }
+                // No microphone is moved here (E78 C2, 13.10.2026; S16-10, "the
+                // module never moves a microphone"). Until E78 a GM walking their own
+                // Monokuma into a room had `toggleAudio(true)` called "to undo a mute
+                // you may still be wearing" - the only place the module touched a
+                // microphone on its own, and one meant to undo the GM's own mute.
+                // The A9 design read avclient-livekit 0.6.8's `toggleAudio` as
+                // doing nothing for that call (11.10; external, not re-read here). A
+                // microphone moves on its owner's click or key only (E78 C4,
+                // `toggleOwnMic`; R544).
             } catch (err) {
                 error(`Voice reconcile failed for "${row.actor?.name ?? userId}"; continuing with the rest`, err);
             }
@@ -847,6 +966,15 @@ async function assignUserToRoom(userId, room, options = {}) {
     return false;
 }
 
+/**
+ * Whose voice a character is: a student's follows their active owner; a Monokuma's
+ * follows whichever GM its Despair pool is pointed at - the same relationship, read
+ * from the same setting, not a second one. `voiceTargets` and `accountRow` ask it.
+ */
+function voiceUserOf(actor, monokuma) {
+    return monokuma ? poolUserFor(actor) : activeOwnerOf(actor);
+}
+
 /** Active owner only - an offline player has no AV client to move. */
 function activeOwnerOf(actor) {
     return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER")) ?? null;
@@ -858,11 +986,11 @@ function activeOwnerOf(actor) {
  * Death is asked of settings.mjs, the leaf (E05 C9), and the Monocub flag read
  * directly rather than through `monocub.mjs` - this runs inside the reconcile loop
  * on every token move, and a dynamic import per actor per pass is a lot of churn
- * for two boolean reads.
+ * for two boolean reads. `dead` is the GMs' record unless a caller hands in another
+ * reader: `moduleHoldsMic` takes one, so R537 asks it of a table (E78 C2).
  */
-function silencedByDeath(actor) {
-    const dead = isDeadForGm(actor);
-    if (!dead) return false;
+function silencedByDeath(actor, dead = isDeadForGm) {
+    if (!dead(actor)) return false;
     return !actor.getFlag(MODULE_ID, FLAGS.monocub);
 }
 

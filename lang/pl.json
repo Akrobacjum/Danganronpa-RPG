@@ -338,6 +338,10 @@
         "name": "Głos per pokój (wymaga LiveKit AVClient)",
         "hint": "Każdy zmapowany pokój staje się własnym kanałem LiveKit - słyszysz tylko tych, którzy stoją z tobą w pokoju. Wymaga zainstalowanego, włączonego avclient-livekit podpiętego do działającego serwera. Domyślnie wyłączone."
       },
+      "voiceTile": {
+        "name": "Kafel głosu zamiast doku kamer",
+        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Wyłączone przywraca wszystkim dok kamer Foundry."
+      },
       "highContrast": {
         "name": "Wysoki kontrast",
         "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Rozmiar tekstu ustawia Skala interfejsu, nie ten przełącznik, a mapy to nie dotyczy. Włącza się sam, gdy twój system prosi o większy kontrast. Tylko ten klient."
@@ -1803,11 +1807,11 @@
       "descriptionColumn": "Jak wygląda",
       "descriptionPlaceholder": "np. Długie stoły, okienko do wydawania i zapach wybielacza, którego nikt nie umie umiejscowić.",
       "descriptionIntro": "Opisz własnymi słowami, jak wygląda każdy pokój, i jeśli chcesz, dodaj zdjęcie. Kto stoi w pokoju, widzi to na swoim kafelku pokoju.",
-      "descriptionNote": "Zwykły tekst, pokazany tak, jak wpisano; pusta linia zaczyna nowy akapit. Zdjęcia tylko z plików tego serwera (nie z S3). Każda przeglądarka ma opisy i zdjęcia wszystkich pokoi, więc sekrety pokoju trzymaj w skrytkach i śladach.",
+      "descriptionNote": "Zwykły tekst, pokazany tak, jak wpisano; pusta linia zaczyna nowy akapit. Zdjęcia tylko z plików tej gry, a na The Forge z twojej Assets Library. Każda przeglądarka ma opisy i zdjęcia wszystkich pokoi, więc sekrety pokoju trzymaj w skrytkach i śladach.",
       "imageColumn": "Zdjęcie",
       "imagePick": "Wybierz zdjęcie",
       "imageClear": "Usuń zdjęcie",
-      "imageRefused": "{room}: nie zapisano zdjęcia. Można użyć tylko zdjęcia z plików tego serwera: jpg, png, webp albo avif.",
+      "imageRefused": "{room}: nie zapisano zdjęcia. Wybierz jpg, png, webp albo avif z plików tej gry, a na The Forge z twojej Assets Library.",
       "tabFog": "Mgła",
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",
@@ -3150,6 +3154,7 @@
       },
       "stateUnchanged": "Nic się nie zmieniło.",
       "checksSetup": "Obsada",
+      "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
       "seasonChecks": "Kontrola przed sezonem",
       "nextFloorHeld": "{mode} - głos ma {who}.",
       "whoIsAlive": "Uczniowie",
@@ -3528,6 +3533,63 @@
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
       "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "tile": {
+        "label": "Głos",
+        "speaking": "Mówi",
+        "nobody": "Nikt nie mówi",
+        "more": {
+          "one": "i jeszcze {n} osoba mówi",
+          "few": "i jeszcze {n} osoby mówią",
+          "many": "i jeszcze {n} osób mówi",
+          "other": "i jeszcze {n} osoby mówi"
+        }
+      },
+      "mic": {
+        "mute": "Wycisz swój mikrofon",
+        "unmute": "Włącz z powrotem swój mikrofon",
+        "ptt": "Naciśnij, aby mówić: przytrzymaj {key}",
+        "pttNoKey": "Naciśnij, aby mówić: wybierz dla tego klawisz w sterowaniu Foundry.",
+        "pttBadge": "PTT",
+        "keybinding": "Wycisz albo włącz swój mikrofon"
+      },
+      "held": {
+        "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
+        "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
+        "gmBlock": "GM zablokował twój mikrofon.",
+        "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
+        "offline": "Nie jesteś połączony z głosem."
+      },
+      "list": {
+        "open": "Kogo słyszysz",
+        "count": {
+          "one": "Słyszysz w kanale: {n}",
+          "few": "Słyszysz w kanale: {n}",
+          "many": "Słyszysz w kanale: {n}",
+          "other": "Słyszysz w kanale: {n}"
+        },
+        "alone": "Poza tobą nikogo nie ma w kanale.",
+        "muteAll": "Wycisz wszystkich u siebie",
+        "volume": "Głośność: {name}",
+        "muteFor": "Wycisz u siebie: {name}",
+        "unmuteFor": "Znów słuchaj: {name}",
+        "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
+        "unhide": "Pokaż i słuchaj",
+        "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
+        "gmUnblock": "Odblokuj mikrofon: {name}",
+        "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
+        "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła."
+      },
+      "panel": {
+        "legend": "Głos",
+        "mic": "Mikrofon",
+        "micNote": "Pozwól przeglądarce używać mikrofonu, potem otwórz to okno ponownie, aby go wybrać.",
+        "output": "Wyjście dźwięku",
+        "mode": "Tryb mikrofonu",
+        "modeAlways": "Zawsze włączony",
+        "modePtt": "Naciśnij, aby mówić",
+        "pttKey": "Klawisz mówienia: {key}",
+        "pttChange": "Zmień klawisz"
+      },
       "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },
     "States": {

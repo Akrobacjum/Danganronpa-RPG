@@ -60,8 +60,15 @@
  * variant B grid): one click opens both windows, the next closes both (`toggleFoundryTools`), and `aria-pressed`
  * says whether either is open. Like the GM's red button it is a child of the body that joins the cluster through
  * `data-drpg-cluster` and carries no `drpg-` class (pixel-icons.css paints under any such ancestor). Its face is
- * Foundry's own logo, `icons/fvtt.png` from Foundry's core files - the module ships no copy of it (D7) - lightened
- * by the stylesheet; whether that file is there and reads well on a v14 table is LIVE-E77-09.
+ * one inert `i` with no class, which danganronpa.css masks with the module's pixel anvil (`--drpg-px-anvil`,
+ * tools/pixel-icons.py) in the button's colour under both themes, as the handbooks' book is masked (R548). It has no
+ * Font Awesome name, and every selector of pixel-icons.css names one, so that sheet paints nothing on it whatever
+ * class stood above it (read in the generated selectors, 14.10.2026).
+ * Until E78 fix h76-HF3 (14.10.2026) the face was Foundry's own logo from Foundry's core files (the module ships
+ * no copy of it, D7) through a lightening filter, with a toolbox for a file that did not load. The owner, at The
+ * Forge on 1.2.76, read it as the Forge's icon and the one face in the corner outside the module's white pixel set,
+ * and asked for a white pixel glyph; the anvil is the default the owner left standing. Nothing is loaded for it any
+ * more, so there is no failed load to stand in for.
  *
  * THE WORLD SWITCH (E77 fix r2-H2, 13.10.2026; the owner's amend of 11.10, session 0 (1): 'jeden przelacznik', the
  * emergency way back at the table). The world setting `foundryToolWindows`, on by default and the GM's to change in
@@ -356,23 +363,9 @@ function buildLauncher() {
     btn.setAttribute("aria-label", label);
     btn.dataset.tooltip = label;
     btn.setAttribute("aria-pressed", "false");
-    const logo = document.createElement("img");
-    logo.setAttribute("src", "icons/fvtt.png");
-    logo.setAttribute("alt", "");
-    logo.draggable = false;
-    /* A Foundry whose core files have no `icons/fvtt.png` would leave the broken-image glyph on the button (review
-       round 2's cor F6; the glass harness serves no such file). Then a Font Awesome toolbox stands in; the button's
-       name is its label either way. The listener stays for every error, not one: R512 fires the error and puts the
-       logo back, and with `{ once: true }` (r2-H2's form) the next tier-1 run in the same page found the logo with no
-       listener and failed - H5's scenario 01 at 9ef00ef, R512 red on the second and third run, green on the first
-       (E77 fix r2-H6, 13.10.2026). A logo that fails again after it is put back falls back again. */
-    logo.addEventListener("error", () => {
-        const mark = document.createElement("i");
-        mark.className = "fa-solid fa-toolbox";
-        mark.setAttribute("inert", "");
-        logo.replaceWith(mark);
-    });
-    btn.append(logo);
+    const face = document.createElement("i");
+    face.setAttribute("inert", "");
+    btn.append(face);
     btn.addEventListener("click", () => toggleFoundryTools());
     document.body.append(btn);
 }

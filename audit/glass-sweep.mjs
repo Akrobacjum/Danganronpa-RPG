@@ -49,8 +49,8 @@
  * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
  * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
  * nothing is cut for it, or unplaced on a desk with glass; a place F does not choose; the tile laid out off the box
- * it was placed at; under the clock, not the clock's width, edge or turn; beside the notices, the foot off the notice
- * tile's, the gap not 32 + h x tan 8 deg, a corner of the history's button on the room's pane; the picture not on the
+ * it was placed at; under the clock, not the clock's width, edge or turn; beside the notices, the box's foot not
+ * `roomNotesLift` over the screen's edge, the pane short of the foot or a plain pane under it, the gap not 32 + h x tan 8 deg, a corner of the history's button on the room's pane; the picture not on the
  * room's pane over the curtain; a new description or the description opened firing `drpgGlassCut` - and a taller clock
  * firing none, which is that count's own control. At the first placed size two more controls: the place stamp
  * swapped without a pass, and the tile taken out - each must read as not ok. `--no-room` leaves it out.
@@ -66,7 +66,7 @@
  * cut, and the tile's place and height come from glass.mjs `flatPlacement`: the same F, from the clock's foot to the
  * player list, and the same two places. A Legacy desk expects `flat` and fails on any of: no placement, or one that is
  * not flat; a place F does not choose; a second `roomPlacement` that answers otherwise; the tile laid off its box;
- * under the clock, not under it, not its width or edge, not min(F, max) high, or less than 16 px above the player
+ * under the clock, not under it, not its width or edge, not min(F, max, cap) high, or less than 16 px above the player
  * list; beside the notices, not in the body 16 px right of the stack, level with its top, or off the screen; a new
  * description or the description opened moving the placement, while a taller clock moves it (that reading's
  * control); under the clock, `#players` made 60 px wider widening the column and the tile taking the column's width,
@@ -116,11 +116,40 @@
  * that wall, so the strip is cut however short; C5's sweep reads 0. `--known 1280x720:eg=16` (or
  * any `<size>:<key>=<n>`) still exempts exactly that reading.
  *
+ * THE VOICE TILE (E78 C6, 14.10.2026). The page's `drpgVoiceCheck` fails a size on any of: on a desk with glass, the
+ * tile not at the box the cut settled, its pane missing or painted empty, the portrait not on the body at the pane's box
+ * and outline, a pane over `voice-left`, a strip shard at a right wall with no rail, a long name, the face or the fade
+ * firing a drpgGlassCut (the control: the tile taken away and back fires one each way); stacked, the tile and the room
+ * tile not both in the row, the portrait not inside the tile, the tile off the screen. Once per run (`--no-voice` drops
+ * it all) the page is loaded without Foundry's sidebar tabs, and again with glass.mjs's spare band put back (S12-95).
+ * Since E78 fix r2-H1 (14.10.2026; review round 2's cor F1) it also fails a tile drawn in another form than the cut
+ * settled (`data-fit`) and a tile whose buttons or name plate leave it, whose plate lies under the buttons, whose name
+ * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
+ * control, once per run: the tile forced 15 px tall, and the speaker's glyph stripped of its mask. 1366x600 and
+ * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
+ * Since E78 fix r2-H2 (14.10.2026; the verify ledger's E78-8, E78-13, doneWhen E78-3 and E78-9) every size also opens
+ * the list 'Who you hear' (the page's `drpgVoiceList`: voice-tile.mjs's own list, eight rows) and fails it outside the
+ * screen or firing a drpgGlassCut, reads the caption's brush against the game state's colour under Stained Glass
+ * ("none" under Monokuma Legacy, which draws no brush), and where no curtain is cut - every Legacy desk - reads the
+ * tile's box and what it holds, which until then read "voice ok none" and measured nothing. Their controls, once per
+ * run: the list 40 px past the right edge, the tile taken away and back while the list is open, the brush another
+ * colour (with `plantVoice`), and the Legacy tile 150 px under the screen's foot (`plantVoiceNone`).
+ *
+ * STANDING STILL (E78 fix h76-HF2, 14.10.2026). The owner saw the status strip jump about once a second on 1.2.76, and
+ * this sweep came out GREEN on 1.2.76 at four sizes: every reading here is of a moment, and the fault was a loop. Each
+ * Stained Glass desk with glass, in both roles, is now watched with nothing done for `--idle` seconds (5; 0 leaves it
+ * out) once the load is 6 s old (past the 1500 ms rebuild and the first cut's 840 ms slide), before any other reading
+ * touches the page: the passes of the glass (`data-drpg-measuring` set) and the transform transitions started, anywhere
+ * on the page, must both be 0. The line prints `idle <passes>/<transitions>` and the shifts the rotation sheet gives
+ * the rotated blocks other than the two rails. Its control runs once a run on a page of its own (1920x1080, the GM's):
+ * the right-hand column moved 24 px towards the wall, which the module answers with a pass and a slide, must read
+ * passes and transitions above 0; a control that reads 0 fails the sweep.
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows]
+ *          [--no-windows] [--no-voice] [--idle <s>, 5]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -140,13 +169,14 @@ const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
-const windows = !args.includes("--no-windows");
+const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice");
+const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
 }));
 const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,"
-    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",");
+    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",");
 /* THE PINS (E77 fix r1-M1, 13.10.2026; review round 1's O9): the place each size reads, as this file read it on
    e77-wip after E77 C9 and the side fix line (ceb70a4) with fix r1-M1 on it, in Chromium, GM and player alike -
    'row' on a stacked screen (E77 C8), 'notes' where Stained Glass's F leaves less than the smallest box (F 194 at
@@ -154,13 +184,90 @@ const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864
    everywhere else; under Monokuma Legacy every desk size reads 'clock' (F 489 to 1899 against need 310). A
    reading that moves is a design change: say why in the commit that moves the pin. 1366x657 (fix r2-H3, review
    round 2's goal Rb), read on fix r2-H3's tree: 'notes' under Stained Glass (F 83, box 301x321) and 'clock' under
-   Monokuma Legacy (F 426, box 430x426), a GM and a player alike. */
+   Monokuma Legacy (F 426, box 430x426), a GM and a player alike. 1366x600 and 1366x560 (E78 fix r2-H1, review round
+   2's cor F1: two short desks, the voice tile's), read on af5eb69: 'notes' under Stained Glass (F 26 and -14) and
+   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike. */
 const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
-const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657"], legacy: [] };
+const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
 const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
-        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",").map(size =>
+        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",").map(size =>
         [`${theme} ${role} ${size}`, PIN_ROW.includes(size) ? "row" : PIN_NOTES[theme].includes(size) ? "notes" : "clock"]))));
+/* THE BOX PINS (E78 C0, 13.10.2026; the owner's decision of 13.10: the room tile is too large beside the notices
+   and under Monokuma Legacy, and under Stained Glass's clock it stays exactly as it is): each desk size's room box,
+   width x height, a GM and a player alike. The 'clock' rows of Stained Glass are 1.2.76's own (this file on dcfc31b,
+   in Chromium, 13.10.2026: SWEEP GREEN, 711 s), and C0 must not move them; the 'notes' rows of Stained Glass and
+   every Legacy row are C0's, read the same day on C0's tree with the cap of glass.mjs `roomCapH` - beside the notices
+   301x376 became 301x259 at 1366x768, 1224x768 and 1300x768, 301x384 became 301x270 at 1280x800 and 1264x800,
+   301x352 and 301x321 became 301x245 (the floor at `need`) at 1280x720 and 1366x657; under Legacy 430x491 became
+   430x364 at 1920x1080, 430x310 (the floor) at ten sizes, 430x485, 430x354 and 430x404 at 2560x1440, 1680x1050 and
+   1920x1200, and 3840x2160 kept 430x491 (its maxH is below the cap). Every self-check (ov, nc, bf, eg, ff) and
+   every place read the same before and after. The harness's own room check reads the height against
+   min(F, maxH, cap) with glass.mjs's function, so these numbers are the one reading that does not go through the
+   code it checks. A box that moves is a design change: say why in the commit that moves the pin.
+   E78 fix h76-HF4 (14.10.2026; the owner on C0's shot, 13.10: beside the notices "ok 2x za duzy", half the height)
+   moved the seven 'notes' rows of Stained Glass, and only those: 301x259 became 301x150 at 1366x768, 1224x768 and
+   1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
+   (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
+   move, and the sweep read them so on that tree. 1366x600 and 1366x560 (fix r2-H1) read on af5eb69: 301x143 beside
+   the notices, 430x310 under Legacy, as at 1366x657. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
+   byc przeciagniete za krawedz ekranu", the picture was to run past the screen's edge) moved the same rows of Stained
+   Glass and only those: the box stands 31 px over the screen's edge (`roomNotesLift`) with its pane run past it, 301x150
+   became 301x129, 301x155 became 301x134 and 301x143 became 301x122 (`low`, the content's floor), read the same day. */
+const BOX = {
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
+    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
+    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x302",
+    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x122", "stained 1366x657": "301x122",
+    "stained 1366x600": "301x122", "stained 1366x560": "301x122",
+    "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
+    "legacy 1536x864": "430x310", "legacy 1600x900": "430x310", "legacy 1680x1050": "430x354", "legacy 1280x800": "430x310",
+    "legacy 1224x768": "430x310", "legacy 1264x800": "430x310", "legacy 1300x768": "430x310", "legacy 1400x900": "430x310",
+    "legacy 3840x2160": "430x491", "legacy 1920x1200": "430x404", "legacy 1280x720": "430x310", "legacy 1366x657": "430x310",
+    "legacy 1366x600": "430x310", "legacy 1366x560": "430x310"
+};
+const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
+    const [theme, size] = key.split(" ");
+    return ["gm", "player"].map(role => [`${theme} ${role} ${size}`, box]);
+}));
+/* THE PANE PINS (E78 fix h76-HF4, 14.10.2026). C0 pinned the box, and the box was not what the owner saw: beside the
+   notices the curtain cut the room's pane from 10 px over the box down to the screen's foot, and that pane - 362x370
+   at 1366x768, leaning 6 degrees - is the tile the owner measured off C0's shot ("about 330 x 370"). So the 'notes'
+   sizes pin the pane too, its bounds' width x height as the page's LAST.panes has them: C0's read 362x370 at 1366x768
+   and 1366x657 (370 and 356 high, leaning), 325x339 at 1224x768 and 1300x768, 325x350 at 1280x800 and 1264x800 and
+   325x325 at 1280x720 (upright); after HF4 each is the box and 10 px over and under it, upright, and as wide as at
+   C0 where it stood upright.
+   THE TILT PINS (E78 fix r1-G3, 14.10.2026; the owner on C0's lean: "Zostaw kafel przekrzywiony" - leave the tile
+   tilted). HF4 had stood the pane upright; it leans again where C0 leaned it, 6.0 degrees at 1366x768 and 1366x657,
+   and stands upright at the five other 'notes' sizes, as at C0 (the page's `notes.tilt`, the tile's turn, which the
+   room check holds to its pane's own angle; Chromium, read the same day on C0's tree, HF4's and this one). The
+   leaning panes' bounds grow with the lean: 325x170 became 341x203 at 1366x768 and 325x163 became 340x196 at
+   1366x657, still ending 10 px under the box. `plantPane`'s `turned` control turns the tile off its pane's angle.
+   1366x600 and 1366x560 (fix r2-H1) read on af5eb69 as 1366x657 reads: 340x196, leaning 6 degrees.
+   THE PANE RUNS PAST THE SCREEN'S EDGE (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at 1366x768: "zdjecie mialo
+   byc przeciagniete za krawedz ekranu"). The pane runs to the foot as every column of the bottom band does, with no
+   plain pane under it, and the box stands `roomNotesLift` over the edge, so what shows above the edge is still half of
+   C0's run: the upright panes read as at HF4 (325x170, 325x175, 325x163: the box, 31 px under it and 10 over it, is
+   HF4's box and its two pads), the leaning ones 344x202 at 1366x768 (its top edge from y 566 to 600, 583 at its middle: 185 px above the edge there; HF4's ran from 523 to 692 at its middle)
+   and 344x195 at 1366x657, 1366x600 and 1366x560. `plantPane`'s `foot` control is HF4's cut: the pane ended 10 px
+   under the box and a plain pane under it, which must fail the room check. */
+const PANE = { "1366x768": "344x202", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
+    "1366x600": "344x195", "1366x560": "344x195" };
+const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
+/* THE CORNER PINS (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot: "przyciski na panelu livekit sa za daleko
+   krawedzi"). On the wall in the full form the voice tile's buttons stand one over the other at its pane's top right
+   corner, as P11 draws them: per button, its centre's distance from the screen's right edge and under the pane's top
+   edge straight above it (the page's `drpgVoiceParts`, `corner`). At 60741cf they stood side by side, 66 and 31 px
+   from the wall and 69 px under that edge at 1366x768. Read in Chromium on this tree the same day: 20,22 25,57 at
+   every full tile, 19,22 24,57 at 2560x1440 and 3840x2160 (the tile 258 wide there). "-" is a compact tile, whose
+   buttons keep H1's row (a GM's at 1366x657, 181x113 under VOICE_FULL's 114, and both roles' at 1366x600 and 1366x560).
+   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check. */
+const CORNER = "20,22 25,57", WIDE = "19,22 24,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
+const PIN_CORNER = Object.fromEntries(["1920x1080", "1366x768", "2560x1440", "1440x900", "1536x864", "1600x900", "1680x1050", "1280x800", "1224x768", "1264x800",
+    "1300x768", "1400x900", "3840x2160", "1920x1200", "1280x720", "1366x657", "1366x600", "1366x560"]
+    .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : CORNER])));
+const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
+const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -177,6 +284,26 @@ let browser;
 try { browser = await chromium.launch(opt("--chromium") ? { executablePath: opt("--chromium") } : {}); }
 catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--chromium <executable> names one): ${err.message.split("\n")[0]}`); process.exit(2); }
 
+/* Runs in the page: `ms` of nothing done, once the load is 6 s old - the passes of the glass begun (the measuring
+   attribute set where it was absent), the transform transitions started and on what, and the shifts the rotation
+   sheet gives the blocks other than the two rails. */
+async function idle(ms) {
+    const wait = 6000 - performance.now();
+    if (wait > 0) await new Promise(res => setTimeout(res, wait));
+    let passes = 0;
+    const moved = {};
+    const mo = new MutationObserver(recs => { for (const r of recs) if (r.oldValue === null) passes++; });
+    mo.observe(document.body, { attributes: true, attributeFilter: ["data-drpg-measuring"], attributeOldValue: true });
+    const on = e => { if (e.propertyName !== "transform") return; const k = e.target.id || e.target.tagName.toLowerCase(); moved[k] = (moved[k] || 0) + 1; };
+    document.addEventListener("transitionstart", on, true);
+    await new Promise(res => setTimeout(res, ms));
+    mo.disconnect();
+    document.removeEventListener("transitionstart", on, true);
+    const sheet = document.getElementById("drpg-glass-rotation")?.textContent ?? "";
+    const shifts = sheet.split("}").filter(r => !/#scene-controls|#sidebar-tabs/.test(r))
+        .map(r => /translateX\((-?[\d.]+)px\)/.exec(r)?.[1]).filter(v => v != null).map(Number);
+    return { passes, starts: Object.values(moved).reduce((a, b) => a + b, 0), moved, shifts };
+}
 /* Runs in the page: the planted faults, each read at once and put back. Returns one entry a
    control: what it read and whether that is what the fault must read as. */
 function plant(sel) {
@@ -281,6 +408,88 @@ async function plantRoom() {
     return res;
 }
 
+/* Runs in the page: the room pane's controls beside the notices (E78 fix h76-HF4), each read at once and put back. */
+async function plantPane() {
+    const g = window.__glass, tile = document.getElementById("drpg-room-tile"), res = {};
+    const pane = (g.LAST.panes || []).find(p => p.tone === "room-block"), H = document.getElementById("drpg-curtain").getBoundingClientRect().height;
+    {   // short of the foot: the room's pane ended PAD_FAR under the box and a plain pane cut from there to the screen's edge - HF4's cut
+        const was = [pane.poly, pane.y1], n = g.LAST.panes.length, b = g.LAST.room.box, end = b.y + b.h + 10;
+        pane.poly = pane.poly.map(([x, y]) => [x, Math.min(y, end)]); pane.y1 = end;
+        g.LAST.panes.push({ tone: "sector", kind: "sector", poly: [[pane.x0, end], [pane.x1, end], [pane.x1, H], [pane.x0, H]], x0: pane.x0, y0: end, x1: pane.x1, y1: H });
+        const r = await window.drpgRoomCheck({ cuts: false });
+        g.LAST.panes.length = n; [pane.poly, pane.y1] = was;
+        res.foot = { ok: r.ok, why: r.why, pass: !r.ok && /above the screen's foot/.test(r.why) && /plain pane/.test(r.why) };
+    }
+    {   // turned: the tile off its pane's angle - upright where the pane leans, leaning 6 degrees where it stands upright
+        const leans = !/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(getComputedStyle(tile).transform);
+        tile.style.setProperty("transition", "none", "important"); tile.style.setProperty("transform", leans ? "none" : "rotate(0.1047rad)", "important");
+        const r = await window.drpgRoomCheck({ cuts: false });
+        tile.style.removeProperty("transform"); void getComputedStyle(tile).transform; tile.style.removeProperty("transition");
+        res.turned = { ok: r.ok, why: r.why, pass: !r.ok && /turns/.test(r.why) };
+    }
+    {   // crowded: the pips laid on the name's cell
+        const pips = tile.querySelector(".drpg-hud-room-tokens");
+        pips.style.setProperty("grid-area", "2 / 2", "important");
+        const r = await window.drpgRoomCheck({ cuts: false });
+        pips.style.removeProperty("grid-area");
+        res.crowded = { ok: r.ok, why: r.why, pass: !r.ok && /the name on the pips|the pips on the name/.test(r.why) };
+    }
+    return res;
+}
+
+/* Runs in the page: the voice check's planted faults (E78 fix r2-H1, review round 2's cor F1), each read at once and
+   put back - the tile 15 px tall in its full form, as af5eb69 left the GM's at 1366x560, must fail on what it holds;
+   the speaker's glyph with no mask must fail on the glyph. */
+async function plantVoice() {
+    const body = document.body, tile = document.getElementById("drpg-voice-tile"), res = {};
+    {   // short
+        const was = body.style.getPropertyValue("--drpg-voice-h"), fit = tile.dataset.fit;
+        body.style.setProperty("--drpg-voice-h", "15px");
+        delete tile.dataset.fit;
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        body.style.setProperty("--drpg-voice-h", was);
+        if (fit) tile.dataset.fit = fit;
+        res.short = { ok: r.ok, why: r.why, pass: !r.ok && /outside the tile/.test(r.why) };
+    }
+    {   // bare
+        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-px-mask") ?? "";
+        i?.style.removeProperty("--drpg-px-mask");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        if (was) i.style.setProperty("--drpg-px-mask", was);
+        res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
+    }
+    {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top
+        const c = tile.querySelector(".drpg-voice-tile-controls"), put = { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
+        if (tile.dataset.fit !== "compact") for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        for (const k of Object.keys(put)) c.style.removeProperty(k);
+        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
+    }
+    {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
+        const plate = tile.querySelector(".drpg-voice-tile-plate");
+        plate.style.setProperty("--brush", "rgb(1, 2, 3)");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        plate.style.removeProperty("--brush");
+        res.brush = { ok: r.ok, why: r.why, pass: !r.ok && /caption's brush/.test(r.why) };
+    }
+    for (const k of ["push", "recut"]) {   // the list past the edge; a cut while it is open (E78 fix r2-H2)
+        const r = await window.drpgVoiceList({ [k]: true });
+        const why = r.why.join("; ");
+        res[k] = { ok: !r.why.length, why, pass: k === "push" ? /on a screen/.test(why) : /fired [1-9]/.test(why) };
+    }
+    return res;
+}
+
+/* Runs in the page: where no curtain is cut (Monokuma Legacy), the tile 150 px under the screen's foot must fail
+   (E78 fix r2-H2). */
+async function plantVoiceNone() {
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom");
+    tile.style.setProperty("bottom", "-150px");
+    const r = await window.drpgVoiceCheck({ cuts: false });
+    if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
+    return { off: { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) } };
+}
+
 /* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
    over a max-height), so F falls 40 px short of the smallest box; the place read and the room check run at that
    other place (under Legacy the only reading of its place beside the notices: no size of the sweep reaches it), and
@@ -323,7 +532,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, rowControlled = false, stackedRead = false, placesControlled = false, placesRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -346,6 +555,12 @@ try {
             let line = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(10)}` + (r.stacked ? " stacked" : " desk   ");
             lines++;
             const fails = [];
+            if (idleS > 0 && theme === "stained" && r.c && !r.stacked) {
+                const v = await page.evaluate(idle, idleS * 1000);
+                line += ` | idle ${v.passes}/${v.starts} shift ${v.shifts.join(",") || "-"}`;
+                if (v.passes || v.starts) fails.push(`idle: ${v.passes} pass(es) and ${v.starts} transform transition(s) in ${idleS} s with nothing done (${JSON.stringify(v.moved)})`);
+                idleRead = true;
+            }
             if (!r.has) fails.push("the page defines no drpgLaunchOutside");
             else if (!r.c) {
                 line += " no glass (" + (r.report || "-").slice(0, 60) + ")";
@@ -404,7 +619,8 @@ try {
                         ? `${rc.expect === "flat" ? "flat " : ""}${rc.place} F ${rc.F} need ${rc.need} max ${rc.maxH} box ${rc.box ? rc.box.w + "x" + rc.box.h : "-"}`
                         : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
                             + (rw.over ? ` over ${rw.over.got}/${rw.over.control}/${rw.over.first}` : "") : "unplaced")
-                        + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}` : "")
+                        + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}`
+                            + ` pane ${rc.notes.pane?.join("x") ?? "-"} over ${rc.notes.over ?? "-"} plain ${rc.notes.plain ?? "-"} open ${rc.notes.open?.box?.join("x") ?? "-"} ${rc.notes.open?.lines ?? "-"} lines` : "")
                         + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top} right ${rc.flat.right ?? "-"}`) : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
@@ -417,12 +633,43 @@ try {
                     line += pin ? (pin === got ? " | pin ok" : ` | pin ${got}/${pin}`) : " | unpinned";
                     if (pin && pin !== got) fails.push(`room: ${got} where PINS has ${pin}`);
                     if (!pin) unpinned++;
+                    /* THE BOX PIN (E78 C0): a placed tile's width and height, as PIN_BOX records them. */
+                    const boxPin = PIN_BOX[`${theme} ${role} ${size}`], box = rc.box ? `${rc.box.w}x${rc.box.h}` : "-";
+                    if (rc.expect === "placed" || rc.expect === "flat") {
+                        line += boxPin ? (boxPin === box ? " | box pin ok" : ` | box ${box}/${boxPin}`) : " | box unpinned";
+                        if (boxPin && boxPin !== box) fails.push(`room: box ${box} where PIN_BOX has ${boxPin}`);
+                        if (!boxPin) unboxed++;
+                    }
+                    /* THE PANE PIN (E78 fix h76-HF4): beside the notices, the room pane's bounds as PIN_PANE records them. */
+                    const panePin = PIN_PANE[`${theme} ${role} ${size}`], paneGot = rc.notes?.pane ? rc.notes.pane.join("x") : "-";
+                    if (panePin || rc.notes) {
+                        line += panePin ? (panePin === paneGot ? " | pane pin ok" : ` | pane ${paneGot}/${panePin}`) : " | pane unpinned";
+                        if (panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
+                    }
+                    /* THE TILT PIN (E78 fix r1-G3): beside the notices, the tile's turn in degrees as PIN_TILT records it. */
+                    const tiltPin = PIN_TILT[`${theme} ${role} ${size}`], tiltGot = rc.notes ? rc.notes.tilt : undefined;
+                    if (tiltPin !== undefined || rc.notes) {
+                        line += tiltPin !== undefined ? (tiltPin === tiltGot ? " | tilt pin ok" : ` | tilt ${tiltGot}/${tiltPin}`) : " | tilt unpinned";
+                        if (tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
+                    }
+                    if (control && !paneControlled && rc.notes) {
+                        paneControlled = true;
+                        const ctl = await page.evaluate(plantPane);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  pane control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("pane control " + k + " reads as a pass");
+                        }
+                    }
                     if (control && !pinControlled.has(theme) && pin === "clock" && got === "clock") {
                         pinControlled.add(theme);
                         const v = await page.evaluate(plantPin, rc.F - rc.need + 40);
                         console.log(`  pin control ${theme.padEnd(8)} ${v.got !== pin ? "sees it" : "MISSES IT"}: a clock ${v.px} px taller reads ${v.got} (F ${v.F}) where PINS has ${pin}`
                             + ` - and there: room ${v.check.ok ? "ok" : "NOT ok"} ${v.check.box ? v.check.box.w + "x" + v.check.box.h : "-"}${v.check.flat ? ` gap ${v.check.flat.gap}/16 top ${v.check.flat.top} right ${v.check.flat.right ?? "-"}` : ""} ${String(v.check.why).slice(0, 110)}`);
                         if (v.got === pin) fails.push("pin control reads as a pass");
+                        /* and the box (E78 C0): at the other place the tile's box must not read as this size's pin */
+                        const other = v.check.box ? `${v.check.box.w}x${v.check.box.h}` : "-";
+                        console.log(`  box control ${theme.padEnd(8)} ${other !== boxPin ? "sees it" : "MISSES IT"}: there the box reads ${other} where PIN_BOX has ${boxPin ?? "none"}`);
+                        if (!boxPin || other === boxPin) fails.push("box pin control reads as a pass");
                         if (!v.check.ok) fails.push("room, at the pin control's other place: " + v.check.why);
                     }
                     if (r.stacked) stackedRead = true;
@@ -447,6 +694,45 @@ try {
                         for (const [k, v] of Object.entries(ctl)) {
                             console.log(`  room control ${k.padEnd(8)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
                             if (!v.pass) fails.push("room control " + k + " reads as a pass");
+                        }
+                    }
+                }
+            }
+            if (voices) {
+                const vc = await page.evaluate(() => window.drpgVoiceCheck?.() ?? null);
+                if (!vc) fails.push("the page defines no drpgVoiceCheck");
+                else {
+                    const pr = vc.parts;
+                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box && vc.expect === "wall" ? ` ${vc.box} ${vc.fit} open ${vc.open} shards ${vc.shards}` : "")
+                        + (pr ? ` plate ${pr.plate?.join(",") ?? "-"} name ${pr.name?.join("/") ?? "-"} buttons ${pr.buttons.map(b => b?.join(",") ?? "-").join(" ")}` : "")
+                        + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "")
+                        + (vc.expect === "none" && vc.box ? ` box ${vc.box}` : "")
+                        + ` brush ${vc.brush && typeof vc.brush === "object" ? (vc.brush.got === vc.brush.want ? "state" : vc.brush.got) : vc.brush ?? "-"}`
+                        + (vc.list ? ` list ${vc.list.box?.join(",") ?? "-"} rows ${vc.list.rows} cuts ${vc.list.cuts}` : "");
+                    if (!vc.ok) fails.push("voice: " + vc.why);
+                    /* THE CORNER PIN (E78 fix r2-H3): on the wall, each button's centre from the screen's right edge and under
+                       the pane's top, as PIN_CORNER records them ("-" where the tile is compact and the buttons keep H1's row). */
+                    if (vc.expect === "wall") {
+                        const cornerPin = PIN_CORNER[`${theme} ${role} ${size}`], cornerGot = pr?.corner?.length ? pr.corner.map(c => c.join(",")).join(" ") : "-";
+                        line += cornerPin ? (cornerPin === cornerGot ? " | corner pin ok" : ` | corner ${cornerGot}/${cornerPin}`) : ` | corner ${cornerGot} unpinned`;
+                        if (cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
+                    }
+                    if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
+                    if (vc.expect === "wall") voiceRead = true;
+                    if (control && !voiceNoneControlled && vc.expect === "none" && theme === "legacy" && !r.stacked) {
+                        voiceNoneControlled = true;
+                        const ctl = await page.evaluate(plantVoiceNone);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("voice control " + k + " reads as a pass");
+                        }
+                    }
+                    if (control && !voiceControlled && vc.expect === "wall") {
+                        voiceControlled = true;
+                        const ctl = await page.evaluate(plantVoice);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("voice control " + k + " reads as a pass");
                         }
                     }
                 }
@@ -481,7 +767,51 @@ try {
             await page.close();
         }
     }
+    /* THE IDLE READING'S CONTROL (E78 fix h76-HF2): a fault it must see, on a page of its own. */
+    if (idleS > 0 && control && idleRead) {
+        const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+        await page.goto(`${base}/${page0}`);
+        await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(waitMs);
+        const still = await page.evaluate(idle, idleS * 1000);
+        const col = await page.evaluate(() => { const c = document.getElementById("ui-right-column-1"); if (c) c.style.translate = "24px 0"; return Boolean(c); });
+        const ctl = col ? await page.evaluate(idle, idleS * 1000) : null;
+        await page.close();
+        console.log(`  idle control: as loaded ${still.passes}/${still.starts} | the column 24 px towards the wall ${ctl ? `${ctl.passes}/${ctl.starts} ${JSON.stringify(ctl.moved)} - ${ctl.passes && ctl.starts ? "sees it" : "MISSES IT"}` : "NO COLUMN"}`);
+        if (!ctl || !ctl.passes || !ctl.starts) { bad++; console.log("FAIL: the idle reading's control - a column moved towards the wall read no pass or no transition, so the reading cannot see one"); }
+    }
+    /* NO SPARE STRIP AT A RIGHT WALL WITH NO RAIL (E78 C6, S12-95). The harness's page always has Foundry's
+       sidebar tabs, and the curtain is not recut for a rail taken away from a page already loaded (CLAUDE.md), so
+       the page is loaded without them - the response rewritten - once as it is and once with glass.mjs's
+       no-rail branch put back to the spare band (the control). Without the voice tile too: the shard stood under
+       the tray, where the voice tile's pane now drops it (14.10.2026, the desk's cut on 1920x1080 blocks: the shard
+       1791..1920 x 263..642 without the tile, none with it), so a page with the tile could not see the shard
+       come back. Read at 1920x1080 for a player, Stained Glass. */
+    if (voices && control && themes.includes("stained")) {
+        const railless = async patch => {
+            const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+            const fix = { page: false, glass: !patch };
+            await page.route(/glass-harness\.html/, async route => { const res = await route.fetch(), t = await res.text();
+                const body = t.replace(/<nav id="sidebar-tabs">[\s\S]*?<\/nav>/, "").replace(/<section id="drpg-voice-tile"[\s\S]*?<\/section>/, "");
+                fix.page = !body.includes('id="sidebar-tabs"') && !body.includes('id="drpg-voice-tile"'); await route.fulfill({ response: res, body }); });
+            if (patch) await page.route(/scripts\/glass\.mjs/, async route => { const res = await route.fetch(), t = await res.text();
+                const body = t.replace("railed || !side ? tb : null", "tb"); fix.glass = body !== t; await route.fulfill({ response: res, body }); });
+            await page.goto(`${base}/${page0}${page0.includes("?") ? "&" : "?"}role=player`);
+            await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+            await page.waitForTimeout(waitMs);
+            const got = await page.evaluate(() => ({ rail: Boolean(document.getElementById("sidebar-tabs")), cut: Boolean(window.__glass?.LAST?.panes?.length),
+                shards: (window.__glass?.LAST?.panes ?? []).filter(p => p.shard && p.x1 > innerWidth / 2).length }));
+            await page.close();
+            return { ...got, ...fix };
+        };
+        const [as, back] = [await railless(false), await railless(true)];
+        const said = v => `rail and voice tile ${v.rail ? "STILL THERE" : "gone"}, ${v.cut ? "cut" : "NOT CUT"}, ${v.shards} shard(s) at the right`;
+        console.log(`  S12-95 no rail: ${said(as)} | control, the spare band back${back.glass ? "" : " (NOT PATCHED)"}: ${said(back)}`);
+        if (!as.page || as.rail || !as.cut || as.shards) { bad++; console.log("FAIL: S12-95 - a right wall with no rail has a spare strip shard, or the page was not read without its rail"); }
+        if (!back.glass || !back.cut || back.shards < 1) { bad++; console.log("FAIL: S12-95's control - the spare band put back shows no shard, so the reading cannot see one"); }
+    }
 } finally { await browser.close(); srv?.kill(); }
+if (voices && !opt("--sizes") && !voiceRead) { bad++; console.log("FAIL: the voice check never read a tile at the wall (no desk drew glass)"); }
 /* THE LAUNCHERS' CONTROLS UNDER MONOKUMA LEGACY (E77 fix r2-H3, 13.10.2026; fix r1-M1's open line). They plant faults
    on the launch pane, and under Legacy no curtain is mounted, so there is no pane to plant them on: a Legacy-only sweep
    ended red here on every run since r1-M1 for a reason nobody was going to fix. Not applicable is now an answer read off
@@ -493,7 +823,9 @@ if (control && !controlled) {
 if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
 if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }
+if (rooms && !opt("--sizes") && unboxed) { bad++; console.log(`FAIL: ${unboxed} placed line(s) of the default sizes have no box in PIN_BOX`); }
 if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
+if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);

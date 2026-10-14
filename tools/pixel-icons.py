@@ -190,6 +190,11 @@ def _(px):
     top = set(); ring(top, 12, 9, 5.5, 2.2); px |= {p for p in top if p[1] <= 10}
     rect(px, 4, 10, 16, 11); hole = set(); disc(hole, 12, 14.5, 1.8); rect(hole, 11, 15, 2, 4); px -= hole
     for x, y in [(4, 10), (19, 10), (4, 20), (19, 20)]: px.discard((x, y))
+@icon('mic')              # the voice tile's microphone (E78 C4); muted is the same glyph struck by CSS
+def _(px):
+    disc(px, 12, 5.5, 3.2); rect(px, 9, 5, 6, 7); disc(px, 12, 11.5, 3.2)
+    cradle = set(); ring(cradle, 12, 11, 7.2, 2); px |= {p for p in cradle if p[1] >= 10}
+    rect(px, 11, 18, 2, 3); rect(px, 7, 20, 10, 2)
 @icon('box')              # an item's box
 def _(px):
     front = set(); rect(front, 3, 10, 12, 11); px |= outline(front, 2)
@@ -270,6 +275,21 @@ def _(px):
     body = set(); poly(body, [(9, 8), (15, 8), (21, 20.5), (3, 20.5)]); px |= outline(body, 2)
     px |= {p for p in body if p[1] >= 15}; rect(px, 9, 2, 6, 2); rect(px, 10, 3, 4, 6)
     for x, y in [(11, 17), (14, 18), (9, 19)]: px.discard((x, y))
+# ---- the corner's Foundry tools button (E78 fix h76-HF3, 14.10.2026) ----------------
+# Its face was Foundry's own logo through a filter, the one face in the corner outside this set; the owner asked
+# for a white pixel glyph to match the rest, and an anvil was the default the owner left standing. Solid, as the
+# book and the gear beside it are, and about as large: columns 1-22 and rows 4-20, 199 cells, to the book's 0-23 and
+# 3-20 (240) and the gear's 1-22 and 1-22 (232), counted on the grid on 14.10. No Font Awesome name maps to it: the
+# button wears it through `--drpg-px-anvil` alone (danganronpa.css).
+@icon('anvil')
+def _(px):
+    rect(px, 8, 4, 15, 4)                                         # the face
+    poly(px, [(1, 4), (8, 4), (8, 8.5), (5, 7.2), (2.5, 5.6)])    # the horn
+    poly(px, [(9, 8), (20, 8), (17, 12), (12, 12)])               # the waist
+    rect(px, 12, 12, 5, 3)
+    poly(px, [(12, 15), (17, 15), (21, 18.5), (8, 18.5)])         # the base
+    rect(px, 6, 18, 17, 3)
+    for x in range(12, 17): px.discard((x, 20))                   # between the feet
 
 ALL = {k: path_to_px(v) for k, v in BASE.items()}
 ALL.update(ICONS)
@@ -294,7 +314,7 @@ FA = {
     'eye-slash': 'eye-slash', 'moon': 'moon', 'comments': 'chat', 'hand': 'palm', 'hand-holding': 'palm', 'circle': 'dot',
     'arrows-left-right': 'swap', 'khanda': 'murder', 'handshake': 'support', 'bell': 'bell', 'dice': 'dice', 'key': 'key',
     'xmark': 'close', 'check': 'check', 'sort': 'sort', 'hourglass': 'hourglass', 'sun': 'sun', 'note-sticky': 'note',
-    'music': 'music'
+    'music': 'music', 'microphone': 'mic'
 }
 missing = [v for v in FA.values() if v not in ALL]
 assert not missing, missing

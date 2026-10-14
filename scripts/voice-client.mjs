@@ -425,6 +425,16 @@ export async function applyLocally(room) {
     return state ?? "failed";
 }
 
+/**
+ * The room the primary GM last sent this browser, read-only (E78 C2, 13.10.2026): `undefined` while nobody has
+ * said, `null` for the main room. `micHold` reads it to know an Eclipse room from the facts this browser already
+ * holds. No new writer: `desired` is still written only by `onVoiceSocket`, behind its primary-GM check, and by
+ * `applyBreakout`, which that socket and a GM's own `applyLocally` reach.
+ */
+export function desiredRoom() {
+    return desired;
+}
+
 /** For `resetAllVoice` and the settings toggle: forget what we were told. */
 export function forgetDesiredRoom() {
     desired = undefined;

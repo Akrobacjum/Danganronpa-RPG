@@ -48,12 +48,16 @@
  *     rejects, written on the Cafeteria past setVaultRoom - after a control, roomImage answers no picture on the GM
  *     and on p1, Room Setup opens and draws the Cafeteria with none, p1's tile follows Aiko in, and setVaultRoom
  *     handed the same path warns and writes nothing.
+ *   K (The Forge's Assets Library, E78 fix h76-HF1): with a stand-in `ForgeVTT` on the GM's and p1's pages, Room
+ *     Setup's Apply and setVaultRoom each keep a Library picture on the Cafeteria and p1's tile draws it, another host
+ *     and `http:` to the Library are refused with the warning; with the stand-in taken off, roomImage reads none and
+ *     setVaultRoom refuses the Library again.
  *   J (the world switch, E77 fix r2-H2): with the switch of the GM's Foundry windows off, a second GM's page loads
  *     with no windows, no launcher and no wrapped sidebar, Foundry's rails left in #interface, while the GM's running
  *     page keeps its windows until it reloads; the switch goes back on.
  *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
  *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
- *     after it; I and J run last.
+ *     after it; I, K and J run last.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -839,6 +843,73 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         intoI.at === "Cafeteria" && J(intoI.tile) === J({ name: "Cafeteria", state: "roomBare", art: "" }), J(intoI));
     check("I4: setVaultRoom handed the same path writes nothing and warns that the picture was not saved",
         storedI.gym === null && J(storedI.warned) === J([storedI.refused]), J(storedI));
+
+    /* ------------------------------ K. The Forge's Assets Library ------------------------------ */
+    phase("K: on The Forge a picture of its Assets Library is kept by Room Setup and setVaultRoom and drawn on p1's tile; off it, refused");
+    /* E78 fix h76-HF1 (14.10.2026; the owner's report on 1.2.76 at a table on The Forge: every picture Room Setup was given
+       was refused, whatever its format). `ForgeVTT` is a stand-in `{ usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX }` put on
+       the GM's and p1's pages and taken off again (no Forge page here: what The Forge's own object holds is a LIVE-E78 row).
+       With it: Room Setup's Apply, answered as in A, gives the Cafeteria - where phase I left Aiko, over its unreadable path - a
+       Library picture: stored on every piece, no warning, p1's tile draws it. setVaultRoom gives it a second, stored and
+       drawn, and refuses another host and `http:` to the Library with the warning, the second kept. With the stand-in taken
+       off: roomImage reads no picture on the GM and on p1, and setVaultRoom refuses the first again with the warning, the
+       second still stored. jsdom fetches no picture, so what The Forge's server answers is the table's. */
+    const LIBK = "https://assets.forge-vtt.com/s74user/rooms/";
+    const FORGEK = { first: `${LIBK}cafeteria.png`, second: `${LIBK}Cafeteria%202.webp` };
+    const STUBK = on => (on ? `globalThis.ForgeVTT = { usingTheForge: true, ASSETS_LIBRARY_URL_PREFIX: "https://assets.forge-vtt.com/" }; return true;`
+        : "delete globalThis.ForgeVTT; return true;");
+    const VAULTK = `${ACADEMY} const V = await import("${repoUrl}/scripts/vault.mjs");
+        const stored = () => [...academy.regions.values()].filter(r => r.name === "Cafeteria").map(r => r.getFlag("${MOD}", V.VAULT_FLAGS.image));
+        const warned = [], own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        ui.notifications.warn = message => { warned.push(String(message)); };
+        const back = () => { if (own) Object.defineProperty(ui.notifications, "warn", own); else delete ui.notifications.warn; };
+        const refused = game.i18n.format("DRPG.Vault.imageRefused", { room: "Cafeteria" });`;
+    const ARTK = path => p1.eval(`${TILE} ${UNTIL} await until(() => read()?.art === ${J(`url("${path}")`)}, 6000);
+        const s = read(); return { name: s?.name ?? null, state: s?.state ?? null, art: s?.art ?? null };`, { timeout: 30000 });
+    const stubK = [await gm.eval(STUBK(true)), await p1.eval(STUBK(true))];
+    const applyK = await gm.eval(`${VAULTK}
+        globalThis.__dialogAnswers.push(async config => {
+            const ok = (config.buttons ?? []).find(b => b.action === "ok");
+            const element = document.createElement("dialog"), form = document.createElement("form");
+            if (typeof config.content === "string") form.innerHTML = config.content; else if (config.content) form.append(config.content.cloneNode(true));
+            element.append(form);
+            const picture = form.querySelector('[name="img:Cafeteria"]');
+            if (picture) picture.value = "${FORGEK.first}";
+            return ok.callback(new globalThis.window.Event("click"), { form }, { element });
+        });
+        let changed = null;
+        try { changed = await V.openRoomSetupDialog(); } finally { globalThis.__dialogAnswers.length = 0; back(); }
+        await new Promise(r => setTimeout(r, 1200));
+        return { changed: changed ?? null, stored: stored(), warned };`, { timeout: 30000 });
+    const tileK1 = await ARTK(FORGEK.first);
+    check("K1: on The Forge, Room Setup's Apply gives the Cafeteria a picture of the Assets Library - stored on every piece, no warning - and p1's "
+        + "tile draws it", J(stubK) === J([true, true]) && applyK.stored.length > 0 && applyK.stored.every(path => path === FORGEK.first)
+        && J(applyK.warned) === "[]" && J(tileK1) === J({ name: "Cafeteria", state: "roomPicture", art: `url("${FORGEK.first}")` }),
+    J({ stubK, applyK, tileK1 }));
+    const apiK = await gm.eval(`${VAULTK} const out = {};
+        try {
+            out.second = (await V.setVaultRoom("Cafeteria", { image: "${FORGEK.second}", scene: academy })) ? "wrote" : null;
+            out.afterSecond = stored();
+            out.host = (await V.setVaultRoom("Cafeteria", { image: "https://evil.example/s74user/rooms/x.png", scene: academy })) ? "wrote" : null;
+            out.http = (await V.setVaultRoom("Cafeteria", { image: "http://assets.forge-vtt.com/s74user/rooms/x.png", scene: academy })) ? "wrote" : null;
+            out.stored = stored();
+        } finally { back(); }
+        return { ...out, warned: warned.map(m => m === refused) };`, { timeout: 30000 });
+    const tileK2 = await ARTK(FORGEK.second);
+    const offStubK = [await gm.eval(STUBK(false)), await p1.eval(STUBK(false))];
+    const offK = { gm: await gm.eval(`${READ} return image;`), p1: await p1.eval(`${READ} return image;`) };
+    offK.api = await gm.eval(`${VAULTK} let wrote = null;
+        try { wrote = (await V.setVaultRoom("Cafeteria", { image: "${FORGEK.first}", scene: academy })) ? "wrote" : null; } finally { back(); }
+        return { wrote, stored: stored(), warned: warned.map(m => m === refused) };`, { timeout: 30000 });
+    const secondK = path => path === FORGEK.second;
+    check("K2: setVaultRoom keeps a second Library picture and p1's tile follows it; another host and http: to the Library are refused with the "
+        + "warning and the second kept; with the stand-in off, roomImage reads none on the GM and on p1 and setVaultRoom refuses the Library again",
+    apiK.second === "wrote" && apiK.afterSecond.length > 0 && apiK.afterSecond.every(secondK) && apiK.host === null && apiK.http === null
+        && apiK.stored.every(secondK) && J(apiK.warned) === J([true, true])
+        && J(tileK2) === J({ name: "Cafeteria", state: "roomPicture", art: `url("${FORGEK.second}")` })
+        && J(offStubK) === J([true, true]) && offK.gm === null && offK.p1 === null
+        && offK.api.wrote === null && offK.api.stored.every(secondK) && J(offK.api.warned) === J([true]),
+    J({ apiK, tileK2, offK }));
 
     /* ------------------------------ J. the world switch off ------------------------------ */
     phase("J: the world switch off - a GM's page that loads then keeps Foundry's rails where Foundry puts them, with no Foundry tools");

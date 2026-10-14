@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.76";
+    --drpg-css-version: "1.2.77";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -605,7 +605,11 @@
    because a custom property's var() is resolved where it is declared: from :root these
    would have missed the Stained Glass row (declared on `body.drpg-theme-stained-glass`)
    and the camera dock's lift (camera-view.mjs writes `--drpg-av-lift` inline on `body`),
-   and resolved them with the Legacy row and no lift. Measured in Chromium on the grid
+   and resolved them with the Legacy row and no lift. Since E78 (1.2.77) the dock is out of
+   sight while the voice tile stands in for it, and `applyDockHidden` measures it again as it
+   hides it - a dock with `display: none` has no height, so the lift is then 0 (read in the
+   code: camera-view.mjs `measureCameraDock`, not measured at a table); the lift is a dock's
+   again only with the GM's `voiceTile` off or no LiveKit. Measured in Chromium on the grid
    mockup's page with these sheets (12.10): moved to :root, the Stained Glass gaps came out
    12.77 px instead of 6, and with a 300 px lift the roster's foot stayed 292 px under the
    chat's top, over the buttons it opens from. Headless the harness resolves an inherited
@@ -641,8 +645,10 @@ body {
        handbooks on a row of their own (`--drpg-launch-u-bottom`, above) and left these two
        as they were, so on a GM's screen the corner now stands taller than this height: by
        the tokens' sum the upper row's top is 2 x 47.88 + 44 = 139.76 px over the edge under
-       Stained Glass (not read on a screen). E78 takes them over, and with them the question
-       whether the foot counts that row. */
+       Stained Glass (not read on a screen). The A7 design gave them to E78, and with them the
+       question whether the foot counts that row; E78 (1.2.77) left both as they were - its voice
+       tile is a pane of the curtain or a row of the stack, not a thing on this foot - so the
+       question is still open. */
     --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
     --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
     /* THE GM'S ROSTER OVER THE UPPER ROW (E77 fix r2-H3, 13.10.2026; the round-2 question Q6). On the
@@ -652,7 +658,8 @@ body {
        of each answered `elementFromPoint` with the roster. Its foot is 8 px over the upper row's top
        instead, the camera dock's lift with it: none covered at those sizes and at 640x360, where
        its top stands 8 px inside the screen in both themes. The stack's foot above stays as it was
-       (E78's question). Only a GM opens the roster, and every GM's corner has the row. */
+       (the A7 design's question for E78, still open after it: above). Only a GM opens the
+       roster, and every GM's corner has the row. */
     --drpg-roster-foot: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-launcher-small) + 8px + var(--drpg-av-lift, 0px));
 }
 
@@ -6362,7 +6369,9 @@ body.drpg-pixel-font .drpg-popup-title {
    see scripts/camera-view.mjs, which also swaps the displayed name for the
    character's. Deliberately only colour and accent here, not layout: this is
    core markup this module does not own, and restructuring it is a much
-   easier thing to get wrong than tinting it.
+   easier thing to get wrong than tinting it. Since E78 (1.2.77) the dock is out of sight
+   while the voice tile stands in for it (THE DOCK OUT OF SIGHT, below), so this tint is seen
+   only with the GM's `voiceTile` off or where the tile is not available.
    ========================================================================== */
 
 .drpg-camera-dock {
@@ -6398,6 +6407,352 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .charname,
 body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
     font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
 }
+
+/* THE DOCK OUT OF SIGHT (E78 C3, 13.10.2026; the A9 design's step 2, the owner's Q9). While the
+   voice tile stands in for it (voice-tile.mjs `applyDockHidden`), the dock and the windows it pops
+   out compute `display: none` and stay in the document: avclient-livekit plays everybody's sound
+   through the `<audio>` elements inside them, so removing them would silence the table (R541 reads
+   both, and that the elements stay). `!important` because Foundry's own rules show the dock; whether
+   this wins over them at a table, and whether a hidden dock still plays after F5, are LIVE-E78-01
+   and the owner's T1 (LIVE-E78-10), not measured here. The GM's `voiceTile` off drops the class. */
+body.drpg-dock-hidden #camera-views,
+body.drpg-dock-hidden .application[id^="camera-view-"] {
+    display: none !important;
+}
+
+/* ---- the voice tile ----------------------------------------------------- */
+
+/* THE VOICE TILE (E78 C3, 13.10.2026): the portrait and the name of whoever this player hears
+   speaking, the face hidden when nobody does. Its place here is an interim one, by the right wall
+   over the corner's buttons (`--drpg-roster-foot`, the foot the player list opens from), until E78
+   C6 cuts it a pane of the curtain under the Projects tray. 163x188 is the box the A9 design's
+   prototype P7 read at 1366x768 in the sandbox (not measured here); C6 sizes it from the tray. The tile
+   takes no clicks but on its two buttons (E78 C4, below). */
+#drpg-voice-tile {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: var(--drpg-roster-foot);
+    z-index: 69;
+    box-sizing: border-box;
+    width: 163px;
+    height: 188px;
+    pointer-events: none;
+}
+
+/* The face: the picture fills it (cover, 50% 22% - the owner's Q17: the whole pane, centred across,
+   the face kept in it), the caption at its foot. The fade is the face's opacity over
+   `--drpg-t-turn`, which motion.css makes 0 ms under reduced motion (the owner's Q7). */
+.drpg-voice-tile-face {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 8px 8px 10px;
+    overflow: hidden;
+    text-align: center;
+    color: var(--color-text-primary, #efe6d8);
+    color-scheme: dark;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.18);
+    background: rgba(var(--drpg-deep-rgb), 0.72);
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+.drpg-voice-tile.is-fading .drpg-voice-tile-face { opacity: 0; }
+.drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody, .drpg-voice-tile-note,
+    .drpg-voice-count, .drpg-voice-count-line)[hidden] { display: none; }
+
+.drpg-voice-tile-art {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: 50% 22%;
+    background-repeat: no-repeat;
+}
+.drpg-voice-tile-art::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(var(--drpg-deep-rgb), 0.8), rgba(var(--drpg-deep-rgb), 0.45) 22%,
+        rgba(var(--drpg-deep-rgb), 0) 45%);
+}
+
+.drpg-voice-tile-plate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    gap: 1px;
+}
+.drpg-voice-tile-speaking {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+}
+.drpg-voice-tile-name {
+    max-width: 100%;
+    font-size: var(--drpg-text-sm);
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+    text-shadow: 0 1px 2px rgba(var(--drpg-deep-rgb), 0.9);
+}
+.drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
+
+/* Read by a screen reader while nobody speaks, never seen. */
+.drpg-voice-tile-nobody {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* THE TWO BUTTONS (E78 C4, 13.10.2026): the microphone and the speaker, 30 px, in the tile's top
+   corner over the portrait (the owner's Q17), there whether anybody speaks or not (Q7) - the only part
+   of the tile that takes a click. This is Monokuma Legacy's look, the corner's sound launcher in small
+   (a circle, the bone rim, paper-alt or ink); stained-glass.css cuts them to the corner's hexagons
+   (Q6). The states are voice-tile.mjs `paintMic`'s classes: struck for muted by me, a GM's block (with
+   the lock) and a hold, GREY only for the hold - the module's own reason (Q1, Q15) - and a dot with no
+   strike when there is no connection. The note under them is the microphone's line, shown only while
+   it is true. */
+.drpg-voice-tile-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: flex;
+    gap: 6px;
+}
+.drpg-launch-mini {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    color: var(--drpg-bone);
+    box-shadow: 0 2px 6px rgba(var(--drpg-shadow-rgb), 0.35);
+    cursor: pointer;
+    pointer-events: auto;
+}
+.drpg-launch-mini > .drpg-pxi:first-child {
+    width: 16px;
+    height: 16px;
+    vertical-align: 0;
+}
+.drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+}
+.drpg-voice-mic.is-held {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* Your voice carrying (E78 fix r2-H3, cor F5): a second ring in the bone the list's speaking dot wears under this
+   theme, outside the rim, while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). */
+.drpg-voice-mic.is-speaking {
+    box-shadow: 0 0 0 2px light-dark(var(--drpg-paper-alt), var(--drpg-ink)), 0 0 0 4px var(--drpg-bone);
+}
+.drpg-voice-mic.is-offline { opacity: 0.75; cursor: default; }
+.drpg-voice-mic.is-offline::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--drpg-line-strong);
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+/* Two classes, not one: `.drpg-pxi` (below, the glyphs' own rule) states `display: inline-block` at
+   one class and later in this file, so a one-class rule here lost and the lock showed in every state -
+   scenario 75's B measured it, 14.10.2026. */
+.drpg-voice-mic > .drpg-voice-mic-lock {
+    display: none;
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 11px;
+    height: 11px;
+}
+.drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock { display: inline-block; }
+.drpg-voice-mic-ptt {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    transform: translateX(-50%);
+    padding: 0 2px;
+    font-size: calc(8px * var(--drpg-legacy-scale, 1));
+    line-height: 9px;
+    letter-spacing: 0.04em;
+    border-radius: 2px;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+.drpg-voice-mic.is-ptt .drpg-voice-mic-ptt { display: block; }
+.drpg-voice-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    font-size: calc(9px * var(--drpg-legacy-scale, 1));
+    line-height: 13px;
+    text-align: center;
+    border-radius: 7px;
+    background: var(--drpg-bone);
+    color: var(--drpg-ink);
+}
+.drpg-voice-tile-note {
+    position: absolute;
+    top: 42px;
+    left: 6px;
+    right: 6px;
+    z-index: 1;
+    margin: 0;
+    padding: 3px 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+    color: var(--color-text-primary, #efe6d8);
+    border-radius: 4px;
+    background: rgba(var(--drpg-deep-rgb), 0.85);
+}
+
+/* THE LIST 'WHO YOU HEAR' (E78 C5, 14.10.2026; the owner's Q0): the speaker button's dialog,
+   voice-tile.mjs `openVoiceList`. It floats over the table beside the tile, one below Foundry's window
+   layer as the evidence stage does, and cuts nothing of the curtain (no `drpgGlassCut`). Its width is
+   the search tokens' `max(260px, 300px x --drpg-ui-scale)` (the prep's P7 row), never wider than the
+   screen; a row is 48 px and its buttons 44 px to touch (the design's). Where it sits is measured by
+   `placeVoiceList` from the tile's box; the narrow layout's bottom sheet is E78 C6's, not this commit's. */
+.drpg-voice-list {
+    position: fixed;
+    z-index: calc(var(--z-index-app, 30) - 1);
+    box-sizing: border-box;
+    width: min(max(260px, calc(300px * var(--drpg-ui-scale, 1))), calc(100vw - 16px));
+    max-height: min(60vh, calc(100vh - 16px));
+    overflow: auto;
+    padding: 8px 10px 10px;
+    color: light-dark(var(--drpg-ink), var(--drpg-bone));
+    border-radius: 6px;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    box-shadow: 0 4px 14px rgba(var(--drpg-shadow-rgb), 0.45);
+}
+.drpg-voice-list[hidden],
+.drpg-voice-list :is(.drpg-voice-list-alone, .drpg-voice-row-hidden, .drpg-voice-row-unhide, .drpg-voice-row-held,
+    .drpg-voice-row-volume, .drpg-voice-row-mute)[hidden] { display: none; }
+.drpg-voice-list-title {
+    margin: 0 0 6px;
+    border: 0;
+    font-size: var(--drpg-text-sm);
+    letter-spacing: 0.04em;
+}
+.drpg-voice-list-muteall { width: 100%; min-height: 44px; margin: 0 0 6px; }
+.drpg-voice-list-muteall[aria-pressed="true"] { border-color: var(--drpg-bone); font-weight: bold; }
+.drpg-voice-list-alone { margin: 6px 0; font-size: var(--drpg-text-xs); opacity: 0.85; }
+.drpg-voice-list-rows { margin: 0; padding: 0; list-style: none; }
+.drpg-voice-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    min-height: 48px;
+    padding: 2px 0;
+    border-top: 1px solid rgba(var(--drpg-bone-rgb), 0.18);
+}
+.drpg-voice-row-art {
+    flex: 0 0 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(var(--drpg-deep-rgb), 0.6) 50% 22% / cover no-repeat;
+}
+.drpg-voice-row-name {
+    flex: 1 1 6ch;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+    overflow-wrap: anywhere;
+}
+/* The dot of whoever speaks now, from the same speakers the tile shows. */
+.drpg-voice-row-dot {
+    flex: 0 0 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: transparent;
+}
+.drpg-voice-row.is-speaking .drpg-voice-row-dot { background: var(--drpg-bone); }
+.drpg-voice-row-volume { flex: 1 1 100%; order: 1; min-width: 0; margin: 0; }
+.drpg-voice-row :is(.drpg-voice-row-mute, .drpg-voice-row-block) {
+    position: relative;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+}
+.drpg-voice-row :is(.drpg-voice-row-mute, .drpg-voice-row-block) > .drpg-pxi { width: 16px; height: 16px; vertical-align: 0; }
+.drpg-voice-row :is(.drpg-voice-row-mute.is-muted, .drpg-voice-row-block.is-gm-blocked)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+}
+.drpg-voice-row-block:disabled { filter: grayscale(1); opacity: 0.6; cursor: not-allowed; }
+.drpg-voice-row :is(.drpg-voice-row-hidden, .drpg-voice-row-held) {
+    flex: 1 1 100%;
+    order: 2;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+}
+.drpg-voice-row-unhide { order: 3; min-height: 44px; }
+
+/* THE GEAR'S VOICE SECTION (E78 C5; voice-panel.mjs): the Look window's third fieldset, its rows laid
+   out as the look's (stained-glass.css `.drpg-look label`, which both themes read) - a name column and
+   the control beside it. */
+fieldset.drpg-voice-panel { margin-top: 8px; }
+.drpg-voice-panel :is(.drpg-voice-panel-row, .drpg-voice-panel-key) { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.drpg-voice-panel :is(.drpg-voice-panel-row > span:first-child, .drpg-voice-panel-mode-label) { flex: 0 0 11ch; }
+.drpg-voice-panel select { flex: 1; min-width: 0; }
+.drpg-voice-panel-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 6px 0; }
+.drpg-voice-panel-radio { display: inline-flex; align-items: center; gap: 6px; }
+.drpg-voice-panel-key > span { flex: 1; }
 
 /* ==========================================================================
    THE SHEET IS THIS GAME'S SHEET
@@ -14139,12 +14494,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* ---- the Foundry tools launcher (E77 C6) -------------------------------- */
 
-/* Over the handbooks, two rows up, the same circle as the handbooks. Its face is
-   Foundry's own logo (`icons/fvtt.png`, Foundry's core file, D7), which is dark on
-   a dark ground: grayscale and brightness make it read as bone, the shadow gives
-   it an edge. The filter's numbers are the E77 plan's and NOT measured: the glass
-   harness serves no such file, so what the real logo looks like through them on a
-   v14 table is LIVE-E77-09, the owner's before the release. */
+/* Over the handbooks, two rows up, the same circle as the handbooks. */
 #drpg-foundry-tools {
     position: fixed;
     right: var(--drpg-edge);
@@ -14170,21 +14520,26 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
 }
 
-#drpg-foundry-tools img {
+/* THE FACE, an anvil from the module's pixel set (E78 fix h76-HF3, 14.10.2026): until
+   then Foundry's own logo through a lightening filter, which the owner read at The
+   Forge as the Forge's icon and the one face in the corner outside the module's white
+   pixel set. Masked exactly as the handbooks' book beside it, at the glyph's own 24 px
+   (one CSS pixel to a cell) and in the button's colour, and outside any theme's scope,
+   so Monokuma Legacy and Stained Glass draw the same white anvil. The `i` has no class:
+   pixel-icons.css paints Font Awesome names only (foundry-windows.mjs THE LAUNCHER). */
+#drpg-foundry-tools i {
     display: block;
     width: 24px;
     height: 24px;
-    border: 0;
-    pointer-events: none;
-    filter: grayscale(1) brightness(2.1) contrast(1.05) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
-}
-
-/* What stands in for a logo that did not load (foundry-windows.mjs `buildLauncher`, E77 fix r2-H2): a Font Awesome
-   toolbox in the button's bone. The lg rung (20 px at 100 %) is chosen to sit inside the logo's 24 px box, not
-   measured against it; a rung and not a literal, as R60 asks of every size (its first form, 20px, read red there). */
-#drpg-foundry-tools > i {
-    font-size: var(--drpg-text-lg);
-    line-height: 1;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-px-anvil);
+    mask-image: var(--drpg-px-anvil);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
     pointer-events: none;
 }
 

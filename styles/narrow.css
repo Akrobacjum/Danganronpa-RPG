@@ -296,6 +296,71 @@ body.drpg-stacked #drpg-tile-row .drpg-room-tile-describe {
     padding: 0;
     line-height: 1;
 }
+/* THE VOICE TILE IN THE ROW (E78 C6, 14.10.2026; the A9 design's step 10): the row's second member, at
+   its right end - the portrait as 32 px, the name with '+N' on one line, and the microphone and the
+   speaker at the row's 44 px, a finger's target. 'Speaking' and the microphone's line are not drawn
+   here; the buttons' labels and the tile's screen-reader line still say them. With nobody speaking
+   the face is hidden and the buttons stand alone. A room tile with nothing to show - a Class Trial, a
+   GM without a Monokuma - is no part of the row now that the row can hold the voice tile beside it.
+   No rule here states a `display` that the face's or the parts' `hidden` must win over. */
+body.drpg-stacked #drpg-tile-row > #drpg-room-tile:is([data-state="trial"], [data-state="none"]) { display: none; }
+body.drpg-stacked #drpg-tile-row > #drpg-voice-tile {
+    position: relative;
+    inset: auto;
+    order: 1;
+    flex: 0 1 auto;
+    min-width: 0;
+    width: auto;
+    height: var(--drpg-tile-row-h);
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    transform: none;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face {
+    flex: 0 1 auto;
+    min-width: 0;
+    height: var(--drpg-tile-row-h);
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-art {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-art::before { content: none; }
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-plate {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+}
+body.drpg-stacked #drpg-tile-row :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) { display: none; }
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-controls {
+    position: static;
+    flex: 0 0 auto;
+    gap: 0;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-controls > .drpg-launch-mini {
+    width: var(--drpg-tile-row-h);
+    height: var(--drpg-tile-row-h);
+}
 /* The description's window: the screen less 8 px a side at most, the words as the GM broke them. */
 body.drpg-stacked .application.drpg-window-room { width: min(480px, calc(100vw - 16px)) !important; }
 .drpg-room-window-prose { white-space: pre-line; overflow-wrap: anywhere; }

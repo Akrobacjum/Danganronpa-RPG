@@ -530,6 +530,59 @@ body.drpg-theme-stained-glass #drpg-foundry-tools {
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
     box-shadow: 0 0 12px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
+/* The voice tile's two buttons (E78 C4; the owner's Q6: "matching the ones in the bottom right
+   corner"): the same hexagon, rim at 60% of the game state's colour (Q18), the ground rgb(29, 26, 33)
+   the design names, the glow. The hexagon is cut on a layer UNDER the glyph rather than on the button,
+   as the corner's are, because a clip-path on the button would cut its lock, its PTT label and its count
+   off at the corners; the glow is a drop-shadow, which follows the cut shape. A held microphone stays
+   grey (danganronpa.css, Q18). */
+body.drpg-theme-stained-glass .drpg-voice-tile-controls { color-scheme: dark; }
+body.drpg-theme-stained-glass .drpg-launch-mini {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--drpg-sg-bone);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent));
+}
+body.drpg-theme-stained-glass .drpg-launch-mini::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgb(29, 26, 33);
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
+/* YOUR VOICE IS CARRYING (E78 fix r2-H3, 14.10.2026; review round 2's cor F5): Foundry's dock lit the player's own
+   view while they spoke, and with the dock hidden nothing did. The rim takes the game state's colour whole and the
+   glow doubles while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). Nothing
+   moves, so there is nothing for reduced motion to stop. */
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking {
+    filter: drop-shadow(0 0 6px var(--drpg-glass-accent));
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking::before { border-color: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .drpg-voice-count {
+    background: var(--drpg-glass-accent);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-voice-mic-ptt, .drpg-voice-tile-note) { font-family: var(--drpg-font-chrome); }
+/* The list 'Who you hear' (E78 C5): the tile's dark glass and the chrome font, the rim at the game state's
+   colour as the buttons'. */
+body.drpg-theme-stained-glass .drpg-voice-list {
+    color-scheme: dark;
+    color: var(--drpg-sg-bone);
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgb(29, 26, 33);
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-stained-glass .drpg-voice-row.is-speaking .drpg-voice-row-dot { background: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .drpg-voice-panel :is(.drpg-voice-panel-row > span:first-child, .drpg-voice-panel-mode-label) { flex: 0 0 15ch; }
 
 /* ---- motion: the pulse is a canvas, everything else stands still ------------- */
 @media (prefers-reduced-motion: reduce) {
@@ -1036,6 +1089,7 @@ body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #sidebar-tabs,
 body.drpg-theme-stained-glass #drpg-hud,
 body.drpg-theme-stained-glass #drpg-room-tile,
+body.drpg-theme-stained-glass #drpg-voice-tile,
 body.drpg-theme-stained-glass #drpg-tile-row,
 body.drpg-theme-stained-glass #drpg-despair,
 body.drpg-theme-stained-glass #drpg-events,
@@ -1148,6 +1202,33 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     width: var(--drpg-room-w);
     margin: 0;
 }
+/* BESIDE THE NOTICES THE BOX IS A LANDSCAPE ONE (E78 fix h76-HF4, 14.10.2026): half the height C0's
+   pane stood there, 301x150 at 1366x768 and 301x143 at 1280x720 (glass.mjs `roomNotesH`), where the
+   name, the pips and the project line stacked under the toggle left the open description 37 and 30
+   px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
+   the name, the project line under them, and the description, open, fills what is above them from
+   the tile's top, clear of the toggle by its width on each side rather than under it. Since E78 fix r2-H3
+   (14.10.2026) the box stands 31 px over the screen's edge with its pane run past it, 301x129 at 1366x768
+   and 301x122 (`low`, the content's floor) at 1280x720; open, the description shows 2.4 and 2.1 lines
+   there and scrolls (the glass harness's `drpgRoomCheck`, Chromium, the same day). */
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: 8px;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-prose {
+    grid-area: 1 / 1 / 2 / -1;
+    align-self: stretch;
+    margin: 6px 30px 4px;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-room-tile-name { grid-area: 2 / 2; }
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-tokens {
+    grid-area: 2 / 3;
+    margin-top: 0;
+}
+body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-project { grid-area: 3 / 1 / 4 / -1; }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
     isolation: isolate;
@@ -1173,6 +1254,104 @@ body.drpg-theme-stained-glass #drpg-room-tile:is([data-state="nowhere"], [data-s
     color: var(--drpg-sg-bone);
     --brush-on: 0;
 }
+/* The voice tile's caption (E78 C3): the room tile's brush above, in the game state's colour (the
+   owner's Q17 and Q18), under the name and the small 'Speaking' together. */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate {
+    position: relative;
+    isolation: isolate;
+    padding: 1px 10px 2px;
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-ink);
+    --brush: var(--drpg-glass-accent);
+    --brush-on: 1;
+}
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-name {
+    letter-spacing: 0.1em;
+    text-shadow: none;
+    text-transform: uppercase;
+}
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-plate::before {
+    content: "";
+    position: absolute;
+    inset: 1px -5px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+}
+/* ON ITS PANE (E78 C6, 14.10.2026): the box glass.mjs `seatVoiceTile` wrote, settled against the
+   tray's column, in place of the base sheet's interim corner; the face is no plate there, the
+   pane is its glass, and the portrait is the layer `seatVoiceArt` clipped to that pane, which
+   fades as the face does (the owner's Q7). */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"] {
+    left: var(--drpg-voice-x);
+    top: var(--drpg-voice-y);
+    right: auto;
+    bottom: auto;
+    width: var(--drpg-voice-w);
+    height: var(--drpg-voice-h);
+}
+body.drpg-curtain-on #drpg-voice-tile[data-place] .drpg-voice-tile-face {
+    background: transparent;
+    border-color: transparent;
+}
+/* THE BUTTONS AT THE PANE'S CORNER, ONE OVER THE OTHER (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at
+   1366x768, in Polish: "przyciski na panelu livekit sa za daleko krawedzi" - the buttons on the voice pane are too
+   far from the edge). P11 (the A9 design's a9-design-1, 1280x720) draws them stacked at the pane's top right
+   corner, their centres about 22 px from the screen's right edge and 22 px under the pane's top edge (its
+   pixels, read in Chromium the same day); at 60741cf they stood side by side 31 and 66 px from the wall and 69 px
+   under that edge at 1366x768. The pane's top is the seam with the tray's pane, `--drpg-voice-lift` over the
+   tile's own top (glass.mjs, written with the cut), so the column starts 7 px under the seam: the microphone
+   on the portrait's glass above the tile's box, 5 px over it with the tray at its five rows (lift 12) and
+   higher when the tray is short. The microphone's line stands left of them. COMPACT (below) keeps H1's row. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-controls {
+    top: calc(7px - var(--drpg-voice-lift, 0px));
+    right: 2px;
+    flex-direction: column;
+    gap: 4px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-note {
+    top: 6px;
+    right: 40px;
+}
+/* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
+   `settleVoice` left under VOICE_FULL (114 px since E78 fix r2-H3; 91 at H1) is one row, as narrow.css draws it in the tiles' row - the
+   buttons centred down its right end, the name with '+N' on one line at its left, cut short with an
+   ellipsis, and 'Speaking' and the microphone's line not drawn (the buttons' labels say them). The
+   face keeps 82 px clear at the right: the two 30 px buttons, the 6 px between them and at the wall,
+   and 4 px to the plate. The speaker's count stays on its button. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls {
+    top: calc(50% - 15px);
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face {
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4px 82px 4px 6px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
+    display: none;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    padding: 1px 6px 2px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    letter-spacing: 0.06em;
+}
+body.drpg-theme-stained-glass > #drpg-voice-art {
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
+}
+body.drpg-theme-stained-glass > #drpg-voice-art.is-fading { opacity: 0; }
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
@@ -2749,6 +2928,7 @@ body[data-drpg-measuring] #scene-controls,
 body[data-drpg-measuring] #sidebar-tabs,
 body[data-drpg-measuring] #drpg-hud,
 body[data-drpg-measuring] #drpg-room-tile,
+body[data-drpg-measuring] #drpg-voice-tile,
 body[data-drpg-measuring] #drpg-tile-row,
 body[data-drpg-measuring] #drpg-gm-launcher,
 body[data-drpg-measuring] #drpg-despair,
