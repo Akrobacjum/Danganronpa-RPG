@@ -1284,6 +1284,38 @@ body.drpg-curtain-on #drpg-voice-tile[data-place] .drpg-voice-tile-face {
     background: transparent;
     border-color: transparent;
 }
+/* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
+   `settleVoice` left under VOICE_FULL (91 px) is one row, as narrow.css draws it in the tiles' row - the
+   buttons centred down its right end, the name with '+N' on one line at its left, cut short with an
+   ellipsis, and 'Speaking' and the microphone's line not drawn (the buttons' labels say them). The
+   face keeps 82 px clear at the right: the two 30 px buttons, the 6 px between them and at the wall,
+   and 4 px to the plate. The speaker's count stays on its button. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-controls {
+    top: calc(50% - 15px);
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face {
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4px 82px 4px 6px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
+    display: none;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    padding: 1px 6px 2px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    letter-spacing: 0.06em;
+}
 body.drpg-theme-stained-glass > #drpg-voice-art {
     pointer-events: none;
     opacity: 1;

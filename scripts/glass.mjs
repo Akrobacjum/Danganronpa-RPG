@@ -471,6 +471,24 @@ const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...
 const VOICE = { box: null };
 const VOICE_VARS = ["--drpg-voice-x", "--drpg-voice-y", "--drpg-voice-w", "--drpg-voice-h"];
 const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOICE_FOOT = 52;
+/* THE TILE'S TWO FLOORS (E78 fix r2-H1, 14.10.2026; review round 2's cor F1). C6 cut the height down to
+   the corner's pane and set no floor of its own, and a wide, short screen keeps the desk: at af5eb69 the
+   GM's tile was 181x55 at 1366x600, the buttons over the end of the name plate, and 181x15 at 1366x560,
+   the plate cut off and both buttons hanging under the tile on bare map - the dock is hidden, so those
+   are the only microphone and speaker on the screen. Read in Chromium on the glass harness that day, at
+   the harness's scale of 1: the buttons stand 6..36 px down the tile, and the plate ends 12 px over its
+   foot, 28 px tall with a name on one line and 41 px with a name on two (a name of more than about 22
+   letters wraps). VOICE_FULL is the height whose plate, on two lines, starts 2 px under the buttons
+   (91: 36 + 2 + 41 + 12). Under it the tile takes its COMPACT form (stained-glass.css, `data-fit`): the
+   narrow row's choice, the name with '+N' on one line beside the two buttons, 'Speaking' and the
+   microphone's line not drawn - the buttons' labels say them. VOICE_MIN is that form's own floor, the
+   buttons and 6 px over and under them (42); under it the 52 px foot gives way - at 1366x560 the floor
+   left the GM's tile 15 px, so its foot comes 25 px over the corner's pane. Read the same way: the GM's
+   tile is 181x55 compact at 1366x600 and 181x42 at 1366x560, a player's 181x93 full and 181x53 compact,
+   the self-check clean, and the GM's holds down to 1366x546; at 1366x544 its pane meets the corner's
+   (overlaps 1), a desk this does not keep. A name of three lines (over about 44 letters) still runs up
+   under the buttons at a height just over VOICE_FULL. */
+const VOICE_FULL = 91, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
 export const OPEN_AREAS = [];
 /* The tray at five rows, wherever it stands now: its own top to the header's foot, and the list's
@@ -501,12 +519,12 @@ export function voicePlacement(W, H, tray) {
    turns clockwise about its top left corner (sn >= 0, `buildColumn`), its top right corner is the
    one nearest the wall and its bottom right the lowest. x puts that top corner VOICE_WALL from the
    wall; the height is cut where the foot would come within VOICE_FOOT of `floor`, the top of the
-   corner buttons' pane under it. */
+   corner buttons' pane under it, but never under VOICE_MIN, and under VOICE_FULL the tile is compact. */
 function settleVoice(b, W, { px, py, cs, sn }, floor) {
   const x1 = px + (voiceWall(W) - VOICE_WALL - px + (b.y - py) * sn) / cs;
   const x = Math.floor(x1 - b.w);
-  const h = Math.min(Math.round(VOICE_TALL * b.w), Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (b.y - py)));
-  return { ...b, x, h };
+  const h = Math.max(VOICE_MIN, Math.min(Math.round(VOICE_TALL * b.w), Math.floor((floor - VOICE_FOOT - py - (x + b.w - px) * sn) / cs - (b.y - py))));
+  return { ...b, x, h, fit: h < VOICE_FULL ? "compact" : "full" };
 }
 /* The tile is in the body (voice-tile.mjs) and stands at the settled box over the curtain, at the
    curtain's own index and later in the tree, as the room tile beside the notices does. */
@@ -514,12 +532,13 @@ function seatVoiceTile(box) {
   const body = document.body, tile = document.getElementById("drpg-voice-tile");
   if (!box || !tile) {
     VOICE_VARS.forEach(k => body.style.removeProperty(k));
-    if (tile) { if (tile.dataset.place) delete tile.dataset.place; tile.style.zIndex = ""; }
+    if (tile) { if (tile.dataset.place) delete tile.dataset.place; if (tile.dataset.fit) delete tile.dataset.fit; tile.style.zIndex = ""; }
     return;
   }
   const vars = { "--drpg-voice-x": box.x, "--drpg-voice-y": box.y, "--drpg-voice-w": box.w, "--drpg-voice-h": box.h };
   for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v + "px");
   if (tile.dataset.place !== "wall") tile.dataset.place = "wall";
+  if (box.fit === "compact") { if (tile.dataset.fit !== "compact") tile.dataset.fit = "compact"; } else if (tile.dataset.fit) delete tile.dataset.fit;
   tile.style.zIndex = document.getElementById("drpg-curtain")?.style.zIndex ?? "";
 }
 /* THE PORTRAIT LIES ON THE TILE'S WHOLE PANE (the owner's Q17, "niech wypelnia caly kawalek
@@ -1706,7 +1725,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        (`settleVoice`). It turns with the column like every fixed block. */
     const tail = c.tail ? (c.tail = settleVoice(c.tail, W, { px, py, cs, sn }, c.floor ?? H)) : null;
     if (tail) {
-      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h };
+      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit };
       ROT.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
     }
     for (const b of c.items) {

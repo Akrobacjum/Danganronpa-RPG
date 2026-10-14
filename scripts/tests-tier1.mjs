@@ -2353,6 +2353,35 @@ const INVARIANTS = [
             "[a shard at the right wall is counted, the shards at a right wall with no rail without the voice tile, and with it]");
     }],
 
+    ["R551 - the voice tile on a short desk keeps its buttons and its name: the cut never settles it under 42 px, and under 91 px it is cut compact - a GM's 181x42 at 1366x560 and 181x55 at 1366x600, where the floor left 15 and 55, a player's 181x93 full at 1366x600, 194x281 full at 1920x1080", async () => {
+        /*
+         * E78 fix r2-H1, 14.10.2026; review round 2's cor F1. C6's `settleVoice` cut the tile's height down to the
+         * corner's pane and set no floor of its own, and a wide, short screen keeps the desk: at af5eb69 the GM's tile
+         * was 181x55 at 1366x600, the buttons over the name plate, and 181x15 at 1366x560, the plate cut off and both
+         * buttons under the tile on bare map, while drpgVoiceCheck, R543 and R545 read it as fine. jsdom lays nothing
+         * out, so this reads the box the cut settles and the form it names, as R545 does, through `cutBoxes` on the
+         * blocks a Chromium glass harness measured that day (`LAST.blocks`, the voice block before it is settled; the
+         * same call on them gave the live box to the pixel for a GM at both sizes and for a player at 1366x600). What
+         * the compact tile then holds - the buttons and the plate inside it, the plate clear of the buttons, the
+         * name's width, a glyph on each button - is the glass harness's `drpgVoiceParts`, read by the sweep in Chromium.
+         * THE CONTROLS: the player's 1366x600 and R545's 1920x1080 are full, so a reader that called every tile compact
+         * fails here too.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const at = list => list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h }));
+        const top = [["hud", 16, 22, 265, 180], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 91], ["voice-block", 1179, 253, 181, 262]];
+        const low = [["note-block", 16, 336, 301, 154], ["room-block", 383, 347, 301, 143]], mid = [["note-block", 16, 350, 301, 180], ["room-block", 383, 387, 301, 143]];
+        const wide = [["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
+            ["note-block", 16, 739, 323, 266], ["room-block", 16, 222, 265, 364], ["voice-block", 1720, 253, 194, 281], ["launch", 1804, 955, 94, 103]];
+        const read = (W, H, blocks) => { const v = G.cutBoxes(W, H, at(blocks)).voice; return v ? `${v.w}x${v.h} ${v.fit ?? "unnamed"}` : "none"; };
+        equal(JSON.stringify([read(1366, 560, [...top, ...low, ["launch", 1250, 398, 94, 140]]), read(1366, 600, [...top, ...mid, ["launch", 1250, 438, 94, 140]]),
+            read(1366, 600, [...top, ...mid, ["launch", 1250, 475, 94, 103]]), read(1920, 1080, wide)]),
+            JSON.stringify(["181x42 compact", "181x55 compact", "181x93 full", "194x281 full"]),
+            "[the GM's tile at 1366x560 and 1366x600, a player's at 1366x600, at 1920x1080] as the cut settles them");
+    }],
+
     ["R549 - the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and leans as C0 leaned it (6 degrees at 1366x768), the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
         /*
          * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices

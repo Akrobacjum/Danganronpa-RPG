@@ -122,6 +122,11 @@
  * firing a drpgGlassCut (the control: the tile taken away and back fires one each way); stacked, the tile and the room
  * tile not both in the row, the portrait not inside the tile, the tile off the screen. Once per run (`--no-voice` drops
  * it all) the page is loaded without Foundry's sidebar tabs, and again with glass.mjs's spare band put back (S12-95).
+ * Since E78 fix r2-H1 (14.10.2026; review round 2's cor F1) it also fails a tile drawn in another form than the cut
+ * settled (`data-fit`) and a tile whose buttons or name plate leave it, whose plate lies under the buttons, whose name
+ * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
+ * control, once per run: the tile forced 15 px tall, and the speaker's glyph stripped of its mask. 1366x600 and
+ * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
  *
  * STANDING STILL (E78 fix h76-HF2, 14.10.2026). The owner saw the status strip jump about once a second on 1.2.76, and
  * this sweep came out GREEN on 1.2.76 at four sizes: every reading here is of a moment, and the fault was a loop. Each
@@ -164,7 +169,7 @@ const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolea
     return [size + "/" + key, Number(v)];
 }));
 const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,"
-    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",");
+    + "1264x800,1300x768,1400x900,3840x2160,1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",");
 /* THE PINS (E77 fix r1-M1, 13.10.2026; review round 1's O9): the place each size reads, as this file read it on
    e77-wip after E77 C9 and the side fix line (ceb70a4) with fix r1-M1 on it, in Chromium, GM and player alike -
    'row' on a stacked screen (E77 C8), 'notes' where Stained Glass's F leaves less than the smallest box (F 194 at
@@ -172,12 +177,14 @@ const SIZES = (opt("--sizes") ?? "1920x1080,1366x768,2560x1440,1440x900,1536x864
    everywhere else; under Monokuma Legacy every desk size reads 'clock' (F 489 to 1899 against need 310). A
    reading that moves is a design change: say why in the commit that moves the pin. 1366x657 (fix r2-H3, review
    round 2's goal Rb), read on fix r2-H3's tree: 'notes' under Stained Glass (F 83, box 301x321) and 'clock' under
-   Monokuma Legacy (F 426, box 430x426), a GM and a player alike. */
+   Monokuma Legacy (F 426, box 430x426), a GM and a player alike. 1366x600 and 1366x560 (E78 fix r2-H1, review round
+   2's cor F1: two short desks, the voice tile's), read on af5eb69: 'notes' under Stained Glass (F 26 and -14) and
+   'clock' under Monokuma Legacy (F 369 and 329), a GM and a player alike. */
 const PIN_ROW = ["1024x768", "1180x820", "820x1180", "768x1024", "393x852", "844x390", "640x360"];
-const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657"], legacy: [] };
+const PIN_NOTES = { stained: ["1366x768", "1280x800", "1224x768", "1264x800", "1300x768", "1280x720", "1366x657", "1366x600", "1366x560"], legacy: [] };
 const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "player"].flatMap(role =>
     ("1920x1080,1366x768,2560x1440,1440x900,1536x864,1600x900,1680x1050,1280x800,1224x768,1264x800,1300x768,1400x900,3840x2160,"
-        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,844x390,640x360").split(",").map(size =>
+        + "1920x1200,1024x768,1180x820,820x1180,768x1024,393x852,1280x720,1366x657,1366x600,1366x560,844x390,640x360").split(",").map(size =>
         [`${theme} ${role} ${size}`, PIN_ROW.includes(size) ? "row" : PIN_NOTES[theme].includes(size) ? "notes" : "clock"]))));
 /* THE BOX PINS (E78 C0, 13.10.2026; the owner's decision of 13.10: the room tile is too large beside the notices
    and under Monokuma Legacy, and under Stained Glass's clock it stays exactly as it is): each desk size's room box,
@@ -195,16 +202,19 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
    moved the seven 'notes' rows of Stained Glass, and only those: 301x259 became 301x150 at 1366x768, 1224x768 and
    1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
    (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
-   move, and the sweep read them so on that tree. */
+   move, and the sweep read them so on that tree. 1366x600 and 1366x560 (fix r2-H1) read on af5eb69: 301x143 beside
+   the notices, 430x310 under Legacy, as at 1366x657. */
 const BOX = {
     "stained 1920x1080": "265x364", "stained 1366x768": "301x150", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
     "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x155",
     "stained 1224x768": "301x150", "stained 1264x800": "301x155", "stained 1300x768": "301x150", "stained 1400x900": "265x302",
     "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x143", "stained 1366x657": "301x143",
+    "stained 1366x600": "301x143", "stained 1366x560": "301x143",
     "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
     "legacy 1536x864": "430x310", "legacy 1600x900": "430x310", "legacy 1680x1050": "430x354", "legacy 1280x800": "430x310",
     "legacy 1224x768": "430x310", "legacy 1264x800": "430x310", "legacy 1300x768": "430x310", "legacy 1400x900": "430x310",
-    "legacy 3840x2160": "430x491", "legacy 1920x1200": "430x404", "legacy 1280x720": "430x310", "legacy 1366x657": "430x310"
+    "legacy 3840x2160": "430x491", "legacy 1920x1200": "430x404", "legacy 1280x720": "430x310", "legacy 1366x657": "430x310",
+    "legacy 1366x600": "430x310", "legacy 1366x560": "430x310"
 };
 const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
     const [theme, size] = key.split(" ");
@@ -223,10 +233,12 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
    and stands upright at the five other 'notes' sizes, as at C0 (the page's `notes.tilt`, the tile's turn, which the
    room check holds to its pane's own angle; Chromium, read the same day on C0's tree, HF4's and this one). The
    leaning panes' bounds grow with the lean: 325x170 became 341x203 at 1366x768 and 325x163 became 340x196 at
-   1366x657, still ending 10 px under the box. `plantPane`'s `turned` control turns the tile off its pane's angle. */
-const PANE = { "1366x768": "341x203", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "340x196" };
+   1366x657, still ending 10 px under the box. `plantPane`'s `turned` control turns the tile off its pane's angle.
+   1366x600 and 1366x560 (fix r2-H1) read on af5eb69 as 1366x657 reads: 340x196, leaning 6 degrees. */
+const PANE = { "1366x768": "341x203", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "340x196",
+    "1366x600": "340x196", "1366x560": "340x196" };
 const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
-const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6 };
+const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
 
@@ -396,6 +408,30 @@ async function plantPane() {
     return res;
 }
 
+/* Runs in the page: the voice check's planted faults (E78 fix r2-H1, review round 2's cor F1), each read at once and
+   put back - the tile 15 px tall in its full form, as af5eb69 left the GM's at 1366x560, must fail on what it holds;
+   the speaker's glyph with no mask must fail on the glyph. */
+async function plantVoice() {
+    const body = document.body, tile = document.getElementById("drpg-voice-tile"), res = {};
+    {   // short
+        const was = body.style.getPropertyValue("--drpg-voice-h"), fit = tile.dataset.fit;
+        body.style.setProperty("--drpg-voice-h", "15px");
+        delete tile.dataset.fit;
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        body.style.setProperty("--drpg-voice-h", was);
+        if (fit) tile.dataset.fit = fit;
+        res.short = { ok: r.ok, why: r.why, pass: !r.ok && /outside the tile/.test(r.why) };
+    }
+    {   // bare
+        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-px-mask") ?? "";
+        i?.style.removeProperty("--drpg-px-mask");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        if (was) i.style.setProperty("--drpg-px-mask", was);
+        res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
+    }
+    return res;
+}
+
 /* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
    over a max-height), so F falls 40 px short of the smallest box; the place read and the room check run at that
    other place (under Legacy the only reading of its place beside the notices: no size of the sweep reaches it), and
@@ -438,7 +474,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, idleRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, idleRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -608,11 +644,21 @@ try {
                 const vc = await page.evaluate(() => window.drpgVoiceCheck?.() ?? null);
                 if (!vc) fails.push("the page defines no drpgVoiceCheck");
                 else {
-                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box ? ` ${vc.box} open ${vc.open} shards ${vc.shards}` : "")
+                    const pr = vc.parts;
+                    line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box ? ` ${vc.box} ${vc.fit} open ${vc.open} shards ${vc.shards}` : "")
+                        + (pr ? ` plate ${pr.plate?.join(",") ?? "-"} name ${pr.name?.join("/") ?? "-"} buttons ${pr.buttons.map(b => b?.join(",") ?? "-").join(" ")}` : "")
                         + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "");
                     if (!vc.ok) fails.push("voice: " + vc.why);
                     if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
                     if (vc.expect === "wall") voiceRead = true;
+                    if (control && !voiceControlled && vc.expect === "wall") {
+                        voiceControlled = true;
+                        const ctl = await page.evaluate(plantVoice);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("voice control " + k + " reads as a pass");
+                        }
+                    }
                 }
             }
             if (windows) {

@@ -8945,6 +8945,23 @@ const REGRESSIONS = [
             "a room-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E77 commit that will) and strike the gone one");
     }],
 
+    ["R552 - every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock", async () => {
+        /*
+         * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
+         * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
+         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
+         * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
+         * builders are given against the sprites the generated sheet states (tools/pixel-icons.py). The drawn mask is
+         * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
+         */
+        const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
+        const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
+        equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
+            "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
+    }],
+
     ["R534 - a voice-tile road has a census row, and every row judges a road", async () => {
         /*
          * E78 C1, 13.10.2026; R503's twin for the voice tile (census-1c.md of the E78 plan, METHOD change 1; the
