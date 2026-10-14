@@ -123,11 +123,21 @@
  * tile not both in the row, the portrait not inside the tile, the tile off the screen. Once per run (`--no-voice` drops
  * it all) the page is loaded without Foundry's sidebar tabs, and again with glass.mjs's spare band put back (S12-95).
  *
+ * STANDING STILL (E78 fix h76-HF2, 14.10.2026). The owner saw the status strip jump about once a second on 1.2.76, and
+ * this sweep came out GREEN on 1.2.76 at four sizes: every reading here is of a moment, and the fault was a loop. Each
+ * Stained Glass desk with glass, in both roles, is now watched with nothing done for `--idle` seconds (5; 0 leaves it
+ * out) once the load is 6 s old (past the 1500 ms rebuild and the first cut's 840 ms slide), before any other reading
+ * touches the page: the passes of the glass (`data-drpg-measuring` set) and the transform transitions started, anywhere
+ * on the page, must both be 0. The line prints `idle <passes>/<transitions>` and the shifts the rotation sheet gives
+ * the rotated blocks other than the two rails. Its control runs once a run on a page of its own (1920x1080, the GM's):
+ * the right-hand column moved 24 px towards the wall, which the module answers with a pass and a slide, must read
+ * passes and transitions above 0; a control that reads 0 fails the sweep.
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows]
+ *          [--no-windows] [--no-voice] [--idle <s>, 5]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -148,6 +158,7 @@ const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice");
+const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
     return [size + "/" + key, Number(v)];
@@ -225,6 +236,26 @@ let browser;
 try { browser = await chromium.launch(opt("--chromium") ? { executablePath: opt("--chromium") } : {}); }
 catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--chromium <executable> names one): ${err.message.split("\n")[0]}`); process.exit(2); }
 
+/* Runs in the page: `ms` of nothing done, once the load is 6 s old - the passes of the glass begun (the measuring
+   attribute set where it was absent), the transform transitions started and on what, and the shifts the rotation
+   sheet gives the blocks other than the two rails. */
+async function idle(ms) {
+    const wait = 6000 - performance.now();
+    if (wait > 0) await new Promise(res => setTimeout(res, wait));
+    let passes = 0;
+    const moved = {};
+    const mo = new MutationObserver(recs => { for (const r of recs) if (r.oldValue === null) passes++; });
+    mo.observe(document.body, { attributes: true, attributeFilter: ["data-drpg-measuring"], attributeOldValue: true });
+    const on = e => { if (e.propertyName !== "transform") return; const k = e.target.id || e.target.tagName.toLowerCase(); moved[k] = (moved[k] || 0) + 1; };
+    document.addEventListener("transitionstart", on, true);
+    await new Promise(res => setTimeout(res, ms));
+    mo.disconnect();
+    document.removeEventListener("transitionstart", on, true);
+    const sheet = document.getElementById("drpg-glass-rotation")?.textContent ?? "";
+    const shifts = sheet.split("}").filter(r => !/#scene-controls|#sidebar-tabs/.test(r))
+        .map(r => /translateX\((-?[\d.]+)px\)/.exec(r)?.[1]).filter(v => v != null).map(Number);
+    return { passes, starts: Object.values(moved).reduce((a, b) => a + b, 0), moved, shifts };
+}
 /* Runs in the page: the planted faults, each read at once and put back. Returns one entry a
    control: what it read and whether that is what the fault must read as. */
 function plant(sel) {
@@ -398,7 +429,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, idleRead = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -421,6 +452,12 @@ try {
             let line = `${theme.padEnd(7)} ${role.padEnd(6)} ${size.padEnd(10)}` + (r.stacked ? " stacked" : " desk   ");
             lines++;
             const fails = [];
+            if (idleS > 0 && theme === "stained" && r.c && !r.stacked) {
+                const v = await page.evaluate(idle, idleS * 1000);
+                line += ` | idle ${v.passes}/${v.starts} shift ${v.shifts.join(",") || "-"}`;
+                if (v.passes || v.starts) fails.push(`idle: ${v.passes} pass(es) and ${v.starts} transform transition(s) in ${idleS} s with nothing done (${JSON.stringify(v.moved)})`);
+                idleRead = true;
+            }
             if (!r.has) fails.push("the page defines no drpgLaunchOutside");
             else if (!r.c) {
                 line += " no glass (" + (r.report || "-").slice(0, 60) + ")";
@@ -592,6 +629,19 @@ try {
             }
             await page.close();
         }
+    }
+    /* THE IDLE READING'S CONTROL (E78 fix h76-HF2): a fault it must see, on a page of its own. */
+    if (idleS > 0 && control && idleRead) {
+        const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+        await page.goto(`${base}/${page0}`);
+        await page.waitForFunction(() => window.__glass, null, { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(waitMs);
+        const still = await page.evaluate(idle, idleS * 1000);
+        const col = await page.evaluate(() => { const c = document.getElementById("ui-right-column-1"); if (c) c.style.translate = "24px 0"; return Boolean(c); });
+        const ctl = col ? await page.evaluate(idle, idleS * 1000) : null;
+        await page.close();
+        console.log(`  idle control: as loaded ${still.passes}/${still.starts} | the column 24 px towards the wall ${ctl ? `${ctl.passes}/${ctl.starts} ${JSON.stringify(ctl.moved)} - ${ctl.passes && ctl.starts ? "sees it" : "MISSES IT"}` : "NO COLUMN"}`);
+        if (!ctl || !ctl.passes || !ctl.starts) { bad++; console.log("FAIL: the idle reading's control - a column moved towards the wall read no pass or no transition, so the reading cannot see one"); }
     }
     /* NO SPARE STRIP AT A RIGHT WALL WITH NO RAIL (E78 C6, S12-95). The harness's page always has Foundry's
        sidebar tabs, and the curtain is not recut for a rail taken away from a page already loaded (CLAUDE.md), so

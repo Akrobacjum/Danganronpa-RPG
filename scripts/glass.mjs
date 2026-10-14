@@ -623,11 +623,31 @@ const RAIL_MARGIN = 16;
    corner now; a rail left in the column (a GM whose windows were not built) starts where it did,
    so its shard is cut as it was. One sum of the old constants, not re-measured since C6. */
 const RAIL_SLOT = 4 + 16 + 20 + 32 + 26 + 12;
-function railOverhang(el) {
+/* THE SHIFT A ROTATED BLOCK ALREADY WEARS, BY SELECTOR, AND WHY IT IS KEPT (E78 fix h76-HF2, 14.10.2026).
+   `railOverhang` used to be asked about a block drawn without its shift, so every pass wrote the
+   rules once without it - the block snapped back over the edge - and once with it, and the 840 ms
+   transition slid it in again. Since E77 put Foundry's rails in windows the pinned column stands
+   at `right: 0` and the status strip, leaning, ends 7 px past the margin, so that was every pass;
+   and the drift watch, its reference taken mid-slide, asked for the next one. Measured in Chromium
+   on the glass harness on 13.10.2026, idle 10 s after a 6 s settle under Stained Glass: 7-8
+   transform transitions at 1920x1080 and 10 at 1366x768 on the GM's page, 8 on a player's; 0 on
+   1.2.75, 0 with the windows off, 0 under Legacy. So the shift is written with the rule from the
+   first write on, the box is measured less the shift it wears, and the sheet is written again only
+   when a shift changed. audit/glass-sweep.mjs's idle reading, 5 s once the load is 6 s old, passes
+   and transitions: 4/3 and 5/5 at 1920x1080 and 1366x768 on the GM's page before, 4/4 and 5/5 on a
+   player's; 0/0 at all four after, the strip's shift still -7. A selector that leaves ROT takes its
+   shift with it (`applyRotations`). Neither of the two other changes the report weighed was made:
+   the pinned column is not given room for the lean when there is no rail - the shift already holds
+   the strip off the wall, and moving the column moves the tray's and the voice tile's panes, which
+   the sweep pins - and the drift watch's reference is still taken in the frame after a pass (see
+   the sweep's idle control for what a pass with a slide costs now). */
+const OVERHANG = new Map();
+function railOverhang(el, was = 0) {
   const r = el.getBoundingClientRect();
   if (r.width < 1) return 0;
-  if (r.left < RAIL_MARGIN) return Math.ceil(RAIL_MARGIN - r.left);
-  if (r.right > window.innerWidth - RAIL_MARGIN) return -Math.ceil(r.right - (window.innerWidth - RAIL_MARGIN));
+  const left = r.left - was, right = r.right - was;
+  if (left < RAIL_MARGIN) return Math.ceil(RAIL_MARGIN - left);
+  if (right > window.innerWidth - RAIL_MARGIN) return -Math.ceil(right - (window.innerWidth - RAIL_MARGIN));
   return 0;
 }
 
@@ -704,16 +724,22 @@ function railRule(r) {
    The blocks carry an 840 ms transition on `transform`. This used to write the sheet once
    with the plain rotation and again with the corrections, and the browser did what it was
    asked: it animated from the first to the second, every geometry pass - the tiles that
-   "teleport and slide every half second" (07.09). Everything a rule needs is known before
-   the first write now, so the text is assigned once and an unchanged value transitions
-   nothing. The non-rail pass below can still add a rule, but only for a block that overhangs
-   and never for one already written. */
+   "teleport and slide every half second" (07.09). Everything a rail's rule needs is known before
+   the first write. A block that overhangs the wall is only known after it, so its shift is kept
+   (OVERHANG) and written with its rule from then on: the sheet is written a second time only
+   when the screen's answer below changes a shift, and an unchanged pass writes nothing - which
+   until E78 fix h76-HF2 this comment said and the code did not do (the shift was dropped from the
+   first write of every pass, and the two writes were joined differently, so both happened). */
 function applyRotations() {
-  const rules = [];
+  const turned = new Set(ROT.filter(r => r.sel && !r.rail && r.transform && r.transform !== "none").map(r => r.sel));
+  for (const sel of OVERHANG.keys()) if (!turned.has(sel)) OVERHANG.delete(sel);
+  const blockRule = r => {
+    const shift = OVERHANG.get(r.sel);
+    return `body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${shift ? `translateX(${shift}px) ` : ""}${r.transform}; }`;
+  };
+  const rules = ROT.map(r => r.rail && r.el && r.sel ? railRule(r) : r.sel ? blockRule(r) : null);
   for (const r of ROT) {
-    if (r.rail && r.el && r.sel) rules.push(railRule(r));
-    else if (r.sel) rules.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${r.transform}; }`);
-    else if (r.el) { r.el.style.transformOrigin = r.origin; r.el.style.transform = r.transform === "none" ? "" : r.transform; }
+    if (!r.sel && r.el) { r.el.style.transformOrigin = r.origin; r.el.style.transform = r.transform === "none" ? "" : r.transform; }
   }
   const sheet = rotationSheet();
   /* WRITTEN ONLY WHEN THE RULES CHANGE - and the comment above overstated this until now.
@@ -725,25 +751,50 @@ function applyRotations() {
      The audit's own fix line for UI-16 had two halves - "run `applyRotations` in
      `requestAnimationFrame` AND skip when the sheet text would be unchanged" - and only the
      first was implemented (8d24e21). This is the second. */
-  const text = rules.join("\n");
+  const text = rules.filter(Boolean).join("\n");
   if (sheet.textContent !== text) sheet.textContent = text;
   if (sheet.disabled) sheet.disabled = false;
   watchSidebar();
   if (document.body.hasAttribute("data-drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
   /* the glass proposed the angle; this is the screen's answer to it */
-  const fixes = [];
+  let moved = false;
   for (const r of ROT) {
     if (!r.sel || !r.el || !r.transform || r.transform === "none" || r.rail) continue;
-    const shift = railOverhang(r.el);
-    if (shift) fixes.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: translateX(${shift}px) ${r.transform}; }`);
+    const was = OVERHANG.get(r.sel) || 0, shift = railOverhang(r.el, was);
+    if (shift === was) continue;
+    moved = true;
+    if (shift) OVERHANG.set(r.sel, shift); else OVERHANG.delete(r.sel);
   }
   /* The second write cannot be folded into the first: `railOverhang` above measures the
      blocks AFTER the rules have been applied - that is what "the screen's answer" means -
-     so the first assignment has to have landed before this one can be computed. It gets the
-     same guard, for the same reason. */
-  if (fixes.length) {
-    const withFixes = rules.concat(fixes).join(" ");
-    if (sheet.textContent !== withFixes) sheet.textContent = withFixes;
+     so the first assignment has to have landed before this one can be computed. A rail's
+     rule is the one already written: it reads layout values, which no rule changes. */
+  if (moved) {
+    const again = ROT.map((r, i) => r.rail && r.el && r.sel ? rules[i] : r.sel ? blockRule(r) : null).filter(Boolean).join("\n");
+    if (sheet.textContent !== again) sheet.textContent = again;
+  }
+}
+
+/* THE ROTATION PASSES, FOR A TEST THAT HAS NO LAYOUT (E78 fix h76-HF2, 14.10.2026; R547).
+   jsdom cuts no curtain, so ROT is empty headless and `applyRotations` never runs there. This
+   runs it once per table given, in order, as consecutive passes do, and counts the writes of the
+   sheet each pass made: an unchanged pass must make none, because in a browser every write
+   that moves a rule is a snap and an 840 ms slide. It writes a sheet of its own
+   (`drpg-glass-rotation-test`, which a test's stub reads) and keeps the screen's sheet, ROT
+   and the shifts as they were, so at a table the curtain's blocks do not move. */
+export function rotationWrites(tables) {
+  const rot = ROT.splice(0), shifts = new Map(OVERHANG), screen = rotSheet;
+  const sheet = rotSheet = document.createElement("style");
+  sheet.id = "drpg-glass-rotation-test";
+  document.head.append(sheet);
+  const mo = new MutationObserver(() => {});
+  mo.observe(sheet, { childList: true, characterData: true, subtree: true });
+  OVERHANG.clear();
+  try {
+    return tables.map(t => { ROT.length = 0; ROT.push(...t); applyRotations(); return { writes: mo.takeRecords().length, text: sheet.textContent }; });
+  } finally {
+    mo.disconnect(); sheet.remove(); rotSheet = screen;
+    ROT.length = 0; ROT.push(...rot); OVERHANG.clear(); for (const [k, v] of shifts) OVERHANG.set(k, v);
   }
 }
 

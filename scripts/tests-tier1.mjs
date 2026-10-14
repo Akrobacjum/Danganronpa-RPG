@@ -2422,6 +2422,42 @@ const INVARIANTS = [
             "[Stained Glass's 'clock' branch free of roomNotesH, the 'notes' height roomNotesH's, the room at C0's left edge, Legacy free of it; the edge planted from the new height]");
     }],
 
+    ["R547 - the rotated blocks stand still between passes: a pass over the same geometry writes the rotation sheet zero times, a block over the wall keeps its shift, and a block that leaves the table takes its shift with it", async () => {
+        /*
+         * E78 fix h76-HF2, 14.10.2026 (the owner at the table on 1.2.76: the "Still to act" strip jumps about once a
+         * second, as if refreshed, with an animation). Measured in Chromium on the glass harness under Stained Glass, idle
+         * after the load settled: 7-10 transform transitions in 10 s, because every pass wrote the rotation sheet without
+         * the strip's 7 px shift and then with it, and the 840 ms transition slid the strip each time. jsdom cuts no
+         * curtain, so this hands `applyRotations` its table through `rotationWrites` and stands in for the browser with
+         * one stub: the block's box is its own box moved by the `translateX` its rule in the sheet carries, which is what
+         * the browser draws (a translate before the rotation moves the box by exactly that). The passes: the block 7 px
+         * over the right margin and a second block inside it twice (two rules, so the sheet's text has a seam: the two
+         * writes of 1.2.76 were joined differently), then a table without them, then the block back well inside the
+         * margin. A sheet write
+         * on the second pass is the harm (a snap and a slide in a browser); a shift missing from the second pass's text is
+         * the strip left over the edge; a write too many on the fourth is a shift kept for a block that had left. The
+         * browser's own reading is audit/glass-sweep.mjs's idle line, 0 passes and 0 transitions at every desk size.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.rotationWrites === "function", "glass.mjs gives a test no road into the rotation passes");
+        if (typeof G.rotationWrites !== "function") return;
+        const sel = "#drpg-r547-strip", W = window.innerWidth;
+        const shiftIn = () => {
+            const rule = (document.getElementById("drpg-glass-rotation-test")?.textContent ?? "").split("}").find(r => r.includes(sel)) ?? "";
+            return Number(/translateX\((-?[\d.]+)px\)/.exec(rule)?.[1] ?? 0);
+        };
+        const block = (over, at = sel) => {
+            const el = document.createElement("div");
+            el.getBoundingClientRect = () => { const x = W - 16 + over - 300 + (at === sel ? shiftIn() : 0); return { left: x, right: x + 300, top: 40, bottom: 140, width: 300, height: 100, x, y: 40 }; };
+            return { sel: at, el, origin: "150px 50px", transform: "rotate(0.05rad)" };
+        };
+        const over = block(7), inside = block(-40), tray = block(-40, "#drpg-r547-tray");
+        const passes = G.rotationWrites([[over, tray], [over, tray], [], [inside]]);
+        const shiftOf = text => Number(/translateX\((-?[\d.]+)px\)/.exec(text.split("}").find(r => r.includes(sel)) ?? "")?.[1] ?? 0);
+        equal(JSON.stringify(passes.map(p => [p.writes, shiftOf(p.text)])), JSON.stringify([[2, -7], [0, -7], [1, 0], [1, 0]]),
+            "[writes, the block's shift] per pass: the second pass over the same geometry wrote the sheet, a block over the wall lost its shift, or a block back inside the margin was written with a shift it no longer needs");
+        equal(document.getElementById("drpg-glass-rotation-test"), null, "the test's sheet was left in the page");
+    }],
     ["R543 - the voice tile on the curtain keeps its box whatever is said, fills its pane and wears the game state's colour: the tile stands at the box the cut settled, a long name moves nothing, the portrait is cut to the pane's own outline, the caption's brush is `--drpg-glass-accent`, no pane covers `voice-left` and no spare strip stands at a right wall with no rail", async () => {
         const G = await import("./glass.mjs");
         needs(env.glass(), "this measures Stained Glass");
