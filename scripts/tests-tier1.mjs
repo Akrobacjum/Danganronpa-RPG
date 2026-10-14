@@ -2458,6 +2458,61 @@ const INVARIANTS = [
             "[writes, the block's shift] per pass: the second pass over the same geometry wrote the sheet, a block over the wall lost its shift, or a block back inside the margin was written with a shift it no longer needs");
         equal(document.getElementById("drpg-glass-rotation-test"), null, "the test's sheet was left in the page");
     }],
+    ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
+        /*
+         * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
+         * Foundry's own logo, `icons/fvtt.png` from Foundry's core files through a lightening filter - read at the table
+         * as the Forge's icon, and the one face in the corner outside the module's white pixel set. Tier 1 runs on the
+         * GM, the one page the button is built on (scenario 74 E3 reads that a player's page has none). THE PAGE: no
+         * `img` whose src names `fvtt` anywhere, and nothing at all in the button but one `i`, inert, with no class (no
+         * Font Awesome name for pixel-icons.css to repaint) and no text. THE SHEETS: the module's stylesheets, comments
+         * blanked (`moduleStyles`), name no Foundry logo - R509's pattern, `fvtt` or "foundry" beside "logo" - so the
+         * picture cannot come back as a background or a `content` the page check would not see. THE GLYPH, under each theme in turn: the face's
+         * mask-image names the anvil - in a browser its resolved value is `--drpg-px-anvil`'s own on the body, headless
+         * the cascade leaves a standard property made of var() unresolved (tests-kit.mjs `cascadeAvailable`), so there
+         * it reads `var(--drpg-px-anvil)` - and the token itself is the module's data URL on the body; the face's
+         * background-color is the handbooks' glyph's. THE CONTROL: an inline `mask-image: none` on the face must turn
+         * the reading off the anvil, so a reader that answered "anvil" for anything would be red here. Everything is
+         * put back as it was found.
+         */
+        must(game.user.isGM, "Foundry tools is a GM's, and tier 1 runs on the GM");
+        const tools = document.getElementById("drpg-foundry-tools"), book = document.querySelector("#drpg-book-launcher > i");
+        must(tools && book, "Foundry tools or the handbooks' glyph is not on the page - there is nothing to read");
+        const face = tools.firstElementChild;
+        const page = [[...document.images].filter(img => /fvtt/i.test(img.getAttribute("src") ?? "")).length, tools.querySelectorAll("img").length,
+            [...tools.children].map(el => [el.tagName, el.getAttribute("class"), el.hasAttribute("inert"), el.textContent])];
+        equal(JSON.stringify(page), JSON.stringify([0, 0, [["I", null, true, ""]]]),
+            "[Foundry logos on the page, pictures in Foundry tools, and its children as tag, class, inert, text]");
+        const styles = await moduleStyles();
+        must(styles.length > 10000 && styles.includes("#drpg-foundry-tools"), "the module's stylesheets were not read whole - this would measure nothing");
+        equal(JSON.stringify(styles.match(/[\w./-]*(?:fvtt|foundry[\w./-]*logo|logo[\w./-]*foundry)[\w./-]*/gi) ?? []), "[]",
+            "[the Foundry logos the module's stylesheets name]");
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
+        const mask = el => { const s = getComputedStyle(el); return s.getPropertyValue("mask-image") || s.getPropertyValue("-webkit-mask-image") || "none"; };
+        const anvil = () => getComputedStyle(body).getPropertyValue("--drpg-px-anvil").trim();
+        const names = value => value.replace(/\s+/g, "") === "var(--drpg-px-anvil)" || (anvil() !== "" && value.trim() === anvil());
+        const seen = {};
+        try {
+            for (const glass of [true, false]) {
+                body.classList.toggle(CLASSES[0], glass);
+                body.classList.toggle(CLASSES[1], !glass);
+                const was = face.style.getPropertyValue("mask-image");
+                face.style.setProperty("mask-image", "none");
+                face.style.setProperty("-webkit-mask-image", "none");
+                const control = names(mask(face));
+                face.style.removeProperty("mask-image");
+                face.style.removeProperty("-webkit-mask-image");
+                if (was) face.style.setProperty("mask-image", was);
+                seen[glass ? "Stained Glass" : "Monokuma Legacy"] = [/^url\(["']?data:image\/svg\+xml/.test(anvil()), names(mask(face)),
+                    getComputedStyle(face).backgroundColor === getComputedStyle(book).backgroundColor, control];
+            }
+        } finally {
+            CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
+        }
+        equal(stableJson(seen), stableJson({ "Monokuma Legacy": [true, true, true, false], "Stained Glass": [true, true, true, false] }),
+            `[per theme: --drpg-px-anvil a data URL on the body, the face's mask naming it, its colour the book glyph's, the mask read again with the `
+            + `face's own set to none] - the face's mask read ${JSON.stringify(mask(face))}`);
+    }],
     ["R543 - the voice tile on the curtain keeps its box whatever is said, fills its pane and wears the game state's colour: the tile stands at the box the cut settled, a long name moves nothing, the portrait is cut to the pane's own outline, the caption's brush is `--drpg-glass-accent`, no pane covers `voice-left` and no spare strip stands at a right wall with no rail", async () => {
         const G = await import("./glass.mjs");
         needs(env.glass(), "this measures Stained Glass");
@@ -2855,7 +2910,7 @@ const INVARIANTS = [
             "[each case: prevented, seen by a later listener on window, both windows open] - with a stand-in, with none, with both closed");
     }],
 
-    ["R512 - the corner's upper row: a GM's red button and Foundry tools are children of the body in the cluster through data-drpg-cluster, with no drpg- class on them or above them, named for a screen reader, the eye and Foundry's own logo their faces; Foundry tools opens both windows and closes them, saying so in aria-pressed; and in both themes each stands on its cell two rows over settings and the handbooks, the size its token gives, the gap from the chat and from each other, with the camera dock's lift and the tab rail's clearance as well", async () => {
+    ["R512 - the corner's upper row: a GM's red button and Foundry tools are children of the body in the cluster through data-drpg-cluster, with no drpg- class on them or above them, named for a screen reader, the eye and the module's anvil their faces; Foundry tools opens both windows and closes them, saying so in aria-pressed; and in both themes each stands on its cell two rows over settings and the handbooks, the size its token gives, the gap from the chat and from each other, with the camera dock's lift and the tab rail's clearance as well", async () => {
         /*
          * E77 C6, 13.10.2026; the A8 design's R387 (the E77 plan's D2 gave it this number), the owner's AM-21 variant B
          * (mockup/grid.txt). Tier 1 runs on the GM, where both are built: gm-panel.mjs `injectLauncher` in module.mjs's
@@ -2865,29 +2920,26 @@ const INVARIANTS = [
          * "drpg-" in it - pixel-icons.css paints any `i.fa-eye` under such an ancestor as its plain eye, over the
          * Monokuma one (R515 reads what that does in a browser). THE FACES: the GM's `i` is exactly `fa-solid fa-eye`
          * and inert, the button holds no text and its `aria-label` is DRPG.Panel.launcher; Foundry tools' only child is
-         * an `img` whose `src` attribute is `icons/fvtt.png` with an empty `alt`, and its `aria-label` is
+         * an inert `i` with no class (R548 reads its glyph, the anvil, since E78 fix h76-HF3), and its `aria-label` is
          * DRPG.FoundryTools.toggle. THE CLICK: from closed, a click opens both windows with `aria-pressed` "true", a
          * second closes both with "false". THE CELLS, from the cascade as R474 reads the other three (`cornerGeometry`,
          * so headless too): the GM's button's right and Foundry tools' equal to settings' and the handbooks', their
          * bottoms two `--drpg-launch-row` over them, both the small and book tokens' size, the clip-path the chat's, and
          * the chat to each and the two to each other the gap token apart - in both themes, as the table has it and
-         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. THE LOGO THAT DOES NOT LOAD (E77 fix r2-H2;
-         * review round 2's cor F6): an `error` event on the logo leaves one inert `fa-solid fa-toolbox` in its place;
-         * jsdom loads no picture, so the event is dispatched, and at a table where the file is missing this test's
-         * faces read the icon and fail, which is LIVE-E77-09's question. The logo goes back and the error is fired
-         * a second time: the fallback holds on every error, so the next tier-1 run in the same page reads what this
-         * one read (E77 fix r2-H6, 13.10.2026: with a one-shot listener R512 was green on a page's first run and red
-         * on every later one, scenario 01's A2, A3 and C at 9ef00ef). Everything is put back as it was found.
+         * with `--drpg-av-lift` 300 px and `--drpg-launch-clear` 37 px. Until E78 fix h76-HF3 (14.10.2026) the face was
+         * Foundry's own logo, a picture from Foundry's core files, and this test also fired its `error` event and read
+         * the toolbox that stood in; nothing is loaded for the anvil, so that clause went with the logo. Everything is
+         * put back as it was found.
          */
         must(game.user.isGM, "the upper row is a GM's, and tier 1 runs on the GM");
         const G = await import("./glass.mjs"), FW = await import("./foundry-windows.mjs");
         const gm = document.getElementById("drpg-gm-launcher"), tools = document.getElementById("drpg-foundry-tools");
         must(gm && tools && FW.foundryWindow("ftools"), "the GM's button, Foundry tools or its window is not on the page - there is nothing to read");
         const classed = el => { for (let n = el; n && n !== document.body; n = n.parentElement) if (/drpg-/.test(n.getAttribute("class") ?? "")) return true; return false; };
-        const eye = gm.querySelector("i"), logo = tools.querySelector("img");
+        const eye = gm.querySelector("i"), face = tools.firstElementChild;
         const dom = [gm, tools].map(el => [el.parentElement === document.body, el.hasAttribute("data-drpg-cluster"), el.matches(G.LAUNCHERS), classed(el)]);
         const faces = [eye?.getAttribute("class"), eye?.hasAttribute("inert"), gm.textContent.trim(), gm.getAttribute("aria-label") === game.i18n.localize("DRPG.Panel.launcher"),
-            tools.children.length, logo?.getAttribute("src"), logo?.getAttribute("alt"), tools.getAttribute("aria-label") === game.i18n.localize("DRPG.FoundryTools.toggle")];
+            tools.children.length, face?.tagName, face?.getAttribute("class"), face?.hasAttribute("inert"), tools.getAttribute("aria-label") === game.i18n.localize("DRPG.FoundryTools.toggle")];
         const open0 = FW.FOUNDRY_WINDOWS.map(row => !FW.foundryWindow(row.key)?.hidden);
         const state = () => [FW.FOUNDRY_WINDOWS.map(row => FW.foundryWindow(row.key)?.hidden === false), tools.getAttribute("aria-pressed")];
         const clicks = [];
@@ -2941,27 +2993,14 @@ const INVARIANTS = [
             putBack();
         }
         equal(JSON.stringify([dom, faces, clicks]), JSON.stringify([[[true, true, true, false], [true, true, true, false]],
-            ["fa-solid fa-eye", true, "", true, 1, "icons/fvtt.png", "", true],
+            ["fa-solid fa-eye", true, "", true, 1, "I", null, true, true],
             [[[false, false], "false"], [[true, true], "true"], [[false, false], "false"]]]),
             "[per button: a child of the body, data-drpg-cluster, in LAUNCHERS, a drpg- class on it or above it; the GM's eye's classes, inert, its text, "
-            + "its label; Foundry tools' children, the logo's src and alt, its label; the windows and aria-pressed closed, after a click, after a second]");
+            + "its label; Foundry tools' children, the first one's tag, class and inert, its label; the windows and aria-pressed closed, after a click, after a second]");
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson(seen), stableJson(want),
             `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
-        const fallback = [];
-        try {
-            for (let n = 0; n < 2; n++) {
-                logo?.dispatchEvent(new Event("error"));
-                const mark = tools.firstElementChild;
-                fallback.push([tools.children.length, mark?.tagName ?? null, mark?.getAttribute("class") ?? null, mark?.hasAttribute("inert") ?? null, logo?.isConnected ?? null]);
-                if (logo && !logo.isConnected) tools.replaceChildren(logo);
-            }
-        } finally {
-            if (logo && !logo.isConnected) tools.replaceChildren(logo);
-        }
-        equal(JSON.stringify(fallback), JSON.stringify([[1, "I", "fa-solid fa-toolbox", true, false], [1, "I", "fa-solid fa-toolbox", true, false]]),
-            "[after the logo's error, and after a second error once it is put back: Foundry tools' children, the one's tag, its classes, inert, the logo still on the page]");
     }],
 
     ["R515 - in a browser the corner's upper row wears its own colours: Foundry tools' ring the state's accent as settings' and the handbooks' are through a change of phase, the GM's button red through it, and the GM's eye the Monokuma mask, not the plain eye pixel-icons.css paints under a drpg- class", async () => {

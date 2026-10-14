@@ -14480,12 +14480,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 /* ---- the Foundry tools launcher (E77 C6) -------------------------------- */
 
-/* Over the handbooks, two rows up, the same circle as the handbooks. Its face is
-   Foundry's own logo (`icons/fvtt.png`, Foundry's core file, D7), which is dark on
-   a dark ground: grayscale and brightness make it read as bone, the shadow gives
-   it an edge. The filter's numbers are the E77 plan's and NOT measured: the glass
-   harness serves no such file, so what the real logo looks like through them on a
-   v14 table is LIVE-E77-09, the owner's before the release. */
+/* Over the handbooks, two rows up, the same circle as the handbooks. */
 #drpg-foundry-tools {
     position: fixed;
     right: var(--drpg-edge);
@@ -14511,21 +14506,26 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
 }
 
-#drpg-foundry-tools img {
+/* THE FACE, an anvil from the module's pixel set (E78 fix h76-HF3, 14.10.2026): until
+   then Foundry's own logo through a lightening filter, which the owner read at The
+   Forge as the Forge's icon and the one face in the corner outside the module's white
+   pixel set. Masked exactly as the handbooks' book beside it, at the glyph's own 24 px
+   (one CSS pixel to a cell) and in the button's colour, and outside any theme's scope,
+   so Monokuma Legacy and Stained Glass draw the same white anvil. The `i` has no class:
+   pixel-icons.css paints Font Awesome names only (foundry-windows.mjs THE LAUNCHER). */
+#drpg-foundry-tools i {
     display: block;
     width: 24px;
     height: 24px;
-    border: 0;
-    pointer-events: none;
-    filter: grayscale(1) brightness(2.1) contrast(1.05) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
-}
-
-/* What stands in for a logo that did not load (foundry-windows.mjs `buildLauncher`, E77 fix r2-H2): a Font Awesome
-   toolbox in the button's bone. The lg rung (20 px at 100 %) is chosen to sit inside the logo's 24 px box, not
-   measured against it; a rung and not a literal, as R60 asks of every size (its first form, 20px, read red there). */
-#drpg-foundry-tools > i {
-    font-size: var(--drpg-text-lg);
-    line-height: 1;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-px-anvil);
+    mask-image: var(--drpg-px-anvil);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
     pointer-events: none;
 }
 

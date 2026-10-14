@@ -275,6 +275,21 @@ def _(px):
     body = set(); poly(body, [(9, 8), (15, 8), (21, 20.5), (3, 20.5)]); px |= outline(body, 2)
     px |= {p for p in body if p[1] >= 15}; rect(px, 9, 2, 6, 2); rect(px, 10, 3, 4, 6)
     for x, y in [(11, 17), (14, 18), (9, 19)]: px.discard((x, y))
+# ---- the corner's Foundry tools button (E78 fix h76-HF3, 14.10.2026) ----------------
+# Its face was Foundry's own logo through a filter, the one face in the corner outside this set; the owner asked
+# for a white pixel glyph to match the rest, and an anvil was the default the owner left standing. Solid, as the
+# book and the gear beside it are, and about as large: columns 1-22 and rows 4-20, 199 cells, to the book's 0-23 and
+# 3-20 (240) and the gear's 1-22 and 1-22 (232), counted on the grid on 14.10. No Font Awesome name maps to it: the
+# button wears it through `--drpg-px-anvil` alone (danganronpa.css).
+@icon('anvil')
+def _(px):
+    rect(px, 8, 4, 15, 4)                                         # the face
+    poly(px, [(1, 4), (8, 4), (8, 8.5), (5, 7.2), (2.5, 5.6)])    # the horn
+    poly(px, [(9, 8), (20, 8), (17, 12), (12, 12)])               # the waist
+    rect(px, 12, 12, 5, 3)
+    poly(px, [(12, 15), (17, 15), (21, 18.5), (8, 18.5)])         # the base
+    rect(px, 6, 18, 17, 3)
+    for x in range(12, 17): px.discard((x, 20))                   # between the feet
 
 ALL = {k: path_to_px(v) for k, v in BASE.items()}
 ALL.update(ICONS)
