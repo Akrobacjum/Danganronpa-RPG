@@ -3543,6 +3543,30 @@
           "other": "i jeszcze {n} osoby mówi"
         }
       },
+      "mic": {
+        "mute": "Wycisz swój mikrofon",
+        "unmute": "Włącz z powrotem swój mikrofon",
+        "ptt": "Naciśnij, aby mówić: przytrzymaj {key}",
+        "pttNoKey": "Naciśnij, aby mówić: wybierz dla tego klawisz w sterowaniu Foundry.",
+        "pttBadge": "PTT",
+        "keybinding": "Wycisz albo włącz swój mikrofon"
+      },
+      "held": {
+        "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
+        "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
+        "gmBlock": "GM zablokował twój mikrofon.",
+        "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
+        "offline": "Nie jesteś połączony z głosem."
+      },
+      "list": {
+        "open": "Kogo słyszysz",
+        "count": {
+          "one": "Słyszysz w kanale: {n}",
+          "few": "Słyszysz w kanale: {n}",
+          "many": "Słyszysz w kanale: {n}",
+          "other": "Słyszysz w kanale: {n}"
+        }
+      },
       "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },
     "States": {

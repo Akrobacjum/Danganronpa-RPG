@@ -11562,7 +11562,7 @@ const INVARIANTS = [
             + "recorded as nothing, the copy taken out; the store as it was found; tier 2's snapshot records it, its restore puts it back]");
     }],
 
-    ["R537 - the module holds a microphone only for its own reasons, from the viewer's own facts: `micHold` holds a player in their own Eclipse room and nobody else, and names a GM's block, a Monocub there, avclient-livekit's own window and no connection without holding; it reads no GmStore; `moduleHoldsMic` names a death kept secret; `voiceRowFor` is the ranking voiceTargets ran inline", async () => {
+    ["R537 - the module holds a microphone only for its own reasons, from the viewer's own facts: `micHold` holds a player in their own Eclipse room and nobody else, and names a GM's block, a Monocub there, avclient-livekit's own window and no connection without holding; it reads no GmStore; `moduleHoldsMic` names a death kept secret; `voiceRowFor` is the ranking voiceTargets ran inline; the microphone button is grey only when the module holds it, struck with a lock for a GM's block and not struck offline, and a click or its key writes the viewer's own `muted` and nothing else, only in the states the viewer may change", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R390 (T2; the E78 plan's D2 gave it this number), its data clauses - E78 C4
          * adds the button's. The owner's answers Q1 (grey and struck through only when the MODULE holds the microphone),
@@ -11592,6 +11592,20 @@ const INVARIANTS = [
          *     The functions of other files it calls are out of this reading (`desiredRoom`, `isDeceased`, `isMonokuma`,
          *     `poolUserFor`, all reading the document or this browser's own state).
          * Red before C2: voice.mjs had no `micHold`, `moduleHoldsMic` or `voiceRowFor`.
+         * E78 C4 adds the button's clauses (below), on a tile the suite builds and never appends, every fact handed in:
+         *   - `micState` per fact: open, push-to-talk, muted by the viewer, held (the Eclipse), a GM's block, no
+         *     connection, avclient-livekit's own window, a Monocub in the Eclipse open and muted (its line of
+         *     information, never held) - and through `micHold`'s own answers for a player and a Monocub there;
+         *   - `paintMic` per state: the classes the stylesheets read (`is-held` alone is grey), `aria-pressed` only when
+         *     muted by the viewer, `aria-disabled` in the three states a click cannot change, the tooltip, the note shown
+         *     only for a held or offline reason or a line of information, the description; a second paint writes nothing;
+         *   - the speaker button's count (hidden at 0) and its strike under "mute all";
+         *   - `toggleOwnMic` on a client-settings object of the suite's: one write of `users.<self>.muted` flipped in the
+         *     three open states, none and one notice with the reason in the other four;
+         *   - the click calls the tile's `onMic`; the key is registered as `toggleMute` with no default key, for
+         *     players, in `init` (module.mjs read between the init and setup hooks), and does nothing without voice.
+         * Red before C4 (C3's runtime under these clauses, 14.10.2026): "voice-tile.mjs has no microphone button" - the
+         * first assertion of the block, by `ok`, not a throw; C2's clauses above stayed green on it.
          */
         const V = await import("./voice.mjs");
         const { ROOM_PREFIX } = await import("./voice-client.mjs");
@@ -11703,6 +11717,100 @@ const INVARIANTS = [
             + "per account outside, in the trial and in an Eclipse, and the same rows as the old loop | the spy sees a read; micHold answers the Eclipse for a "
             + "player; it read no murderState | micHold reaches accountRow, voiceRowFor and voiceClaim; GmStore readers in what it reaches | moduleHoldsMic is null "
             + "unless the viewer is a GM]");
+
+        /* E78 C4: the button's clauses (the design's T2 and P6, the ledger's V4, V6, D4, RISK-a and RISK-j). Every fact
+           is handed in - micHold's answer, a client-settings object of the suite's that records writes, a notifier, a
+           keybindings object - and the tile is one the suite builds and never appends, so nothing is written. */
+        const T = await import("./voice-tile.mjs");
+        const { plural } = await import("./utils.mjs");
+        const NAMES = ["micState", "paintMic", "paintSpeakerButton", "toggleOwnMic", "onMuteKey", "registerVoiceKeybinding", "buildVoiceTile"];
+        ok(NAMES.every(name => typeof T[name] === "function"),
+            "voice-tile.mjs has no microphone button - nothing draws the viewer's microphone or lets them mute it");
+        if (!NAMES.every(name => typeof T[name] === "function")) return;
+        const ownKey = `users.${game.user.id}.muted`;
+        const client = ({ muted = false, mode = "always" } = {}) => {
+            const writes = [];
+            return { writes, client: { voice: { mode } }, get: (scope, key) => (scope === "client" && key === ownKey ? muted : undefined),
+                set: async (...args) => { writes.push(args); } };
+        };
+        const facts = {
+            on: [null, {}], ptt: [null, { mode: "ptt" }], muted: [null, { muted: true }],
+            held: [{ reason: "eclipse", held: true }, { muted: true }], gmBlock: [{ reason: "gmBlock", held: false }, {}],
+            offline: [{ reason: "offline", held: false }, {}], external: [{ reason: "external", held: false }, {}],
+            monocub: [{ reason: "eclipseHeard", held: false }, {}], monocubMuted: [{ reason: "eclipseHeard", held: false }, { muted: true }]
+        };
+        const stateOf = name => T.micState({ hold: facts[name][0], settings: client(facts[name][1]) });
+        const states = Object.keys(facts).map(name => { const s = stateOf(name); return `${name}=${s.state}|${s.reason}|${s.info}`; });
+        // Through micHold itself: a player alone in their Eclipse room, and a Monocub there (never grey, the design's P6).
+        const composed = [hold({}), hold({ actors: [monocub] })].map(answer => T.micState({ hold: answer, settings: client() }).state);
+
+        const lines = Object.fromEntries([...["mute", "unmute", "pttNoKey"].map(k => [k, `DRPG.Voice.mic.${k}`]),
+            ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(k => [k, `DRPG.Voice.held.${k}`])]
+            .map(([k, key]) => [game.i18n.localize(key), k]));
+        lines[game.i18n.format("DRPG.Voice.mic.ptt", { key: "R537KEY" })] = "ptt";
+        const keyOf = text => lines[text] ?? (text ? `?${text}` : "");
+        let clicked = 0;
+        const tile = T.buildVoiceTile({ onMic: () => { clicked += 1; } });
+        const button = tile.querySelector(".drpg-voice-mic"), note = tile.querySelector(".drpg-voice-tile-note");
+        const painted = Object.keys(facts).map(name => {
+            T.paintMic(tile, stateOf(name), { key: "R537KEY" });
+            const again = T.paintMic(tile, stateOf(name), { key: "R537KEY" });
+            return [name, [...button.classList].filter(c => c.startsWith("is-")).join(" "), button.getAttribute("aria-pressed"),
+                button.getAttribute("aria-disabled"), keyOf(button.dataset.tooltipText), note.hidden ? "-" : keyOf(note.textContent),
+                button.getAttribute("aria-describedby") === note.id ? keyOf(note.textContent) : button.getAttribute("aria-describedby"),
+                again].join(";");
+        });
+        const parts = [Boolean(button.querySelector(".drpg-voice-mic-lock")), button.querySelector(".drpg-voice-mic-ptt")?.textContent ?? null,
+            button.type, tile.querySelector(".drpg-voice-speaker")?.getAttribute("aria-haspopup") ?? null];
+
+        const speaker = tile.querySelector(".drpg-voice-speaker"), badge = speaker.querySelector(".drpg-voice-count");
+        const speakerRead = () => [badge.hidden ? "-" : badge.textContent, speaker.classList.contains("is-muted"),
+            speaker.getAttribute("aria-describedby") === speaker.querySelector(".drpg-voice-count-line").id, speaker.dataset.tooltipText];
+        T.paintSpeakerButton(tile, { count: 2, muteAll: false });
+        const two = speakerRead();
+        T.paintSpeakerButton(tile, { count: 0, muteAll: true });
+        const none = speakerRead();
+
+        const toggled = [];
+        for (const name of ["on", "ptt", "muted", "held", "gmBlock", "offline", "external", "monocub"]) {
+            const settings = client(facts[name][1]), notices = [];
+            const wrote = await T.toggleOwnMic({ mic: T.micState({ hold: facts[name][0], settings }), settings, notify: text => notices.push(keyOf(text)) });
+            toggled.push(`${name}=${wrote}:${settings.writes.map(([scope, key, value]) => `${scope}.${key === ownKey ? "own" : key}=${value}`).join(",")}:${notices.join(",")}`);
+        }
+
+        button.click();
+        const registered = [], keyed = [];
+        T.registerVoiceKeybinding({ register: (...args) => registered.push(args) }, () => { keyed.push("key"); return true; });
+        const [namespace, action, binding] = registered[0] ?? [];
+        const onDown = binding?.onDown?.();
+        const offKey = T.onMuteKey({ available: false, toggle: () => keyed.push("off") });
+        const onKey = T.onMuteKey({ available: true, toggle: () => keyed.push("on") });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const init = stripComments(sources.get("module.mjs") ?? "");
+        const inInit = init.indexOf("registerVoiceKeybinding()") > init.indexOf("Hooks.once(\"init\"")
+            && init.indexOf("registerVoiceKeybinding()") < init.indexOf("Hooks.once(\"setup\"");
+
+        equal(JSON.stringify([states, composed, painted, parts, two, none, toggled, clicked,
+            [namespace, action, binding?.name, binding?.editable?.length, binding?.restricted, onDown, offKey, onKey, keyed, inInit]]),
+        JSON.stringify([
+            ["on=on|null|null", "ptt=ptt|null|null", "muted=muted|null|null", "held=held|eclipse|null", "gmBlock=gmBlock|gmBlock|null",
+                "offline=offline|offline|null", "external=offline|external|null", "monocub=on|null|eclipseHeard", "monocubMuted=muted|null|eclipseHeard"],
+            ["held", "on"],
+            ["on;;false;;mute;-;;false", "ptt;is-ptt;false;;ptt;-;ptt;false", "muted;is-muted;true;;unmute;-;;false",
+                "held;is-held;false;true;eclipse;eclipse;eclipse;false", "gmBlock;is-gm-blocked;false;true;gmBlock;-;gmBlock;false",
+                "offline;is-offline;false;true;offline;offline;offline;false", "external;is-offline;false;true;external;external;external;false",
+                "monocub;;false;;mute;eclipseHeard;eclipseHeard;false", "monocubMuted;is-muted;true;;unmute;eclipseHeard;eclipseHeard;false"],
+            [true, game.i18n.localize("DRPG.Voice.mic.pttBadge"), "button", "dialog"],
+            ["2", false, true, plural("DRPG.Voice.list.count", { n: 2 })], ["-", true, false, game.i18n.localize("DRPG.Voice.list.open")],
+            ["on=true:client.own=true:", "ptt=true:client.own=true:", "muted=true:client.own=false:", "held=false::eclipse", "gmBlock=false::gmBlock",
+                "offline=false::offline", "external=false::external", "monocub=true:client.own=true:"],
+            1,
+            [MODULE_ID, "toggleMute", "DRPG.Voice.mic.keybinding", 0, false, true, false, true, ["key", "on"], true]]),
+        "[the button's state per fact: open, push-to-talk, muted by me, held (Eclipse), a GM's block, no connection, avclient-livekit's window, a "
+            + "Monocub in the Eclipse open and muted | micHold's own answers for a player and a Monocub in the Eclipse | painted per state: classes; "
+            + "aria-pressed; aria-disabled; tooltip; the note shown; the description; a second paint writes nothing | the lock, the PTT label, a "
+            + "button, the speaker's popup | the speaker with 2 and with none under mute-all | toggleOwnMic per state: wrote, the writes, the notices | "
+            + "the click calls onMic | the key: registered as toggleMute with no default key, for players; onDown, unavailable, available; in init]");
     }],
 
     ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character, a GM without a Monokuma and an account without a character, and never a token's art", async () => {
@@ -12144,7 +12252,9 @@ const LITERAL_KEYS = [
     // chapter.mjs names a failed step of the chapter's end `DRPG.Chapter.step.<key>` (E11 C5): `CHAPTER_END_STEPS`' nine keys.
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
-    ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`)
+    ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
+    // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons.
+    ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`)
 ];
 
 /*

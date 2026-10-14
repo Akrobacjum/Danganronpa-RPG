@@ -190,6 +190,11 @@ def _(px):
     top = set(); ring(top, 12, 9, 5.5, 2.2); px |= {p for p in top if p[1] <= 10}
     rect(px, 4, 10, 16, 11); hole = set(); disc(hole, 12, 14.5, 1.8); rect(hole, 11, 15, 2, 4); px -= hole
     for x, y in [(4, 10), (19, 10), (4, 20), (19, 20)]: px.discard((x, y))
+@icon('mic')              # the voice tile's microphone (E78 C4); muted is the same glyph struck by CSS
+def _(px):
+    disc(px, 12, 5.5, 3.2); rect(px, 9, 5, 6, 7); disc(px, 12, 11.5, 3.2)
+    cradle = set(); ring(cradle, 12, 11, 7.2, 2); px |= {p for p in cradle if p[1] >= 10}
+    rect(px, 11, 18, 2, 3); rect(px, 7, 20, 10, 2)
 @icon('box')              # an item's box
 def _(px):
     front = set(); rect(front, 3, 10, 12, 11); px |= outline(front, 2)
@@ -294,7 +299,7 @@ FA = {
     'eye-slash': 'eye-slash', 'moon': 'moon', 'comments': 'chat', 'hand': 'palm', 'hand-holding': 'palm', 'circle': 'dot',
     'arrows-left-right': 'swap', 'khanda': 'murder', 'handshake': 'support', 'bell': 'bell', 'dice': 'dice', 'key': 'key',
     'xmark': 'close', 'check': 'check', 'sort': 'sort', 'hourglass': 'hourglass', 'sun': 'sun', 'note-sticky': 'note',
-    'music': 'music'
+    'music': 'music', 'microphone': 'mic'
 }
 missing = [v for v in FA.values() if v not in ALL]
 assert not missing, missing

@@ -3393,6 +3393,28 @@
           "other": "and {n} more speaking"
         }
       },
+      "mic": {
+        "mute": "Mute your microphone",
+        "unmute": "Turn your microphone back on",
+        "ptt": "Push to talk: hold {key} to speak",
+        "pttNoKey": "Push to talk: choose a key for it in Foundry's controls.",
+        "pttBadge": "PTT",
+        "keybinding": "Mute or unmute your microphone"
+      },
+      "held": {
+        "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
+        "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
+        "gmBlock": "The GM blocked your microphone.",
+        "external": "Voice is in its own window - use the controls there.",
+        "offline": "You are not connected to voice."
+      },
+      "list": {
+        "open": "Who you hear",
+        "count": {
+          "one": "You hear {n} person in your channel",
+          "other": "You hear {n} people in your channel"
+        }
+      },
       "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },
     "States": {

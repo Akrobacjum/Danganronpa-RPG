@@ -26,8 +26,15 @@
  *   `display: none` with the body's class, and its `<audio>` elements are there; the GM's `voiceTile` off
  *   takes the tile and the class away on p1 and on brings them back. The control: p3, where nothing
  *   installed the shim, has no tile and no class.
- * B (C4), C (C5) and D (C6) come with their commits: the microphone, the list and the GM's block, and
- * the curtain's cut (the plan's 2.2).
+ * B (C4): p1's microphone button. p1's own click mutes p1 - struck, pressed - by writing p1's own
+ *   `users.<p1>.muted` client setting and no other row (p2's 0.5 kept), and a second click opens it again;
+ *   push-to-talk wears its small label and its line, Foundry's mute-all strikes the speaker button; a
+ *   GM's block (`canBroadcastAudio` false on p1's row, put back) is struck with the lock, not grey, and a
+ *   click writes nothing and tells p1 why. The primary GM's own `voice.assign` puts p1 alone in p1's
+ *   Eclipse room: the button is grey and struck with the reason, a click writes nothing and says why;
+ *   back in the main room it is open. The shim's record of `toggleAudio` stays empty throughout.
+ * C (C5) and D (C6) come with their commits: the list and the GM's block, and the curtain's cut (the
+ * plan's 2.2).
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78 rows and the owner's T1 (lib/livekit.mjs's header).
@@ -35,7 +42,8 @@
 export const layers = ["ci"];
 /* Measured alone on 13.10.2026 (C1's phase 0, three green runs): the checks took 12-14 ms and the
    run 4.2-4.3 s from the cluster's start to its end. 60 s is 73's bound for a scenario of four clients and a few evals; a phase that
-   adds minutes raises it with a reading of its own. */
+   adds minutes raises it with a reading of its own. With phase B (C4, two green runs on 14.10.2026, under the harness lock): the
+   cluster's 12 checks in 4.4-4.5 s, 8.3-8.6 s of wall time with the boot - the bound stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -190,4 +198,106 @@ export async function run({ gm, p1, p3, check, phase, IDS, repoUrl }) {
         J(off) === J({ tile: false, hidden: false, display: "block" }) && J(on) === J({ tile: true, hidden: true, display: "none" })
             && J(bare) === J({ tile: false, hidden: false }),
         J({ off, on, bare }));
+
+    phase("B: p1's microphone - p1's own click writes p1's own muted and nothing else; push-to-talk, mute-all, a GM's block with the lock, the Eclipse's hold in grey with the reason; the module never toggles a microphone");
+    const micJs = `${tileJs}
+        const el = () => document.querySelector("#drpg-voice-tile .drpg-voice-mic");
+        const mic = () => {
+            const button = el(), note = document.querySelector("#drpg-voice-tile .drpg-voice-tile-note");
+            if (!button) return null;
+            const lock = button.querySelector(".drpg-voice-mic-lock");
+            return { cls: [...button.classList].filter(c => c.startsWith("is-")).join(" "), pressed: button.getAttribute("aria-pressed"),
+                disabled: button.getAttribute("aria-disabled"), tip: button.dataset.tooltipText ?? "", note: note && !note.hidden ? note.textContent : "",
+                lock: lock ? getComputedStyle(lock).display : null };
+        };
+        const speaker = () => {
+            const button = document.querySelector("#drpg-voice-tile .drpg-voice-speaker"), badge = button?.querySelector(".drpg-voice-count");
+            return button ? { count: badge && !badge.hidden ? badge.textContent : "", struck: button.classList.contains("is-muted") } : null;
+        };
+        const rows = () => JSON.parse(JSON.stringify(game.webrtc.settings.client.users ?? {}));
+        const notices = () => globalThis.__notifications.length;
+        const text = key => game.i18n.localize(key);`;
+    const b = await p1.eval(`${micJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const settings = game.webrtc.settings, me = game.user.id, mode = settings.client.voice?.mode;
+        const out = { installed: true, open: { mic: mic(), speaker: speaker() }, before: rows(),
+            texts: { mute: text("DRPG.Voice.mic.mute"), unmute: text("DRPG.Voice.mic.unmute"), gmBlock: text("DRPG.Voice.held.gmBlock"),
+                ptt: text("DRPG.Voice.mic.pttNoKey"), badge: text("DRPG.Voice.mic.pttBadge") } };
+        if (!el()) return out;  // no button: the checks below fail on what they read, not on the eval's own clock
+        try {
+            el()?.click();
+            await until(() => mic()?.cls === "is-muted");
+            out.muted = { mic: mic(), rows: rows() };
+            el()?.click();
+            await until(() => mic()?.cls === "");
+            out.back = { mic: mic(), rows: rows() };
+            settings.set("client", "voice.mode", "ptt");
+            await until(() => mic()?.cls === "is-ptt");
+            out.ptt = { mic: mic(), label: el()?.querySelector(".drpg-voice-mic-ptt")?.textContent ?? null };
+            settings.set("client", "voice.mode", mode ?? "always");
+            settings.set("client", "muteAll", true);
+            await until(() => speaker()?.struck === true);
+            out.muteAll = speaker();
+            settings.set("client", "muteAll", false);
+            settings.set("client", "users." + me + ".canBroadcastAudio", false);
+            await until(() => mic()?.cls === "is-gm-blocked");
+            const seen = notices(), kept = JSON.stringify(rows());
+            el()?.click();
+            await until(() => notices() > seen);
+            out.blocked = { mic: mic(), told: globalThis.__notifications.slice(seen).map(n => n.msg), unchanged: JSON.stringify(rows()) === kept };
+        } finally {
+            settings.set("client", "voice.mode", mode ?? "always");
+            settings.set("client", "muteAll", false);
+            delete settings.client.users?.[me]?.canBroadcastAudio;
+            Hooks.callAll("rtcSettingsChanged", settings, {});
+        }
+        await until(() => mic()?.cls === "");
+        out.unblocked = mic();
+        return out;`, { timeout: 20000 });
+    const otherRows = (rows, user) => J(Object.fromEntries(Object.entries(rows ?? {}).map(([id, row]) => [id, id === user ? { ...row, muted: null } : row])));
+    check("B: on p1 the microphone is open and the speaker counts p1's channel (p3); p1's click mutes p1 - pressed, struck in the normal colours - writing p1's own muted and no other user's setting (p2's 0.5 kept); a second click opens it again",
+        b.installed === true && J(b.open?.mic) === J({ cls: "", pressed: "false", disabled: null, tip: b.texts.mute, note: "", lock: "none" })
+            && J(b.open.speaker) === J({ count: "1", struck: false })
+            && J(b.muted?.mic) === J({ cls: "is-muted", pressed: "true", disabled: null, tip: b.texts.unmute, note: "", lock: "none" })
+            && b.muted.rows?.[IDS.p1]?.muted === true && otherRows(b.muted.rows, IDS.p1) === otherRows(b.before, IDS.p1)
+            && b.muted.rows?.[IDS.p2]?.volume === 0.5
+            && b.back?.mic?.cls === "" && b.back.mic.pressed === "false" && b.back.rows?.[IDS.p1]?.muted === false
+            && otherRows(b.back.rows, IDS.p1) === otherRows(b.before, IDS.p1),
+        J(b));
+    check("B: push-to-talk wears its small label and its line (no key is bound in the harness); Foundry's mute-all strikes the speaker",
+        b.ptt?.mic?.cls === "is-ptt" && b.ptt.mic.tip === b.texts.ptt && b.ptt.label === b.texts.badge && b.ptt.mic.pressed === "false"
+            && J(b.muteAll) === J({ count: "1", struck: true }),
+        J({ ptt: b.ptt, muteAll: b.muteAll }));
+    check("B: a GM's block on p1's microphone is struck with the lock shown, not grey; p1's click writes nothing and tells p1 why; lifted, the button is open again",
+        J(b.blocked?.mic) === J({ cls: "is-gm-blocked", pressed: "false", disabled: "true", tip: b.texts.gmBlock, note: "", lock: "inline-block" })
+            && J(b.blocked.told) === J([b.texts.gmBlock]) && b.blocked.unchanged === true
+            && b.unblocked?.cls === "" && b.unblocked.disabled === null,
+        J({ blocked: b.blocked, unblocked: b.unblocked }));
+
+    // The Eclipse: the primary GM's own packet puts p1 alone in p1's Eclipse room (voice-client.mjs `onVoiceSocket`), which
+    // `micHold` holds; then the main room again.
+    const eclipseRoom = `drpg-eclipse-${IDS.p1}`;
+    const assign = room => gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: ${J(room)} }); return true;`);
+    await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])}, "drpg-elsewhere": ${J([IDS.p1, IDS.p3])}, ${J(eclipseRoom)}: ${J([IDS.p1])} }); return true;`);
+    await assign(eclipseRoom);
+    const held = await p1.eval(`${micJs}
+        await until(() => mic()?.cls === "is-held", 5000);
+        const seen = notices(), kept = JSON.stringify(rows()), out = { mic: mic(), room: __liveKit.read().name, speaker: speaker(), eclipse: text("DRPG.Voice.held.eclipse") };
+        el()?.click();
+        await until(() => notices() > seen);
+        return { ...out, told: globalThis.__notifications.slice(seen).map(n => n.msg), unchanged: JSON.stringify(rows()) === kept };`, { timeout: 10000 });
+    await assign(null);
+    const freed = await p1.eval(`${micJs}
+        await until(() => mic()?.cls === "" && __liveKit.read().name === __liveKit.MAIN_ROOM, 5000);
+        return { mic: mic(), room: __liveKit.read().name, main: __liveKit.MAIN_ROOM, toggles: __liveKit.toggles };`, { timeout: 10000 });
+    check("B: alone in p1's Eclipse room the microphone is grey and struck with the reason in its note and tooltip; p1's click writes nothing and tells p1 why; back in the main room it is open",
+        held.room === eclipseRoom
+            && J(held.mic) === J({ cls: "is-held", pressed: "false", disabled: "true", tip: held.eclipse, note: held.eclipse, lock: "none" })
+            && J(held.speaker) === J({ count: "", struck: false })
+            && J(held.told) === J([held.eclipse]) && held.unchanged === true
+            && freed.room === freed.main && freed.mic?.cls === "" && freed.mic.disabled === null,
+        J({ held, freed }));
+    check("B: the module never toggled a microphone on p1 - the shim's record of toggleAudio is empty after phases 0, A and B",
+        Array.isArray(freed.toggles) && freed.toggles.length === 0,
+        J(freed.toggles));
 }

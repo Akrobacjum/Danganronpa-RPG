@@ -6418,7 +6418,7 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
    over the corner's buttons (`--drpg-roster-foot`, the foot the player list opens from), until E78
    C6 cuts it a pane of the curtain under the Projects tray. 163x188 is the box the A9 design's
    prototype P7 read at 1366x768 in the sandbox (not measured here); C6 sizes it from the tray. The tile
-   takes no clicks until C4 gives it buttons. */
+   takes no clicks but on its two buttons (E78 C4, below). */
 #drpg-voice-tile {
     position: fixed;
     right: var(--drpg-edge);
@@ -6454,7 +6454,8 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
     transition: opacity var(--drpg-t-turn) var(--drpg-ease-leave);
 }
 .drpg-voice-tile.is-fading .drpg-voice-tile-face { opacity: 0; }
-.drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody)[hidden] { display: none; }
+.drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody, .drpg-voice-tile-note,
+    .drpg-voice-count, .drpg-voice-count-line)[hidden] { display: none; }
 
 .drpg-voice-tile-art {
     position: absolute;
@@ -6501,6 +6502,135 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+}
+
+/* THE TWO BUTTONS (E78 C4, 13.10.2026): the microphone and the speaker, 30 px, in the tile's top
+   corner over the portrait (the owner's Q17), there whether anybody speaks or not (Q7) - the only part
+   of the tile that takes a click. This is Monokuma Legacy's look, the corner's sound launcher in small
+   (a circle, the bone rim, paper-alt or ink); stained-glass.css cuts them to the corner's hexagons
+   (Q6). The states are voice-tile.mjs `paintMic`'s classes: struck for muted by me, a GM's block (with
+   the lock) and a hold, GREY only for the hold - the module's own reason (Q1, Q15) - and a dot with no
+   strike when there is no connection. The note under them is the microphone's line, shown only while
+   it is true. */
+.drpg-voice-tile-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    display: flex;
+    gap: 6px;
+}
+.drpg-launch-mini {
+    position: relative;
+    isolation: isolate;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    color: var(--drpg-bone);
+    box-shadow: 0 2px 6px rgba(var(--drpg-shadow-rgb), 0.35);
+    cursor: pointer;
+    pointer-events: auto;
+}
+.drpg-launch-mini > .drpg-pxi:first-child {
+    width: 16px;
+    height: 16px;
+    vertical-align: 0;
+}
+.drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 2px;
+    background: currentColor;
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+}
+.drpg-voice-mic.is-held {
+    border-color: var(--drpg-line-strong);
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.drpg-voice-mic.is-offline { opacity: 0.75; cursor: default; }
+.drpg-voice-mic.is-offline::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--drpg-line-strong);
+    box-shadow: 0 0 0 1px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+/* Two classes, not one: `.drpg-pxi` (below, the glyphs' own rule) states `display: inline-block` at
+   one class and later in this file, so a one-class rule here lost and the lock showed in every state -
+   scenario 75's B measured it, 14.10.2026. */
+.drpg-voice-mic > .drpg-voice-mic-lock {
+    display: none;
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 11px;
+    height: 11px;
+}
+.drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock { display: inline-block; }
+.drpg-voice-mic-ptt {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    transform: translateX(-50%);
+    padding: 0 2px;
+    font-size: calc(8px * var(--drpg-legacy-scale, 1));
+    line-height: 9px;
+    letter-spacing: 0.04em;
+    border-radius: 2px;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+.drpg-voice-mic.is-ptt .drpg-voice-mic-ptt { display: block; }
+.drpg-voice-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    font-size: calc(9px * var(--drpg-legacy-scale, 1));
+    line-height: 13px;
+    text-align: center;
+    border-radius: 7px;
+    background: var(--drpg-bone);
+    color: var(--drpg-ink);
+}
+.drpg-voice-tile-note {
+    position: absolute;
+    top: 42px;
+    left: 6px;
+    right: 6px;
+    z-index: 1;
+    margin: 0;
+    padding: 3px 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+    color: var(--color-text-primary, #efe6d8);
+    border-radius: 4px;
+    background: rgba(var(--drpg-deep-rgb), 0.85);
 }
 
 /* ==========================================================================

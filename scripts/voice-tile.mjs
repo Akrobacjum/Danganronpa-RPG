@@ -40,11 +40,25 @@
  * (audit/harness/lib/livekit.mjs) is what scenario 75 drives; real speaking detection, a hidden dock's sound after
  * F5 and `display: none !important` against Foundry's own rules are the owner's T1 and LIVE-E78 rows.
  *
- * The tile sends no socket and no packet, writes no setting and no document, and never touches a microphone or
- * an element's volume or mute: it reads them. Where it stands is an interim rule in danganronpa.css until E78 C6
- * cuts it a pane of the curtain.
+ * THE TWO BUTTONS (E78 C4, 13.10.2026; the design's steps 6 and 7, the owner's Q0, Q1, Q6 and Q15). The microphone
+ * (`micState`, `paintMic`) is grey and struck through only when the MODULE holds it - `micHold`'s `held`, from this
+ * browser's own facts (voice.mjs) - with the reason; a GM's block is struck in the normal colours with a lock, a lost
+ * connection or avclient-livekit's own window is not struck and wears a dot, and a muted-by-me button is struck in
+ * the normal colours. A click or the `toggleMute` key (`onMuteKey`, no default key) calls `toggleOwnMic`, which in
+ * the three states the player cannot change writes nothing and says why, and otherwise writes the viewer's own
+ * `users.<self>.muted` client setting and nothing else - Foundry's own dock button does that write and no more
+ * (cameras.mjs:509-518 as the design read it, external), and the design reads avclient-livekit as moving the
+ * microphone on that write itself, in push-to-talk too (LiveKitAVClient.ts:797-808, external; a LIVE-E78 row). The
+ * module never calls `toggleAudio` (R544). The speaker button shows how many people share this browser's Room and
+ * is struck while Foundry's "mute all" is on; the list it opens is E78 C5's.
+ *
+ * The tile sends no socket and no packet, writes no document and no world setting, and never touches an element's
+ * volume or mute: it reads them; the one setting it writes is the viewer's own `muted`, on the viewer's own click or
+ * key. Where it stands is an interim rule in danganronpa.css until E78 C6 cuts it a pane of the curtain.
  */
 
+import { MODULE_ID } from "./config.mjs";
+import { micHold } from "./voice.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { avclientActive } from "./voice-client.mjs";
 import { voiceIdentity, measureCameraDock } from "./camera-view.mjs";
@@ -66,6 +80,12 @@ export const HOLD_MS = 1500;
 
 /** A remote user's sound in the dock, as avclient-livekit 0.6.8 draws it (external; see the header). */
 const AUDIO = ".camera-view[data-user] audio.user-microphone-audio";
+
+/** The microphone's states a click or the key may change: the viewer's own choice. The rest only say why not. */
+const MIC_FREE = ["on", "ptt", "muted"];
+
+/** Each tile's own ids, for the `aria-describedby` of its buttons (the suite builds tiles of its own beside it). */
+let tiles = 0;
 
 const realClock = {
     now: () => Date.now(),
@@ -131,12 +151,17 @@ export function ensureVoiceTile() {
 
 /**
  * A tile's markup, built with `createElement` and `textContent` alone; loose, so the suite can paint one of its
- * own (R535, R536, R540).
+ * own (R535, R536, R537, R540). The two buttons stand in the tile's corner, over the portrait (Q17), and stay when
+ * nobody speaks (Q7); the note under them carries the microphone's line - the reason it is held, or a line of
+ * information - and is shown only while that line is true. The speaker button opens nothing until E78 C5.
  *
+ * @param {object} [options]
+ * @param {() => unknown} [options.onMic]  what a click of the microphone does: `toggleOwnMic`; the suite's spy
  * @returns {HTMLElement}
  */
-export function buildVoiceTile() {
+export function buildVoiceTile({ onMic = () => toggleOwnMic() } = {}) {
     const tile = document.createElement("section");
+    const n = ++tiles;
     tile.className = "drpg-voice-tile";
     tile.dataset.state = "offline";
     tile.setAttribute("role", "region");
@@ -152,7 +177,34 @@ export function buildVoiceTile() {
     plate.append(textNode("span", "drpg-voice-tile-speaking", game.i18n.localize("DRPG.Voice.tile.speaking")),
         textNode("span", "drpg-voice-tile-name", ""), more);
     face.append(art, plate);
-    tile.append(face, textNode("span", "drpg-voice-tile-nobody", game.i18n.localize("DRPG.Voice.tile.nobody")));
+
+    const mic = miniButton("drpg-voice-mic", "mic", game.i18n.localize("DRPG.Voice.mic.mute"));
+    mic.setAttribute("aria-pressed", "false");
+    const lock = glyph("lock");
+    lock.classList.add("drpg-voice-mic-lock");
+    mic.append(lock, textNode("span", "drpg-voice-mic-ptt", game.i18n.localize("DRPG.Voice.mic.pttBadge")));
+    mic.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        Promise.resolve().then(onMic).catch(err => error("Could not change your microphone", err));
+    });
+    const speaker = miniButton("drpg-voice-speaker", "sound", game.i18n.localize("DRPG.Voice.list.open"));
+    speaker.setAttribute("aria-haspopup", "dialog");
+    speaker.setAttribute("aria-expanded", "false");
+    const count = textNode("span", "drpg-voice-count", "");
+    count.hidden = true;
+    count.setAttribute("aria-hidden", "true");
+    const heard = textNode("span", "drpg-voice-count-line", "");
+    heard.id = `drpg-voice-count-${n}`;
+    heard.hidden = true;
+    speaker.append(count, heard);
+    const note = textNode("p", "drpg-voice-tile-note", "");
+    note.id = `drpg-voice-note-${n}`;
+    note.hidden = true;
+    const controls = textNode("div", "drpg-voice-tile-controls", "");
+    controls.append(mic, speaker);
+
+    tile.append(face, textNode("span", "drpg-voice-tile-nobody", game.i18n.localize("DRPG.Voice.tile.nobody")), controls, note);
     return tile;
 }
 
@@ -161,6 +213,25 @@ function textNode(tag, className, text) {
     el.className = className;
     el.textContent = text;
     return el;
+}
+
+/** A 30 px hexagon of the corner's family (Q6): a button with a pixel glyph and a label. */
+function miniButton(className, name, label) {
+    const button = textNode("button", `drpg-launch-mini ${className}`, "");
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    button.dataset.tooltipText = label;
+    button.append(glyph(name));
+    return button;
+}
+
+/** One of the module's pixel glyphs (pixel-icons.py), masked in the current colour; never read aloud. */
+function glyph(name) {
+    const icon = textNode("i", "drpg-pxi", "");
+    icon.style.setProperty("--drpg-px-mask", `var(--drpg-px-${name})`);
+    icon.setAttribute("aria-hidden", "true");
+    icon.inert = true;
+    return icon;
 }
 
 /**
@@ -175,12 +246,14 @@ function textNode(tag, className, text) {
  * @param {() => number} [options.fade]         the fade's length in ms; 0 under reduced motion
  * @param {(id: string) => User} [options.userOf] whose name and portrait a speaker's id is drawn with: the
  *   world's user; the suite gives a user a portrait of its own without touching a document (R536)
+ * @param {(watch: object) => void} [options.controls]  what repaints the buttons after each step: `paintControls`
+ *   on the screen's tile; nothing on the suite's, whose buttons R537 paints by hand
  */
 export function voiceWatch(tile, { clock = realClock, dock = () => document,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
-    userOf = id => game.users.get(id) } = {}) {
+    userOf = id => game.users.get(id), controls = null } = {}) {
     return {
-        tile, clock, dock, muteAll, fade, userOf,
+        tile, clock, dock, muteAll, fade, userOf, controls,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
@@ -349,6 +422,7 @@ export function voiceStep(watch = live, gone = null) {
         schedule(watch, "hold", HOLD_MS, () => startFade(watch));
     }
     paintSpeaker(watch, ready.filter(id => id !== watch.shown).length);
+    watch.controls?.(watch);
 }
 
 /** The hold is over: fade the portrait, then clear it - at once when the fade is 0 ms (reduced motion). */
@@ -463,6 +537,188 @@ function channelCount(watch) {
     return [...(room.remoteParticipants?.values?.() ?? [])].filter(p => participantUser(watch.client, p, room)).length;
 }
 
+/**
+ * The microphone button's state, from this browser's own facts (E78 C4; the design's step 6, Q1, Q15): `micHold`
+ * (voice.mjs, never GmStore) and this browser's client settings. One of
+ *   - "held": the module holds the microphone (`micHold`'s `held`: the Eclipse room today; E19 and E67 add theirs) -
+ *     grey and struck, the reason shown;
+ *   - "gmBlock": a GM blocked it for everybody - struck in the normal colours, with a lock, never grey (Q15);
+ *   - "offline": no connected Room, or avclient-livekit's own window ("external") - not struck, a dot, the reason shown;
+ *   - "muted": the viewer muted it - struck in the normal colours, `aria-pressed`;
+ *   - "ptt" or "on": open, "ptt" while Foundry's voice mode is push-to-talk.
+ * `reason` names the line under `DRPG.Voice.held` for the first three; `info` is a reason that holds nothing
+ * ("eclipseHeard": a Monocub alone in its Eclipse room, never grey - the design's P6), shown beside an open or muted
+ * button. "Muted by me" is the stored `users.<self>.muted` - the value `toggleOwnMic` writes - and not `getUser`'s
+ * answer, which Foundry may complete from the A/V client's own state (av/settings.mjs, external, not re-read here).
+ *
+ * @param {object} [facts]  handed in by R537; left out, each is read here
+ * @param {object|null} [facts.hold]  `micHold()`'s answer
+ * @param {object} [facts.settings]   Foundry's `game.webrtc.settings`
+ * @returns {{state: string, reason: string|null, info: string|null}}
+ */
+export function micState({ hold, settings = game.webrtc?.settings } = {}) {
+    const answer = hold === undefined ? micHold() : hold;
+    if (answer?.held) return { state: "held", reason: answer.reason, info: null };
+    if (answer?.reason === "external" || answer?.reason === "offline") return { state: "offline", reason: answer.reason, info: null };
+    if (answer?.reason === "gmBlock") return { state: "gmBlock", reason: answer.reason, info: null };
+    const info = answer?.reason ?? null;
+    if (settings?.get?.("client", `users.${game.user?.id}.muted`) === true) return { state: "muted", reason: null, info };
+    return { state: settings?.client?.voice?.mode === "ptt" ? "ptt" : "on", reason: null, info };
+}
+
+/**
+ * The viewer's own microphone, on the viewer's own click or key: in "on", "ptt" and "muted" the one write Foundry's
+ * dock makes for its own user, `users.<self>.muted` in this browser's client settings, flipped - and nothing else, no
+ * `toggleAudio` (the design reads avclient-livekit as acting on the write itself; external). In "held", "gmBlock" and
+ * "offline" it writes nothing and says why. The state is asked at the moment of the click, not read off the button.
+ *
+ * @param {object} [options]  handed in by R537
+ * @param {object} [options.mic]       `micState()`
+ * @param {object} [options.settings]  Foundry's `game.webrtc.settings`
+ * @param {(text: string) => void} [options.notify]
+ * @returns {Promise<boolean>} whether it wrote
+ */
+export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.settings,
+    notify = text => ui.notifications?.info(text) } = {}) {
+    if (!MIC_FREE.includes(mic?.state)) {
+        notify(game.i18n.localize(`DRPG.Voice.held.${mic?.reason ?? "offline"}`));
+        return false;
+    }
+    if (typeof settings?.set !== "function") return false;
+    await settings.set("client", `users.${game.user.id}.muted`, mic.state !== "muted");
+    return true;
+}
+
+/** The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded). */
+function pushToTalkKey(keybindings = game.keybindings) {
+    try {
+        const binding = keybindings?.get?.("core", "pushToTalk")?.[0];
+        if (!binding?.key) return null;
+        const humanize = foundry.applications?.sidebar?.apps?.ControlsConfig?.humanizeBinding;
+        return typeof humanize === "function" ? humanize(binding) : binding.key;
+    } catch {
+        return null;
+    }
+}
+
+/** What each tile's microphone shows now, as `painted` holds the speaker's. */
+const paintedMic = new WeakMap();
+
+/**
+ * Draw `mic` on a tile's microphone button and its note, writing only what differs from what the tile shows. The
+ * classes are what the stylesheets read: `is-held` (grey, struck), `is-gm-blocked` (struck, the lock), `is-offline`
+ * (the dot), `is-muted` (struck), `is-ptt` (the small label). The note is shown for a held or offline reason and for
+ * a line of information; a GM's block and push-to-talk keep their line in the button's description only.
+ *
+ * @param {HTMLElement} tile
+ * @param {{state: string, reason: string|null, info: string|null}} mic  `micState()`
+ * @param {object} [options]
+ * @param {string|null} [options.key]  the push-to-talk key's name
+ * @returns {boolean} whether it wrote anything
+ */
+export function paintMic(tile, mic, { key = pushToTalkKey() } = {}) {
+    const button = tile?.querySelector(".drpg-voice-mic"), note = tile?.querySelector(".drpg-voice-tile-note");
+    if (!button || !note) return false;
+    const reasonLine = mic.reason ? game.i18n.localize(`DRPG.Voice.held.${mic.reason}`) : "";
+    const infoLine = mic.info ? game.i18n.localize(`DRPG.Voice.held.${mic.info}`) : "";
+    const pttLine = mic.state === "ptt"
+        ? (key ? game.i18n.format("DRPG.Voice.mic.ptt", { key }) : game.i18n.localize("DRPG.Voice.mic.pttNoKey")) : "";
+    const tip = { muted: game.i18n.localize("DRPG.Voice.mic.unmute"), ptt: pttLine, on: game.i18n.localize("DRPG.Voice.mic.mute") };
+    const line = reasonLine || infoLine || pttLine;
+    const next = {
+        state: mic.state,
+        tip: tip[mic.state] ?? reasonLine,
+        line,
+        shown: Boolean(line) && (["held", "offline"].includes(mic.state) || Boolean(infoLine))
+    };
+    const last = paintedMic.get(tile) ?? {};
+    const changed = Object.keys(next).filter(field => last[field] !== next[field]);
+    if (!changed.length) return false;
+    paintedMic.set(tile, next);
+
+    if (changed.includes("state")) {
+        for (const [cls, state] of [["is-held", "held"], ["is-gm-blocked", "gmBlock"], ["is-offline", "offline"],
+            ["is-muted", "muted"], ["is-ptt", "ptt"]]) button.classList.toggle(cls, next.state === state);
+        button.setAttribute("aria-pressed", String(next.state === "muted"));
+        if (MIC_FREE.includes(next.state)) button.removeAttribute("aria-disabled");
+        else button.setAttribute("aria-disabled", "true");
+    }
+    if (changed.includes("tip")) button.dataset.tooltipText = next.tip;
+    if (changed.includes("line")) {
+        note.textContent = next.line;
+        if (next.line) button.setAttribute("aria-describedby", note.id);
+        else button.removeAttribute("aria-describedby");
+    }
+    if (changed.includes("shown")) note.hidden = !next.shown;
+    return true;
+}
+
+/**
+ * Draw the speaker button: the count of people in this browser's Room (hidden at 0) and its line, and the strike
+ * while Foundry's "mute all" is on. Writes only what changed.
+ *
+ * @param {HTMLElement} tile
+ * @param {{count: number, muteAll: boolean}} facts
+ * @returns {boolean}
+ */
+export function paintSpeakerButton(tile, { count, muteAll }) {
+    const button = tile?.querySelector(".drpg-voice-speaker");
+    const badge = button?.querySelector(".drpg-voice-count"), line = button?.querySelector(".drpg-voice-count-line");
+    if (!badge || !line) return false;
+    const n = Math.max(0, Number(count) || 0), struck = Boolean(muteAll);
+    if (badge.textContent === (n ? String(n) : "") && button.classList.contains("is-muted") === struck) return false;
+    button.classList.toggle("is-muted", struck);
+    badge.textContent = n ? String(n) : "";
+    badge.hidden = !n;
+    line.textContent = n ? plural("DRPG.Voice.list.count", { n }) : "";
+    if (n) button.setAttribute("aria-describedby", line.id);
+    else button.removeAttribute("aria-describedby");
+    button.dataset.tooltipText = line.textContent || game.i18n.localize("DRPG.Voice.list.open");
+    return true;
+}
+
+/** Both buttons of the watch's tile, from this browser's facts now. */
+export function paintControls(watch = live) {
+    if (!watch?.tile) return;
+    try {
+        paintMic(watch.tile, micState());
+        paintSpeakerButton(watch.tile, { count: channelCount(watch), muteAll: watch.muteAll() });
+    } catch (err) {
+        error("Could not draw the voice tile's buttons", err);
+    }
+}
+
+/**
+ * The `toggleMute` key: the viewer's own microphone through `toggleOwnMic`, as the button's click. Nothing, and
+ * the key left to whatever else is bound to it, where this world has no voice.
+ *
+ * @param {object} [options]  handed in by R537
+ * @returns {boolean} whether the key was taken
+ */
+export function onMuteKey({ available = voiceAvailable(), toggle = () => toggleOwnMic() } = {}) {
+    if (!available) return false;
+    Promise.resolve().then(toggle).catch(err => error("Could not change your microphone", err));
+    return true;
+}
+
+/**
+ * Register the `toggleMute` key (module.mjs `init`, where Foundry takes keybindings). No default key, as the
+ * safeword's and the notice history's have none: a key the module chose would be one a table already uses.
+ *
+ * @param {object} [keybindings]  Foundry's `game.keybindings`; R537's spy
+ * @param {() => boolean} [onKey]
+ */
+export function registerVoiceKeybinding(keybindings = game.keybindings, onKey = () => onMuteKey()) {
+    try {
+        keybindings.register(MODULE_ID, "toggleMute", {
+            name: "DRPG.Voice.mic.keybinding", editable: [], onDown: () => onKey(),
+            restricted: false, precedence: CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 1
+        });
+    } catch (err) {
+        error("Could not register the microphone's keybinding", err);
+    }
+}
+
 /** avclient-livekit's client, when it is the A/V client (external; voice-client.mjs reads the same field). */
 function liveKitClient() {
     return game.webrtc?.client?._liveKitClient ?? null;
@@ -488,10 +744,11 @@ export function refreshVoiceTile(client = liveKitClient()) {
         const tile = ensureVoiceTile();
         if (live?.tile !== tile) {
             detachRoom(live);
-            live = voiceWatch(tile);
+            live = voiceWatch(tile, { controls: paintControls });
         }
         if (live.client !== client || live.room !== (client?.liveKitRoom ?? null)) attachRoom(client, live);
         else voiceStep(live);
+        paintControls(live);
     } catch (err) {
         error("Could not draw the voice tile", err);
     }
@@ -506,10 +763,15 @@ function dropVoiceTile() {
 
 /**
  * The tile's triggers (module.mjs `ready`). The hook's argument is avclient-livekit's client; the field on
- * `game.webrtc.client` is read first, as voice-client.mjs reads it, and the argument only when that is absent.
+ * `game.webrtc.client` is read first, as voice-client.mjs reads it, and the argument only when that is absent. The
+ * viewer's own user changing (a GM's block is a permission on it) repaints the buttons; a client setting - a mute,
+ * the voice mode - comes through `rtcSettingsChanged`.
  */
 export function registerVoiceTile() {
     Hooks.on("liveKitClientInitialized", client => refreshVoiceTile(liveKitClient() ?? client ?? null));
     Hooks.on("rtcSettingsChanged", () => refreshVoiceTile());
+    Hooks.on("updateUser", user => {
+        if (user?.id === game.user?.id) paintControls();
+    });
     refreshVoiceTile();
 }

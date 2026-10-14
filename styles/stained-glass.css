@@ -530,6 +530,40 @@ body.drpg-theme-stained-glass #drpg-foundry-tools {
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
     box-shadow: 0 0 12px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
+/* The voice tile's two buttons (E78 C4; the owner's Q6: "matching the ones in the bottom right
+   corner"): the same hexagon, rim at 60% of the game state's colour (Q18), the ground rgb(29, 26, 33)
+   the design names, the glow. The hexagon is cut on a layer UNDER the glyph rather than on the button,
+   as the corner's are, because a clip-path on the button would cut its lock, its PTT label and its count
+   off at the corners; the glow is a drop-shadow, which follows the cut shape. A held microphone stays
+   grey (danganronpa.css, Q18). */
+body.drpg-theme-stained-glass .drpg-voice-tile-controls { color-scheme: dark; }
+body.drpg-theme-stained-glass .drpg-launch-mini {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--drpg-sg-bone);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent));
+}
+body.drpg-theme-stained-glass .drpg-launch-mini::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgb(29, 26, 33);
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
+    color: var(--drpg-line-strong);
+    filter: grayscale(1);
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
+body.drpg-theme-stained-glass .drpg-voice-count {
+    background: var(--drpg-glass-accent);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-voice-mic-ptt, .drpg-voice-tile-note) { font-family: var(--drpg-font-chrome); }
 
 /* ---- motion: the pulse is a canvas, everything else stands still ------------- */
 @media (prefers-reduced-motion: reduce) {
