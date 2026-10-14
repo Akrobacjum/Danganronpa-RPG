@@ -977,7 +977,7 @@ Next free: R550. Reserved and unused: R121 for A4 (E22); R122 for A1 (E23); R123
 | R546 | 1 | E78 | on The Forge a picture of its Assets Library is a picture of this game: safeRoomImage keeps it as its full address under every other refusal, the room tile, the voice tile, its list and the notice history draw it; off The Forge it is refused; a voice is drawn with the first of its two portraits the check accepts |
 | R547 | 1 | E78 | the rotated blocks stand still between passes: a pass over the same geometry writes the rotation sheet zero times, a block over the wall keeps its shift, and a block that leaves the table takes its shift with it |
 | R548 | 1 | E78 | Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets |
-| R549 | 1 | E78 | the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and stands upright, the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were |
+| R549 | 1 | E78 | the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and leans as C0 leaned it (6 degrees at 1366x768), the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

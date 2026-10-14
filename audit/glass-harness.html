@@ -411,8 +411,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        notes    beside the notices: the foot level with the notice tile's, the gap 32 + h x tan 8 deg off its edge,
                 and the corner of the history's button (A7) on no part of the room's pane. Since E78 fix h76-HF4
                 (14.10.2026) h there is `h0`, the height C0 gave the box, so the notice tile leans as it did at C0;
-                the pane ends 10 px (PAD_FAR) under the box, never at the screen's foot, and stands upright (P11);
-                and what is written on the tile - the name, the pips, the project line, the toggle - lies inside
+                the pane ends 10 px (PAD_FAR) under the box, never at the screen's foot; the tile turns by its pane's
+                own angle (`tilt`, degrees off the pane's top edge; E78 fix r1-G3: it keeps C0's tilt, the owner's
+                word of 14.10, and the sweep pins the angle per size); and what is written on the tile - the name, the pips, the project line, the toggle - lies inside
                 the box and on no other part of it, closed and with 400 words of description open, which then
                 shows at least two lines and scrolls (`pane`, `under`, `content`, `open`).
        row      on a stacked screen (E77 C8, 13.10.2026): the tile in narrow.mjs's `#drpg-tile-row`, a child of the
@@ -694,7 +695,18 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         pane: [pane.x1 - pane.x0, pane.y1 - pane.y0], under: Math.round(pane.y1 - (b.y + b.h)), turn: turn[0], content: content.why.join("; "), open: content.open };
       if (pane.y1 >= (at?.height ?? innerHeight) - 2) out.why.push(`the room's pane runs to the screen's foot (y ${pane.y0}..${pane.y1})`);
       else if (!near(pane.y1, b.y + b.h + 10, 1.5)) out.why.push(`the room's pane ends ${out.notes.under} px under the box, not 10`);
-      if (!/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(turn[0])) out.why.push(`the tile beside the notices turns (${turn[0]})`);
+      /* THE TILT (E78 fix r1-G3, 14.10.2026): the tile turns by the angle its pane is cut at, read off the pane's
+         top edge (of the edges wider than 20 px, the one lying highest; the cut clips the sides and the foot,
+         never that edge here), against the turn the page computed. Upright reads 0 on both; C0's lean and this
+         one 6.0 at 1366x768 (Chromium, the glass harness). The angle itself is the sweep's to pin (PIN_TILT):
+         this check is that the glass and the tile agree. */
+      const edges = pane.poly.map((q, i) => [q, pane.poly[(i + 1) % pane.poly.length]]).filter(([p0, p1]) => Math.abs(p1[0] - p0[0]) > 20);
+      const top = edges.sort((e1, e2) => (e1[0][1] + e1[1][1]) - (e2[0][1] + e2[1][1]))[0];
+      const deg = r => +(r * 180 / Math.PI).toFixed(1);
+      const paneTilt = top ? deg(Math.atan((top[1][1] - top[0][1]) / (top[1][0] - top[0][0]))) : null;
+      const mt = /^matrix\(([-\d.e]+), ([-\d.e]+),/.exec(turn[0]), tileTilt = mt ? deg(Math.atan2(+mt[2], +mt[1])) : turn[0] === "none" ? 0 : null;
+      out.notes.tilt = tileTilt;
+      if (paneTilt == null || tileTilt == null || Math.abs(paneTilt - tileTilt) > 0.2) out.why.push(`the tile beside the notices turns ${tileTilt ?? turn[0]} degrees and its pane ${paneTilt}`);
       if (content.why.length) out.why.push(...content.why);
       if (!note || !near(b.y + b.h, note.y + note.h, 1.5)) out.why.push(`the foot ${out.notes.foot[0]} is not the notice tile's ${out.notes.foot[1]}`);
       if (out.notes.gap == null || !near(out.notes.gap, out.notes.want, 1.5)) out.why.push(`the gap ${out.notes.gap} off the notice tile is not ${out.notes.want}`);

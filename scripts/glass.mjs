@@ -1672,19 +1672,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const { W, H, FW, push } = ctx;
     const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
     const s0 = field(cx, FW, band);
-    /* THE ROOM TILE BESIDE THE NOTICES IS A PANE OF ITS BOX, UPRIGHT (E78 fix h76-HF4, 14.10.2026). A column
-       of the bottom band runs its pane down to the screen's foot, and so did the room tile's in its 'notes'
-       place - the only block a bottom column holds alone besides the notice tile: C0 shrank the box and the
-       pane stayed 362x370 at 1366x768, which is what the owner measured off the shot. Its pane ends PAD_FAR
+    /* THE ROOM TILE BESIDE THE NOTICES IS A PANE OF ITS BOX (E78 fix h76-HF4, 14.10.2026). A column of the
+       bottom band runs its pane down to the screen's foot, and so did the room tile's in its 'notes' place -
+       the only block a bottom column holds alone besides the notice tile: C0 shrank the box and the pane
+       stayed 362x370 at 1366x768, which is what the owner measured off the shot. Its pane ends PAD_FAR
        under the box (the split below) and the glass under it is a plain pane, as it is between the columns.
-       It stands upright as P11 draws it (design-4). What tilted it was C0's shorter box: the gap off the
-       notice tile is 32 + h x tan 8 (`roomPlacement`), 84.8 px at 1.2.76's 376 and 68.4 at C0's 259, so
-       the tile moved 16 px left and its midpoint, 535.5 at 1366x768, left the upright zone below (from
-       546.4 there); it leaned 6 degrees at 1366x768 and 1366x657 and at no other 'notes' size (Chromium,
-       the glass harness, 14.10.2026) - one pass, not a write measured again in a loop. Under the clock it
-       is a member of the clock's column, in the top band, and none of this touches it. */
+       IT KEEPS ITS TILT (E78 fix r1-G3, the owner, 14.10.2026: "Zostaw kafel przekrzywiony" - leave the
+       tile tilted, said of C0's shot, where it leaned 6 degrees at 1366x768). HF4 had stood it upright as
+       P11 draws it; the owner's word came after and wins, so the column tilts by the field's rule like any
+       other. Where that tilts it: C0's shorter box moved it 16 px left (the gap off the notice tile is
+       32 + h0 x tan 8, `roomPlacement`, 84.8 px at 1.2.76's 376 and 68.4 at C0's 259), and its midpoint,
+       535.5 at 1366x768, left the upright zone below (from 546.4 there); HF4 kept that left edge, so it
+       leans 6 degrees at 1366x768 and 1366x657, as at C0, and at no other 'notes' size (Chromium, the
+       glass harness, 14.10.2026; the sweep pins the angle, PIN_TILT). Under the clock it is a member of
+       the clock's column, in the top band, and none of this touches it. */
     const boxed = band === "bottom" && c.items.length === 1 && c.items[0].cls === "room-block";
-    let theta = boxed || Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+    let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
     // a neighbour too close forbids the tilt that would swing the pane into it
     for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - FILL_MIN) / Math.max(h, 1))); }
     const s = Math.sign(s0) * Math.tan(theta);

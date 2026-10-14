@@ -2353,7 +2353,7 @@ const INVARIANTS = [
             "[a shard at the right wall is counted, the shards at a right wall with no rail without the voice tile, and with it]");
     }],
 
-    ["R549 - the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and stands upright, the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
+    ["R549 - the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and leans as C0 leaned it (6 degrees at 1366x768), the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
         /*
          * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices
          * "dalej jest ok 2x za duzy", read as half the height. C0 had shrunk the box (301x376 to 301x259), but the
@@ -2363,10 +2363,15 @@ const INVARIANTS = [
          * for a player at 1366x768 on HF4's tree (`LAST.blocks`), the notice and room tiles fixed as BLOCKS has them;
          * the same call gave the live cut's two panes to the pixel that day (373,538..698,708 and 0,389..365,768).
          * At the parent the room's pane ends at 768 whatever the box. Now it ends 10 px (PAD_FAR) under the box,
-         * 12 px either side of it, upright (P11, design-4; C0's 6 degrees came from the tile's midpoint crossing the
-         * upright zone's edge, 0.1 of the screen off its middle, when C0 moved it 16 px left), the glass under it is
-         * a plain pane down to the foot, and the notice tile still leans its 8 degrees: the room keeps C0's left edge
-         * (32 + h0 x tan 8 off the notice tile, h0 C0's height), and the gap is what limits the notice tile's lean.
+         * 12 px either side of it, the glass under it is a plain pane down to the foot, and the notice tile still
+         * leans its 8 degrees: the room keeps C0's left edge (32 + h0 x tan 8 off the notice tile, h0 C0's height),
+         * and the gap is what limits the notice tile's lean.
+         * THE TILT (E78 fix r1-G3, 14.10.2026; the owner, on C0's lean: "Zostaw kafel przekrzywiony" - leave the tile
+         * tilted). HF4 stood the pane upright as P11 draws it; the owner's word came after and wins. C0's 6 degrees
+         * came from the tile's midpoint crossing the upright zone's edge, 0.1 of the screen off its middle, when C0
+         * moved it 16 px left, and HF4 kept that edge: at 1366x768 the room tile turns 6 degrees again with its pane,
+         * whose bounds the live cut and this call both read as 374,506..715,709 (Chromium, the glass harness,
+         * 14.10.2026; HF4's upright pane was 373,538..698,708). The plain pane under it shares its bottom edge.
          * THE CONTROLS: the same blocks with the room tile under the clock at 1920x1080 (R545's) cut no short pane and
          * the room leans with its column there; each reader below is read on a planted shape first.
          * THE HEIGHT, pure: roomNotesH(h0, foot, low) at the sweep's 'notes' sizes, with C0's height and the gauge's
@@ -2392,10 +2397,12 @@ const INVARIANTS = [
         if (room.length !== 1) return;
         const r = bb(room[0].poly);
         ok(!toFoot(room[0].poly), `the room's pane beside the notices runs to the screen's foot (y ${Math.round(r.y0)}..${Math.round(r.y1)}), as C0 cut it`);
-        equal(JSON.stringify([r.x0, r.y0, r.x1, r.y1].map(Math.round)), JSON.stringify([box.x - 12, box.y - 10, box.x + box.w + 12, box.y + box.h + 10]),
-            "the room's pane is not the box with 12 px either side and 10 px over and under it");
-        equal(turnOf(cut, "#drpg-room-tile"), 0, "the room tile beside the notices turns");
-        const under = cut.panes.filter(p => !p.tone && (b => b.y0 >= r.y1 - 1 && b.x0 >= r.x0 - 1 && b.x1 <= r.x1 + 1)(bb(p.poly)));
+        equal(JSON.stringify([r.x0, r.y0, r.x1, r.y1].map(Math.round)), "[374,506,715,709]",
+            "the room's pane is not the box with 12 px either side and 10 px over and under it, turned 6 degrees about its column's foot");
+        equal((turnOf(cut, "#drpg-room-tile") * 180 / Math.PI).toFixed(2), "6.00", "the room tile beside the notices does not lean as C0 leaned it at 1366x768, in degrees");
+        const shares = P => room[0].poly.filter(q => P.some(u => Math.hypot(u[0] - q[0], u[1] - q[1]) < 1)).length;
+        equal(JSON.stringify([shares([[0, 0], [1, 1]]), shares(room[0].poly)]), "[0,4]", "[a shape far off the room's pane, the pane itself] - corners shared, the reader below");
+        const under = cut.panes.filter(p => !p.tone && shares(p.poly) === 2);
         ok(under.length === 1 && toFoot(under[0].poly) && under[0].kind === "sector", `the glass under the room's pane: ${under.length} plain pane(s)${under[0] ? " to y " + Math.round(bb(under[0].poly).y1) : ""}`);
         ok(Math.abs(Math.abs(turnOf(cut, "#drpg-popups")) - 8 * Math.PI / 180) < 1e-9, `the notice tile leans ${(turnOf(cut, "#drpg-popups") * 180 / Math.PI).toFixed(2)} degrees, not C0's 8`);
         // the control: under the clock (R545's 1920x1080 blocks) the room is the clock's column's and leans with it, its pane uncut

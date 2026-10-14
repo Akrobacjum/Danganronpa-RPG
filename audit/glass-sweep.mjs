@@ -217,9 +217,17 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
    and 1366x657 (370 and 356 high, leaning), 325x339 at 1224x768 and 1300x768, 325x350 at 1280x800 and 1264x800 and
    325x325 at 1280x720 (upright); after HF4 each is the box and 10 px over and under it, upright, and as wide as at
    C0 where it stood upright. `plantPane` is the control: the pane run to the foot again with the box as it is, which
-   is exactly what C0 left, must fail the room check. */
-const PANE = { "1366x768": "325x170", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "325x163" };
+   is exactly what C0 left, must fail the room check.
+   THE TILT PINS (E78 fix r1-G3, 14.10.2026; the owner on C0's lean: "Zostaw kafel przekrzywiony" - leave the tile
+   tilted). HF4 had stood the pane upright; it leans again where C0 leaned it, 6.0 degrees at 1366x768 and 1366x657,
+   and stands upright at the five other 'notes' sizes, as at C0 (the page's `notes.tilt`, the tile's turn, which the
+   room check holds to its pane's own angle; Chromium, read the same day on C0's tree, HF4's and this one). The
+   leaning panes' bounds grow with the lean: 325x170 became 341x203 at 1366x768 and 325x163 became 340x196 at
+   1366x657, still ending 10 px under the box. `plantPane`'s `turned` control turns the tile off its pane's angle. */
+const PANE = { "1366x768": "341x203", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "340x196" };
 const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
+const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6 };
+const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
 
 let chromium;
@@ -371,8 +379,9 @@ async function plantPane() {
         [pane.poly, pane.y1] = was;
         res.foot = { ok: r.ok, why: r.why, pass: !r.ok && /screen's foot/.test(r.why) };
     }
-    {   // turned: the tile leaning 6 degrees, as C0 drew it at 1366x768
-        tile.style.setProperty("transition", "none", "important"); tile.style.setProperty("transform", "rotate(0.1047rad)", "important");
+    {   // turned: the tile off its pane's angle - upright where the pane leans, leaning 6 degrees where it stands upright
+        const leans = !/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(getComputedStyle(tile).transform);
+        tile.style.setProperty("transition", "none", "important"); tile.style.setProperty("transform", leans ? "none" : "rotate(0.1047rad)", "important");
         const r = await window.drpgRoomCheck({ cuts: false });
         tile.style.removeProperty("transform"); void getComputedStyle(tile).transform; tile.style.removeProperty("transition");
         res.turned = { ok: r.ok, why: r.why, pass: !r.ok && /turns/.test(r.why) };
@@ -542,6 +551,12 @@ try {
                     if (panePin || rc.notes) {
                         line += panePin ? (panePin === paneGot ? " | pane pin ok" : ` | pane ${paneGot}/${panePin}`) : " | pane unpinned";
                         if (panePin !== paneGot) fails.push(`room: pane ${paneGot} where PIN_PANE has ${panePin ?? "none"}`);
+                    }
+                    /* THE TILT PIN (E78 fix r1-G3): beside the notices, the tile's turn in degrees as PIN_TILT records it. */
+                    const tiltPin = PIN_TILT[`${theme} ${role} ${size}`], tiltGot = rc.notes ? rc.notes.tilt : undefined;
+                    if (tiltPin !== undefined || rc.notes) {
+                        line += tiltPin !== undefined ? (tiltPin === tiltGot ? " | tilt pin ok" : ` | tilt ${tiltGot}/${tiltPin}`) : " | tilt unpinned";
+                        if (tiltPin !== tiltGot) fails.push(`room: tilt ${tiltGot} where PIN_TILT has ${tiltPin ?? "none"}`);
                     }
                     if (control && !paneControlled && rc.notes) {
                         paneControlled = true;
