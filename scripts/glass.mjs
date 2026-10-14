@@ -255,12 +255,26 @@ export function roomCapH(H, need) {
    from PAD_FAR over the box down to the screen's edge, so the pane stood h + the gauge's foot +
    PAD_FAR tall - 339 at 1224x768 and 1300x768, 350 at 1280x800, 325 at 1280x720 (upright), 370
    at 1366x768 and 356 at 1366x657 (where it leaned 6 degrees; its bounds, Chromium, the glass
-   harness, 14.10.2026). The pane now ends PAD_FAR under the box (`buildColumn`), so the box is half
-   that run less the two pads: `h0` is C0's height (`roomPlacement`'s cap chain), the result the
-   tile's. Never under `low`, the laid-out content's own floor (`roomSizes`): the name's row with
-   the pips beside it, the project line and two lines of the open description. */
-export function roomNotesH(h0, foot, low) {
-  return Math.round(Math.max(low, (h0 + foot + PAD_FAR) / 2 - 2 * PAD_FAR));
+   harness, 14.10.2026). HF4 ended the pane PAD_FAR under a box half that run tall and put a plain
+   pane under it.
+   THE PICTURE RUNS PAST THE SCREEN'S EDGE AGAIN (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at
+   1366x768, in Polish: "zdjecie mialo byc przeciagniete za krawedz ekranu" - the picture was to run past
+   the screen's edge). The pane runs to the foot as every column of the bottom band does, and what stays
+   half of C0's run is the pane above the screen's edge: the box stands `lift` over the edge, PAD_FAR and
+   half its width x tan 8 - so its lower corner keeps PAD_FAR clear of the edge at the steepest lean a
+   column takes - and its top is half C0's upright run under the screen's edge, less the pad over it. So
+   the box leaves the notice tile's foot (`gaugeFoot`, the line Foundry's gauge stands on, in the left
+   column): the room tile stands right of that column. Never under `low`, the laid-out content's own
+   floor (`roomSizes`): the name's row with the pips beside it, the project line and two lines of the open
+   description. Read in Chromium on the glass harness the same day: audit/glass-sweep.mjs PIN_BOX and
+   PIN_PANE. Where Foundry's gauge stands at a table is read in the code (stained-glass.css, the left
+   column), not measured there. */
+export function roomNotesH(h0, foot, low, lift) {
+  return Math.round(Math.max(low, (h0 + foot + PAD_FAR) / 2 - PAD_FAR - lift));
+}
+/** How far the box beside the notices stands over the screen's edge (`roomNotesH`). */
+export function roomNotesLift(w) {
+  return PAD_FAR + Math.round(w / 2 * ROOM_TAN);
 }
 /* What the scene rail takes out of the clock's column under the tile: the slot over its first
    tile and its layers' run, read off the layer buttons themselves (their run does not depend on
@@ -309,8 +323,8 @@ export function roomPlacement(W, H) {
     if (F - 24 >= need) return { place: "clock", F, need, maxH, x: Math.round(hud.left), w: Math.round(hud.width), h: Math.round(Math.min(F - 24, maxH)) };
   }
   const w = Math.round(noteW), { need, maxH, low } = roomSizes(w);
-  const h0 = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22, roomCapH(H, need))), h = roomNotesH(h0, foot, low);
-  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, h0, x: Math.round(16 + noteW + 32 + h0 * ROOM_TAN), y: Math.round(H - foot - h), w, h };
+  const h0 = Math.round(Math.min(maxH, H / 2 - 8, H - foot - 22, roomCapH(H, need))), lift = roomNotesLift(w), h = roomNotesH(h0, foot, low, lift);
+  return { place: "notes", F, need: hud ? roomSizes(hud.width).need : need, maxH, h0, x: Math.round(16 + noteW + 32 + h0 * ROOM_TAN), y: Math.round(H - lift - h), w, h };
 }
 /* UNDER MONOKUMA LEGACY THE SAME TWO PLACES, WITH NO CURTAIN (E77 fix r1-M1, 13.10.2026; review round
    1's cor F6 and goal row G8; the A8 design's P16-0). Until this the tile stood under the clock at the
@@ -469,7 +483,7 @@ const bboxOf = poly => ({ x0: Math.min(...poly.map(q => q[0])), y0: Math.min(...
    column's glass to the left of that pane is not cut at all: Q16, "Na lewo od voice chatu nie
    powinno byc zadnego szkla", the area `voice-left` the self-check keeps empty (`OPEN_AREAS`). */
 const VOICE = { box: null };
-const VOICE_VARS = ["--drpg-voice-x", "--drpg-voice-y", "--drpg-voice-w", "--drpg-voice-h"];
+const VOICE_VARS = ["--drpg-voice-x", "--drpg-voice-y", "--drpg-voice-w", "--drpg-voice-h", "--drpg-voice-lift"];
 const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOICE_FOOT = 52;
 /* THE TILE'S TWO FLOORS (E78 fix r2-H1, 14.10.2026; review round 2's cor F1). C6 cut the height down to
    the corner's pane and set no floor of its own, and a wide, short screen keeps the desk: at af5eb69 the
@@ -487,8 +501,15 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
    tile is 181x55 compact at 1366x600 and 181x42 at 1366x560, a player's 181x93 full and 181x53 compact,
    the self-check clean, and the GM's holds down to 1366x546; at 1366x544 its pane meets the corner's
    (overlaps 1), a desk this does not keep. A name of three lines (over about 44 letters) still runs up
-   under the buttons at a height just over VOICE_FULL. */
-const VOICE_FULL = 91, VOICE_MIN = 42;
+   under the buttons at a height just over VOICE_FULL.
+   E78 fix r2-H3 (14.10.2026) stood the full form's buttons one over the other at the pane's corner,
+   from 7 px under the seam with the tray's pane (stained-glass.css): with the tray at its five rows
+   the seam is VOICE_SEAM / 2 over the tile, so the column ends 7 - 12 + 30 + 4 + 30 = 59 px down the
+   tile, and VOICE_FULL rose from 91 to 114 (59 + 2 + 41 + 12). Read in Chromium on the glass harness
+   the same day with the tray's list held at its five rows and a name on two lines: at 91 the GM's
+   tile at 1366x657 (110 high) had the plate under the speaker; at 114 a player's tile at 1366x600 (93)
+   is compact, as the GM's is. */
+const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
 export const OPEN_AREAS = [];
 /* The tray at five rows, wherever it stands now: its own top to the header's foot, and the list's
@@ -535,7 +556,7 @@ function seatVoiceTile(box) {
     if (tile) { if (tile.dataset.place) delete tile.dataset.place; if (tile.dataset.fit) delete tile.dataset.fit; tile.style.zIndex = ""; }
     return;
   }
-  const vars = { "--drpg-voice-x": box.x, "--drpg-voice-y": box.y, "--drpg-voice-w": box.w, "--drpg-voice-h": box.h };
+  const vars = { "--drpg-voice-x": box.x, "--drpg-voice-y": box.y, "--drpg-voice-w": box.w, "--drpg-voice-h": box.h, "--drpg-voice-lift": box.lift ?? 0 };
   for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v + "px");
   if (tile.dataset.place !== "wall") tile.dataset.place = "wall";
   if (box.fit === "compact") { if (tile.dataset.fit !== "compact") tile.dataset.fit = "compact"; } else if (tile.dataset.fit) delete tile.dataset.fit;
@@ -1691,21 +1712,18 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const { W, H, FW, push } = ctx;
     const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
     const s0 = field(cx, FW, band);
-    /* THE ROOM TILE BESIDE THE NOTICES IS A PANE OF ITS BOX (E78 fix h76-HF4, 14.10.2026). A column of the
-       bottom band runs its pane down to the screen's foot, and so did the room tile's in its 'notes' place -
-       the only block a bottom column holds alone besides the notice tile: C0 shrank the box and the pane
-       stayed 362x370 at 1366x768, which is what the owner measured off the shot. Its pane ends PAD_FAR
-       under the box (the split below) and the glass under it is a plain pane, as it is between the columns.
-       IT KEEPS ITS TILT (E78 fix r1-G3, the owner, 14.10.2026: "Zostaw kafel przekrzywiony" - leave the
-       tile tilted, said of C0's shot, where it leaned 6 degrees at 1366x768). HF4 had stood it upright as
-       P11 draws it; the owner's word came after and wins, so the column tilts by the field's rule like any
-       other. Where that tilts it: C0's shorter box moved it 16 px left (the gap off the notice tile is
-       32 + h0 x tan 8, `roomPlacement`, 84.8 px at 1.2.76's 376 and 68.4 at C0's 259), and its midpoint,
-       535.5 at 1366x768, left the upright zone below (from 546.4 there); HF4 kept that left edge, so it
-       leans 6 degrees at 1366x768 and 1366x657, as at C0, and at no other 'notes' size (Chromium, the
-       glass harness, 14.10.2026; the sweep pins the angle, PIN_TILT). Under the clock it is a member of
-       the clock's column, in the top band, and none of this touches it. */
-    const boxed = band === "bottom" && c.items.length === 1 && c.items[0].cls === "room-block";
+    /* THE ROOM TILE BESIDE THE NOTICES (E78 fix h76-HF4, 14.10.2026): the only block a bottom column holds alone
+       besides the notice tile. HF4 ended its pane PAD_FAR under the box and cut a plain pane under it; E78 fix r2-H3
+       (14.10.2026, the owner: the picture runs past the screen's edge) gives the column its foot back, so its pane
+       runs to the screen's foot like any other column of the band, and the box is what makes it short
+       (`roomNotesH`). IT KEEPS ITS TILT (E78 fix r1-G3, the owner, 14.10.2026: "Zostaw kafel przekrzywiony" -
+       leave the tile tilted, said of C0's shot, where it leaned 6 degrees at 1366x768): the column tilts by the
+       field's rule like any other. Where that tilts it: C0's shorter box moved it 16 px left (the gap off the
+       notice tile is 32 + h0 x tan 8, `roomPlacement`, 84.8 px at 1.2.76's 376 and 68.4 at C0's 259), and its
+       midpoint, 535.5 at 1366x768, left the upright zone below (from 546.4 there); HF4 kept that left edge, so it
+       leans 6 degrees at 1366x768 and 1366x657, as at C0, and at no other 'notes' size (Chromium, the glass
+       harness, 14.10.2026; the sweep pins the angle, PIN_TILT). Under the clock it is a member of the clock's
+       column, in the top band, and none of this touches it. */
     let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
     // a neighbour too close forbids the tilt that would swing the pane into it
     for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - FILL_MIN) / Math.max(h, 1))); }
@@ -1725,7 +1743,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        (`settleVoice`). It turns with the column like every fixed block. */
     const tail = c.tail ? (c.tail = settleVoice(c.tail, W, { px, py, cs, sn }, c.floor ?? H)) : null;
     if (tail) {
-      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit };
+      /* `lift`: how far over the tile's top the seam with the tray's pane runs, in the tile's own turned frame -
+         half the gap from the tray's box to the tile (the seam's rule below), 12 px with the tray at its five
+         rows and more with fewer. The buttons stand on the pane by it (E78 fix r2-H3, stained-glass.css). */
+      const tray = c.items[c.items.length - 1];
+      VOICE.box = { x: tail.x, y: tail.y, w: tail.w, h: tail.h, fit: tail.fit, lift: Math.max(0, (tail.y - (tray.y + tray.h)) / 2) };
       ROT.push({ sel: tail.sel, el: null, origin: (px - tail.x) + "px " + (py - tail.y) + "px", transform: turn });
     }
     for (const b of c.items) {
@@ -1842,11 +1864,6 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const pt = rot(0, Ydiv);
       const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
       const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r && !up.solid; piece = below;
-    }
-    if (boxed && piece) {
-      const pt = rot(0, PAD_FAR), [under, over] = split(piece, pt[0], pt[1], -sn, cs);
-      if (under) push(under, null, "sector");
-      piece = over;
     }
     let below = null;
     if (tail && piece) { const pt = rot(0, Yseam); [below, piece] = split(piece, pt[0], pt[1], -sn, cs); }

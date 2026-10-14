@@ -2353,7 +2353,7 @@ const INVARIANTS = [
             "[a shard at the right wall is counted, the shards at a right wall with no rail without the voice tile, and with it]");
     }],
 
-    ["R551 - the voice tile on a short desk keeps its buttons and its name: the cut never settles it under 42 px, and under 91 px it is cut compact - a GM's 181x42 at 1366x560 and 181x55 at 1366x600, where the floor left 15 and 55, a player's 181x93 full at 1366x600, 194x281 full at 1920x1080", async () => {
+    ["R551 - the voice tile on a short desk keeps its buttons and its name: the cut never settles it under 42 px, and under 114 px (91 before E78 fix r2-H3 stood its buttons one over the other) it is cut compact - a GM's 181x42 at 1366x560 and 181x55 at 1366x600, where the floor left 15 and 55, a player's 181x93 compact at 1366x600, 194x281 full at 1920x1080", async () => {
         /*
          * E78 fix r2-H1, 14.10.2026; review round 2's cor F1. C6's `settleVoice` cut the tile's height down to the
          * corner's pane and set no floor of its own, and a wide, short screen keeps the desk: at af5eb69 the GM's tile
@@ -2364,8 +2364,10 @@ const INVARIANTS = [
          * same call on them gave the live box to the pixel for a GM at both sizes and for a player at 1366x600). What
          * the compact tile then holds - the buttons and the plate inside it, the plate clear of the buttons, the
          * name's width, a glyph on each button - is the glass harness's `drpgVoiceParts`, read by the sweep in Chromium.
-         * THE CONTROLS: the player's 1366x600 and R545's 1920x1080 are full, so a reader that called every tile compact
-         * fails here too.
+         * THE CONTROLS: R545's 1920x1080 is full, so a reader that called every tile compact fails here too. E78 fix r2-H3
+         * (14.10.2026) raised the full form's floor to 114 px, where its buttons stand one over the other at the pane's
+         * corner and a name on two lines stays clear of them with the tray at its five rows: the player's 1366x600, 93
+         * high, is compact since (glass.mjs VOICE_FULL).
          */
         const G = await import("./glass.mjs");
         ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
@@ -2378,35 +2380,34 @@ const INVARIANTS = [
         const read = (W, H, blocks) => { const v = G.cutBoxes(W, H, at(blocks)).voice; return v ? `${v.w}x${v.h} ${v.fit ?? "unnamed"}` : "none"; };
         equal(JSON.stringify([read(1366, 560, [...top, ...low, ["launch", 1250, 398, 94, 140]]), read(1366, 600, [...top, ...mid, ["launch", 1250, 438, 94, 140]]),
             read(1366, 600, [...top, ...mid, ["launch", 1250, 475, 94, 103]]), read(1920, 1080, wide)]),
-            JSON.stringify(["181x42 compact", "181x55 compact", "181x93 full", "194x281 full"]),
+            JSON.stringify(["181x42 compact", "181x55 compact", "181x93 compact", "194x281 full"]),
             "[the GM's tile at 1366x560 and 1366x600, a player's at 1366x600, at 1920x1080] as the cut settles them");
     }],
 
-    ["R549 - the room tile beside the notices is half what C0 left the eye: its pane ends 10 px under the box and leans as C0 leaned it (6 degrees at 1366x768), the glass under it is a plain pane of the curtain, the box is half the run C0's pane had (glass.mjs roomNotesH) at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
+    ["R549 - the room tile beside the notices runs past the screen's edge with half of C0's run above it: its pane reaches the foot and leans as C0 leaned it (6 degrees at 1366x768), no plain pane is cut under it, the box stands roomNotesLift over the edge and is roomNotesH tall at C0's left edge, and the notice tile's lean, Stained Glass's 'clock' place and Monokuma Legacy are as they were", async () => {
         /*
          * E78 fix h76-HF4, 14.10.2026. The owner on C0's shot at 1366x768 (13.10): the room tile beside the notices
          * "dalej jest ok 2x za duzy", read as half the height. C0 had shrunk the box (301x376 to 301x259), but the
          * curtain cut the tile's pane from 10 px over the box down to the screen's foot: 362x370 at 1366x768 in
-         * Chromium (the glass harness, 14.10.2026), leaning 6 degrees - what the owner measured off the shot.
-         * THE HARM, cut headless: `cutBoxes` (R545's road) hands the desk's cut the blocks the glass harness measured
-         * for a player at 1366x768 on HF4's tree (`LAST.blocks`), the notice and room tiles fixed as BLOCKS has them;
-         * the same call gave the live cut's two panes to the pixel that day (373,538..698,708 and 0,389..365,768).
-         * At the parent the room's pane ends at 768 whatever the box. Now it ends 10 px (PAD_FAR) under the box,
-         * 12 px either side of it, the glass under it is a plain pane down to the foot, and the notice tile still
-         * leans its 8 degrees: the room keeps C0's left edge (32 + h0 x tan 8 off the notice tile, h0 C0's height),
-         * and the gap is what limits the notice tile's lean.
-         * THE TILT (E78 fix r1-G3, 14.10.2026; the owner, on C0's lean: "Zostaw kafel przekrzywiony" - leave the tile
-         * tilted). HF4 stood the pane upright as P11 draws it; the owner's word came after and wins. C0's 6 degrees
-         * came from the tile's midpoint crossing the upright zone's edge, 0.1 of the screen off its middle, when C0
-         * moved it 16 px left, and HF4 kept that edge: at 1366x768 the room tile turns 6 degrees again with its pane,
-         * whose bounds the live cut and this call both read as 374,506..715,709 (Chromium, the glass harness,
-         * 14.10.2026; HF4's upright pane was 373,538..698,708). The plain pane under it shares its bottom edge.
+         * Chromium (the glass harness, 14.10.2026), leaning 6 degrees - what the owner measured off the shot. HF4 ended
+         * the pane 10 px under a box half that run tall and cut a plain pane of the curtain under it.
+         * E78 fix r2-H3, 14.10.2026. The owner on HF4's shot at 1366x768: "zdjecie mialo byc przeciagniete za krawedz
+         * ekranu" - the picture was to run past the screen's edge. THE HARM, cut headless: `cutBoxes` (R545's road)
+         * hands the desk's cut the blocks the glass harness measured for a player at 1366x768 (`LAST.blocks`), the
+         * notice and room tiles fixed as BLOCKS has them; the same call and the live cut gave the room's pane to the
+         * pixel that day. At the parent the box was 301x150 at y 548 on the notice tile's foot, and its pane ended at
+         * 709 with a plain pane under it (374,506..715,709). Now the box is 301x129 and its foot stands 31 px
+         * (`roomNotesLift`: PAD_FAR and half its width x tan 8) over the edge, its pane runs to the foot as every
+         * column of the bottom band does (368,566..712,768, 6 degrees), and no plain pane lies under the box. The
+         * notice tile still leans its 8 degrees: the room keeps C0's left edge (32 + h0 x tan 8 off the notice tile).
          * THE CONTROLS: the same blocks with the room tile under the clock at 1920x1080 (R545's) cut no short pane and
          * the room leans with its column there; each reader below is read on a planted shape first.
-         * THE HEIGHT, pure: roomNotesH(h0, foot, low) at the sweep's 'notes' sizes, with C0's height and the gauge's
-         * foot (70 px) as the sweep read them - half C0's upright run (h0 + foot + 10) less the two pads.
-         * THE SOURCE: roomPlacement's 'clock' branch and flatPlacement name no roomNotesH. The boxes and the panes need
-         * layout: audit/glass-sweep.mjs pins both per size (PIN_BOX, PIN_PANE) and its drpgRoomCheck reads the content.
+         * THE HEIGHT, pure: roomNotesH(h0, foot, low, lift) at the sweep's 'notes' sizes, with C0's height and the
+         * gauge's foot (70 px) as the sweep read them - the pane above the edge (box, lift and PAD_FAR over the box) half
+         * C0's upright run (h0 + foot + 10), never under the content's floor.
+         * THE SOURCE: roomPlacement's 'clock' branch and flatPlacement name no roomNotesH, the 'notes' box stands
+         * `lift` over the edge. The boxes and the panes need layout: audit/glass-sweep.mjs pins both per size
+         * (PIN_BOX, PIN_PANE) and its drpgRoomCheck reads the content and the glass under the box.
          */
         const G = await import("./glass.mjs");
         ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
@@ -2414,7 +2415,8 @@ const INVARIANTS = [
         const fixed = ["note-block", "room-block"];
         const given = list => list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h, fixed: fixed.includes(cls) }));
         const bb = P => ({ x0: Math.min(...P.map(q => q[0])), x1: Math.max(...P.map(q => q[0])), y0: Math.min(...P.map(q => q[1])), y1: Math.max(...P.map(q => q[1])) });
-        const W = 1366, H = 768, box = { x: 385, y: 548, w: 301, h: 150 };
+        const W = 1366, H = 768, lift = typeof G.roomNotesLift === "function" ? G.roomNotesLift(301) : null, box = { x: 385, y: 608, w: 301, h: 129 };
+        equal(lift, 31, "the box beside the notices does not stand PAD_FAR and half its width x tan 8 over the screen's edge (glass.mjs roomNotesLift)");
         const cut = G.cutBoxes(W, H, given([["hud", 16, 22, 265, 180], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 91],
             ["note-block", 16, 446, 301, 252], ["room-block", box.x, box.y, box.w, box.h], ["voice-block", 1179, 253, 181, 262], ["launch", 1250, 643, 94, 103]]));
         const toFoot = P => bb(P).y1 >= H - 2;
@@ -2425,14 +2427,17 @@ const INVARIANTS = [
         ok(room.length === 1, `the room tile has ${room.length} pane(s)`);
         if (room.length !== 1) return;
         const r = bb(room[0].poly);
-        ok(!toFoot(room[0].poly), `the room's pane beside the notices runs to the screen's foot (y ${Math.round(r.y0)}..${Math.round(r.y1)}), as C0 cut it`);
-        equal(JSON.stringify([r.x0, r.y0, r.x1, r.y1].map(Math.round)), "[374,506,715,709]",
-            "the room's pane is not the box with 12 px either side and 10 px over and under it, turned 6 degrees about its column's foot");
+        ok(toFoot(room[0].poly), `the room's pane beside the notices ends at y ${Math.round(r.y1)}, above the screen's foot, as HF4 cut it`);
+        equal(JSON.stringify([r.x0, r.y0, r.x1, r.y1].map(Math.round)), "[368,566,712,768]",
+            "the room's pane is not the box with 12 px either side and 10 px over it, run to the foot and turned 6 degrees about its column's foot");
         equal((turnOf(cut, "#drpg-room-tile") * 180 / Math.PI).toFixed(2), "6.00", "the room tile beside the notices does not lean as C0 leaned it at 1366x768, in degrees");
-        const shares = P => room[0].poly.filter(q => P.some(u => Math.hypot(u[0] - q[0], u[1] - q[1]) < 1)).length;
-        equal(JSON.stringify([shares([[0, 0], [1, 1]]), shares(room[0].poly)]), "[0,4]", "[a shape far off the room's pane, the pane itself] - corners shared, the reader below");
-        const under = cut.panes.filter(p => !p.tone && shares(p.poly) === 2);
-        ok(under.length === 1 && toFoot(under[0].poly) && under[0].kind === "sector", `the glass under the room's pane: ${under.length} plain pane(s)${under[0] ? " to y " + Math.round(bb(under[0].poly).y1) : ""}`);
+        // a plain pane whose middle lies under the box's foot and within its width is glass between the tile and the edge
+        const mid = P => P.reduce((s, q) => [s[0] + q[0] / P.length, s[1] + q[1] / P.length], [0, 0]);
+        const under = P => (([x, y]) => x > box.x && x < box.x + box.w && y > box.y + box.h)(mid(P));
+        equal(JSON.stringify([under([[box.x, 740], [box.x + box.w, 740], [box.x + box.w, H], [box.x, H]]), under([[0, 740], [300, 740], [300, H], [0, H]])]), "[true,false]",
+            "[a plain pane under the box, one beside it] - the reader below");
+        const plain = cut.panes.filter(p => !p.tone && under(p.poly));
+        ok(plain.length === 0, `${plain.length} plain pane(s) under the room tile beside the notices${plain[0] ? ", from y " + Math.round(bb(plain[0].poly).y0) : ""}`);
         ok(Math.abs(Math.abs(turnOf(cut, "#drpg-popups")) - 8 * Math.PI / 180) < 1e-9, `the notice tile leans ${(turnOf(cut, "#drpg-popups") * 180 / Math.PI).toFixed(2)} degrees, not C0's 8`);
         // the control: under the clock (R545's 1920x1080 blocks) the room is the clock's column's and leans with it, its pane uncut
         const clock = G.cutBoxes(1920, 1080, given([["hud", 16, 22, 265, 180], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 91],
@@ -2440,22 +2445,23 @@ const INVARIANTS = [
         const up = clock.panes.find(p => p.tone === "room-block");
         ok(up && turnOf(clock, "#drpg-room-tile") !== 0 && Math.round(bb(up.poly).y0) === 208,
             `under the clock the room's pane ${up ? "begins at y " + Math.round(bb(up.poly).y0) + ", not 208, or" : "is missing, or"} the tile stands upright`);
-        // the height: half the run C0's pane had, less the two pads, never under the content's floor
+        // the height: the pane above the edge half the run C0's pane had, never under the content's floor
         ok(typeof G.roomNotesH === "function", "glass.mjs exports no roomNotesH");
         if (typeof G.roomNotesH !== "function") return;
-        const sizes = [[259, 70], [270, 70], [245, 70]], hs = sizes.map(([h0, foot]) => G.roomNotesH(h0, foot, 122));
-        equal(JSON.stringify([...hs, G.roomNotesH(245, 70, 160)]), "[150,155,143,160]",
-            "[the box beside the notices at 1366x768, 1224x768 and 1300x768 (C0 259); at 1280x800 and 1264x800 (C0 270); at 1280x720 and 1366x657 (C0 245); the floor above it]");
-        ok(hs.every((h, i) => Math.abs((h + 20) / (sizes[i][0] + sizes[i][1] + 10) - 0.5) < 0.01), `the panes ${hs.map(h => h + 20)} are not half of C0's runs`);
+        const sizes = [[259, 70], [270, 70], [245, 70]], hs = sizes.map(([h0, foot]) => G.roomNotesH(h0, foot, 122, 31));
+        equal(JSON.stringify([...hs, G.roomNotesH(245, 70, 160, 31)]), "[129,134,122,160]",
+            "[the box beside the notices at 1366x768, 1224x768 and 1300x768 (C0 259); at 1280x800 and 1264x800 (C0 270); at 1280x720, 1366x657, 1366x600 and 1366x560 (C0 245); the floor above it]");
+        ok(hs.every((h, i) => Math.abs((h + 31 + 10) / (sizes[i][0] + sizes[i][1] + 10) - 0.5) < 0.01), `the panes above the edge ${hs.map(h => h + 41)} are not half of C0's runs`);
         const reader = src => {
             const place = fnSource(src, "roomPlacement");
-            return [!/\broomNotesH\b/.test(bodyOf(place, "if (hud) {", { until: "\n  }" })), /h = roomNotesH\(h0, foot, low\)/.test(place),
-                /x: Math\.round\(16 \+ noteW \+ 32 \+ h0 \* ROOM_TAN\)/.test(place), !/\broomNotesH\b/.test(fnSource(src, "flatPlacement"))];
+            return [!/\broomNotesH\b/.test(bodyOf(place, "if (hud) {", { until: "\n  }" })), /h = roomNotesH\(h0, foot, low, lift\)/.test(place),
+                /x: Math\.round\(16 \+ noteW \+ 32 \+ h0 \* ROOM_TAN\)/.test(place), /y: Math\.round\(H - lift - h\)/.test(place), !/\broomNotesH\b/.test(fnSource(src, "flatPlacement"))];
         };
         const glass = stripComments(new Map(await otherSources()).get("glass.mjs") ?? "");
         must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
-        equal(JSON.stringify([reader(glass), reader(glass.replace("32 + h0 * ROOM_TAN", "32 + h * ROOM_TAN"))]), "[[true,true,true,true],[true,true,false,true]]",
-            "[Stained Glass's 'clock' branch free of roomNotesH, the 'notes' height roomNotesH's, the room at C0's left edge, Legacy free of it; the edge planted from the new height]");
+        equal(JSON.stringify([reader(glass), reader(glass.replace("32 + h0 * ROOM_TAN", "32 + h * ROOM_TAN").replace("H - lift - h", "H - foot - h"))]),
+            "[[true,true,true,true,true],[true,true,false,false,true]]",
+            "[Stained Glass's 'clock' branch free of roomNotesH, the 'notes' height roomNotesH's, the room at C0's left edge, its foot `lift` over the screen's edge, Legacy free of it; the edge and the foot planted]");
     }],
 
     ["R547 - the rotated blocks stand still between passes: a pass over the same geometry writes the rotation sheet zero times, a block over the wall keeps its shift, and a block that leaves the table takes its shift with it", async () => {
@@ -11971,7 +11977,7 @@ const INVARIANTS = [
             + "recorded as nothing, the copy taken out; the store as it was found; tier 2's snapshot records it, its restore puts it back]");
     }],
 
-    ["R537 - the module holds a microphone only for its own reasons, from the viewer's own facts: `micHold` holds a player in their own Eclipse room and nobody else, and names a GM's block, a Monocub there, avclient-livekit's own window and no connection without holding; it reads no GmStore; `moduleHoldsMic` names a death kept secret; `voiceRowFor` is the ranking voiceTargets ran inline; the microphone button is grey only when the module holds it, struck with a lock for a GM's block and not struck offline, and a click or its key writes the viewer's own `muted` and nothing else, only in the states the viewer may change", async () => {
+    ["R537 - the module holds a microphone only for its own reasons, from the viewer's own facts: `micHold` holds a player in their own Eclipse room and nobody else, and names a GM's block, a Monocub there, avclient-livekit's own window and no connection without holding; it reads no GmStore; `moduleHoldsMic` names a death kept secret; `voiceRowFor` is the ranking voiceTargets ran inline; the microphone button is grey only when the module holds it, struck with a lock for a GM's block and not struck offline, and a click or its key writes the viewer's own `muted` and nothing else, only in the states the viewer may change; and it lights while LiveKit counts the viewer among the Room's speakers, written only on a change", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R390 (T2; the E78 plan's D2 gave it this number), its data clauses - E78 C4
          * adds the button's. The owner's answers Q1 (grey and struck through only when the MODULE holds the microphone),
@@ -12199,8 +12205,28 @@ const INVARIANTS = [
         const inInit = init.indexOf("registerVoiceKeybinding()") > init.indexOf("Hooks.once(\"init\"")
             && init.indexOf("registerVoiceKeybinding()") < init.indexOf("Hooks.once(\"setup\"");
 
+        /* YOUR OWN VOICE (E78 fix r2-H3, 14.10.2026; review round 2's cor F5): Foundry's dock lit the viewer's own view
+           while they spoke, and with the dock hidden nothing did. LiveKit counts the local participant among the Room's
+           speakers (`activeSpeakersChanged`), and the microphone button lights (`is-speaking`), written only when that
+           changes. On voiceTileRig's bench, the shim speaking for the local participant, then the same again, another
+           account alone, both, nobody: per step the class and the number of writes of the button's class. Red before
+           this fix: the class never set. */
+        const other = game.users.find(u => u.id !== game.user.id);
+        must(other, "no second account to speak beside this one");
+        const selfRig = voiceTileRig(T, [other]), selfRoom = selfRig.makeRoom([other.id]);
+        T.attachRoom(selfRig.clientOf(selfRoom), selfRig.watch);
+        const selfMic = selfRig.tile.querySelector(".drpg-voice-mic"), classWrites = new MutationObserver(() => {});
+        classWrites.observe(selfMic, { attributes: true, attributeFilter: ["class"] });
+        classWrites.takeRecords();
+        const lit = [[game.user.id], [game.user.id], [other.id], [other.id, game.user.id], []].map(ids => {
+            selfRig.speak(selfRoom, ids);
+            selfRig.advance(300);
+            return `${selfMic.classList.contains("is-speaking")}:${classWrites.takeRecords().length}`;
+        });
+        classWrites.disconnect();
+
         equal(JSON.stringify([states, composed, painted, parts, two, none, toggled, clicked,
-            [namespace, action, binding?.name, binding?.editable?.length, binding?.restricted, onDown, offKey, onKey, keyed, inInit]]),
+            [namespace, action, binding?.name, binding?.editable?.length, binding?.restricted, onDown, offKey, onKey, keyed, inInit], lit]),
         JSON.stringify([
             ["on=on|null|null", "ptt=ptt|null|null", "muted=muted|null|null", "held=held|eclipse|null", "gmBlock=gmBlock|gmBlock|null",
                 "offline=offline|offline|null", "external=offline|external|null", "monocub=on|null|eclipseHeard", "monocubMuted=muted|null|eclipseHeard"],
@@ -12214,12 +12240,15 @@ const INVARIANTS = [
             ["on=true:client.own=true:", "ptt=true:client.own=true:", "muted=true:client.own=false:", "held=false::eclipse", "gmBlock=false::gmBlock",
                 "offline=false::offline", "external=false::external", "monocub=true:client.own=true:"],
             1,
-            [MODULE_ID, "toggleMute", "DRPG.Voice.mic.keybinding", 0, false, true, false, true, ["key", "on"], true]]),
+            [MODULE_ID, "toggleMute", "DRPG.Voice.mic.keybinding", 0, false, true, false, true, ["key", "on"], true],
+            ["true:1", "true:0", "false:1", "true:1", "false:1"]]),
         "[the button's state per fact: open, push-to-talk, muted by me, held (Eclipse), a GM's block, no connection, avclient-livekit's window, a "
             + "Monocub in the Eclipse open and muted | micHold's own answers for a player and a Monocub in the Eclipse | painted per state: classes; "
             + "aria-pressed; aria-disabled; tooltip; the note shown; the description; a second paint writes nothing | the lock, the PTT label, a "
             + "button, the speaker's popup | the speaker with 2 and with none under mute-all | toggleOwnMic per state: wrote, the writes, the notices | "
-            + "the click calls onMic | the key: registered as toggleMute with no default key, for players; onDown, unavailable, available; in init]");
+            + "the click calls onMic | the key: registered as toggleMute with no default key, for players; onDown, unavailable, available; in init | "
+            + "the button lit while LiveKit counts this browser's own participant among the speakers, and its class writes: "
+            + "self, self again, another alone, both, nobody]");
     }],
 
     ["R538 - the list 'Who you hear' sets a volume and 'Mute for me' only in this browser and only for a participant of the own Room: its rows are the own Room's remote participants by name; the slider moves the element at once and writes `users.<id>.volume` 200 ms after it stops; 'Mute for me' is the volume 0 with the volume before kept in `voicePeerMutes`, still muted after a new Room and for a new watch (F5); a record a console wrote is clamped on read; 'mute all' and the unhide write this browser's own keys; Escape closes the list and goes no further, and Tab stays inside", async () => {

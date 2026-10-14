@@ -412,10 +412,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 is the placement's and nothing else's.
        clock    under the clock: the tile's width and left edge are the clock's and so is its centre (dx), and both
                 turn by the same angle - one column; the scene rail's first tile below the tile's box (rail, px).
-       notes    beside the notices: the foot level with the notice tile's, the gap 32 + h x tan 8 deg off its edge,
-                and the corner of the history's button (A7) on no part of the room's pane. Since E78 fix h76-HF4
-                (14.10.2026) h there is `h0`, the height C0 gave the box, so the notice tile leans as it did at C0;
-                the pane ends 10 px (PAD_FAR) under the box, never at the screen's foot; the tile turns by its pane's
+       notes    beside the notices: the gap 32 + h x tan 8 deg off the notice tile's edge, and the corner of the
+                history's button (A7) on no part of the room's pane. Since E78 fix h76-HF4 (14.10.2026) h there is
+                `h0`, the height C0 gave the box, so the notice tile leans as it did at C0; since E78 fix r2-H3
+                (14.10.2026) the box's foot stands `roomNotesLift` over the screen's edge, the room's pane runs to
+                that edge and no plain pane is cut under the box (`over`, `plain`); the tile turns by its pane's
                 own angle (`tilt`, degrees off the pane's top edge; E78 fix r1-G3: it keeps C0's tilt, the owner's
                 word of 14.10, and the sweep pins the angle per size); and what is written on the tile - the name, the pips, the project line, the toggle - lies inside
                 the box and on no other part of it, closed and with 400 words of description open, which then
@@ -695,10 +696,20 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     } else {
       const corner = document.getElementById("drpg-notices-corner")?.getBoundingClientRect();
       const lean = Math.tan(8 * Math.PI / 180);
-      out.notes = { foot: [Math.round(b.y + b.h), note ? note.y + note.h : null], gap: note ? +(b.x - (note.x + note.w)).toFixed(1) : null, want: +(32 + room.h0 * lean).toFixed(1), corner: null,
-        pane: [pane.x1 - pane.x0, pane.y1 - pane.y0], under: Math.round(pane.y1 - (b.y + b.h)), turn: turn[0], content: content.why.join("; "), open: content.open };
-      if (pane.y1 >= (at?.height ?? innerHeight) - 2) out.why.push(`the room's pane runs to the screen's foot (y ${pane.y0}..${pane.y1})`);
-      else if (!near(pane.y1, b.y + b.h + 10, 1.5)) out.why.push(`the room's pane ends ${out.notes.under} px under the box, not 10`);
+      /* THE PANE RUNS PAST THE SCREEN'S EDGE (E78 fix r2-H3, 14.10.2026, the owner on HF4's shot: "zdjecie
+         mialo byc przeciagniete za krawedz ekranu"). HF4 ended the pane PAD_FAR under the box and cut a plain
+         pane under it; this check failed a pane that reached the foot. Now it fails the other way round: the
+         room's pane ends above the screen's foot, or a pane whose middle lies under the box's foot and within
+         its width (`plain`) stands between the two. The box's foot stands PAD_FAR + half its width x tan 8 over
+         the edge (glass.mjs `roomNotesLift`, worked out again here so that a change there shows). At HF4's
+         tree, Chromium, a player at 1366x768: the pane 374,506..715,709, one plain pane under it. */
+      const Hs = at?.height ?? innerHeight, lift = 10 + Math.round(b.w / 2 * lean);
+      const mid = p => p.poly.reduce((s, q) => [s[0] + q[0] / p.poly.length, s[1] + q[1] / p.poly.length], [0, 0]);
+      const plain = (g.LAST.panes || []).filter(p => p !== pane && p.poly?.length).map(mid).filter(([x, y]) => x > b.x && x < b.x + b.w && y > b.y + b.h && y < Hs).length;
+      out.notes = { foot: [Math.round(b.y + b.h), Math.round(Hs - lift)], gap: note ? +(b.x - (note.x + note.w)).toFixed(1) : null, want: +(32 + room.h0 * lean).toFixed(1), corner: null,
+        pane: [pane.x1 - pane.x0, pane.y1 - pane.y0], over: Math.round(Hs - pane.y0), plain, turn: turn[0], content: content.why.join("; "), open: content.open };
+      if (pane.y1 < Hs - 0.5) out.why.push(`the room's pane ends at y ${pane.y1}, above the screen's foot ${Hs}`);
+      if (plain) out.why.push(`${plain} plain pane(s) between the room's pane and the screen's foot`);
       /* THE TILT (E78 fix r1-G3, 14.10.2026): the tile turns by the angle its pane is cut at, read off the pane's
          top edge (of the edges wider than 20 px, the one lying highest; the cut clips the sides and the foot,
          never that edge here), against the turn the page computed. Upright reads 0 on both; C0's lean and this
@@ -712,7 +723,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.notes.tilt = tileTilt;
       if (paneTilt == null || tileTilt == null || Math.abs(paneTilt - tileTilt) > 0.2) out.why.push(`the tile beside the notices turns ${tileTilt ?? turn[0]} degrees and its pane ${paneTilt}`);
       if (content.why.length) out.why.push(...content.why);
-      if (!note || !near(b.y + b.h, note.y + note.h, 1.5)) out.why.push(`the foot ${out.notes.foot[0]} is not the notice tile's ${out.notes.foot[1]}`);
+      if (!near(b.y + b.h, Hs - lift, 1.5)) out.why.push(`the box's foot ${out.notes.foot[0]} does not stand ${lift} px over the screen's edge (${out.notes.foot[1]})`);
       if (out.notes.gap == null || !near(out.notes.gap, out.notes.want, 1.5)) out.why.push(`the gap ${out.notes.gap} off the notice tile is not ${out.notes.want}`);
       if (!corner || !corner.width) out.why.push("no history button to keep free");
       else {
@@ -743,19 +754,44 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      name and with one of two lines. Read in the tile's own frame - offsets, which a turn does not move. At af5eb69 the
      GM's tile was 181x55 at 1366x600, the buttons over the plate's end, and 181x15 at 1366x560, the plate cut off and
      the buttons under the tile, and drpgVoiceCheck read "ok" at both: it read the box and nothing in it. The sweep's
-     `plantVoice` is the control. Answers { read, why }. */
+     `plantVoice` is the control.
+     THE BUTTONS AT THE PANE'S CORNER (E78 fix r2-H3, 14.10.2026; the owner: "przyciski na panelu livekit sa za daleko
+     krawedzi"). On the wall in the full form they stand one over the other at the pane's top right corner, as P11
+     draws them (centres about 22 px from the screen's right edge and 22 px under the pane's top, read off its pixels),
+     and the microphone may stand on the pane over the tile's box: there each button is judged by its four corners,
+     turned with the tile, on the voice pane rather than in the box. `corner` is each centre's distance from the
+     screen's right edge and under the pane's top edge straight above it, which the sweep pins per size (PIN_CORNER);
+     the microphone's must be within 28 px of both and the speaker's straight under it, or the buttons have moved back
+     in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side. Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
     const at = e => { let x = 0, y = 0, n = e; while (n && n !== tile) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
       return n === tile && e.offsetWidth ? [x, y, x + e.offsetWidth, y + e.offsetHeight] : null; };
     const out = r => r[0] < -2 || r[1] < -2 || r[2] > W + 2 || r[3] > H + 2, meet = (p, q) => p[0] < q[2] - 1 && q[0] < p[2] - 1 && p[1] < q[3] - 1 && q[1] < p[3] - 1;
-    const read = { tile: [W, H], buttons: [], plate: null, name: null };
+    const inside = (poly, x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) k = !k; } return k; };
+    const topAt = (poly, x) => { let y0 = null; for (let i = 0; i < poly.length; i++) { const [p, q] = [poly[i], poly[(i + 1) % poly.length]]; if (p[0] !== q[0] && (p[0] - x) * (q[0] - x) <= 0) { const y = p[1] + (q[1] - p[1]) * (x - p[0]) / (q[0] - p[0]); if (y0 === null || y < y0) y0 = y; } } return y0; };
+    const corner = tile.dataset.place === "wall" && tile.dataset.fit !== "compact", cut = document.getElementById("drpg-curtain")?.getBoundingClientRect();
+    const pane = corner ? (window.__glass?.LAST?.panes || []).find(p => p.tone === "voice-block") : null;
+    const m = /^matrix\(([-\d.e]+), ([-\d.e]+),/.exec(getComputedStyle(tile).transform), cs = m ? +m[1] : 1, sn = m ? +m[2] : 0;
+    const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null };
+    if (corner && (!pane || !cut)) why.push("no voice pane to stand the buttons on");
     for (const b of tile.querySelectorAll(".drpg-voice-tile-controls > .drpg-launch-mini")) {
       const r = at(b), cls = b.classList.contains("drpg-voice-mic") ? "microphone" : "speaker", i = b.querySelector(".drpg-pxi");
       const mask = i ? getComputedStyle(i).maskImage || getComputedStyle(i).webkitMaskImage : "none";
       read.buttons.push(r);
-      if (!r || out(r)) why.push(`the ${cls} button at ${r} is outside the tile ${W}x${H}`);
+      if (pane && cut && r) {
+        const d = b.getBoundingClientRect(), cx = (d.left + d.right) / 2 - cut.left, cy = (d.top + d.bottom) / 2 - cut.top, hw = b.offsetWidth / 2, hh = b.offsetHeight / 2;
+        const off = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => [cx + x * cs - y * sn, cy + x * sn + y * cs]).filter(([x, y]) => !inside(pane.poly, x, y));
+        const top = topAt(pane.poly, cx);
+        read.corner.push([Math.round(cut.width - cx), top === null ? null : Math.round(cy - top)]);
+        if (off.length) why.push(`the ${cls} button has ${off.length} corner(s) off the voice pane`);
+      } else if (!r || out(r)) why.push(`the ${cls} button at ${r} is outside the tile ${W}x${H}`);
       if (!mask || mask === "none") why.push(`the ${cls} button has no glyph`);
+    }
+    if (read.corner?.length === 2) {
+      const [mic, speaker] = read.corner;
+      if (!(mic[0] <= 28 && mic[1] !== null && mic[1] <= 28)) why.push(`the microphone stands ${mic[0]} px from the wall and ${mic[1]} px under the pane's top, not at its corner`);
+      if (!(speaker[1] >= mic[1] + 30 && Math.abs(speaker[0] - mic[0]) <= 8)) why.push(`the speaker at ${speaker} is not under the microphone at ${mic}`);
     }
     const face = tile.querySelector(".drpg-voice-tile-face"), plate = tile.querySelector(".drpg-voice-tile-plate"), name = tile.querySelector(".drpg-voice-tile-name");
     if (face && !face.hidden && plate && name) {

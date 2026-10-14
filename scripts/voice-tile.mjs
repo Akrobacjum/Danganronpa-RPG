@@ -380,6 +380,8 @@ export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
         speakers: [], since: new Map(),
         /** Who is drawn, and whether they are speaking, held after their speech, or fading. */
         shown: null, phase: "silent",
+        /** Whether the Room counts the viewer's own participant among its speakers, as the microphone button shows it. */
+        selfSpeaking: false,
         timers: { stick: null, hold: null, fade: null },
         /** The list (built at its first opening), its outside-pointer listener, and each slider's pending save. */
         list: null, away: null, saves: new Map()
@@ -481,7 +483,20 @@ function onSpeakers(watch, speakers) {
     for (const id of [...watch.since.keys()]) if (!ids.includes(id)) watch.since.delete(id);
     for (const id of ids) if (!watch.since.has(id)) watch.since.set(id, now);
     watch.speakers = ids;
+    paintSelf(watch, (Array.isArray(speakers) ? speakers : []).some(p => p && (p.isLocal === true || p === watch.room?.localParticipant)));
     voiceStep(watch);
+}
+
+/**
+ * Light the microphone button while the Room counts the viewer's own participant among its speakers, and put it out
+ * again (E78 fix r2-H3, review round 2's cor F5: Foundry's dock lit the viewer's own view while they spoke, and with
+ * the dock hidden nothing on the screen did). Written only when that changes, as `paintSpeaker` writes the face.
+ */
+function paintSelf(watch, speaking) {
+    if (watch.selfSpeaking === speaking) return false;
+    watch.selfSpeaking = speaking;
+    watch.tile?.querySelector(".drpg-voice-mic")?.classList.toggle("is-speaking", speaking);
+    return true;
 }
 
 /** The connection is gone: nobody, at once, and the offline state until the Room connects again. */
@@ -493,6 +508,7 @@ function onLost(watch) {
 /** Nobody speaking and nobody drawn, at once: the Room changed or the connection went. */
 function resetSpeech(watch) {
     watch.speakers = [];
+    paintSelf(watch, false);
     watch.since.clear();
     for (const slot of Object.keys(watch.timers)) cancel(watch, slot);
     clearSpeaker(watch);

@@ -59,9 +59,10 @@
  *   read without a layout - no recut on the screen - is the sweep's.
  * E (C7): a known leak, A9-K3 in known-leaks.json, until E19. p2's character, standing in the Cafeteria's room,
  *   killed in secret (`killCharacter`, revived quietly after): `voiceTargets` sends p2 to the main room at once,
- *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count. The check asks
- *   for what E19 will make true - the room kept, nobody in the main room hearing p2 - and stays an expected red
- *   while it measured the kill, the room before, the secret and p1's open list in the main room.
+ *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count, and (E78 fix r2-H3,
+ *   review round 2's O7) sees p2's name and face on the voice tile, with no click, while p2 speaks. The check asks
+ *   for what E19 will make true - the room kept, nobody in the main room hearing or seeing p2 - and stays an expected
+ *   red while it measured the kill, the room before, the secret, p1's open list in the main room and p1's tile.
  * F (E78 fix r1-G1; the review's SEC-R1-1 and the goal's S16-10 (d)): with the dock hidden. p1 in the main room with
  *   the GM and p2, nobody speaking: the number on the speaker, in the tiles' row and drawn without a click, says 2; a
  *   participant avclient-livekit maps to no user (put in p1's Room by hand) makes it 3, and their leaving 2. Then the
@@ -576,7 +577,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("D: the GM's voiceTile off takes the tile out of p1's row; on builds it in the row again, not on the body",
         gone.tile === null && gone.room === "drpg-tile-row" && J(back) === J(want), J({ gone, back }));
 
-    phase("E: a known leak until E19 - a character killed in secret leaves the room they stood in for the main room at once, where p1 hears them in the list 'Who you hear' and its count");
+    phase("E: a known leak until E19 - a character killed in secret leaves the room they stood in for the main room at once, where p1 hears them in the list 'Who you hear' and its count, and sees them speak on the voice tile");
     // The primary GM's own reading of where p2's voice goes, before and after a secret death (`voiceTargets`, the one
     // the reconcile sends); the death is put back quietly at the end, as in C.
     const victim = await gm.eval(`
@@ -621,6 +622,15 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             } finally {
                 if (list()?.hidden === false) button?.click();
             }
+            // E78 fix r2-H3 (review round 2's O7): the tile, with no click, while p2 speaks - a speaker shows after
+            // STICK_MS (250 ms), so it is read at 300; \`theirs\` is p2's name on it as voiceIdentity gives it.
+            const { voiceIdentity } = await import("${repoUrl}/scripts/camera-view.mjs");
+            const who = voiceIdentity(game.users.get("${IDS.p2}"))?.name ?? null;
+            __liveKit.speak(["${IDS.p2}"]);
+            await sleep(300);
+            const t = tile();
+            out.tile = t && { state: t.state, name: t.name, face: t.face, theirs: who !== null && t.name === who };
+            __liveKit.speak([]);
             return out;`, { timeout: 15000 });
     } finally {
         await gm.eval(`
@@ -631,10 +641,12 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             return true;`, { timeout: 15000 });
     }
     const stoodInRoom = victim.before?.p2?.target !== null && victim.before?.p2?.target !== undefined;
-    check("E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count",
-        J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || ""),
+    check("E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count, or sees them speak on the voice tile",
+        J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || "")
+            && heard?.tile?.theirs === false,
         J({ victim, heard }),
-        { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true });
+        { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true
+            && typeof heard?.tile?.theirs === "boolean" });
 
     phase("F: with the dock hidden, p1 sees who is in p1's Room without a click, and reaches p1's microphone, a volume, the microphone device and the mode from the tile and the gear");
     // E78 fix r1-G1 (the review's SEC-R1-1 and the goal's S16-10 (d)). p1 back in the main room with the GM and p2,

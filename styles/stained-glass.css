@@ -559,6 +559,14 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
     filter: grayscale(1);
 }
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
+/* YOUR VOICE IS CARRYING (E78 fix r2-H3, 14.10.2026; review round 2's cor F5): Foundry's dock lit the player's own
+   view while they spoke, and with the dock hidden nothing did. The rim takes the game state's colour whole and the
+   glow doubles while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). Nothing
+   moves, so there is nothing for reduced motion to stop. */
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking {
+    filter: drop-shadow(0 0 6px var(--drpg-glass-accent));
+}
+body.drpg-theme-stained-glass .drpg-voice-mic.is-speaking::before { border-color: var(--drpg-glass-accent); }
 body.drpg-theme-stained-glass .drpg-voice-count {
     background: var(--drpg-glass-accent);
     color: var(--drpg-sg-ink);
@@ -1199,7 +1207,10 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
    name, the pips and the project line stacked under the toggle left the open description 37 and 30
    px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
    the name, the project line under them, and the description, open, fills what is above them from
-   the tile's top, clear of the toggle by its width on each side rather than under it. */
+   the tile's top, clear of the toggle by its width on each side rather than under it. Since E78 fix r2-H3
+   (14.10.2026) the box stands 31 px over the screen's edge with its pane run past it, 301x129 at 1366x768
+   and 301x122 (`low`, the content's floor) at 1280x720; open, the description shows 2.4 and 2.1 lines
+   there and scrolls (the glass harness's `drpgRoomCheck`, Chromium, the same day). */
 body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
@@ -1284,8 +1295,27 @@ body.drpg-curtain-on #drpg-voice-tile[data-place] .drpg-voice-tile-face {
     background: transparent;
     border-color: transparent;
 }
+/* THE BUTTONS AT THE PANE'S CORNER, ONE OVER THE OTHER (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at
+   1366x768, in Polish: "przyciski na panelu livekit sa za daleko krawedzi" - the buttons on the voice pane are too
+   far from the edge). P11 (the A9 design's a9-design-1, 1280x720) draws them stacked at the pane's top right
+   corner, their centres about 22 px from the screen's right edge and 22 px under the pane's top edge (its
+   pixels, read in Chromium the same day); at 60741cf they stood side by side 31 and 66 px from the wall and 69 px
+   under that edge at 1366x768. The pane's top is the seam with the tray's pane, `--drpg-voice-lift` over the
+   tile's own top (glass.mjs, written with the cut), so the column starts 7 px under the seam: the microphone
+   on the portrait's glass above the tile's box, 5 px over it with the tray at its five rows (lift 12) and
+   higher when the tray is short. The microphone's line stands left of them. COMPACT (below) keeps H1's row. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-controls {
+    top: calc(7px - var(--drpg-voice-lift, 0px));
+    right: 2px;
+    flex-direction: column;
+    gap: 4px;
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-note {
+    top: 6px;
+    right: 40px;
+}
 /* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
-   `settleVoice` left under VOICE_FULL (91 px) is one row, as narrow.css draws it in the tiles' row - the
+   `settleVoice` left under VOICE_FULL (114 px since E78 fix r2-H3; 91 at H1) is one row, as narrow.css draws it in the tiles' row - the
    buttons centred down its right end, the name with '+N' on one line at its left, cut short with an
    ellipsis, and 'Speaking' and the microphone's line not drawn (the buttons' labels say them). The
    face keeps 82 px clear at the right: the two 30 px buttons, the 6 px between them and at the wall,

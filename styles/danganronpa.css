@@ -6574,6 +6574,11 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
     opacity: 0.6;
     cursor: not-allowed;
 }
+/* Your voice carrying (E78 fix r2-H3, cor F5): a second ring in the bone the list's speaking dot wears under this
+   theme, outside the rim, while LiveKit counts the viewer among the Room's speakers (voice-tile.mjs `paintSelf`). */
+.drpg-voice-mic.is-speaking {
+    box-shadow: 0 0 0 2px light-dark(var(--drpg-paper-alt), var(--drpg-ink)), 0 0 0 4px var(--drpg-bone);
+}
 .drpg-voice-mic.is-offline { opacity: 0.75; cursor: default; }
 .drpg-voice-mic.is-offline::after {
     content: "";

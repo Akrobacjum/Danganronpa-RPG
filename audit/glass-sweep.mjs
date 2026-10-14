@@ -49,8 +49,8 @@
  * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
  * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
  * nothing is cut for it, or unplaced on a desk with glass; a place F does not choose; the tile laid out off the box
- * it was placed at; under the clock, not the clock's width, edge or turn; beside the notices, the foot off the notice
- * tile's, the gap not 32 + h x tan 8 deg, a corner of the history's button on the room's pane; the picture not on the
+ * it was placed at; under the clock, not the clock's width, edge or turn; beside the notices, the box's foot not
+ * `roomNotesLift` over the screen's edge, the pane short of the foot or a plain pane under it, the gap not 32 + h x tan 8 deg, a corner of the history's button on the room's pane; the picture not on the
  * room's pane over the curtain; a new description or the description opened firing `drpgGlassCut` - and a taller clock
  * firing none, which is that count's own control. At the first placed size two more controls: the place stamp
  * swapped without a pass, and the tile taken out - each must read as not ok. `--no-room` leaves it out.
@@ -210,13 +210,16 @@ const PINS = Object.fromEntries(["stained", "legacy"].flatMap(theme => ["gm", "p
    1300x768, 301x270 became 301x155 at 1280x800 and 1264x800, 301x245 became 301x143 at 1280x720 and 1366x657
    (glass.mjs `roomNotesH`: half the run C0's pane had, less its two pads). The 'clock' rows and Legacy's did not
    move, and the sweep read them so on that tree. 1366x600 and 1366x560 (fix r2-H1) read on af5eb69: 301x143 beside
-   the notices, 430x310 under Legacy, as at 1366x657. */
+   the notices, 430x310 under Legacy, as at 1366x657. E78 fix r2-H3 (14.10.2026; the owner on HF4's shot: "zdjecie mialo
+   byc przeciagniete za krawedz ekranu", the picture was to run past the screen's edge) moved the same rows of Stained
+   Glass and only those: the box stands 31 px over the screen's edge (`roomNotesLift`) with its pane run past it, 301x150
+   became 301x129, 301x155 became 301x134 and 301x143 became 301x122 (`low`, the content's floor), read the same day. */
 const BOX = {
-    "stained 1920x1080": "265x364", "stained 1366x768": "301x150", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
-    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x155",
-    "stained 1224x768": "301x150", "stained 1264x800": "301x155", "stained 1300x768": "301x150", "stained 1400x900": "265x302",
-    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x143", "stained 1366x657": "301x143",
-    "stained 1366x600": "301x143", "stained 1366x560": "301x143",
+    "stained 1920x1080": "265x364", "stained 1366x768": "301x129", "stained 2560x1440": "312x425", "stained 1440x900": "265x302",
+    "stained 1536x864": "265x266", "stained 1600x900": "265x302", "stained 1680x1050": "265x364", "stained 1280x800": "301x134",
+    "stained 1224x768": "301x129", "stained 1264x800": "301x134", "stained 1300x768": "301x129", "stained 1400x900": "265x302",
+    "stained 3840x2160": "312x425", "stained 1920x1200": "265x364", "stained 1280x720": "301x122", "stained 1366x657": "301x122",
+    "stained 1366x600": "301x122", "stained 1366x560": "301x122",
     "legacy 1920x1080": "430x364", "legacy 1366x768": "430x310", "legacy 2560x1440": "430x485", "legacy 1440x900": "430x310",
     "legacy 1536x864": "430x310", "legacy 1600x900": "430x310", "legacy 1680x1050": "430x354", "legacy 1280x800": "430x310",
     "legacy 1224x768": "430x310", "legacy 1264x800": "430x310", "legacy 1300x768": "430x310", "legacy 1400x900": "430x310",
@@ -233,18 +236,36 @@ const PIN_BOX = Object.fromEntries(Object.entries(BOX).flatMap(([key, box]) => {
    sizes pin the pane too, its bounds' width x height as the page's LAST.panes has them: C0's read 362x370 at 1366x768
    and 1366x657 (370 and 356 high, leaning), 325x339 at 1224x768 and 1300x768, 325x350 at 1280x800 and 1264x800 and
    325x325 at 1280x720 (upright); after HF4 each is the box and 10 px over and under it, upright, and as wide as at
-   C0 where it stood upright. `plantPane` is the control: the pane run to the foot again with the box as it is, which
-   is exactly what C0 left, must fail the room check.
+   C0 where it stood upright.
    THE TILT PINS (E78 fix r1-G3, 14.10.2026; the owner on C0's lean: "Zostaw kafel przekrzywiony" - leave the tile
    tilted). HF4 had stood the pane upright; it leans again where C0 leaned it, 6.0 degrees at 1366x768 and 1366x657,
    and stands upright at the five other 'notes' sizes, as at C0 (the page's `notes.tilt`, the tile's turn, which the
    room check holds to its pane's own angle; Chromium, read the same day on C0's tree, HF4's and this one). The
    leaning panes' bounds grow with the lean: 325x170 became 341x203 at 1366x768 and 325x163 became 340x196 at
    1366x657, still ending 10 px under the box. `plantPane`'s `turned` control turns the tile off its pane's angle.
-   1366x600 and 1366x560 (fix r2-H1) read on af5eb69 as 1366x657 reads: 340x196, leaning 6 degrees. */
-const PANE = { "1366x768": "341x203", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "340x196",
-    "1366x600": "340x196", "1366x560": "340x196" };
+   1366x600 and 1366x560 (fix r2-H1) read on af5eb69 as 1366x657 reads: 340x196, leaning 6 degrees.
+   THE PANE RUNS PAST THE SCREEN'S EDGE (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot at 1366x768: "zdjecie mialo
+   byc przeciagniete za krawedz ekranu"). The pane runs to the foot as every column of the bottom band does, with no
+   plain pane under it, and the box stands `roomNotesLift` over the edge, so what shows above the edge is still half of
+   C0's run: the upright panes read as at HF4 (325x170, 325x175, 325x163: the box, 31 px under it and 10 over it, is
+   HF4's box and its two pads), the leaning ones 344x202 at 1366x768 (its top edge from y 566 to 600, 583 at its middle: 185 px above the edge there; HF4's ran from 523 to 692 at its middle)
+   and 344x195 at 1366x657, 1366x600 and 1366x560. `plantPane`'s `foot` control is HF4's cut: the pane ended 10 px
+   under the box and a plain pane under it, which must fail the room check. */
+const PANE = { "1366x768": "344x202", "1224x768": "325x170", "1300x768": "325x170", "1280x800": "325x175", "1264x800": "325x175", "1280x720": "325x163", "1366x657": "344x195",
+    "1366x600": "344x195", "1366x560": "344x195" };
 const PIN_PANE = Object.fromEntries(Object.entries(PANE).flatMap(([size, pane]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, pane])));
+/* THE CORNER PINS (E78 fix r2-H3, 14.10.2026; the owner on HF4's shot: "przyciski na panelu livekit sa za daleko
+   krawedzi"). On the wall in the full form the voice tile's buttons stand one over the other at its pane's top right
+   corner, as P11 draws them: per button, its centre's distance from the screen's right edge and under the pane's top
+   edge straight above it (the page's `drpgVoiceParts`, `corner`). At 60741cf they stood side by side, 66 and 31 px
+   from the wall and 69 px under that edge at 1366x768. Read in Chromium on this tree the same day: 20,22 25,57 at
+   every full tile, 19,22 24,57 at 2560x1440 and 3840x2160 (the tile 258 wide there). "-" is a compact tile, whose
+   buttons keep H1's row (a GM's at 1366x657, 181x113 under VOICE_FULL's 114, and both roles' at 1366x600 and 1366x560).
+   `plantVoice`'s `inward` control stands them where 60741cf did and must fail the voice check. */
+const CORNER = "20,22 25,57", WIDE = "19,22 24,57", COMPACT = ["gm 1366x657", "gm 1366x600", "gm 1366x560", "player 1366x600", "player 1366x560"];
+const PIN_CORNER = Object.fromEntries(["1920x1080", "1366x768", "2560x1440", "1440x900", "1536x864", "1600x900", "1680x1050", "1280x800", "1224x768", "1264x800",
+    "1300x768", "1400x900", "3840x2160", "1920x1200", "1280x720", "1366x657", "1366x600", "1366x560"]
+    .flatMap(size => ["gm", "player"].map(role => [`stained ${role} ${size}`, COMPACT.includes(`${role} ${size}`) ? "-" : /^(2560|3840)x/.test(size) ? WIDE : CORNER])));
 const TILT = { "1366x768": 6, "1224x768": 0, "1300x768": 0, "1280x800": 0, "1264x800": 0, "1280x720": 0, "1366x657": 6, "1366x600": 6, "1366x560": 6 };
 const PIN_TILT = Object.fromEntries(Object.entries(TILT).flatMap(([size, deg]) => ["gm", "player"].map(role => [`stained ${role} ${size}`, deg])));
 if (shots) mkdirSync(shots, { recursive: true });
@@ -391,12 +412,13 @@ async function plantRoom() {
 async function plantPane() {
     const g = window.__glass, tile = document.getElementById("drpg-room-tile"), res = {};
     const pane = (g.LAST.panes || []).find(p => p.tone === "room-block"), H = document.getElementById("drpg-curtain").getBoundingClientRect().height;
-    {   // to the foot: the room's pane run down to the screen's edge with the box as it is - C0's cut
-        const was = [pane.poly, pane.y1];
-        pane.poly = pane.poly.map(([x, y]) => [x, y > pane.y0 + 1 ? H : y]); pane.y1 = H;
+    {   // short of the foot: the room's pane ended PAD_FAR under the box and a plain pane cut from there to the screen's edge - HF4's cut
+        const was = [pane.poly, pane.y1], n = g.LAST.panes.length, b = g.LAST.room.box, end = b.y + b.h + 10;
+        pane.poly = pane.poly.map(([x, y]) => [x, Math.min(y, end)]); pane.y1 = end;
+        g.LAST.panes.push({ tone: "sector", kind: "sector", poly: [[pane.x0, end], [pane.x1, end], [pane.x1, H], [pane.x0, H]], x0: pane.x0, y0: end, x1: pane.x1, y1: H });
         const r = await window.drpgRoomCheck({ cuts: false });
-        [pane.poly, pane.y1] = was;
-        res.foot = { ok: r.ok, why: r.why, pass: !r.ok && /screen's foot/.test(r.why) };
+        g.LAST.panes.length = n; [pane.poly, pane.y1] = was;
+        res.foot = { ok: r.ok, why: r.why, pass: !r.ok && /above the screen's foot/.test(r.why) && /plain pane/.test(r.why) };
     }
     {   // turned: the tile off its pane's angle - upright where the pane leans, leaning 6 degrees where it stands upright
         const leans = !/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(getComputedStyle(tile).transform);
@@ -435,6 +457,13 @@ async function plantVoice() {
         const r = await window.drpgVoiceCheck({ cuts: false });
         if (was) i.style.setProperty("--drpg-px-mask", was);
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
+    }
+    {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top
+        const c = tile.querySelector(".drpg-voice-tile-controls"), put = { top: "62px", right: "26px", "flex-direction": "row", gap: "6px" };
+        if (tile.dataset.fit !== "compact") for (const [k, v] of Object.entries(put)) c.style.setProperty(k, v, "important");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        for (const k of Object.keys(put)) c.style.removeProperty(k);
+        res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
     }
     {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
         const plate = tile.querySelector(".drpg-voice-tile-plate");
@@ -591,7 +620,7 @@ try {
                         : rc.expect === "row" ? `row ${rw.h} thumb ${rw.thumb?.join("x") ?? "-"} words ${rw.words?.join("x") ?? "-"} block ${rw.block?.h ?? "-"}`
                             + (rw.over ? ` over ${rw.over.got}/${rw.over.control}/${rw.over.first}` : "") : "unplaced")
                         + (rc.clock ? ` dx ${rc.clock.dx} rail +${rc.clock.rail}` : "") + (rc.notes ? ` gap ${rc.notes.gap}/${rc.notes.want} corner ${rc.notes.corner}`
-                            + ` pane ${rc.notes.pane?.join("x") ?? "-"} under ${rc.notes.under ?? "-"} open ${rc.notes.open?.box?.join("x") ?? "-"} ${rc.notes.open?.lines ?? "-"} lines` : "")
+                            + ` pane ${rc.notes.pane?.join("x") ?? "-"} over ${rc.notes.over ?? "-"} plain ${rc.notes.plain ?? "-"} open ${rc.notes.open?.box?.join("x") ?? "-"} ${rc.notes.open?.lines ?? "-"} lines` : "")
                         + (rc.flat ? (rc.place === "clock" ? ` players +${rc.flat.players ?? "-"}${rc.flat.wide ? " wide " + rc.flat.wide.join("/") : ""}` : ` gap ${rc.flat.gap}/16 top ${rc.flat.top} right ${rc.flat.right ?? "-"}`) : "")
                         + (rc.cuts ? ` cuts ${rc.cuts.content}/${rc.cuts.control}/${rc.cuts.recolour}` : "");
                     if (!rc.ok) fails.push("room: " + rc.why);
@@ -681,6 +710,13 @@ try {
                         + ` brush ${vc.brush && typeof vc.brush === "object" ? (vc.brush.got === vc.brush.want ? "state" : vc.brush.got) : vc.brush ?? "-"}`
                         + (vc.list ? ` list ${vc.list.box?.join(",") ?? "-"} rows ${vc.list.rows} cuts ${vc.list.cuts}` : "");
                     if (!vc.ok) fails.push("voice: " + vc.why);
+                    /* THE CORNER PIN (E78 fix r2-H3): on the wall, each button's centre from the screen's right edge and under
+                       the pane's top, as PIN_CORNER records them ("-" where the tile is compact and the buttons keep H1's row). */
+                    if (vc.expect === "wall") {
+                        const cornerPin = PIN_CORNER[`${theme} ${role} ${size}`], cornerGot = pr?.corner?.length ? pr.corner.map(c => c.join(",")).join(" ") : "-";
+                        line += cornerPin ? (cornerPin === cornerGot ? " | corner pin ok" : ` | corner ${cornerGot}/${cornerPin}`) : ` | corner ${cornerGot} unpinned`;
+                        if (cornerPin !== cornerGot) fails.push(`voice: buttons at ${cornerGot} where PIN_CORNER has ${cornerPin ?? "none"}`);
+                    }
                     if (theme !== "legacy" && r.c && !r.stacked && vc.expect !== "wall") fails.push(`voice: a desk with glass reads ${vc.expect}`);
                     if (vc.expect === "wall") voiceRead = true;
                     if (control && !voiceNoneControlled && vc.expect === "none" && theme === "legacy" && !r.stacked) {

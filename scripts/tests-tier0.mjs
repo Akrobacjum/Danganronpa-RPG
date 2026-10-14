@@ -12113,7 +12113,7 @@ const REGRESSIONS = [
          * control is in the same list: at 1366x768 and 1920x1080 the cap is lower than the box it replaces.
          * THE SOURCE, read with comments blanked: in roomPlacement the branch that returns the 'clock' place names no
          * `roomCapH`, the 'notes' height after it does; both of flatPlacement's returns do. Since E78 fix h76-HF4 that
-         * height is `h0`, C0's, which `roomNotesH` halves for the box beside the notices (R549). The reader is run first on
+         * height is `h0`, C0's, from which `roomNotesH` takes the box beside the notices (R549). The reader is run first on
          * a fixture of that shape, and with the cap planted in the 'clock' branch and taken out of each of the three.
          * The boxes themselves need layout: audit/glass-sweep.mjs pins every one per theme, role and size (PIN_BOX),
          * Stained Glass's 'clock' boxes at 1.2.76's readings.
